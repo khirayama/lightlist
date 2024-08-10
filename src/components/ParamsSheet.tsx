@@ -79,7 +79,9 @@ export function ParamsSheet(props: {
           )}
         >
           <header className="sticky top-0 flex w-full items-center justify-center p-4">
-            <div className="flex-1 text-center font-bold">{props.title}</div>
+            <RadixDialog.Title className="flex-1 text-center font-bold">
+              {props.title}
+            </RadixDialog.Title>
             <div className="absolute right-0 top-0 p-2">
               <RadixDialog.Close className="rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700">
                 <Icon text="close" />

@@ -29,18 +29,19 @@ export const useTaskLists = (
 ] => {
   const [, setGlobalState, getGlobalStateSnapshot] = useGlobalState();
   const { sent, polling, isInitialized, isLoading } = useClient(url, {
-    before: () => {
-      return { cache: getGlobalStateSnapshot().taskLists };
-    },
-    resolve: (res, { cache }) => {
-      const snapshot = getGlobalStateSnapshot();
-      const delta = diff(cache, snapshot.taskLists);
+    resolve: (res) => {
       const newTaskLists = res.data.taskLists.reduce(
-        (acc: {}, tl: TaskList) => ({ ...acc, [tl.id]: tl }),
+        (acc: {}, tl: TaskList) => {
+          const tmp = new Set(tl.taskIds);
+          if (tl.taskIds.length !== tmp.size) {
+            console.warn("duplicate task ids");
+          }
+          return { ...acc, [tl.id]: { ...tl, taskIds: Array.from(tmp) } };
+        },
         {},
       );
       setGlobalState({
-        taskLists: patch(newTaskLists, delta) as { [id: string]: TaskList },
+        taskLists: newTaskLists,
       });
     },
   });

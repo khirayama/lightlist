@@ -131,13 +131,9 @@ export const useClient = <T>(
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (
-        document.visibilityState === "visible" &&
-        fetchStatus[url].isPolling
-      ) {
+      if (document.visibilityState === "visible") {
         fetchStatus[url].polling.run();
         fetchStatus[url].polling.restart();
-        fetchStatus[url].isPolling = true;
       } else {
         fetchStatus[url].polling.stop();
       }

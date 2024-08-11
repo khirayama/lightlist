@@ -1,4 +1,4 @@
-import { add, nextDay, isBefore, Day } from "date-fns";
+import { add, nextDay, isBefore, Day, format } from "date-fns";
 
 const regexps = {
   today: /^(today|今日)\s/i,
@@ -45,7 +45,9 @@ export function extractScheduleFromText(
     date = new Date(
       Date.parse(`${referenceDate.getFullYear()}-${Number(tmp[0])}-${tmp[2]}`),
     );
-    if (isBefore(date, referenceDate)) {
+    if (
+      isBefore(format(date, "yyyy-MM-dd"), format(referenceDate, "yyyy-MM-dd"))
+    ) {
       date = add(date, { years: 1 });
     }
   } else if (regexps.day.test(text)) {

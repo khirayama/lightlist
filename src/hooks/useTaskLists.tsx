@@ -29,7 +29,12 @@ export const useTaskLists = (
 ] => {
   const [, setGlobalState, getGlobalStateSnapshot] = useGlobalState();
   const { sent, polling, isInitialized, isLoading } = useClient(url, {
-    resolve: (res) => {
+    before: () => {
+      return { cache: getGlobalStateSnapshot().taskLists };
+    },
+    resolve: (res, { cache }) => {
+      const snapshot = getGlobalStateSnapshot();
+      const delta = diff(cache, snapshot.taskLists);
       const newTaskLists = res.data.taskLists.reduce(
         (acc: {}, tl: TaskList) => {
           const tmp = new Set(tl.taskIds);
@@ -41,7 +46,7 @@ export const useTaskLists = (
         {},
       );
       setGlobalState({
-        taskLists: newTaskLists,
+        taskLists: patch(newTaskLists, delta) as { [key: string]: TaskList },
       });
     },
   });

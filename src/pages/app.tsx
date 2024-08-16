@@ -71,17 +71,17 @@ const AppPageContent = () => {
   }, []);
 
   useEffect(() => {
-    updateApp({ online: true });
+    if (isAppInitialized && !app.online) {
+      updateApp({ online: true });
+    }
+  }, [isAppInitialized]);
+
+  useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        updateApp({ online: true });
-      } else {
-        updateApp({ online: false });
-      }
+      updateApp({ online: document.visibilityState === "visible" });
     };
-    window.addEventListener("beforeunload", () => {
-      updateApp({ online: false });
-    });
+
+    window.addEventListener("beforeunload", () => updateApp({ online: false }));
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -243,6 +243,7 @@ const AppPageContent = () => {
           content={isDarkTheme ? "rgb(31, 41, 55)" : "rgb(255, 255, 255)"}
         />
         <link rel="manifest" href="/manifest.json" />
+        <title>{app.online ? "🔥" : "🤘"} Lightlist</title>
       </Head>
 
       <div className="bg flex h-full w-full overflow-hidden">

@@ -17,6 +17,7 @@ type TaskList = {
 type App = {
   taskInsertPosition: "BOTTOM" | "TOP";
   taskListIds: string[];
+  online: boolean;
 };
 
 type Profile = {

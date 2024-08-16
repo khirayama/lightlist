@@ -71,6 +71,24 @@ const AppPageContent = () => {
   }, []);
 
   useEffect(() => {
+    updateApp({ online: true });
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        updateApp({ online: true });
+      } else {
+        updateApp({ online: false });
+      }
+    };
+    window.addEventListener("beforeunload", () => {
+      updateApp({ online: false });
+    });
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
     if (
       preferences.theme === "DARK" ||
       (preferences.theme === "SYSTEM" &&

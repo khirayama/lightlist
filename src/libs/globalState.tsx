@@ -19,6 +19,7 @@ const config = {
       app: {
         taskInsertPosition: "BOTTOM",
         taskListIds: [],
+        online: true,
       },
       profile: {
         displayName: "",

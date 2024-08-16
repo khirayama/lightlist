@@ -1,26 +1,21 @@
 import { v4 as uuid } from "uuid";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import * as Y from "yjs";
 
-import { supabase } from "libs/supabase";
+const key = "yjs";
 
-const channel = supabase
-  .channel("all", {
-    config: {
-      broadcast: {
-        self: true,
-      },
-    },
-  })
-  .subscribe();
-console.log(channel);
-
-const emit = (event: string, payload = {}) => {
-  channel.send({ type: "broadcast", event, payload });
+const save = (d: Y.Doc) => {
+  load(d);
+  const u = Y.encodeStateAsUpdate(d);
+  window.localStorage.setItem(key, JSON.stringify(u));
 };
 
-const listener = (event: string, callback: any) => {
-  channel.on("broadcast", { event }, callback);
+const load = (d: Y.Doc) => {
+  const update = JSON.parse(window.localStorage.getItem(key));
+  if (update) {
+    const u = Uint8Array.from(Object.values(update));
+    Y.applyUpdate(d, u);
+  }
 };
 
 const createTaskList = (taskListName: string) => {
@@ -79,7 +74,7 @@ type GlobalState = {
   tasks: { [key: string]: Task };
 };
 
-const doc = new Y.Doc();
+let doc = new Y.Doc();
 const globalState = doc.getMap("globalState");
 const app = new Y.Map();
 globalState.set("app", app);
@@ -137,37 +132,38 @@ export default function YjsPage() {
   const [state, setState] = useState<GlobalState>(
     doc.getMap("globalState").toJSON() as GlobalState,
   );
-  console.log(state);
 
   useEffect(() => {
-    const f = (update) => {
-      emit("update", { update });
+    const g = doc.getMap("globalState").toJSON() as GlobalState;
+    console.log(g);
+
+    load(doc);
+    const globalState = doc.getMap("globalState").toJSON() as GlobalState;
+    console.log(globalState);
+    setState(globalState);
+
+    const f = () => {
+      save(doc);
+      const globalState = doc.getMap("globalState").toJSON() as GlobalState;
+      setState(globalState);
     };
+
+    const intervalId = setInterval(() => {
+      load(doc);
+      const globalState = doc.getMap("globalState").toJSON() as GlobalState;
+      setState(globalState);
+    }, 5000);
 
     doc.on("update", f);
     return () => {
       doc.off("update", f);
+      clearInterval(intervalId);
     };
   }, []);
-
-  useEffect(() => {
-    listener("update", ({ payload }) => {
-      const update = Uint8Array.from(Object.values(payload.update));
-      Y.applyUpdate(doc, update);
-      const globalState = doc.getMap("globalState").toJSON() as GlobalState;
-      setState(globalState);
-    });
-
-    emit("initialized");
-    listener("initialized", () => {
-      emit("update", { update: Y.encodeStateAsUpdate(doc) });
-    });
-  }, [channel]);
 
   const taskLists = state.app.taskListIds.map((tlid) => {
     return state.taskLists[tlid];
   });
-  console.log(taskLists);
 
   return (
     <div>

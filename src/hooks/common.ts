@@ -138,9 +138,6 @@ export const useClient = <T>(
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         fetchStatus[url].polling.run();
-        fetchStatus[url].polling.restart();
-      } else {
-        fetchStatus[url].polling.stop();
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);

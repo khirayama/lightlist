@@ -134,18 +134,6 @@ export const useClient = <T>(
     };
   }, [url]);
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        fetchStatus[url].polling.run();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
-
   return {
     sent: axios.create({
       withCredentials: true,

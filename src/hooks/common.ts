@@ -104,8 +104,13 @@ export const useClient = <T>(
           .then((res) => {
             fetchStatus[url].isInitialized = true;
             fetchStatus[url].isLoading = false;
-            fetchStatus[url].polling.start(f, options.interval || time.polling);
-            fetchStatus[url].isPolling = true;
+            if (!fetchStatus[url].isPolling) {
+              fetchStatus[url].polling.start(
+                f,
+                options.interval || time.polling,
+              );
+              fetchStatus[url].isPolling = true;
+            }
             options.resolve?.(res, tmp);
           })
           .catch((res) => {

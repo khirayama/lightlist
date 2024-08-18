@@ -211,7 +211,7 @@ export function useTaskLists(taskListIds: string[] = []): [
 
   const insertTaskList = (
     idx: number,
-    newTaskList: TaskListV2,
+    newTaskList: Partial<TaskListV2>,
   ): [TaskListV2, Mock<TaskListV2>] => {
     const id = uuid();
     const doc = new Y.Doc();
@@ -294,7 +294,7 @@ export function useTaskLists(taskListIds: string[] = []): [
           app: {
             ...ss.app,
             taskListIds: ss.app.taskListIds.filter(
-              (tlid) => tlid !== taskListId,
+              (tlid: string) => tlid !== taskListId,
             ),
           },
           taskLists: { [taskListId]: undefined },

@@ -86,12 +86,20 @@ export function useTaskLists(taskListIds: string[] = []): [
     isLoading: boolean;
   },
   {
-    createTaskList: (
+    insertTaskList: (
+      idx: number,
+      newTaskList: Partial<TaskListV2>,
+    ) => [TaskListV2, Mock<TaskListV2>];
+    prependTaskList: (
+      newTaskList: Partial<TaskListV2>,
+    ) => [TaskListV2, Mock<TaskListV2>];
+    appendTaskList: (
       newTaskList: Partial<TaskListV2>,
     ) => [TaskListV2, Mock<TaskListV2>];
     updateTaskList: (
       newTaskList: Partial<TaskListV2>,
     ) => [TaskListV2, Mock<TaskListV2>];
+    deleteTaskList: (taskListId: string) => Mock<TaskListV2>;
     insertTask: (
       taskListId: string,
       idx: number,
@@ -109,6 +117,8 @@ export function useTaskLists(taskListIds: string[] = []): [
       taskListId: string,
       newTask: Partial<TaskV2>,
     ) => [TaskListV2, Mock<TaskListV2>];
+    deleteTask: (taskListId: string, taskId: string) => Mock<TaskListV2>;
+    sortTasks: (taskListId: string) => [TaskListV2, Mock<TaskListV2>];
   },
 ] {
   const [, setGlobalState, getGlobalStateSnapshot] = useGlobalState();
@@ -162,7 +172,7 @@ export function useTaskLists(taskListIds: string[] = []): [
     if (!intervalId) {
       intervalId = setInterval(() => {
         fetch();
-      }, 1000);
+      }, 5000);
     }
   }, []);
 
@@ -199,6 +209,47 @@ export function useTaskLists(taskListIds: string[] = []): [
     return [ss.taskLists[tl.id], f()];
   };
 
+  const insertTaskList = (
+    idx: number,
+    newTaskList: TaskListV2,
+  ): [TaskListV2, Mock<TaskListV2>] => {
+    const id = uuid();
+    const doc = new Y.Doc();
+    docs[id] = doc;
+
+    const taskList = doc.getMap(id);
+    taskList.set("id", id);
+    taskList.set("name", newTaskList.name);
+    const tasks = new Y.Array();
+    taskList.set("tasks", tasks);
+    taskList.set("update", []);
+
+    const tl = taskList.toJSON() as TaskListV2;
+    const ss = getGlobalStateSnapshot();
+    tl.update = Y.encodeStateAsUpdate(doc);
+    setGlobalState({
+      app: {
+        ...ss.app,
+        taskListIds: [
+          ...ss.app.taskListIds.slice(0, idx),
+          id,
+          ...ss.app.taskListIds.slice(idx),
+        ],
+      },
+      taskLists: { [tl.id]: tl },
+    });
+    const f = () => {
+      setIsLoading(true);
+      const ss = getGlobalStateSnapshot();
+      return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
+        () => {
+          setIsLoading(false);
+        },
+      );
+    };
+    return [ss.taskLists[tl.id], f()];
+  };
+
   return [
     {
       data: taskListIds
@@ -208,31 +259,13 @@ export function useTaskLists(taskListIds: string[] = []): [
       isInitialized,
     },
     {
-      createTaskList: (newTaskList) => {
-        const id = uuid();
-        const doc = new Y.Doc();
-        docs[id] = doc;
-
-        const taskList = doc.getMap(id);
-        taskList.set("id", id);
-        taskList.set("name", newTaskList.name);
-        const tasks = new Y.Array();
-        taskList.set("tasks", tasks);
-        taskList.set("update", []);
-
-        const tl = taskList.toJSON() as TaskListV2;
-        tl.update = Y.encodeStateAsUpdate(doc);
-        setGlobalState({ taskLists: { [tl.id]: tl } });
-        const ss = getGlobalStateSnapshot();
-        const f = () => {
-          setIsLoading(true);
-          return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
-            () => {
-              setIsLoading(false);
-            },
-          );
-        };
-        return [ss.taskLists[tl.id], f()];
+      insertTaskList,
+      prependTaskList: (newTaskList) => {
+        return insertTaskList(0, newTaskList);
+      },
+      appendTaskList: (newTaskList) => {
+        const app = getGlobalStateSnapshot().app;
+        return insertTaskList(app.taskListIds.length, newTaskList);
       },
       updateTaskList: (newTaskList) => {
         const doc = docs[newTaskList.id];
@@ -245,6 +278,7 @@ export function useTaskLists(taskListIds: string[] = []): [
         const ss = getGlobalStateSnapshot();
         const f = () => {
           setIsLoading(true);
+          const ss = getGlobalStateSnapshot();
           return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
             () => {
               setIsLoading(false);
@@ -252,6 +286,30 @@ export function useTaskLists(taskListIds: string[] = []): [
           );
         };
         return [ss.taskLists[tl.id], f()];
+      },
+      deleteTaskList: (taskListId) => {
+        delete docs[taskListId];
+        const ss = getGlobalStateSnapshot();
+        setGlobalState({
+          app: {
+            ...ss.app,
+            taskListIds: ss.app.taskListIds.filter(
+              (tlid) => tlid !== taskListId,
+            ),
+          },
+          taskLists: { [taskListId]: undefined },
+        });
+        const f = () => {
+          setIsLoading(true);
+          const ss = getGlobalStateSnapshot();
+          return setMock<TaskListV2>(
+            ss,
+            (gs) => gs.taskLists[taskListId],
+          ).finally(() => {
+            setIsLoading(false);
+          });
+        };
+        return f();
       },
       insertTask,
       prependTask: (taskListId, newTask) => {
@@ -271,6 +329,65 @@ export function useTaskLists(taskListIds: string[] = []): [
         task.set("text", newTask.text);
         task.set("completed", newTask.completed);
         task.set("date", newTask.date);
+
+        const tl = taskList.toJSON() as TaskListV2;
+        tl.update = Y.encodeStateAsUpdate(doc);
+        setGlobalState({ taskLists: { [tl.id]: tl } });
+        const ss = getGlobalStateSnapshot();
+        const f = () => {
+          setIsLoading(true);
+          return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
+            () => {
+              setIsLoading(false);
+            },
+          );
+        };
+        return [ss.taskLists[tl.id], f()];
+      },
+      deleteTask: (taskListId, taskId) => {
+        const doc = docs[taskListId];
+        const taskList = doc.getMap(taskListId);
+        const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
+        tasks.delete(
+          Array.from(tasks).findIndex((t) => t.get("id") === taskId),
+        );
+
+        const tl = taskList.toJSON() as TaskListV2;
+        tl.update = Y.encodeStateAsUpdate(doc);
+        setGlobalState({ taskLists: { [tl.id]: tl } });
+        const ss = getGlobalStateSnapshot();
+        const f = () => {
+          setIsLoading(true);
+          return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
+            () => {
+              setIsLoading(false);
+            },
+          );
+        };
+        return f();
+      },
+      sortTasks: (taskListId) => {
+        const doc = docs[taskListId];
+        const taskList = doc.getMap(taskListId);
+        const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
+        tasks.doc.transact(() => {
+          let i = 0;
+          const visited = new Set();
+          while (i < tasks.length) {
+            const task = tasks.get(i);
+            if (visited.has(task.get("id"))) {
+              break;
+            }
+            visited.add(task.get("id"));
+            if (task.get("completed")) {
+              const t = task.clone();
+              tasks.delete(i);
+              tasks.insert(tasks.length, [t]);
+            } else {
+              i += 1;
+            }
+          }
+        });
 
         const tl = taskList.toJSON() as TaskListV2;
         tl.update = Y.encodeStateAsUpdate(doc);

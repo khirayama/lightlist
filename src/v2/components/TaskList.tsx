@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useTaskLists } from "v2/hooks";
 
 function TaskListItem(props: { taskListId: string; task: TaskV2 }) {
-  const [, { updateTask }] = useTaskLists();
+  const [, { updateTask, deleteTask }] = useTaskLists();
 
   return (
     <div>
@@ -38,15 +38,21 @@ function TaskListItem(props: { taskListId: string; task: TaskV2 }) {
           });
         }}
       />
+      <button
+        onClick={() => {
+          deleteTask(props.taskListId, props.task.id);
+        }}
+      >
+        [x]
+      </button>
     </div>
   );
 }
 
 export function TaskList(props: { taskListId: string }) {
   const [taskText, setTaskText] = useState("");
-  const [{ data: taskLists }, { appendTask, updateTaskList }] = useTaskLists([
-    props.taskListId,
-  ]);
+  const [{ data: taskLists }, { appendTask, updateTaskList, sortTasks }] =
+    useTaskLists([props.taskListId]);
   const taskList = taskLists.find((tl) => tl.id === props.taskListId);
 
   return (
@@ -63,8 +69,10 @@ export function TaskList(props: { taskListId: string }) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              appendTask(props.taskListId, { text: taskText });
-              setTaskText("");
+              if (taskText) {
+                appendTask(props.taskListId, { text: taskText });
+                setTaskText("");
+              }
             }}
           >
             <input
@@ -76,7 +84,15 @@ export function TaskList(props: { taskListId: string }) {
             <button>タスクを作成</button>
           </form>
         </div>
-        <div>並び替え</div>
+        <div>
+          <button
+            onClick={() => {
+              sortTasks(taskList.id);
+            }}
+          >
+            並び替え
+          </button>
+        </div>
         <div>
           {taskList.tasks.map((task) => {
             return (

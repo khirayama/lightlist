@@ -4,21 +4,19 @@ import { useApp, useTaskLists } from "v2/hooks";
 
 export function TaskListList() {
   const [taskListName, setTaskListName] = useState("");
-  const [{ data: app }, { updateApp }] = useApp();
-  const [{ data: taskLists }, { createTaskList }] = useTaskLists(
-    app?.taskListIds || [],
-  );
+  const [{ data: app }] = useApp();
+  const [{ data: taskLists }, { appendTaskList, deleteTaskList }] =
+    useTaskLists(app?.taskListIds || []);
 
   return (
     <div>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          const [newTaskList] = createTaskList({ name: taskListName });
-          updateApp({
-            taskListIds: [...app.taskListIds, newTaskList.id],
-          });
-          setTaskListName("");
+          if (taskListName) {
+            appendTaskList({ name: taskListName });
+            setTaskListName("");
+          }
         }}
       >
         <input
@@ -33,7 +31,14 @@ export function TaskListList() {
       {taskLists.map((taskList) => {
         return (
           <div className="w-full flex-1" key={taskList.id}>
-            <p>{taskList.name}</p>
+            <span>{taskList.name}</span>
+            <button
+              onClick={() => {
+                deleteTaskList(taskList.id);
+              }}
+            >
+              [x]
+            </button>
           </div>
         );
       })}

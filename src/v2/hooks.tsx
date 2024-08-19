@@ -134,29 +134,38 @@ export function useTaskLists(taskListIds: string[] = []): [
           setIsLoading(true);
           const taskLists = {};
           Object.values(res.data).forEach((tl: TaskListV2) => {
-            if (docs[tl.id]) {
-              const doc = docs[tl.id];
-              const u = Uint8Array.from(Object.values(tl.update));
-              if (u.length) {
-                Y.applyUpdate(doc, u);
-              }
-            } else {
-              const doc = new Y.Doc();
-              docs[tl.id] = doc;
-              const taskList = doc.getMap(tl.id);
-              taskList.set("id", tl.id);
-              taskList.set("name", tl.name);
-              const tasks = new Y.Array();
-              taskList.set("tasks", tasks);
-              taskList.set("update", []);
-              tl.tasks.forEach((task) => {
-                const t = new Y.Map();
-                t.set("id", task.id);
-                t.set("text", task.text);
-                t.set("completed", task.completed);
-                t.set("date", task.date);
-                tasks.push([t]);
-              });
+            // if (docs[tl.id]) {
+            //   const doc = docs[tl.id];
+            //   const u = Uint8Array.from(Object.values(tl.update));
+            //   if (u.length) {
+            //     Y.applyUpdate(doc, u);
+            //   }
+            // } else {
+            //   const doc = new Y.Doc();
+            //   docs[tl.id] = doc;
+            //   const taskList = doc.getMap(tl.id);
+            //   taskList.set("id", tl.id);
+            //   taskList.set("name", tl.name);
+            //   const tasks = new Y.Array();
+            //   taskList.set("tasks", tasks);
+            //   taskList.set("update", []);
+            //   tl.tasks.forEach((task) => {
+            //     const t = new Y.Map();
+            //     t.set("id", task.id);
+            //     t.set("text", task.text);
+            //     t.set("completed", task.completed);
+            //     t.set("date", task.date);
+            //     tasks.push([t]);
+            //   });
+            // }
+            if (!docs[tl.id]) {
+              const d = new Y.Doc();
+              docs[tl.id] = d;
+            }
+            const doc = docs[tl.id];
+            const u = Uint8Array.from(Object.values(tl.update));
+            if (u.length) {
+              Y.applyUpdate(doc, u);
             }
             taskLists[tl.id] = docs[tl.id].getMap(tl.id).toJSON() as TaskListV2;
           });
@@ -197,15 +206,16 @@ export function useTaskLists(taskListIds: string[] = []): [
     const tl = taskList.toJSON() as TaskListV2;
     tl.update = Y.encodeStateAsUpdate(doc);
     setGlobalState({ taskLists: { [tl.id]: tl } });
-    const ss = getGlobalStateSnapshot();
     const f = () => {
       setIsLoading(true);
+      const ss = getGlobalStateSnapshot();
       return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
         () => {
           setIsLoading(false);
         },
       );
     };
+    const ss = getGlobalStateSnapshot();
     return [ss.taskLists[tl.id], f()];
   };
 
@@ -333,15 +343,16 @@ export function useTaskLists(taskListIds: string[] = []): [
         const tl = taskList.toJSON() as TaskListV2;
         tl.update = Y.encodeStateAsUpdate(doc);
         setGlobalState({ taskLists: { [tl.id]: tl } });
-        const ss = getGlobalStateSnapshot();
         const f = () => {
           setIsLoading(true);
+          const ss = getGlobalStateSnapshot();
           return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
             () => {
               setIsLoading(false);
             },
           );
         };
+        const ss = getGlobalStateSnapshot();
         return [ss.taskLists[tl.id], f()];
       },
       deleteTask: (taskListId, taskId) => {
@@ -355,9 +366,9 @@ export function useTaskLists(taskListIds: string[] = []): [
         const tl = taskList.toJSON() as TaskListV2;
         tl.update = Y.encodeStateAsUpdate(doc);
         setGlobalState({ taskLists: { [tl.id]: tl } });
-        const ss = getGlobalStateSnapshot();
         const f = () => {
           setIsLoading(true);
+          const ss = getGlobalStateSnapshot();
           return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
             () => {
               setIsLoading(false);
@@ -392,15 +403,16 @@ export function useTaskLists(taskListIds: string[] = []): [
         const tl = taskList.toJSON() as TaskListV2;
         tl.update = Y.encodeStateAsUpdate(doc);
         setGlobalState({ taskLists: { [tl.id]: tl } });
-        const ss = getGlobalStateSnapshot();
         const f = () => {
           setIsLoading(true);
+          const ss = getGlobalStateSnapshot();
           return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
             () => {
               setIsLoading(false);
             },
           );
         };
+        const ss = getGlobalStateSnapshot();
         return [ss.taskLists[tl.id], f()];
       },
     },

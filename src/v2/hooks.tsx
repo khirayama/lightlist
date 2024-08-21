@@ -2,35 +2,15 @@ import { useEffect, useState } from "react";
 import { v4 as uuid } from "uuid";
 import * as Y from "yjs";
 
-import { useGlobalState, config } from "v2/globalState";
-
-type Mock<T> = Promise<{ data: T }>;
-
-function getMock<T>(fn: (gs: GlobalStateV2) => T) {
-  return new Promise<{ data: T }>((resolve) => {
-    setTimeout(
-      () => {
-        const gs =
-          JSON.parse(window.localStorage.getItem("__tmp")) ||
-          config.initialValue();
-        resolve({ data: fn(gs) });
-      },
-      200 + Math.random() * 1000,
-    );
-  });
-}
-
-function setMock<T>(gs: GlobalStateV2, fn: (gs: GlobalStateV2) => T) {
-  return new Promise<{ data: T }>((resolve) => {
-    setTimeout(
-      () => {
-        window.localStorage.setItem("__tmp", JSON.stringify(gs));
-        resolve({ data: fn(gs) });
-      },
-      200 + Math.random() * 1000,
-    );
-  });
-}
+import { useGlobalState } from "v2/globalState";
+import {
+  getApp,
+  updateApp,
+  getTaskLists,
+  updateTaskList,
+  deleteTaskList,
+  type Res,
+} from "v2/api";
 
 export function useApp(): [
   {
@@ -39,7 +19,7 @@ export function useApp(): [
     isLoading: boolean;
   },
   {
-    updateApp: (newApp: Partial<AppV2>) => [AppV2, Mock<AppV2>];
+    updateApp: (newApp: Partial<AppV2>) => [AppV2, Res<AppV2>];
   },
 ] {
   const [, setGlobalState, getGlobalStateSnapshot] = useGlobalState();
@@ -48,7 +28,7 @@ export function useApp(): [
   const snapshot = getGlobalStateSnapshot();
 
   useEffect(() => {
-    getMock((gs) => gs.app).then((res) => {
+    getApp().then((res) => {
       setIsInitialized(true);
       setGlobalState({ app: res.data });
     });
@@ -63,13 +43,13 @@ export function useApp(): [
     {
       updateApp: (newApp) => {
         setGlobalState({ app: newApp });
-        const ss = getGlobalStateSnapshot();
         const f = () => {
           setIsLoading(true);
-          return setMock<AppV2>(ss, (gs) => gs.app).finally(() => {
+          return updateApp(newApp).finally(() => {
             setIsLoading(false);
           });
         };
+        const ss = getGlobalStateSnapshot();
         return [ss.app, f()];
       },
     },
@@ -89,36 +69,36 @@ export function useTaskLists(taskListIds: string[] = []): [
     insertTaskList: (
       idx: number,
       newTaskList: Partial<TaskListV2>,
-    ) => [TaskListV2, Mock<TaskListV2>];
+    ) => [TaskListV2, Res<TaskListV2>];
     prependTaskList: (
       newTaskList: Partial<TaskListV2>,
-    ) => [TaskListV2, Mock<TaskListV2>];
+    ) => [TaskListV2, Res<TaskListV2>];
     appendTaskList: (
       newTaskList: Partial<TaskListV2>,
-    ) => [TaskListV2, Mock<TaskListV2>];
+    ) => [TaskListV2, Res<TaskListV2>];
     updateTaskList: (
       newTaskList: Partial<TaskListV2>,
-    ) => [TaskListV2, Mock<TaskListV2>];
-    deleteTaskList: (taskListId: string) => Mock<TaskListV2>;
+    ) => [TaskListV2, Res<TaskListV2>];
+    deleteTaskList: (taskListId: string) => Res<void>;
     insertTask: (
       taskListId: string,
       idx: number,
       newTask: Partial<TaskV2>,
-    ) => [TaskListV2, Mock<TaskListV2>];
+    ) => [TaskListV2, Res<TaskListV2>];
     prependTask: (
       taskListId: string,
       newTask: Partial<TaskV2>,
-    ) => [TaskListV2, Mock<TaskListV2>];
+    ) => [TaskListV2, Res<TaskListV2>];
     appendTask: (
       taskListId: string,
       newTask: Partial<TaskV2>,
-    ) => [TaskListV2, Mock<TaskListV2>];
+    ) => [TaskListV2, Res<TaskListV2>];
     updateTask: (
       taskListId: string,
       newTask: Partial<TaskV2>,
-    ) => [TaskListV2, Mock<TaskListV2>];
-    deleteTask: (taskListId: string, taskId: string) => Mock<TaskListV2>;
-    sortTasks: (taskListId: string) => [TaskListV2, Mock<TaskListV2>];
+    ) => [TaskListV2, Res<TaskListV2>];
+    deleteTask: (taskListId: string, taskId: string) => Res<TaskListV2>;
+    sortTasks: (taskListId: string) => [TaskListV2, Res<TaskListV2>];
   },
 ] {
   const [, setGlobalState, getGlobalStateSnapshot] = useGlobalState();
@@ -128,36 +108,12 @@ export function useTaskLists(taskListIds: string[] = []): [
 
   useEffect(() => {
     const fetch = () => {
-      getMock((gs) => gs.taskLists)
+      getTaskLists()
         .then((res) => {
           setIsInitialized(true);
           setIsLoading(true);
           const taskLists = {};
           Object.values(res.data).forEach((tl: TaskListV2) => {
-            // if (docs[tl.id]) {
-            //   const doc = docs[tl.id];
-            //   const u = Uint8Array.from(Object.values(tl.update));
-            //   if (u.length) {
-            //     Y.applyUpdate(doc, u);
-            //   }
-            // } else {
-            //   const doc = new Y.Doc();
-            //   docs[tl.id] = doc;
-            //   const taskList = doc.getMap(tl.id);
-            //   taskList.set("id", tl.id);
-            //   taskList.set("name", tl.name);
-            //   const tasks = new Y.Array();
-            //   taskList.set("tasks", tasks);
-            //   taskList.set("update", []);
-            //   tl.tasks.forEach((task) => {
-            //     const t = new Y.Map();
-            //     t.set("id", task.id);
-            //     t.set("text", task.text);
-            //     t.set("completed", task.completed);
-            //     t.set("date", task.date);
-            //     tasks.push([t]);
-            //   });
-            // }
             if (!docs[tl.id]) {
               const d = new Y.Doc();
               docs[tl.id] = d;
@@ -181,7 +137,7 @@ export function useTaskLists(taskListIds: string[] = []): [
     if (!intervalId) {
       intervalId = setInterval(() => {
         fetch();
-      }, 5000);
+      }, 3000);
     }
   }, []);
 
@@ -189,7 +145,7 @@ export function useTaskLists(taskListIds: string[] = []): [
     taskListId: string,
     idx: number,
     newTask: Partial<TaskV2>,
-  ): [TaskListV2, Mock<TaskListV2>] => {
+  ): [TaskListV2, Res<TaskListV2>] => {
     const id = uuid();
 
     const task = new Y.Map();
@@ -208,12 +164,9 @@ export function useTaskLists(taskListIds: string[] = []): [
     setGlobalState({ taskLists: { [tl.id]: tl } });
     const f = () => {
       setIsLoading(true);
-      const ss = getGlobalStateSnapshot();
-      return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
-        () => {
-          setIsLoading(false);
-        },
-      );
+      return updateTaskList(tl).finally(() => {
+        setIsLoading(false);
+      });
     };
     const ss = getGlobalStateSnapshot();
     return [ss.taskLists[tl.id], f()];
@@ -222,7 +175,7 @@ export function useTaskLists(taskListIds: string[] = []): [
   const insertTaskList = (
     idx: number,
     newTaskList: Partial<TaskListV2>,
-  ): [TaskListV2, Mock<TaskListV2>] => {
+  ): [TaskListV2, Res<TaskListV2>] => {
     const id = uuid();
     const doc = new Y.Doc();
     docs[id] = doc;
@@ -237,25 +190,24 @@ export function useTaskLists(taskListIds: string[] = []): [
     const tl = taskList.toJSON() as TaskListV2;
     const ss = getGlobalStateSnapshot();
     tl.update = Y.encodeStateAsUpdate(doc);
+    const newApp = {
+      ...ss.app,
+      taskListIds: [
+        ...ss.app.taskListIds.slice(0, idx),
+        id,
+        ...ss.app.taskListIds.slice(idx),
+      ],
+    };
     setGlobalState({
-      app: {
-        ...ss.app,
-        taskListIds: [
-          ...ss.app.taskListIds.slice(0, idx),
-          id,
-          ...ss.app.taskListIds.slice(idx),
-        ],
-      },
+      app: newApp,
       taskLists: { [tl.id]: tl },
     });
     const f = () => {
       setIsLoading(true);
-      const ss = getGlobalStateSnapshot();
-      return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
-        () => {
-          setIsLoading(false);
-        },
-      );
+      updateApp(newApp);
+      return updateTaskList(tl).finally(() => {
+        setIsLoading(false);
+      });
     };
     return [ss.taskLists[tl.id], f()];
   };
@@ -288,12 +240,9 @@ export function useTaskLists(taskListIds: string[] = []): [
         const ss = getGlobalStateSnapshot();
         const f = () => {
           setIsLoading(true);
-          const ss = getGlobalStateSnapshot();
-          return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
-            () => {
-              setIsLoading(false);
-            },
-          );
+          return updateTaskList(tl).finally(() => {
+            setIsLoading(false);
+          });
         };
         return [ss.taskLists[tl.id], f()];
       },
@@ -311,11 +260,7 @@ export function useTaskLists(taskListIds: string[] = []): [
         });
         const f = () => {
           setIsLoading(true);
-          const ss = getGlobalStateSnapshot();
-          return setMock<TaskListV2>(
-            ss,
-            (gs) => gs.taskLists[taskListId],
-          ).finally(() => {
+          return deleteTaskList(taskListId).finally(() => {
             setIsLoading(false);
           });
         };
@@ -345,12 +290,9 @@ export function useTaskLists(taskListIds: string[] = []): [
         setGlobalState({ taskLists: { [tl.id]: tl } });
         const f = () => {
           setIsLoading(true);
-          const ss = getGlobalStateSnapshot();
-          return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
-            () => {
-              setIsLoading(false);
-            },
-          );
+          return updateTaskList(tl).finally(() => {
+            setIsLoading(false);
+          });
         };
         const ss = getGlobalStateSnapshot();
         return [ss.taskLists[tl.id], f()];
@@ -368,12 +310,9 @@ export function useTaskLists(taskListIds: string[] = []): [
         setGlobalState({ taskLists: { [tl.id]: tl } });
         const f = () => {
           setIsLoading(true);
-          const ss = getGlobalStateSnapshot();
-          return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
-            () => {
-              setIsLoading(false);
-            },
-          );
+          return updateTaskList(tl).finally(() => {
+            setIsLoading(false);
+          });
         };
         return f();
       },
@@ -405,15 +344,11 @@ export function useTaskLists(taskListIds: string[] = []): [
         setGlobalState({ taskLists: { [tl.id]: tl } });
         const f = () => {
           setIsLoading(true);
-          const ss = getGlobalStateSnapshot();
-          return setMock<TaskListV2>(ss, (gs) => gs.taskLists[tl.id]).finally(
-            () => {
-              setIsLoading(false);
-            },
-          );
+          return updateTaskList(tl).finally(() => {
+            setIsLoading(false);
+          });
         };
-        const ss = getGlobalStateSnapshot();
-        return [ss.taskLists[tl.id], f()];
+        return [tl, f()];
       },
     },
   ];

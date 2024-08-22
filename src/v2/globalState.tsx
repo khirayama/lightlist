@@ -18,6 +18,7 @@ export const config = {
         taskInsertPosition: "BOTTOM",
         taskListIds: [],
         online: true,
+        update: new Uint8Array(),
       },
       profile: {
         displayName: "",

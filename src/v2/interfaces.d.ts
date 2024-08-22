@@ -17,6 +17,7 @@ type AppV2 = {
   taskInsertPosition: "BOTTOM" | "TOP";
   taskListIds: string[];
   online: boolean;
+  update: Uint8Array;
 };
 
 type ProfileV2 = {

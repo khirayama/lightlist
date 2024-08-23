@@ -12,6 +12,57 @@ import {
   type Res,
 } from "v2/api";
 
+const docs: { app: Y.Doc; taskLists: { [taskListId: string]: Y.Doc } } = {
+  app: null,
+  taskLists: {},
+};
+
+const fetchStatus = {
+  app: {
+    intervalId: null,
+    isInitialized: false,
+    isLoading: false,
+  },
+  taskLists: {
+    intervalId: null,
+    isInitialized: false,
+    isLoading: false,
+  },
+};
+
+function updateAppDoc(app: AppV2) {
+  const doc = docs.app;
+  const ad = doc.getMap("app");
+  ad.set("taskInsertPosition", app.taskInsertPosition);
+  ad.set("online", app.online);
+  ad.doc.transact(() => {
+    const ytlids = ad.get("taskListIds") as Y.Array<string>;
+    const deleted = ytlids.toJSON();
+    console.log(deleted);
+
+    for (let i = app.taskListIds.length - 1; i >= 0; i--) {
+      const tlid = app.taskListIds[i];
+      deleted.splice(deleted.indexOf(tlid), 1);
+      if (!ytlids.toJSON().includes(tlid)) {
+        ytlids.insert(0, [app.taskListIds[i]]);
+      } else {
+        for (let j = 0; j < ytlids.length; j++) {
+          if (ytlids.get(j) === tlid) {
+            ytlids.delete(j);
+            ytlids.insert(0, [app.taskListIds[i]]);
+            break;
+          }
+        }
+      }
+    }
+
+    console.log(deleted);
+    for (const tlid of deleted) {
+      ytlids.delete(ytlids.toJSON().indexOf(tlid));
+    }
+  });
+}
+
 export function useApp(): [
   {
     data: AppV2;
@@ -28,10 +79,41 @@ export function useApp(): [
   const snapshot = getGlobalStateSnapshot();
 
   useEffect(() => {
-    getApp().then((res) => {
-      setIsInitialized(true);
-      setGlobalState({ app: res.data });
-    });
+    const fetch = () => {
+      fetchStatus.app.isLoading = true;
+      setIsLoading(fetchStatus.app.isLoading);
+      getApp().then((res) => {
+        fetchStatus.app.isInitialized = true;
+        setIsInitialized(fetchStatus.app.isInitialized);
+        fetchStatus.app.isLoading = false;
+        setIsLoading(fetchStatus.app.isLoading);
+
+        const app = res.data;
+        if (!docs.app) {
+          docs.app = new Y.Doc();
+        }
+        const doc = docs.app;
+        const u = Uint8Array.from(Object.values(app.update));
+        if (!u.length) {
+          const a = doc.getMap("app");
+          a.set("taskInsertPosition", app.taskInsertPosition);
+          a.set("taskListIds", new Y.Array());
+          a.set("online", app.online);
+        } else {
+          Y.applyUpdate(doc, u);
+        }
+        setGlobalState({ app: doc.getMap("app").toJSON() as AppV2 });
+      });
+    };
+
+    if (!fetchStatus.app.isInitialized) {
+      fetch();
+      if (!fetchStatus.app.intervalId) {
+        fetchStatus.app.intervalId = setInterval(() => {
+          fetch();
+        }, 3000);
+      }
+    }
   }, []);
 
   return [
@@ -42,11 +124,17 @@ export function useApp(): [
     },
     {
       updateApp: (newApp) => {
-        setGlobalState({ app: newApp });
+        const doc = docs.app;
+        const app = doc.getMap("app");
+        updateAppDoc({ ...app.toJSON(), ...newApp } as AppV2);
+        const na = { ...app.toJSON(), update: Y.encodeStateAsUpdate(doc) };
+        setGlobalState({ app: na });
         const f = () => {
-          setIsLoading(true);
-          return updateApp(newApp).finally(() => {
-            setIsLoading(false);
+          fetchStatus.app.isLoading = true;
+          setIsLoading(fetchStatus.app.isLoading);
+          return updateApp(na).finally(() => {
+            fetchStatus.app.isLoading = false;
+            setIsLoading(fetchStatus.app.isLoading);
           });
         };
         const ss = getGlobalStateSnapshot();
@@ -55,9 +143,6 @@ export function useApp(): [
     },
   ];
 }
-
-const docs: { [taskListId: string]: Y.Doc } = {};
-let intervalId = null;
 
 export function useTaskLists(taskListIds: string[] = []): [
   {
@@ -108,36 +193,44 @@ export function useTaskLists(taskListIds: string[] = []): [
 
   useEffect(() => {
     const fetch = () => {
+      fetchStatus.taskLists.isLoading = true;
+      setIsLoading(fetchStatus.taskLists.isLoading);
       getTaskLists()
         .then((res) => {
-          setIsInitialized(true);
-          setIsLoading(true);
+          fetchStatus.taskLists.isInitialized = true;
+          setIsInitialized(fetchStatus.taskLists.isInitialized);
+          fetchStatus.taskLists.isLoading = false;
+          setIsLoading(fetchStatus.taskLists.isLoading);
           const taskLists = {};
           Object.values(res.data).forEach((tl: TaskListV2) => {
-            if (!docs[tl.id]) {
+            if (!docs.taskLists[tl.id]) {
               const d = new Y.Doc();
-              docs[tl.id] = d;
+              docs.taskLists[tl.id] = d;
             }
-            const doc = docs[tl.id];
+            const doc = docs.taskLists[tl.id];
             const u = Uint8Array.from(Object.values(tl.update));
             if (u.length) {
               Y.applyUpdate(doc, u);
             }
-            taskLists[tl.id] = docs[tl.id].getMap(tl.id).toJSON() as TaskListV2;
+            taskLists[tl.id] = docs.taskLists[tl.id]
+              .getMap(tl.id)
+              .toJSON() as TaskListV2;
           });
           setGlobalState({ taskLists });
         })
         .finally(() => {
-          setIsLoading(false);
+          fetchStatus.taskLists.isLoading = false;
+          setIsLoading(fetchStatus.taskLists.isLoading);
         });
     };
 
-    fetch();
-
-    if (!intervalId) {
-      intervalId = setInterval(() => {
-        fetch();
-      }, 3000);
+    if (!fetchStatus.taskLists.isInitialized) {
+      fetch();
+      if (!fetchStatus.taskLists.intervalId) {
+        fetchStatus.taskLists.intervalId = setInterval(() => {
+          fetch();
+        }, 3000);
+      }
     }
   }, []);
 
@@ -154,7 +247,7 @@ export function useTaskLists(taskListIds: string[] = []): [
     task.set("completed", newTask.completed);
     task.set("date", newTask.date);
 
-    const doc = docs[taskListId];
+    const doc = docs.taskLists[taskListId];
     const taskList = doc.getMap(taskListId);
     const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
     tasks.insert(idx, [task]);
@@ -163,9 +256,11 @@ export function useTaskLists(taskListIds: string[] = []): [
     tl.update = Y.encodeStateAsUpdate(doc);
     setGlobalState({ taskLists: { [tl.id]: tl } });
     const f = () => {
-      setIsLoading(true);
+      fetchStatus.taskLists.isLoading = true;
+      setIsLoading(fetchStatus.taskLists.isLoading);
       return updateTaskList(tl).finally(() => {
-        setIsLoading(false);
+        fetchStatus.taskLists.isLoading = false;
+        setIsLoading(fetchStatus.taskLists.isLoading);
       });
     };
     const ss = getGlobalStateSnapshot();
@@ -178,14 +273,13 @@ export function useTaskLists(taskListIds: string[] = []): [
   ): [TaskListV2, Res<TaskListV2>] => {
     const id = uuid();
     const doc = new Y.Doc();
-    docs[id] = doc;
+    docs.taskLists[id] = doc;
 
     const taskList = doc.getMap(id);
     taskList.set("id", id);
     taskList.set("name", newTaskList.name);
     const tasks = new Y.Array();
     taskList.set("tasks", tasks);
-    taskList.set("update", []);
 
     const tl = taskList.toJSON() as TaskListV2;
     const ss = getGlobalStateSnapshot();
@@ -198,15 +292,22 @@ export function useTaskLists(taskListIds: string[] = []): [
         ...ss.app.taskListIds.slice(idx),
       ],
     };
+    updateAppDoc(newApp);
+    const na = {
+      ...docs.app.getMap("app").toJSON(),
+      update: Y.encodeStateAsUpdate(docs.app),
+    };
     setGlobalState({
-      app: newApp,
+      app: na,
       taskLists: { [tl.id]: tl },
     });
     const f = () => {
-      setIsLoading(true);
-      updateApp(newApp);
+      fetchStatus.taskLists.isLoading = true;
+      setIsLoading(fetchStatus.taskLists.isLoading);
+      updateApp(na);
       return updateTaskList(tl).finally(() => {
-        setIsLoading(false);
+        fetchStatus.taskLists.isLoading = false;
+        setIsLoading(fetchStatus.taskLists.isLoading);
       });
     };
     return [ss.taskLists[tl.id], f()];
@@ -230,7 +331,7 @@ export function useTaskLists(taskListIds: string[] = []): [
         return insertTaskList(app.taskListIds.length, newTaskList);
       },
       updateTaskList: (newTaskList) => {
-        const doc = docs[newTaskList.id];
+        const doc = docs.taskLists[newTaskList.id];
         const taskList = doc.getMap(newTaskList.id);
         taskList.set("name", newTaskList.name);
 
@@ -239,29 +340,39 @@ export function useTaskLists(taskListIds: string[] = []): [
         setGlobalState({ taskLists: { [tl.id]: tl } });
         const ss = getGlobalStateSnapshot();
         const f = () => {
-          setIsLoading(true);
+          fetchStatus.taskLists.isLoading = true;
+          setIsLoading(fetchStatus.taskLists.isLoading);
           return updateTaskList(tl).finally(() => {
-            setIsLoading(false);
+            fetchStatus.taskLists.isLoading = false;
+            setIsLoading(fetchStatus.taskLists.isLoading);
           });
         };
         return [ss.taskLists[tl.id], f()];
       },
       deleteTaskList: (taskListId) => {
-        delete docs[taskListId];
+        delete docs.taskLists[taskListId];
         const ss = getGlobalStateSnapshot();
+        const newApp = {
+          ...ss.app,
+          taskListIds: ss.app.taskListIds.filter(
+            (tlid: string) => tlid !== taskListId,
+          ),
+        };
+        updateAppDoc(newApp);
+        const na = {
+          ...docs.app.getMap("app").toJSON(),
+          update: Y.encodeStateAsUpdate(docs.app),
+        };
         setGlobalState({
-          app: {
-            ...ss.app,
-            taskListIds: ss.app.taskListIds.filter(
-              (tlid: string) => tlid !== taskListId,
-            ),
-          },
+          app: na,
           taskLists: { [taskListId]: undefined },
         });
         const f = () => {
-          setIsLoading(true);
+          fetchStatus.taskLists.isLoading = true;
+          setIsLoading(fetchStatus.taskLists.isLoading);
           return deleteTaskList(taskListId).finally(() => {
-            setIsLoading(false);
+            fetchStatus.taskLists.isLoading = false;
+            setIsLoading(fetchStatus.taskLists.isLoading);
           });
         };
         return f();
@@ -271,13 +382,13 @@ export function useTaskLists(taskListIds: string[] = []): [
         return insertTask(taskListId, 0, newTask);
       },
       appendTask: (taskListId, newTask) => {
-        const doc = docs[taskListId];
+        const doc = docs.taskLists[taskListId];
         const taskList = doc.getMap(taskListId);
         const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
         return insertTask(taskListId, tasks.length, newTask);
       },
       updateTask: (taskListId, newTask) => {
-        const doc = docs[taskListId];
+        const doc = docs.taskLists[taskListId];
         const taskList = doc.getMap(taskListId);
         const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
         const task = Array.from(tasks).find((t) => t.get("id") === newTask.id);
@@ -289,16 +400,18 @@ export function useTaskLists(taskListIds: string[] = []): [
         tl.update = Y.encodeStateAsUpdate(doc);
         setGlobalState({ taskLists: { [tl.id]: tl } });
         const f = () => {
-          setIsLoading(true);
+          fetchStatus.taskLists.isLoading = true;
+          setIsLoading(fetchStatus.taskLists.isLoading);
           return updateTaskList(tl).finally(() => {
-            setIsLoading(false);
+            fetchStatus.taskLists.isLoading = false;
+            setIsLoading(fetchStatus.taskLists.isLoading);
           });
         };
         const ss = getGlobalStateSnapshot();
         return [ss.taskLists[tl.id], f()];
       },
       deleteTask: (taskListId, taskId) => {
-        const doc = docs[taskListId];
+        const doc = docs.taskLists[taskListId];
         const taskList = doc.getMap(taskListId);
         const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
         tasks.delete(
@@ -309,32 +422,52 @@ export function useTaskLists(taskListIds: string[] = []): [
         tl.update = Y.encodeStateAsUpdate(doc);
         setGlobalState({ taskLists: { [tl.id]: tl } });
         const f = () => {
-          setIsLoading(true);
+          fetchStatus.taskLists.isLoading = true;
+          setIsLoading(fetchStatus.taskLists.isLoading);
           return updateTaskList(tl).finally(() => {
-            setIsLoading(false);
+            fetchStatus.taskLists.isLoading = false;
+            setIsLoading(fetchStatus.taskLists.isLoading);
           });
         };
         return f();
       },
       sortTasks: (taskListId) => {
-        const doc = docs[taskListId];
+        const doc = docs.taskLists[taskListId];
         const taskList = doc.getMap(taskListId);
         const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
         tasks.doc.transact(() => {
-          let i = 0;
-          const visited = new Set();
-          while (i < tasks.length) {
-            const task = tasks.get(i);
-            if (visited.has(task.get("id"))) {
-              break;
+          const sortedTasks = tasks.toJSON().sort((a, b) => {
+            if (a.completed && !b.completed) {
+              return 1;
             }
-            visited.add(task.get("id"));
-            if (task.get("completed")) {
-              const t = task.clone();
-              tasks.delete(i);
-              tasks.insert(tasks.length, [t]);
-            } else {
-              i += 1;
+            if (!a.completed && b.completed) {
+              return -1;
+            }
+            if (!a.date && b.date) {
+              return 1;
+            }
+            if (a.date && !b.date) {
+              return -1;
+            }
+            if (a.date > b.date) {
+              return 1;
+            }
+            if (a.date < b.date) {
+              return -1;
+            }
+            return 0;
+          });
+          for (let i = sortedTasks.length - 1; i >= 0; i--) {
+            for (let j = 0; j < tasks.length; j++) {
+              const task = tasks.get(j);
+              if (task.get("id") === sortedTasks[i].id) {
+                if (j !== i) {
+                  const t = task.clone();
+                  tasks.delete(j);
+                  tasks.insert(0, [t]);
+                }
+                break;
+              }
             }
           }
         });
@@ -343,9 +476,11 @@ export function useTaskLists(taskListIds: string[] = []): [
         tl.update = Y.encodeStateAsUpdate(doc);
         setGlobalState({ taskLists: { [tl.id]: tl } });
         const f = () => {
-          setIsLoading(true);
+          fetchStatus.taskLists.isLoading = true;
+          setIsLoading(fetchStatus.taskLists.isLoading);
           return updateTaskList(tl).finally(() => {
-            setIsLoading(false);
+            fetchStatus.taskLists.isLoading = false;
+            setIsLoading(fetchStatus.taskLists.isLoading);
           });
         };
         return [tl, f()];

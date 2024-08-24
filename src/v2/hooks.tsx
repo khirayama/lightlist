@@ -351,20 +351,14 @@ export function useTaskLists(taskListIds: string[] = []): [
       },
       deleteTaskList: (taskListId) => {
         delete docs.taskLists[taskListId];
-        const ss = getGlobalStateSnapshot();
-        const newApp = {
-          ...ss.app,
-          taskListIds: ss.app.taskListIds.filter(
-            (tlid: string) => tlid !== taskListId,
-          ),
-        };
-        updateAppDoc(newApp);
-        const na = {
-          ...docs.app.getMap("app").toJSON(),
-          update: Y.encodeStateAsUpdate(docs.app),
-        };
+        const ad = docs.app.getMap("app");
+        const taskIds = ad.get("taskListIds") as Y.Array<string>;
+        taskIds.delete(taskIds.toJSON().indexOf(taskListId));
         setGlobalState({
-          app: na,
+          app: {
+            ...ad.toJSON(),
+            update: Y.encodeStateAsUpdate(docs.app),
+          },
           taskLists: { [taskListId]: undefined },
         });
         const f = () => {

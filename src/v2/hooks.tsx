@@ -111,7 +111,7 @@ export function useApp(): [
       if (!fetchStatus.app.intervalId) {
         fetchStatus.app.intervalId = setInterval(() => {
           fetch();
-        }, 3000);
+        }, 1000);
       }
     }
   }, []);
@@ -229,7 +229,7 @@ export function useTaskLists(taskListIds: string[] = []): [
       if (!fetchStatus.taskLists.intervalId) {
         fetchStatus.taskLists.intervalId = setInterval(() => {
           fetch();
-        }, 3000);
+        }, 1000);
       }
     }
   }, []);

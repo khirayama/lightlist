@@ -30,39 +30,6 @@ const fetchStatus = {
   },
 };
 
-function updateAppDoc(app: AppV2) {
-  const doc = docs.app;
-  const ad = doc.getMap("app");
-  ad.set("taskInsertPosition", app.taskInsertPosition);
-  ad.set("online", app.online);
-  ad.doc.transact(() => {
-    const ytlids = ad.get("taskListIds") as Y.Array<string>;
-    const deleted = ytlids.toJSON();
-    console.log(deleted);
-
-    for (let i = app.taskListIds.length - 1; i >= 0; i--) {
-      const tlid = app.taskListIds[i];
-      deleted.splice(deleted.indexOf(tlid), 1);
-      if (!ytlids.toJSON().includes(tlid)) {
-        ytlids.insert(0, [app.taskListIds[i]]);
-      } else {
-        for (let j = 0; j < ytlids.length; j++) {
-          if (ytlids.get(j) === tlid) {
-            ytlids.delete(j);
-            ytlids.insert(0, [app.taskListIds[i]]);
-            break;
-          }
-        }
-      }
-    }
-
-    console.log(deleted);
-    for (const tlid of deleted) {
-      ytlids.delete(ytlids.toJSON().indexOf(tlid));
-    }
-  });
-}
-
 export function useApp(): [
   {
     data: AppV2;
@@ -70,6 +37,8 @@ export function useApp(): [
     isLoading: boolean;
   },
   {
+    insertTaskListId: (idx: number, taskListId: string) => [AppV2, Res<AppV2>];
+    deleteTaskListId: (taskListId: string) => [AppV2, Res<AppV2>];
     updateApp: (newApp: Partial<AppV2>) => [AppV2, Res<AppV2>];
   },
 ] {
@@ -116,6 +85,27 @@ export function useApp(): [
     }
   }, []);
 
+  const insertTaskListId = (
+    idx: number,
+    taskListId: string,
+  ): [AppV2, Res<AppV2>] => {
+    const ad = docs.app.getMap("app");
+    const taskListIds = ad.get("taskListIds") as Y.Array<string>;
+    taskListIds.insert(idx, [taskListId]);
+    const na = { ...ad.toJSON(), update: Y.encodeStateAsUpdate(docs.app) };
+    setGlobalState({ app: na });
+    const f = () => {
+      fetchStatus.app.isLoading = true;
+      setIsLoading(fetchStatus.app.isLoading);
+      return updateApp(na).finally(() => {
+        fetchStatus.app.isLoading = false;
+        setIsLoading(fetchStatus.app.isLoading);
+      });
+    };
+    const ss = getGlobalStateSnapshot();
+    return [ss.app, f()];
+  };
+
   return [
     {
       data: snapshot.app,
@@ -123,11 +113,31 @@ export function useApp(): [
       isInitialized,
     },
     {
+      insertTaskListId,
+      deleteTaskListId: (taskListId) => {
+        const ad = docs.app.getMap("app");
+        const taskListIds = ad.get("taskListIds") as Y.Array<string>;
+        taskListIds.delete(taskListIds.toJSON().indexOf(taskListId));
+        const na = { ...snapshot.app, update: Y.encodeStateAsUpdate(docs.app) };
+        setGlobalState({ app: na });
+        const f = () => {
+          fetchStatus.app.isLoading = true;
+          setIsLoading(fetchStatus.app.isLoading);
+          return updateApp(na).finally(() => {
+            fetchStatus.app.isLoading = false;
+            setIsLoading(fetchStatus.app.isLoading);
+          });
+        };
+        const ss = getGlobalStateSnapshot();
+        return [ss.app, f()];
+      },
       updateApp: (newApp) => {
         const doc = docs.app;
-        const app = doc.getMap("app");
-        updateAppDoc({ ...app.toJSON(), ...newApp } as AppV2);
-        const na = { ...app.toJSON(), update: Y.encodeStateAsUpdate(doc) };
+        const ad = doc.getMap("app");
+        const tmp = { ...ad.toJSON(), ...newApp };
+        ad.set("taskInsertPosition", tmp.taskInsertPosition);
+        ad.set("online", tmp.online);
+        const na = { ...ad.toJSON(), update: Y.encodeStateAsUpdate(doc) };
         setGlobalState({ app: na });
         const f = () => {
           fetchStatus.app.isLoading = true;
@@ -189,6 +199,9 @@ export function useTaskLists(taskListIds: string[] = []): [
   const [, setGlobalState, getGlobalStateSnapshot] = useGlobalState();
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+
+  const [, { insertTaskListId, deleteTaskListId }] = useApp();
+
   const snapshot = getGlobalStateSnapshot();
 
   useEffect(() => {
@@ -284,27 +297,13 @@ export function useTaskLists(taskListIds: string[] = []): [
     const tl = taskList.toJSON() as TaskListV2;
     const ss = getGlobalStateSnapshot();
     tl.update = Y.encodeStateAsUpdate(doc);
-    const newApp = {
-      ...ss.app,
-      taskListIds: [
-        ...ss.app.taskListIds.slice(0, idx),
-        id,
-        ...ss.app.taskListIds.slice(idx),
-      ],
-    };
-    updateAppDoc(newApp);
-    const na = {
-      ...docs.app.getMap("app").toJSON(),
-      update: Y.encodeStateAsUpdate(docs.app),
-    };
+    insertTaskListId(idx, id);
     setGlobalState({
-      app: na,
       taskLists: { [tl.id]: tl },
     });
     const f = () => {
       fetchStatus.taskLists.isLoading = true;
       setIsLoading(fetchStatus.taskLists.isLoading);
-      updateApp(na);
       return updateTaskList(tl).finally(() => {
         fetchStatus.taskLists.isLoading = false;
         setIsLoading(fetchStatus.taskLists.isLoading);
@@ -351,14 +350,8 @@ export function useTaskLists(taskListIds: string[] = []): [
       },
       deleteTaskList: (taskListId) => {
         delete docs.taskLists[taskListId];
-        const ad = docs.app.getMap("app");
-        const taskIds = ad.get("taskListIds") as Y.Array<string>;
-        taskIds.delete(taskIds.toJSON().indexOf(taskListId));
+        deleteTaskListId(taskListId);
         setGlobalState({
-          app: {
-            ...ad.toJSON(),
-            update: Y.encodeStateAsUpdate(docs.app),
-          },
           taskLists: { [taskListId]: undefined },
         });
         const f = () => {

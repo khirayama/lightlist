@@ -39,6 +39,7 @@ export function useApp(): [
   {
     insertTaskListId: (idx: number, taskListId: string) => [AppV2, Res<AppV2>];
     deleteTaskListId: (taskListId: string) => [AppV2, Res<AppV2>];
+    // moveTaskListId: (idx: number, taskListId: string) => [AppV2, Res<AppV2>];
     updateApp: (newApp: Partial<AppV2>) => [AppV2, Res<AppV2>];
   },
 ] {
@@ -192,6 +193,7 @@ export function useTaskLists(taskListIds: string[] = []): [
       taskListId: string,
       newTask: Partial<TaskV2>,
     ) => [TaskListV2, Res<TaskListV2>];
+    // moveTask: (idx: number, taskId: string) => [TaskListV2, Res<TaskListV2>];
     deleteTask: (taskListId: string, taskId: string) => Res<TaskListV2>;
     sortTasks: (taskListId: string) => [TaskListV2, Res<TaskListV2>];
   },

@@ -17,7 +17,7 @@ function AppV2Content() {
         <div className="flex">
           {app.taskListIds.map((taskListId) => {
             return (
-              <div className="flex-1" key={taskListId}>
+              <div key={taskListId} className="flex-1">
                 <TaskList taskListId={taskListId} />
               </div>
             );

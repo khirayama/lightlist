@@ -6,8 +6,6 @@ import { TaskListList } from "v2/components/TaskListList";
 import { TaskList } from "v2/components/TaskList";
 import { useApp } from "v2/hooks";
 
-const appPath = "/v2";
-
 function useAppPageStack() {
   const isInitialRender = useRef(true);
   useEffect(() => {
@@ -16,7 +14,7 @@ function useAppPageStack() {
       const query = qs.parse(window.location.search);
       if (query.sheet) {
         const tmp = window.location.href;
-        window.history.replaceState({}, "", appPath);
+        window.history.replaceState({}, "", window.location.pathname);
         window.history.pushState({}, "", tmp);
       }
     }

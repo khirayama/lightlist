@@ -55,6 +55,16 @@ export function updateApp(newApp: Partial<AppV2>) {
   return setMock(gs, (gs) => gs.app);
 }
 
+export function getPreferences() {
+  return getMock((gs) => gs.preferences);
+}
+
+export function updatePreferences(newPreferences: Partial<PreferencesV2>) {
+  const gs = loadGlobalState();
+  gs.preferences = { ...gs.preferences, ...newPreferences };
+  return setMock(gs, (gs) => gs.preferences);
+}
+
 export function getTaskLists() {
   return getMock((gs) => gs.taskLists);
 }

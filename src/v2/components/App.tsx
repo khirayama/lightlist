@@ -1,37 +1,16 @@
-import { useRef, useEffect } from "react";
-import qs from "query-string";
 import Head from "next/head";
 
 import { TaskList } from "v2/components/TaskList";
 import { TaskListList } from "v2/components/TaskListList";
-import { useApp } from "v2/hooks";
-
-function useAppPageStack() {
-  const isInitialRender = useRef(true);
-  useEffect(() => {
-    const isFastRefresh = !isInitialRender.current;
-    if (!isFastRefresh) {
-      const query = qs.parse(window.location.search);
-      if (query.sheet) {
-        const tmp = window.location.href;
-        window.history.replaceState({}, "", window.location.pathname);
-        window.history.pushState({}, "", tmp);
-      }
-    }
-    isInitialRender.current = false;
-  }, []);
-}
+import { useApp } from "v2/hooks/useApp";
+import { useAppPageStack, useActiveStatus, useTheme } from "v2/hooks/utils";
 
 export function App() {
   useAppPageStack();
+  useActiveStatus();
 
   const [{ data: app }] = useApp();
-
-  const isDarkTheme = false;
-  // const isDarkTheme =
-  //   preferences.theme === "DARK" ||
-  //   (preferences.theme === "SYSTEM" &&
-  //     window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const { isDarkTheme } = useTheme();
 
   return (
     <>

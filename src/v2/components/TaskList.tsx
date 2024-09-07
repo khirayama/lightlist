@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { useTaskLists } from "v2/hooks";
+import { useTaskLists } from "v2/hooks/useTaskLists";
 
 function TaskListItem(props: { taskListId: string; task: TaskV2 }) {
   const [, { updateTask, deleteTask }] = useTaskLists();

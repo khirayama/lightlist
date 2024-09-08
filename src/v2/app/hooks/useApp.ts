@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import * as Y from "yjs";
 
-import { useGlobalState } from "v2/globalState";
-import { getApp, updateApp, type Res } from "v2/api";
+import { useGlobalState } from "v2/ui/globalState";
+import { getApp, updateApp, type Res } from "v2/app/services";
 
 let doc: Y.Doc = null;
 
@@ -62,7 +62,7 @@ export function useApp(): [
       if (!fetchStatus.intervalId) {
         fetchStatus.intervalId = setInterval(() => {
           fetch();
-        }, 1000);
+        }, 3000);
       }
     }
   }, []);

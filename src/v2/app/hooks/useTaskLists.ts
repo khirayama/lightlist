@@ -2,9 +2,14 @@ import { useEffect, useState } from "react";
 import { v4 as uuid } from "uuid";
 import * as Y from "yjs";
 
-import { useGlobalState } from "v2/globalState";
-import { getTaskLists, updateTaskList, deleteTaskList, type Res } from "v2/api";
-import { useApp } from "v2/hooks/useApp";
+import { useGlobalState } from "v2/ui/globalState";
+import {
+  getTaskLists,
+  updateTaskList,
+  deleteTaskList,
+  type Res,
+} from "v2/app/services";
+import { useApp } from "v2/app/hooks/useApp";
 
 const docs: { [taskListId: string]: Y.Doc } = {};
 
@@ -101,7 +106,7 @@ export function useTaskLists(taskListIds: string[] = []): [
       if (!fetchStatus.intervalId) {
         fetchStatus.intervalId = setInterval(() => {
           fetch();
-        }, 1000);
+        }, 3000);
       }
     }
   }, []);

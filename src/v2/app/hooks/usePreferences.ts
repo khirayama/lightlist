@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { useGlobalState } from "v2/globalState";
-import { getPreferences, updatePreferences, type Res } from "v2/api";
+import { useGlobalState } from "v2/ui/globalState";
+import { getPreferences, updatePreferences, type Res } from "v2/app/services";
 
 const fetchStatus = {
   intervalId: null,
@@ -46,7 +46,7 @@ export function usePreferences(): [
       if (!fetchStatus.intervalId) {
         fetchStatus.intervalId = setInterval(() => {
           fetch();
-        }, 1000);
+        }, 5000);
       }
     }
   }, []);

@@ -1,11 +1,11 @@
 import { useRouter } from "next/router";
 
 import { useAuth, AuthProvider } from "v2/common/auth";
-import { GlobalStateProvider } from "v2/ui/globalState";
-import { App } from "v2/app/components/App";
-import { useApp } from "v2/app/hooks/useApp";
-import { usePreferences } from "v2/app/hooks/usePreferences";
-import { useTaskLists } from "v2/app/hooks/useTaskLists";
+import { App } from "v2/components/app/App";
+import { GlobalStateProvider } from "v2/hooks/ui/useGlobalState";
+import { useApp } from "v2/hooks/app/useApp";
+import { usePreferences } from "v2/hooks/app/usePreferences";
+import { useTaskLists } from "v2/hooks/app/useTaskLists";
 
 function Content() {
   const router = useRouter();

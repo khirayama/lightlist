@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { useGlobalState } from "v2/ui/globalState";
-import { getPreferences, updatePreferences, type Res } from "v2/app/services";
+import { useGlobalState } from "v2/hooks/ui/useGlobalState";
+import {
+  getPreferences,
+  updatePreferences,
+  type Res,
+} from "v2/common/services";
 
 const fetchStatus = {
   intervalId: null,

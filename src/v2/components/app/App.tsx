@@ -1,12 +1,12 @@
 import Head from "next/head";
 
-import { TaskList } from "v2/app/components/TaskList";
-import { TaskListList } from "v2/app/components/TaskListList";
-import { useApp } from "v2/app/hooks/useApp";
-import { usePreferences } from "v2/app/hooks/usePreferences";
-import { useAppPageStack } from "v2/ui/hooks/useAppPageStack";
-import { useTheme } from "v2/ui/hooks/useTheme";
-import { useActiveStatus } from "v2/common/hooks/useActiveStatus";
+import { TaskList } from "v2/components/app/TaskList";
+import { TaskListList } from "v2/components/app/TaskListList";
+import { useApp } from "v2/hooks/app/useApp";
+import { usePreferences } from "v2/hooks/app/usePreferences";
+import { useAppPageStack } from "v2/hooks/ui/useAppPageStack";
+import { useTheme } from "v2/hooks/ui/useTheme";
+import { useActiveStatus } from "v2/hooks/composites/useActiveStatus";
 
 export function App() {
   useAppPageStack();

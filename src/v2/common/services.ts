@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 
-import { config } from "v2/ui/globalState";
+import { config } from "v2/hooks/ui/useGlobalState";
 
 export type Res<T> = Promise<{ data: T }>;
 

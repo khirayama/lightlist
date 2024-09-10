@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import { useApp } from "v2/app/hooks/useApp";
-import { useTaskLists } from "v2/app/hooks/useTaskLists";
+import { useApp } from "v2/hooks/app/useApp";
+import { useTaskLists } from "v2/hooks/app/useTaskLists";
 
 export function TaskListList() {
   const [taskListName, setTaskListName] = useState("");

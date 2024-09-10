@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { useApp } from "v2/app/hooks/useApp";
+import { useApp } from "v2/hooks/app/useApp";
 
 export function useActiveStatus() {
   const [, { updateApp }] = useApp();

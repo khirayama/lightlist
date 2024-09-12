@@ -1,5 +1,11 @@
 import Head from "next/head";
 
+import {
+  DrawerLayout,
+  Drawer,
+  Main,
+  useDrawerLayout,
+} from "v2/components/primitives/DrawerLayout";
 import { TaskList } from "v2/components/app/TaskList";
 import { TaskListList } from "v2/components/app/TaskListList";
 import { useApp } from "v2/hooks/app/useApp";
@@ -8,6 +14,8 @@ import { useAppPageStack } from "v2/hooks/ui/useAppPageStack";
 import { useTheme } from "v2/hooks/ui/useTheme";
 import { useActiveStatus } from "v2/hooks/composites/useActiveStatus";
 
+import { ParamsLink } from "components/ParamsLink";
+
 export function App() {
   useAppPageStack();
   useActiveStatus();
@@ -15,6 +23,7 @@ export function App() {
   const [{ data: app }] = useApp();
   const [{ data: preferences }] = usePreferences();
   const { isDarkTheme } = useTheme(preferences.theme);
+  const da = useDrawerLayout();
 
   return (
     <>
@@ -27,12 +36,24 @@ export function App() {
         <title>{app.online ? "🔥" : "🤘"} Lightlist</title>
       </Head>
 
-      <div className="flex">
-        <div className="border-r p-4">
+      <DrawerLayout>
+        <Drawer {...da}>
+          {da.isNarrowLayout && (
+            <div>
+              <button onClick={da.close}>Close</button>
+            </div>
+          )}
           <TaskListList />
-        </div>
-
-        <div className="flex-1">
+        </Drawer>
+        <Main {...da}>
+          {da.isNarrowLayout && (
+            <ParamsLink
+              href={window.location.pathname}
+              params={{ drawer: "opened" }}
+            >
+              Open
+            </ParamsLink>
+          )}
           <div className="flex">
             {app.taskListIds.map((taskListId) => {
               return (
@@ -42,8 +63,8 @@ export function App() {
               );
             })}
           </div>
-        </div>
-      </div>
+        </Main>
+      </DrawerLayout>
     </>
   );
 }

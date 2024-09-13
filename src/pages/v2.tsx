@@ -25,7 +25,7 @@ function Content() {
     isTaskListsInitialized ? (
     <App />
   ) : (
-    <div>Loading...</div>
+    <div className="bg w-full h-full flex items-center justify-center">Loading...</div>
   );
 }
 

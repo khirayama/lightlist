@@ -44,11 +44,15 @@ export function updateApp(newApp: Partial<AppV2>) {
   const doc = new Y.Doc();
   if (gs.app.update) {
     const u = Uint8Array.from(Object.values(gs.app.update));
-    Y.applyUpdate(doc, u);
+    if (u.length) {
+      Y.applyUpdate(doc, u);
+    }
   }
   if (newApp.update) {
     const u = Uint8Array.from(Object.values(newApp.update));
-    Y.applyUpdate(doc, u);
+    if (u.length) {
+      Y.applyUpdate(doc, u);
+    }
   }
 
   gs.app = { ...gs.app, ...newApp, update: Y.encodeStateAsUpdate(doc) };

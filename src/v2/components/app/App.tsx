@@ -20,10 +20,11 @@ export function App() {
   useAppPageStack();
   useActiveStatus();
 
+  const da = useDrawerLayout();
+
   const [{ data: app }] = useApp();
   const [{ data: preferences }] = usePreferences();
   const { isDarkTheme } = useTheme(preferences.theme);
-  const da = useDrawerLayout();
 
   return (
     <>

@@ -45,12 +45,7 @@ export function useApp(): [
           doc = new Y.Doc();
         }
         const u = Uint8Array.from(Object.values(app.update));
-        if (!u.length) {
-          const a = doc.getMap("app");
-          a.set("taskInsertPosition", app.taskInsertPosition);
-          a.set("taskListIds", new Y.Array());
-          a.set("online", app.online);
-        } else {
+        if (u.length) {
           Y.applyUpdate(doc, u);
         }
         setGlobalState({ app: doc.getMap("app").toJSON() as AppV2 });

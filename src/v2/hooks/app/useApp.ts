@@ -48,7 +48,11 @@ export function useApp(): [
         if (u.length) {
           Y.applyUpdate(doc, u);
         }
-        setGlobalState({ app: doc.getMap("app").toJSON() as AppV2 });
+        const na = {
+          ...doc.getMap("app").toJSON(),
+          update: new Uint8Array(),
+        } as AppV2;
+        setGlobalState({ app: na });
       });
     };
 

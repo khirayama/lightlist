@@ -1,5 +1,6 @@
 import { createContext, useContext, ReactNode, useState } from "react";
 import { deepmerge } from "@fastify/deepmerge";
+import * as Y from "yjs";
 
 function replaceByClonedSource<T = any>(options: { clone: (source: T) => T }) {
   return (_: T, source: T) => options.clone(source);
@@ -13,13 +14,17 @@ type DeepPartial<T> = {
 
 export const config = {
   initialValue: (): GlobalStateV2 => {
+    const doc = new Y.Doc();
+    const da = doc.getMap("app");
+    da.set("taskInsertPosition", "BOTTOM");
+    da.set("taskListIds", new Y.Array());
+    da.set("online", true);
+
     return {
       app: {
-        taskInsertPosition: "BOTTOM",
-        taskListIds: [],
-        online: true,
-        update: new Uint8Array(),
-      },
+        ...da.toJSON(),
+        update: Y.encodeStateAsUpdate(doc),
+      } as AppV2,
       profile: {
         displayName: "",
         email: "",

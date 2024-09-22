@@ -1,11 +1,35 @@
 import { useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
 import { useApp } from "v2/hooks/app/useApp";
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
 import { useCustomTranslation } from "v2/common/i18n";
 import { Icon } from "v2/components/primitives/Icon";
+import { TaskListListItem } from "v2/components/app/TaskListListItem";
 
 export function TaskListList(props: { disabled?: boolean }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
   const { t } = useCustomTranslation("components.TaskListList");
 
   const [taskListName, setTaskListName] = useState("");
@@ -21,6 +45,18 @@ export function TaskListList(props: { disabled?: boolean }) {
     appendTaskList({ name: taskListName });
     setTaskListName("");
     /* TODO: Close drawer and scroll to new task */
+  };
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+
+    if (active && over && active.id !== over.id) {
+      const oldIndex = taskLists.findIndex((tl) => tl.id === active.id);
+      const newIndex = taskLists.findIndex((tl) => tl.id === over.id);
+
+      const newTaskLists = arrayMove(taskLists, oldIndex, newIndex);
+      /* TODO: Move task lists */
+    }
   };
 
   return (
@@ -66,6 +102,32 @@ export function TaskListList(props: { disabled?: boolean }) {
           </div>
         );
       })}
+
+      <section>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis]}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={taskLists}
+            strategy={verticalListSortingStrategy}
+          >
+            {taskLists.map((taskList) => {
+              return (
+                <TaskListListItem
+                  key={taskList.id}
+                  disabled={props.disabled}
+                  taskList={taskList}
+                  handleDeleteTaskListButtonClick={deleteTaskList}
+                  handleTaskListLinkClick={props.handleTaskListLinkClick}
+                />
+              );
+            })}
+          </SortableContext>
+        </DndContext>
+      </section>
     </div>
   );
 }

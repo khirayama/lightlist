@@ -30,9 +30,6 @@ export function useTaskLists(taskListIds: string[] = []): [
       idx: number,
       newTaskList: Partial<TaskListV2>,
     ) => [TaskListV2, Res<TaskListV2>];
-    prependTaskList: (
-      newTaskList: Partial<TaskListV2>,
-    ) => [TaskListV2, Res<TaskListV2>];
     appendTaskList: (
       newTaskList: Partial<TaskListV2>,
     ) => [TaskListV2, Res<TaskListV2>];
@@ -186,9 +183,6 @@ export function useTaskLists(taskListIds: string[] = []): [
     },
     {
       insertTaskList,
-      prependTaskList: (newTaskList) => {
-        return insertTaskList(0, newTaskList);
-      },
       appendTaskList: (newTaskList) => {
         const app = getGlobalStateSnapshot().app;
         return insertTaskList(app.taskListIds.length, newTaskList);

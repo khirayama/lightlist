@@ -99,7 +99,7 @@ export function useApp(): [
         const ad = doc.getMap("app");
         const taskListIds = ad.get("taskListIds") as Y.Array<string>;
         taskListIds.delete(taskListIds.toJSON().indexOf(taskListId));
-        const na = { ...snapshot.app, update: Y.encodeStateAsUpdate(doc) };
+        const na = { ...ad.toJSON(), update: Y.encodeStateAsUpdate(doc) };
         setGlobalState({ app: na });
         const f = () => {
           fetchStatus.isLoading = true;

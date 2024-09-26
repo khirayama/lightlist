@@ -21,7 +21,7 @@ export function useApp(): [
   {
     insertTaskListId: (idx: number, taskListId: string) => [AppV2, Res<AppV2>];
     deleteTaskListId: (taskListId: string) => [AppV2, Res<AppV2>];
-    // moveTaskListId: (idx: number, taskListId: string) => [AppV2, Res<AppV2>];
+    updateTaskListIds: (newTaskListIds: string[]) => [AppV2, Res<AppV2>];
     updateApp: (newApp: Partial<AppV2>) => [AppV2, Res<AppV2>];
   },
 ] {
@@ -99,6 +99,36 @@ export function useApp(): [
         const ad = doc.getMap("app");
         const taskListIds = ad.get("taskListIds") as Y.Array<string>;
         taskListIds.delete(taskListIds.toJSON().indexOf(taskListId));
+        const na = { ...ad.toJSON(), update: Y.encodeStateAsUpdate(doc) };
+        setGlobalState({ app: na });
+        const f = () => {
+          fetchStatus.isLoading = true;
+          setIsLoading(fetchStatus.isLoading);
+          return updateApp(na).finally(() => {
+            fetchStatus.isLoading = false;
+            setIsLoading(fetchStatus.isLoading);
+          });
+        };
+        const ss = getGlobalStateSnapshot();
+        return [ss.app, f()];
+      },
+      updateTaskListIds: (newTaskListIds) => {
+        const ad = doc.getMap("app");
+        const taskListIds = ad.get("taskListIds") as Y.Array<string>;
+        ad.doc.transact(() => {
+          for (let i = newTaskListIds.length - 1; i >= 0; i--) {
+            for (let j = 0; j < taskListIds.length; j++) {
+              const taskListId = taskListIds.get(j);
+              if (taskListId === newTaskListIds[i]) {
+                const t = taskListIds.get(j);
+                taskListIds.delete(j);
+                taskListIds.insert(0, [t]);
+                break;
+              }
+            }
+          }
+        });
+
         const na = { ...ad.toJSON(), update: Y.encodeStateAsUpdate(doc) };
         setGlobalState({ app: na });
         const f = () => {

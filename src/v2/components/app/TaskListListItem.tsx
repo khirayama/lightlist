@@ -4,14 +4,15 @@ import { clsx } from "clsx";
 
 import { Icon } from "v2/components/primitives/Icon";
 import { ConfirmDialog } from "components/ConfirmDialog";
+import { useTaskLists } from "v2/hooks/app/useTaskLists";
 
 export function TaskListListItem(props: {
   disabled?: boolean;
   taskList: TaskListV2;
-  handleDeleteTaskListButtonClick: (taskListId: string) => void;
   handleTaskListLinkClick: (taskListId: string) => void;
 }) {
   const taskList = props.taskList;
+  const [, { deleteTaskList }] = useTaskLists();
   const {
     attributes,
     listeners,
@@ -70,7 +71,7 @@ export function TaskListListItem(props: {
             falseText="Cancel"
             handleSelect={(val) => {
               if (val) {
-                props.handleDeleteTaskListButtonClick(taskList.id);
+                deleteTaskList(taskList.id);
               }
             }}
           >
@@ -85,7 +86,7 @@ export function TaskListListItem(props: {
           <button
             disabled={props.disabled}
             onClick={() => {
-              props.handleDeleteTaskListButtonClick(taskList.id);
+              deleteTaskList(taskList.id);
             }}
             className="flex cursor-pointer items-center justify-center rounded fill-gray-400 p-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
           >

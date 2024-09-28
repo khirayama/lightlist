@@ -156,7 +156,6 @@ export function useTaskLists(taskListIds: string[] = []): [
     taskList.set("tasks", tasks);
 
     const tl = taskList.toJSON() as TaskListV2;
-    const ss = getGlobalStateSnapshot();
     tl.update = Y.encodeStateAsUpdate(doc);
     insertTaskListId(idx, id);
     setGlobalState({
@@ -170,7 +169,7 @@ export function useTaskLists(taskListIds: string[] = []): [
         setIsLoading(fetchStatus.isLoading);
       });
     };
-    return [ss.taskLists[tl.id], f()];
+    return [tl, f()];
   };
 
   return [

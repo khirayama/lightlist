@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
 import {
   DndContext,
   closestCenter,
@@ -16,6 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
+import { useDrawerLayout } from "v2/components/primitives/DrawerLayout";
 import { useApp } from "v2/hooks/app/useApp";
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
 import { useCustomTranslation } from "v2/common/i18n";
@@ -23,6 +25,7 @@ import { Icon } from "v2/components/primitives/Icon";
 import { TaskListListItem } from "v2/components/app/TaskListListItem";
 
 export function TaskListList(props: { disabled?: boolean }) {
+  const router = useRouter();
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -31,20 +34,23 @@ export function TaskListList(props: { disabled?: boolean }) {
   );
 
   const { t } = useCustomTranslation("components.TaskListList");
+  const { close } = useDrawerLayout();
 
   const [taskListName, setTaskListName] = useState("");
-  const [{ data: app }] = useApp();
-  const [{ data: taskLists }, { appendTaskList, deleteTaskList }] =
-    useTaskLists(app?.taskListIds || []);
+  const [{ data: app }, { updateTaskListIds }] = useApp();
+  const [{ data: taskLists }, { appendTaskList }] = useTaskLists(
+    app?.taskListIds || [],
+  );
 
   const onTaskListFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (taskListName === "") {
       return;
     }
-    appendTaskList({ name: taskListName });
+    const [taskList] = appendTaskList({ name: taskListName });
     setTaskListName("");
-    /* TODO: Close drawer and scroll to new task */
+    close();
+    router.push(`${window.location.pathname}?taskListId=${taskList.id}`);
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -53,9 +59,8 @@ export function TaskListList(props: { disabled?: boolean }) {
     if (active && over && active.id !== over.id) {
       const oldIndex = taskLists.findIndex((tl) => tl.id === active.id);
       const newIndex = taskLists.findIndex((tl) => tl.id === over.id);
-
       const newTaskLists = arrayMove(taskLists, oldIndex, newIndex);
-      /* TODO: Move task lists */
+      updateTaskListIds(newTaskLists.map((tl) => tl.id));
     }
   };
 
@@ -88,21 +93,6 @@ export function TaskListList(props: { disabled?: boolean }) {
         </section>
       </header>
 
-      {taskLists.map((taskList) => {
-        return (
-          <div className="w-full flex-1" key={taskList.id}>
-            <span>{taskList.name}</span>
-            <button
-              onClick={() => {
-                deleteTaskList(taskList.id);
-              }}
-            >
-              [x]
-            </button>
-          </div>
-        );
-      })}
-
       <section>
         <DndContext
           sensors={sensors}
@@ -120,7 +110,6 @@ export function TaskListList(props: { disabled?: boolean }) {
                   key={taskList.id}
                   disabled={props.disabled}
                   taskList={taskList}
-                  handleDeleteTaskListButtonClick={deleteTaskList}
                   handleTaskListLinkClick={props.handleTaskListLinkClick}
                 />
               );

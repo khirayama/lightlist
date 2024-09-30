@@ -3,13 +3,13 @@ import { CSS } from "@dnd-kit/utilities";
 import { clsx } from "clsx";
 
 import { Icon } from "v2/components/primitives/Icon";
+import { ParamsLink } from "v2/components/primitives/ParamsLink";
 import { ConfirmDialog } from "components/ConfirmDialog";
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
 
 export function TaskListListItem(props: {
   disabled?: boolean;
   taskList: TaskListV2;
-  handleTaskListLinkClick: (taskListId: string) => void;
 }) {
   const taskList = props.taskList;
   const [, { deleteTaskList }] = useTaskLists();
@@ -50,18 +50,17 @@ export function TaskListListItem(props: {
           <Icon text="drag_indicator" />
         </button>
 
-        <button
-          /* TODO: Should be link to display task list and close drawer*/
-          disabled={props.disabled}
+        <ParamsLink
+          replace
+          tabIndex={props.disabled ? -1 : 0}
           className={clsx(
             "flex-1 cursor-pointer rounded px-1 py-3 text-left focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
           )}
-          onClick={() => {
-            props.handleTaskListLinkClick(taskList.id);
-          }}
+          href={window.location.pathname}
+          params={{ taskListId: taskList.id }}
         >
           {taskList.name}
-        </button>
+        </ParamsLink>
 
         {taskList.tasks.length !== 0 ? (
           <ConfirmDialog

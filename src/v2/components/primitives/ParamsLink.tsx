@@ -3,9 +3,10 @@ import qs from "query-string";
 import Link from "next/link";
 
 export function ParamsLink(props: {
-  href: string;
+  href?: string;
   params?: Query;
   mergeParams?: boolean;
+  replace?: boolean;
   className?: string;
   tabIndex?: number;
   children: ReactNode;
@@ -16,9 +17,8 @@ export function ParamsLink(props: {
     ? { ...qs.parse(window.location.search), ...props.params }
     : props.params;
   const s = qs.stringify(q);
-  const href = props.href + (s ? `?${s}` : "");
-  p.href = href;
+  const href = (props.href || window.location.pathname) + (s ? `?${s}` : "");
   delete p.mergeParams;
   delete p.params;
-  return <Link {...p}>{props.children}</Link>;
+  return <Link {...{ ...p, href }}>{props.children}</Link>;
 }

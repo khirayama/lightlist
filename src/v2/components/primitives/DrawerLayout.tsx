@@ -50,7 +50,11 @@ export function useDrawerLayout(): {
   return {
     open: isDrawerOpen,
     isNarrowLayout: isNarrow,
-    close: () => router.back(),
+    close: () => {
+      if (isDrawerOpen) {
+        router.back();
+      }
+    },
   };
 }
 

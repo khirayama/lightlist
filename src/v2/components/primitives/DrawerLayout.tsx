@@ -4,7 +4,8 @@ import { useRouter } from "next/router";
 import qs from "query-string";
 
 export function isNarrowLayout() {
-  return window.innerWidth < 768;
+  const el = document.querySelector<HTMLElement>("[data-sectionmain]");
+  return window.innerWidth === el?.clientWidth;
 }
 
 export function useDrawerLayout(): {

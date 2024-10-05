@@ -13,8 +13,8 @@ import { usePreferences } from "v2/hooks/app/usePreferences";
 import { useAppPageStack } from "v2/hooks/ui/useAppPageStack";
 import { useTheme } from "v2/hooks/ui/useTheme";
 import { useActiveStatus } from "v2/hooks/composites/useActiveStatus";
-
-import { ParamsLink } from "components/ParamsLink";
+import { Icon } from "v2/components/primitives/Icon";
+import { ParamsLink } from "v2/components/primitives/ParamsLink";
 
 export function App() {
   useAppPageStack();
@@ -44,16 +44,44 @@ export function App() {
               <button onClick={da.close}>Close</button>
             </div>
           )}
+
+          <div className="flex md:hidden">
+            <div className="p-1">
+              <button className="rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700">
+                <Icon text="close" />
+              </button>
+            </div>
+            <div className="flex-1" />
+          </div>
+
+          <div className="p-2">
+            <ParamsLink
+              data-trigger="user"
+              className="flex w-full items-center justify-center rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+              params={{ sheet: "user", trigger: "user" }}
+              mergeParams
+            >
+              <Icon text="person" />
+              <div className="flex-1 pl-2 text-left">Log in</div>
+            </ParamsLink>
+
+            <ParamsLink
+              data-trigger="settings"
+              className="flex w-full items-center justify-center rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+              params={{ sheet: "settings", trigger: "settings" }}
+              mergeParams
+            >
+              <Icon text="settings" />
+              <div className="flex-1 pl-2 text-left">Preferences</div>
+            </ParamsLink>
+          </div>
+
           <TaskListList />
         </Drawer>
+
         <Main {...da}>
           {da.isNarrowLayout && (
-            <ParamsLink
-              href={window.location.pathname}
-              params={{ drawer: "opened" }}
-            >
-              Open
-            </ParamsLink>
+            <ParamsLink params={{ drawer: "opened" }}>Open</ParamsLink>
           )}
           <div className="flex">
             {app.taskListIds.map((taskListId) => {

@@ -18,7 +18,14 @@ export function useDrawerLayout(): {
   const [isNarrow, setIsNarrow] = useState(isNarrowLayout());
 
   useEffect(() => {
-    const handleResize = () => setIsNarrow(isNarrowLayout());
+    const handleResize = () => {
+      const isNarrow = isNarrowLayout();
+      if (isDrawerOpen && !isNarrow) {
+        setIsDrawerOpen(false);
+        router.back();
+      }
+      setIsNarrow(isNarrowLayout());
+    };
 
     handleResize();
     window.addEventListener("resize", handleResize);

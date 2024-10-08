@@ -10,7 +10,7 @@ import { TaskList } from "v2/components/app/TaskList";
 import { TaskListList } from "v2/components/app/TaskListList";
 import { useApp } from "v2/hooks/app/useApp";
 import { usePreferences } from "v2/hooks/app/usePreferences";
-import { useAppPageStack } from "v2/hooks/ui/useAppPageStack";
+import { useAppPageStack } from "v2/hooks/ui/useAppNavigation";
 import { useTheme } from "v2/hooks/ui/useTheme";
 import { useActiveStatus } from "v2/hooks/composites/useActiveStatus";
 import { Icon } from "v2/components/primitives/Icon";

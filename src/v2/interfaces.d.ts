@@ -1,3 +1,5 @@
+type QueryV2 = { [key: string]: string | string[] | null };
+
 type TaskV2 = {
   id: string;
   text: string;

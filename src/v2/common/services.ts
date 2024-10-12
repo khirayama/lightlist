@@ -4,6 +4,8 @@ import { config } from "v2/hooks/ui/useGlobalState";
 
 export type Res<T> = Promise<{ data: T }>;
 
+const timelag = 200;
+
 function loadGlobalState() {
   return (
     JSON.parse(window.localStorage.getItem("__tmp")) || config.initialValue()
@@ -17,7 +19,7 @@ function getMock<T>(fn: (gs: GlobalStateV2) => T) {
         const gs = loadGlobalState();
         resolve({ data: fn(gs) });
       },
-      200 + Math.random() * 1000,
+      timelag + Math.random() * 1000,
     );
   });
 }
@@ -29,7 +31,7 @@ function setMock<T>(gs: GlobalStateV2, fn: (gs: GlobalStateV2) => T) {
       () => {
         resolve({ data: fn(gs) });
       },
-      200 + Math.random() * 1000,
+      timelag + Math.random() * 1000,
     );
   });
 }

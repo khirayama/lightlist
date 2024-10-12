@@ -7,9 +7,11 @@ export type Res<T> = Promise<{ data: T }>;
 const timelag = 200;
 
 function loadGlobalState() {
-  return (
-    JSON.parse(window.localStorage.getItem("__tmp")) || config.initialValue()
-  );
+  const local = JSON.parse(window.localStorage.getItem("__tmp"));
+  if (local) {
+    return local;
+  }
+  return config.initialValue();
 }
 
 function getMock<T>(fn: (gs: GlobalStateV2) => T) {

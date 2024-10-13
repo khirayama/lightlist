@@ -1,27 +1,61 @@
-import { useState, useEffect, ReactNode } from "react";
+import {
+  useEffect,
+  ReactNode,
+  createContext,
+  useContext,
+  useState,
+} from "react";
 import { clsx } from "clsx";
 import { useRouter } from "next/router";
 import qs from "query-string";
+
+const DrawerLayoutContext = createContext({
+  isNarrowLayout: false,
+  isDrawerOpen: false,
+});
 
 export function isNarrowLayout() {
   const el = document.querySelector<HTMLElement>("[data-sectionmain]");
   return window.innerWidth === el?.clientWidth;
 }
 
-export function useDrawerLayout(): {
-  open: boolean;
-  isNarrowLayout: boolean;
-  close: () => void;
-} {
+function isDrawerOpen() {
+  return qs.parse(window.location.search).drawer === "opened";
+}
+
+export const Drawer = (props: { children?: ReactNode }) => {
+  // TODO: Replace with dialog element to block user action in Main section
+  return (
+    <section
+      data-sectiondrawer
+      className={clsx(
+        "bg absolute z-30 h-full w-full min-w-[320px] -translate-x-full transition-transform duration-[320ms] md:relative md:block md:w-[auto] md:max-w-sm md:translate-x-0",
+        isDrawerOpen() && "translate-x-0",
+        !isNarrowLayout() && "border-r",
+      )}
+    >
+      {props.children}
+    </section>
+  );
+};
+
+export const Main = (props: { children?: ReactNode }) => {
+  return (
+    <section data-sectionmain className="h-full w-full min-w-[375px]">
+      {props.children}
+    </section>
+  );
+};
+
+export const DrawerLayout = (props: { children: ReactNode }) => {
   const router = useRouter();
-  const [isDrawerOpen, setIsDrawerOpen] = useState(isDrawerOpened());
+
+  const [isOpen, setIsOpen] = useState(isDrawerOpen());
   const [isNarrow, setIsNarrow] = useState(isNarrowLayout());
 
   useEffect(() => {
     const handleResize = () => {
-      const isNarrow = isNarrowLayout();
-      if (isDrawerOpen && !isNarrow) {
-        setIsDrawerOpen(false);
+      if (isDrawerOpen() && !isNarrowLayout()) {
         router.back();
       }
       setIsNarrow(isNarrowLayout());
@@ -32,14 +66,13 @@ export function useDrawerLayout(): {
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [isNarrowLayout(), isDrawerOpen]);
+  }, [isNarrow, isOpen]);
 
   useEffect(() => {
     const handleRouteChange = () => {
-      const isOpened = isDrawerOpened();
-      setIsDrawerOpen(isOpened);
+      setIsOpen(isDrawerOpen());
       setTimeout(() => {
-        const p = isOpened
+        const p = isDrawerOpen()
           ? document.querySelector<HTMLElement>("[data-sectiondrawer]")
           : document.querySelector<HTMLElement>("[data-sectionmain]");
         p?.focus();
@@ -53,57 +86,20 @@ export function useDrawerLayout(): {
     };
   }, [router]);
 
-  return {
-    open: isDrawerOpen,
-    isNarrowLayout: isNarrow,
-    close: () => {
-      if (isDrawerOpen) {
-        router.back();
-      }
-    },
-  };
-}
-
-function isDrawerOpened() {
-  return qs.parse(window.location.search).drawer === "opened";
-}
-
-export const Drawer = (props: {
-  open: boolean;
-  isNarrowLayout: boolean;
-  close: () => void;
-  children?: ReactNode;
-}) => {
   return (
-    <section
-      data-sectiondrawer
-      className={clsx(
-        "bg absolute z-30 h-full w-full min-w-[320px] -translate-x-full transition-transform duration-[320ms] md:relative md:block md:w-[auto] md:max-w-sm md:translate-x-0",
-        props.open && "translate-x-0",
-        !props.isNarrowLayout && "border-r",
-      )}
+    <DrawerLayoutContext.Provider
+      value={{
+        isDrawerOpen: isOpen,
+        isNarrowLayout: isNarrow,
+      }}
     >
-      {props.children}
-    </section>
+      <div className="bg flex h-full w-full overflow-hidden">
+        {props.children}
+      </div>
+    </DrawerLayoutContext.Provider>
   );
 };
 
-export const Main = (props: {
-  open: boolean;
-  close: () => void;
-  children?: ReactNode;
-}) => {
-  return (
-    <section data-sectionmain className="h-full w-full min-w-[375px]">
-      {props.children}
-    </section>
-  );
-};
-
-export const DrawerLayout = (props: { children: ReactNode }) => {
-  return (
-    <div className="bg flex h-full w-full overflow-hidden">
-      {props.children}
-    </div>
-  );
+export const useDrawerLayout = () => {
+  return useContext(DrawerLayoutContext);
 };

@@ -19,19 +19,16 @@ export function isNarrowLayout() {
   return window.innerWidth === el?.clientWidth;
 }
 
-function isDrawerOpen() {
-  return qs.parse(window.location.search).drawer === "opened";
-}
-
 export const Drawer = (props: { children?: ReactNode }) => {
-  // TODO: Replace with dialog element to block user action in Main section
+  const da = useDrawerLayout();
+
   return (
     <section
       data-sectiondrawer
       className={clsx(
         "bg absolute z-30 h-full w-full min-w-[320px] -translate-x-full transition-transform duration-[320ms] md:relative md:block md:w-[auto] md:max-w-sm md:translate-x-0",
-        isDrawerOpen() && "translate-x-0",
-        !isNarrowLayout() && "border-r",
+        da.isDrawerOpen && "translate-x-0",
+        !da.isNarrowLayout && "border-r",
       )}
     >
       {props.children}
@@ -47,8 +44,14 @@ export const Main = (props: { children?: ReactNode }) => {
   );
 };
 
-export const DrawerLayout = (props: { children: ReactNode }) => {
+export const DrawerLayout = (props: {
+  isDrawerOpen?: () => boolean;
+  children: ReactNode;
+}) => {
   const router = useRouter();
+  const isDrawerOpen =
+    props.isDrawerOpen ||
+    (() => qs.parse(window.location.search).drawer === "opened");
 
   const [isOpen, setIsOpen] = useState(isDrawerOpen());
   const [isNarrow, setIsNarrow] = useState(isNarrowLayout());

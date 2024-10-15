@@ -3,9 +3,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { clsx } from "clsx";
 
 import { Icon } from "v2/components/primitives/Icon";
-import { ParamsLink } from "v2/components/primitives/ParamsLink";
 import { ConfirmDialog } from "components/ConfirmDialog";
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
+import { AppPageLink } from "v2/hooks/ui/useAppNavigation";
 
 export function TaskListListItem(props: {
   disabled?: boolean;
@@ -50,7 +50,7 @@ export function TaskListListItem(props: {
           <Icon text="drag_indicator" />
         </button>
 
-        <ParamsLink
+        <AppPageLink
           replace
           tabIndex={props.disabled ? -1 : 0}
           className={clsx(
@@ -60,7 +60,7 @@ export function TaskListListItem(props: {
           params={{ taskListId: taskList.id }}
         >
           {taskList.name}
-        </ParamsLink>
+        </AppPageLink>
 
         {taskList.tasks.length !== 0 ? (
           <ConfirmDialog

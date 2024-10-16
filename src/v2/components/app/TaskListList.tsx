@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useRouter } from "next/router";
 import {
   DndContext,
   closestCenter,
@@ -17,15 +16,15 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
-import { useDrawerLayout } from "v2/components/primitives/DrawerLayout";
 import { useApp } from "v2/hooks/app/useApp";
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
 import { useCustomTranslation } from "v2/common/i18n";
 import { Icon } from "v2/components/primitives/Icon";
 import { TaskListListItem } from "v2/components/app/TaskListListItem";
+import { useDrawerLayout } from "v2/components/primitives/DrawerLayout";
+import { useAppPageStack } from "v2/hooks/ui/useAppNavigation";
 
 export function TaskListList(props: { disabled?: boolean }) {
-  const router = useRouter();
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -34,7 +33,8 @@ export function TaskListList(props: { disabled?: boolean }) {
   );
 
   const { t } = useCustomTranslation("components.TaskListList");
-  const { close } = useDrawerLayout();
+  const { isDrawerOpen, isNarrowLayout } = useDrawerLayout();
+  const { pop, push } = useAppPageStack();
 
   const [taskListName, setTaskListName] = useState("");
   const [{ data: app }, { updateTaskListIds }] = useApp();
@@ -49,8 +49,10 @@ export function TaskListList(props: { disabled?: boolean }) {
     }
     const [taskList] = appendTaskList({ name: taskListName });
     setTaskListName("");
-    close();
-    router.push(`${window.location.pathname}?taskListId=${taskList.id}`);
+    if (isDrawerOpen && isNarrowLayout) {
+      pop();
+    }
+    push(`${window.location.pathname}?taskListId=${taskList.id}`);
   };
 
   const handleDragEnd = (e: DragEndEvent) => {

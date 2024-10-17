@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useAuth, AuthProvider } from "v2/common/auth";
 import { App } from "v2/components/app/App";
 import { GlobalStateProvider } from "v2/hooks/ui/useGlobalState";
+import { AppPageStackProvider } from "v2/hooks/ui/useAppNavigation";
 import { useApp } from "v2/hooks/app/useApp";
 import { usePreferences } from "v2/hooks/app/usePreferences";
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
@@ -25,16 +26,20 @@ function Content() {
     isTaskListsInitialized ? (
     <App />
   ) : (
-    <div className="bg w-full h-full flex items-center justify-center">Loading...</div>
+    <div className="bg flex h-full w-full items-center justify-center">
+      Loading...
+    </div>
   );
 }
 
 export default function AppV2Page() {
   return (
     <AuthProvider>
-      <GlobalStateProvider>
-        <Content />
-      </GlobalStateProvider>
+      <AppPageStackProvider>
+        <GlobalStateProvider>
+          <Content />
+        </GlobalStateProvider>
+      </AppPageStackProvider>
     </AuthProvider>
   );
 }

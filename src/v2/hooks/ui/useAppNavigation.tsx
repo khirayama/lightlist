@@ -21,12 +21,14 @@ export const AppPageStackProvider = (props: { children: ReactNode }) => {
   useEffect(() => {
     const isFastRefresh = !isInitialRender.current;
     if (!isFastRefresh) {
-      const query = qs.parse(window.location.search);
-      if (query.sheet || query.drawer === "opened") {
-        const tmp = window.location.href;
-        router.replace(window.location.origin + window.location.pathname);
-        router.push(tmp);
-      }
+      // const query = qs.parse(window.location.search);
+      // if (query.sheet || query.drawer === "opened") {
+      //   const tmp = window.location.href;
+      //   router.replace(window.location.origin + window.location.pathname);
+      //   setTimeout(() => {
+      //     router.push(tmp);
+      //   }, 80);
+      // }
     }
     isInitialRender.current = false;
   }, []);

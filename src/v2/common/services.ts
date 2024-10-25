@@ -73,6 +73,16 @@ export function updatePreferences(newPreferences: Partial<PreferencesV2>) {
   return setMock(gs, (gs) => gs.preferences);
 }
 
+export function getProfile() {
+  return getMock((gs) => gs.profile);
+}
+
+export function updateProfile(newProfile: Partial<ProfileV2>) {
+  const gs = loadGlobalState();
+  gs.profile = { ...gs.profile, ...newProfile };
+  return setMock(gs, (gs) => gs.profile);
+}
+
 export function getTaskLists() {
   return getMock((gs) => gs.taskLists);
 }

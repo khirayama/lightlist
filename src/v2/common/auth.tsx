@@ -13,6 +13,12 @@ type AuthContext = [
     isLoggedIn: boolean;
     isInitialized: boolean;
   },
+  {
+    getUser: () => Promise<{ data: any }>;
+    deleteUser: (id: string) => Promise<unknown>;
+    updateUser: (attributes: { [key: string]: string }) => Promise<unknown>;
+    signOut: () => Promise<unknown>;
+  },
 ];
 
 let ss: Session = null;
@@ -22,12 +28,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
-const AuthContext = createContext<AuthContext>([
-  {
-    isLoggedIn: false,
-    isInitialized: false,
-  },
-]);
+const AuthContext = createContext<AuthContext>(null);
 
 export const AuthProvider = (props: { children: ReactNode }) => {
   const [user, setUser] = useState(null);
@@ -65,6 +66,12 @@ export const AuthProvider = (props: { children: ReactNode }) => {
         {
           isLoggedIn: !!user,
           isInitialized,
+        },
+        {
+          getUser: supabase.auth.getUser,
+          deleteUser: supabase.auth.admin.deleteUser,
+          updateUser: supabase.auth.updateUser,
+          signOut: supabase.auth.signOut,
         },
       ]}
     >

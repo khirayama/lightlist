@@ -7,6 +7,7 @@ import { AppPageStackProvider } from "v2/hooks/ui/useAppNavigation";
 import { useApp } from "v2/hooks/app/useApp";
 import { usePreferences } from "v2/hooks/app/usePreferences";
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
+import { useProfile } from "v2/hooks/app/useProfile";
 
 function Content() {
   const router = useRouter();
@@ -14,6 +15,7 @@ function Content() {
   const [{ isInitialized: isAppInitialized }] = useApp();
   const [{ isInitialized: isPreferencesInitialized }] = usePreferences();
   const [{ isInitialized: isTaskListsInitialized }] = useTaskLists();
+  const [{ isInitialized: isProfileInitialized }] = useProfile();
 
   if (isInitialized && !isLoggedIn) {
     router.push("/login");
@@ -23,7 +25,8 @@ function Content() {
   return isInitialized &&
     isAppInitialized &&
     isPreferencesInitialized &&
-    isTaskListsInitialized ? (
+    isTaskListsInitialized &&
+    isProfileInitialized ? (
     <App />
   ) : (
     <div className="bg flex h-full w-full items-center justify-center">

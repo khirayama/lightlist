@@ -14,10 +14,17 @@ import { useTheme } from "v2/hooks/ui/useTheme";
 import { useActiveStatus } from "v2/hooks/composites/useActiveStatus";
 import { Icon } from "v2/components/primitives/Icon";
 import { useAppPageStack, AppPageLink } from "v2/hooks/ui/useAppNavigation";
+import { UserSheet } from "v2/components/app/UserSheet";
+import { PreferencesSheet } from "v2/components/app/PreferencesSheet";
+import { useProfile } from "v2/hooks/app/useProfile";
+import { useCustomTranslation } from "v2/common/i18n";
 
 function AppDrawer() {
   const { pop } = useAppPageStack();
   const { isNarrowLayout } = useDrawerLayout();
+  const { t } = useCustomTranslation("components.App");
+
+  const [{ data: profile }] = useProfile();
 
   return (
     <Drawer>
@@ -43,17 +50,19 @@ function AppDrawer() {
           mergeParams
         >
           <Icon text="person" />
-          <div className="flex-1 pl-2 text-left">Log in</div>
+          <div className="flex-1 pl-2 text-left">
+            {profile?.displayName || profile?.email || t("Log in")}
+          </div>
         </AppPageLink>
 
         <AppPageLink
-          data-trigger="settings"
+          data-trigger="preferences"
           className="flex w-full items-center justify-center rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
-          params={{ sheet: "settings", trigger: "settings" }}
+          params={{ sheet: "preferences", trigger: "preferences" }}
           mergeParams
         >
           <Icon text="settings" />
-          <div className="flex-1 pl-2 text-left">Preferences</div>
+          <div className="flex-1 pl-2 text-left">{t("Preferences")}</div>
         </AppPageLink>
       </div>
 
@@ -106,6 +115,10 @@ export function App() {
         <AppDrawer />
         <AppMain />
       </DrawerLayout>
+
+      <UserSheet />
+
+      <PreferencesSheet />
     </>
   );
 }

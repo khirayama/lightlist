@@ -1,16 +1,69 @@
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+
 import i18n from "i18next";
 import { initReactI18next, useTranslation } from "react-i18next";
 
-export const useCustomTranslation = (prefix: string) => {
+const I18nContext = createContext(null);
+
+const fallbackLng = "ja";
+
+export const I18nProvider = (props: { lang?: string; children: ReactNode }) => {
   const tr = useTranslation();
+  const [lng, setLng] = useState(props.lang || fallbackLng);
+
+  useEffect(() => {
+    i18n.use(initReactI18next).init({
+      resources: {
+        en: {
+          translation: enTranslation,
+        },
+        ja: {
+          translation: jaTranslation,
+        },
+      },
+      lng: fallbackLng,
+      fallbackLng,
+      interpolation: {
+        escapeValue: false,
+      },
+    });
+  }, []);
+
+  useEffect(() => {
+    const l = props.lang.toLowerCase();
+    setLng(l);
+    tr.i18n.changeLanguage(l);
+  }, [props.lang]);
+
+  return (
+    <I18nContext.Provider
+      value={{
+        t: tr.t,
+        lng,
+        supportedLanguages: Object.keys(tr.i18n.options.resources).map((lang) =>
+          lang.toUpperCase(),
+        ),
+      }}
+    >
+      {props.children}
+    </I18nContext.Provider>
+  );
+};
+
+export const useCustomTranslation = (prefix: string) => {
+  const ctx = useContext(I18nContext);
+
   return {
     t: (key: string | string[], params?: any) =>
-      tr.t(`${prefix}.${key}`, params) as string,
-    supportedLanguages: Object.keys(tr.i18n.options.resources).map((lang) =>
-      lang.toUpperCase(),
-    ),
-    resolvedLanguage: tr.i18n.resolvedLanguage,
-    changeLanguage: (lng: string) => tr.i18n.changeLanguage(lng.toLowerCase()),
+      ctx.t(`${prefix}.${key}`, params) as string,
+    lng: ctx.lng,
+    supportedLanguages: ctx.supportedLanguages,
   };
 };
 
@@ -253,21 +306,3 @@ const jaTranslation = {
     },
   },
 };
-
-export function init() {
-  i18n.use(initReactI18next).init({
-    resources: {
-      en: {
-        translation: enTranslation,
-      },
-      ja: {
-        translation: jaTranslation,
-      },
-    },
-    lng: "ja",
-    fallbackLng: "ja",
-    interpolation: {
-      escapeValue: false,
-    },
-  });
-}

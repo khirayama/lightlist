@@ -11,7 +11,7 @@ export function PreferencesSheet() {
     return qs.parse(window.location.search).sheet === "preferences";
   };
 
-  const { t, supportedLanguages, changeLanguage } = useCustomTranslation(
+  const { t, supportedLanguages } = useCustomTranslation(
     "components.PreferencesSheet",
   );
   const [{ data: preferences }, { updatePreferences }] = usePreferences();
@@ -65,7 +65,6 @@ export function PreferencesSheet() {
         <Select.Root
           value={lang}
           onValueChange={(v: Preferences["lang"]) => {
-            changeLanguage(v);
             updatePreferences({
               lang: v,
             });

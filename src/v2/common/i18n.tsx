@@ -4,9 +4,13 @@ import { initReactI18next, useTranslation } from "react-i18next";
 export const useCustomTranslation = (prefix: string) => {
   const tr = useTranslation();
   return {
-    ...tr,
     t: (key: string | string[], params?: any) =>
       tr.t(`${prefix}.${key}`, params) as string,
+    supportedLanguages: Object.keys(tr.i18n.options.resources).map((lang) =>
+      lang.toUpperCase(),
+    ),
+    resolvedLanguage: tr.i18n.resolvedLanguage,
+    changeLanguage: (lng: string) => tr.i18n.changeLanguage(lng.toLowerCase()),
   };
 };
 

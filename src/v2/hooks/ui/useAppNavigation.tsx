@@ -43,9 +43,6 @@ export const AppPageStackProvider = (props: { children: ReactNode }) => {
         push: (url: string) => {
           router.push(url);
         },
-        replace: (url: string) => {
-          router.replace(url);
-        },
         pushWithParams: (
           pathname: string,
           options?: {
@@ -59,6 +56,23 @@ export const AppPageStackProvider = (props: { children: ReactNode }) => {
           const s = qs.stringify(q);
           const url = pathname + (s ? `?${s}` : "");
           router.push(url);
+        },
+        replace: (url: string) => {
+          router.replace(url);
+        },
+        replaceWithParams: (
+          pathname: string,
+          options?: {
+            params?: Query;
+            mergeParams?: boolean;
+          },
+        ) => {
+          const q = options.mergeParams
+            ? { ...qs.parse(window.location.search), ...(options.params || {}) }
+            : options.params || {};
+          const s = qs.stringify(q);
+          const url = pathname + (s ? `?${s}` : "");
+          router.replace(url);
         },
       }}
     >

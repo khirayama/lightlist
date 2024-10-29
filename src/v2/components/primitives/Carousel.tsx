@@ -7,6 +7,7 @@ import {
   useEffect,
   useRef,
 } from "react";
+import clsx from "clsx";
 
 const createDebounce = () => {
   let timeoutId = null;
@@ -27,17 +28,19 @@ export function CarouselIndicator() {
   const indicator = Array.from({ length }, (_, i) => i);
 
   return (
-    <div>
+    <div className="flex items-center justify-center py-2">
       {indicator.map((i) => {
         return (
           <button
             key={i}
+            className={clsx(
+              "mx-1 h-1 w-1 rounded-full focus-visible:bg-gray-800 dark:focus-visible:bg-gray-200",
+              i === index ? "bg-gray-200" : "bg-gray-500",
+            )}
             onClick={() => {
               onIndexChange(i);
             }}
-          >
-            {i === index ? "●" : "○"}
-          </button>
+          />
         );
       })}
     </div>
@@ -106,7 +109,7 @@ export function CarouselList(props: { children: ReactNode }) {
   return (
     <section
       ref={ref}
-      className="relative flex w-full flex-1 snap-x snap-mandatory flex-row flex-nowrap overflow-scroll"
+      className="relative flex h-full w-full flex-1 snap-x snap-mandatory flex-row flex-nowrap overflow-scroll"
     >
       {props.children}
     </section>

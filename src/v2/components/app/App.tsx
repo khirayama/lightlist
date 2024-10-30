@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import Head from "next/head";
+import qs from "query-string";
 
 import {
   DrawerLayout,
@@ -18,6 +20,12 @@ import { UserSheet } from "v2/components/app/UserSheet";
 import { PreferencesSheet } from "v2/components/app/PreferencesSheet";
 import { useProfile } from "v2/hooks/app/useProfile";
 import { useCustomTranslation } from "v2/common/i18n";
+import {
+  Carousel,
+  CarouselList,
+  CarouselItem,
+  CarouselIndicator,
+} from "v2/components/primitives/Carousel";
 
 function AppDrawer() {
   const { pop } = useAppPageStack();
@@ -71,24 +79,62 @@ function AppDrawer() {
   );
 }
 
+function getTaskListIdIndex(taskListIds: string[]) {
+  const taskListId = (qs.parse(window.location.search).taskListId ||
+    "") as string;
+  const taskListIndex = taskListIds.includes(taskListId)
+    ? taskListIds.indexOf(taskListId)
+    : 0;
+  return taskListIndex;
+}
+
 function AppMain() {
   const [{ data: app }] = useApp();
   const { isNarrowLayout } = useDrawerLayout();
+  const { replaceWithParams } = useAppPageStack();
+  const [index, setIndex] = useState(getTaskListIdIndex(app.taskListIds));
+
+  useEffect(() => {
+    setIndex(getTaskListIdIndex(app.taskListIds));
+  }, [window.location.search, app]);
 
   return (
     <Main>
-      {isNarrowLayout && (
-        <AppPageLink params={{ drawer: "opened" }}>Open</AppPageLink>
-      )}
-      <div className="flex">
-        {app.taskListIds.map((taskListId) => {
-          return (
-            <div key={taskListId} className="flex-1">
-              <TaskList taskListId={taskListId} />
-            </div>
-          );
-        })}
-      </div>
+      <header className="flex p-1">
+        {isNarrowLayout ? (
+          <>
+            <AppPageLink
+              className="flex items-center justify-center rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+              params={{ drawer: "opened" }}
+              mergeParams
+            >
+              <Icon text="menu" />
+            </AppPageLink>
+
+            <div className="flex-1" />
+          </>
+        ) : null}
+      </header>
+      <Carousel
+        index={index}
+        onIndexChange={(idx) => {
+          const taskListId = app.taskListIds[idx];
+          replaceWithParams(window.location.pathname, {
+            params: { taskListId },
+          });
+        }}
+      >
+        <CarouselIndicator />
+        <CarouselList>
+          {app.taskListIds.map((taskListId) => {
+            return (
+              <CarouselItem key={taskListId}>
+                <TaskList taskListId={taskListId} />
+              </CarouselItem>
+            );
+          })}
+        </CarouselList>
+      </Carousel>
     </Main>
   );
 }

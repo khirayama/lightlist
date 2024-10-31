@@ -115,6 +115,7 @@ function AppMain() {
           </>
         ) : null}
       </header>
+
       <Carousel
         index={index}
         onIndexChange={(idx) => {

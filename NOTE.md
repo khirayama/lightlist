@@ -61,3 +61,4 @@ mouse, touch, keyboard, software keyboard, screensize
 ### 参考
 
 -   [dnd-kitを使ってリストの並び替えを実装する](https://zenn.dev/wintyo/articles/d39841c63cc9c9)
+-   [yjsのCRDT論](https://zenn.dev/miyanokomiya/scraps/32b096c2252cd2)

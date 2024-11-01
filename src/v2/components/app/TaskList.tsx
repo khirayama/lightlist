@@ -56,55 +56,49 @@ export function TaskList(props: { taskListId: string }) {
   const taskList = taskLists.find((tl) => tl.id === props.taskListId);
 
   return (
-    taskList && (
+    <div>
       <div>
-        <div>
+        <input
+          type="text"
+          value={taskList.name}
+          onChange={(e) => {
+            updateTaskList({ ...taskList, name: e.currentTarget.value });
+          }}
+        />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (taskText) {
+              appendTask(props.taskListId, { text: taskText });
+              setTaskText("");
+            }
+          }}
+        >
           <input
+            className="border"
             type="text"
-            value={taskList.name}
-            onChange={(e) => {
-              updateTaskList({ ...taskList, name: e.currentTarget.value });
-            }}
+            value={taskText}
+            onChange={(e) => setTaskText(e.currentTarget.value)}
           />
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (taskText) {
-                appendTask(props.taskListId, { text: taskText });
-                setTaskText("");
-              }
-            }}
-          >
-            <input
-              className="border"
-              type="text"
-              value={taskText}
-              onChange={(e) => setTaskText(e.currentTarget.value)}
-            />
-            <button>タスクを作成</button>
-          </form>
-        </div>
-        <div>
-          <button
-            onClick={() => {
-              sortTasks(taskList.id);
-            }}
-          >
-            並び替え
-          </button>
-        </div>
-        <div>
-          {taskList.tasks.map((task) => {
-            return (
-              <TaskListItem
-                key={task.id}
-                task={task}
-                taskListId={taskList.id}
-              />
-            );
-          })}
-        </div>
+          <button>タスクを作成</button>
+        </form>
       </div>
-    )
+      <div>
+        <button
+          onClick={() => {
+            sortTasks(taskList.id);
+          }}
+        >
+          並び替え
+        </button>
+      </div>
+      <div>
+        {taskList.tasks.map((task) => {
+          return (
+            <TaskListItem key={task.id} task={task} taskListId={taskList.id} />
+          );
+        })}
+      </div>
+    </div>
   );
 }

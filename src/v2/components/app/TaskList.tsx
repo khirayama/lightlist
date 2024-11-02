@@ -56,8 +56,8 @@ export function TaskList(props: { taskListId: string }) {
   const taskList = taskLists.find((tl) => tl.id === props.taskListId);
 
   return (
-    <div>
-      <div>
+    <div className="bg h-full overflow-scroll">
+      <header className="bg sticky top-0 z-20 w-full border-b">
         <input
           type="text"
           value={taskList.name}
@@ -82,7 +82,8 @@ export function TaskList(props: { taskListId: string }) {
           />
           <button>タスクを作成</button>
         </form>
-      </div>
+      </header>
+
       <div>
         <button
           onClick={() => {

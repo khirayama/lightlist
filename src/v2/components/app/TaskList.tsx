@@ -6,7 +6,7 @@ function TaskListItem(props: { taskListId: string; task: TaskV2 }) {
   const [, { updateTask, deleteTask }] = useTaskLists();
 
   return (
-    <div className="bg h-full overflow-scroll">
+    <div className="">
       <input
         className="h-[20px] w-[20px] bg-gray-400 checked:bg-blue-400"
         type="checkbox"

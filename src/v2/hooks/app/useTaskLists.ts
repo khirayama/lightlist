@@ -57,6 +57,7 @@ export function useTaskLists(taskListIds: string[] = []): [
     // moveTask: (idx: number, taskId: string) => [TaskListV2, Res<TaskListV2>];
     deleteTask: (taskListId: string, taskId: string) => Res<TaskListV2>;
     sortTasks: (taskListId: string) => [TaskListV2, Res<TaskListV2>];
+    clearCompletedTasks: (taskListId: string) => [TaskListV2, Res<TaskListV2>];
   },
 ] {
   const [, setGlobalState, getGlobalStateSnapshot] = useGlobalState();
@@ -327,6 +328,33 @@ export function useTaskLists(taskListIds: string[] = []): [
             setIsLoading(fetchStatus.isLoading);
           });
         };
+        return [tl, f()];
+      },
+      clearCompletedTasks: (taskListId) => {
+        const doc = docs[taskListId];
+        const taskList = doc.getMap(taskListId);
+        const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
+        tasks.doc.transact(() => {
+          for (let i = tasks.length - 1; i >= 0; i--) {
+            const task = tasks.get(i);
+            if (task.get("completed")) {
+              tasks.delete(i);
+            }
+          }
+        });
+
+        const tl = taskList.toJSON() as TaskListV2;
+        tl.update = Y.encodeStateAsUpdate(doc);
+        setGlobalState({ taskLists: { [tl.id]: tl } });
+        const f = () => {
+          fetchStatus.isLoading = true;
+          setIsLoading(fetchStatus.isLoading);
+          return updateTaskList(tl).finally(() => {
+            fetchStatus.isLoading = false;
+            setIsLoading(fetchStatus.isLoading);
+          });
+        };
+
         return [tl, f()];
       },
     },

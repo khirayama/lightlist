@@ -1,8 +1,48 @@
+import { FormEvent } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { clsx } from "clsx";
+import {
+  Root as Checkbox,
+  Indicator as CheckboxIndicator,
+} from "@radix-ui/react-checkbox";
+import { CheckIcon } from "@radix-ui/react-icons";
+import { format } from "date-fns";
 
+import { AppPageLink } from "v2/hooks/ui/useAppNavigation";
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
+import { Icon } from "v2/components/primitives/Icon";
+
+function TaskTextArea(props: {
+  task: Task;
+  disabled?: boolean;
+  onTaskTextChange: (event: FormEvent<HTMLTextAreaElement>) => void;
+}) {
+  const task = props.task;
+
+  /* FYI: Autoresize textarea */
+  return (
+    <div
+      className={clsx(
+        "relative flex-1 py-3",
+        task.completed ? "text-gray-400 line-through" : "",
+      )}
+    >
+      <div className="invisible whitespace-break-spaces px-1">
+        {task.text + "\u200b"}
+      </div>
+      <textarea
+        disabled={props.disabled}
+        className={clsx(
+          "absolute left-0 top-0 inline-block h-full w-full flex-1 whitespace-break-spaces rounded px-1 py-3 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
+          task.completed ? "text-gray-400 line-through" : "",
+        )}
+        value={task.text}
+        onChange={props.onTaskTextChange}
+      />
+    </div>
+  );
+}
 
 export function TaskListItem(props: {
   taskListId: string;

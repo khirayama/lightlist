@@ -73,50 +73,91 @@ export function TaskListItem(props: {
   return (
     <div
       style={style}
+      ref={setNodeRef}
       className={clsx(
         "border-b",
         isDragging && "z-10 shadow",
         task.completed && "opacity-55",
       )}
     >
-      <input
-        className="h-[20px] w-[20px] bg-gray-400 checked:bg-blue-400"
-        type="checkbox"
-        checked={props.task.completed}
-        onChange={(e) => {
-          updateTask(props.taskListId, {
-            ...props.task,
-            completed: e.currentTarget.checked,
-          });
-        }}
-      />
-      <input
-        type="text"
-        value={props.task.text}
-        onChange={(e) => {
-          updateTask(props.taskListId, {
-            ...props.task,
-            text: e.currentTarget.value,
-          });
-        }}
-      />
-      <input
-        type="date"
-        value={props.task.date || ""}
-        onChange={(e) => {
-          updateTask(props.taskListId, {
-            ...props.task,
-            date: e.currentTarget.value,
-          });
-        }}
-      />
-      <button
-        onClick={() => {
-          deleteTask(props.taskListId, props.task.id);
-        }}
-      >
-        [x]
-      </button>
+      <div className="bg relative flex h-full w-full py-1">
+        <button
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          className={clsx(
+            "flex touch-none items-center justify-center rounded fill-gray-400 p-2 px-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
+          )}
+        >
+          <Icon text="drag_indicator" />
+        </button>
+
+        <span className="flex items-center p-1">
+          <Checkbox
+            disabled={props.disabled}
+            className="group flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
+            checked={task.completed}
+            onCheckedChange={(v: boolean) => {
+              updateTask(props.taskListId, {
+                ...props.task,
+                completed: v,
+              });
+            }}
+          >
+            <CheckboxIndicator className="flex h-full w-full items-center justify-center bg-gray-100 text-gray-400 group-focus-visible:bg-gray-200 dark:group-focus-visible:bg-gray-700">
+              <CheckIcon />
+            </CheckboxIndicator>
+          </Checkbox>
+        </span>
+
+        <TaskTextArea
+          disabled={props.disabled}
+          task={task}
+          onTaskTextChange={(e) => {
+            updateTask(props.taskListId, {
+              ...props.task,
+              text: e.currentTarget.value,
+            });
+          }}
+        />
+
+        <AppPageLink
+          data-trigger={`datepicker-${task.id}`}
+          tabIndex={props.disabled ? -1 : 0}
+          className="flex cursor-pointer items-center justify-center rounded px-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
+          params={{
+            sheet: "datepicker",
+            taskid: task.id,
+            trigger: `datepicker-${task.id}`,
+          }}
+          mergeParams
+          onKeyDown={(e) => {
+            const key = e.key;
+            if (key === "Backspace" || key === "Delete") {
+              e.preventDefault();
+              updateTask(props.taskListId, {
+                ...props.task,
+                date: undefined,
+              });
+            }
+          }}
+        >
+          {task.date ? (
+            <div className="inline px-1 text-right text-gray-400">
+              <div className="w-full font-bold leading-none">
+                {format(task.date, "MM/dd")}
+              </div>
+              <div className="w-full text-xs leading-none">
+                {t(format(task.date, "EEE"))}
+              </div>
+            </div>
+          ) : (
+            <span className="fill-gray-400 p-1">
+              <Icon text="event" />
+            </span>
+          )}
+        </AppPageLink>
+      </div>
     </div>
   );
 }

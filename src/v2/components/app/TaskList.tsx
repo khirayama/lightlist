@@ -161,15 +161,6 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
       </header>
 
       <div>
-        <button
-          onClick={() => {
-            sortTasks(taskList.id);
-          }}
-        >
-          並び替え
-        </button>
-      </div>
-      <div>
         {taskList.tasks.map((task) => {
           return (
             <TaskListItem key={task.id} task={task} taskListId={taskList.id} />

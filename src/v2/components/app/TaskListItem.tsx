@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { AppPageLink } from "v2/hooks/ui/useAppNavigation";
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
 import { Icon } from "v2/components/primitives/Icon";
+import { useCustomTranslation } from "v2/common/i18n";
 
 function TaskTextArea(props: {
   task: Task;
@@ -51,6 +52,7 @@ export function TaskListItem(props: {
 }) {
   const task = props.task;
 
+  const { t } = useCustomTranslation("components.TaskItem");
   const {
     attributes,
     listeners,

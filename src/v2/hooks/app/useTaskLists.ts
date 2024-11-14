@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { v4 as uuid } from "uuid";
 import * as Y from "yjs";
+import { arrayMove } from "@dnd-kit/sortable";
 
 import {
   getTaskLists,
@@ -54,7 +55,11 @@ export function useTaskLists(taskListIds: string[] = []): [
       taskListId: string,
       newTask: Partial<TaskV2>,
     ) => [TaskListV2, Res<TaskListV2>];
-    // moveTask: (idx: number, taskId: string) => [TaskListV2, Res<TaskListV2>];
+    moveTask: (
+      taskListId: string,
+      fromIndex: number,
+      toIndex: number,
+    ) => [TaskListV2, Res<TaskListV2>];
     deleteTask: (taskListId: string, taskId: string) => Res<TaskListV2>;
     sortTasks: (taskListId: string) => [TaskListV2, Res<TaskListV2>];
     clearCompletedTasks: (taskListId: string) => [TaskListV2, Res<TaskListV2>];
@@ -240,6 +245,41 @@ export function useTaskLists(taskListIds: string[] = []): [
         task.set("text", newTask.text);
         task.set("completed", newTask.completed);
         task.set("date", newTask.date);
+
+        const tl = taskList.toJSON() as TaskListV2;
+        tl.update = Y.encodeStateAsUpdate(doc);
+        setGlobalState({ taskLists: { [tl.id]: tl } });
+        const f = () => {
+          fetchStatus.isLoading = true;
+          setIsLoading(fetchStatus.isLoading);
+          return updateTaskList(tl).finally(() => {
+            fetchStatus.isLoading = false;
+            setIsLoading(fetchStatus.isLoading);
+          });
+        };
+        const ss = getGlobalStateSnapshot();
+        return [ss.taskLists[tl.id], f()];
+      },
+      moveTask: (taskListId, fromIndex, toIndex) => {
+        const doc = docs[taskListId];
+        const taskList = doc.getMap(taskListId);
+        const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
+        tasks.doc.transact(() => {
+          const sortedTasks = arrayMove(tasks.toJSON(), fromIndex, toIndex);
+          for (let i = sortedTasks.length - 1; i >= 0; i--) {
+            for (let j = 0; j < tasks.length; j++) {
+              const task = tasks.get(j);
+              if (task.get("id") === sortedTasks[i].id) {
+                if (j !== i) {
+                  const t = task.clone();
+                  tasks.delete(j);
+                  tasks.insert(0, [t]);
+                }
+                break;
+              }
+            }
+          }
+        });
 
         const tl = taskList.toJSON() as TaskListV2;
         tl.update = Y.encodeStateAsUpdate(doc);

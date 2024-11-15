@@ -1,4 +1,22 @@
 import { useState, FormEvent, KeyboardEvent } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragCancelEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
 import { useApp } from "v2/hooks/app/useApp";
@@ -7,17 +25,37 @@ import { Icon } from "v2/components/primitives/Icon";
 import { AppPageLink } from "v2/hooks/ui/useAppNavigation";
 import { useCustomTranslation } from "v2/common/i18n";
 
-export function TaskList(props: { disabled?: boolean; taskListId: string }) {
+export function TaskList(props: {
+  disabled?: boolean;
+  taskListId: string;
+  handleDragStart?: (e: DragStartEvent) => void;
+  handleDragCancel?: (e: DragCancelEvent) => void;
+  handleDragEnd?: (e: DragEndEvent) => void;
+}) {
   const { t } = useCustomTranslation("components.TaskList");
 
   const [taskText, setTaskText] = useState("");
   const [isShiftPressed, setIsShiftPressed] = useState<boolean>(false);
   const [
     { data: taskLists },
-    { appendTask, prependTask, updateTaskList, sortTasks, clearCompletedTasks },
+    {
+      appendTask,
+      prependTask,
+      updateTaskList,
+      sortTasks,
+      clearCompletedTasks,
+      moveTask,
+    },
   ] = useTaskLists([props.taskListId]);
   const taskList = taskLists.find((tl) => tl.id === props.taskListId);
   const [{ data: app }, { updateApp }] = useApp();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   const isInsertTop =
     (app.taskInsertPosition === "TOP" && !isShiftPressed) ||
@@ -65,6 +103,19 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
 
   const onClearCompletedTasksButtonClick = () => {
     clearCompletedTasks(taskList.id);
+  };
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    if (props.handleDragEnd) {
+      props.handleDragEnd(e);
+    }
+    const { active, over } = e;
+
+    if (active && over && active.id !== over.id) {
+      const oldIndex = taskList.tasks.findIndex((t) => t.id === active.id);
+      const newIndex = taskList.tasks.findIndex((t) => t.id === over.id);
+      moveTask(taskList.id, oldIndex, newIndex);
+    }
   };
 
   return (
@@ -161,11 +212,29 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
       </header>
 
       <div>
-        {taskList.tasks.map((task) => {
-          return (
-            <TaskListItem key={task.id} task={task} taskListId={taskList.id} />
-          );
-        })}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis]}
+          onDragStart={props.handleDragStart}
+          onDragCancel={props.handleDragCancel}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={taskList.tasks}
+            strategy={verticalListSortingStrategy}
+          >
+            {taskList.tasks.map((task) => {
+              return (
+                <TaskListItem
+                  key={task.id}
+                  task={task}
+                  taskListId={taskList.id}
+                />
+              );
+            })}
+          </SortableContext>
+        </DndContext>
       </div>
     </div>
   );

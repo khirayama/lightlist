@@ -14,7 +14,6 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  arrayMove,
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
@@ -136,7 +135,6 @@ export function TaskList(props: {
               data-trigger={`sharing-${taskList.id}`}
               tabIndex={props.disabled ? -1 : 0}
               className="rounded p-1 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
-              href="/app"
               params={{
                 sheet: "sharing",
                 tasklistid: taskList.id,

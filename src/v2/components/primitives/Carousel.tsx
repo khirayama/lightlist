@@ -118,7 +118,7 @@ export function CarouselList(props: { children: ReactNode }) {
 
 export function CarouselItem(props: { children: ReactNode }) {
   return (
-    <div className="relative w-full flex-none snap-start snap-always px-4 py-12">
+    <div className="relative w-full flex-none snap-start snap-always">
       {props.children}
     </div>
   );

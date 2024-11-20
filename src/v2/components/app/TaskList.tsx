@@ -122,7 +122,7 @@ export function TaskList(props: {
       <header className="bg sticky top-0 z-20 w-full border-b">
         <section className="px-1">
           <div className="flex pl-8">
-            <h1 className="flex-1 text-center font-bold">
+            <h1 className="flex-1 font-bold">
               <input
                 disabled={props.disabled}
                 className="inline-block w-full rounded py-1 text-center focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"

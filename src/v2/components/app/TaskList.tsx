@@ -119,7 +119,7 @@ export function TaskList(props: {
 
   return (
     <div className="bg h-full overflow-scroll">
-      <header className="bg sticky top-0 z-20 w-full border-b">
+      <header className="bg sticky top-0 z-20 m-auto w-full max-w-3xl border-b">
         <section className="px-1">
           <div className="flex pl-8">
             <h1 className="flex-1 font-bold">
@@ -209,7 +209,7 @@ export function TaskList(props: {
         </section>
       </header>
 
-      <div>
+      <div className="m-auto max-w-3xl">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

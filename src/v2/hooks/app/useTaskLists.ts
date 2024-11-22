@@ -270,11 +270,9 @@ export function useTaskLists(taskListIds: string[] = []): [
             for (let j = 0; j < tasks.length; j++) {
               const task = tasks.get(j);
               if (task.get("id") === sortedTasks[i].id) {
-                if (j !== i) {
-                  const t = task.clone();
-                  tasks.delete(j);
-                  tasks.insert(0, [t]);
-                }
+                const t = task.clone();
+                tasks.delete(j);
+                tasks.insert(0, [t]);
                 break;
               }
             }

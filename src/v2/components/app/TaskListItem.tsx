@@ -25,7 +25,7 @@ function TaskTextArea(props: {
   return (
     <div
       className={clsx(
-        "bg relative flex-1 py-3",
+        "bg relative flex-1 py-2",
         task.completed ? "text-gray-400 line-through" : "",
       )}
     >

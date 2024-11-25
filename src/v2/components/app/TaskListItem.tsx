@@ -61,7 +61,6 @@ export function TaskListItem(props: {
     transform,
     transition,
     isDragging,
-    isSorting,
   } = useSortable({ id: task.id });
   attributes["tabIndex"] = props.disabled ? -1 : 0;
   attributes["aria-disabled"] = props.disabled;
@@ -70,7 +69,7 @@ export function TaskListItem(props: {
     transition: transition || "",
   };
 
-  const [, { updateTask, deleteTask }] = useTaskLists();
+  const [, { updateTask }] = useTaskLists();
 
   return (
     <div

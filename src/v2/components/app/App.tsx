@@ -17,6 +17,7 @@ import { useActiveStatus } from "v2/hooks/composites/useActiveStatus";
 import { Icon } from "v2/components/primitives/Icon";
 import { useAppPageStack, AppPageLink } from "v2/hooks/ui/useAppNavigation";
 import { UserSheet } from "v2/components/app/UserSheet";
+import { DatePickerSheet } from "v2/components/app/DatePickerSheet";
 import { PreferencesSheet } from "v2/components/app/PreferencesSheet";
 import { useProfile } from "v2/hooks/app/useProfile";
 import { useCustomTranslation } from "v2/common/i18n";
@@ -166,6 +167,8 @@ export function App() {
       <UserSheet />
 
       <PreferencesSheet />
+
+      <DatePickerSheet />
     </>
   );
 }

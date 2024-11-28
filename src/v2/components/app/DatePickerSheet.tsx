@@ -12,7 +12,7 @@ import { useAppPageStack } from "v2/hooks/ui/useAppNavigation";
 
 export function DatePickerSheet() {
   const isSheetOpen = () => {
-    return qs.parse(window.location.search).sheet === "user";
+    return qs.parse(window.location.search).sheet === "datepicker";
   };
 
   const [{ data: app }] = useApp();

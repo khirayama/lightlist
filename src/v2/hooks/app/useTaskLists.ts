@@ -64,6 +64,9 @@ export function useTaskLists(taskListIds: string[] = []): [
     sortTasks: (taskListId: string) => [TaskListV2, Res<TaskListV2>];
     clearCompletedTasks: (taskListId: string) => [TaskListV2, Res<TaskListV2>];
   },
+  {
+    getTaskById: (taskId: string) => [TaskV2, TaskListV2];
+  },
 ] {
   const [, setGlobalState, getGlobalStateSnapshot] = useGlobalState();
   const [isLoading, setIsLoading] = useState(false);
@@ -394,6 +397,19 @@ export function useTaskLists(taskListIds: string[] = []): [
         };
 
         return [tl, f()];
+      },
+    },
+    {
+      getTaskById: (taskId) => {
+        const ss = getGlobalStateSnapshot();
+        const taskList = Object.values(ss.taskLists).find((tl) =>
+          tl.tasks.some((t) => t.id === taskId),
+        );
+        if (!taskList) {
+          return [null, null];
+        }
+        const task = taskList.tasks.find((t) => t.id === taskId);
+        return [task, taskList];
       },
     },
   ];

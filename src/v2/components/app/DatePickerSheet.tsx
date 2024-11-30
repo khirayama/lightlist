@@ -1,158 +1,38 @@
-import { useState } from "react";
 import qs from "query-string";
 
 import { ParamsSheet } from "v2/components/primitives/ParamsSheet";
 import { useCustomTranslation } from "v2/common/i18n";
-import { ConfirmDialog } from "components/ConfirmDialog";
-import { useProfile } from "v2/hooks/app/useProfile";
-import { useApp } from "v2/hooks/app/useApp";
+import { DatePicker } from "components/DatePicker";
 import { useTaskLists } from "v2/hooks/app/useTaskLists";
-import { useAuth } from "v2/common/auth";
-import { useAppPageStack } from "v2/hooks/ui/useAppNavigation";
 
-export function DatePickerSheet() {
+export function DatePickerSheet(props: {
+  handleChange: () => void;
+  handleCancel: () => void;
+}) {
   const isSheetOpen = () => {
     return qs.parse(window.location.search).sheet === "datepicker";
   };
 
-  const [{ data: app }] = useApp();
-  const [{ data: profile }, { updateProfile }] = useProfile();
-  const [, { deleteTaskList }] = useTaskLists();
-  const [, { getUser, deleteUser, updateUser, signOut }] = useAuth();
-  const { push } = useAppPageStack();
-
-  const { t } = useCustomTranslation("components.UserSheet");
-  const [displayName, setDisplayName] = useState(profile.displayName);
-  const [email, setEmail] = useState(profile.email);
-  const [password, setPassword] = useState("");
-  const [confirmedPassword, setConfirmedPassword] = useState("");
+  const taskId = qs.parse(window.location.search).taskid as string;
+  const { t } = useCustomTranslation("components.DatePickerSheet");
+  const [, { updateTask }, { getTaskById }] = useTaskLists();
+  const [task, taskList] = getTaskById(taskId);
 
   return (
-    <ParamsSheet isSheetOpen={isSheetOpen} title={t("Log In")}>
-      <div>
-        <div className="flex p-4">
-          <div className="flex-1 pr-4">
-            <input
-              className="w-full rounded border px-4 py-2 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
-              type="text"
-              placeholder={t("New display name")}
-              value={displayName}
-              onChange={(e) => {
-                setDisplayName(e.target.value);
-              }}
-            />
-          </div>
-          <button
-            className="rounded border bg-gray-100 p-2 px-4 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
-            onClick={() => {
-              updateProfile({ displayName });
-            }}
-          >
-            {t("Change display name")}
-          </button>
-        </div>
-
-        <div className="flex p-4">
-          <div className="flex-1 pr-4">
-            <input
-              className="w-full rounded border px-4 py-2 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
-              type="email"
-              placeholder={t("New email")}
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-              }}
-            />
-          </div>
-          <button
-            className="rounded border bg-gray-100 p-2 px-4 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
-            onClick={() => {
-              updateUser({ email });
-            }}
-          >
-            {t("Change email")}
-          </button>
-        </div>
-
-        <div className="flex p-4">
-          <div className="flex-1 pr-4">
-            <div className="pb-4">
-              <input
-                className="w-full rounded border px-4 py-2 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
-                type="password"
-                placeholder={t("New password")}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                }}
-              />
-            </div>
-            <div>
-              <input
-                className="w-full rounded border px-4 py-2 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
-                type="password"
-                placeholder={t("Confirm new password")}
-                value={confirmedPassword}
-                onChange={(e) => {
-                  setConfirmedPassword(e.target.value);
-                }}
-              />
-            </div>
-          </div>
-          <div>
-            <button
-              className="rounded border bg-gray-100 p-2 px-4 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
-              disabled={!password || password !== confirmedPassword}
-              onClick={() => {
-                updateUser({ password });
-              }}
-            >
-              {t("Update password")}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex p-4">
-          <button
-            className="w-full rounded border bg-gray-100 px-4 py-2 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
-            onClick={() => {
-              signOut().then(() => {
-                push("/login");
-              });
-            }}
-          >
-            {t("Log out")}
-          </button>
-        </div>
-
-        <div className="flex p-4">
-          <ConfirmDialog
-            title="Delete Account"
-            description="Are you sure you want to delete your account?"
-            trueText="Delete"
-            falseText="Cancel"
-            handleSelect={(val) => {
-              if (val) {
-                Promise.all(
-                  app.taskListIds.map((tlid) => {
-                    deleteTaskList(tlid);
-                  }),
-                ).then(async () => {
-                  const {
-                    data: { user },
-                  } = await getUser();
-                  deleteUser(user.id).then(() => {
-                    push("/login");
-                  });
-                });
-              }
-            }}
-          >
-            <button className="w-full rounded border bg-gray-100 px-4 py-2 text-red-400 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700">
-              {t("Delete account")}
-            </button>
-          </ConfirmDialog>
-        </div>
+    <ParamsSheet isSheetOpen={isSheetOpen} title={t("Date Picker")}>
+      <div className="px-4">
+        <DatePicker
+          autoFocus
+          value={task?.date || ""}
+          handleChange={(v) => {
+            updateTask(taskList.id, {
+              ...task,
+              date: v,
+            });
+            props.handleChange();
+          }}
+          handleCancel={props.handleCancel}
+        />
       </div>
     </ParamsSheet>
   );

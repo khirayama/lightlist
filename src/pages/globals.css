@@ -4,7 +4,11 @@
 
 @layer utilities {
   .bg {
-    @apply bg-white text-dark transition duration-500 dark:bg-gray-800 dark:text-white;
+    @apply bg-white text-dark transition duration-500 dark:bg-gray-900 dark:text-white;
+  }
+
+  .bg-secondary {
+    @apply bg-gray-100 text-dark transition duration-500 dark:bg-gray-800 dark:text-white;
   }
 
   .bg-button {

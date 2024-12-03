@@ -38,7 +38,7 @@ export function TaskListListItem(props: {
 
   return (
     <div ref={setNodeRef} style={style} className={clsx(isDragging && "z-10")}>
-      <div className="bg relative flex h-full w-full px-1">
+      <div className="bg-secondary relative flex h-full w-full px-1">
         <button
           ref={setActivatorNodeRef}
           {...listeners}

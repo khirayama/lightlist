@@ -28,10 +28,9 @@ export const Drawer = (props: { children?: ReactNode }) => {
       className={clsx(
         "absolute z-30 h-full w-full min-w-[320px] -translate-x-full transition-transform duration-[320ms] md:relative md:block md:w-[auto] md:max-w-sm md:translate-x-0",
         da.isDrawerOpen && "translate-x-0",
-        !da.isNarrowLayout && "border-r",
       )}
     >
-      <div className="bg h-full w-full">{props.children}</div>
+      <div className="bg-secondary h-full w-full">{props.children}</div>
     </section>
   );
 };

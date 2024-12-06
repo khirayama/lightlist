@@ -10,6 +10,14 @@ import qs from "query-string";
 import { useRouter } from "next/router";
 import Link from "next/link";
 
+// - useNavigation
+// - Navigation
+//  - navigate
+//  - push
+//  - goBack
+//  - popTo
+//  - popToTop
+// - Link
 type Query = { [key: string]: string | string[] | null };
 
 const AppPageStackContext = createContext(null);

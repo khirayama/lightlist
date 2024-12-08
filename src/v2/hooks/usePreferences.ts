@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { useGlobalState } from "v2/hooks/ui/useGlobalState";
+import { useGlobalState } from "v2/libs/globalState";
 import {
   getPreferences,
   updatePreferences,

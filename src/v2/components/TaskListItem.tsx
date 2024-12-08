@@ -9,10 +9,10 @@ import {
 import { CheckIcon } from "@radix-ui/react-icons";
 import { format } from "date-fns";
 
-import { AppPageLink } from "v2/hooks/ui/useAppNavigation";
-import { useTaskLists } from "v2/hooks/app/useTaskLists";
-import { Icon } from "v2/components/primitives/Icon";
-import { useCustomTranslation } from "v2/common/i18n";
+import { useCustomTranslation } from "v2/libs/i18n";
+import { AppPageLink } from "v2/libs/ui/navigation";
+import { Icon } from "v2/libs/ui/components/Icon";
+import { useTaskLists } from "v2/hooks/useTaskLists";
 
 function TaskTextArea(props: {
   task: Task;

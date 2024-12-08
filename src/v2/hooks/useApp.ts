@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as Y from "yjs";
 
-import { useGlobalState } from "v2/hooks/ui/useGlobalState";
+import { useGlobalState } from "v2/libs/globalState";
 import { getApp, updateApp, type Res } from "v2/common/services";
 
 let doc: Y.Doc = null;

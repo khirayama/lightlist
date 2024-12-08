@@ -2,10 +2,10 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { clsx } from "clsx";
 
-import { Icon } from "v2/components/primitives/Icon";
-import { ConfirmDialog } from "components/ConfirmDialog";
-import { useTaskLists } from "v2/hooks/app/useTaskLists";
-import { AppPageLink } from "v2/hooks/ui/useAppNavigation";
+import { AppPageLink } from "v2/libs/ui/navigation";
+import { Icon } from "v2/libs/ui/components/Icon";
+import { ConfirmDialog } from "v2/libs/ui/components/ConfirmDialog";
+import { useTaskLists } from "v2/hooks/useTaskLists";
 
 export function TaskListListItem(props: {
   disabled?: boolean;

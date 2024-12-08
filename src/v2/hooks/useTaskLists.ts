@@ -3,14 +3,14 @@ import { v4 as uuid } from "uuid";
 import * as Y from "yjs";
 import { arrayMove } from "@dnd-kit/sortable";
 
+import { useGlobalState } from "v2/libs/globalState";
 import {
   getTaskLists,
   updateTaskList,
   deleteTaskList,
   type Res,
 } from "v2/common/services";
-import { useGlobalState } from "v2/hooks/ui/useGlobalState";
-import { useApp } from "v2/hooks/app/useApp";
+import { useApp } from "v2/hooks/useApp";
 
 const docs: { [taskListId: string]: Y.Doc } = {};
 

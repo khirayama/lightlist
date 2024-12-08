@@ -1,14 +1,16 @@
 import { useRouter } from "next/router";
 
+import { I18nProvider } from "v2/libs/i18n";
+import { GlobalStateProvider } from "v2/libs/globalState";
+import { AppPageStackProvider } from "v2/libs/ui/navigation";
 import { useAuth, AuthProvider } from "v2/common/auth";
-import { App } from "v2/components/app/App";
-import { GlobalStateProvider } from "v2/hooks/ui/useGlobalState";
-import { I18nProvider } from "v2/common/i18n";
-import { AppPageStackProvider } from "v2/hooks/ui/useAppNavigation";
-import { useApp } from "v2/hooks/app/useApp";
-import { usePreferences } from "v2/hooks/app/usePreferences";
-import { useTaskLists } from "v2/hooks/app/useTaskLists";
-import { useProfile } from "v2/hooks/app/useProfile";
+import { config } from "v2/common/globalStateConfig";
+import { jaTranslation, enTranslation } from "v2/common/translations";
+import { useApp } from "v2/hooks/useApp";
+import { usePreferences } from "v2/hooks/usePreferences";
+import { useTaskLists } from "v2/hooks/useTaskLists";
+import { useProfile } from "v2/hooks/useProfile";
+import { App } from "v2/components/App";
 
 function Content() {
   const router = useRouter();
@@ -29,7 +31,17 @@ function Content() {
     isPreferencesInitialized &&
     isTaskListsInitialized &&
     isProfileInitialized ? (
-    <I18nProvider lang={preferences?.lang || ""}>
+    <I18nProvider
+      lang={preferences?.lang || ""}
+      resources={{
+        ja: {
+          translation: jaTranslation,
+        },
+        en: {
+          translation: enTranslation,
+        },
+      }}
+    >
       <App />
     </I18nProvider>
   ) : (
@@ -43,7 +55,7 @@ export default function AppV2Page() {
   return (
     <AuthProvider>
       <AppPageStackProvider>
-        <GlobalStateProvider>
+        <GlobalStateProvider config={config}>
           <Content />
         </GlobalStateProvider>
       </AppPageStackProvider>

@@ -2,9 +2,9 @@ import * as Select from "@radix-ui/react-select";
 import { CheckIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 import qs from "query-string";
 
-import { ParamsSheet } from "v2/components/primitives/ParamsSheet";
-import { usePreferences } from "v2/hooks/app/usePreferences";
-import { useCustomTranslation } from "v2/common/i18n";
+import { useCustomTranslation } from "v2/libs/i18n";
+import { ParamsSheet } from "v2/libs/ui/components/ParamsSheet";
+import { usePreferences } from "v2/hooks/usePreferences";
 
 export function PreferencesSheet() {
   const isSheetOpen = () => {

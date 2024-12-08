@@ -17,12 +17,12 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
-import { useTaskLists } from "v2/hooks/app/useTaskLists";
-import { useApp } from "v2/hooks/app/useApp";
-import { TaskListItem } from "v2/components/app/TaskListItem";
-import { Icon } from "v2/components/primitives/Icon";
-import { AppPageLink } from "v2/hooks/ui/useAppNavigation";
-import { useCustomTranslation } from "v2/common/i18n";
+import { useCustomTranslation } from "v2/libs/i18n";
+import { AppPageLink } from "v2/libs/ui/navigation";
+import { Icon } from "v2/libs/ui/components/Icon";
+import { useTaskLists } from "v2/hooks/useTaskLists";
+import { useApp } from "v2/hooks/useApp";
+import { TaskListItem } from "v2/components/TaskListItem";
 
 export function TaskList(props: {
   disabled?: boolean;

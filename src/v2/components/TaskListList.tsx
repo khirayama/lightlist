@@ -16,13 +16,13 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
-import { useApp } from "v2/hooks/app/useApp";
-import { useTaskLists } from "v2/hooks/app/useTaskLists";
-import { useCustomTranslation } from "v2/common/i18n";
-import { Icon } from "v2/components/primitives/Icon";
-import { TaskListListItem } from "v2/components/app/TaskListListItem";
-import { useDrawerLayout } from "v2/components/primitives/DrawerLayout";
-import { useAppPageStack } from "v2/hooks/ui/useAppNavigation";
+import { useCustomTranslation } from "v2/libs/i18n";
+import { useAppPageStack } from "v2/libs/ui/navigation";
+import { Icon } from "v2/libs/ui/components/Icon";
+import { useDrawerLayout } from "v2/libs/ui/components/DrawerLayout";
+import { useApp } from "v2/hooks/useApp";
+import { useTaskLists } from "v2/hooks/useTaskLists";
+import { TaskListListItem } from "v2/components/TaskListListItem";
 
 export function TaskListList(props: { disabled?: boolean }) {
   const sensors = useSensors(

@@ -76,15 +76,19 @@ export function CarouselList(props: { children: ReactNode }) {
 
   useEffect(() => {
     const el = ref.current.childNodes[index];
-    el.parentNode.scrollLeft = el.offsetLeft;
+    if (el) {
+      el.parentNode.scrollLeft = el.offsetLeft;
+    }
   }, []);
 
   useEffect(() => {
     const el = ref.current.childNodes[index];
-    el.parentNode.scrollTo({
-      left: el.offsetLeft,
-      behavior: "smooth",
-    });
+    if (el) {
+      el.parentNode.scrollTo({
+        left: el.offsetLeft,
+        behavior: "smooth",
+      });
+    }
   }, [index]);
 
   useEffect(() => {

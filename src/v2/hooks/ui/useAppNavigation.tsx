@@ -42,6 +42,40 @@ export const AppPageStackProvider = (props: { children: ReactNode }) => {
     isInitialRender.current = false;
   }, []);
 
+  // Disable swipe back gesture
+  useEffect(() => {
+    document.addEventListener("touchstart", (event) => {
+      if (event.touches.length === 1) {
+        const touchStartX = event.touches[0].clientX;
+        let isSwipeBack = false;
+
+        document.addEventListener(
+          "touchmove",
+          (moveEvent) => {
+            moveEvent.preventDefault();
+            const touchEndX = moveEvent.touches[0].clientX;
+            const deltaX = touchEndX - touchStartX;
+
+            if (deltaX > 50) {
+              isSwipeBack = true;
+            }
+          },
+          { passive: false },
+        );
+
+        document.addEventListener(
+          "touchend",
+          () => {
+            if (isSwipeBack) {
+              window.history.back();
+            }
+          },
+          { passive: false },
+        );
+      }
+    });
+  }, []);
+
   return (
     <AppPageStackContext.Provider
       value={{

@@ -13,6 +13,8 @@ type DeepPartial<T> = {
 
 const GlobalStateContext = createContext(null);
 
+let snapshot: unknown;
+
 export const GlobalStateProvider = (props: {
   config: { initialValue: () => unknown };
   children: ReactNode;
@@ -20,7 +22,7 @@ export const GlobalStateProvider = (props: {
   const config = props.config;
 
   const [globalState, nativeSetGlobalState] = useState(config.initialValue());
-  let snapshot: ReturnType<typeof config.initialValue> = globalState;
+  snapshot = globalState as ReturnType<typeof config.initialValue>;
 
   const setGlobalState = (
     newState: DeepPartial<ReturnType<typeof config.initialValue>>,

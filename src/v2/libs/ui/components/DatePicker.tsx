@@ -11,17 +11,32 @@ import {
 } from "date-fns";
 import clsx from "clsx";
 
-import { useCustomTranslation } from "v2/libs/i18n";
-import { Icon } from "v2/libs/ui/components/Icon";
+import { Icon } from "./Icon";
 
 export function DatePicker(props: {
   value: string;
   autoFocus?: boolean;
   handleChange: (val: string) => void;
   handleCancel: () => void;
+  labels: {
+    reset: string;
+    cancel: string;
+    titleSunday: string;
+    titleMonday: string;
+    titleTuesday: string;
+    titleWednesday: string;
+    titleThursday: string;
+    titleFriday: string;
+    titleSaturday: string;
+    sunday: string;
+    monday: string;
+    tuesday: string;
+    wednesday: string;
+    thursday: string;
+    friday: string;
+    saturday: string;
+  };
 }) {
-  const { t } = useCustomTranslation("libs.components.DatePicker");
-
   const ref = useRef<HTMLTableSectionElement>(null);
   const [val, setVal] = useState<string>(
     props.value || format(new Date(), "yyyy-MM-dd"),
@@ -70,7 +85,8 @@ export function DatePicker(props: {
               <div className="flex px-2">
                 {val ? (
                   <span className="flex-1 py-1 text-left">
-                    {format(val, "yyyy/MM/dd")}({t(format(val, "EEE"))})
+                    {format(val, "yyyy/MM/dd")}(
+                    {props.labels["title" + format(val, "EEEE")]})
                   </span>
                 ) : null}
                 <button
@@ -80,7 +96,7 @@ export function DatePicker(props: {
                     props.handleChange("");
                   }}
                 >
-                  {t("Reset")}
+                  {props.labels.reset}
                 </button>
                 <button
                   className="rounded px-2 py-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
@@ -89,7 +105,7 @@ export function DatePicker(props: {
                     props.handleCancel();
                   }}
                 >
-                  {t("Cancel")}
+                  {props.labels.cancel}
                 </button>
               </div>
             </th>
@@ -120,13 +136,13 @@ export function DatePicker(props: {
             </td>
           </tr>
           <tr>
-            <th className="p-2 pb-4">{t("Sunday")}</th>
-            <th className="p-2 pb-4">{t("Monday")}</th>
-            <th className="p-2 pb-4">{t("Tuesday")}</th>
-            <th className="p-2 pb-4">{t("Wednesday")}</th>
-            <th className="p-2 pb-4">{t("Thursday")}</th>
-            <th className="p-2 pb-4">{t("Friday")}</th>
-            <th className="p-2 pb-4">{t("Saturday")}</th>
+            <th className="p-2 pb-4">{props.labels.sunday}</th>
+            <th className="p-2 pb-4">{props.labels.monday}</th>
+            <th className="p-2 pb-4">{props.labels.tuesday}</th>
+            <th className="p-2 pb-4">{props.labels.wednesday}</th>
+            <th className="p-2 pb-4">{props.labels.thursday}</th>
+            <th className="p-2 pb-4">{props.labels.friday}</th>
+            <th className="p-2 pb-4">{props.labels.saturday}</th>
           </tr>
         </thead>
 

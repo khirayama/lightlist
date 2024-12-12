@@ -8,33 +8,39 @@ function replaceByClonedSource<T = any>(options: { clone: (source: T) => T }) {
 const merge = deepmerge({ mergeArray: replaceByClonedSource });
 
 type DeepPartial<T> = {
-  [P in keyof T]?: DeepPartial<T[P]>;
+  [P in keyof T]?: T[P] | DeepPartial<T[P]>;
 };
 
 const GlobalStateContext = createContext(null);
 
-let snapshot: unknown;
+export function createConfig<T>(config: { initialValue: () => T }) {
+  return {
+    ...config,
+    snapshot: null as T,
+  };
+}
 
 export const GlobalStateProvider = (props: {
-  config: { initialValue: () => unknown };
+  config: ReturnType<typeof createConfig>;
   children: ReactNode;
 }) => {
   const config = props.config;
 
-  const [globalState, nativeSetGlobalState] = useState(config.initialValue());
-  snapshot = globalState as ReturnType<typeof config.initialValue>;
+  const [globalState, nativeSetGlobalState] = useState<typeof config.snapshot>(
+    config.initialValue(),
+  );
+  config.snapshot = globalState as typeof config.snapshot;
 
-  const setGlobalState = (
-    newState: DeepPartial<ReturnType<typeof config.initialValue>>,
-  ) => {
-    const mergedState = merge(snapshot, newState) as ReturnType<
-      typeof config.initialValue
-    >;
-    snapshot = mergedState;
-    nativeSetGlobalState(snapshot);
+  const setGlobalState = (newState: DeepPartial<typeof config.snapshot>) => {
+    const mergedState = merge(
+      config.snapshot,
+      newState,
+    ) as typeof config.snapshot;
+    config.snapshot = mergedState;
+    nativeSetGlobalState(config.snapshot);
   };
 
-  const getGlobalStateSnapshot = () => snapshot;
+  const getGlobalStateSnapshot = () => config.snapshot;
 
   return (
     <GlobalStateContext.Provider
@@ -51,9 +57,8 @@ export const GlobalStateProvider = (props: {
 export const useGlobalState = () => {
   const { payload, config } = useContext(GlobalStateContext);
   return payload as [
-    ReturnType<typeof config.initialValue>,
-    (newState: DeepPartial<ReturnType<typeof config.initialValue>>) => void,
-    () => ReturnType<typeof config.initialValue>,
-    ReturnType<typeof config.initialValue>,
+    typeof config.snapshot,
+    (newState: DeepPartial<typeof config.snapshot>) => void,
+    () => typeof config.snapshot,
   ];
 };

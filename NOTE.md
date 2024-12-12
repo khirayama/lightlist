@@ -57,6 +57,7 @@ mouse, touch, keyboard, software keyboard, screensize
 -   eventオブジェクトが引数に渡される場合はonXXX
 -   eventオブジェクトが引数に渡される場合はhandleXXX
 -   globalStateにはpagesからしかアクセスしない
+-   event emitterをベースとしたglobalStateの管理をベースにして、それをサブスクラブしてupdateをかける
 
 ### 参考
 

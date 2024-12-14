@@ -1,6 +1,8 @@
 import * as Y from "yjs";
 
-export const config = {
+import { createConfig } from "v2/libs/globalState";
+
+export const config = createConfig({
   initialValue: (): GlobalStateV2 => {
     const doc = new Y.Doc();
     const da = doc.getMap("app");
@@ -24,4 +26,4 @@ export const config = {
       taskLists: {},
     };
   },
-};
+});

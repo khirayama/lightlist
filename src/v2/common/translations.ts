@@ -214,6 +214,7 @@ export const enTranslation: typeof jaTranslation = {
       "Delete account": "Delete account",
     },
     SharingSheet: {
+      Share: "Share",
       "Share {{name}} list": "Share {{name}} list",
       "Copied to clipboard": "Copied to clipboard",
       "Need to run this under https or localhost":

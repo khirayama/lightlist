@@ -112,7 +112,6 @@ export function TaskListList(props: { disabled?: boolean }) {
                   key={taskList.id}
                   disabled={props.disabled}
                   taskList={taskList}
-                  handleTaskListLinkClick={props.handleTaskListLinkClick}
                 />
               );
             })}

@@ -402,9 +402,9 @@ export function useTaskLists(taskListIds: string[] = []): [
     {
       getTaskById: (taskId) => {
         const ss = getGlobalStateSnapshot();
-        const taskList = Object.values(ss.taskLists).find((tl) =>
-          tl.tasks.some((t) => t.id === taskId),
-        );
+        const taskList: TaskListV2 = Object.values(ss.taskLists).find(
+          (tl: TaskListV2) => tl.tasks.some((t) => t.id === taskId),
+        ) as TaskListV2;
         if (!taskList) {
           return [null, null];
         }

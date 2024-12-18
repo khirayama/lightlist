@@ -170,7 +170,7 @@ export function App() {
 
       <PreferencesSheet />
 
-      <DatePickerSheet />
+      <DatePickerSheet handleChange={() => {}} handleCancel={() => {}} />
     </>
   );
 }

@@ -1,7 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { Auth } from "@supabase/auth-ui-react";
 import qs from "query-string";
 
 import { useSupabase } from "libs/supabase";
@@ -12,6 +11,10 @@ export default function LoginPage() {
 
   const { t } = useCustomTranslation("pages.login");
   const { supabase, isLoggedIn } = useSupabase();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [view, setView] = useState<"signup" | "login" | "reset">("signup");
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -33,56 +36,79 @@ export default function LoginPage() {
 
       <div className="mx-auto flex h-full max-w-sm items-center justify-center py-12">
         <div className="pb-16">
-          <Auth
-            supabaseClient={supabase}
-            appearance={{
-              // theme: ThemeSupa,
-              extend: false,
-              className: {
-                anchor:
-                  "block text-gray-400 px-2 py-1 rounded focus-visible:bg-gray-200",
-                button:
-                  "w-full py-2 px-4 border rounded my-4 focus-visible:bg-gray-200",
-                container: "classname-container",
-                divider: "classname-divider",
-                label: "block text-gray-400",
-                input:
-                  "border rounded w-full py-2 px-4 mb-4 focus-visible:bg-gray-200",
-                loader: "classname-loader",
-                message: "classname-message",
-              },
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (view === "signup") {
+                supabase.auth.signUp({ email, password });
+              } else if (view === "login") {
+                supabase.auth.signInWithPassword({ email, password });
+              } else {
+                supabase.auth.resetPasswordForEmail(email);
+              }
             }}
-            localization={{
-              variables: {
-                sign_in: {
-                  email_label: t("Email"),
-                  email_input_placeholder: t("Email"),
-                  password_label: t("Password"),
-                  password_input_placeholder: t("Password"),
-                  button_label: t("Log In"),
-                  loading_button_label: t("Logging In"),
-                  link_text: t("Already have an account? Log in"),
-                },
-                sign_up: {
-                  email_label: t("Email"),
-                  email_input_placeholder: t("Email"),
-                  password_label: t("Password"),
-                  password_input_placeholder: t("Password"),
-                  button_label: t("Sign Up"),
-                  loading_button_label: t("Signing Up"),
-                  link_text: t("Don't have an account? Sign up"),
-                },
-                forgotten_password: {
-                  email_label: t("Email"),
-                  email_input_placeholder: t("Email"),
-                  button_label: t("Send reset password instructions"),
-                  loading_button_label: "loading button label",
-                  link_text: t("Forgot your password?"),
-                },
-              },
-            }}
-            providers={[]}
-          />
+          >
+            <div>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            {view !== "reset" && (
+              <div>
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            )}
+            <div>
+              <button>
+                {view === "signup"
+                  ? "Sign Up"
+                  : view === "login"
+                    ? "Log In"
+                    : "Send email to reset password"}
+              </button>
+            </div>
+          </form>
+          {view === "login" && (
+            <div>
+              <button
+                onClick={() => {
+                  setView("signup");
+                }}
+              >
+                I don't have an account
+              </button>
+            </div>
+          )}
+          {view !== "login" && (
+            <div>
+              <button
+                onClick={() => {
+                  setView("login");
+                }}
+              >
+                I already have an account
+              </button>
+            </div>
+          )}
+          {view !== "reset" && (
+            <div>
+              <button
+                onClick={() => {
+                  setView("reset");
+                }}
+              >
+                Forgot password
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

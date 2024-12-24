@@ -35,17 +35,11 @@ model ShareCode {
   taskListId String
 }
 
-model Task {
-  id        String  @id
-  text      String
-  completed Boolean
-  date      String
-}
-
 model TaskList {
-  id      String   @id
-  name    String
-  taskIds String[]
+  id     String @id
+  name   String
+  tasks  Json
+  update Bytes  @default("")
 }
 
 model App {
@@ -54,6 +48,7 @@ model App {
   taskInsertPosition TaskInsertPosition @default(BOTTOM)
   taskListIds        String[]
   online             Boolean            @default(false)
+  update             Bytes              @default("")
 }
 
 model Profile {

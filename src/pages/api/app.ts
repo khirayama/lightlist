@@ -21,7 +21,10 @@ export default async function handler(
       },
     });
     return res.json({
-      app: exclude(app, unsafeKeys),
+      app: {
+        update: {},
+        ...exclude(app, unsafeKeys),
+      },
     });
   }
   if (req.method === "PATCH") {

@@ -39,7 +39,7 @@ model TaskList {
   id     String @id
   name   String
   tasks  Json
-  update Bytes  @default("")
+  update Bytes
 }
 
 model App {
@@ -48,7 +48,7 @@ model App {
   taskInsertPosition TaskInsertPosition @default(BOTTOM)
   taskListIds        String[]
   online             Boolean            @default(false)
-  update             Bytes              @default("")
+  update             Bytes
 }
 
 model Profile {

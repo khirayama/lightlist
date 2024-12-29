@@ -22,7 +22,6 @@ export default async function handler(
     });
     return res.json({
       app: {
-        update: {},
         ...exclude(app, unsafeKeys),
       },
     });

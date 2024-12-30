@@ -8,11 +8,11 @@ export default async function handler(
 ) {
   const { user, errorMessage } = await auth(req);
 
-  if (req.method === "POST") {
-    if (errorMessage) {
-      return res.status(401).json({ error: errorMessage });
-    }
+  if (errorMessage) {
+    return res.status(401).json({ error: errorMessage });
+  }
 
+  if (req.method === "POST") {
     const newTaskList = req.body;
     delete newTaskList.shareCode;
     const [taskList, shareCode] = await prisma.$transaction([

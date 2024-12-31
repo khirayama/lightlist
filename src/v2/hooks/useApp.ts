@@ -40,7 +40,7 @@ export function useApp(): [
         fetchStatus.isLoading = false;
         setIsLoading(fetchStatus.isLoading);
 
-        const app = res.data;
+        const app = res.data.app;
         if (!doc) {
           doc = new Y.Doc();
         }

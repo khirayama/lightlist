@@ -16,18 +16,6 @@ function loadGlobalState() {
   return config.initialValue();
 }
 
-function getMock<T>(fn: (gs: GlobalStateV2) => T) {
-  return new Promise<{ data: T }>((resolve) => {
-    setTimeout(
-      () => {
-        const gs = loadGlobalState();
-        resolve({ data: fn(gs) });
-      },
-      timelag + Math.random() * 1000,
-    );
-  });
-}
-
 function setMock<T>(gs: GlobalStateV2, fn: (gs: GlobalStateV2) => T) {
   window.localStorage.setItem("__tmp", JSON.stringify(gs));
   return new Promise<{ data: T }>((resolve) => {
@@ -114,7 +102,13 @@ export function updateProfile(newProfile: Partial<ProfileV2>) {
 }
 
 export function getTaskLists() {
-  return getMock((gs) => gs.taskLists);
+  return axios.get("/api/task-lists", {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
 }
 
 export function updateTaskList(newTaskList: Partial<TaskListV2>) {

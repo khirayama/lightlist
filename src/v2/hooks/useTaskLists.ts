@@ -87,7 +87,7 @@ export function useTaskLists(taskListIds: string[] = []): [
           fetchStatus.isLoading = false;
           setIsLoading(fetchStatus.isLoading);
           const taskLists = {};
-          Object.values(res.data).forEach((tl: TaskListV2) => {
+          Object.values(res.data.taskLists).forEach((tl: TaskListV2) => {
             if (!docs[tl.id]) {
               const d = new Y.Doc();
               docs[tl.id] = d;

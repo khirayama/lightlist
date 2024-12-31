@@ -36,7 +36,7 @@ export function useProfile(): [
         fetchStatus.isLoading = false;
         setIsLoading(fetchStatus.isLoading);
 
-        const profile = res.data;
+        const profile = res.data.profile;
         setGlobalState({ profile });
       });
     };

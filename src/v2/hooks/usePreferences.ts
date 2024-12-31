@@ -40,7 +40,7 @@ export function usePreferences(): [
         fetchStatus.isLoading = false;
         setIsLoading(fetchStatus.isLoading);
 
-        const preferences = res.data;
+        const preferences = res.data.preferences;
         setGlobalState({ preferences });
       });
     };

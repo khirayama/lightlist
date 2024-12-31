@@ -1,6 +1,8 @@
 import * as Y from "yjs";
+import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 
 import { config } from "v2/common/globalStateConfig";
+import { getSession } from "v2/common/auth";
 
 export type Res<T> = Promise<{ data: T }>;
 
@@ -38,8 +40,24 @@ function setMock<T>(gs: GlobalStateV2, fn: (gs: GlobalStateV2) => T) {
   });
 }
 
-export function getApp() {
-  return getMock((gs) => gs.app);
+export async function register(options: { lang?: string } = {}) {
+  return axios.post("/api/register", options, {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
+}
+
+export async function getApp() {
+  return axios.get("/api/app", {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
 }
 
 export function updateApp(newApp: Partial<AppV2>) {
@@ -64,7 +82,13 @@ export function updateApp(newApp: Partial<AppV2>) {
 }
 
 export function getPreferences() {
-  return getMock((gs) => gs.preferences);
+  return axios.get("/api/preferences", {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
 }
 
 export function updatePreferences(newPreferences: Partial<PreferencesV2>) {
@@ -74,7 +98,13 @@ export function updatePreferences(newPreferences: Partial<PreferencesV2>) {
 }
 
 export function getProfile() {
-  return getMock((gs) => gs.profile);
+  return axios.get("/api/profile", {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
 }
 
 export function updateProfile(newProfile: Partial<ProfileV2>) {

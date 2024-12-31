@@ -5,7 +5,7 @@ npx supabase start
 npx supabase status
 # Copy .env.example to .env and set NEXT_PUBLIC_SUPABASE_ANON_KEY
 # .env is for development, .env.production is for production
-npx npx prisma migrate deploy
+npx prisma migrate deploy
 ```
 
 ## Dev

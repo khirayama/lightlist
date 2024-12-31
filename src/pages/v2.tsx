@@ -12,22 +12,34 @@ import { useTaskLists } from "v2/hooks/useTaskLists";
 import { useProfile } from "v2/hooks/useProfile";
 import { App } from "v2/components/App";
 
-function Content() {
+function Loading() {
+  return (
+    <div className="bg flex h-full w-full items-center justify-center">
+      Loading...
+    </div>
+  );
+}
+
+function AuthContent() {
   const router = useRouter();
   const [{ isInitialized, isLoggedIn }] = useAuth();
-  const [{ isInitialized: isAppInitialized }] = useApp();
-  const [{ isInitialized: isPreferencesInitialized, data: preferences }] =
-    usePreferences();
-  const [{ isInitialized: isTaskListsInitialized }] = useTaskLists();
-  const [{ isInitialized: isProfileInitialized }] = useProfile();
 
   if (isInitialized && !isLoggedIn) {
     router.push("/login");
     return null;
   }
 
-  return isInitialized &&
-    isAppInitialized &&
+  return isInitialized && isLoggedIn ? <Content /> : <Loading />;
+}
+
+function Content() {
+  const [{ isInitialized: isAppInitialized }] = useApp();
+  const [{ isInitialized: isPreferencesInitialized, data: preferences }] =
+    usePreferences();
+  const [{ isInitialized: isTaskListsInitialized }] = useTaskLists();
+  const [{ isInitialized: isProfileInitialized }] = useProfile();
+
+  return isAppInitialized &&
     isPreferencesInitialized &&
     isTaskListsInitialized &&
     isProfileInitialized ? (
@@ -45,9 +57,7 @@ function Content() {
       <App />
     </I18nProvider>
   ) : (
-    <div className="bg flex h-full w-full items-center justify-center">
-      Loading...
-    </div>
+    <Loading />
   );
 }
 
@@ -56,7 +66,7 @@ export default function AppV2Page() {
     <AuthProvider>
       <AppPageStackProvider>
         <GlobalStateProvider config={config}>
-          <Content />
+          <AuthContent />
         </GlobalStateProvider>
       </AppPageStackProvider>
     </AuthProvider>

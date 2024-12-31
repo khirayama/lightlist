@@ -20,7 +20,7 @@ export default async function handler(
     const appDoc = new Y.Doc();
     const ad = appDoc.getMap("app");
     ad.set("userId", user.id);
-    ad.set("taskListIds", []);
+    ad.set("taskListIds", new Y.Array());
     ad.set("taskInsertPosition", "TOP");
     ad.set("online", false);
 
@@ -71,6 +71,16 @@ export default async function handler(
         },
       }),
     ]);
+
+    const taskListIds = ad.get("taskListIds") as Y.Array<string>;
+    taskListIds.insert(0, [taskList.id]);
+    await prisma.app.update({
+      where: { userId: user.id },
+      data: {
+        ...ad.toJSON(),
+        update: Y.encodeStateAsUpdate(appDoc),
+      },
+    });
 
     return res.json({
       app: exclude(app, ["id", "userId"]),

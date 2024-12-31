@@ -18,7 +18,7 @@ export function UserSheet() {
   const [{ data: app }] = useApp();
   const [{ data: profile }, { updateProfile }] = useProfile();
   const [, { deleteTaskList }] = useTaskLists();
-  const [, { getUser, deleteUser, updateUser, signOut }] = useAuth();
+  const [{ session }, { deleteUser, updateUser, signOut }] = useAuth();
   const { push } = useAppPageStack();
 
   const { t } = useCustomTranslation("components.UserSheet");
@@ -138,9 +138,7 @@ export function UserSheet() {
                     deleteTaskList(tlid);
                   }),
                 ).then(async () => {
-                  const {
-                    data: { user },
-                  } = await getUser();
+                  const user = session?.user;
                   deleteUser(user.id).then(() => {
                     push("/login");
                   });

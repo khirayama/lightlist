@@ -1,4 +1,3 @@
-import * as Y from "yjs";
 import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 
 import { config } from "v2/common/globalStateConfig";
@@ -49,24 +48,13 @@ export async function getApp() {
 }
 
 export function updateApp(newApp: Partial<AppV2>) {
-  const gs = loadGlobalState();
-
-  const doc = new Y.Doc();
-  if (gs.app.update) {
-    const u = Uint8Array.from(Object.values(gs.app.update));
-    if (u.length) {
-      Y.applyUpdate(doc, u);
-    }
-  }
-  if (newApp.update) {
-    const u = Uint8Array.from(Object.values(newApp.update));
-    if (u.length) {
-      Y.applyUpdate(doc, u);
-    }
-  }
-
-  gs.app = { ...gs.app, ...newApp, update: Y.encodeStateAsUpdate(doc) };
-  return setMock(gs, (gs) => gs.app);
+  return axios.patch("/api/app", newApp, {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
 }
 
 export function getPreferences() {
@@ -80,9 +68,13 @@ export function getPreferences() {
 }
 
 export function updatePreferences(newPreferences: Partial<PreferencesV2>) {
-  const gs = loadGlobalState();
-  gs.preferences = { ...gs.preferences, ...newPreferences };
-  return setMock(gs, (gs) => gs.preferences);
+  return axios.patch("/api/preferences", newPreferences, {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
 }
 
 export function getProfile() {
@@ -96,9 +88,13 @@ export function getProfile() {
 }
 
 export function updateProfile(newProfile: Partial<ProfileV2>) {
-  const gs = loadGlobalState();
-  gs.profile = { ...gs.profile, ...newProfile };
-  return setMock(gs, (gs) => gs.profile);
+  return axios.patch("/api/profile", newProfile, {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
 }
 
 export function getTaskLists() {
@@ -111,34 +107,32 @@ export function getTaskLists() {
   });
 }
 
+export function createTaskList(newTaskList: Partial<TaskListV2>) {
+  return axios.post("/api/task-lists", newTaskList, {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
+}
+
 export function updateTaskList(newTaskList: Partial<TaskListV2>) {
-  const gs = loadGlobalState();
-  const newTaskLists = { ...gs.taskLists };
-  const taskList = newTaskLists[newTaskList.id];
-
-  const doc = new Y.Doc();
-  if (taskList?.update) {
-    const u = Uint8Array.from(Object.values(taskList.update));
-    Y.applyUpdate(doc, u);
-  }
-  if (newTaskList?.update) {
-    const u = Uint8Array.from(Object.values(newTaskList.update));
-    Y.applyUpdate(doc, u);
-  }
-
-  newTaskLists[newTaskList.id] = {
-    ...newTaskLists[newTaskList.id],
-    ...doc.getMap(newTaskList.id).toJSON(),
-    update: Y.encodeStateAsUpdate(doc),
-  };
-  gs.taskLists = newTaskLists;
-  return setMock(gs, (gs) => gs.taskLists[newTaskList.id]);
+  return axios.patch(`/api/task-lists/${newTaskList.id}`, newTaskList, {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
 }
 
 export function deleteTaskList(taskListId: string) {
-  const gs = loadGlobalState();
-  const newTaskLists = { ...gs.taskLists };
-  delete newTaskLists[taskListId];
-  gs.taskLists = newTaskLists;
-  return setMock(gs, () => {});
+  return axios.delete(`/api/task-lists/${taskListId}`, {
+    withCredentials: true,
+    headers: {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${getSession()?.access_token}`,
+    },
+  });
 }

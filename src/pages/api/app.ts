@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { App as AppType } from "@prisma/client";
+import * as Y from "yjs";
 
 import { prisma, exclude, auth } from "libs/apiHelper";
 
@@ -26,12 +27,37 @@ export default async function handler(
       },
     });
   }
-  if (req.method === "PATCH") {
-    const app = await prisma.app.update({
+
+  if (req.method === "PUT" || req.method === "PATCH") {
+    let app = await prisma.app.findUnique({
       where: {
         userId: user.id,
       },
-      data: exclude(req.body, unsafeKeys),
+    });
+    const doc = new Y.Doc();
+    if (app.update) {
+      Y.applyUpdate(doc, app.update);
+    }
+
+    const newApp = req.body as Partial<AppType>;
+    if (newApp.update) {
+      const u = Uint8Array.from(Object.values(newApp.update));
+      if (u.length) {
+        Y.applyUpdate(doc, u);
+      }
+    }
+
+    app = await prisma.app.update({
+      where: {
+        userId: user.id,
+      },
+      data: exclude(
+        {
+          ...doc.getMap("app").toJSON(),
+          update: Y.encodeStateAsUpdate(doc),
+        } as AppType,
+        unsafeKeys,
+      ),
     });
     return res.json({
       app: exclude(app, unsafeKeys),

@@ -24,7 +24,8 @@ export default async function handler(
       preferences: exclude(preferences, unsafeKeys),
     });
   }
-  if (req.method === "PATCH") {
+
+  if (req.method === "PUT" || req.method === "PATCH") {
     const preferences = await prisma.preferences.update({
       where: {
         userId: user.id,

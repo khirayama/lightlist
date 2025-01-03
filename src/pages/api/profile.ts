@@ -27,7 +27,8 @@ export default async function handler(
       },
     });
   }
-  if (req.method === "PATCH") {
+
+  if (req.method === "PUT" || req.method === "PATCH") {
     const profile = await prisma.profile.update({
       where: {
         userId: user.id,

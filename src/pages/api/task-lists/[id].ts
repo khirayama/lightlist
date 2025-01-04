@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { TaskList as TaskListType } from "@prisma/client";
+import * as Y from "yjs";
 
 import { prisma, exclude, auth } from "libs/apiHelper";
 
@@ -24,12 +25,36 @@ export default async function handler(
     }
   }
 
-  if (req.method === "PATCH") {
-    const taskList = await prisma.taskList.update({
+  if (req.method === "PUT" || req.method === "PATCH") {
+    let taskList = await prisma.taskList.findUnique({
       where: {
         id: taskListId,
       },
-      data: exclude(req.body, unsafeKeys),
+    });
+    const doc = new Y.Doc();
+    if (taskList?.update) {
+      Y.applyUpdate(doc, taskList.update);
+    }
+
+    const newTaskList = req.body as Partial<TaskListType>;
+    if (newTaskList.update) {
+      const u = Uint8Array.from(Object.values(newTaskList.update));
+      if (u.length) {
+        Y.applyUpdate(doc, u);
+      }
+    }
+
+    taskList = await prisma.taskList.update({
+      where: {
+        id: taskListId,
+      },
+      data: exclude(
+        {
+          ...doc.getMap(taskListId).toJSON(),
+          update: Y.encodeStateAsUpdate(doc),
+        } as TaskListType,
+        unsafeKeys,
+      ),
     });
     return res.json({ taskList });
   }
@@ -43,19 +68,7 @@ export default async function handler(
       },
     });
     if (apps.length === 1) {
-      const taskList = await prisma.taskList.findUnique({
-        where: {
-          id: taskListId,
-        },
-      });
       await prisma.$transaction([
-        prisma.task.deleteMany({
-          where: {
-            id: {
-              in: taskList.taskIds,
-            },
-          },
-        }),
         prisma.shareCode.deleteMany({
           where: {
             taskListId,

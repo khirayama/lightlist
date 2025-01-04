@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import type { TaskList as TaskListType } from "@prisma/client";
+import * as Y from "yjs";
 
 import { prisma, auth } from "libs/apiHelper";
 
@@ -14,10 +16,18 @@ export default async function handler(
 
   if (req.method === "POST") {
     const newTaskList = req.body;
-    delete newTaskList.shareCode;
+    const taskListDoc = new Y.Doc();
+    const td = taskListDoc.getMap(newTaskList.id);
+    Y.applyUpdate(
+      taskListDoc,
+      Uint8Array.from(Object.values(newTaskList.update)),
+    );
     const [taskList, shareCode] = await prisma.$transaction([
       prisma.taskList.create({
-        data: newTaskList,
+        data: {
+          ...td.toJSON(),
+          update: Y.encodeStateAsUpdate(taskListDoc),
+        } as TaskListType,
       }),
       prisma.shareCode.create({
         data: {
@@ -25,6 +35,7 @@ export default async function handler(
         },
       }),
     ]);
+
     return res.json({
       taskList: {
         ...taskList,

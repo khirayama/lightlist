@@ -6,6 +6,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { useGlobalState } from "v2/libs/globalState";
 import {
   getTaskLists,
+  createTaskList,
   updateTaskList,
   deleteTaskList,
   type Res,
@@ -173,7 +174,7 @@ export function useTaskLists(taskListIds: string[] = []): [
     const f = () => {
       fetchStatus.isLoading = true;
       setIsLoading(fetchStatus.isLoading);
-      return updateTaskList(tl).finally(() => {
+      return createTaskList(tl).finally(() => {
         fetchStatus.isLoading = false;
         setIsLoading(fetchStatus.isLoading);
       });

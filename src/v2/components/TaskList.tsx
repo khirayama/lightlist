@@ -34,7 +34,6 @@ export function TaskList(props: {
   const { t } = useCustomTranslation("components.TaskList");
 
   const [taskText, setTaskText] = useState("");
-  const [isShiftPressed, setIsShiftPressed] = useState<boolean>(false);
   const [
     { data: taskLists },
     {
@@ -56,9 +55,7 @@ export function TaskList(props: {
     }),
   );
 
-  const isInsertTop =
-    (app.taskInsertPosition === "TOP" && !isShiftPressed) ||
-    (app.taskInsertPosition === "BOTTOM" && isShiftPressed);
+  const isInsertTop = app.taskInsertPosition === "TOP";
 
   const onTaskListNameChange = (e: FormEvent<HTMLInputElement>) => {
     updateTaskList({ ...taskList, name: e.currentTarget.value });
@@ -73,14 +70,6 @@ export function TaskList(props: {
 
   const onTaskTextChange = (e: FormEvent<HTMLInputElement>) => {
     setTaskText(e.currentTarget.value);
-  };
-
-  const onTaskTextKeyDownAndKeyUp = (e: KeyboardEvent<HTMLInputElement>) => {
-    setIsShiftPressed(e.shiftKey);
-  };
-
-  const onTaskTextBlur = () => {
-    setIsShiftPressed(false);
   };
 
   const onTaskFormSubmit = (e: FormEvent<HTMLFormElement>) => {

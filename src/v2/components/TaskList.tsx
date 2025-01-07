@@ -161,9 +161,6 @@ export function TaskList(props: {
                   isInsertTop ? t("Add task to top") : t("Add task to bottom")
                 }
                 onChange={onTaskTextChange}
-                onKeyDown={onTaskTextKeyDownAndKeyUp}
-                onKeyUp={onTaskTextKeyDownAndKeyUp}
-                onBlur={onTaskTextBlur}
               />
               <button
                 disabled={props.disabled}

@@ -49,6 +49,10 @@ export function useProfile(): [
         }, 10000);
       }
     }
+
+    return () => {
+      clearInterval(fetchStatus.intervalId);
+    };
   }, []);
 
   return [

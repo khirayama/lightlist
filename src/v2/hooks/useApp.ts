@@ -64,6 +64,10 @@ export function useApp(): [
         }, 10000);
       }
     }
+
+    return () => {
+      clearInterval(fetchStatus.intervalId);
+    };
   }, []);
 
   const insertTaskListId = (

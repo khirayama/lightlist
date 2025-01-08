@@ -116,6 +116,10 @@ export function useTaskLists(taskListIds: string[] = []): [
         }, 10000);
       }
     }
+
+    return () => {
+      clearInterval(fetchStatus.intervalId);
+    };
   }, []);
 
   const insertTask = (

@@ -53,6 +53,10 @@ export function usePreferences(): [
         }, 10000);
       }
     }
+
+    return () => {
+      clearInterval(fetchStatus.intervalId);
+    };
   }, []);
 
   return [

@@ -113,7 +113,7 @@ export function useTaskLists(taskListIds: string[] = []): [
       if (!fetchStatus.intervalId) {
         fetchStatus.intervalId = setInterval(() => {
           fetch();
-        }, 3000);
+        }, 10000);
       }
     }
   }, []);

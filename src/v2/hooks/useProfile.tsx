@@ -46,7 +46,7 @@ export function useProfile(): [
       if (!fetchStatus.intervalId) {
         fetchStatus.intervalId = setInterval(() => {
           fetch();
-        }, 5000);
+        }, 10000);
       }
     }
   }, []);

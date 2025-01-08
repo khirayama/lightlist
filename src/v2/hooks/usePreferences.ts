@@ -50,7 +50,7 @@ export function usePreferences(): [
       if (!fetchStatus.intervalId) {
         fetchStatus.intervalId = setInterval(() => {
           fetch();
-        }, 5000);
+        }, 10000);
       }
     }
   }, []);

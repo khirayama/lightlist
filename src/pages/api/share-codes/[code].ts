@@ -1,7 +1,7 @@
 import { v4 as uuid } from "uuid";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import { prisma, auth } from "libs/apiHelper";
+import { prisma, auth } from "v2/common/apiHelper";
 
 export default async function handler(
   req: NextApiRequest,

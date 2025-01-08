@@ -3,16 +3,14 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import qs from "query-string";
 
-import { useSupabase } from "libs/supabase";
-import { useCustomTranslation } from "libs/i18n";
-import { setSession } from "v2/common/auth";
-import { register } from "v2/common/services";
+import { useAuth, AuthProvider } from "v2/common/auth";
+import { useCustomTranslation } from "v2/libs/i18n";
 
-export default function LoginPage() {
+function Content() {
   const router = useRouter();
 
   const { t } = useCustomTranslation("pages.login");
-  const { supabase } = useSupabase();
+  const [, { signUp, signInWithPassword, resetPasswordForEmail }] = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,25 +34,18 @@ export default function LoginPage() {
               const url =
                 (qs.parse(window?.location.search).redirect as string) || "/v2";
               if (view === "signup") {
-                supabase.auth
-                  .signUp({ email, password })
-                  .then(({ data }) => {
-                    setSession(data.session);
-                    register({
-                      lang: (router.query.lang as string) || "JA",
-                    }).then(() => {
-                      router.replace(url);
-                    });
-                  })
-                  .catch((err) => {
-                    console.warn("TODO", err);
-                  });
+                signUp(
+                  { email, password },
+                  (router.query.lang as string) || "JA",
+                ).then(() => {
+                  router.replace(url);
+                });
               } else if (view === "login") {
-                supabase.auth
-                  .signInWithPassword({ email, password })
-                  .then(() => router.replace(url));
+                signInWithPassword({ email, password }).then(() =>
+                  router.replace(url),
+                );
               } else {
-                supabase.auth.resetPasswordForEmail(email);
+                resetPasswordForEmail(email);
               }
             }}
           >
@@ -122,5 +113,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <AuthProvider>
+      <Content />
+    </AuthProvider>
   );
 }

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import type { App as AppType } from "@prisma/client";
 import * as Y from "yjs";
 
-import { prisma, exclude, auth } from "libs/apiHelper";
+import { prisma, exclude, auth } from "v2/common/apiHelper";
 
 export default async function handler(
   req: NextApiRequest,

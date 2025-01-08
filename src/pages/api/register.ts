@@ -3,7 +3,7 @@ import type { App as AppType, TaskList as TaskListType } from "@prisma/client";
 import * as Y from "yjs";
 import { v4 as uuid } from "uuid";
 
-import { prisma, exclude, auth } from "libs/apiHelper";
+import { prisma, exclude, auth } from "v2/common/apiHelper";
 
 export default async function handler(
   req: NextApiRequest,

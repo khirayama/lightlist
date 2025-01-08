@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import { type Session, createClient } from "@supabase/supabase-js";
+import { register } from "v2/common/services";
 
 type AuthContext = [
   {
@@ -14,6 +15,18 @@ type AuthContext = [
     session: Session;
   },
   {
+    signUp: (
+      attributes: {
+        email: string;
+        password: string;
+      },
+      lang: string,
+    ) => Promise<unknown>;
+    signInWithPassword: (attributes: {
+      email: string;
+      password: string;
+    }) => Promise<unknown>;
+    resetPasswordForEmail: (email: string) => Promise<unknown>;
     updateUser: (attributes: { [key: string]: string }) => Promise<unknown>;
     deleteUser: (id: string) => Promise<unknown>;
     signOut: () => Promise<unknown>;
@@ -67,9 +80,18 @@ export const AuthProvider = (props: { children: ReactNode }) => {
           session,
         },
         {
-          deleteUser: supabase.auth.admin.deleteUser,
-          updateUser: supabase.auth.updateUser,
-          signOut: supabase.auth.signOut,
+          signUp: (options, lang: string) =>
+            supabase.auth.signUp(options).then(({ data }) => {
+              setSession(data.session);
+              register({ lang });
+            }),
+          signInWithPassword: (options) =>
+            supabase.auth.signInWithPassword(options),
+          resetPasswordForEmail: (options) =>
+            supabase.auth.resetPasswordForEmail(options),
+          deleteUser: (options) => supabase.auth.admin.deleteUser(options),
+          updateUser: (options) => supabase.auth.updateUser(options),
+          signOut: () => supabase.auth.signOut(),
         },
       ]}
     >

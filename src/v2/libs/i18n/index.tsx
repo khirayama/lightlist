@@ -11,48 +11,27 @@ import { initReactI18next, useTranslation } from "react-i18next";
 
 const I18nContext = createContext(null);
 
-const fallbackLng = "ja";
-
-type Translation = {
-  [key: string]: string | Translation;
+export const initI18n = (options: {}) => {
+  i18n.use(initReactI18next).init(options);
 };
 
-export const I18nProvider = (props: {
-  lang?: string;
-  children: ReactNode;
-  resources: {
-    [lang: string]: {
-      translation: Translation;
-    };
-  };
-}) => {
+export const I18nProvider = (props: { children: ReactNode }) => {
   const tr = useTranslation();
-  const [lng, setLng] = useState(props.lang || fallbackLng);
+  const [lng, setLng] = useState(tr.i18n.resolvedLanguage);
 
   useEffect(() => {
-    i18n.use(initReactI18next).init({
-      resources: props.resources,
-      lng: fallbackLng,
-      fallbackLng,
-      interpolation: {
-        escapeValue: false,
-      },
+    tr.i18n.on("languageChanged", (l) => {
+      setLng(l);
     });
   }, []);
-
-  useEffect(() => {
-    const l = props.lang.toLowerCase();
-    setLng(l);
-    tr.i18n.changeLanguage(l);
-  }, [props.lang]);
 
   return (
     <I18nContext.Provider
       value={{
         t: tr.t,
         lng,
-        supportedLanguages: Object.keys(tr.i18n.options.resources).map((lang) =>
-          lang.toUpperCase(),
+        supportedLanguages: Object.keys(tr.i18n?.options?.resources || {}).map(
+          (lang) => lang.toUpperCase(),
         ),
       }}
     >

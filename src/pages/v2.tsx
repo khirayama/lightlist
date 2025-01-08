@@ -1,11 +1,9 @@
 import { useRouter } from "next/router";
 
-import { I18nProvider } from "v2/libs/i18n";
 import { GlobalStateProvider } from "v2/libs/globalState";
 import { AppPageStackProvider } from "v2/libs/ui/navigation";
 import { useAuth, AuthProvider } from "v2/common/auth";
 import { config } from "v2/common/globalStateConfig";
-import { jaTranslation, enTranslation } from "v2/common/translations";
 import { useApp } from "v2/hooks/useApp";
 import { usePreferences } from "v2/hooks/usePreferences";
 import { useTaskLists } from "v2/hooks/useTaskLists";
@@ -34,8 +32,7 @@ function AuthContent() {
 
 function Content() {
   const [{ isInitialized: isAppInitialized }] = useApp();
-  const [{ isInitialized: isPreferencesInitialized, data: preferences }] =
-    usePreferences();
+  const [{ isInitialized: isPreferencesInitialized }] = usePreferences();
   const [{ isInitialized: isTaskListsInitialized }] = useTaskLists();
   const [{ isInitialized: isProfileInitialized }] = useProfile();
 
@@ -43,19 +40,7 @@ function Content() {
     isPreferencesInitialized &&
     isTaskListsInitialized &&
     isProfileInitialized ? (
-    <I18nProvider
-      lang={preferences?.lang || ""}
-      resources={{
-        ja: {
-          translation: jaTranslation,
-        },
-        en: {
-          translation: enTranslation,
-        },
-      }}
-    >
-      <App />
-    </I18nProvider>
+    <App />
   ) : (
     <Loading />
   );

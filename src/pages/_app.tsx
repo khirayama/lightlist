@@ -4,13 +4,26 @@ import { useEffect } from "react";
 import Head from "next/head";
 import { Analytics } from "@vercel/analytics/react";
 
-import { GlobalStateProvider } from "libs/globalState";
-import { SupabaseProvider } from "libs/supabase";
-import { init as initI18n } from "libs/i18n";
-
 import "pages/globals.css";
 
-initI18n();
+import { I18nProvider, initI18n } from "v2/libs/i18n";
+import { jaTranslation, enTranslation } from "v2/common/translations";
+
+initI18n({
+  lng: "ja",
+  fallbackLng: "ja",
+  resources: {
+    ja: {
+      translation: jaTranslation,
+    },
+    en: {
+      translation: enTranslation,
+    },
+  },
+  interpolation: {
+    escapeValue: false,
+  },
+});
 
 export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
@@ -29,12 +42,10 @@ export default function App({ Component, pageProps }: AppProps) {
           content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
         />
       </Head>
-      <SupabaseProvider>
-        <GlobalStateProvider>
-          <Analytics />
-          <Component {...pageProps} />
-        </GlobalStateProvider>
-      </SupabaseProvider>
+      <I18nProvider>
+        <Analytics />
+        <Component {...pageProps} />
+      </I18nProvider>
     </>
   );
 }

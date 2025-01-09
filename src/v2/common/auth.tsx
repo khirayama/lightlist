@@ -5,8 +5,22 @@ import {
   ReactNode,
   useState,
 } from "react";
-import { type Session, createClient } from "@supabase/supabase-js";
+import {
+  type Session,
+  VerifyOtpParams,
+  createClient,
+} from "@supabase/supabase-js";
 import { register } from "v2/common/services";
+
+function isEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function isPhoneNumber(phoneNumber: string): boolean {
+  const numberRegex = /^\d+$/;
+  return numberRegex.test(phoneNumber);
+}
 
 type AuthContext = [
   {
@@ -15,18 +29,16 @@ type AuthContext = [
     session: Session;
   },
   {
-    signUp: (
-      attributes: {
-        email: string;
-        password: string;
-      },
-      lang: string,
+    signUpOrInWithOtp: (
+      emailOrPhoneNumber: string,
+      lang?: string,
     ) => Promise<unknown>;
-    signInWithPassword: (attributes: {
-      email: string;
-      password: string;
-    }) => Promise<unknown>;
-    resetPasswordForEmail: (email: string) => Promise<unknown>;
+    verifyOtpWithToken: (
+      emailOrPhoneNumber: string,
+      token: string,
+      lang?: string,
+    ) => Promise<unknown>;
+    verifyOtpWithLink: (token: string, lang?: string) => Promise<unknown>;
     updateUser: (attributes: { [key: string]: string }) => Promise<unknown>;
     deleteUser: (id: string) => Promise<unknown>;
     signOut: () => Promise<unknown>;
@@ -51,6 +63,7 @@ const AuthContext = createContext<AuthContext>(null);
 export const AuthProvider = (props: { children: ReactNode }) => {
   const [session, setSessionState] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -68,8 +81,18 @@ export const AuthProvider = (props: { children: ReactNode }) => {
         setIsInitialized(true);
       }
     });
+
     return () => subscription.unsubscribe();
   }, []);
+
+  const verifyOtp = async (options: VerifyOtpParams, lang: string) => {
+    return supabase.auth.verifyOtp(options).then(({ data }) => {
+      setSession(data.session);
+      if (isSignUp) {
+        register({ lang });
+      }
+    });
+  };
 
   return (
     <AuthContext.Provider
@@ -80,15 +103,77 @@ export const AuthProvider = (props: { children: ReactNode }) => {
           session,
         },
         {
-          signUp: (options, lang: string) =>
-            supabase.auth.signUp(options).then(({ data }) => {
-              setSession(data.session);
-              register({ lang });
-            }),
-          signInWithPassword: (options) =>
-            supabase.auth.signInWithPassword(options),
-          resetPasswordForEmail: (options) =>
-            supabase.auth.resetPasswordForEmail(options),
+          signUpOrInWithOtp: async (emailOrPhoneNumber: string) => {
+            let options:
+              | {
+                  email: string;
+                  options: {
+                    shouldCreateUser: boolean;
+                  };
+                }
+              | {
+                  phone: string;
+                  options: {
+                    shouldCreateUser: boolean;
+                  };
+                };
+            if (isEmail(emailOrPhoneNumber)) {
+              options = {
+                email: emailOrPhoneNumber,
+                options: {
+                  shouldCreateUser: false,
+                },
+              };
+            } else if (isPhoneNumber(emailOrPhoneNumber)) {
+              options = {
+                phone: emailOrPhoneNumber,
+                options: {
+                  shouldCreateUser: false,
+                },
+              };
+            } else {
+              throw new Error("Invalid email or phone number");
+            }
+            return supabase.auth.signInWithOtp(options).then((res) => {
+              if (res.error) {
+                options.options.shouldCreateUser = true;
+                setIsSignUp(true);
+                return supabase.auth.signInWithOtp(options);
+              }
+            });
+          },
+          verifyOtpWithToken: (
+            emailOrPhoneNumber: string,
+            token: string,
+            lang: string = "JA",
+          ) => {
+            let options: VerifyOtpParams;
+            if (isEmail(emailOrPhoneNumber)) {
+              options = {
+                email: emailOrPhoneNumber,
+                token,
+                type: "email",
+              };
+            } else if (isPhoneNumber(emailOrPhoneNumber)) {
+              options = {
+                phone: emailOrPhoneNumber,
+                token,
+                type: "sms",
+              };
+            } else {
+              throw new Error("Invalid email or phone number");
+            }
+            return verifyOtp(options, lang);
+          },
+          verifyOtpWithLink: (token: string, lang: string = "JA") => {
+            return verifyOtp(
+              {
+                token_hash: token,
+                type: "magiclink",
+              },
+              lang,
+            );
+          },
           deleteUser: (options) => supabase.auth.admin.deleteUser(options),
           updateUser: (options) => supabase.auth.updateUser(options),
           signOut: () => supabase.auth.signOut(),

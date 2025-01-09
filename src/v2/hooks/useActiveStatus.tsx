@@ -12,9 +12,15 @@ export function useActiveStatus() {
 
     handleVisibilityChange();
     window.addEventListener("beforeunload", () => updateApp({ online: false }));
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
     };
   }, []);
 }

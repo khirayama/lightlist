@@ -65,7 +65,22 @@ export function useApp(): [
       }
     }
 
+    window.document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") {
+        fetchStatus.intervalId = null;
+        clearInterval(fetchStatus.intervalId);
+      } else {
+        fetch();
+        if (!fetchStatus.intervalId) {
+          fetchStatus.intervalId = setInterval(() => {
+            fetch();
+          }, 10000);
+        }
+      }
+    });
+
     return () => {
+      fetchStatus.intervalId = null;
       clearInterval(fetchStatus.intervalId);
     };
   }, []);

@@ -1,9 +1,9 @@
 import i18n from "i18next";
 import { useEffect } from "react";
 
-import { useSupabase } from "libs/supabase";
-import { ParamsLink } from "components/ParamsLink";
-import { useCustomTranslation } from "libs/i18n";
+import { useAuth } from "v2/common/auth";
+import { AppPageLink } from "v2/libs/ui/navigation";
+import { useCustomTranslation } from "v2/libs/i18n";
 
 export const getServerSideProps = async ({ query }) => {
   let lang = query.lang;
@@ -19,29 +19,29 @@ export const getServerSideProps = async ({ query }) => {
 };
 
 export default function IndexPage({ lang }) {
-  const { isLoggedIn } = useSupabase();
-  const { t, i18n } = useCustomTranslation("pages.index");
+  const [{ isLoggedIn }] = useAuth();
+  const { t, changeLanguage } = useCustomTranslation("pages.index");
   useEffect(() => {
-    i18n.changeLanguage(lang.toLowerCase());
+    changeLanguage(lang.toLowerCase());
   }, [lang]);
 
   return (
     <div>
       <header className="mx-auto max-w-2xl py-4 text-right">
-        <ParamsLink
+        <AppPageLink
           href="/"
           params={{ lang: "EN" }}
           className="rounded px-4 py-2 focus-visible:bg-gray-200"
         >
           English
-        </ParamsLink>
-        <ParamsLink
+        </AppPageLink>
+        <AppPageLink
           href="/"
           params={{ lang: "JA" }}
           className="rounded px-4 py-2 focus-visible:bg-gray-200"
         >
           日本語
-        </ParamsLink>
+        </AppPageLink>
       </header>
       <div className="pb-8">
         <div className="pb-4 pt-24 text-center">
@@ -53,12 +53,12 @@ export default function IndexPage({ lang }) {
           <h1 className="p-4 text-center">Lightlist</h1>
         </div>
         <div className="p-4 text-center">
-          <ParamsLink
+          <AppPageLink
             href={isLoggedIn ? "/app" : `/login?lang=${lang}`}
             className="rounded-full border px-4 py-2 focus-visible:bg-gray-200"
           >
             {t("Get started")}
-          </ParamsLink>
+          </AppPageLink>
         </div>
         <div className="m-auto max-w-lg p-8 text-justify">
           <p className="my-4">
@@ -87,12 +87,12 @@ export default function IndexPage({ lang }) {
 
       <footer className="p-12 text-center">
         <div className="p-4 text-center">
-          <ParamsLink
+          <AppPageLink
             href={isLoggedIn ? "/app" : `/login?lang=${lang}`}
             className="rounded-full border px-4 py-2 focus-visible:bg-gray-200"
           >
             {t("Get started")}
-          </ParamsLink>
+          </AppPageLink>
         </div>
       </footer>
     </div>

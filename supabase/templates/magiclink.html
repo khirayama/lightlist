@@ -1,0 +1,27 @@
+<html>
+  <body>
+    <section>
+      <h2>マジックリンク</h2>
+      <p>ログインするためのリンク</p>
+      <p>
+        <a
+          href="{{ .SiteURL }}/verify?token_hash={{ .TokenHash }}&type=magiclink&lang=ja"
+          >ログイン</a
+        >
+      </p>
+      <p>もしくは、こちらのコードを入力してください: {{ .Token }}</p>
+    </section>
+    <hr />
+    <section>
+      <h2>Magic Link</h2>
+      <p>Follow this link to login:</p>
+      <p>
+        <a
+          href="{{ .SiteURL }}/verify?token_hash={{ .TokenHash }}&type=magiclink&lang=en"
+          >Log In</a
+        >
+      </p>
+      <p>Or please enter this code: {{ .Token }}</p>
+    </section>
+  </body>
+</html>

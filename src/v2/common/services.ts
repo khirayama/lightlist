@@ -1,31 +1,8 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 
-import { config } from "v2/common/globalStateConfig";
 import { getSession } from "v2/common/auth";
 
 export type Res<T> = Promise<{ data: T }>;
-
-const timelag = 200;
-
-function loadGlobalState() {
-  const local = JSON.parse(window.localStorage.getItem("__tmp"));
-  if (local) {
-    return local;
-  }
-  return config.initialValue();
-}
-
-function setMock<T>(gs: GlobalStateV2, fn: (gs: GlobalStateV2) => T) {
-  window.localStorage.setItem("__tmp", JSON.stringify(gs));
-  return new Promise<{ data: T }>((resolve) => {
-    setTimeout(
-      () => {
-        resolve({ data: fn(gs) });
-      },
-      timelag + Math.random() * 1000,
-    );
-  });
-}
 
 export async function register(options: { lang?: string } = {}) {
   return axios.post("/api/register", options, {

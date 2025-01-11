@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import qs from "query-string";
 
+import { config } from "config";
 import { useAuth, AuthProvider } from "v2/common/auth";
 import { useCustomTranslation } from "v2/libs/i18n";
 
@@ -10,11 +11,15 @@ function Content() {
   const router = useRouter();
 
   const { t } = useCustomTranslation("pages.login");
-  const [, { signUp, signInWithPassword, resetPasswordForEmail }] = useAuth();
+  const [{ isLoggedIn }, { signUpOrInWithOtp, verifyOtpWithToken }] = useAuth();
+  const [view, setView] = useState<"signup" | "opt">("signup");
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [view, setView] = useState<"signup" | "login" | "reset">("signup");
+  const [emailOrPhoneNumber, setEmailOrPhoneNumber] = useState("");
+  const [token, setToken] = useState("");
+
+  if (view === "opt" && isLoggedIn) {
+    window.location.replace(config.appBaseUrl);
+  }
 
   return (
     <div className="h-full">
@@ -28,87 +33,58 @@ function Content() {
 
       <div className="mx-auto flex h-full max-w-sm items-center justify-center py-12">
         <div className="pb-16">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const url =
-                (qs.parse(window?.location.search).redirect as string) || "/v2";
-              if (view === "signup") {
-                signUp(
-                  { email, password },
-                  (router.query.lang as string) || "JA",
+          {view === "signup" ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                signUpOrInWithOtp(
+                  emailOrPhoneNumber,
+                  router.query.lang as string,
                 ).then(() => {
-                  router.replace(url);
+                  setView("opt");
                 });
-              } else if (view === "login") {
-                signInWithPassword({ email, password }).then(() =>
-                  router.replace(url),
-                );
-              } else {
-                resetPasswordForEmail(email);
-              }
-            }}
-          >
-            <div>
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            {view !== "reset" && (
+              }}
+            >
               <div>
                 <input
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  type="email"
+                  placeholder="Email or Phone Number"
+                  value={emailOrPhoneNumber}
+                  onChange={(e) => setEmailOrPhoneNumber(e.target.value)}
                 />
               </div>
-            )}
-            <div>
-              <button>
-                {view === "signup"
-                  ? "Sign Up"
-                  : view === "login"
-                    ? "Log In"
-                    : "Send email to reset password"}
-              </button>
-            </div>
-          </form>
-          {view === "login" && (
-            <div>
-              <button
-                onClick={() => {
-                  setView("signup");
-                }}
-              >
-                I don't have an account
-              </button>
-            </div>
-          )}
-          {view !== "login" && (
-            <div>
-              <button
-                onClick={() => {
-                  setView("login");
-                }}
-              >
-                I already have an account
-              </button>
-            </div>
-          )}
-          {view !== "reset" && (
-            <div>
-              <button
-                onClick={() => {
-                  setView("reset");
-                }}
-              >
-                Forgot password
-              </button>
-            </div>
+              <div>
+                <button>Sign Up or Log In</button>
+              </div>
+            </form>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const url =
+                  (qs.parse(window?.location.search).redirect as string) ||
+                  config.appBaseUrl;
+                verifyOtpWithToken(
+                  emailOrPhoneNumber,
+                  token,
+                  router.query.lang as string,
+                ).then(() => {
+                  window.location.replace(url);
+                });
+              }}
+            >
+              <div>
+                <input
+                  type="number"
+                  placeholder="OTP Code"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                />
+              </div>
+              <div>
+                <button>Submit OTP Code</button>
+              </div>
+            </form>
           )}
         </div>
       </div>

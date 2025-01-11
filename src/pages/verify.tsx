@@ -1,4 +1,6 @@
 import { useRouter } from "next/router";
+
+import { config } from "config";
 import { useAuth, AuthProvider } from "v2/common/auth";
 
 function Content() {
@@ -9,7 +11,7 @@ function Content() {
   const lang = router.query.lang as string;
   if (token && lang) {
     verifyOtpWithLink(token, lang).then(() => {
-      router.replace("/v2");
+      router.replace(config.appBaseUrl);
     });
   }
 

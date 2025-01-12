@@ -94,10 +94,10 @@ export function useApp(): [
     taskListIds.insert(idx, [taskListId]);
     const na = { ...ad.toJSON(), update: Y.encodeStateAsUpdate(doc) };
     setGlobalState({ app: na });
-    const f = () => {
+    const f = async () => {
       fetchStatus.isLoading = true;
       setIsLoading(fetchStatus.isLoading);
-      return updateApp(na).finally(() => {
+      return await updateApp(na).finally(() => {
         fetchStatus.isLoading = false;
         setIsLoading(fetchStatus.isLoading);
       });

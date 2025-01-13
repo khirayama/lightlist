@@ -88,9 +88,7 @@ export const AuthProvider = (props: { children: ReactNode }) => {
   const verifyOtp = async (options: VerifyOtpParams, lang: string) => {
     return supabase.auth.verifyOtp(options).then(({ data }) => {
       setSession(data.session);
-      if (isSignUp) {
-        register({ lang });
-      }
+      return register({ lang });
     });
   };
 

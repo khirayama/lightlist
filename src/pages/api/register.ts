@@ -15,6 +15,16 @@ export default async function handler(
   }
 
   if (req.method === "POST") {
+    const existedApp = await prisma.app.findUnique({
+      where: {
+        userId: user.id,
+      },
+    });
+
+    if (existedApp) {
+      return res.json({ message: "User already exists" });
+    }
+
     const lang = req.body.lang || "JA";
 
     const appDoc = new Y.Doc();

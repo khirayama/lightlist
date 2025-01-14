@@ -10,11 +10,11 @@ export default async function handler(
 ) {
   const { user, errorMessage } = await auth(req);
 
-  if (errorMessage) {
-    return res.status(401).json({ error: errorMessage });
-  }
-
   if (req.method === "POST") {
+    if (errorMessage) {
+      return res.status(401).json({ error: errorMessage });
+    }
+
     const newTaskList = req.body;
     const taskListDoc = new Y.Doc();
     const td = taskListDoc.getMap(newTaskList.id);
@@ -77,12 +77,12 @@ export default async function handler(
       [taskLists, shareCodes] = await prisma.$transaction([
         prisma.taskList.findMany({
           where: {
-            id: { in: app.taskListIds },
+            id: { in: app.taskListIds || [] },
           },
         }),
         prisma.shareCode.findMany({
           where: {
-            taskListId: { in: app.taskListIds },
+            taskListId: { in: app.taskListIds || [] },
           },
         }),
       ]);

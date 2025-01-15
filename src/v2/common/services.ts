@@ -1,141 +1,165 @@
-import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
+import axios, { type AxiosResponse } from "axios";
 
 import { getSession } from "v2/common/auth";
 
-export type Res<T> = Promise<{ data: T }>;
+export type Res<T, D = any> = Promise<AxiosResponse<T, D>>;
 
-function errorHandler(err) {
+function errorHandler(err: Error) {
   console.warn(err);
 }
 
 export async function register(options: { lang?: string } = {}) {
-  return axios
-    .post("/api/register", options, {
+  try {
+    return await axios.post("/api/register", options, {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }
 
 export async function getApp() {
-  return axios
-    .get("/api/app", {
+  try {
+    return await axios.get("/api/app", {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }
 
-export function updateApp(newApp: Partial<AppV2>) {
-  return axios
-    .patch("/api/app", newApp, {
+export async function updateApp(newApp: Partial<AppV2>) {
+  try {
+    return await axios.patch("/api/app", newApp, {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }
 
-export function getPreferences() {
-  return axios
-    .get("/api/preferences", {
+export async function getPreferences() {
+  try {
+    return await axios.get("/api/preferences", {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }
 
-export function updatePreferences(newPreferences: Partial<PreferencesV2>) {
-  return axios
-    .patch("/api/preferences", newPreferences, {
+export async function updatePreferences(
+  newPreferences: Partial<PreferencesV2>,
+) {
+  try {
+    return await axios.patch("/api/preferences", newPreferences, {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }
 
-export function getProfile() {
-  return axios
-    .get("/api/profile", {
+export async function getProfile() {
+  try {
+    return await axios.get("/api/profile", {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }
 
-export function updateProfile(newProfile: Partial<ProfileV2>) {
-  return axios
-    .patch("/api/profile", newProfile, {
+export async function updateProfile(newProfile: Partial<ProfileV2>) {
+  try {
+    return await axios.patch("/api/profile", newProfile, {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }
 
-export function getTaskLists() {
-  return axios
-    .get("/api/task-lists", {
+export async function getTaskLists() {
+  try {
+    return await axios.get("/api/task-lists", {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }
 
-export function createTaskList(newTaskList: Partial<TaskListV2>) {
-  return axios
-    .post("/api/task-lists", newTaskList, {
+export async function createTaskList(newTaskList: Partial<TaskListV2>) {
+  try {
+    return await axios.post("/api/task-lists", newTaskList, {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }
 
-export function updateTaskList(newTaskList: Partial<TaskListV2>) {
-  return axios
-    .patch(`/api/task-lists/${newTaskList.id}`, newTaskList, {
+export async function updateTaskList(newTaskList: Partial<TaskListV2>) {
+  try {
+    return await axios.patch(`/api/task-lists/${newTaskList.id}`, newTaskList, {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }
 
-export function deleteTaskList(taskListId: string) {
-  return axios
-    .delete(`/api/task-lists/${taskListId}`, {
+export async function deleteTaskList(taskListId: string) {
+  try {
+    return await axios.delete(`/api/task-lists/${taskListId}`, {
       withCredentials: true,
       headers: {
         "Cache-Control": "no-cache",
         Authorization: `Bearer ${getSession()?.access_token}`,
       },
-    })
-    .catch(errorHandler);
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
 }

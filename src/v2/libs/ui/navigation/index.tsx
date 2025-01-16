@@ -49,9 +49,8 @@ export const AppPageStackProvider = (props: { children: ReactNode }) => {
         const touchStartX = event.touches[0].clientX;
         let isSwipeBack = false;
 
-        document.addEventListener(
-          "touchmove",
-          (moveEvent) => {
+        const touchMoveListener = (moveEvent: TouchEvent) => {
+          if (touchStartX < 20) {
             moveEvent.preventDefault();
             const touchEndX = moveEvent.touches[0].clientX;
             const deltaX = touchEndX - touchStartX;
@@ -59,9 +58,12 @@ export const AppPageStackProvider = (props: { children: ReactNode }) => {
             if (deltaX > 50) {
               isSwipeBack = true;
             }
-          },
-          { passive: false },
-        );
+          }
+        };
+
+        document.addEventListener("touchmove", touchMoveListener, {
+          passive: false,
+        });
 
         document.addEventListener(
           "touchend",
@@ -69,6 +71,7 @@ export const AppPageStackProvider = (props: { children: ReactNode }) => {
             if (isSwipeBack) {
               window.history.back();
             }
+            document.removeEventListener("touchmove", touchMoveListener);
           },
           { passive: false },
         );

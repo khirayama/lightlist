@@ -1,34 +1,28 @@
 import { useRouter } from "next/router";
-import qs from "query-string";
 
-import { useApp } from "hooks/useApp";
-import { useTaskLists } from "hooks/useTaskLists";
-import { useTasks } from "hooks/useTasks";
-import { TaskList } from "components/TaskList";
-import { useSupabase } from "libs/supabase";
-import { UserSheet } from "components/UserSheet";
-import { ParamsLink } from "components/ParamsLink";
-import { useCustomTranslation } from "libs/i18n";
-import { Icon } from "components/Icon";
+import { GlobalStateProvider } from "v2/libs/globalState";
+import { AppPageStackProvider } from "v2/libs/ui/navigation";
+import { useAuth, AuthProvider } from "v2/common/auth";
+import { config } from "v2/common/globalStateConfig";
+import { useApp } from "v2/hooks/useApp";
+import { useTaskLists } from "v2/hooks/useTaskLists";
+import { TaskList } from "v2/components/TaskList";
+import { UserSheet } from "v2/components/UserSheet";
+import { AppPageLink } from "v2/libs/ui/navigation";
+import { useCustomTranslation } from "v2/libs/i18n";
+import { Icon } from "v2/libs/ui/components/Icon";
 
-function isUserSheetOpened() {
-  return qs.parse(window?.location.search).sheet === "user";
-}
-
-const SharePageContent = () => {
+const Content = () => {
   const router = useRouter();
   const shareCode = router.query.code as string;
   const { t } = useCustomTranslation("pages.share");
 
-  const [{ data: app }, { updateApp }] = useApp("/api/app");
-  const [{ data: taskLists, isInitialized }] = useTaskLists(
-    shareCode ? `/api/task-lists?shareCodes=${shareCode}` : "",
-  );
+  const [{ data: app }, { updateApp }] = useApp();
+  const [{ data: taskLists, isInitialized }] = useTaskLists();
   const taskList = Object.values(taskLists).find(
     (taskList) => taskList.shareCode === shareCode,
   );
-  useTasks(taskList ? `/api/tasks?taskListIds=${taskList.id}` : "");
-  const { isLoggedIn } = useSupabase();
+  const [{ isLoggedIn }] = useAuth();
 
   const hasTaskList = app.taskListIds.includes(taskList?.id);
   const distURL = isLoggedIn ? "/app" : "/login";
@@ -37,7 +31,7 @@ const SharePageContent = () => {
     <>
       <section>
         <header className="mx-auto flex max-w-xl items-center justify-center p-2">
-          <ParamsLink
+          <AppPageLink
             href={distURL}
             className="rounded p-2 focus-visible:bg-gray-200"
           >
@@ -46,18 +40,18 @@ const SharePageContent = () => {
               alt="Lightlist"
               className="inline h-[1.5rem]"
             />
-          </ParamsLink>
+          </AppPageLink>
           <div className="flex-1" />
-          <ParamsLink
+          <AppPageLink
             href={distURL}
             className="rounded p-2 focus-visible:bg-gray-200"
           >
             <Icon text="close" />
-          </ParamsLink>
+          </AppPageLink>
         </header>
 
         <section className="mx-auto max-w-xl p-2">
-          {!hasTaskList ? (
+          {!hasTaskList && (
             <div>
               {isLoggedIn ? (
                 <button
@@ -74,17 +68,17 @@ const SharePageContent = () => {
                 </button>
               ) : (
                 <div className="text-center">
-                  <ParamsLink
+                  <AppPageLink
                     href="/login"
                     params={{ redirect: location.href }}
                     className="inline-block w-full rounded border bg-gray-100 px-2 py-1 focus-visible:bg-gray-200"
                   >
                     {t("Log in to add this task list")}
-                  </ParamsLink>
+                  </AppPageLink>
                 </div>
               )}
             </div>
-          ) : null}
+          )}
         </section>
 
         {hasTaskList ? (
@@ -110,17 +104,29 @@ const SharePageContent = () => {
               {t("No matched task list with the share code")}
             </div>
           ) : (
-            <TaskList key={taskList.id} taskList={taskList} />
+            <TaskList key={taskList.id} taskListId={taskList.id} />
           )}
         </div>
       </section>
 
-      <UserSheet open={isUserSheetOpened} />
+      <UserSheet />
     </>
   );
 };
 
+const AuthContent = () => {
+  const [{ isInitialized }] = useAuth();
+  return isInitialized ? <Content /> : <div>Loading...</div>;
+};
+
 export default function SharePage() {
-  const { isInitialized } = useSupabase();
-  return isInitialized ? <SharePageContent /> : null;
+  return (
+    <AuthProvider>
+      <AppPageStackProvider>
+        <GlobalStateProvider config={config}>
+          <AuthContent />
+        </GlobalStateProvider>
+      </AppPageStackProvider>
+    </AuthProvider>
+  );
 }

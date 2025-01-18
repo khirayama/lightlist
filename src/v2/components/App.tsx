@@ -159,6 +159,7 @@ export function App() {
         <title>{app.online ? "🔥" : "🤘"} Lightlist</title>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="robots" content="notranslate" />
       </Head>
 
       <DrawerLayout>

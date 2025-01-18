@@ -1,24 +1,11 @@
 import i18n from "i18next";
 import { useEffect } from "react";
 
-import { useAuth } from "v2/common/auth";
+import { useAuth, AuthProvider } from "v2/common/auth";
 import { AppPageLink } from "v2/libs/ui/navigation";
 import { useCustomTranslation } from "v2/libs/i18n";
 
-export const getServerSideProps = async ({ query }) => {
-  let lang = query.lang;
-  const supportedLngs = Object.keys(i18n.options.resources).map((l) =>
-    l.toUpperCase(),
-  );
-  if (!supportedLngs.includes(lang)) {
-    lang = i18n.resolvedLanguage.toUpperCase();
-  }
-  return {
-    props: { lang },
-  };
-};
-
-export default function IndexPage({ lang }) {
+const Content = ({ lang }) => {
   const [{ isLoggedIn }] = useAuth();
   const { t, changeLanguage } = useCustomTranslation("pages.index");
   useEffect(() => {
@@ -97,4 +84,25 @@ export default function IndexPage({ lang }) {
       </footer>
     </div>
   );
+};
+
+export default function IndexPage({ lang }) {
+  return (
+    <AuthProvider>
+      <Content lang={lang} />
+    </AuthProvider>
+  );
 }
+
+export const getServerSideProps = async ({ query }) => {
+  let lang = query.lang;
+  const supportedLngs = Object.keys(i18n.options.resources).map((l) =>
+    l.toUpperCase(),
+  );
+  if (!supportedLngs.includes(lang)) {
+    lang = i18n.resolvedLanguage.toUpperCase();
+  }
+  return {
+    props: { lang },
+  };
+};

@@ -33,6 +33,7 @@ function TaskTextArea(props: {
         {task.text + "\u200b"}
       </div>
       <textarea
+        data-tasktext={task.id}
         disabled={props.disabled}
         className={clsx(
           "absolute left-0 top-0 inline-block h-full w-full flex-1 whitespace-break-spaces rounded px-1 py-3 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
@@ -73,6 +74,7 @@ export function TaskListItem(props: {
 
   return (
     <div
+      data-task={task.id}
       style={style}
       ref={setNodeRef}
       className={clsx(

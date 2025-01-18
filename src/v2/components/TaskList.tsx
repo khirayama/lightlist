@@ -7,8 +7,6 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-  DragStartEvent,
-  DragCancelEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -23,14 +21,9 @@ import { Icon } from "v2/libs/ui/components/Icon";
 import { useTaskLists } from "v2/hooks/useTaskLists";
 import { useApp } from "v2/hooks/useApp";
 import { TaskListItem } from "v2/components/TaskListItem";
+import { kmh } from "v2/libs/keymap";
 
-export function TaskList(props: {
-  disabled?: boolean;
-  taskListId: string;
-  handleDragStart?: (e: DragStartEvent) => void;
-  handleDragCancel?: (e: DragCancelEvent) => void;
-  handleDragEnd?: (e: DragEndEvent) => void;
-}) {
+export function TaskList(props: { disabled?: boolean; taskListId: string }) {
   const { t } = useCustomTranslation("components.TaskList");
 
   const [taskText, setTaskText] = useState("");
@@ -43,6 +36,8 @@ export function TaskList(props: {
       sortTasks,
       clearCompletedTasks,
       moveTask,
+      updateTask,
+      deleteTask,
     },
   ] = useTaskLists([props.taskListId]);
   const taskList = taskLists.find((tl) => tl.id === props.taskListId);
@@ -94,9 +89,6 @@ export function TaskList(props: {
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
-    if (props.handleDragEnd) {
-      props.handleDragEnd(e);
-    }
     const { active, over } = e;
 
     if (active && over && active.id !== over.id) {
@@ -106,13 +98,79 @@ export function TaskList(props: {
     }
   };
 
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    const el: {
+      target: HTMLElement;
+      currentTarget: HTMLElement;
+      taskListName: HTMLElement;
+      newTaskText: HTMLElement;
+      taskTexts: NodeListOf<HTMLElement>;
+    } = {
+      target: e.target as HTMLElement,
+      currentTarget: e.currentTarget as HTMLElement,
+      taskListName: document.querySelector(
+        `[data-tasklistname="${taskList.id}"]`,
+      ),
+      newTaskText: document.querySelector(
+        `[data-tasklist="${taskList.id}"] [data-tasktext="new"]`,
+      ),
+      taskTexts: document.querySelectorAll<HTMLElement>(
+        `[data-tasklist="${taskList.id}"] [data-tasktext]:not([data-tasktext="new"])`,
+      ),
+    };
+    const taskId = el.target.dataset.tasktext;
+    const task = taskList.tasks.find((t) => t.id === taskId);
+    const isTaskText = !!taskId;
+    const focusOrder = [
+      el.taskListName,
+      el.newTaskText,
+      ...Array.from(el.taskTexts),
+    ];
+    const idx = focusOrder.findIndex((x) => x === el.target);
+    /* Keymap
+     * On Task List Text
+     * Escape: blur task text
+     * Ctrl-Enter: sort tasks
+     * Ctrl-Delete: clear completed tasks
+     * ArrowDown: focus next
+     * ArrowUp: focus prev
+     *
+     * On Task Item Text
+     * Enter: blur task text
+     * ?Mod-Enter: toggle task completed
+     * ?Mod-Delete: delete task
+     * ?Delete: delete task
+     */
+    kmh("Escape", e.nativeEvent, () => el.target.blur());
+    kmh("Ctrl-Enter", e.nativeEvent, () => sortTasks(taskList.id));
+    kmh("Ctrl-Delete", e.nativeEvent, () => clearCompletedTasks(taskList.id));
+    kmh("ArrowDown", e.nativeEvent, () =>
+      focusOrder[(idx + 1) % focusOrder.length].focus(),
+    );
+    kmh("ArrowUp", e.nativeEvent, () =>
+      focusOrder[idx === 0 ? focusOrder.length - 1 : idx - 1].focus(),
+    );
+
+    if (isTaskText) {
+      kmh("Enter", e.nativeEvent, () => {
+        e.preventDefault();
+        el.target.blur();
+      });
+    }
+  };
+
   return (
-    <div className="bg h-full overflow-scroll">
+    <div
+      data-tasklist={taskList.id}
+      className="bg h-full overflow-scroll"
+      onKeyDown={onKeyDown}
+    >
       <header className="bg sticky top-0 z-20 m-auto w-full max-w-3xl border-b">
         <section className="px-1">
           <div className="flex pl-8">
             <h1 className="flex-1 font-bold">
               <input
+                data-tasklistname={taskList.id}
                 disabled={props.disabled}
                 className="inline-block w-full rounded py-1 text-center focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
                 placeholder={t("Task list name")}
@@ -153,7 +211,7 @@ export function TaskList(props: {
               onSubmit={onTaskFormSubmit}
             >
               <input
-                data-tasktext
+                data-tasktext="new"
                 disabled={props.disabled}
                 className="flex-1 rounded-full border px-4 py-2 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
                 value={taskText}
@@ -200,8 +258,6 @@ export function TaskList(props: {
           sensors={sensors}
           collisionDetection={closestCenter}
           modifiers={[restrictToVerticalAxis]}
-          onDragStart={props.handleDragStart}
-          onDragCancel={props.handleDragCancel}
           onDragEnd={handleDragEnd}
         >
           <SortableContext

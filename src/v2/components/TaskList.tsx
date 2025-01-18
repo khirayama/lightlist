@@ -121,6 +121,7 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
     const taskId = el.target.dataset.tasktext;
     const task = taskList.tasks.find((t) => t.id === taskId);
     const isTaskText = !!taskId;
+    const isNewTaskText = taskId === "new";
     const focusOrder = [
       el.taskListName,
       el.newTaskText,
@@ -151,12 +152,15 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
       focusOrder[idx === 0 ? focusOrder.length - 1 : idx - 1].focus(),
     );
 
-    if (isTaskText) {
-      kmh("Enter", e.nativeEvent, () => {
+    kmh(
+      "Enter",
+      e.nativeEvent,
+      () => {
         e.preventDefault();
         el.target.blur();
-      });
-    }
+      },
+      () => isTaskText && !isNewTaskText,
+    );
   };
 
   return (

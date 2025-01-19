@@ -163,3 +163,21 @@ export async function deleteTaskList(taskListId: string) {
     errorHandler(err);
   }
 }
+
+export async function refreshShareCode(shareCode: string) {
+  try {
+    return await axios.put(
+      `/api/share-codes/${shareCode}`,
+      {},
+      {
+        withCredentials: true,
+        headers: {
+          "Cache-Control": "no-cache",
+          Authorization: `Bearer ${getSession()?.access_token}`,
+        },
+      },
+    );
+  } catch (err) {
+    errorHandler(err);
+  }
+}

@@ -9,6 +9,7 @@ import {
   createTaskList,
   updateTaskList,
   deleteTaskList,
+  refreshShareCode,
   type Res,
 } from "v2/common/services";
 import { useApp } from "v2/hooks/useApp";
@@ -64,9 +65,11 @@ export function useTaskLists(taskListIds: string[] = []): [
     deleteTask: (taskListId: string, taskId: string) => Res<TaskListV2>;
     sortTasks: (taskListId: string) => [TaskListV2, Res<TaskListV2>];
     clearCompletedTasks: (taskListId: string) => [TaskListV2, Res<TaskListV2>];
+    refreshShareCode: (shareCode: string) => void;
   },
   {
     getTaskById: (taskId: string) => [TaskV2, TaskListV2];
+    getTaskListById: (taskListId: string) => TaskListV2;
   },
 ] {
   const [, setGlobalState, getGlobalStateSnapshot] = useGlobalState();
@@ -98,7 +101,10 @@ export function useTaskLists(taskListIds: string[] = []): [
             if (u.length) {
               Y.applyUpdate(doc, u);
             }
-            taskLists[tl.id] = docs[tl.id].getMap(tl.id).toJSON() as TaskListV2;
+            taskLists[tl.id] = {
+              ...(docs[tl.id].getMap(tl.id).toJSON() as TaskListV2),
+              shareCode: tl.shareCode,
+            };
           });
           setGlobalState({ taskLists });
         })
@@ -418,6 +424,15 @@ export function useTaskLists(taskListIds: string[] = []): [
 
         return [tl, f()];
       },
+      refreshShareCode: (shareCode) => {
+        refreshShareCode(shareCode).then((res) => {
+          const taskListId = res.data.shareCode.taskListId;
+          const newShareCode = res.data.shareCode.code;
+          setGlobalState({
+            taskLists: { [taskListId]: { shareCode: newShareCode } },
+          });
+        });
+      },
     },
     {
       getTaskById: (taskId) => {
@@ -430,6 +445,9 @@ export function useTaskLists(taskListIds: string[] = []): [
         }
         const task = taskList.tasks.find((t) => t.id === taskId);
         return [task, taskList];
+      },
+      getTaskListById: (taskListId) => {
+        return getGlobalStateSnapshot().taskLists[taskListId];
       },
     },
   ];

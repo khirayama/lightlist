@@ -25,6 +25,7 @@ import { Icon } from "v2/libs/ui/components/Icon";
 import { TaskList } from "v2/components/TaskList";
 import { TaskListList } from "v2/components/TaskListList";
 import { UserSheet } from "v2/components/UserSheet";
+import { SharingSheet } from "v2/components/SharingSheet";
 import { DatePickerSheet } from "v2/components/DatePickerSheet";
 import { PreferencesSheet } from "v2/components/PreferencesSheet";
 
@@ -170,6 +171,8 @@ export function App() {
       <UserSheet />
 
       <PreferencesSheet />
+
+      <SharingSheet />
 
       <DatePickerSheet handleChange={() => {}} handleCancel={() => {}} />
     </>

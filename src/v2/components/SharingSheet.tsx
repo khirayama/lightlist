@@ -15,7 +15,6 @@ export function SharingSheet() {
 
   const [, { refreshShareCode }, { getTaskListById }] = useTaskLists();
   const taskList = getTaskListById(taskListId);
-  console.log(taskList);
 
   const { t } = useCustomTranslation("components.SharingSheet");
   const shareUrl = `${window?.location?.origin}/share?code=${taskList?.shareCode}`;

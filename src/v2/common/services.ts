@@ -181,3 +181,21 @@ export async function refreshShareCode(shareCode: string) {
     errorHandler(err);
   }
 }
+
+export async function getTaskListsWithShareCodes(shareCodes: string[]) {
+  try {
+    return await axios.get("/api/task-lists", {
+      withCredentials: true,
+      headers: {
+        "Cache-Control": "no-cache",
+        Authorization: `Bearer ${getSession()?.access_token}`,
+      },
+      params: {
+        shareCodes,
+      },
+      paramsSerializer: { indexes: null },
+    });
+  } catch (err) {
+    errorHandler(err);
+  }
+}

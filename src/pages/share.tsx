@@ -1,16 +1,17 @@
 import { useRouter } from "next/router";
+import { useState, useEffect } from "react";
 
 import { GlobalStateProvider } from "v2/libs/globalState";
 import { AppPageStackProvider } from "v2/libs/ui/navigation";
 import { useAuth, AuthProvider } from "v2/common/auth";
 import { config } from "v2/common/globalStateConfig";
 import { useApp } from "v2/hooks/useApp";
-import { useTaskLists } from "v2/hooks/useTaskLists";
 import { TaskList } from "v2/components/TaskList";
 import { UserSheet } from "v2/components/UserSheet";
 import { AppPageLink } from "v2/libs/ui/navigation";
 import { useCustomTranslation } from "v2/libs/i18n";
 import { Icon } from "v2/libs/ui/components/Icon";
+import { getTaskListsWithShareCodes } from "v2/common/services";
 
 const Content = () => {
   const router = useRouter();
@@ -18,16 +19,27 @@ const Content = () => {
   const { t } = useCustomTranslation("pages.share");
 
   const [{ data: app }, { updateApp }] = useApp();
-  const [{ data: taskLists, isInitialized }] = useTaskLists();
-  const taskList = Object.values(taskLists).find(
-    (taskList) => taskList.shareCode === shareCode,
-  );
   const [{ isLoggedIn }] = useAuth();
 
-  const hasTaskList = app.taskListIds.includes(taskList?.id);
-  const distURL = isLoggedIn ? "/app" : "/login";
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [taskList, setTaskList] = useState(null);
 
-  return (
+  const distURL = isLoggedIn ? "/app" : "/login";
+  const hasTaskList = app.taskListIds.includes(taskList?.id);
+
+  useEffect(() => {
+    if (shareCode) {
+      getTaskListsWithShareCodes([shareCode]).then((res) => {
+        const tl = res.data.taskLists[0] || null;
+        if (tl) {
+          setTaskList(tl);
+        }
+        setIsInitialized(true);
+      });
+    }
+  }, [shareCode]);
+
+  return taskList ? (
     <>
       <section>
         <header className="mx-auto flex max-w-xl items-center justify-center p-2">
@@ -88,7 +100,7 @@ const Content = () => {
         ) : (
           <div className="bg-red-400 p-2 text-center text-white">
             {t("Please join {{name}} list!", {
-              name: taskList?.name,
+              name: taskList.name,
             })}
           </div>
         )}
@@ -111,7 +123,7 @@ const Content = () => {
 
       <UserSheet />
     </>
-  );
+  ) : null;
 };
 
 const AuthContent = () => {

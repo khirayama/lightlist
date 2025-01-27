@@ -42,7 +42,7 @@ function AppDrawer() {
         <div className="flex">
           <div className="p-1">
             <button
-              className="rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+              className="rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
               onClick={pop}
             >
               <Icon text="close" />
@@ -55,7 +55,7 @@ function AppDrawer() {
       <div className="p-2">
         <AppPageLink
           data-trigger="user"
-          className="flex w-full items-center justify-center rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+          className="flex w-full items-center justify-center rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
           params={{ sheet: "user", trigger: "user" }}
           mergeParams
         >
@@ -67,7 +67,7 @@ function AppDrawer() {
 
         <AppPageLink
           data-trigger="preferences"
-          className="flex w-full items-center justify-center rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+          className="flex w-full items-center justify-center rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
           params={{ sheet: "preferences", trigger: "preferences" }}
           mergeParams
         >
@@ -106,7 +106,7 @@ function AppMain() {
         {isNarrowLayout ? (
           <>
             <AppPageLink
-              className="flex items-center justify-center rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+              className="flex items-center justify-center rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
               params={{ drawer: "opened" }}
               mergeParams
             >

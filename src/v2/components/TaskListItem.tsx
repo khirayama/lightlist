@@ -25,18 +25,18 @@ function TaskTextArea(props: {
   return (
     <div
       className={clsx(
-        "bg relative flex-1 py-2",
+        "bg-primary relative flex-1 py-2",
         task.completed ? "text-gray-400 line-through" : "",
       )}
     >
-      <div className="invisible whitespace-break-spaces px-1">
+      <div className="invisible px-1 whitespace-break-spaces">
         {task.text + "\u200b"}
       </div>
       <textarea
         data-tasktext={task.id}
         disabled={props.disabled}
         className={clsx(
-          "absolute left-0 top-0 inline-block h-full w-full flex-1 whitespace-break-spaces rounded px-1 py-3 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
+          "absolute top-0 left-0 inline-block h-full w-full flex-1 rounded-sm px-1 py-3 whitespace-break-spaces focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
           task.completed ? "text-gray-400 line-through" : "",
         )}
         value={task.text}
@@ -79,17 +79,17 @@ export function TaskListItem(props: {
       ref={setNodeRef}
       className={clsx(
         "border-b",
-        isDragging && "z-10 shadow",
+        isDragging && "z-10 shadow-sm",
         task.completed && "opacity-55",
       )}
     >
-      <div className="bg relative flex h-full w-full py-1">
+      <div className="bg-primary relative flex h-full w-full py-1">
         <button
           ref={setActivatorNodeRef}
           {...attributes}
           {...listeners}
           className={clsx(
-            "flex touch-none items-center justify-center rounded fill-gray-400 p-2 px-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
+            "flex touch-none items-center justify-center rounded-sm fill-gray-400 p-2 px-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
           )}
         >
           <Icon text="drag_indicator" />
@@ -127,7 +127,7 @@ export function TaskListItem(props: {
         <AppPageLink
           data-trigger={`datepicker-${task.id}`}
           tabIndex={props.disabled ? -1 : 0}
-          className="flex cursor-pointer items-center justify-center rounded px-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
+          className="flex cursor-pointer items-center justify-center rounded-sm px-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
           params={{
             sheet: "datepicker",
             taskid: task.id,
@@ -147,7 +147,7 @@ export function TaskListItem(props: {
         >
           {task.date ? (
             <div className="inline px-1 text-right text-gray-400">
-              <div className="w-full font-bold leading-none">
+              <div className="w-full leading-none font-bold">
                 {format(task.date, "MM/dd")}
               </div>
               <div className="w-full text-xs leading-none">

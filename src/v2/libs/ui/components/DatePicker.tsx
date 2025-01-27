@@ -90,7 +90,7 @@ export function DatePicker(props: {
                   </span>
                 ) : null}
                 <button
-                  className="rounded px-2 py-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
+                  className="rounded-sm px-2 py-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
                   onClick={() => {
                     setVal("");
                     props.handleChange("");
@@ -99,7 +99,7 @@ export function DatePicker(props: {
                   {props.labels.reset}
                 </button>
                 <button
-                  className="rounded px-2 py-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
+                  className="rounded-sm px-2 py-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
                   onClick={() => {
                     setVal(props.value);
                     props.handleCancel();
@@ -114,7 +114,7 @@ export function DatePicker(props: {
             <td colSpan={7}>
               <div className="flex px-4 pb-2 pt-8 text-center font-bold">
                 <button
-                  className="rounded p-1 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+                  className="rounded-sm p-1 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
                   onClick={(e) => {
                     e.preventDefault();
                     setRefDate(addMonths(refDate, -1));
@@ -124,7 +124,7 @@ export function DatePicker(props: {
                 </button>
                 <div className="flex-1">{format(refDate, "yyyy/MM")}</div>
                 <button
-                  className="rounded p-1 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+                  className="rounded-sm p-1 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
                   onClick={(e) => {
                     e.preventDefault();
                     setRefDate(addMonths(refDate, 1));

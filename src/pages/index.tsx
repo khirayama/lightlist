@@ -18,14 +18,14 @@ const Content = ({ lang }) => {
         <AppPageLink
           href="/"
           params={{ lang: "EN" }}
-          className="rounded px-4 py-2 focus-visible:bg-gray-200"
+          className="rounded-sm px-4 py-2 focus-visible:bg-gray-200"
         >
           English
         </AppPageLink>
         <AppPageLink
           href="/"
           params={{ lang: "JA" }}
-          className="rounded px-4 py-2 focus-visible:bg-gray-200"
+          className="rounded-sm px-4 py-2 focus-visible:bg-gray-200"
         >
           日本語
         </AppPageLink>

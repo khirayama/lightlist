@@ -86,7 +86,7 @@ export function TaskListList(props: { disabled?: boolean }) {
             </div>
             <button
               disabled={props.disabled}
-              className="flex rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+              className="flex rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
               type="submit"
             >
               <Icon text="send" />

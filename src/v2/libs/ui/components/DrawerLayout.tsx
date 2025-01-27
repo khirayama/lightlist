@@ -95,7 +95,7 @@ export const DrawerLayout = (props: {
         isNarrowLayout: isNarrow,
       }}
     >
-      <div className="bg flex h-full w-full overflow-hidden">
+      <div className="bg-primary flex h-full w-full overflow-hidden">
         {props.children}
       </div>
     </DrawerLayoutContext.Provider>

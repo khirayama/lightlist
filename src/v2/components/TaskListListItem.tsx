@@ -44,7 +44,7 @@ export function TaskListListItem(props: {
           {...listeners}
           {...attributes}
           className={clsx(
-            "flex touch-none items-center justify-center rounded fill-gray-400 p-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
+            "flex touch-none items-center justify-center rounded-sm fill-gray-400 p-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
           )}
         >
           <Icon text="drag_indicator" />
@@ -54,7 +54,7 @@ export function TaskListListItem(props: {
           replace
           tabIndex={props.disabled ? -1 : 0}
           className={clsx(
-            "flex-1 cursor-pointer rounded px-1 py-3 text-left focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
+            "flex-1 cursor-pointer rounded-sm px-1 py-3 text-left focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
           )}
           href={window.location.pathname}
           params={{ taskListId: taskList.id }}
@@ -76,7 +76,7 @@ export function TaskListListItem(props: {
           >
             <button
               disabled={props.disabled}
-              className="flex cursor-pointer items-center justify-center rounded fill-gray-400 p-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
+              className="flex cursor-pointer items-center justify-center rounded-sm fill-gray-400 p-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
             >
               <Icon text="delete" />
             </button>
@@ -87,7 +87,7 @@ export function TaskListListItem(props: {
             onClick={() => {
               deleteTaskList(taskList.id);
             }}
-            className="flex cursor-pointer items-center justify-center rounded fill-gray-400 p-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
+            className="flex cursor-pointer items-center justify-center rounded-sm fill-gray-400 p-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
           >
             <Icon text="delete" />
           </button>

@@ -45,7 +45,7 @@ const Content = () => {
         <header className="mx-auto flex max-w-xl items-center justify-center p-2">
           <AppPageLink
             href={distURL}
-            className="rounded p-2 focus-visible:bg-gray-200"
+            className="rounded-sm p-2 focus-visible:bg-gray-200"
           >
             <img
               src="/logo.svg"
@@ -56,7 +56,7 @@ const Content = () => {
           <div className="flex-1" />
           <AppPageLink
             href={distURL}
-            className="rounded p-2 focus-visible:bg-gray-200"
+            className="rounded-sm p-2 focus-visible:bg-gray-200"
           >
             <Icon text="close" />
           </AppPageLink>
@@ -67,7 +67,7 @@ const Content = () => {
             <div>
               {isLoggedIn ? (
                 <button
-                  className="w-full rounded border bg-gray-100 px-2 py-1 focus-visible:bg-gray-200"
+                  className="w-full rounded-sm border bg-gray-100 px-2 py-1 focus-visible:bg-gray-200"
                   disabled={hasTaskList}
                   onClick={() => {
                     updateApp({
@@ -83,7 +83,7 @@ const Content = () => {
                   <AppPageLink
                     href="/login"
                     params={{ redirect: location.href }}
-                    className="inline-block w-full rounded border bg-gray-100 px-2 py-1 focus-visible:bg-gray-200"
+                    className="inline-block w-full rounded-sm border bg-gray-100 px-2 py-1 focus-visible:bg-gray-200"
                   >
                     {t("Log in to add this task list")}
                   </AppPageLink>

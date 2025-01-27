@@ -28,7 +28,7 @@ export function SharingSheet() {
     >
       <div className="p-4">
         <button
-          className="w-full rounded border bg-gray-100 p-2 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
+          className="w-full rounded-sm border bg-gray-100 p-2 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
           onClick={() => {
             /* FYI: Only work under https or localhost */
             try {
@@ -44,7 +44,7 @@ export function SharingSheet() {
 
         <div className="py-2">
           <button
-            className="w-full rounded border bg-gray-100 p-2 focus-visible:bg-gray-200 disabled:opacity-30 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
+            className="w-full rounded-sm border bg-gray-100 p-2 focus-visible:bg-gray-200 disabled:opacity-30 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
             disabled={!window?.navigator?.share}
             onClick={async () => {
               try {
@@ -68,7 +68,7 @@ export function SharingSheet() {
 
         <div className="py-2">
           <button
-            className="w-full rounded border bg-gray-100 p-2 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
+            className="w-full rounded-sm border bg-gray-100 p-2 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
             onClick={(e) => {
               e.preventDefault();
               refreshShareCode(taskList?.shareCode);

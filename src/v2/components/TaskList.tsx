@@ -166,17 +166,17 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
   return (
     <div
       data-tasklist={taskList.id}
-      className="bg h-full overflow-scroll"
+      className="bg-primary h-full overflow-scroll"
       onKeyDown={onKeyDown}
     >
-      <header className="bg sticky top-0 z-20 m-auto w-full max-w-3xl border-b">
+      <header className="bg-primary sticky top-0 z-20 m-auto w-full max-w-3xl border-b">
         <section className="px-1">
           <div className="flex pl-8">
             <h1 className="flex-1 font-bold">
               <input
                 data-tasklistname={taskList.id}
                 disabled={props.disabled}
-                className="inline-block w-full rounded py-1 text-center focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
+                className="inline-block w-full rounded-sm py-1 text-center focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
                 placeholder={t("Task list name")}
                 value={taskList.name}
                 onChange={onTaskListNameChange}
@@ -185,7 +185,7 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
             <AppPageLink
               data-trigger={`sharing-${taskList.id}`}
               tabIndex={props.disabled ? -1 : 0}
-              className="rounded p-1 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+              className="rounded-sm p-1 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
               params={{
                 sheet: "sharing",
                 tasklistid: taskList.id,
@@ -200,7 +200,7 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
           <div className="flex items-center py-2">
             <button
               disabled={props.disabled}
-              className="flex rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+              className="flex rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
               onClick={onInsertPositionIconClick}
             >
               {isInsertTop ? (
@@ -226,7 +226,7 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
               />
               <button
                 disabled={props.disabled}
-                className="flex rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
+                className="flex rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
                 type="submit"
               >
                 <Icon text="send" />
@@ -237,7 +237,7 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
         <section className="flex fill-gray-400 p-1 pl-2 text-gray-400">
           <button
             disabled={props.disabled}
-            className="flex rounded p-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
+            className="flex rounded-sm p-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
             onClick={onSortTasksButtonClick}
           >
             <Icon text="sort" />
@@ -248,7 +248,7 @@ export function TaskList(props: { disabled?: boolean; taskListId: string }) {
 
           <button
             disabled={props.disabled}
-            className="flex rounded p-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
+            className="flex rounded-sm p-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
             onClick={onClearCompletedTasksButtonClick}
           >
             <span className="pr-1">{t("Clear Completed")}</span>

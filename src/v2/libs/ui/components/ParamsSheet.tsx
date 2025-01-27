@@ -61,7 +61,7 @@ export function ParamsSheet(props: {
       <RadixDialog.Portal>
         <RadixDialog.Overlay
           className={clsx(
-            "fixed left-0 top-0 z-[100] h-full w-full bg-gray-900/50 dark:bg-gray-100/50",
+            "fixed left-0 top-0 z-100 h-full w-full bg-gray-900/50 dark:bg-gray-100/50",
             props.isSheetOpen() &&
               `animate-[overlayshow_600ms_cubic-bezier(0.16,1,0.3,1)_forwards]`,
             !props.isSheetOpen() &&
@@ -70,7 +70,7 @@ export function ParamsSheet(props: {
         />
         <RadixDialog.Content
           className={clsx(
-            "bg fixed bottom-0 left-1/2 z-[400] mx-auto flex max-h-[95%] min-h-[80%] w-full max-w-2xl translate-x-[-50%] flex-col overflow-hidden rounded-t-lg shadow-lg",
+            "bg-primary fixed bottom-0 left-1/2 z-400 mx-auto flex max-h-[95%] min-h-[80%] w-full max-w-2xl translate-x-[-50%] flex-col overflow-hidden rounded-t-lg shadow-lg",
             props.isSheetOpen() &&
               `animate-[contentshow_600ms_cubic-bezier(0.16,1,0.3,1)_forwards]`,
             !props.isSheetOpen() &&
@@ -82,12 +82,12 @@ export function ParamsSheet(props: {
               {props.title}
             </RadixDialog.Title>
             <div className="absolute right-0 top-0 p-2">
-              <RadixDialog.Close className="rounded p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700">
+              <RadixDialog.Close className="rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700">
                 <Icon text="close" />
               </RadixDialog.Close>
             </div>
           </header>
-          <div className="bg h-full w-full flex-1 overflow-scroll">
+          <div className="bg-primary h-full w-full flex-1 overflow-scroll">
             {props.children}
           </div>
         </RadixDialog.Content>

@@ -31,7 +31,7 @@ export function PreferencesSheet() {
             });
           }}
         >
-          <Select.Trigger className="bg-button inline-flex items-center rounded border p-2">
+          <Select.Trigger className="bg-button inline-flex items-center rounded-sm border p-2">
             <Select.Value aria-label={t(preferences.theme)}>
               {t(preferences.theme)}
             </Select.Value>
@@ -40,7 +40,7 @@ export function PreferencesSheet() {
             </Select.Icon>
           </Select.Trigger>
           <Select.Portal>
-            <Select.Content className="bg z-[500] rounded border p-2 shadow">
+            <Select.Content className="bg-primary z-500 rounded-sm border p-2 shadow-sm">
               <Select.Viewport>
                 {themes.map((theme) => (
                   <Select.Item
@@ -70,7 +70,7 @@ export function PreferencesSheet() {
             });
           }}
         >
-          <Select.Trigger className="inline-flex items-center rounded border p-2 focus-visible:bg-gray-200 dark:text-white dark:focus-visible:bg-gray-700">
+          <Select.Trigger className="inline-flex items-center rounded-sm border p-2 focus-visible:bg-gray-200 dark:text-white dark:focus-visible:bg-gray-700">
             <Select.Value aria-label={t(preferences.lang)}>
               {t(preferences.lang)}
             </Select.Value>
@@ -79,7 +79,7 @@ export function PreferencesSheet() {
             </Select.Icon>
           </Select.Trigger>
           <Select.Portal>
-            <Select.Content className="bg focus-visible:bg z-[500] rounded border p-2 shadow dark:focus-visible:bg-gray-700">
+            <Select.Content className="bg-primary focus-visible:bg-primary z-500 rounded-sm border p-2 shadow-sm dark:focus-visible:bg-gray-700">
               <Select.Viewport>
                 {supportedLanguages.map((ln) => (
                   <Select.Item

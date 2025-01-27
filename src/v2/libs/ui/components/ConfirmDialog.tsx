@@ -19,14 +19,14 @@ export const ConfirmDialog = (props: {
       <AlertDialog.Portal>
         <AlertDialog.Overlay
           className={clsx(
-            "fixed left-0 top-0 z-[500] h-full w-full bg-gray-900/50 dark:bg-gray-100/50",
+            "fixed left-0 top-0 z-500 h-full w-full bg-gray-900/50 dark:bg-gray-100/50",
             open &&
               `animate-[overlayshow_600ms_cubic-bezier(0.16,1,0.3,1)_forwards]`,
             !open &&
               `animate-[overlayhide_600ms_cubic-bezier(0.16,1,0.3,1)_forwards]`,
           )}
         />
-        <AlertDialog.Content className="bg fixed left-[50%] top-[50%] z-[900] max-h-[85vh] w-[90vw] max-w-[500px] translate-x-[-50%] translate-y-[-50%] rounded p-4">
+        <AlertDialog.Content className="bg-primary fixed left-[50%] top-[50%] z-900 max-h-[85vh] w-[90vw] max-w-[500px] translate-x-[-50%] translate-y-[-50%] rounded-sm p-4">
           <AlertDialog.Title className="">{props.title}</AlertDialog.Title>
           <AlertDialog.Description className="">
             {props.description}

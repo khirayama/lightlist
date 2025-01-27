@@ -12,7 +12,7 @@ import { App } from "v2/components/App";
 
 function Loading() {
   return (
-    <div className="bg flex h-full w-full items-center justify-center">
+    <div className="bg-primary flex h-full w-full items-center justify-center">
       Loading...
     </div>
   );

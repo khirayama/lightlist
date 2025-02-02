@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import qs from "query-string";
 
 import { config } from "config";
 import { useAuth, AuthProvider } from "v2/common/auth";
@@ -11,19 +10,21 @@ function Content() {
   const router = useRouter();
 
   const { t } = useCustomTranslation("pages.login");
-  const [{ isLoggedIn }, { signUpOrInWithOtp, verifyOtpWithToken }] = useAuth();
-  const [view, setView] = useState<"signup" | "opt">("signup");
+  const [{ isLoggedIn }, { signUpOrIn, resetPasswordForEmail }] = useAuth();
 
-  const [emailOrPhoneNumber, setEmailOrPhoneNumber] = useState("");
-  const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [view, setView] = useState<"register" | "reset">("register");
 
-  if (view === "opt" && isLoggedIn) {
-    window.location.replace(config.appBaseUrl);
-  }
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.replace(config.appBaseUrl);
+    }
+  }, [isLoggedIn]);
 
   return (
     <div className="h-full">
-      <header className="absolute left-0 top-0 w-full text-center">
+      <header className="absolute top-0 left-0 w-full text-center">
         <h1 className="py-8">
           <Link href="/">
             <img src="/logo.svg" alt="Lightlist" className="inline h-[2rem]" />
@@ -33,58 +34,52 @@ function Content() {
 
       <div className="mx-auto flex h-full max-w-sm items-center justify-center py-12">
         <div className="pb-16">
-          {view === "signup" ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                signUpOrInWithOtp(
-                  emailOrPhoneNumber,
-                  router.query.lang as string,
-                ).then(() => {
-                  setView("opt");
-                });
-              }}
-            >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (view === "register") {
+                signUpOrIn({ email, password }, router.query.lang as string);
+              } else {
+                resetPasswordForEmail(email);
+              }
+            }}
+          >
+            <div>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            {view !== "reset" && (
               <div>
                 <input
-                  type="email"
-                  placeholder="Email or Phone Number"
-                  value={emailOrPhoneNumber}
-                  onChange={(e) => setEmailOrPhoneNumber(e.target.value)}
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              <div>
-                <button>Sign Up or Log In</button>
-              </div>
-            </form>
-          ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const url =
-                  (qs.parse(window?.location.search).redirect as string) ||
-                  config.appBaseUrl;
-                verifyOtpWithToken(
-                  emailOrPhoneNumber,
-                  token,
-                  router.query.lang as string,
-                ).then(() => {
-                  window.location.replace(url);
-                });
-              }}
-            >
-              <div>
-                <input
-                  type="number"
-                  placeholder="OTP Code"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                />
-              </div>
-              <div>
-                <button>Submit OTP Code</button>
-              </div>
-            </form>
+            )}
+            <div>
+              <button>
+                {view === "register"
+                  ? "Sign Up or Sign In"
+                  : "Send email to reset password"}
+              </button>
+            </div>
+          </form>
+          {view !== "reset" && (
+            <div>
+              <button
+                onClick={() => {
+                  setView("reset");
+                }}
+              >
+                Forgot password
+              </button>
+            </div>
           )}
         </div>
       </div>

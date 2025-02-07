@@ -9,35 +9,62 @@ import {
 
 import { createGlobalState } from "./index";
 
+export type MutationFunction<T = unknown> = (
+  getState: () => T,
+  commit: (s: DeepPartial<T>) => void,
+) => unknown;
+
 const GlobalStateContext = createContext(null);
+
+function debounce(fn: Function, t: number) {
+  let timerId = null;
+  return (...args: unknown[]) => {
+    clearTimeout(timerId);
+    timerId = setTimeout(() => fn(...args), t);
+  };
+}
 
 export const GlobalStateProvider = <T,>(props: {
   initialState: T;
   children: ReactNode;
 }) => {
-  const ref = useRef(createGlobalState<T>(props.initialState));
-  const [state, setNativeState] = useState(ref.current.get());
+  const { current: globalState } = useRef(
+    createGlobalState<T>(props.initialState),
+  );
+  const [state, setNativeState] = useState(globalState.get());
+  const setState = (s: DeepPartial<T>) => globalState.set(s);
+
+  const { current: debouncedSetNativeState } = useRef(
+    debounce(setNativeState, 0),
+  );
 
   useEffect(() => {
-    const globalState = ref.current;
-    globalState.subscribe((newState) => {
-      setNativeState(newState);
+    globalState.subscribe((newState: T) => {
+      debouncedSetNativeState(newState);
     });
   }, []);
 
-  const setState = (state: DeepPartial<T>) => {
-    const globalState = ref.current;
-    globalState.set(state);
-  };
-
   return (
-    <GlobalStateContext.Provider value={[state, setState]}>
+    <GlobalStateContext.Provider value={[state, setState, globalState]}>
       {props.children}
     </GlobalStateContext.Provider>
   );
 };
 
 export const useGlobalState = () => {
-  const [state, setState] = useContext(GlobalStateContext);
-  return [state, setState] as const;
+  const [state, setState, globalState] = useContext(GlobalStateContext);
+
+  const mutate = (
+    fn: (
+      getState?: () => typeof state,
+      commit?: (s: DeepPartial<typeof state>) => void,
+    ) => typeof state,
+  ) => {
+    fn(
+      () => globalState.get(),
+      (s) => globalState.set(s),
+    );
+  };
+
+  return [state, setState, mutate] as const;
 };

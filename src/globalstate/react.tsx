@@ -25,11 +25,11 @@ function debounce(fn: Function, t: number) {
 }
 
 export const GlobalStateProvider = <T,>(props: {
-  initialState: T;
+  initialGlobalState: T;
   children: ReactNode;
 }) => {
   const { current: globalState } = useRef(
-    createGlobalState<T>(props.initialState),
+    createGlobalState<T>(props.initialGlobalState),
   );
   const [state, setNativeState] = useState(globalState.get());
   const setState = (s: DeepPartial<T>) => globalState.set(s);

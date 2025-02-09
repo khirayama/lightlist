@@ -14,6 +14,10 @@ function errorHandler(err: Error) {
 }
 
 const c = () => {
+  if (session === null) {
+    throw new Error("Session is not bound");
+  }
+
   return axios.create({
     withCredentials: true,
     headers: {

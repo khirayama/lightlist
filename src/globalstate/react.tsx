@@ -9,9 +9,10 @@ import {
 
 import { createGlobalState } from "./index";
 
-export type MutationFunction<T = unknown> = (
+export type MutationFunction<T = unknown, P = unknown> = (
   getState: () => T,
   commit: (s: DeepPartial<T>) => void,
+  payload?: P,
 ) => unknown;
 
 const GlobalStateContext = createContext(null);
@@ -54,15 +55,11 @@ export const GlobalStateProvider = <T,>(props: {
 export const useGlobalState = () => {
   const [state, setState, globalState] = useContext(GlobalStateContext);
 
-  const mutate = (
-    fn: (
-      getState?: () => typeof state,
-      commit?: (s: DeepPartial<typeof state>) => void,
-    ) => typeof state,
-  ) => {
+  const mutate = (fn: MutationFunction<typeof state>, payload?: unknown) => {
     fn(
       () => globalState.get(),
       (s) => globalState.set(s),
+      payload,
     );
   };
 

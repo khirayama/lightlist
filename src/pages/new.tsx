@@ -1,0 +1,161 @@
+import { useRouter } from "next/router";
+import { Session } from "@supabase/supabase-js";
+
+import { GlobalStateProvider, useGlobalState } from "globalstate/react";
+import { AuthWorker, PollingWorker } from "worker";
+
+import { AppPageStackProvider } from "v2/libs/ui/navigation";
+import { App } from "v2/components/App";
+
+type Task = {
+  id: string;
+  text: string;
+  completed: boolean;
+  date: string;
+};
+
+type TaskList = {
+  id: string;
+  name: string;
+  tasks: Task[];
+  shareCode: string;
+  update: Uint8Array;
+};
+
+type Auth = {
+  session: Session;
+};
+
+type App = {
+  taskInsertPosition: "BOTTOM" | "TOP";
+  taskListIds: string[];
+  update: Uint8Array;
+};
+
+type Profile = {
+  displayName: string;
+  email: string;
+};
+
+type Preferences = {
+  lang: "EN" | "JA";
+  theme: "SYSTEM" | "LIGHT" | "DARK";
+};
+
+type GlobalState = {
+  auth: Auth;
+  app: App;
+  profile: Profile;
+  preferences: Preferences;
+  taskLists: {
+    [id: string]: TaskList;
+  };
+  isInitialized: {
+    auth: boolean;
+    app: boolean;
+    profile: boolean;
+    preferences: boolean;
+    taskLists: boolean;
+  };
+};
+
+function createInitialState(): GlobalState {
+  return {
+    auth: {
+      session: null,
+    },
+    app: {
+      taskInsertPosition: "BOTTOM",
+      taskListIds: [],
+      update: new Uint8Array(),
+    },
+    profile: {
+      displayName: "",
+      email: "",
+    },
+    preferences: {
+      lang: "EN",
+      theme: "SYSTEM",
+    },
+    taskLists: {},
+    isInitialized: {
+      auth: false,
+      app: false,
+      profile: false,
+      preferences: false,
+      taskLists: false,
+    },
+  };
+}
+
+function Loading() {
+  return (
+    <div className="bg-primary flex h-full w-full items-center justify-center">
+      Loading...
+    </div>
+  );
+}
+
+function Content() {
+  const [
+    {
+      isInitialized: {
+        app: isAppInitialized,
+        preferences: isPreferencesInitialized,
+        profile: isProfileInitialized,
+        taskLists: isTaskListsInitialized,
+      },
+    },
+  ] = useGlobalState();
+
+  return (
+    <>
+      <PollingWorker />
+      {isAppInitialized &&
+      isPreferencesInitialized &&
+      isTaskListsInitialized &&
+      isProfileInitialized ? (
+        <App />
+      ) : (
+        <Loading />
+      )}
+    </>
+  );
+}
+
+function AuthContent() {
+  const router = useRouter();
+
+  const [
+    {
+      auth: { session },
+      isInitialized: { auth: isInitialized },
+    },
+    ,
+  ] = useGlobalState();
+  const isLoggedIn = !!session;
+
+  if (isInitialized && !isLoggedIn) {
+    router.push("/login");
+    return null;
+  }
+
+  return (
+    <>
+      <AuthWorker />
+      {isInitialized && isLoggedIn ? <Content /> : <Loading />}
+    </>
+  );
+}
+
+export default function AppV2Page() {
+  return (
+    <AppPageStackProvider>
+      <GlobalStateProvider<GlobalState>
+        initialGlobalState={createInitialState()}
+      >
+        <AuthContent />
+      </GlobalStateProvider>
+    </AppPageStackProvider>
+  );
+}

@@ -5,7 +5,8 @@ import { GlobalStateProvider, useGlobalState } from "globalstate/react";
 import { AuthWorker, PollingWorker } from "worker";
 
 import { AppPageStackProvider } from "v2/libs/ui/navigation";
-import { App } from "v2/components/App";
+import { App } from "components/App";
+import { NavigationProvider } from "navigation/react";
 
 type Task = {
   id: string;
@@ -99,6 +100,11 @@ function Loading() {
 function Content() {
   const [
     {
+      auth,
+      app,
+      profile,
+      preferences,
+      taskLists,
       isInitialized: {
         app: isAppInitialized,
         preferences: isPreferencesInitialized,
@@ -115,7 +121,13 @@ function Content() {
       isPreferencesInitialized &&
       isTaskListsInitialized &&
       isProfileInitialized ? (
-        <App />
+        <App
+          auth={auth}
+          app={app}
+          preferences={preferences}
+          profile={profile}
+          taskLists={taskLists}
+        />
       ) : (
         <Loading />
       )}
@@ -149,13 +161,22 @@ function AuthContent() {
 }
 
 export default function AppV2Page() {
+  // Define your route definitions.
+  const routes = {
+    "/home": { props: {} },
+    "/profile/:userId": { props: { userId: "string" } },
+    // Add more routes as needed.
+  };
+
   return (
     <AppPageStackProvider>
-      <GlobalStateProvider<GlobalState>
-        initialGlobalState={createInitialState()}
-      >
-        <AuthContent />
-      </GlobalStateProvider>
+      <NavigationProvider initialPath="/home" routes={routes}>
+        <GlobalStateProvider<GlobalState>
+          initialGlobalState={createInitialState()}
+        >
+          <AuthContent />
+        </GlobalStateProvider>
+      </NavigationProvider>
     </AppPageStackProvider>
   );
 }

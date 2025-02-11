@@ -36,7 +36,7 @@ export function NavigationProvider({
 }: NavigationProviderProps) {
   const ref = useRef<string[]>([]);
   const [isInBrowser, setIsInBrowser] = useState(false);
-  const [render, setRender] = useState(Date.now());
+  const [, setRender] = useState(Date.now());
 
   useEffect(() => {
     setIsInBrowser(true);
@@ -113,7 +113,6 @@ export function NavigationProvider({
       }
 
       const hash = window.location.hash.split("#")[1] || "";
-      console.log(hash, window.location.href);
       const route = Object.keys(routes).find((r) => {
         const m: MatchFunction<Record<string, string>> = match(r);
         return m(hash);

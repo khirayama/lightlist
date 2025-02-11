@@ -145,3 +145,34 @@ export function NavigationProvider({
 export function useNavigation() {
   return useContext(NavigationContext);
 }
+
+export function NavigateLink(props: {
+  to: string;
+  children: ReactNode;
+  method?: "navigate" | "push" | "goBack" | "popTo" | "popToTop";
+}) {
+  const navigation = useNavigation();
+  const method = props.method || "navigate";
+
+  return (
+    <a
+      href={props.to}
+      onClick={(e) => {
+        e.preventDefault();
+        if (method === "navigate") {
+          navigation.navigate(props.to);
+        } else if (method === "push") {
+          navigation.push(props.to);
+        } else if (method === "goBack") {
+          navigation.goBack();
+        } else if (method === "popTo") {
+          navigation.popTo(props.to);
+        } else if (method === "popToTop") {
+          navigation.popToTop();
+        }
+      }}
+    >
+      {props.children}
+    </a>
+  );
+}

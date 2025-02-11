@@ -4,7 +4,6 @@ import { Session } from "@supabase/supabase-js";
 import { GlobalStateProvider, useGlobalState } from "globalstate/react";
 import { AuthWorker, PollingWorker } from "worker";
 
-import { AppPageStackProvider } from "v2/libs/ui/navigation";
 import { App } from "components/App";
 import { NavigationProvider } from "navigation/react";
 
@@ -169,14 +168,12 @@ export default function AppV2Page() {
   };
 
   return (
-    <AppPageStackProvider>
-      <NavigationProvider initialPath="/home" routes={routes}>
-        <GlobalStateProvider<GlobalState>
-          initialGlobalState={createInitialState()}
-        >
-          <AuthContent />
-        </GlobalStateProvider>
-      </NavigationProvider>
-    </AppPageStackProvider>
+    <NavigationProvider initialPath="/home" routes={routes}>
+      <GlobalStateProvider<GlobalState>
+        initialGlobalState={createInitialState()}
+      >
+        <AuthContent />
+      </GlobalStateProvider>
+    </NavigationProvider>
   );
 }

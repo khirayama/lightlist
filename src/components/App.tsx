@@ -16,7 +16,7 @@ import {
   CarouselItem,
   CarouselIndicator,
 } from "v2/libs/ui/components/Carousel";
-import { useAppPageStack, AppPageLink } from "v2/libs/ui/navigation";
+import { AppPageLink } from "v2/libs/ui/navigation";
 import { Icon } from "v2/libs/ui/components/Icon";
 import { TaskList } from "components/TaskList";
 import { TaskListList } from "components/TaskListList";
@@ -26,7 +26,6 @@ import { DatePickerSheet } from "components/DatePickerSheet";
 import { PreferencesSheet } from "components/PreferencesSheet";
 
 function AppDrawer({ profile }) {
-  const { pop } = useAppPageStack();
   const { isNarrowLayout } = useDrawerLayout();
   const { t } = useCustomTranslation("components.App");
 
@@ -37,7 +36,7 @@ function AppDrawer({ profile }) {
           <div className="p-1">
             <button
               className="rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
-              onClick={pop}
+              onClick={() => pop()}
             >
               <Icon text="close" />
             </button>
@@ -86,7 +85,6 @@ function getTaskListIdIndex(taskListIds: string[]) {
 
 function AppMain({ app, taskLists }) {
   const { isNarrowLayout } = useDrawerLayout();
-  const { replaceWithParams } = useAppPageStack();
   const [index, setIndex] = useState(getTaskListIdIndex(app.taskListIds));
 
   useEffect(() => {

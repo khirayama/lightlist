@@ -35,7 +35,6 @@ export function TaskListList(props: { disabled?: boolean; app: AppV2 }) {
 
   const { t } = useCustomTranslation("components.TaskListList");
   const { isDrawerOpen, isNarrowLayout } = useDrawerLayout();
-  const { pop, push } = useAppPageStack();
 
   const [taskListName, setTaskListName] = useState("");
 

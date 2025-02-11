@@ -2,7 +2,6 @@ import { useState } from "react";
 import qs from "query-string";
 
 import { useCustomTranslation } from "v2/libs/i18n";
-import { useAppPageStack } from "v2/libs/ui/navigation";
 import { ParamsSheet } from "v2/libs/ui/components/ParamsSheet";
 import { ConfirmDialog } from "v2/libs/ui/components/ConfirmDialog";
 
@@ -10,8 +9,6 @@ export function UserSheet({ app, profile, auth }) {
   const isSheetOpen = () => {
     return qs.parse(window.location.search).sheet === "user";
   };
-
-  const { push } = useAppPageStack();
 
   const { t } = useCustomTranslation("components.UserSheet");
   const [displayName, setDisplayName] = useState(profile.displayName);

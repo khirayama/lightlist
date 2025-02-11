@@ -47,7 +47,6 @@ model App {
   userId             String             @unique @db.Uuid
   taskInsertPosition TaskInsertPosition @default(BOTTOM)
   taskListIds        String[]
-  online             Boolean            @default(false)
   update             Bytes
 }
 

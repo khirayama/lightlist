@@ -1,3 +1,7 @@
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] | DeepPartial<T[P]>;
+};
+
 type Query = { [key: string]: string | string[] | null };
 
 type Task = {

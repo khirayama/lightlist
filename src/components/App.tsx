@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import Head from "next/head";
 import qs from "query-string";
 

@@ -46,7 +46,7 @@ export function NavigationProvider({
     if (isInBrowser) {
       window.addEventListener("popstate", (e) => {
         e.preventDefault();
-        ref.current = e.state.stack;
+        ref.current = e.state?.stack || [initialPath];
         setRender(Date.now());
       });
 
@@ -149,6 +149,7 @@ export function useNavigation() {
 export function NavigateLink(props: {
   to: string;
   children: ReactNode;
+  className?: string;
   method?: "navigate" | "push" | "goBack" | "popTo" | "popToTop";
 }) {
   const navigation = useNavigation();
@@ -156,6 +157,7 @@ export function NavigateLink(props: {
 
   return (
     <a
+      className={props.className}
       href={props.to}
       onClick={(e) => {
         e.preventDefault();

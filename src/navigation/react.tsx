@@ -74,6 +74,7 @@ export function NavigationProvider({
         window.history.back();
         ref.current.pop();
       }
+      setRender(Date.now());
     },
     popTo: (targetPath: string) => {
       const hasTargetPath = ref.current.includes(targetPath);
@@ -90,6 +91,7 @@ export function NavigationProvider({
           `#${targetPath}`,
         );
       }
+      setRender(Date.now());
     },
     popToTop: () => {
       const hasTargetPath = ref.current.includes(initialPath);
@@ -106,6 +108,7 @@ export function NavigationProvider({
           `#${initialPath}`,
         );
       }
+      setRender(Date.now());
     },
     getAttr: () => {
       if (!isInBrowser) {

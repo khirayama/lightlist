@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { createClient, type Session } from "@supabase/supabase-js";
 
+import { createSupabaseClient, Session } from "common/supabase";
 import { useGlobalState } from "globalstate/react";
 import {
   initializeAuth,
@@ -11,10 +11,7 @@ import {
   fetchTaskLists,
 } from "mutations";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
+const supabase = createSupabaseClient();
 
 export function AuthWorker() {
   const [, , mutate] = useGlobalState();
@@ -33,31 +30,55 @@ export function AuthWorker() {
 }
 
 export function PollingWorker() {
-  const [, , mutate] = useGlobalState();
+  const [
+    {
+      auth: { session },
+    },
+    ,
+    mutate,
+  ] = useGlobalState();
 
   useEffect(() => {
     const pollingInterval = 10000;
     const intervalIds = [];
 
-    mutate(fetchApp);
-    intervalIds.push(setInterval(() => mutate(fetchApp), pollingInterval));
+    const checkSession = (fn) => {
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (session?.expires_at && session.expires_at > currentTime) {
+        return fn;
+      } else {
+        console.warn("Session expired");
+        return () => {};
+      }
+    };
 
-    mutate(fetchPreferences);
+    mutate(checkSession(fetchApp));
     intervalIds.push(
-      setInterval(() => mutate(fetchPreferences), pollingInterval),
+      setInterval(() => mutate(checkSession(fetchApp)), pollingInterval),
     );
 
-    mutate(fetchProfile);
-    intervalIds.push(setInterval(() => mutate(fetchProfile), pollingInterval));
-
-    mutate(fetchTaskLists);
+    mutate(checkSession(fetchPreferences));
     intervalIds.push(
-      setInterval(() => mutate(fetchTaskLists), pollingInterval),
+      setInterval(
+        () => mutate(checkSession(fetchPreferences)),
+        pollingInterval,
+      ),
+    );
+
+    mutate(checkSession(fetchProfile));
+    intervalIds.push(
+      setInterval(() => mutate(checkSession(fetchProfile)), pollingInterval),
+    );
+
+    mutate(checkSession(fetchTaskLists));
+    intervalIds.push(
+      setInterval(() => mutate(checkSession(fetchTaskLists)), pollingInterval),
     );
 
     return () => {
       intervalIds.forEach((intervalId) => clearInterval(intervalId));
     };
-  }, []);
+  }, [session.expires_at]);
+
   return null;
 }

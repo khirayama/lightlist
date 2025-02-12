@@ -1,10 +1,19 @@
+import { PrismaClient } from "@prisma/client";
 import type { NextApiRequest } from "next";
 
 import { createSupabaseClient } from "common/supabase";
 
-export { createPrismaClient } from "common/apiHelper";
-
 const supabase = createSupabaseClient();
+
+export function createPrismaClient() {
+  if (process.env.NODE_ENV !== "production") {
+    if (!globalThis.prisma) {
+      globalThis.prisma = new PrismaClient();
+    }
+    return globalThis.prisma;
+  }
+  return new PrismaClient();
+}
 
 export function exclude<T, Key extends keyof T>(
   obj: T,

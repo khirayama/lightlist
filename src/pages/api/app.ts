@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import type { App as AppType } from "@prisma/client";
 import * as Y from "yjs";
 
-import { createPrismaClient, exclude, auth } from "v2/common/apiHelper";
+import { createPrismaClient, exclude, auth } from "common/apiHelper";
 
 const prisma = createPrismaClient();
 

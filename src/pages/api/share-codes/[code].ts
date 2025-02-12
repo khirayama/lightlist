@@ -1,7 +1,7 @@
 import { v4 as uuid } from "uuid";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import { createPrismaClient, auth } from "v2/common/apiHelper";
+import { createPrismaClient, auth } from "common/apiHelper";
 
 const prisma = createPrismaClient();
 

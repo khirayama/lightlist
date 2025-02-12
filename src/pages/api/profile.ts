@@ -1,7 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { Profile as ProfileType } from "@prisma/client";
 
-import { prisma, exclude, auth } from "v2/common/apiHelper";
+import { createPrismaClient, exclude, auth } from "v2/common/apiHelper";
+
+const prisma = createPrismaClient();
 
 export default async function handler(
   req: NextApiRequest,

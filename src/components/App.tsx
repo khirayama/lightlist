@@ -9,7 +9,7 @@ import {
   Drawer,
   Main,
   useDrawerLayout,
-} from "v2/libs/ui/components/DrawerLayout";
+} from "components/primitives/DrawerLayout";
 import {
   Carousel,
   CarouselList,
@@ -24,10 +24,12 @@ import { UserSheet } from "components/UserSheet";
 import { SharingSheet } from "components/SharingSheet";
 import { DatePickerSheet } from "components/DatePickerSheet";
 import { PreferencesSheet } from "components/PreferencesSheet";
+import { useNavigation, NavigateLink } from "navigation/react";
 
 function AppDrawer({ profile }) {
   const { isNarrowLayout } = useDrawerLayout();
   const { t } = useCustomTranslation("components.App");
+  const navigation = useNavigation();
 
   return (
     <Drawer>
@@ -36,7 +38,7 @@ function AppDrawer({ profile }) {
           <div className="p-1">
             <button
               className="rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
-              onClick={() => pop()}
+              onClick={navigation.popToTop}
             >
               <Icon text="close" />
             </button>
@@ -46,27 +48,23 @@ function AppDrawer({ profile }) {
       )}
 
       <div className="p-2">
-        <AppPageLink
-          data-trigger="user"
+        <NavigateLink
+          to="/user"
           className="flex w-full items-center justify-center rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
-          params={{ sheet: "user", trigger: "user" }}
-          mergeParams
         >
           <Icon text="person" />
           <div className="flex-1 pl-2 text-left">
             {profile?.displayName || profile?.email || t("Log in")}
           </div>
-        </AppPageLink>
+        </NavigateLink>
 
-        <AppPageLink
-          data-trigger="preferences"
+        <NavigateLink
+          to="/preferences"
           className="flex w-full items-center justify-center rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
-          params={{ sheet: "preferences", trigger: "preferences" }}
-          mergeParams
         >
           <Icon text="settings" />
           <div className="flex-1 pl-2 text-left">{t("Preferences")}</div>
-        </AppPageLink>
+        </NavigateLink>
       </div>
 
       <TaskListList taskLists={[]} />
@@ -96,13 +94,12 @@ function AppMain({ app, taskLists }) {
       <header className="flex p-1">
         {isNarrowLayout ? (
           <>
-            <AppPageLink
+            <NavigateLink
+              to="/menu"
               className="flex items-center justify-center rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
-              params={{ drawer: "opened" }}
-              mergeParams
             >
               <Icon text="menu" />
-            </AppPageLink>
+            </NavigateLink>
 
             <div className="flex-1" />
           </>
@@ -136,7 +133,10 @@ function AppMain({ app, taskLists }) {
 
 export function App({ app, preferences, profile, taskLists, auth }) {
   const { isDarkTheme } = useTheme(preferences.theme);
-  console.log(app, preferences, profile, taskLists, auth);
+  const navigation = useNavigation();
+  const {
+    props: { isDrawerOpen, isUserSheetOpen, isPreferencesSheetOpen },
+  } = navigation.getAttr();
 
   return (
     <>
@@ -152,14 +152,22 @@ export function App({ app, preferences, profile, taskLists, auth }) {
         <meta name="robots" content="notranslate" />
       </Head>
 
-      <DrawerLayout>
+      <DrawerLayout isDrawerOpen={isDrawerOpen}>
         <AppDrawer profile={profile} />
         <AppMain app={app} taskLists={taskLists} />
       </DrawerLayout>
 
-      <UserSheet app={app} profile={profile} auth={auth} />
+      <UserSheet
+        isOpen={isUserSheetOpen}
+        app={app}
+        profile={profile}
+        auth={auth}
+      />
 
-      <PreferencesSheet preferences={preferences} />
+      <PreferencesSheet
+        isOpen={isPreferencesSheetOpen}
+        preferences={preferences}
+      />
 
       <SharingSheet taskLists={taskLists} />
 

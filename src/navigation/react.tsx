@@ -35,6 +35,7 @@ export function NavigationProvider({
   routes,
 }: NavigationProviderProps) {
   const ref = useRef<string[]>([]);
+  const referrer = useRef<string>("");
   const [isInBrowser, setIsInBrowser] = useState(false);
   const [, setRender] = useState(Date.now());
 
@@ -60,6 +61,7 @@ export function NavigationProvider({
 
   const navigation: Navigation = {
     push: (path: string) => {
+      referrer.current = ref.current[ref.current.length - 1];
       ref.current.push(path);
       window.history.pushState({ stack: ref.current }, "", `#${path}`);
       setRender(Date.now());
@@ -132,6 +134,7 @@ export function NavigationProvider({
           path: params.path,
           params: params.params,
           props: routes[route],
+          referrer: referrer.current,
         };
       }
       return {};

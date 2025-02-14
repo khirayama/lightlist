@@ -160,11 +160,27 @@ function AuthContent() {
 }
 
 export default function AppV2Page() {
-  // Define your route definitions.
   const routes = {
-    "/home": { props: {} },
-    "/profile/:userId": { props: { userId: "string" } },
-    // Add more routes as needed.
+    "/home": {
+      isDrawerOpen: false,
+      isUserSheetOpen: false,
+      isPreferencesSheetOpen: false,
+    },
+    "/menu": {
+      isDrawerOpen: true,
+      isUserSheetOpen: false,
+      isPreferencesSheetOpen: false,
+    },
+    "/user": {
+      isDrawerOpen: true,
+      isUserSheetOpen: true,
+      isPreferencesSheetOpen: false,
+    },
+    "/preferences": {
+      isDrawerOpen: true,
+      isUserSheetOpen: false,
+      isPreferencesSheetOpen: true,
+    },
   };
 
   return (

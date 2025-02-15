@@ -15,9 +15,8 @@ import {
   CarouselList,
   CarouselItem,
   CarouselIndicator,
-} from "v2/libs/ui/components/Carousel";
-import { AppPageLink } from "v2/libs/ui/navigation";
-import { Icon } from "v2/libs/ui/components/Icon";
+} from "components/primitives/Carousel";
+import { Icon } from "components/primitives/Icon";
 import { TaskList } from "components/TaskList";
 import { TaskListList } from "components/TaskListList";
 import { UserSheet } from "components/UserSheet";
@@ -26,10 +25,11 @@ import { DatePickerSheet } from "components/DatePickerSheet";
 import { PreferencesSheet } from "components/PreferencesSheet";
 import { useNavigation, NavigateLink } from "navigation/react";
 
-function AppDrawer({ profile }) {
+function AppDrawer({ app, taskLists, profile }) {
   const { isNarrowLayout } = useDrawerLayout();
   const { t } = useCustomTranslation("components.App");
   const navigation = useNavigation();
+  const tls = app.taskListIds.map((id) => taskLists[id]);
 
   return (
     <Drawer>
@@ -49,25 +49,17 @@ function AppDrawer({ profile }) {
 
       <div className="p-2">
         <NavigateLink
-          to="/user"
+          to="/settings"
           className="flex w-full items-center justify-center rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
         >
-          <Icon text="person" />
+          <Icon text="settings" />
           <div className="flex-1 pl-2 text-left">
             {profile?.displayName || profile?.email || t("Log in")}
           </div>
         </NavigateLink>
-
-        <NavigateLink
-          to="/preferences"
-          className="flex w-full items-center justify-center rounded-sm p-2 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
-        >
-          <Icon text="settings" />
-          <div className="flex-1 pl-2 text-left">{t("Preferences")}</div>
-        </NavigateLink>
       </div>
 
-      <TaskListList taskLists={[]} />
+      <TaskListList taskLists={tls} />
     </Drawer>
   );
 }
@@ -84,6 +76,8 @@ function getTaskListIdIndex(taskListIds: string[]) {
 function AppMain({ app, taskLists }) {
   const { isNarrowLayout } = useDrawerLayout();
   const [index, setIndex] = useState(getTaskListIdIndex(app.taskListIds));
+  const navigation = useNavigation();
+  const attr = navigation.getAttr();
 
   useEffect(() => {
     setIndex(getTaskListIdIndex(app.taskListIds));
@@ -105,28 +99,32 @@ function AppMain({ app, taskLists }) {
           </>
         ) : null}
       </header>
-
-      <Carousel
-        index={index}
-        onIndexChange={(idx) => {
-          const taskListId = app.taskListIds[idx];
-          replaceWithParams(window.location.pathname, {
-            params: { taskListId },
-          });
-        }}
-      >
-        <CarouselIndicator />
-        <CarouselList>
-          {app.taskListIds.map((taskListId) => {
-            const taskList = taskLists[taskListId];
-            return (
-              <CarouselItem key={taskList.id}>
-                <TaskList taskList={taskList} app={app} />
-              </CarouselItem>
-            );
-          })}
-        </CarouselList>
-      </Carousel>
+      {(attr.path === "/menu" && attr.referrer === "/home") ||
+      attr.path === "/home" ? (
+        <Carousel
+          index={index}
+          onIndexChange={(idx) => {
+            const taskListId = app.taskListIds[idx];
+            replaceWithParams(window.location.pathname, {
+              params: { taskListId },
+            });
+          }}
+        >
+          <CarouselIndicator />
+          <CarouselList>
+            {app.taskListIds.map((taskListId) => {
+              const taskList = taskLists[taskListId];
+              return (
+                <CarouselItem key={taskList.id}>
+                  <TaskList taskList={taskList} app={app} />
+                </CarouselItem>
+              );
+            })}
+          </CarouselList>
+        </Carousel>
+      ) : (
+        <div>Settings</div>
+      )}
     </Main>
   );
 }
@@ -153,7 +151,7 @@ export function App({ app, preferences, profile, taskLists, auth }) {
       </Head>
 
       <DrawerLayout isDrawerOpen={isDrawerOpen}>
-        <AppDrawer profile={profile} />
+        <AppDrawer app={app} taskLists={taskLists} profile={profile} />
         <AppMain app={app} taskLists={taskLists} />
       </DrawerLayout>
 

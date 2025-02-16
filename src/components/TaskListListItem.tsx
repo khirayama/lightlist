@@ -5,14 +5,12 @@ import { clsx } from "clsx";
 import { AppPageLink } from "v2/libs/ui/navigation";
 import { Icon } from "v2/libs/ui/components/Icon";
 import { ConfirmDialog } from "v2/libs/ui/components/ConfirmDialog";
-import { useTaskLists } from "v2/hooks/useTaskLists";
 
 export function TaskListListItem(props: {
   disabled?: boolean;
   taskList: TaskListV2;
 }) {
   const taskList = props.taskList;
-  const [, { deleteTaskList }] = useTaskLists();
   const {
     attributes,
     listeners,

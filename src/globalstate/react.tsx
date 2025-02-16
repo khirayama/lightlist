@@ -55,11 +55,11 @@ export const GlobalStateProvider = <T,>(props: {
 export const useGlobalState = () => {
   const [state, setState, globalState] = useContext(GlobalStateContext);
 
-  const mutate = (fn: MutationFunction<typeof state>, payload?: unknown) => {
+  const mutate = (fn: MutationFunction<typeof state>, params?: unknown) => {
     fn(
       () => globalState.get(),
       (s) => globalState.set(s),
-      payload,
+      params,
     );
   };
 

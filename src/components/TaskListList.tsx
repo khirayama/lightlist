@@ -17,10 +17,9 @@ import {
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
 import { useCustomTranslation } from "v2/libs/i18n";
-import { useAppPageStack } from "v2/libs/ui/navigation";
-import { Icon } from "v2/libs/ui/components/Icon";
+import { Icon } from "components/primitives/Icon";
 import { useDrawerLayout } from "v2/libs/ui/components/DrawerLayout";
-import { TaskListListItem } from "v2/components/TaskListListItem";
+import { TaskListListItem } from "components/TaskListListItem";
 
 export function TaskListList(props: { disabled?: boolean; app: AppV2 }) {
   const app = props.app;

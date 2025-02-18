@@ -28,7 +28,6 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
     const handlePointerMove = (e: PointerEvent) => {
       if (dragging) {
         const deltaY = e.clientY - offset.y;
-        console.log(deltaY, position, offset);
         setPosition((prev) => ({
           x: prev.x,
           y: Math.max(prev.y + deltaY, 0),
@@ -37,7 +36,7 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
       }
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (e: PointerEvent) => {
       if (dragging && position.y >= DRAG_THRESHOLD) {
         if (onClose) {
           onClose();
@@ -72,6 +71,7 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
         { "z-1000 opacity-100": open },
         { "pointer-events-none z-1000 opacity-0": isClosing },
         { "z-[-1]": !open && !isClosing },
+        { "pointer-events-none": dragging },
       )}
       onClick={onClose}
     >

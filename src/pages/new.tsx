@@ -163,23 +163,12 @@ export default function AppV2Page() {
   const routes = {
     "/home": {
       isDrawerOpen: false,
-      isUserSheetOpen: false,
-      isPreferencesSheetOpen: false,
     },
     "/menu": {
       isDrawerOpen: true,
-      isUserSheetOpen: false,
-      isPreferencesSheetOpen: false,
     },
-    "/user": {
-      isDrawerOpen: true,
-      isUserSheetOpen: true,
-      isPreferencesSheetOpen: false,
-    },
-    "/preferences": {
-      isDrawerOpen: true,
-      isUserSheetOpen: false,
-      isPreferencesSheetOpen: true,
+    "/settings": {
+      isDrawerOpen: false,
     },
   };
 

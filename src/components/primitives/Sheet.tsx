@@ -20,7 +20,7 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
       setIsClosing(true);
       setTimeout(() => {
         setIsClosing(false);
-      }, 600);
+      }, 400);
     }
   }, [open]);
 
@@ -67,9 +67,9 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
     <dialog
       open={open || isClosing}
       className={clsx(
-        "fixed inset-0 flex h-full w-full items-center justify-center bg-black/50 opacity-0 transition-opacity duration-600",
-        { "z-1000 opacity-100": open },
-        { "pointer-events-none z-1000 opacity-0": isClosing },
+        "fixed inset-0 flex h-full w-full items-center justify-center bg-black/50 duration-400",
+        { "z-1000": open },
+        { "pointer-events-none z-1000": isClosing },
         { "z-[-1]": !open && !isClosing },
         { "pointer-events-none": dragging },
       )}
@@ -77,7 +77,7 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
     >
       <div
         className={clsx(
-          "absolute bottom-0 min-h-[80%] w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg transition-transform duration-400",
+          "absolute bottom-0 min-h-[80%] w-full max-w-2xl rounded-lg bg-white px-4 shadow-lg transition-transform duration-400",
         )}
         style={{
           transform: dragging
@@ -85,15 +85,15 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
             : open
               ? "translateY(0)"
               : "translateY(100%)",
-          transition: dragging ? "transform 0s" : "transform 0.3s ease-in-out",
+          transition: dragging ? "transform 0s" : "transform 200ms ease-in-out",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="h-[12px] w-[80%] cursor-move bg-red-400"
+          className="flex justify-center py-2"
           onPointerDown={handlePointerDown}
         >
-          handle
+          <div className="h-1 w-12 cursor-move rounded-full bg-gray-400" />
         </div>
         {children}
       </div>

@@ -12,6 +12,13 @@ type RouteDefinition = { props?: any };
 
 export type RouteDefinitions = Record<string, RouteDefinition>;
 
+function getPathnameAndSearchFromHash() {
+  const hash = window.location.hash.split("#")[1] || "";
+  const pathname = hash.split("?")[0];
+  const search = hash.split("?")[1] || "";
+  return { pathname, search };
+}
+
 type Navigation = {
   navigate: (path: string) => void;
   push: (path: string) => void;
@@ -51,10 +58,14 @@ export function NavigationProvider({
         setRender(Date.now());
       });
 
-      const hash = window.location.hash.split("#")[1] || "";
-      const path = !hash ? initialPath : hash;
+      const { pathname: pathname, search } = getPathnameAndSearchFromHash();
+      const path = !pathname ? initialPath : pathname;
       ref.current.push(path);
-      window.history.pushState({ stack: ref.current }, "", `#${path}`);
+      window.history.pushState(
+        { stack: ref.current },
+        "",
+        `#${path}?${search}`,
+      );
       setRender(Date.now());
     }
   }, [isInBrowser]);
@@ -117,13 +128,13 @@ export function NavigationProvider({
         return {};
       }
 
-      const hash = window.location.hash.split("#")[1] || "";
+      const { pathname } = getPathnameAndSearchFromHash();
       const route = Object.keys(routes).find((r) => {
         const m: MatchFunction<Record<string, string>> = match(r);
-        return m(hash);
+        return m(pathname);
       });
       if (route) {
-        const params = match<Record<string, string>>(route)(hash) as {
+        const params = match<Record<string, string>>(route)(pathname) as {
           path: string;
           params: Record<string, any>;
         };
@@ -157,12 +168,14 @@ export function NavigateLink(props: {
   children: ReactNode;
   className?: string;
   method?: "navigate" | "push" | "goBack" | "popTo" | "popToTop";
+  tabIndex?: number;
 }) {
   const navigation = useNavigation();
   const method = props.method || "navigate";
 
   return (
     <a
+      tabIndex={props.tabIndex}
       className={props.className}
       href={props.to}
       onClick={(e) => {

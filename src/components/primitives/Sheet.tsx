@@ -77,7 +77,7 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
     >
       <div
         className={clsx(
-          "absolute bottom-0 min-h-[80%] w-full max-w-2xl rounded-lg bg-white px-4 shadow-lg transition-transform duration-400",
+          "absolute bottom-0 max-h-[95%] min-h-[40%] w-full max-w-4xl overflow-scroll rounded-lg bg-white shadow-lg transition-transform duration-400",
         )}
         style={{
           transform: dragging
@@ -90,12 +90,12 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="flex justify-center py-2"
+          className="sticky top-0 flex justify-center bg-white py-2"
           onPointerDown={handlePointerDown}
         >
           <div className="h-1 w-12 cursor-move rounded-full bg-gray-400" />
         </div>
-        {children}
+        <div className="px-4">{children}</div>
       </div>
     </dialog>
   );

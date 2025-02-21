@@ -78,3 +78,32 @@ export const fetchTaskLists: MutationFunction = (_, commit) => {
     });
   });
 };
+
+export const updateEmail: MutationFunction = (_, commit, { email }) => {
+  // TODO
+};
+
+export const updatePassword: MutationFunction = (
+  _,
+  commit,
+  { currentPassword, newPassword },
+) => {
+  // TODO
+};
+
+export const deleteTaskList: MutationFunction = (_, commit, { taskListId }) => {
+  // TODO
+};
+
+export const updateTaskListIds: MutationFunction = (
+  _,
+  commit,
+  { taskListIds },
+) => {
+  // TODO
+  // そもそもmoveTasksなどでtaskListとappを同時に更新すべき
+};
+
+export const appendTaskList: MutationFunction = (_, commit, { name }) => {
+  // TODO
+};

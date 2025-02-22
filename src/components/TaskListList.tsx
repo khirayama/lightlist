@@ -20,10 +20,17 @@ import { useCustomTranslation } from "v2/libs/i18n";
 import { Icon } from "components/primitives/Icon";
 import { useDrawerLayout } from "v2/libs/ui/components/DrawerLayout";
 import { TaskListListItem } from "components/TaskListListItem";
+import { useGlobalState } from "globalstate/react";
+import { updateTaskListIds, appendTaskList } from "mutations";
 
-export function TaskListList(props: { disabled?: boolean; app: AppV2 }) {
+export function TaskListList(props: {
+  disabled?: boolean;
+  app: AppV2;
+  taskLists: TaskListV2[];
+}) {
   const app = props.app;
   const taskLists = props.taskLists;
+  const [, , mutate] = useGlobalState();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -42,12 +49,11 @@ export function TaskListList(props: { disabled?: boolean; app: AppV2 }) {
     if (taskListName === "") {
       return;
     }
-    const [taskList] = appendTaskList({ name: taskListName });
+    mutate(appendTaskList, { name: taskListName });
     setTaskListName("");
     if (isDrawerOpen && isNarrowLayout) {
       pop();
     }
-    push(`${window.location.pathname}?taskListId=${taskList.id}`);
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -57,7 +63,9 @@ export function TaskListList(props: { disabled?: boolean; app: AppV2 }) {
       const oldIndex = taskLists.findIndex((tl) => tl.id === active.id);
       const newIndex = taskLists.findIndex((tl) => tl.id === over.id);
       const newTaskLists = arrayMove(taskLists, oldIndex, newIndex);
-      updateTaskListIds(newTaskLists.map((tl) => tl.id));
+      mutate(updateTaskListIds, {
+        taskListIds: newTaskLists.map((tl) => tl.id),
+      });
     }
   };
 

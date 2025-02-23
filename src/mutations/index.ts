@@ -297,13 +297,35 @@ export const sortTasks: MutationFunction<State, { taskListId: string }> = (
   updateTaskListAsync(tl);
 };
 
-export const clearCompletedTasks: MutationFunction = (
-  _,
-  commit,
-  { taskListId },
-) => {
-  console.log("Executing: clearCompletedTasks");
-  // TODO
+export const clearCompletedTasks: MutationFunction<
+  State,
+  { taskListId: string }
+> = (getState, commit, { taskListId }) => {
+  const doc = new Y.Doc();
+  Y.applyUpdate(
+    doc,
+    Uint8Array.from(Object.values(getState().taskLists[taskListId].update)),
+  );
+
+  const taskList = doc.getMap(taskListId);
+  const tasks = taskList.get("tasks") as Y.Array<Y.Map<any>>;
+
+  tasks.doc.transact(() => {
+    for (let i = tasks.length - 1; i >= 0; i--) {
+      const task = tasks.get(i);
+      if (task.get("completed")) {
+        tasks.delete(i);
+      }
+    }
+  });
+
+  const tl = taskList.toJSON() as TaskListV2;
+  tl.update = Y.encodeStateAsUpdate(doc);
+
+  commit({
+    taskLists: { [tl.id]: tl },
+  });
+  updateTaskListAsync(tl);
 };
 
 export const moveTask: MutationFunction<

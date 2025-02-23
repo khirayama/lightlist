@@ -60,8 +60,10 @@ export function TaskList(props: {
 
   const onInsertPositionIconClick = () => {
     mutate(updateApp, {
-      taskInsertPosition:
-        app.taskInsertPosition === "BOTTOM" ? "TOP" : "BOTTOM",
+      app: {
+        taskInsertPosition:
+          app.taskInsertPosition === "BOTTOM" ? "TOP" : "BOTTOM",
+      },
     });
   };
 

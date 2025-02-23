@@ -210,8 +210,12 @@ export const prependTask: MutationFunction<
 };
 
 export const updateApp: MutationFunction = (_, commit, { app }) => {
-  console.log("Executing: updateApp");
-  // TODO
+  commit({
+    app: {
+      ...app,
+    },
+  });
+  updateAppAync(app);
 };
 
 export const updateTaskList: MutationFunction<

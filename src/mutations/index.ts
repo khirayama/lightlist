@@ -179,9 +179,27 @@ export const updateApp: MutationFunction = (_, commit, { app }) => {
   // TODO
 };
 
-export const updateTaskList: MutationFunction = (_, commit, { taskList }) => {
-  console.log("Executing: updateTaskList");
-  // TODO
+export const updateTaskList: MutationFunction<
+  State,
+  { taskList: TaskListV2 }
+> = (getState, commit, { taskList }) => {
+  const doc = new Y.Doc();
+  Y.applyUpdate(
+    doc,
+    Uint8Array.from(Object.values(getState().taskLists[taskList.id].update)),
+  );
+
+  const taskListMap = doc.getMap(taskList.id);
+  taskListMap.set("name", taskList.name);
+
+  const tl = taskListMap.toJSON() as TaskListV2;
+  tl.update = Y.encodeStateAsUpdate(doc);
+
+  commit({
+    taskLists: { [tl.id]: tl },
+  });
+
+  updateTaskListAsync(tl);
 };
 
 export const sortTasks: MutationFunction = (_, commit, { taskListId }) => {

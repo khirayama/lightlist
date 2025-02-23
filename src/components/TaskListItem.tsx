@@ -120,9 +120,12 @@ export function TaskListItem(props: {
           disabled={props.disabled}
           task={task}
           onTaskTextChange={(e) => {
-            updateTask(props.taskListId, {
-              ...props.task,
-              text: e.currentTarget.value,
+            mutate(updateTask, {
+              taskListId: props.taskListId,
+              task: {
+                ...props.task,
+                text: e.currentTarget.value,
+              },
             });
           }}
         />
@@ -141,9 +144,12 @@ export function TaskListItem(props: {
             const key = e.key;
             if (key === "Backspace" || key === "Delete") {
               e.preventDefault();
-              updateTask(props.taskListId, {
-                ...props.task,
-                date: undefined,
+              mutate(updateTask, {
+                taskListId: props.taskListId,
+                task: {
+                  ...props.task,
+                  date: undefined,
+                },
               });
             }
           }}

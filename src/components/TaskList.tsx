@@ -17,8 +17,8 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
 import { useCustomTranslation } from "v2/libs/i18n";
 import { AppPageLink } from "v2/libs/ui/navigation";
-import { Icon } from "v2/libs/ui/components/Icon";
-import { TaskListItem } from "v2/components/TaskListItem";
+import { Icon } from "components/primitives/Icon";
+import { TaskListItem } from "components/TaskListItem";
 import { kmh } from "v2/libs/keymap";
 import { useGlobalState } from "globalstate/react";
 import {
@@ -53,7 +53,9 @@ export function TaskList(props: {
   const isInsertTop = app.taskInsertPosition === "TOP";
 
   const onTaskListNameChange = (e: FormEvent<HTMLInputElement>) => {
-    mutate(updateTaskList, { ...taskList, name: e.currentTarget.value });
+    mutate(updateTaskList, {
+      taskList: { ...taskList, name: e.currentTarget.value },
+    });
   };
 
   const onInsertPositionIconClick = () => {
@@ -283,6 +285,7 @@ export function TaskList(props: {
               return (
                 <TaskListItem
                   key={task.id}
+                  taskListId={taskList.id}
                   task={task}
                   disabled={props.disable}
                 />

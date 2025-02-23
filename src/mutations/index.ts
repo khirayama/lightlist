@@ -274,7 +274,7 @@ export const moveTask: MutationFunction = (
 export const updateTask: MutationFunction = (
   getState,
   commit,
-  { taskListId, newTask },
+  { taskListId, task: newTask },
 ) => {
   const doc = new Y.Doc();
   Y.applyUpdate(

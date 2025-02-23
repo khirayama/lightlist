@@ -213,7 +213,10 @@ export const updateTask: MutationFunction = (
   { taskListId, newTask },
 ) => {
   const doc = new Y.Doc();
-  Y.applyUpdate(doc, getState().taskLists[taskListId].update);
+  Y.applyUpdate(
+    doc,
+    Uint8Array.from(Object.values(getState().taskLists[taskListId].update)),
+  );
 
   const taskList = doc.getMap(taskListId);
   const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;

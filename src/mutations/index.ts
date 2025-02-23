@@ -115,13 +115,27 @@ export const deleteTaskList: MutationFunction = (_, commit, { taskListId }) => {
   // TODO
 };
 
-export const updateTaskListIds: MutationFunction = (
-  _,
-  commit,
-  { taskListIds },
-) => {
-  console.log("Executing: updateTaskListIds/moveTaskList");
-  // TODO
+export const moveTaskList: MutationFunction<
+  State,
+  { taskListIds: string[] }
+> = (getState, commit, { taskListIds }) => {
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, Uint8Array.from(Object.values(getState().app.update)));
+  const appMap = doc.getMap("app");
+  const currentTaskListIds = appMap.get("taskListIds") as Y.Array<string>;
+
+  currentTaskListIds.delete(0, currentTaskListIds.length);
+  currentTaskListIds.push(taskListIds);
+
+  const newApp = {
+    ...appMap.toJSON(),
+    update: Y.encodeStateAsUpdate(doc),
+  };
+
+  commit({
+    app: newApp,
+  });
+  updateAppAync(newApp);
 };
 
 export const appendTaskList: MutationFunction<

@@ -13,6 +13,13 @@ import {
 } from "services";
 import { MutationFunction } from "globalstate/react";
 
+// TODO: Remove it later
+interface State {
+  taskLists: {
+    [key: string]: TaskListV2;
+  };
+}
+
 export const initializeAuth: MutationFunction = (_, commit) => {
   commit({
     isInitialized: {

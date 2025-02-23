@@ -1,3 +1,5 @@
+import * as Y from "yjs";
+
 import {
   bindSession,
   getApp,
@@ -6,6 +8,14 @@ import {
   getTaskLists,
 } from "services";
 import { MutationFunction } from "globalstate/react";
+
+const docs: {
+  taskLists: {
+    [taskListId: string]: Y.Doc;
+  };
+} = {
+  taskLists: {},
+};
 
 export const initializeAuth: MutationFunction = (_, commit) => {
   commit({

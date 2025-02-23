@@ -21,7 +21,7 @@ import { Icon } from "components/primitives/Icon";
 import { useDrawerLayout } from "v2/libs/ui/components/DrawerLayout";
 import { TaskListListItem } from "components/TaskListListItem";
 import { useGlobalState } from "globalstate/react";
-import { updateTaskListIds, appendTaskList } from "mutations";
+import { moveTaskList, appendTaskList } from "mutations";
 
 export function TaskListList(props: {
   disabled?: boolean;
@@ -63,7 +63,7 @@ export function TaskListList(props: {
       const oldIndex = taskLists.findIndex((tl) => tl.id === active.id);
       const newIndex = taskLists.findIndex((tl) => tl.id === over.id);
       const newTaskLists = arrayMove(taskLists, oldIndex, newIndex);
-      mutate(updateTaskListIds, {
+      mutate(moveTaskList, {
         taskListIds: newTaskLists.map((tl) => tl.id),
       });
     }

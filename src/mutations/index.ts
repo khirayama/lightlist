@@ -1,3 +1,4 @@
+import { v4 as uuid } from "uuid";
 import * as Y from "yjs";
 
 import {
@@ -7,6 +8,8 @@ import {
   getProfile,
   getTaskLists,
   updateTaskList as updateTaskListAsync,
+  createTaskList,
+  updateApp as updateAppAync,
 } from "services";
 import { MutationFunction } from "globalstate/react";
 
@@ -111,9 +114,40 @@ export const updateTaskListIds: MutationFunction = (
   // そもそもmoveTasksなどでtaskListとappを同時に更新すべき
 };
 
-export const appendTaskList: MutationFunction = (_, commit, { name }) => {
-  console.log("Executing: appendTaskList");
-  // TODO
+export const appendTaskList: MutationFunction<
+  any /*TODO*/,
+  { name: string }
+> = (getState, commit, { name }) => {
+  const id = uuid();
+  const doc = new Y.Doc();
+
+  const taskList = doc.getMap(id);
+  taskList.set("id", id);
+  taskList.set("name", name);
+  const tasks = new Y.Array();
+  taskList.set("tasks", tasks);
+
+  const tl = taskList.toJSON() as TaskListV2;
+  tl.update = Y.encodeStateAsUpdate(doc);
+
+  const ad = new Y.Doc();
+  Y.applyUpdate(ad, Uint8Array.from(Object.values(getState().app.update)));
+  const appMap = ad.getMap("app");
+  const taskListIds = appMap.get("taskListIds") as Y.Array<string>;
+  taskListIds.push([id]);
+
+  const newApp = {
+    ...appMap.toJSON(),
+    update: Y.encodeStateAsUpdate(ad),
+  };
+
+  commit({
+    taskLists: { [tl.id]: tl },
+    app: newApp,
+  });
+
+  createTaskList(tl);
+  updateAppAync(newApp);
 };
 
 export const appendTask: MutationFunction = (

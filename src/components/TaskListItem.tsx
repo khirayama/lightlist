@@ -12,7 +12,8 @@ import { format } from "date-fns";
 import { useCustomTranslation } from "v2/libs/i18n";
 import { AppPageLink } from "v2/libs/ui/navigation";
 import { Icon } from "v2/libs/ui/components/Icon";
-import { useTaskLists } from "v2/hooks/useTaskLists";
+import { updateTask } from "mutations";
+import { useGlobalState } from "globalstate/react";
 
 function TaskTextArea(props: {
   task: Task;
@@ -54,6 +55,7 @@ export function TaskListItem(props: {
   const task = props.task;
 
   const { t } = useCustomTranslation("components.TaskItem");
+  const [, , mutate] = useGlobalState();
   const {
     attributes,
     listeners,
@@ -69,8 +71,6 @@ export function TaskListItem(props: {
     transform: CSS.Transform.toString(transform),
     transition: transition || "",
   };
-
-  const [, { updateTask }] = useTaskLists();
 
   return (
     <div
@@ -101,9 +101,12 @@ export function TaskListItem(props: {
             className="group flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
             checked={task.completed}
             onCheckedChange={(v: boolean) => {
-              updateTask(props.taskListId, {
-                ...props.task,
-                completed: v,
+              mutate(updateTask, {
+                taskListId: props.taskListId,
+                task: {
+                  ...props.task,
+                  completed: v,
+                },
               });
             }}
           >

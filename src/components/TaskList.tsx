@@ -20,6 +20,16 @@ import { AppPageLink } from "v2/libs/ui/navigation";
 import { Icon } from "v2/libs/ui/components/Icon";
 import { TaskListItem } from "v2/components/TaskListItem";
 import { kmh } from "v2/libs/keymap";
+import { useGlobalState } from "globalstate/react";
+import {
+  appendTask,
+  prependTask,
+  updateApp,
+  updateTaskList,
+  sortTasks,
+  clearCompletedTasks,
+  moveTask,
+} from "mutations";
 
 export function TaskList(props: {
   disabled?: boolean;
@@ -30,6 +40,7 @@ export function TaskList(props: {
   const taskList = props.taskList;
 
   const { t } = useCustomTranslation("components.TaskList");
+  const [, , mutate] = useGlobalState();
 
   const [taskText, setTaskText] = useState("");
   const sensors = useSensors(
@@ -42,11 +53,11 @@ export function TaskList(props: {
   const isInsertTop = app.taskInsertPosition === "TOP";
 
   const onTaskListNameChange = (e: FormEvent<HTMLInputElement>) => {
-    updateTaskList({ ...taskList, name: e.currentTarget.value });
+    mutate(updateTaskList, { ...taskList, name: e.currentTarget.value });
   };
 
   const onInsertPositionIconClick = () => {
-    updateApp({
+    mutate(updateApp, {
       taskInsertPosition:
         app.taskInsertPosition === "BOTTOM" ? "TOP" : "BOTTOM",
     });
@@ -62,19 +73,22 @@ export function TaskList(props: {
       return;
     }
     if (isInsertTop) {
-      prependTask(props.taskList.id, { text: taskText });
+      mutate(prependTask, {
+        taskListId: taskList.id,
+        task: { text: taskText },
+      });
     } else {
-      appendTask(props.taskList.id, { text: taskText });
+      mutate(appendTask, { taskListId: taskList.id, task: { text: taskText } });
     }
     setTaskText("");
   };
 
   const onSortTasksButtonClick = () => {
-    sortTasks(taskList.id);
+    mutate(sortTasks, { taskListId: taskList.id });
   };
 
   const onClearCompletedTasksButtonClick = () => {
-    clearCompletedTasks(taskList.id);
+    mutate(clearCompletedTasks, { taskListId: taskList.id });
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -83,7 +97,11 @@ export function TaskList(props: {
     if (active && over && active.id !== over.id) {
       const oldIndex = taskList.tasks.findIndex((t) => t.id === active.id);
       const newIndex = taskList.tasks.findIndex((t) => t.id === over.id);
-      moveTask(taskList.id, oldIndex, newIndex);
+      mutate(moveTask, {
+        taskListId: taskList.id,
+        fromIndex: oldIndex,
+        toIndex: newIndex,
+      });
     }
   };
 
@@ -132,8 +150,12 @@ export function TaskList(props: {
      * ?Delete: delete task
      */
     kmh("Escape", e.nativeEvent, () => el.target.blur());
-    kmh("Ctrl-Enter", e.nativeEvent, () => sortTasks(taskList.id));
-    kmh("Ctrl-Delete", e.nativeEvent, () => clearCompletedTasks(taskList.id));
+    kmh("Ctrl-Enter", e.nativeEvent, () =>
+      mutate(sortTasks, { taskListId: taskList.id }),
+    );
+    kmh("Ctrl-Delete", e.nativeEvent, () =>
+      mutate(clearCompletedTasks, { taskListId: taskList.id }),
+    );
     kmh("ArrowDown", e.nativeEvent, () =>
       focusOrder[(idx + 1) % focusOrder.length].focus(),
     );

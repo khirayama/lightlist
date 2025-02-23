@@ -2,9 +2,9 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { clsx } from "clsx";
 
-import { AppPageLink } from "v2/libs/ui/navigation";
 import { Icon } from "v2/libs/ui/components/Icon";
 import { ConfirmDialog } from "v2/libs/ui/components/ConfirmDialog";
+import { NavigateLink } from "navigation/react";
 
 export function TaskListListItem(props: {
   disabled?: boolean;
@@ -48,17 +48,15 @@ export function TaskListListItem(props: {
           <Icon text="drag_indicator" />
         </button>
 
-        <AppPageLink
-          replace
+        <NavigateLink
           tabIndex={props.disabled ? -1 : 0}
           className={clsx(
             "flex-1 cursor-pointer rounded-sm px-1 py-3 text-left focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
           )}
-          href={window.location.pathname}
-          params={{ taskListId: taskList.id }}
+          to={`/home?taskListId=${taskList.id}`}
         >
           {taskList.name}
-        </AppPageLink>
+        </NavigateLink>
 
         {taskList.tasks.length !== 0 ? (
           <ConfirmDialog

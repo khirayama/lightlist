@@ -252,20 +252,40 @@ export const sortTasks: MutationFunction<State, { taskListId: string }> = (
   const tasks = taskList.get("tasks") as Y.Array<Y.Map<any>>;
 
   tasks.doc.transact(() => {
-    const sortedTasks = Array.from(tasks).sort((a, b) => {
-      if (a.get("completed") && !b.get("completed")) return 1;
-      if (!a.get("completed") && b.get("completed")) return -1;
-      if (!a.get("date") && b.get("date")) return 1;
-      if (a.get("date") && !b.get("date")) return -1;
-      if (a.get("date") > b.get("date")) return 1;
-      if (a.get("date") < b.get("date")) return -1;
+    const sortedTasks = tasks.toJSON().sort((a, b) => {
+      if (a.completed && !b.completed) {
+        return 1;
+      }
+      if (!a.completed && b.completed) {
+        return -1;
+      }
+      if (!a.date && b.date) {
+        return 1;
+      }
+      if (a.date && !b.date) {
+        return -1;
+      }
+      if (a.date > b.date) {
+        return 1;
+      }
+      if (a.date < b.date) {
+        return -1;
+      }
       return 0;
     });
-
-    tasks.delete(0, tasks.length); // Clear all tasks
-    sortedTasks.forEach((task) => {
-      tasks.push([task]); // Re-add tasks in sorted order
-    });
+    for (let i = sortedTasks.length - 1; i >= 0; i--) {
+      for (let j = 0; j < tasks.length; j++) {
+        const task = tasks.get(j);
+        if (task.get("id") === sortedTasks[i].id) {
+          if (j !== i) {
+            const t = task.clone();
+            tasks.delete(j);
+            tasks.insert(0, [t]);
+          }
+          break;
+        }
+      }
+    }
   });
 
   const tl = taskList.toJSON() as TaskListV2;
@@ -274,7 +294,6 @@ export const sortTasks: MutationFunction<State, { taskListId: string }> = (
   commit({
     taskLists: { [tl.id]: tl },
   });
-
   updateTaskListAsync(tl);
 };
 

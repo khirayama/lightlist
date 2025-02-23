@@ -1,5 +1,6 @@
 import { v4 as uuid } from "uuid";
 import * as Y from "yjs";
+import { arrayMove } from "@dnd-kit/sortable";
 
 import {
   bindSession,
@@ -17,6 +18,9 @@ import { MutationFunction } from "globalstate/react";
 interface State {
   taskLists: {
     [key: string]: TaskListV2;
+  };
+  app: {
+    update: Uint8Array;
   };
 }
 
@@ -233,9 +237,45 @@ export const updateTaskList: MutationFunction<
   updateTaskListAsync(tl);
 };
 
-export const sortTasks: MutationFunction = (_, commit, { taskListId }) => {
-  console.log("Executing: sortTasks");
-  // TODO
+export const sortTasks: MutationFunction<State, { taskListId: string }> = (
+  getState,
+  commit,
+  { taskListId },
+) => {
+  const doc = new Y.Doc();
+  Y.applyUpdate(
+    doc,
+    Uint8Array.from(Object.values(getState().taskLists[taskListId].update)),
+  );
+
+  const taskList = doc.getMap(taskListId);
+  const tasks = taskList.get("tasks") as Y.Array<Y.Map<any>>;
+
+  tasks.doc.transact(() => {
+    const sortedTasks = Array.from(tasks).sort((a, b) => {
+      if (a.get("completed") && !b.get("completed")) return 1;
+      if (!a.get("completed") && b.get("completed")) return -1;
+      if (!a.get("date") && b.get("date")) return 1;
+      if (a.get("date") && !b.get("date")) return -1;
+      if (a.get("date") > b.get("date")) return 1;
+      if (a.get("date") < b.get("date")) return -1;
+      return 0;
+    });
+
+    tasks.delete(0, tasks.length); // Clear all tasks
+    sortedTasks.forEach((task) => {
+      tasks.push([task]); // Re-add tasks in sorted order
+    });
+  });
+
+  const tl = taskList.toJSON() as TaskListV2;
+  tl.update = Y.encodeStateAsUpdate(doc);
+
+  commit({
+    taskLists: { [tl.id]: tl },
+  });
+
+  updateTaskListAsync(tl);
 };
 
 export const clearCompletedTasks: MutationFunction = (
@@ -247,13 +287,41 @@ export const clearCompletedTasks: MutationFunction = (
   // TODO
 };
 
-export const moveTask: MutationFunction = (
-  _,
-  commit,
-  { taskListId, fromIndex, toIndex },
-) => {
-  console.log("Executing: moveTask");
-  // TODO
+export const moveTask: MutationFunction<
+  State,
+  { taskListId: string; fromIndex: number; toIndex: number }
+> = (getState, commit, { taskListId, fromIndex, toIndex }) => {
+  const doc = new Y.Doc();
+  Y.applyUpdate(
+    doc,
+    Uint8Array.from(Object.values(getState().taskLists[taskListId].update)),
+  );
+
+  const taskList = doc.getMap(taskListId);
+  const tasks = taskList.get("tasks") as Y.Array<Y.Map<any>>;
+
+  tasks.doc.transact(() => {
+    const sortedTasks = arrayMove(tasks.toJSON(), fromIndex, toIndex);
+    for (let i = sortedTasks.length - 1; i >= 0; i--) {
+      for (let j = 0; j < tasks.length; j++) {
+        const task = tasks.get(j);
+        if (task.get("id") === sortedTasks[i].id) {
+          const t = task.clone();
+          tasks.delete(j);
+          tasks.insert(0, [t]);
+          break;
+        }
+      }
+    }
+  });
+
+  const tl = taskList.toJSON() as TaskListV2;
+  tl.update = Y.encodeStateAsUpdate(doc);
+
+  commit({
+    taskLists: { [tl.id]: tl },
+  });
+  updateTaskListAsync(tl);
 };
 
 export const updateTask: MutationFunction = (

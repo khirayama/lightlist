@@ -116,9 +116,8 @@ export const updateTaskListIds: MutationFunction = (
   commit,
   { taskListIds },
 ) => {
-  console.log("Executing: updateTaskListIds");
+  console.log("Executing: updateTaskListIds/moveTaskList");
   // TODO
-  // そもそもmoveTasksなどでtaskListとappを同時に更新すべき
 };
 
 export const appendTaskList: MutationFunction<

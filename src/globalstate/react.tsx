@@ -17,13 +17,13 @@ export type MutationFunction<T = unknown, P = unknown> = (
 
 const GlobalStateContext = createContext(null);
 
-function debounce(fn: Function, t: number) {
-  let timerId = null;
-  return (...args: unknown[]) => {
-    clearTimeout(timerId);
-    timerId = setTimeout(() => fn(...args), t);
-  };
-}
+// function debounce(fn: Function, t: number) {
+//   let timerId = null;
+//   return (...args: unknown[]) => {
+//     clearTimeout(timerId);
+//     timerId = setTimeout(() => fn(...args), t);
+//   };
+// }
 
 export const GlobalStateProvider = <T,>(props: {
   initialGlobalState: T;
@@ -35,14 +35,8 @@ export const GlobalStateProvider = <T,>(props: {
   const [state, setNativeState] = useState(globalState.get());
   const setState = (s: DeepPartial<T>) => globalState.set(s);
 
-  const { current: debouncedSetNativeState } = useRef(
-    debounce(setNativeState, 0),
-  );
-
   useEffect(() => {
-    globalState.subscribe((newState: T) => {
-      debouncedSetNativeState(newState);
-    });
+    globalState.subscribe(setNativeState);
   }, []);
 
   return (

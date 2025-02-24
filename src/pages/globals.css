@@ -58,7 +58,7 @@
 }
 
 @utility bg-primary {
-  @apply bg-white text-dark transition duration-500 dark:bg-gray-900 dark:text-white;
+  @apply text-dark bg-white transition duration-500 dark:bg-gray-900 dark:text-white;
 }
 
 @utility bg-secondary {
@@ -69,8 +69,7 @@
   @apply text-dark transition duration-500 focus-visible:bg-gray-200 dark:text-white dark:focus-visible:bg-gray-700;
 }
 
-html,
-body {
+html {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -79,6 +78,19 @@ body {
   font-weight: 400;
   font-style: normal;
   font-variation-settings: "slnt" 0;
+  color: rgba(3, 10, 18, 0.81);
+  fill: rgba(3, 10, 18, 0.81);
+  color-scheme: light dark;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   color: rgba(3, 10, 18, 0.81);
   fill: rgba(3, 10, 18, 0.81);
 }

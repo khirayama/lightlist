@@ -24,6 +24,14 @@ interface State {
   };
 }
 
+const docs: {
+  app: Y.Doc;
+  taskLists: { [taskListId: string]: Y.Doc };
+} = {
+  app: null,
+  taskLists: {},
+};
+
 export const initializeAuth: MutationFunction = (_, commit) => {
   commit({
     isInitialized: {
@@ -43,9 +51,14 @@ export const setSession: MutationFunction = (_, commit, { session }) => {
 
 export const fetchApp: MutationFunction = (_, commit) => {
   getApp().then((d) => {
+    if (!docs.app) {
+      docs.app = new Y.Doc();
+    }
+    Y.applyUpdate(docs.app, Uint8Array.from(Object.values(d.app.update)));
     commit({
       app: {
-        ...d.app,
+        ...docs.app.getMap("app").toJSON(),
+        update: Y.encodeStateAsUpdate(docs.app),
       },
       isInitialized: {
         app: true,
@@ -82,13 +95,22 @@ export const fetchProfile: MutationFunction = (_, commit) => {
 
 export const fetchTaskLists: MutationFunction = (_, commit) => {
   getTaskLists().then((d) => {
+    const taskLists = {};
+    for (const taskList of d.taskLists) {
+      if (!docs[taskList.id]) {
+        docs[taskList.id] = new Y.Doc();
+      }
+      Y.applyUpdate(
+        docs[taskList.id],
+        Uint8Array.from(Object.values(taskList.update)),
+      );
+      taskLists[taskList.id] = {
+        ...docs[taskList.id].getMap(taskList.id).toJSON(),
+        update: Y.encodeStateAsUpdate(docs[taskList.id]),
+      };
+    }
     commit({
-      taskLists: {
-        ...d.taskLists.reduce((acc: Object, taskList: TaskList) => {
-          acc[taskList.id] = taskList;
-          return acc;
-        }, {}),
-      },
+      taskLists,
       isInitialized: {
         taskLists: true,
       },
@@ -119,8 +141,7 @@ export const moveTaskList: MutationFunction<
   State,
   { taskListIds: string[] }
 > = (getState, commit, { taskListIds }) => {
-  const doc = new Y.Doc();
-  Y.applyUpdate(doc, Uint8Array.from(Object.values(getState().app.update)));
+  const doc = docs.app;
   const appMap = doc.getMap("app");
   const currentTaskListIds = appMap.get("taskListIds") as Y.Array<string>;
 
@@ -154,8 +175,7 @@ export const appendTaskList: MutationFunction<
   const tl = taskList.toJSON() as TaskListV2;
   tl.update = Y.encodeStateAsUpdate(doc);
 
-  const ad = new Y.Doc();
-  Y.applyUpdate(ad, Uint8Array.from(Object.values(getState().app.update)));
+  const ad = docs.app;
   const appMap = ad.getMap("app");
   const taskListIds = appMap.get("taskListIds") as Y.Array<string>;
   taskListIds.push([id]);
@@ -179,11 +199,7 @@ const insertTask: MutationFunction<
   { taskListId: string; task: Partial<TaskV2>; index: number }
 > = (getState, commit, { taskListId, task, index }) => {
   const id = uuid();
-  const doc = new Y.Doc();
-  Y.applyUpdate(
-    doc,
-    Uint8Array.from(Object.values(getState().taskLists[taskListId].update)),
-  );
+  const doc = docs.taskLists[taskListId];
   const taskList = doc.getMap(taskListId);
   const tasks = taskList.get("tasks") as Y.Array<Y.Map<any>>;
 
@@ -236,12 +252,7 @@ export const updateTaskList: MutationFunction<
   State,
   { taskList: TaskListV2 }
 > = (getState, commit, { taskList }) => {
-  const doc = new Y.Doc();
-  Y.applyUpdate(
-    doc,
-    Uint8Array.from(Object.values(getState().taskLists[taskList.id].update)),
-  );
-
+  const doc = docs.taskLists[taskList.id];
   const taskListMap = doc.getMap(taskList.id);
   taskListMap.set("name", taskList.name);
 
@@ -260,12 +271,7 @@ export const sortTasks: MutationFunction<State, { taskListId: string }> = (
   commit,
   { taskListId },
 ) => {
-  const doc = new Y.Doc();
-  Y.applyUpdate(
-    doc,
-    Uint8Array.from(Object.values(getState().taskLists[taskListId].update)),
-  );
-
+  const doc = docs.taskLists[taskListId];
   const taskList = doc.getMap(taskListId);
   const tasks = taskList.get("tasks") as Y.Array<Y.Map<any>>;
 
@@ -319,12 +325,7 @@ export const clearCompletedTasks: MutationFunction<
   State,
   { taskListId: string }
 > = (getState, commit, { taskListId }) => {
-  const doc = new Y.Doc();
-  Y.applyUpdate(
-    doc,
-    Uint8Array.from(Object.values(getState().taskLists[taskListId].update)),
-  );
-
+  const doc = docs.taskLists[taskListId];
   const taskList = doc.getMap(taskListId);
   const tasks = taskList.get("tasks") as Y.Array<Y.Map<any>>;
 
@@ -350,12 +351,7 @@ export const moveTask: MutationFunction<
   State,
   { taskListId: string; fromIndex: number; toIndex: number }
 > = (getState, commit, { taskListId, fromIndex, toIndex }) => {
-  const doc = new Y.Doc();
-  Y.applyUpdate(
-    doc,
-    Uint8Array.from(Object.values(getState().taskLists[taskListId].update)),
-  );
-
+  const doc = docs.taskLists[taskListId];
   const taskList = doc.getMap(taskListId);
   const tasks = taskList.get("tasks") as Y.Array<Y.Map<any>>;
 
@@ -388,12 +384,7 @@ export const updateTask: MutationFunction = (
   commit,
   { taskListId, task: newTask },
 ) => {
-  const doc = new Y.Doc();
-  Y.applyUpdate(
-    doc,
-    Uint8Array.from(Object.values(getState().taskLists[taskListId].update)),
-  );
-
+  const doc = docs.taskLists[taskListId];
   const taskList = doc.getMap(taskListId);
   const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
   const task = Array.from(tasks).find((t) => t.get("id") === newTask.id);

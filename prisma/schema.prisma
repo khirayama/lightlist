@@ -46,7 +46,7 @@ model App {
   id                 Int                @id @default(autoincrement())
   userId             String             @unique @db.Uuid
   taskInsertPosition TaskInsertPosition @default(BOTTOM)
-  taskListIds        String[]
+  taskListIds        String[]           @default([])
   update             Bytes
 }
 

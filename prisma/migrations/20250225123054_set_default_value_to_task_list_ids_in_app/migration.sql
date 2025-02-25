@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "App" ALTER COLUMN "taskListIds" SET DEFAULT ARRAY[]::TEXT[];

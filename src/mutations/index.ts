@@ -240,12 +240,17 @@ export const prependTask: MutationFunction<
 };
 
 export const updateApp: MutationFunction = (_, commit, { app }) => {
+  const doc = docs.app;
+  const appMap = doc.getMap("app");
+  appMap.set("taskInsertPosition", app.taskInsertPosition);
+  const newApp = {
+    ...appMap.toJSON(),
+    update: Y.encodeStateAsUpdate(doc),
+  };
   commit({
-    app: {
-      ...app,
-    },
+    app: newApp,
   });
-  updateAppAync(app);
+  updateAppAync(newApp);
 };
 
 export const updateTaskList: MutationFunction<

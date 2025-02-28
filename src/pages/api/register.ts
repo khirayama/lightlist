@@ -26,7 +26,6 @@ export default async function handler(
     if (existedApp) {
       return res.json({ message: "User already exists" });
     }
-
     const lang = req.body.lang || "JA";
 
     const appDoc = new Y.Doc();
@@ -34,7 +33,6 @@ export default async function handler(
     ad.set("userId", user.id);
     ad.set("taskListIds", new Y.Array());
     ad.set("taskInsertPosition", "TOP");
-    ad.set("online", false);
 
     const [app, profile, preferences] = await prisma.$transaction([
       prisma.app.create({

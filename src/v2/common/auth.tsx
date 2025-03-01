@@ -77,7 +77,7 @@ export const AuthProvider = (props: { children: ReactNode }) => {
           signUpOrIn: async (options, lang: string = "JA") => {
             const res = await supabase.auth.signUp(options);
             if (res.error) {
-              return supabase.auth.signInWithPassword(options);
+              await supabase.auth.signInWithPassword(options);
             }
             return register({ lang });
           },

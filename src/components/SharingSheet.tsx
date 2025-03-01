@@ -4,7 +4,7 @@ import { useNavigation } from "navigation/react";
 import { useGlobalState } from "globalstate/react";
 import { refreshShareCode } from "mutations";
 
-export function SharingSheet() {
+export function SharingSheet({ open }) {
   const { t } = useCustomTranslation("components.SharingSheet");
 
   const [state, , mutate] = useGlobalState();
@@ -17,7 +17,7 @@ export function SharingSheet() {
 
   return (
     <Sheet
-      open={attr.props.isSharingSheetOpen}
+      open={open}
       onClose={() => {
         navigation.popTo("/home");
       }}

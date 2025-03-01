@@ -7,10 +7,7 @@ import { useNavigation } from "navigation/react";
 import { useGlobalState } from "globalstate/react";
 import { updateTask } from "mutations";
 
-export function DatePickerSheet(props: {
-  handleChange: () => void;
-  handleCancel: () => void;
-}) {
+export function DatePickerSheet({ open }) {
   const { t } = useCustomTranslation("components.DatePickerSheet");
   const { t: t2 } = useCustomTranslation("libs.components.DatePicker");
 
@@ -22,7 +19,11 @@ export function DatePickerSheet(props: {
   const task = taskList?.tasks.find((t) => t.id === attr.params.taskId);
 
   return (
-    <Sheet open={attr.props.isDatePickerSheetOpen} title={t("Date Picker")}>
+    <Sheet
+      open={open}
+      title={t("Date Picker")}
+      onClose={() => navigation.popTo("/home")}
+    >
       <div className="px-4">
         <DatePicker
           autoFocus
@@ -35,9 +36,9 @@ export function DatePickerSheet(props: {
                 date: v,
               },
             });
-            props.handleChange();
+            navigation.popTo("/home");
           }}
-          handleCancel={props.handleCancel}
+          handleCancel={() => navigation.popTo("/home")}
           labels={{
             reset: t2("Reset"),
             cancel: t2("Cancel"),

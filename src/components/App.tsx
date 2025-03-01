@@ -21,10 +21,8 @@ import {
 import { Icon } from "components/primitives/Icon";
 import { TaskList } from "components/TaskList";
 import { TaskListList } from "components/TaskListList";
-import { UserSheet } from "components/UserSheet";
 import { SharingSheet } from "components/SharingSheet";
 import { DatePickerSheet } from "components/DatePickerSheet";
-import { PreferencesSheet } from "components/PreferencesSheet";
 import { useNavigation, NavigateLink } from "navigation/react";
 import { ConfirmDialog } from "components/primitives/ConfirmDialog";
 import { useGlobalState } from "globalstate/react";
@@ -357,12 +355,7 @@ export function App({ app, preferences, profile, taskLists, auth }) {
   const { isDarkTheme } = useTheme(preferences.theme);
   const navigation = useNavigation();
   const {
-    props: {
-      isDrawerOpen,
-      isUserSheetOpen,
-      isPreferencesSheetOpen,
-      isSettingsSheetOpen,
-    },
+    props: { isDrawerOpen, isSharingSheetOpen, isDatePickerSheetOpen },
   } = navigation.getAttr();
 
   return (
@@ -384,24 +377,8 @@ export function App({ app, preferences, profile, taskLists, auth }) {
         <AppMain app={app} taskLists={taskLists} preferences={preferences} />
       </DrawerLayout>
 
-      <UserSheet
-        isOpen={isUserSheetOpen}
-        app={app}
-        profile={profile}
-        auth={auth}
-      />
-
-      <PreferencesSheet
-        isOpen={isPreferencesSheetOpen}
-        preferences={preferences}
-      />
-
-      <SharingSheet />
-
-      <DatePickerSheet
-        handleChange={() => navigation.popTo("/home")}
-        handleCancel={() => navigation.popTo("/home")}
-      />
+      <SharingSheet open={isSharingSheetOpen} />
+      <DatePickerSheet open={isDatePickerSheetOpen} />
     </>
   );
 }

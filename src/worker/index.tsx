@@ -11,17 +11,65 @@ import {
   fetchTaskLists,
 } from "mutations";
 
-const supabase = createSupabaseClient();
+async function forceGetUser() {
+  try {
+    let supabaseToken = localStorage.getItem("sb-localhost-auth-token");
+
+    if (!supabaseToken) {
+      console.log("No token found in local storage");
+      return;
+    }
+
+    const tokenData = JSON.parse(supabaseToken);
+    const accessToken = tokenData?.access_token;
+
+    if (!accessToken) {
+      console.log("No access token found in storage data");
+      return;
+    }
+
+    const response = await fetch("http://localhost:54321/auth/v1/user", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    if (!response.ok) {
+      console.error("Error fetching session:", response.statusText);
+      return;
+    }
+
+    const userData = await response.json();
+    console.log("User data fetched via REST:", userData);
+
+    const session = {
+      user: userData,
+      access_token: accessToken,
+      expires_at: Math.floor(Date.now() / 1000) + 3600, // 仮の有効期限（1時間）
+    };
+    return session;
+  } catch (error) {
+    console.error("Error checking session:", error);
+  }
+}
 
 export function AuthWorker() {
+  const supabase = createSupabaseClient();
+
   const [, , mutate] = useGlobalState();
 
   useEffect(() => {
+    // forceGetUser().then((session) => {
+    //   mutate(setSession, { session });
+    //   mutate(initializeAuth);
+    // });
     supabase.auth.onAuthStateChange((event, session: Session) => {
+      console.log("event", event);
       if (event === "INITIAL_SESSION") {
         mutate(initializeAuth);
       }
-
       mutate(setSession, { session });
     });
   }, []);

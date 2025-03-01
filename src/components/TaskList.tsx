@@ -16,7 +16,6 @@ import {
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
 import { useCustomTranslation } from "v2/libs/i18n";
-import { AppPageLink } from "v2/libs/ui/navigation";
 import { Icon } from "components/primitives/Icon";
 import { TaskListItem } from "components/TaskListItem";
 import { kmh } from "v2/libs/keymap";
@@ -30,6 +29,7 @@ import {
   clearCompletedTasks,
   moveTask,
 } from "mutations";
+import { NavigateLink } from "navigation/react";
 
 export function TaskList(props: {
   disabled?: boolean;
@@ -197,19 +197,13 @@ export function TaskList(props: {
                 onChange={onTaskListNameChange}
               />
             </h1>
-            <AppPageLink
-              data-trigger={`sharing-${taskList.id}`}
+            <NavigateLink
               tabIndex={props.disabled ? -1 : 0}
               className="rounded-sm p-1 focus-visible:bg-gray-200 dark:fill-white dark:focus-visible:bg-gray-700"
-              params={{
-                sheet: "sharing",
-                tasklistid: taskList.id,
-                trigger: `sharing-${taskList.id}`,
-              }}
-              mergeParams
+              to={"/sharing/" + taskList.id}
             >
               <Icon text="share" />
-            </AppPageLink>
+            </NavigateLink>
           </div>
 
           <div className="flex items-center py-2">

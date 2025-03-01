@@ -1,34 +1,39 @@
 import qs from "query-string";
 
 import { useCustomTranslation } from "v2/libs/i18n";
-import { ParamsSheet } from "v2/libs/ui/components/ParamsSheet";
-import { DatePicker } from "v2/libs/ui/components/DatePicker";
+import { Sheet } from "components/primitives/Sheet";
+import { DatePicker } from "components/primitives/DatePicker";
+import { useNavigation } from "navigation/react";
+import { useGlobalState } from "globalstate/react";
+import { updateTask } from "mutations";
 
 export function DatePickerSheet(props: {
-  taskLists: { [id: string]: TaskListV2 };
   handleChange: () => void;
   handleCancel: () => void;
 }) {
-  const isSheetOpen = () => {
-    return qs.parse(window.location.search).sheet === "datepicker";
-  };
-
-  const taskId = qs.parse(window.location.search).taskid as string;
   const { t } = useCustomTranslation("components.DatePickerSheet");
   const { t: t2 } = useCustomTranslation("libs.components.DatePicker");
-  const taskList = props.taskLists[taskId];
-  const task = taskList?.tasks.find((t) => t.id === taskId);
+
+  const navigation = useNavigation();
+  const attr = navigation.getAttr();
+  const [state, , mutate] = useGlobalState();
+
+  const taskList = state.taskLists[attr.params.taskListId];
+  const task = taskList?.tasks.find((t) => t.id === attr.params.taskId);
 
   return (
-    <ParamsSheet isSheetOpen={isSheetOpen} title={t("Date Picker")}>
+    <Sheet open={attr.props.isDatePickerSheetOpen} title={t("Date Picker")}>
       <div className="px-4">
         <DatePicker
           autoFocus
           value={task?.date || ""}
           handleChange={(v) => {
-            updateTask(taskList.id, {
-              ...task,
-              date: v,
+            mutate(updateTask, {
+              taskListId: attr.params.taskListId,
+              task: {
+                ...task,
+                date: v,
+              },
             });
             props.handleChange();
           }}
@@ -53,6 +58,6 @@ export function DatePickerSheet(props: {
           }}
         />
       </div>
-    </ParamsSheet>
+    </Sheet>
   );
 }

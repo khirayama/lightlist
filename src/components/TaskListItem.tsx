@@ -1,4 +1,4 @@
-import { FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { clsx } from "clsx";
@@ -7,18 +7,21 @@ import {
   Indicator as CheckboxIndicator,
 } from "@radix-ui/react-checkbox";
 import { CheckIcon } from "@radix-ui/react-icons";
-import { format } from "date-fns";
+import { format, set } from "date-fns";
 
 import { useCustomTranslation } from "v2/libs/i18n";
 import { AppPageLink } from "v2/libs/ui/navigation";
 import { Icon } from "v2/libs/ui/components/Icon";
 import { updateTask } from "mutations";
 import { useGlobalState } from "globalstate/react";
+import { NavigateLink } from "navigation/react";
 
 function TaskTextArea(props: {
   task: Task;
+  value: string;
   disabled?: boolean;
   onTaskTextChange: (event: FormEvent<HTMLTextAreaElement>) => void;
+  onTaskTextBlur: (event: FormEvent<HTMLTextAreaElement>) => void;
 }) {
   const task = props.task;
 
@@ -26,22 +29,23 @@ function TaskTextArea(props: {
   return (
     <div
       className={clsx(
-        "bg-primary relative flex-1 py-2",
+        "bg-primary relative flex-1 overflow-hidden py-2",
         task.completed ? "text-gray-400 line-through" : "",
       )}
     >
       <div className="invisible px-1 whitespace-break-spaces">
-        {task.text + "\u200b"}
+        {props.value + "\u200b"}
       </div>
       <textarea
         data-tasktext={task.id}
         disabled={props.disabled}
         className={clsx(
-          "absolute top-0 left-0 inline-block h-full w-full flex-1 rounded-sm px-1 py-3 whitespace-break-spaces focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
+          "absolute top-0 left-0 inline-block h-full w-full flex-1 overflow-hidden rounded-sm px-1 py-3 whitespace-break-spaces focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700",
           task.completed ? "text-gray-400 line-through" : "",
         )}
-        value={task.text}
+        value={props.value}
         onChange={props.onTaskTextChange}
+        onBlur={props.onTaskTextBlur}
       />
     </div>
   );
@@ -53,6 +57,7 @@ export function TaskListItem(props: {
   disabled?: boolean;
 }) {
   const task = props.task;
+  const [text, setText] = useState(task.text);
 
   const { t } = useCustomTranslation("components.TaskItem");
   const [, , mutate] = useGlobalState();
@@ -119,27 +124,25 @@ export function TaskListItem(props: {
         <TaskTextArea
           disabled={props.disabled}
           task={task}
+          value={text}
           onTaskTextChange={(e) => {
+            setText(e.currentTarget.value);
+          }}
+          onTaskTextBlur={() => {
             mutate(updateTask, {
               taskListId: props.taskListId,
               task: {
                 ...props.task,
-                text: e.currentTarget.value,
+                text: text,
               },
             });
           }}
         />
 
-        <AppPageLink
-          data-trigger={`datepicker-${task.id}`}
+        <NavigateLink
           tabIndex={props.disabled ? -1 : 0}
           className="flex cursor-pointer items-center justify-center rounded-sm px-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
-          params={{
-            sheet: "datepicker",
-            taskid: task.id,
-            trigger: `datepicker-${task.id}`,
-          }}
-          mergeParams
+          to={`/tasks/${task.id}/date`}
           onKeyDown={(e) => {
             const key = e.key;
             if (key === "Backspace" || key === "Delete") {
@@ -168,7 +171,7 @@ export function TaskListItem(props: {
               <Icon text="event" />
             </span>
           )}
-        </AppPageLink>
+        </NavigateLink>
       </div>
     </div>
   );

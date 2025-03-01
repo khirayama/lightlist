@@ -8,7 +8,7 @@ import {
 } from "react";
 import { match, MatchFunction } from "path-to-regexp";
 
-type RouteDefinition = { props?: any };
+type RouteDefinition = {};
 
 export type RouteDefinitions = Record<string, RouteDefinition>;
 
@@ -169,6 +169,10 @@ export function NavigateLink(props: {
   className?: string;
   method?: "navigate" | "push" | "goBack" | "popTo" | "popToTop";
   tabIndex?: number;
+  onKeyPress?: (e: React.KeyboardEvent<HTMLAnchorElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLAnchorElement>) => void;
+  onKeyUp?: (e: React.KeyboardEvent<HTMLAnchorElement>) => void;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   const navigation = useNavigation();
   const method = props.method || "navigate";

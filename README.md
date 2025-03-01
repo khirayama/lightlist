@@ -21,6 +21,15 @@ npx supabase stop
 
 ```
 npx supabase db reset
-npm run dev
 npx npx prisma migrate deploy
+npm run dev
+```
+
+## Deploy Production
+
+```
+npx dotenv -e .env.production npx prisma db push
+# Copy email templates to `/dashboard/project/{project_id}/auth/templates`
+# Set Custom SMTP with Resend
+# https://zenn.dev/daimyo404/articles/3fefe4ef2d9500
 ```

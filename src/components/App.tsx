@@ -27,6 +27,8 @@ import { DatePickerSheet } from "components/DatePickerSheet";
 import { PreferencesSheet } from "components/PreferencesSheet";
 import { useNavigation, NavigateLink } from "navigation/react";
 import { ConfirmDialog } from "components/primitives/ConfirmDialog";
+import { useGlobalState } from "globalstate/react";
+import { updateEmail, updatePassword, deleteTaskList } from "mutations";
 
 function AppDrawer({ app, taskLists, profile }) {
   const { isNarrowLayout } = useDrawerLayout();
@@ -102,15 +104,15 @@ function AppMain({ app, taskLists, preferences }) {
           </>
         ) : null}
       </header>
-      {(attr.path === "/menu" && attr.referrer === "/home") ||
-      attr.path === "/home" ? (
+      {attr.path === "/settings" ||
+      (attr.path === "/menu" && attr.referrer === "/settings") ? (
+        <Settings preferences={preferences} />
+      ) : (
         <Carousel
           index={index}
           onIndexChange={(idx) => {
             const taskListId = app.taskListIds[idx];
-            replaceWithParams(window.location.pathname, {
-              params: { taskListId },
-            });
+            console.log("TODO: move to task list and update URL");
           }}
         >
           <CarouselIndicator />
@@ -125,14 +127,13 @@ function AppMain({ app, taskLists, preferences }) {
             })}
           </CarouselList>
         </Carousel>
-      ) : (
-        <Settings preferences={preferences} />
       )}
     </Main>
   );
 }
 
 function Settings({ preferences, updatePreferences, auth, app }) {
+  const [, , mutate] = useGlobalState();
   const { t, supportedLanguages } = useCustomTranslation("components.Settings");
   const [displayName, setDisplayName] = useState(preferences.displayName || "");
   const [email, setEmail] = useState("");
@@ -260,7 +261,7 @@ function Settings({ preferences, updatePreferences, auth, app }) {
               />
               <button
                 onClick={() => {
-                  updateEmail(email);
+                  mutate(updateEmail, { email });
                 }}
                 className="ml-4 rounded-sm border bg-gray-100 px-4 py-2 dark:bg-gray-600"
               >
@@ -304,7 +305,7 @@ function Settings({ preferences, updatePreferences, auth, app }) {
           <button
             onClick={() => {
               if (newPassword === confirmPassword) {
-                updatePassword(currentPassword, newPassword);
+                mutate(updatePassword, { currentPassword, newPassword });
               }
             }}
             className="rounded-sm border bg-gray-100 px-4 py-2 dark:bg-gray-600"
@@ -320,9 +321,7 @@ function Settings({ preferences, updatePreferences, auth, app }) {
           <button
             className="w-full rounded-sm border bg-gray-100 px-4 py-2 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
             onClick={() => {
-              signOut().then(() => {
-                push("/login");
-              });
+              // TODO: sign out by supabase
             }}
           >
             {t("Log out")}
@@ -336,13 +335,10 @@ function Settings({ preferences, updatePreferences, auth, app }) {
               if (val) {
                 Promise.all(
                   app.taskListIds.map((tlid) => {
-                    deleteTaskList(tlid);
+                    mutate(deleteTaskList, { taskListId: tlid });
                   }),
                 ).then(async () => {
-                  const user = auth.session?.user;
-                  deleteUser(user.id).then(() => {
-                    push("/login");
-                  });
+                  // TODO: delete user by supabase
                 });
               }
             }}
@@ -361,7 +357,12 @@ export function App({ app, preferences, profile, taskLists, auth }) {
   const { isDarkTheme } = useTheme(preferences.theme);
   const navigation = useNavigation();
   const {
-    props: { isDrawerOpen, isUserSheetOpen, isPreferencesSheetOpen },
+    props: {
+      isDrawerOpen,
+      isUserSheetOpen,
+      isPreferencesSheetOpen,
+      isSettingsSheetOpen,
+    },
   } = navigation.getAttr();
 
   return (
@@ -395,12 +396,11 @@ export function App({ app, preferences, profile, taskLists, auth }) {
         preferences={preferences}
       />
 
-      <SharingSheet taskLists={taskLists} />
+      <SharingSheet />
 
       <DatePickerSheet
-        taskLists={taskLists}
-        handleChange={() => {}}
-        handleCancel={() => {}}
+        handleChange={() => navigation.popTo("/home")}
+        handleCancel={() => navigation.popTo("/home")}
       />
     </>
   );

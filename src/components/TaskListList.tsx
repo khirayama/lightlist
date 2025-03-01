@@ -25,10 +25,8 @@ import { moveTaskList, appendTaskList } from "mutations";
 
 export function TaskListList(props: {
   disabled?: boolean;
-  app: AppV2;
   taskLists: TaskListV2[];
 }) {
-  const app = props.app;
   const taskLists = props.taskLists;
   const [, , mutate] = useGlobalState();
 

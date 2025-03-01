@@ -18,6 +18,9 @@ export function SharingSheet() {
   return (
     <Sheet
       open={attr.props.isSharingSheetOpen}
+      onClose={() => {
+        navigation.popTo("/home");
+      }}
       title={t("Share {{name}} list", {
         name: taskList?.name || "",
       })}
@@ -42,20 +45,16 @@ export function SharingSheet() {
           <button
             className="w-full rounded-sm border bg-gray-100 p-2 focus-visible:bg-gray-200 disabled:opacity-30 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
             disabled={!window?.navigator?.share}
-            onClick={async () => {
-              try {
-                await window.navigator.share({
-                  title: t("Share {{name}} list", {
-                    name: taskList?.name,
-                  }),
-                  text: t("Please join {{name}} list!", {
-                    name: taskList?.name,
-                  }),
-                  url: shareUrl,
-                });
-              } catch (err) {
-                window.alert(t("Need to run this under https or localhost"));
-              }
+            onClick={() => {
+              window.navigator.share({
+                title: t("Share {{name}} list", {
+                  name: taskList?.name,
+                }),
+                text: t("Please join {{name}} list!", {
+                  name: taskList?.name,
+                }),
+                url: shareUrl,
+              });
             }}
           >
             {t("Share with other apps")}

@@ -23,7 +23,7 @@ function Content() {
   }, [isLoggedIn]);
 
   return (
-    <div className="h-full">
+    <div className="bg-primary h-full">
       <header className="absolute top-0 left-0 w-full text-center">
         <h1 className="py-8">
           <Link href="/">

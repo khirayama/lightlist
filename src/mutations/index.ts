@@ -402,29 +402,3 @@ export const updateTask: MutationFunction = (
   commit({ taskLists: { [tl.id]: tl } });
   updateTaskListAsync(tl);
 };
-
-export const updateTaskWithoutSaving: MutationFunction = (
-  _,
-  commit,
-  { taskListId, task: newTask },
-) => {
-  const doc = docs.taskLists[taskListId];
-  const taskList = doc.getMap(taskListId);
-  const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
-  const task = Array.from(tasks).find((t) => t.get("id") === newTask.id);
-  task.set("text", newTask.text);
-  task.set("completed", newTask.completed);
-  task.set("date", newTask.date);
-
-  const tl = taskList.toJSON() as TaskListV2;
-  tl.update = Y.encodeStateAsUpdate(doc);
-  commit({ taskLists: { [tl.id]: tl } });
-};
-
-export const saveTaskList: MutationFunction = (_, commit, { taskListId }) => {
-  const doc = docs.taskLists[taskListId];
-  const taskList = doc.getMap(taskListId);
-  const tl = taskList.toJSON() as TaskListV2;
-  tl.update = Y.encodeStateAsUpdate(doc);
-  updateTaskListAsync(tl);
-};

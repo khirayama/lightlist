@@ -20,7 +20,7 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
       setIsClosing(true);
       setTimeout(() => {
         setIsClosing(false);
-      }, 400);
+      }, 180);
     }
   }, [open]);
 
@@ -67,7 +67,7 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
     <dialog
       open={open || isClosing}
       className={clsx(
-        "fixed inset-0 flex h-full w-full items-center justify-center bg-black/50 duration-400",
+        "fixed inset-0 flex h-full w-full items-center justify-center bg-black/50 duration-200",
         { "z-1000": open },
         { "pointer-events-none z-1000": isClosing },
         { "z-[-1]": !open && !isClosing },
@@ -77,7 +77,7 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
     >
       <div
         className={clsx(
-          "bg-primary absolute bottom-0 max-h-[95%] min-h-[40%] w-full max-w-4xl overflow-scroll rounded-lg shadow-lg transition-transform duration-400",
+          "bg-primary absolute bottom-0 max-h-[95%] min-h-[40%] w-full max-w-4xl overflow-scroll rounded-lg shadow-lg transition-transform duration-200",
         )}
         style={{
           transform: dragging

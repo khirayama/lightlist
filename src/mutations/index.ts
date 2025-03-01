@@ -11,6 +11,7 @@ import {
   updateTaskList as updateTaskListAsync,
   createTaskList,
   updateApp as updateAppAync,
+  refreshShareCode as refreshShareCodeAsync,
 } from "services";
 import { MutationFunction } from "globalstate/react";
 
@@ -106,6 +107,7 @@ export const fetchTaskLists: MutationFunction = (_, commit) => {
       );
       taskLists[taskList.id] = {
         ...docs.taskLists[taskList.id].getMap(taskList.id).toJSON(),
+        shareCode: taskList.shareCode,
         update: Y.encodeStateAsUpdate(docs.taskLists[taskList.id]),
       };
     }
@@ -262,6 +264,7 @@ export const updateTaskList: MutationFunction<
   taskListMap.set("name", taskList.name);
 
   const tl = taskListMap.toJSON() as TaskListV2;
+  tl.shareCode = taskList.shareCode;
   tl.update = Y.encodeStateAsUpdate(doc);
 
   commit({
@@ -401,4 +404,24 @@ export const updateTask: MutationFunction = (
   tl.update = Y.encodeStateAsUpdate(doc);
   commit({ taskLists: { [tl.id]: tl } });
   updateTaskListAsync(tl);
+};
+
+export const refreshShareCode: MutationFunction<
+  State,
+  { taskListId: string }
+> = (getState, commit, { taskListId }) => {
+  const taskList = getState().taskLists[taskListId];
+  refreshShareCodeAsync(taskList.shareCode).then((res) => {
+    const newTaskList = {
+      ...taskList,
+      shareCode: res.shareCode.code,
+    };
+
+    commit({
+      taskLists: {
+        [taskListId]: newTaskList,
+      },
+    });
+    updateTaskListAsync(newTaskList);
+  });
 };

@@ -160,15 +160,39 @@ function AuthContent() {
 }
 
 export default function AppV2Page() {
-  const routes = {
+  const routes: {
+    [path: string]: {
+      isDrawerOpen: boolean;
+      isSharingSheetOpen: boolean;
+      isDatePickerSheetOpen: boolean;
+    };
+  } = {
     "/home": {
       isDrawerOpen: false,
+      isSharingSheetOpen: false,
+      isDatePickerSheetOpen: false,
     },
     "/menu": {
       isDrawerOpen: true,
+      isSharingSheetOpen: false,
+      isDatePickerSheetOpen: false,
     },
     "/settings": {
       isDrawerOpen: false,
+      isSharingSheetOpen: false,
+      isDatePickerSheetOpen: false,
+    },
+    "/sharing/:taskListId": {
+      // TODO: Implement sharing sheet
+      isDrawerOpen: false,
+      isSharingSheetOpen: true,
+      isDatePickerSheetOpen: false,
+    },
+    "/tasks/:taskId/date": {
+      // TODO: Implement date picker sheet
+      isDrawerOpen: false,
+      isSharingSheetOpen: false,
+      isDatePickerSheetOpen: true,
     },
   };
 

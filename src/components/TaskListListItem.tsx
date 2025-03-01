@@ -5,6 +5,8 @@ import { clsx } from "clsx";
 import { Icon } from "v2/libs/ui/components/Icon";
 import { ConfirmDialog } from "v2/libs/ui/components/ConfirmDialog";
 import { NavigateLink } from "navigation/react";
+import { deleteTaskList } from "mutations";
+import { useGlobalState } from "globalstate/react";
 
 export function TaskListListItem(props: {
   disabled?: boolean;
@@ -20,6 +22,8 @@ export function TaskListListItem(props: {
     transition,
     isDragging,
   } = useSortable({ id: taskList.id });
+
+  const [, , mutate] = useGlobalState();
 
   if (props.disabled) {
     attributes["tabIndex"] = -1;
@@ -66,7 +70,7 @@ export function TaskListListItem(props: {
             falseText="Cancel"
             handleSelect={(val) => {
               if (val) {
-                deleteTaskList(taskList.id);
+                mutate(deleteTaskList, { taskListId: taskList.id });
               }
             }}
           >
@@ -81,7 +85,7 @@ export function TaskListListItem(props: {
           <button
             disabled={props.disabled}
             onClick={() => {
-              deleteTaskList(taskList.id);
+              mutate(deleteTaskList, { taskListId: taskList.id });
             }}
             className="flex cursor-pointer items-center justify-center rounded-sm fill-gray-400 p-1 text-gray-400 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
           >

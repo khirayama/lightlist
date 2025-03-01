@@ -12,6 +12,7 @@ import {
   createTaskList,
   updateApp as updateAppAync,
   refreshShareCode as refreshShareCodeAsync,
+  deleteTaskList as deleteTaskListAsync,
 } from "services";
 import { MutationFunction } from "globalstate/react";
 
@@ -135,8 +136,25 @@ export const updatePassword: MutationFunction = (
 };
 
 export const deleteTaskList: MutationFunction = (_, commit, { taskListId }) => {
-  console.log("Executing: deleteTaskList");
-  // TODO
+  const doc = docs.app;
+  const appMap = doc.getMap("app");
+  const taskListIds = appMap.get("taskListIds") as Y.Array<string>;
+  const index = taskListIds.toArray().indexOf(taskListId);
+  if (index !== -1) {
+    taskListIds.delete(index, 1);
+  }
+
+  const newApp = {
+    ...appMap.toJSON(),
+    update: Y.encodeStateAsUpdate(doc),
+  };
+
+  commit({
+    app: newApp,
+    taskLists: { [taskListId]: undefined },
+  });
+  updateAppAync(newApp);
+  deleteTaskListAsync(taskListId);
 };
 
 export const moveTaskList: MutationFunction<

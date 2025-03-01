@@ -1,23 +1,23 @@
-import qs from "query-string";
-import { useRouter } from "next/router";
-
 import { useCustomTranslation } from "v2/libs/i18n";
-import { ParamsSheet } from "v2/libs/ui/components/ParamsSheet";
+import { Sheet } from "components/primitives/Sheet";
+import { useNavigation } from "navigation/react";
+import { useGlobalState } from "globalstate/react";
+import { refreshShareCode } from "mutations";
 
-export function SharingSheet({ taskLists }) {
-  const isSheetOpen = () => {
-    return qs.parse(window.location.search).sheet === "sharing";
-  };
-
-  const router = useRouter();
-  const taskListId = router.query.tasklistid as string;
-  const taskList = taskLists[taskListId];
+export function SharingSheet() {
   const { t } = useCustomTranslation("components.SharingSheet");
+
+  const [state, , mutate] = useGlobalState();
+  const navigation = useNavigation();
+  const attr = navigation.getAttr();
+
+  const taskListId = attr.params.taskListId;
+  const taskList = state.taskLists[taskListId];
   const shareUrl = `${window?.location?.origin}/share?code=${taskList?.shareCode}`;
 
   return (
-    <ParamsSheet
-      isSheetOpen={isSheetOpen}
+    <Sheet
+      open={attr.props.isSharingSheetOpen}
       title={t("Share {{name}} list", {
         name: taskList?.name || "",
       })}
@@ -67,13 +67,13 @@ export function SharingSheet({ taskLists }) {
             className="w-full rounded-sm border bg-gray-100 p-2 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
             onClick={(e) => {
               e.preventDefault();
-              refreshShareCode(taskList?.shareCode);
+              mutate(refreshShareCode, { taskListId: taskList?.id });
             }}
           >
             {t("Refresh share code")}
           </button>
         </div>
       </div>
-    </ParamsSheet>
+    </Sheet>
   );
 }

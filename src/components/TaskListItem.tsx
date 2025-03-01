@@ -10,7 +10,6 @@ import { CheckIcon } from "@radix-ui/react-icons";
 import { format, set } from "date-fns";
 
 import { useCustomTranslation } from "v2/libs/i18n";
-import { AppPageLink } from "v2/libs/ui/navigation";
 import { Icon } from "v2/libs/ui/components/Icon";
 import { updateTask } from "mutations";
 import { useGlobalState } from "globalstate/react";
@@ -142,7 +141,7 @@ export function TaskListItem(props: {
         <NavigateLink
           tabIndex={props.disabled ? -1 : 0}
           className="flex cursor-pointer items-center justify-center rounded-sm px-1 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
-          to={`/tasks/${task.id}/date`}
+          to={`/task-lists/${props.taskListId}/tasks/${task.id}/date`}
           onKeyDown={(e) => {
             const key = e.key;
             if (key === "Backspace" || key === "Delete") {

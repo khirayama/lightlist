@@ -159,7 +159,7 @@ function AuthContent() {
   );
 }
 
-export default function AppV2Page() {
+export default function NewPage() {
   const routes: {
     [path: string]: {
       isDrawerOpen: boolean;
@@ -183,13 +183,11 @@ export default function AppV2Page() {
       isDatePickerSheetOpen: false,
     },
     "/sharing/:taskListId": {
-      // TODO: Implement sharing sheet
       isDrawerOpen: false,
       isSharingSheetOpen: true,
       isDatePickerSheetOpen: false,
     },
-    "/tasks/:taskId/date": {
-      // TODO: Implement date picker sheet
+    "/task-lists/:taskListId/tasks/:taskId/date": {
       isDrawerOpen: false,
       isSharingSheetOpen: false,
       isDatePickerSheetOpen: true,

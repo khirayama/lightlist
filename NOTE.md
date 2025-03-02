@@ -1,5 +1,6 @@
 ## TODO
 
+- [ ] 背景色の変更、背景画像の設定
 - [ ] Password Resetページを実装
 
 ## Platform & Devices

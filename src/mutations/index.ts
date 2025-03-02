@@ -13,6 +13,7 @@ import {
   updateApp as updateAppAync,
   refreshShareCode as refreshShareCodeAsync,
   deleteTaskList as deleteTaskListAsync,
+  updatePreferences as updatePreferencesAsync,
 } from "services";
 import { MutationFunction } from "globalstate/react";
 
@@ -133,6 +134,19 @@ export const updatePassword: MutationFunction = (
 ) => {
   console.log("Executing: updatePassword");
   // TODO
+};
+
+export const updatePreferences: MutationFunction = (
+  _,
+  commit,
+  { preferences },
+) => {
+  commit({
+    preferences: {
+      ...preferences,
+    },
+  });
+  updatePreferencesAsync(preferences);
 };
 
 export const deleteTaskList: MutationFunction = (_, commit, { taskListId }) => {

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface SheetProps {
   open: boolean;
@@ -10,6 +10,7 @@ interface SheetProps {
 export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
   const DRAG_THRESHOLD = 60;
 
+  const ref = useRef<HTMLDialogElement>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -63,9 +64,18 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
     });
   };
 
+  useEffect(() => {
+    const shouldOpen = open || isClosing;
+    if (shouldOpen) {
+      ref.current?.showModal();
+    } else {
+      ref.current?.close();
+    }
+  }, [open, isClosing]);
+
   return (
     <dialog
-      open={open || isClosing}
+      ref={ref}
       className={clsx(
         "fixed inset-0 flex h-full w-full items-center justify-center bg-black/50 duration-200",
         { "z-1000": open },

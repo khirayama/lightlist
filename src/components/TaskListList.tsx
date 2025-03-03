@@ -16,19 +16,21 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
-import { useCustomTranslation } from "v2/libs/i18n";
+import { useCustomTranslation } from "ui/i18n";
 import { Icon } from "components/primitives/Icon";
-import { useDrawerLayout } from "v2/libs/ui/components/DrawerLayout";
+import { useDrawerLayout } from "components/primitives/DrawerLayout";
 import { TaskListListItem } from "components/TaskListListItem";
 import { useGlobalState } from "globalstate/react";
 import { moveTaskList, appendTaskList } from "mutations";
+import { useNavigation } from "navigation/react";
 
 export function TaskListList(props: {
   disabled?: boolean;
-  taskLists: TaskListV2[];
+  taskLists: TaskList[];
 }) {
   const taskLists = props.taskLists;
   const [, , mutate] = useGlobalState();
+  const navigate = useNavigation();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -50,7 +52,7 @@ export function TaskListList(props: {
     mutate(appendTaskList, { name: taskListName });
     setTaskListName("");
     if (isDrawerOpen && isNarrowLayout) {
-      pop();
+      navigate.popTo("/home");
     }
   };
 

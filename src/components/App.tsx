@@ -4,8 +4,8 @@ import qs from "query-string";
 import * as Select from "@radix-ui/react-select";
 import { CheckIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 
-import { useTheme } from "v2/libs/ui/theme";
-import { useCustomTranslation } from "v2/libs/i18n";
+import { useTheme } from "ui/theme";
+import { useCustomTranslation } from "ui/i18n";
 import {
   DrawerLayout,
   Drawer,
@@ -26,7 +26,12 @@ import { DatePickerSheet } from "components/DatePickerSheet";
 import { useNavigation, NavigateLink } from "navigation/react";
 import { ConfirmDialog } from "components/primitives/ConfirmDialog";
 import { useGlobalState } from "globalstate/react";
-import { updateEmail, updatePassword, deleteTaskList } from "mutations";
+import {
+  updateEmail,
+  updatePassword,
+  deleteTaskList,
+  updatePreferences,
+} from "mutations";
 
 function AppDrawer({ app, taskLists, profile }) {
   const { isNarrowLayout } = useDrawerLayout();
@@ -61,7 +66,6 @@ function AppDrawer({ app, taskLists, profile }) {
           </div>
         </NavigateLink>
       </div>
-
       <TaskListList taskLists={tls} />
     </Drawer>
   );
@@ -130,7 +134,7 @@ function AppMain({ app, taskLists, preferences }) {
   );
 }
 
-function Settings({ preferences, updatePreferences, auth, app }) {
+function Settings({ preferences, auth, app }) {
   const [, , mutate] = useGlobalState();
   const { t, supportedLanguages } = useCustomTranslation("components.Settings");
   const [displayName, setDisplayName] = useState(preferences.displayName || "");
@@ -142,7 +146,7 @@ function Settings({ preferences, updatePreferences, auth, app }) {
   const lang = preferences.lang.toLowerCase();
 
   return (
-    <div className="h-full w-full overflow-scroll p-4">
+    <div className="bg-primary h-full w-full overflow-scroll p-4">
       <div className="mb-8">
         <h2 className="mb-4 text-lg font-bold">{t("Appearance & Language")}</h2>
         <div className="space-y-4">
@@ -151,8 +155,8 @@ function Settings({ preferences, updatePreferences, auth, app }) {
             <Select.Root
               value={preferences.theme}
               onValueChange={(v: Preferences["theme"]) => {
-                updatePreferences({
-                  theme: v,
+                mutate(updatePreferences, {
+                  preferences: { theme: v },
                 });
               }}
             >
@@ -189,8 +193,8 @@ function Settings({ preferences, updatePreferences, auth, app }) {
             <Select.Root
               value={lang}
               onValueChange={(v: Preferences["lang"]) => {
-                updatePreferences({
-                  lang: v,
+                mutate(updatePreferences, {
+                  preferences: { lang: v },
                 });
               }}
             >
@@ -239,7 +243,7 @@ function Settings({ preferences, updatePreferences, auth, app }) {
               />
               <button
                 onClick={() => {
-                  updatePreferences({ displayName });
+                  mutate(updatePreferences, { preferences: { displayName } });
                 }}
                 className="ml-4 rounded-sm border bg-gray-100 px-4 py-2 dark:bg-gray-600"
               >

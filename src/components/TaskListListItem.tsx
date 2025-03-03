@@ -2,15 +2,15 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { clsx } from "clsx";
 
-import { Icon } from "v2/libs/ui/components/Icon";
-import { ConfirmDialog } from "v2/libs/ui/components/ConfirmDialog";
+import { Icon } from "components/primitives/Icon";
+import { ConfirmDialog } from "components/primitives/ConfirmDialog";
 import { NavigateLink } from "navigation/react";
 import { deleteTaskList } from "mutations";
 import { useGlobalState } from "globalstate/react";
 
 export function TaskListListItem(props: {
   disabled?: boolean;
-  taskList: TaskListV2;
+  taskList: TaskList;
 }) {
   const taskList = props.taskList;
   const {

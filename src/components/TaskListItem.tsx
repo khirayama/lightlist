@@ -7,10 +7,10 @@ import {
   Indicator as CheckboxIndicator,
 } from "@radix-ui/react-checkbox";
 import { CheckIcon } from "@radix-ui/react-icons";
-import { format, set } from "date-fns";
+import { format } from "date-fns";
 
-import { useCustomTranslation } from "v2/libs/i18n";
-import { Icon } from "v2/libs/ui/components/Icon";
+import { useCustomTranslation } from "ui/i18n";
+import { Icon } from "components/primitives/Icon";
 import { updateTask } from "mutations";
 import { useGlobalState } from "globalstate/react";
 import { NavigateLink } from "navigation/react";
@@ -52,7 +52,7 @@ function TaskTextArea(props: {
 
 export function TaskListItem(props: {
   taskListId: string;
-  task: TaskV2;
+  task: Task;
   disabled?: boolean;
 }) {
   const task = props.task;

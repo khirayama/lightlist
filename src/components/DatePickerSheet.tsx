@@ -1,6 +1,6 @@
 import qs from "query-string";
 
-import { useCustomTranslation } from "v2/libs/i18n";
+import { useCustomTranslation } from "../ui/i18n";
 import { Sheet } from "components/primitives/Sheet";
 import { DatePicker } from "components/primitives/DatePicker";
 import { useNavigation } from "navigation/react";

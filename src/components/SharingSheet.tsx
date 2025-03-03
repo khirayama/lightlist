@@ -1,4 +1,4 @@
-import { useCustomTranslation } from "v2/libs/i18n";
+import { useCustomTranslation } from "../ui/i18n";
 import { Sheet } from "components/primitives/Sheet";
 import { useNavigation } from "navigation/react";
 import { useGlobalState } from "globalstate/react";

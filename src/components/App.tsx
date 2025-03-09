@@ -31,6 +31,7 @@ import {
   updatePassword,
   deleteTaskList,
   updatePreferences,
+  updateProfile,
 } from "mutations";
 
 function AppDrawer({ app, taskLists, profile }) {
@@ -80,7 +81,7 @@ function getTaskListIdIndex(taskListIds: string[]) {
   return taskListIndex;
 }
 
-function AppMain({ app, taskLists, preferences }) {
+function AppMain({ app, taskLists, preferences, profile }) {
   const { isNarrowLayout } = useDrawerLayout();
   const [index, setIndex] = useState(getTaskListIdIndex(app.taskListIds));
   const navigation = useNavigation();
@@ -108,7 +109,7 @@ function AppMain({ app, taskLists, preferences }) {
       </header>
       {attr.path === "/settings" ||
       (attr.path === "/menu" && attr.referrer === "/settings") ? (
-        <Settings preferences={preferences} />
+        <Settings preferences={preferences} profile={profile} app={app} />
       ) : (
         <Carousel
           index={index}
@@ -134,10 +135,10 @@ function AppMain({ app, taskLists, preferences }) {
   );
 }
 
-function Settings({ preferences, auth, app }) {
+function Settings({ preferences, app, profile }) {
   const [, , mutate] = useGlobalState();
   const { t, supportedLanguages } = useCustomTranslation("components.Settings");
-  const [displayName, setDisplayName] = useState(preferences.displayName || "");
+  const [displayName, setDisplayName] = useState(profile.displayName || "");
   const [email, setEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -243,7 +244,7 @@ function Settings({ preferences, auth, app }) {
               />
               <button
                 onClick={() => {
-                  mutate(updatePreferences, { preferences: { displayName } });
+                  mutate(updateProfile, { profile: { displayName } });
                 }}
                 className="ml-4 rounded-sm border bg-gray-100 px-4 py-2 dark:bg-gray-600"
               >
@@ -355,7 +356,7 @@ function Settings({ preferences, auth, app }) {
   );
 }
 
-export function App({ app, preferences, profile, taskLists, auth }) {
+export function App({ app, preferences, profile, taskLists }) {
   const { isDarkTheme } = useTheme(preferences.theme);
   const navigation = useNavigation();
   const {
@@ -378,7 +379,12 @@ export function App({ app, preferences, profile, taskLists, auth }) {
 
       <DrawerLayout isDrawerOpen={isDrawerOpen}>
         <AppDrawer app={app} taskLists={taskLists} profile={profile} />
-        <AppMain app={app} taskLists={taskLists} preferences={preferences} />
+        <AppMain
+          app={app}
+          taskLists={taskLists}
+          preferences={preferences}
+          profile={profile}
+        />
       </DrawerLayout>
 
       <SharingSheet open={isSharingSheetOpen} />

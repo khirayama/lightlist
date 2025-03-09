@@ -2,8 +2,6 @@ type DeepPartial<T> = {
   [P in keyof T]?: T[P] | DeepPartial<T[P]>;
 };
 
-type Query = { [key: string]: string | string[] | null };
-
 type Task = {
   id: string;
   text: string;
@@ -14,14 +12,19 @@ type Task = {
 type TaskList = {
   id: string;
   name: string;
-  taskIds: string[];
+  tasks: Task[];
   shareCode: string;
+  update: Uint8Array;
+};
+
+type Auth = {
+  session: Session;
 };
 
 type App = {
   taskInsertPosition: "BOTTOM" | "TOP";
   taskListIds: string[];
-  online: boolean;
+  update: Uint8Array;
 };
 
 type Profile = {
@@ -34,22 +37,19 @@ type Preferences = {
   theme: "SYSTEM" | "LIGHT" | "DARK";
 };
 
-type FetchingStatus = {
-  isInitialized: boolean;
-  isLoading: boolean;
-};
-
-type State = {
+type GlobalState = {
+  auth: Auth;
   app: App;
   profile: Profile;
   preferences: Preferences;
   taskLists: {
     [id: string]: TaskList;
   };
-  tasks: {
-    [id: string]: Task;
-  };
-  fetching: {
-    [key: string]: FetchingStatus;
+  isInitialized: {
+    auth: boolean;
+    app: boolean;
+    profile: boolean;
+    preferences: boolean;
+    taskLists: boolean;
   };
 };

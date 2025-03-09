@@ -6,8 +6,8 @@ import { Analytics } from "@vercel/analytics/react";
 
 import "pages/globals.css";
 
-import { I18nProvider, initI18n } from "v2/libs/i18n";
-import { jaTranslation, enTranslation } from "v2/common/translations";
+import { I18nProvider, initI18n } from "ui/i18n";
+import { jaTranslation, enTranslation } from "common/translations";
 
 initI18n({
   lng: "ja",

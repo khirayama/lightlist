@@ -15,10 +15,10 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
-import { useCustomTranslation } from "v2/libs/i18n";
+import { useCustomTranslation } from "ui/i18n";
 import { Icon } from "components/primitives/Icon";
 import { TaskListItem } from "components/TaskListItem";
-import { kmh } from "v2/libs/keymap";
+import { kmh } from "ui/keymap";
 import { useGlobalState } from "globalstate/react";
 import {
   appendTask,
@@ -33,8 +33,8 @@ import { NavigateLink } from "navigation/react";
 
 export function TaskList(props: {
   disabled?: boolean;
-  app: AppV2;
-  taskList: TaskListV2;
+  app: App;
+  taskList: TaskList;
 }) {
   const app = props.app;
   const taskList = props.taskList;

@@ -1,7 +1,6 @@
 import i18n from "i18next";
 import { useEffect } from "react";
 
-import { NavigateLink } from "navigation/react";
 import { useCustomTranslation } from "ui/i18n";
 
 const Content = ({ lang }) => {
@@ -87,7 +86,7 @@ export default function IndexPage({ lang }) {
 }
 
 export const getServerSideProps = async ({ query }) => {
-  let lang = query.lang;
+  let lang = query.lang.toUpperCase();
   const supportedLngs = Object.keys(i18n.options.resources).map((l) =>
     l.toUpperCase(),
   );

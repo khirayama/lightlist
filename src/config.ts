@@ -30,3 +30,37 @@ export function createInitialState(): GlobalState {
     },
   };
 }
+
+export const routes: {
+  [path: string]: {
+    isDrawerOpen: boolean;
+    isSharingSheetOpen: boolean;
+    isDatePickerSheetOpen: boolean;
+  };
+} = {
+  "/home": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: false,
+  },
+  "/menu": {
+    isDrawerOpen: true,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: false,
+  },
+  "/settings": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: false,
+  },
+  "/sharing/:taskListId": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: true,
+    isDatePickerSheetOpen: false,
+  },
+  "/task-lists/:taskListId/tasks/:taskId/date": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: true,
+  },
+};

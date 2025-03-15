@@ -33,7 +33,10 @@ export const I18nProvider = (props: { children: ReactNode }) => {
         supportedLanguages: Object.keys(tr.i18n?.options?.resources || {}).map(
           (lang) => lang.toUpperCase(),
         ),
-        changeLanguage: tr.i18n.changeLanguage,
+        changeLanguage: (l) => {
+          setLng(l);
+          tr.i18n.changeLanguage(l);
+        },
       }}
     >
       {props.children}

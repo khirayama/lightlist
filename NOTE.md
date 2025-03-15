@@ -1,5 +1,12 @@
 ## TODO
 
+- [x] /
+  - [x] i18nサポート
+- [ ] /login
+  - [ ] i18nサポート
+  - [ ] signin/signupページに分割
+- [ ] /reset-password
+  - [ ] 実装する
 - [ ] /new#/home
   - [ ] paramsのtaskListIdに合わせてtasklistをスクロール
   - [ ] 並び替えがなんかバグってるぽい？たまに変
@@ -18,15 +25,10 @@
   - [ ] 実装する
 - [ ] /share
   - [ ] 実装する
-- [ ] /
-  - [ ] 実装する
-- [ ] /login
-  - [ ] 実装する
-- [ ] /reset-password
-  - [ ] 実装する
 - [ ] 全体
   - [ ] i18nの見直し
   - [ ] themeの見直し
+  - [ ] tailwindの見直し https://future-architect.github.io/articles/20250314a/
 
 ## Platform & Devices
 

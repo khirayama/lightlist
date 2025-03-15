@@ -4,7 +4,7 @@ import { GlobalStateProvider, useGlobalState } from "globalstate/react";
 import { AuthWorker, PollingWorker } from "worker";
 import { App } from "components/App";
 import { NavigationProvider } from "navigation/react";
-import { createInitialState } from "config";
+import { createInitialState, routes } from "config";
 
 function Loading() {
   return (
@@ -17,7 +17,6 @@ function Loading() {
 function Content() {
   const [
     {
-      auth,
       app,
       profile,
       preferences,
@@ -75,42 +74,7 @@ function AuthContent() {
     </>
   );
 }
-
-const routes: {
-  [path: string]: {
-    isDrawerOpen: boolean;
-    isSharingSheetOpen: boolean;
-    isDatePickerSheetOpen: boolean;
-  };
-} = {
-  "/home": {
-    isDrawerOpen: false,
-    isSharingSheetOpen: false,
-    isDatePickerSheetOpen: false,
-  },
-  "/menu": {
-    isDrawerOpen: true,
-    isSharingSheetOpen: false,
-    isDatePickerSheetOpen: false,
-  },
-  "/settings": {
-    isDrawerOpen: false,
-    isSharingSheetOpen: false,
-    isDatePickerSheetOpen: false,
-  },
-  "/sharing/:taskListId": {
-    isDrawerOpen: false,
-    isSharingSheetOpen: true,
-    isDatePickerSheetOpen: false,
-  },
-  "/task-lists/:taskListId/tasks/:taskId/date": {
-    isDrawerOpen: false,
-    isSharingSheetOpen: false,
-    isDatePickerSheetOpen: true,
-  },
-};
-
-export default function NewPage() {
+export default function AppPage() {
   return (
     <NavigationProvider initialPath="/home" routes={routes}>
       <GlobalStateProvider<GlobalState>

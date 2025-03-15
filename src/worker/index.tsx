@@ -66,7 +66,6 @@ export function AuthWorker() {
     //   mutate(initializeAuth);
     // });
     supabase.auth.onAuthStateChange((event, session: Session) => {
-      console.log("event", event);
       if (event === "INITIAL_SESSION") {
         mutate(initializeAuth);
       }

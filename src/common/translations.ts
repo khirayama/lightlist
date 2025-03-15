@@ -48,6 +48,23 @@ export const jaTranslation = {
       "Don't have an account? Sign up": "アカウントをお持ちでない方はこちら",
       "Forgot your password?": "パスワードを忘れた場合",
     },
+    resetPassword: {
+      "Reset Password": "パスワードリセット",
+      "New Password": "新しいパスワード",
+      "Confirm Password": "パスワード確認",
+      "Enter new password": "新しいパスワードを入力",
+      "Confirm your password": "パスワードを再入力",
+      "Update Password": "パスワードを更新",
+      "Processing...": "処理中...",
+      "Back to Login": "ログインに戻る",
+      "Passwords do not match": "パスワードが一致しません",
+      "Password must be at least 6 characters": "パスワードは6文字以上必要です",
+      "Failed to update password": "パスワード更新に失敗しました",
+      "An unexpected error occurred": "予期しないエラーが発生しました",
+      "Password has been updated successfully!":
+        "パスワードが正常に更新されました！",
+      "Redirecting to the app...": "アプリにリダイレクト中...",
+    },
     share: {
       "Already added": "すでに追加されています。",
       "Add my task list": "自分のタスクリストを追加",
@@ -168,6 +185,24 @@ export const enTranslation: typeof jaTranslation = {
       "Already have an account? Log in": "Already have an account? Log in",
       "Don't have an account? Sign up": "Don't have an account? Sign up",
       "Forgot your password?": "Forgot your password?",
+    },
+    resetPassword: {
+      "Reset Password": "Reset Password",
+      "New Password": "New Password",
+      "Confirm Password": "Confirm Password",
+      "Enter new password": "Enter new password",
+      "Confirm your password": "Confirm your password",
+      "Update Password": "Update Password",
+      "Processing...": "Processing...",
+      "Back to Login": "Back to Login",
+      "Passwords do not match": "Passwords do not match",
+      "Password must be at least 6 characters":
+        "Password must be at least 6 characters",
+      "Failed to update password": "Failed to update password",
+      "An unexpected error occurred": "An unexpected error occurred",
+      "Password has been updated successfully!":
+        "Password has been updated successfully!",
+      "Redirecting to the app...": "Redirecting to the app...",
     },
     share: {
       "Already added": "Already added",

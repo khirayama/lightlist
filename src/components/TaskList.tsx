@@ -283,7 +283,7 @@ export function TaskList(props: {
                   key={task.id}
                   taskListId={taskList.id}
                   task={task}
-                  disabled={props.disable}
+                  disabled={props.disabled}
                 />
               );
             })}

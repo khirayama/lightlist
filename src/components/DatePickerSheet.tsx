@@ -17,11 +17,7 @@ export function DatePickerSheet({ open }) {
   const task = taskList?.tasks.find((t) => t.id === attr.params.taskId);
 
   return (
-    <Sheet
-      open={open}
-      title={t("Date Picker")}
-      onClose={() => navigation.popTo("/home")}
-    >
+    <Sheet open={open} onClose={() => navigation.popTo("/home")}>
       <div className="px-4">
         <DatePicker
           autoFocus

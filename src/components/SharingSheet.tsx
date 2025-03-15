@@ -21,9 +21,6 @@ export function SharingSheet({ open }) {
       onClose={() => {
         navigation.popTo("/home");
       }}
-      title={t("Share {{name}} list", {
-        name: taskList?.name || "",
-      })}
     >
       <div className="p-4">
         <button

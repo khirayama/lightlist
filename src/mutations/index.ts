@@ -21,7 +21,7 @@ import { MutationFunction } from "globalstate/react";
 // TODO: Remove it later
 interface State {
   taskLists: {
-    [key: string]: TaskListV2;
+    [key: string]: TaskList;
   };
   app: {
     update: Uint8Array;
@@ -216,7 +216,7 @@ export const appendTaskList: MutationFunction<
   const tasks = new Y.Array();
   taskList.set("tasks", tasks);
 
-  const tl = taskList.toJSON() as TaskListV2;
+  const tl = taskList.toJSON() as TaskList;
   tl.update = Y.encodeStateAsUpdate(doc);
 
   const ad = docs.app;
@@ -240,7 +240,7 @@ export const appendTaskList: MutationFunction<
 
 const insertTask: MutationFunction<
   State,
-  { taskListId: string; task: Partial<TaskV2>; index: number }
+  { taskListId: string; task: Partial<Task>; index: number }
 > = (getState, commit, { taskListId, task, index }) => {
   const id = uuid();
   const doc = docs.taskLists[taskListId];
@@ -259,7 +259,7 @@ const insertTask: MutationFunction<
     tasks.insert(index, [newTask]);
   }
 
-  const tl = taskList.toJSON() as TaskListV2;
+  const tl = taskList.toJSON() as TaskList;
   tl.update = Y.encodeStateAsUpdate(doc);
 
   commit({
@@ -271,14 +271,14 @@ const insertTask: MutationFunction<
 
 export const appendTask: MutationFunction<
   State,
-  { taskListId: string; task: Partial<TaskV2> }
+  { taskListId: string; task: Partial<Task> }
 > = (getState, commit, { taskListId, task }) => {
   insertTask(getState, commit, { taskListId, task, index: -1 });
 };
 
 export const prependTask: MutationFunction<
   State,
-  { taskListId: string; task: Partial<TaskV2> }
+  { taskListId: string; task: Partial<Task> }
 > = (getState, commit, { taskListId, task }) => {
   insertTask(getState, commit, { taskListId, task, index: 0 });
 };
@@ -297,15 +297,16 @@ export const updateApp: MutationFunction = (_, commit, { app }) => {
   updateAppAync(newApp);
 };
 
-export const updateTaskList: MutationFunction<
-  State,
-  { taskList: TaskListV2 }
-> = (getState, commit, { taskList }) => {
+export const updateTaskList: MutationFunction<State, { taskList: TaskList }> = (
+  getState,
+  commit,
+  { taskList },
+) => {
   const doc = docs.taskLists[taskList.id];
   const taskListMap = doc.getMap(taskList.id);
   taskListMap.set("name", taskList.name);
 
-  const tl = taskListMap.toJSON() as TaskListV2;
+  const tl = taskListMap.toJSON() as TaskList;
   tl.shareCode = taskList.shareCode;
   tl.update = Y.encodeStateAsUpdate(doc);
 
@@ -362,7 +363,7 @@ export const sortTasks: MutationFunction<State, { taskListId: string }> = (
     }
   });
 
-  const tl = taskList.toJSON() as TaskListV2;
+  const tl = taskList.toJSON() as TaskList;
   tl.update = Y.encodeStateAsUpdate(doc);
 
   commit({
@@ -388,7 +389,7 @@ export const clearCompletedTasks: MutationFunction<
     }
   });
 
-  const tl = taskList.toJSON() as TaskListV2;
+  const tl = taskList.toJSON() as TaskList;
   tl.update = Y.encodeStateAsUpdate(doc);
 
   commit({
@@ -420,7 +421,7 @@ export const moveTask: MutationFunction<
     }
   });
 
-  const tl = taskList.toJSON() as TaskListV2;
+  const tl = taskList.toJSON() as TaskList;
   tl.update = Y.encodeStateAsUpdate(doc);
 
   commit({
@@ -442,7 +443,7 @@ export const updateTask: MutationFunction = (
   task.set("completed", newTask.completed);
   task.set("date", newTask.date);
 
-  const tl = taskList.toJSON() as TaskListV2;
+  const tl = taskList.toJSON() as TaskList;
   tl.update = Y.encodeStateAsUpdate(doc);
   commit({ taskLists: { [tl.id]: tl } });
   updateTaskListAsync(tl);
@@ -456,7 +457,7 @@ export const refreshShareCode: MutationFunction<
   refreshShareCodeAsync(taskList.shareCode).then((res) => {
     const newTaskList = {
       ...taskList,
-      shareCode: res.shareCode.code,
+      shareCode: (res.shareCode as any).code,
     };
 
     commit({

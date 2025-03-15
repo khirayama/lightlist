@@ -1,26 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 
 import { config } from "config";
-import { useAuth, AuthProvider } from "v2/common/auth";
-import { useCustomTranslation } from "v2/libs/i18n";
+import { signUpOrIn, resetPasswordForEmail } from "services";
 
 function Content() {
   const router = useRouter();
 
-  const { t } = useCustomTranslation("pages.login");
-  const [{ isLoggedIn }, { signUpOrIn, resetPasswordForEmail }] = useAuth();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [view, setView] = useState<"register" | "reset">("register");
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      router.replace(config.appBaseUrl);
-    }
-  }, [isLoggedIn]);
 
   return (
     <div className="bg-primary h-full">
@@ -38,7 +28,12 @@ function Content() {
             onSubmit={(e) => {
               e.preventDefault();
               if (view === "register") {
-                signUpOrIn({ email, password }, router.query.lang as string);
+                signUpOrIn(
+                  { email, password },
+                  router.query.lang as string,
+                ).then(() => {
+                  router.push(config.appBaseUrl);
+                });
               } else {
                 resetPasswordForEmail(email);
               }
@@ -88,9 +83,5 @@ function Content() {
 }
 
 export default function LoginPage() {
-  return (
-    <AuthProvider>
-      <Content />
-    </AuthProvider>
-  );
+  return <Content />;
 }

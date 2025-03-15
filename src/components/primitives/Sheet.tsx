@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface SheetProps {
   open: boolean;
@@ -10,19 +10,11 @@ interface SheetProps {
 export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
   const DRAG_THRESHOLD = 60;
 
+  const ref = useRef<HTMLDialogElement>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    if (!open) {
-      setIsClosing(true);
-      setTimeout(() => {
-        setIsClosing(false);
-      }, 180);
-    }
-  }, [open]);
 
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {
@@ -63,11 +55,29 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
     });
   };
 
+  useEffect(() => {
+    const shouldOpen = open || isClosing;
+    if (shouldOpen) {
+      ref.current?.showModal();
+    } else {
+      ref.current?.close();
+    }
+  }, [open, isClosing]);
+
+  useEffect(() => {
+    if (!open) {
+      setIsClosing(true);
+      setTimeout(() => {
+        setIsClosing(false);
+      }, 200);
+    }
+  }, [open]);
+
   return (
     <dialog
-      open={open || isClosing}
+      ref={ref}
       className={clsx(
-        "fixed inset-0 flex h-full w-full items-center justify-center bg-black/50 duration-200",
+        "fixed top-0 left-0 flex h-full min-h-full w-full min-w-full items-center justify-center overflow-hidden bg-black/50 duration-0",
         { "z-1000": open },
         { "pointer-events-none z-1000": isClosing },
         { "z-[-1]": !open && !isClosing },
@@ -77,16 +87,20 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
     >
       <div
         className={clsx(
-          "bg-primary absolute bottom-0 max-h-[95%] min-h-[40%] w-full max-w-4xl overflow-scroll rounded-lg shadow-lg transition-transform duration-200",
+          "bg-primary absolute bottom-0 w-full max-w-4xl transform overflow-scroll rounded-lg transition-transform duration-200",
         )}
-        style={{
-          transform: dragging
-            ? `translateY(${position.y}px)`
-            : open
-              ? "translateY(0)"
-              : "translateY(100%)",
-          transition: dragging ? "transform 0s" : "transform 200ms ease-in-out",
-        }}
+        style={
+          {
+            // transform: open ? "translateY(0)" : "translateY(100%)",
+            // transition: "transform 200 ease-in-out",
+            // transform: dragging
+            //   ? `translateY(${position.y}px)`
+            //   : open
+            //     ? "translateY(0)"
+            //     : "translateY(100%)",
+            // transition: dragging ? "transform 0s" : "transform 200 ease-in-out",
+          }
+        }
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -95,7 +109,7 @@ export const Sheet: React.FC<SheetProps> = ({ open, onClose, children }) => {
         >
           <div className="h-1 w-12 cursor-move rounded-full bg-gray-400" />
         </div>
-        <div className="px-4">{children}</div>
+        <div className="px-4 pb-8">{children}</div>
       </div>
     </dialog>
   );

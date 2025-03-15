@@ -7,7 +7,6 @@ import {
 } from "react";
 import { clsx } from "clsx";
 import { useRouter } from "next/router";
-import qs from "query-string";
 
 const DrawerLayoutContext = createContext({
   isNarrowLayout: false,

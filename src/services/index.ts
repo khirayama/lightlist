@@ -1,6 +1,9 @@
 import axios, { type AxiosResponse } from "axios";
 import { Session } from "@supabase/supabase-js";
 
+import { createSupabaseClient } from "common/supabase";
+import { config } from "config";
+
 export type Res<T, D = any> = Promise<AxiosResponse<T, D>>;
 
 let session: Session = null;
@@ -27,6 +30,64 @@ const c = () => {
   });
 };
 
+export async function signUpOrIn(
+  {
+    email,
+    password,
+  }: {
+    email: string;
+    password: string;
+  },
+  lang?: string,
+) {
+  const supabase = createSupabaseClient();
+
+  const { data: signInData, error: signInError } =
+    await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+  if (!signInError && signInData?.session) {
+    bindSession(signInData.session);
+    return register({ lang });
+  }
+
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: config.appBaseUrl,
+    },
+  });
+  if (!signUpError && signUpData) {
+    if (signUpData.session) {
+      bindSession(signUpData.session);
+      return register({ lang });
+    }
+  }
+}
+
+export async function resetPasswordForEmail(email: string) {
+  const supabase = createSupabaseClient();
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+}
+
+export async function updatePassword(newPassword: string) {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (error) {
+    console.error("Password update error:", error.message);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, user: data.user };
+}
+
 export async function register(options: { lang?: string } = {}) {
   try {
     return await c()
@@ -47,7 +108,7 @@ export async function getApp() {
   }
 }
 
-export async function updateApp(newApp: Partial<AppV2>) {
+export async function updateApp(newApp: Partial<App>) {
   try {
     return await c()
       .patch("/api/app", newApp)
@@ -67,9 +128,7 @@ export async function getPreferences() {
   }
 }
 
-export async function updatePreferences(
-  newPreferences: Partial<PreferencesV2>,
-) {
+export async function updatePreferences(newPreferences: Partial<Preferences>) {
   try {
     return await c()
       .patch("/api/preferences", newPreferences)
@@ -89,7 +148,7 @@ export async function getProfile() {
   }
 }
 
-export async function updateProfile(newProfile: Partial<ProfileV2>) {
+export async function updateProfile(newProfile: Partial<Profile>) {
   try {
     return await c()
       .patch("/api/profile", newProfile)
@@ -109,7 +168,7 @@ export async function getTaskLists() {
   }
 }
 
-export async function createTaskList(newTaskList: Partial<TaskListV2>) {
+export async function createTaskList(newTaskList: Partial<TaskList>) {
   try {
     return await c()
       .post("/api/task-lists", newTaskList)
@@ -119,7 +178,7 @@ export async function createTaskList(newTaskList: Partial<TaskListV2>) {
   }
 }
 
-export async function updateTaskList(newTaskList: Partial<TaskListV2>) {
+export async function updateTaskList(newTaskList: Partial<TaskList>) {
   try {
     return await c()
       .patch(`/api/task-lists/${newTaskList.id}`, newTaskList)

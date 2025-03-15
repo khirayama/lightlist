@@ -1,63 +1,9 @@
 import { useRouter } from "next/router";
-import { Session } from "@supabase/supabase-js";
 
 import { GlobalStateProvider, useGlobalState } from "globalstate/react";
 import { AuthWorker, PollingWorker } from "worker";
-
 import { App } from "components/App";
 import { NavigationProvider } from "navigation/react";
-
-type Task = {
-  id: string;
-  text: string;
-  completed: boolean;
-  date: string;
-};
-
-type TaskList = {
-  id: string;
-  name: string;
-  tasks: Task[];
-  shareCode: string;
-  update: Uint8Array;
-};
-
-type Auth = {
-  session: Session;
-};
-
-type App = {
-  taskInsertPosition: "BOTTOM" | "TOP";
-  taskListIds: string[];
-  update: Uint8Array;
-};
-
-type Profile = {
-  displayName: string;
-  email: string;
-};
-
-type Preferences = {
-  lang: "EN" | "JA";
-  theme: "SYSTEM" | "LIGHT" | "DARK";
-};
-
-type GlobalState = {
-  auth: Auth;
-  app: App;
-  profile: Profile;
-  preferences: Preferences;
-  taskLists: {
-    [id: string]: TaskList;
-  };
-  isInitialized: {
-    auth: boolean;
-    app: boolean;
-    profile: boolean;
-    preferences: boolean;
-    taskLists: boolean;
-  };
-};
 
 function createInitialState(): GlobalState {
   return {
@@ -159,41 +105,41 @@ function AuthContent() {
   );
 }
 
-export default function NewPage() {
-  const routes: {
-    [path: string]: {
-      isDrawerOpen: boolean;
-      isSharingSheetOpen: boolean;
-      isDatePickerSheetOpen: boolean;
-    };
-  } = {
-    "/home": {
-      isDrawerOpen: false,
-      isSharingSheetOpen: false,
-      isDatePickerSheetOpen: false,
-    },
-    "/menu": {
-      isDrawerOpen: true,
-      isSharingSheetOpen: false,
-      isDatePickerSheetOpen: false,
-    },
-    "/settings": {
-      isDrawerOpen: false,
-      isSharingSheetOpen: false,
-      isDatePickerSheetOpen: false,
-    },
-    "/sharing/:taskListId": {
-      isDrawerOpen: false,
-      isSharingSheetOpen: true,
-      isDatePickerSheetOpen: false,
-    },
-    "/task-lists/:taskListId/tasks/:taskId/date": {
-      isDrawerOpen: false,
-      isSharingSheetOpen: false,
-      isDatePickerSheetOpen: true,
-    },
+const routes: {
+  [path: string]: {
+    isDrawerOpen: boolean;
+    isSharingSheetOpen: boolean;
+    isDatePickerSheetOpen: boolean;
   };
+} = {
+  "/home": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: false,
+  },
+  "/menu": {
+    isDrawerOpen: true,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: false,
+  },
+  "/settings": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: false,
+  },
+  "/sharing/:taskListId": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: true,
+    isDatePickerSheetOpen: false,
+  },
+  "/task-lists/:taskListId/tasks/:taskId/date": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: true,
+  },
+};
 
+export default function NewPage() {
   return (
     <NavigationProvider initialPath="/home" routes={routes}>
       <GlobalStateProvider<GlobalState>

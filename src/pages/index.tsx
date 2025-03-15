@@ -1,37 +1,33 @@
 import i18n from "i18next";
 import { useEffect } from "react";
 
-import { useAuth, AuthProvider } from "v2/common/auth";
-import { AppPageLink } from "v2/libs/ui/navigation";
-import { useCustomTranslation } from "v2/libs/i18n";
+import { NavigateLink } from "navigation/react";
+import { useCustomTranslation } from "ui/i18n";
 
 const Content = ({ lang }) => {
-  const [{ isLoggedIn }] = useAuth();
   const { t, changeLanguage } = useCustomTranslation("pages.index");
   useEffect(() => {
     changeLanguage(lang.toLowerCase());
   }, [lang]);
 
   return (
-    <div>
+    <div className="bg-primary">
       <header className="mx-auto max-w-2xl py-4 text-right">
-        <AppPageLink
-          href="/"
-          params={{ lang: "EN" }}
+        <a
+          href="/?lang=en"
           className="rounded-sm px-4 py-2 focus-visible:bg-gray-200"
         >
           English
-        </AppPageLink>
-        <AppPageLink
-          href="/"
-          params={{ lang: "JA" }}
+        </a>
+        <a
+          href="/?lang=ja"
           className="rounded-sm px-4 py-2 focus-visible:bg-gray-200"
         >
           日本語
-        </AppPageLink>
+        </a>
       </header>
       <div className="pb-8">
-        <div className="pb-4 pt-24 text-center">
+        <div className="pt-24 pb-4 text-center">
           <img
             src="/logo.svg"
             alt="Lightlist"
@@ -40,12 +36,12 @@ const Content = ({ lang }) => {
           <h1 className="p-4 text-center">Lightlist</h1>
         </div>
         <div className="p-4 text-center">
-          <AppPageLink
-            href={isLoggedIn ? "/app" : `/login?lang=${lang}`}
+          <a
+            href={`/login?lang=${lang}`}
             className="rounded-full border px-4 py-2 focus-visible:bg-gray-200"
           >
             {t("Get started")}
-          </AppPageLink>
+          </a>
         </div>
         <div className="m-auto max-w-lg p-8 text-justify">
           <p className="my-4">
@@ -66,7 +62,7 @@ const Content = ({ lang }) => {
             src={`/screenshot_${lang}_desktop.png`}
           />
           <img
-            className="absolute bottom-[-60px] right-[32px] w-[24%] min-w-[105px] rotate-6 shadow-2xl"
+            className="absolute right-[32px] bottom-[-60px] w-[24%] min-w-[105px] rotate-6 shadow-2xl"
             src={`/screenshot_${lang}_mobile.png`}
           />
         </div>
@@ -74,12 +70,12 @@ const Content = ({ lang }) => {
 
       <footer className="p-12 text-center">
         <div className="p-4 text-center">
-          <AppPageLink
-            href={isLoggedIn ? "/app" : `/login?lang=${lang}`}
+          <a
+            href={`/login?lang=${lang}`}
             className="rounded-full border px-4 py-2 focus-visible:bg-gray-200"
           >
             {t("Get started")}
-          </AppPageLink>
+          </a>
         </div>
       </footer>
     </div>
@@ -87,11 +83,7 @@ const Content = ({ lang }) => {
 };
 
 export default function IndexPage({ lang }) {
-  return (
-    <AuthProvider>
-      <Content lang={lang} />
-    </AuthProvider>
-  );
+  return <Content lang={lang} />;
 }
 
 export const getServerSideProps = async ({ query }) => {

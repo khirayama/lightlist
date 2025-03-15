@@ -1,7 +1,32 @@
 ## TODO
 
-- [ ] 背景色の変更、背景画像の設定
-- [ ] Password Resetページを実装
+- [ ] /new#/home
+  - [ ] paramsのtaskListIdに合わせてtasklistをスクロール
+  - [ ] 並び替えがなんかバグってるぽい？たまに変
+  - [ ] mobileで、2つめ以降のtask listで、taskをソートした時、スクロールxが0になる
+- [x] /new#/menu
+- [ ] /new#/settings
+  - [ ] i18nの定義
+  - [ ] change passwordを実装
+  - [ ] logoutを実装
+  - [ ] delete accountを実装
+- [ ] /new#/sharing/:taskListId
+  - [ ] shareCodeの更新
+  - [ ] 他のアプリで共有の動作確認
+- [x] /new#/task-lists/:taskListId/tasks/:taskId/date
+- [ ] /new#/404
+  - [ ] 実装する
+- [ ] /share
+  - [ ] 実装する
+- [ ] /
+  - [ ] 実装する
+- [ ] /login
+  - [ ] 実装する
+- [ ] /reset-password
+  - [ ] 実装する
+- [ ] 全体
+  - [ ] i18nの見直し
+  - [ ] themeの見直し
 
 ## Platform & Devices
 
@@ -59,10 +84,7 @@ mouse, touch, keyboard, software keyboard, screensize
 
 ### 設計
 
-- eventオブジェクトが引数に渡される場合はonXXX
-- eventオブジェクトが引数に渡される場合はhandleXXX
-- globalStateにはpagesからしかアクセスしない
-- event emitterをベースとしたglobalStateの管理をベースにして、それをサブスクラブしてupdateをかける
+- components配下で、components/primitiviesに含まれないcomponentsは、globalStateを直接参照することができる
 
 ### 参考
 

@@ -1,14 +1,10 @@
 import { useRouter } from "next/router";
 
-import { GlobalStateProvider } from "v2/libs/globalState";
-import { AppPageStackProvider } from "v2/libs/ui/navigation";
-import { useAuth, AuthProvider } from "v2/common/auth";
-import { config } from "v2/common/globalStateConfig";
-import { useApp } from "v2/hooks/useApp";
-import { usePreferences } from "v2/hooks/usePreferences";
-import { useTaskLists } from "v2/hooks/useTaskLists";
-import { useProfile } from "v2/hooks/useProfile";
-import { App } from "v2/components/App";
+import { GlobalStateProvider, useGlobalState } from "globalstate/react";
+import { AuthWorker, PollingWorker } from "worker";
+import { App } from "components/App";
+import { NavigationProvider } from "navigation/react";
+import { createInitialState } from "config";
 
 function Loading() {
   return (
@@ -18,42 +14,110 @@ function Loading() {
   );
 }
 
+function Content() {
+  const [
+    {
+      auth,
+      app,
+      profile,
+      preferences,
+      taskLists,
+      isInitialized: {
+        app: isAppInitialized,
+        preferences: isPreferencesInitialized,
+        profile: isProfileInitialized,
+        taskLists: isTaskListsInitialized,
+      },
+    },
+  ] = useGlobalState();
+
+  return (
+    <>
+      <PollingWorker />
+      {isAppInitialized &&
+      isPreferencesInitialized &&
+      isTaskListsInitialized &&
+      isProfileInitialized ? (
+        <App
+          app={app}
+          preferences={preferences}
+          profile={profile}
+          taskLists={taskLists}
+        />
+      ) : (
+        <Loading />
+      )}
+    </>
+  );
+}
+
 function AuthContent() {
   const router = useRouter();
-  const [{ isInitialized, isLoggedIn }] = useAuth();
+
+  const [
+    {
+      auth: { session },
+      isInitialized: { auth: isInitialized },
+    },
+    ,
+  ] = useGlobalState();
+  const isLoggedIn = !!session;
 
   if (isInitialized && !isLoggedIn) {
     router.push("/login");
     return null;
   }
 
-  return isInitialized && isLoggedIn ? <Content /> : <Loading />;
-}
-
-function Content() {
-  const [{ isInitialized: isAppInitialized }] = useApp();
-  const [{ isInitialized: isPreferencesInitialized }] = usePreferences();
-  const [{ isInitialized: isTaskListsInitialized }] = useTaskLists();
-  const [{ isInitialized: isProfileInitialized }] = useProfile();
-
-  return isAppInitialized &&
-    isPreferencesInitialized &&
-    isTaskListsInitialized &&
-    isProfileInitialized ? (
-    <App />
-  ) : (
-    <Loading />
+  return (
+    <>
+      <AuthWorker />
+      {isInitialized && isLoggedIn ? <Content /> : <Loading />}
+    </>
   );
 }
 
-export default function AppV2Page() {
+const routes: {
+  [path: string]: {
+    isDrawerOpen: boolean;
+    isSharingSheetOpen: boolean;
+    isDatePickerSheetOpen: boolean;
+  };
+} = {
+  "/home": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: false,
+  },
+  "/menu": {
+    isDrawerOpen: true,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: false,
+  },
+  "/settings": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: false,
+  },
+  "/sharing/:taskListId": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: true,
+    isDatePickerSheetOpen: false,
+  },
+  "/task-lists/:taskListId/tasks/:taskId/date": {
+    isDrawerOpen: false,
+    isSharingSheetOpen: false,
+    isDatePickerSheetOpen: true,
+  },
+};
+
+export default function NewPage() {
   return (
-    <AuthProvider>
-      <AppPageStackProvider>
-        <GlobalStateProvider config={config}>
-          <AuthContent />
-        </GlobalStateProvider>
-      </AppPageStackProvider>
-    </AuthProvider>
+    <NavigationProvider initialPath="/home" routes={routes}>
+      <GlobalStateProvider<GlobalState>
+        initialGlobalState={createInitialState()}
+      >
+        <AuthContent />
+      </GlobalStateProvider>
+    </NavigationProvider>
   );
 }

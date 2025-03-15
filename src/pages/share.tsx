@@ -1,30 +1,42 @@
 import { useRouter } from "next/router";
 import { useState, useEffect } from "react";
 
-import { GlobalStateProvider } from "v2/libs/globalState";
-import { AppPageStackProvider } from "v2/libs/ui/navigation";
-import { useAuth, AuthProvider } from "v2/common/auth";
-import { config } from "v2/common/globalStateConfig";
-import { useApp } from "v2/hooks/useApp";
-import { TaskList } from "v2/components/TaskList";
-import { UserSheet } from "v2/components/UserSheet";
-import { AppPageLink } from "v2/libs/ui/navigation";
-import { useCustomTranslation } from "v2/libs/i18n";
-import { Icon } from "v2/libs/ui/components/Icon";
-import { getTaskListsWithShareCodes } from "v2/common/services";
+import { GlobalStateProvider, useGlobalState } from "globalstate/react";
+import { createInitialState, config } from "config";
+import { Icon } from "components/primitives/Icon";
+import { TaskList } from "components/TaskList";
+import { useCustomTranslation } from "ui/i18n";
+import { updateApp } from "mutations";
+import { AuthWorker } from "worker";
+
+function getTaskListsWithShareCodes(shareCodes: string[]) {
+  return fetch("/api/task-lists", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ shareCodes }),
+  }).then((res) => res.json());
+}
 
 const Content = () => {
   const router = useRouter();
   const shareCode = router.query.code as string;
   const { t } = useCustomTranslation("pages.share");
-
-  const [{ data: app }, { updateApp }] = useApp();
-  const [{ isLoggedIn }] = useAuth();
+  const [
+    {
+      app,
+      auth: { session },
+    },
+    ,
+    mutate,
+  ] = useGlobalState();
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [taskList, setTaskList] = useState(null);
 
-  const distURL = isLoggedIn ? "/app" : "/login";
+  const isLoggedIn = !!session;
+  const distURL = isLoggedIn ? config.appBaseUrl : "/login";
   const hasTaskList = app.taskListIds.includes(taskList?.id);
 
   useEffect(() => {
@@ -43,7 +55,7 @@ const Content = () => {
     <>
       <section>
         <header className="mx-auto flex max-w-xl items-center justify-center p-2">
-          <AppPageLink
+          <a
             href={distURL}
             className="rounded-sm p-2 focus-visible:bg-gray-200"
           >
@@ -52,14 +64,14 @@ const Content = () => {
               alt="Lightlist"
               className="inline h-[1.5rem]"
             />
-          </AppPageLink>
+          </a>
           <div className="flex-1" />
-          <AppPageLink
+          <a
             href={distURL}
             className="rounded-sm p-2 focus-visible:bg-gray-200"
           >
             <Icon text="close" />
-          </AppPageLink>
+          </a>
         </header>
 
         <section className="mx-auto max-w-xl p-2">
@@ -70,7 +82,7 @@ const Content = () => {
                   className="w-full rounded-sm border bg-gray-100 px-2 py-1 focus-visible:bg-gray-200"
                   disabled={hasTaskList}
                   onClick={() => {
-                    updateApp({
+                    mutate(updateApp, {
                       taskListIds: [...app.taskListIds, taskList.id],
                     });
                     router.push(distURL);
@@ -80,13 +92,12 @@ const Content = () => {
                 </button>
               ) : (
                 <div className="text-center">
-                  <AppPageLink
+                  <a
                     href="/login"
-                    params={{ redirect: location.href }}
                     className="inline-block w-full rounded-sm border bg-gray-100 px-2 py-1 focus-visible:bg-gray-200"
                   >
                     {t("Log in to add this task list")}
-                  </AppPageLink>
+                  </a>
                 </div>
               )}
             </div>
@@ -116,29 +127,43 @@ const Content = () => {
               {t("No matched task list with the share code")}
             </div>
           ) : (
-            <TaskList key={taskList.id} taskListId={taskList.id} />
+            <TaskList key={taskList.id} app={app} taskList={taskList} />
           )}
         </div>
       </section>
-
-      <UserSheet />
     </>
   ) : null;
 };
 
-const AuthContent = () => {
-  const [{ isInitialized }] = useAuth();
-  return isInitialized ? <Content /> : <div>Loading...</div>;
-};
+function AuthContent() {
+  const router = useRouter();
+
+  const [
+    {
+      auth: { session },
+      isInitialized: { auth: isInitialized },
+    },
+    ,
+  ] = useGlobalState();
+  const isLoggedIn = !!session;
+
+  if (isInitialized && !isLoggedIn) {
+    router.push("/login");
+    return null;
+  }
+
+  return (
+    <>
+      <AuthWorker />
+      {isInitialized && isLoggedIn ? <Content /> : null}
+    </>
+  );
+}
 
 export default function SharePage() {
   return (
-    <AuthProvider>
-      <AppPageStackProvider>
-        <GlobalStateProvider config={config}>
-          <AuthContent />
-        </GlobalStateProvider>
-      </AppPageStackProvider>
-    </AuthProvider>
+    <GlobalStateProvider<GlobalState> initialGlobalState={createInitialState()}>
+      <AuthContent />
+    </GlobalStateProvider>
   );
 }

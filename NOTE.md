@@ -2,9 +2,8 @@
 
 - [x] /
   - [x] i18nサポート
-- [ ] /login
-  - [ ] i18nサポート
-  - [ ] signin/signupページに分割
+- [x] /login
+  - [x] i18nサポート
 - [ ] /reset-password
   - [ ] 実装する
 - [ ] /new#/home

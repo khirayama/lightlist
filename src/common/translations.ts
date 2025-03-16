@@ -39,10 +39,7 @@ export const jaTranslation = {
     login: {
       Email: "メールアドレス",
       Password: "パスワード",
-      "Log In": "ログイン",
-      "Sign Up": "新規登録",
-      "Logging In": "ログイン中",
-      "Signing Up": "新規登録中",
+      "Sign Up or Sign In": "新規登録 / ログイン",
       "Send reset password instructions": "パスワードリセットメールを送信",
       "Already have an account? Log in": "アカウントをお持ちの方はこちら",
       "Don't have an account? Sign up": "アカウントをお持ちでない方はこちら",
@@ -177,10 +174,7 @@ export const enTranslation: typeof jaTranslation = {
     login: {
       Email: "Email",
       Password: "Password",
-      "Log In": "Log In",
-      "Sign Up": "Sign Up",
-      "Logging In": "Logging Ip",
-      "Signing Up": "Signing Up",
+      "Sign Up or Sign In": "Sign Up or Sign In",
       "Send reset password instructions": "Send reset password instructions",
       "Already have an account? Log in": "Already have an account? Log in",
       "Don't have an account? Sign up": "Don't have an account? Sign up",

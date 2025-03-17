@@ -1,21 +1,13 @@
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
-import Link from "next/link";
+import i18n from "i18next";
+import { useState } from "react";
 
 import { config } from "config";
 import { signUpOrIn, resetPasswordForEmail } from "services";
 import { useCustomTranslation } from "ui/i18n";
 
-function Content() {
-  const router = useRouter();
-  const { t, changeLanguage } = useCustomTranslation("pages.login");
-
-  useEffect(() => {
-    const lang = (router.query.lang as string)?.toLowerCase() || "";
-    if (lang) {
-      changeLanguage(lang);
-    }
-  }, [router.query.lang]);
+export default function LoginPage({ lang }) {
+  i18n.changeLanguage(lang);
+  const { t } = useCustomTranslation("pages.login");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,9 +17,9 @@ function Content() {
     <div className="bg-primary h-full">
       <header className="absolute top-0 left-0 w-full text-center">
         <h1 className="py-8">
-          <Link href="/">
+          <a href="/">
             <img src="/logo.svg" alt="Lightlist" className="inline h-[2rem]" />
-          </Link>
+          </a>
         </h1>
       </header>
       <div className="mx-auto flex h-full max-w-sm items-center justify-center py-12">
@@ -36,11 +28,8 @@ function Content() {
             onSubmit={(e) => {
               e.preventDefault();
               if (view === "register") {
-                signUpOrIn(
-                  { email, password },
-                  router.query.lang as string,
-                ).then(() => {
-                  router.push(config.appBaseUrl);
+                signUpOrIn({ email, password }, lang).then(() => {
+                  window.location.href = config.appBaseUrl;
                 });
               } else {
                 resetPasswordForEmail(email);
@@ -100,6 +89,16 @@ function Content() {
   );
 }
 
-export default function LoginPage() {
-  return <Content />;
-}
+export const getServerSideProps = async ({ query }) => {
+  let lang = query.lang?.toUpperCase() || "JA";
+  const supportedLngs = Object.keys(i18n.options.resources).map((l) =>
+    l.toUpperCase(),
+  );
+  if (!supportedLngs.includes(lang)) {
+    lang = i18n.resolvedLanguage.toUpperCase();
+  }
+
+  return {
+    props: { lang: lang.toLowerCase() },
+  };
+};

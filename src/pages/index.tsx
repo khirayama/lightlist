@@ -1,13 +1,11 @@
 import i18n from "i18next";
-import { useEffect } from "react";
 
 import { useCustomTranslation } from "ui/i18n";
 
-const Content = ({ lang }) => {
-  const { t, changeLanguage } = useCustomTranslation("pages.index");
-  useEffect(() => {
-    changeLanguage(lang.toLowerCase());
-  }, [lang]);
+export default function IndexPage({ lang }) {
+  i18n.changeLanguage(lang);
+
+  const { t } = useCustomTranslation("pages.index");
 
   return (
     <div className="bg-primary">
@@ -79,21 +77,18 @@ const Content = ({ lang }) => {
       </footer>
     </div>
   );
-};
-
-export default function IndexPage({ lang }) {
-  return <Content lang={lang} />;
 }
 
 export const getServerSideProps = async ({ query }) => {
-  let lang = query.lang.toUpperCase();
+  let lang = query.lang?.toUpperCase() || "JA";
   const supportedLngs = Object.keys(i18n.options.resources).map((l) =>
     l.toUpperCase(),
   );
   if (!supportedLngs.includes(lang)) {
     lang = i18n.resolvedLanguage.toUpperCase();
   }
+
   return {
-    props: { lang },
+    props: { lang: lang.toLowerCase() },
   };
 };

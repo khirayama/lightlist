@@ -24,43 +24,44 @@ export const jaTranslation = {
   pages: {
     index: {
       "Get started": "はじめる",
-      "Try without logging in": "ログインせずにさわってみる",
       "Lightlist is a simple task list service.":
         "Lightlistは、とてもシンプルなタスクリストサービスです。",
       "It can be used as a ToDo list for task management or a shopping list. You can share lists with people who are not registered.":
         "タスク管理としてのToDoリストや、買い物リストとしても利用できます。登録していない人ともリストを共有することができます。",
-    },
-    app: {
-      "Log in": "ログイン",
-      Preferences: "設定",
-      PERSONAL: "個人",
-      "Install app": "アプリをインストール",
     },
     login: {
       Email: "メールアドレス",
       Password: "パスワード",
       "Sign Up or Sign In": "新規登録 / ログイン",
       "Send reset password instructions": "パスワードリセットメールを送信",
-      "Already have an account? Log in": "アカウントをお持ちの方はこちら",
-      "Don't have an account? Sign up": "アカウントをお持ちでない方はこちら",
       "Forgot your password?": "パスワードを忘れた場合",
+      "Back to Login": "ログイン画面に戻る",
     },
     resetPassword: {
-      "Reset Password": "パスワードリセット",
-      "New Password": "新しいパスワード",
-      "Confirm Password": "パスワード確認",
-      "Enter new password": "新しいパスワードを入力",
-      "Confirm your password": "パスワードを再入力",
-      "Update Password": "パスワードを更新",
-      "Processing...": "処理中...",
-      "Back to Login": "ログインに戻る",
       "Passwords do not match": "パスワードが一致しません",
-      "Password must be at least 6 characters": "パスワードは6文字以上必要です",
-      "Failed to update password": "パスワード更新に失敗しました",
+      "Password must be at least 6 characters":
+        "パスワードは6文字以上である必要があります",
+      "Failed to update password": "パスワードの更新に失敗しました",
       "An unexpected error occurred": "予期しないエラーが発生しました",
-      "Password has been updated successfully!":
-        "パスワードが正常に更新されました！",
-      "Redirecting to the app...": "アプリにリダイレクト中...",
+      "Reset Password": "パスワードリセット",
+      "Password has been updated successfully":
+        "パスワードが正常に更新されました",
+      "Redirecting to the app": "アプリにリダイレクトしています",
+      "New password": "新しいパスワード",
+      "Enter new password": "新しいパスワードを入力",
+      "Confirm Password": "パスワードの確認",
+      "Confirm your password": "パスワードを確認",
+      "Processing...": "処理中...",
+      "Update Password": "パスワードを更新",
+      "Back to Login": "ログイン画面に戻る",
+      "New password should be different from the old password.":
+        "新しいパスワードは古いパスワードと異なる必要があります。",
+    },
+    app: {
+      "Log in": "ログイン",
+      Preferences: "設定",
+      PERSONAL: "個人",
+      "Install app": "アプリをインストール",
     },
     share: {
       "Already added": "すでに追加されています。",
@@ -159,44 +160,44 @@ export const enTranslation: typeof jaTranslation = {
   pages: {
     index: {
       "Get started": "Get started",
-      "Try without logging in": "Try without logging in",
       "Lightlist is a simple task list service.":
         "Lightlist is a simple task list service.",
       "It can be used as a ToDo list for task management or a shopping list. You can share lists with people who are not registered.":
         "It can be used as a ToDo list for task management or a shopping list. You can share lists with people who are not registered.",
-    },
-    app: {
-      "Log in": "Log in",
-      Preferences: "Preferences",
-      PERSONAL: "PERSONAL",
-      "Install app": "Install app",
     },
     login: {
       Email: "Email",
       Password: "Password",
       "Sign Up or Sign In": "Sign Up or Sign In",
       "Send reset password instructions": "Send reset password instructions",
-      "Already have an account? Log in": "Already have an account? Log in",
-      "Don't have an account? Sign up": "Don't have an account? Sign up",
       "Forgot your password?": "Forgot your password?",
+      "Back to Login": "Back to Login",
     },
     resetPassword: {
-      "Reset Password": "Reset Password",
-      "New Password": "New Password",
-      "Confirm Password": "Confirm Password",
-      "Enter new password": "Enter new password",
-      "Confirm your password": "Confirm your password",
-      "Update Password": "Update Password",
-      "Processing...": "Processing...",
-      "Back to Login": "Back to Login",
       "Passwords do not match": "Passwords do not match",
       "Password must be at least 6 characters":
         "Password must be at least 6 characters",
       "Failed to update password": "Failed to update password",
       "An unexpected error occurred": "An unexpected error occurred",
-      "Password has been updated successfully!":
-        "Password has been updated successfully!",
-      "Redirecting to the app...": "Redirecting to the app...",
+      "Reset Password": "Reset Password",
+      "Password has been updated successfully":
+        "Password has been updated successfully",
+      "Redirecting to the app": "Redirecting to the app",
+      "New password": "New password",
+      "Enter new password": "Enter new password",
+      "Confirm Password": "Confirm Password",
+      "Confirm your password": "Confirm your password",
+      "Processing...": "Processing...",
+      "Update Password": "Update Password",
+      "Back to Login": "Back to Login",
+      "New password should be different from the old password.":
+        "New password should be different from the old password",
+    },
+    app: {
+      "Log in": "Log in",
+      Preferences: "Preferences",
+      PERSONAL: "PERSONAL",
+      "Install app": "Install app",
     },
     share: {
       "Already added": "Already added",

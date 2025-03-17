@@ -67,10 +67,13 @@ export async function signUpOrIn(
   }
 }
 
-export async function resetPasswordForEmail(email: string) {
+export async function resetPasswordForEmail(
+  email: string,
+  options: { lang?: string } = {},
+) {
   const supabase = createSupabaseClient();
   return supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`,
+    redirectTo: `${window.location.origin}/reset-password?lang=${options.lang || "JA"}`,
   });
 }
 

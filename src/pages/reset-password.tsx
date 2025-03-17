@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
-import Link from "next/link";
+import i18n from "i18next";
+import { useState } from "react";
 
 import { config } from "config";
 import { updatePassword } from "services";
 import { useCustomTranslation } from "ui/i18n";
 
-function Content() {
-  const router = useRouter();
+export default function ResetPasswordPage({ lang }) {
+  i18n.changeLanguage(lang.toLowerCase());
+
   const { t } = useCustomTranslation("pages.resetPassword");
 
   const [password, setPassword] = useState("");
@@ -37,11 +37,9 @@ function Content() {
 
       if (result.success) {
         setSuccess(true);
-        setTimeout(() => {
-          router.push(config.appBaseUrl);
-        }, 3000);
+        window.location.href = config.appBaseUrl;
       } else {
-        setError(result.error || t("Failed to update password"));
+        setError(t(result.error) || t("Failed to update password"));
       }
     } catch (err) {
       setError(t("An unexpected error occurred"));
@@ -55,9 +53,9 @@ function Content() {
     <div className="bg-primary h-full">
       <header className="absolute top-0 left-0 w-full text-center">
         <h1 className="py-8">
-          <Link href="/">
+          <a href="/">
             <img src="/logo.svg" alt="Lightlist" className="inline h-[2rem]" />
-          </Link>
+          </a>
         </h1>
       </header>
 
@@ -84,7 +82,7 @@ function Content() {
 
               <div className="mb-4">
                 <label className="mb-1 block text-sm font-medium">
-                  {t("New Password")}
+                  {t("New password")}
                 </label>
                 <input
                   type="password"
@@ -113,19 +111,15 @@ function Content() {
               </div>
 
               <div className="flex justify-center">
-                <button
-                  type="submit"
-                  className="bg-primary hover:bg-opacity-90 focus:ring-primary rounded-full px-4 py-2 text-white focus:ring-2 focus:ring-offset-2 focus:outline-none"
-                  disabled={loading}
-                >
+                <button type="submit" disabled={loading}>
                   {loading ? t("Processing...") : t("Update Password")}
                 </button>
               </div>
 
               <div className="mt-4 text-center">
-                <Link href="/login" className="text-primary hover:underline">
+                <a href="/login" className="text-primary hover:underline">
                   {t("Back to Login")}
-                </Link>
+                </a>
               </div>
             </form>
           )}
@@ -135,6 +129,16 @@ function Content() {
   );
 }
 
-export default function ResetPasswordPage() {
-  return <Content />;
-}
+export const getServerSideProps = async ({ query }) => {
+  let lang = query.lang?.toUpperCase() || "JA";
+  const supportedLngs = Object.keys(i18n.options.resources).map((l) =>
+    l.toUpperCase(),
+  );
+  if (!supportedLngs.includes(lang)) {
+    lang = i18n.resolvedLanguage.toUpperCase();
+  }
+
+  return {
+    props: { lang: lang.toLowerCase() },
+  };
+};

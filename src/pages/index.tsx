@@ -4,7 +4,6 @@ import { useCustomTranslation } from "ui/i18n";
 
 export default function IndexPage({ lang }) {
   i18n.changeLanguage(lang);
-
   const { t } = useCustomTranslation("pages.index");
 
   return (
@@ -80,15 +79,8 @@ export default function IndexPage({ lang }) {
 }
 
 export const getServerSideProps = async ({ query }) => {
-  let lang = query.lang?.toUpperCase() || "JA";
-  const supportedLngs = Object.keys(i18n.options.resources).map((l) =>
-    l.toUpperCase(),
-  );
-  if (!supportedLngs.includes(lang)) {
-    lang = i18n.resolvedLanguage.toUpperCase();
-  }
-
+  i18n.changeLanguage(query.lang);
   return {
-    props: { lang: lang.toLowerCase() },
+    props: { lang: i18n.resolvedLanguage },
   };
 };

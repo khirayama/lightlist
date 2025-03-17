@@ -1,41 +1,25 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from "react";
+import { createContext, useContext, useState, ReactNode, useRef } from "react";
 
 import i18n from "i18next";
-import { initReactI18next, useTranslation } from "react-i18next";
 
 const I18nContext = createContext(null);
 
-export const initI18n = (options: {}) => {
-  i18n.use(initReactI18next).init(options);
-};
+export const init = (options) => i18n.init(options);
 
 export const I18nProvider = (props: { children: ReactNode }) => {
-  const tr = useTranslation();
-  const [lng, setLng] = useState(tr.i18n.resolvedLanguage);
-
-  useEffect(() => {
-    tr.i18n.on("languageChanged", (l) => {
-      setLng(l);
-    });
-  }, []);
+  const [lng, setLng] = useState(i18n.resolvedLanguage);
 
   return (
     <I18nContext.Provider
       value={{
-        t: tr.t,
+        t: i18n.t,
         lng,
-        supportedLanguages: Object.keys(tr.i18n?.options?.resources || {}).map(
-          (lang) => lang.toUpperCase(),
-        ),
+        supportedLanguages: () => Object.keys(i18n.options.resources),
         changeLanguage: (l) => {
-          setLng(l);
-          tr.i18n.changeLanguage(l);
+          if (l !== i18n.resolvedLanguage) {
+            i18n.changeLanguage(l);
+            setLng(i18n.resolvedLanguage);
+          }
         },
       }}
     >

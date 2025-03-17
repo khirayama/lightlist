@@ -1,4 +1,3 @@
-// These styles apply to every route in the application
 import type { AppProps } from "next/app";
 import { useEffect } from "react";
 import Head from "next/head";
@@ -6,7 +5,7 @@ import { Analytics } from "@vercel/analytics/react";
 
 import "pages/globals.css";
 
-import { I18nProvider, initI18n } from "ui/i18n";
+import { I18nProvider, init as initI18n } from "ui/i18n";
 import { jaTranslation, enTranslation } from "common/translations";
 
 initI18n({

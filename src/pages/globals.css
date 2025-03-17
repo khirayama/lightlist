@@ -58,7 +58,7 @@
 }
 
 @utility bg-primary {
-  @apply text-dark bg-white transition duration-500 dark:bg-gray-900 dark:text-white;
+  @apply text-dark bg-white dark:bg-gray-900 dark:text-white;
 }
 
 @utility bg-secondary {

@@ -4,8 +4,8 @@
   - [x] i18nサポート
 - [x] /login
   - [x] i18nサポート
-- [ ] /reset-password
-  - [ ] 実装する
+- [x] /reset-password
+  - [x] 実装する
 - [ ] /new#/home
   - [ ] paramsのtaskListIdに合わせてtasklistをスクロール
   - [ ] 並び替えがなんかバグってるぽい？たまに変

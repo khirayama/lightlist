@@ -1,9 +1,14 @@
 import i18n from "i18next";
 import { useState } from "react";
-
 import { config } from "config";
 import { signUpOrIn, resetPasswordForEmail } from "services";
 import { useCustomTranslation } from "ui/i18n";
+import {
+  FormField,
+  SubmitButton,
+  ErrorMessage,
+  validateEmail,
+} from "components/AuthComponents";
 
 export default function LoginPage({ lang }) {
   i18n.changeLanguage(lang);
@@ -19,6 +24,14 @@ export default function LoginPage({ lang }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    // メールアドレスの検証
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      setError(t(emailValidation.error));
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -57,6 +70,11 @@ export default function LoginPage({ lang }) {
 
       <div className="mx-auto flex h-full max-w-sm items-center justify-center py-12">
         <div className="w-full px-4 pb-16">
+          <h2 className="mb-6 text-center text-xl font-semibold">
+            {view === "register"
+              ? t("Sign Up or Sign In")
+              : t("Reset Password")}
+          </h2>
           {resetSent ? (
             <div className="text-center">
               <p className="mb-4">
@@ -74,74 +92,48 @@ export default function LoginPage({ lang }) {
             </div>
           ) : (
             <>
-              <h2 className="bg-primary mb-6 text-center text-xl font-semibold">
-                {view === "register"
-                  ? t("Sign Up or Sign In")
-                  : t("Reset Password")}
-              </h2>
-
-              {error && (
-                <div className="mb-4 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700">
-                  {error}
-                </div>
-              )}
+              <ErrorMessage message={error} />
 
               <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                  <label className="mb-1 block text-sm font-medium">
-                    {t("Email")}
-                  </label>
-                  <input
-                    type="email"
-                    placeholder={t("Email")}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded border p-2"
+                <FormField
+                  label={t("Email")}
+                  type="email"
+                  placeholder={t("Email")}
+                  value={email}
+                  onChange={setEmail}
+                  required
+                  disabled={isLoading}
+                />
+
+                {view !== "reset" && (
+                  <FormField
+                    label={t("Password")}
+                    type="password"
+                    placeholder={t("Password")}
+                    value={password}
+                    onChange={setPassword}
                     required
                     disabled={isLoading}
                   />
-                </div>
-
-                {view !== "reset" && (
-                  <div className="mb-6">
-                    <label className="mb-1 block text-sm font-medium">
-                      {t("Password")}
-                    </label>
-                    <input
-                      type="password"
-                      placeholder={t("Password")}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded border p-2"
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
                 )}
 
-                <div className="mb-4 flex justify-center">
-                  <button
-                    type="submit"
-                    className="hover:bg-opacity-90 focus:ring-primary rounded-full px-4 py-2 focus:ring-2 focus:ring-offset-2 focus:outline-none"
-                    disabled={isLoading}
-                  >
-                    {isLoading
-                      ? view === "register"
-                        ? t("Logging In")
-                        : t("Sending...")
-                      : view === "register"
-                        ? t("Sign Up or Sign In")
-                        : t("Send reset password instructions")}
-                  </button>
-                </div>
+                <SubmitButton
+                  text={
+                    view === "register"
+                      ? t("Sign Up or Sign In")
+                      : t("Send reset password instructions")
+                  }
+                  loadingText={
+                    view === "register" ? t("Logging In") : t("Sending...")
+                  }
+                  isLoading={isLoading}
+                />
               </form>
 
               {view !== "reset" ? (
                 <div className="text-center">
                   <button
-                    onClick={() => {
-                      setView("reset");
-                    }}
+                    onClick={() => setView("reset")}
                     className="text-primary text-sm hover:underline"
                   >
                     {t("Forgot your password?")}
@@ -150,9 +142,7 @@ export default function LoginPage({ lang }) {
               ) : (
                 <div className="text-center">
                   <button
-                    onClick={() => {
-                      setView("register");
-                    }}
+                    onClick={() => setView("register")}
                     className="text-primary text-sm hover:underline"
                   >
                     {t("Back to Login")}

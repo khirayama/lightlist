@@ -1,13 +1,18 @@
 import i18n from "i18next";
 import { useState } from "react";
-
 import { config } from "config";
 import { updatePassword } from "services";
 import { useCustomTranslation } from "ui/i18n";
+import {
+  FormField,
+  SubmitButton,
+  ErrorMessage,
+  validatePassword,
+  validatePasswordConfirmation,
+} from "components/AuthComponents";
 
 export default function ResetPasswordPage({ lang }) {
   i18n.changeLanguage(lang);
-
   const { t } = useCustomTranslation("pages.resetPassword");
 
   const [password, setPassword] = useState("");
@@ -20,13 +25,20 @@ export default function ResetPasswordPage({ lang }) {
     e.preventDefault();
     setError(null);
 
-    if (password !== confirmPassword) {
-      setError(t("Passwords do not match"));
+    // パスワードのバリデーション
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setError(t(passwordValidation.error));
       return;
     }
 
-    if (password.length < 6) {
-      setError(t("Password must be at least 6 characters"));
+    // パスワード確認のバリデーション
+    const confirmationValidation = validatePasswordConfirmation(
+      password,
+      confirmPassword,
+    );
+    if (!confirmationValidation.isValid) {
+      setError(t(confirmationValidation.error));
       return;
     }
 
@@ -34,7 +46,6 @@ export default function ResetPasswordPage({ lang }) {
 
     try {
       const result = await updatePassword(password);
-
       if (result.success) {
         setSuccess(true);
         window.location.href = config.appBaseUrl;
@@ -64,7 +75,6 @@ export default function ResetPasswordPage({ lang }) {
           <h2 className="mb-6 text-center text-xl font-semibold">
             {t("Reset Password")}
           </h2>
-
           {success ? (
             <div className="text-center">
               <p className="mb-2 text-green-600">
@@ -73,55 +83,43 @@ export default function ResetPasswordPage({ lang }) {
               <p>{t("Redirecting to the app...")}</p>
             </div>
           ) : (
-            <form onSubmit={handleResetPassword}>
-              {error && (
-                <div className="mb-4 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700">
-                  {error}
-                </div>
-              )}
+            <>
+              <ErrorMessage message={error} />
 
-              <div className="mb-4">
-                <label className="mb-1 block text-sm font-medium">
-                  {t("New password")}
-                </label>
-                <input
+              <form onSubmit={handleResetPassword}>
+                <FormField
+                  label={t("New Password")}
                   type="password"
                   placeholder={t("Enter new password")}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded border p-2"
+                  onChange={setPassword}
                   required
                   disabled={loading}
                 />
-              </div>
 
-              <div className="mb-6">
-                <label className="mb-1 block text-sm font-medium">
-                  {t("Confirm Password")}
-                </label>
-                <input
+                <FormField
+                  label={t("Confirm Password")}
                   type="password"
                   placeholder={t("Confirm your password")}
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded border p-2"
+                  onChange={setConfirmPassword}
                   required
                   disabled={loading}
                 />
-              </div>
 
-              <div className="flex justify-center">
-                <button type="submit" disabled={loading}>
-                  {loading ? t("Processing...") : t("Update Password")}
-                </button>
-              </div>
+                <SubmitButton
+                  text={t("Update Password")}
+                  loadingText={t("Processing...")}
+                  isLoading={loading}
+                />
 
-              <div className="mt-4 text-center">
-                <a href="/login" className="text-primary hover:underline">
-                  {t("Back to Login")}
-                </a>
-              </div>
-            </form>
+                <div className="mt-4 text-center">
+                  <a href="/login" className="text-primary hover:underline">
+                    {t("Back to Login")}
+                  </a>
+                </div>
+              </form>
+            </>
           )}
         </div>
       </div>

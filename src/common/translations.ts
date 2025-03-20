@@ -32,6 +32,7 @@ export const jaTranslation = {
     login: {
       Email: "メールアドレス",
       Password: "パスワード",
+      "Reset Password": "パスワードリセット",
       "Sign Up or Sign In": "新規登録 / ログイン",
       "Send reset password instructions": "パスワードリセットメールを送信",
       "Forgot your password?": "パスワードを忘れた場合",
@@ -47,7 +48,7 @@ export const jaTranslation = {
       "Password has been updated successfully":
         "パスワードが正常に更新されました",
       "Redirecting to the app": "アプリにリダイレクトしています",
-      "New password": "新しいパスワード",
+      "New Password": "新しいパスワード",
       "Enter new password": "新しいパスワードを入力",
       "Confirm Password": "パスワードの確認",
       "Confirm your password": "パスワードを確認",
@@ -168,6 +169,7 @@ export const enTranslation: typeof jaTranslation = {
     login: {
       Email: "Email",
       Password: "Password",
+      "Reset Password": "Reset Password",
       "Sign Up or Sign In": "Sign Up or Sign In",
       "Send reset password instructions": "Send reset password instructions",
       "Forgot your password?": "Forgot your password?",
@@ -183,7 +185,7 @@ export const enTranslation: typeof jaTranslation = {
       "Password has been updated successfully":
         "Password has been updated successfully",
       "Redirecting to the app": "Redirecting to the app",
-      "New password": "New password",
+      "New Password": "New Password",
       "Enter new password": "Enter new password",
       "Confirm Password": "Confirm Password",
       "Confirm your password": "Confirm your password",

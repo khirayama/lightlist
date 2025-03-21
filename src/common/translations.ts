@@ -37,6 +37,9 @@ export const jaTranslation = {
       "Send reset password instructions": "パスワードリセットメールを送信",
       "Forgot your password?": "パスワードを忘れた場合",
       "Back to Login": "ログイン画面に戻る",
+      "Logging In": "ログイン中",
+      Sending: "送信中",
+      "Failed to sign in": "ログインに失敗しました",
     },
     resetPassword: {
       "Passwords do not match": "パスワードが一致しません",
@@ -174,6 +177,9 @@ export const enTranslation: typeof jaTranslation = {
       "Send reset password instructions": "Send reset password instructions",
       "Forgot your password?": "Forgot your password?",
       "Back to Login": "Back to Login",
+      "Logging In": "Logging In",
+      Sending: "Sending",
+      "Failed to sign in": "Failed to sign in",
     },
     resetPassword: {
       "Passwords do not match": "Passwords do not match",

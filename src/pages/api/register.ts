@@ -26,7 +26,7 @@ export default async function handler(
     if (existedApp) {
       return res.json({ message: "User already exists" });
     }
-    const lang = req.body.lang || "JA";
+    const lang = (req.body.lang || "ja").toUpperCase();
 
     const appDoc = new Y.Doc();
     const ad = appDoc.getMap("app");
@@ -44,7 +44,7 @@ export default async function handler(
       prisma.profile.create({
         data: {
           userId: user.id,
-          displayName: "",
+          displayName: user.email.split("@")[0],
         },
       }),
       prisma.preferences.create({

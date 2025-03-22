@@ -37,10 +37,10 @@ export default function LoginPage({ lang }) {
     try {
       if (view === "register") {
         const result = await signUpOrIn({ email, password }, lang);
-        if (result && result.success) {
+        if (result) {
           window.location.href = config.appBaseUrl;
         } else {
-          setError(result?.error || t("Failed to sign in"));
+          setError(t("Failed to sign in"));
         }
       } else {
         const { error } = await resetPasswordForEmail(email);

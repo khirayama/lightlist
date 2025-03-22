@@ -25,14 +25,12 @@ export default function ResetPasswordPage({ lang }) {
     e.preventDefault();
     setError(null);
 
-    // パスワードのバリデーション
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       setError(t(passwordValidation.error));
       return;
     }
 
-    // パスワード確認のバリデーション
     const confirmationValidation = validatePasswordConfirmation(
       password,
       confirmPassword,
@@ -46,11 +44,11 @@ export default function ResetPasswordPage({ lang }) {
 
     try {
       const result = await updatePassword(password);
-      if (result.success) {
+      if (result) {
         setSuccess(true);
         window.location.href = config.appBaseUrl;
       } else {
-        setError(t(result.error) || t("Failed to update password"));
+        setError(t("Failed to update password"));
       }
     } catch (err) {
       setError(t("An unexpected error occurred"));

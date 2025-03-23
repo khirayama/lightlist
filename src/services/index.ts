@@ -6,14 +6,11 @@ import { config } from "config";
 
 export type Res<T, D = any> = Promise<AxiosResponse<T, D>>;
 
+/* Auth Services */
 let session: Session = null;
 
 export function bindSession(newSession: Session) {
   session = newSession;
-}
-
-function errorHandler(err: Error) {
-  console.warn(err);
 }
 
 const c = () => {
@@ -89,6 +86,11 @@ export async function updatePassword(newPassword: string) {
   }
 
   return { success: true, user: data.user };
+}
+
+/* TaskList Services */
+function errorHandler(err: Error) {
+  console.warn(err);
 }
 
 export async function register(options: { lang?: string } = {}) {

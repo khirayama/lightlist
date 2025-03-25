@@ -14,7 +14,9 @@ export const I18nProvider = (props: { children: ReactNode }) => {
       value={{
         t: i18n.t,
         lng,
-        supportedLanguages: () => Object.keys(i18n.options.resources),
+        supportedLanguages: Object.keys(i18n.options.resources).map((l) =>
+          l.toUpperCase(),
+        ),
         changeLanguage: (l) => {
           if (l !== i18n.resolvedLanguage) {
             i18n.changeLanguage(l);

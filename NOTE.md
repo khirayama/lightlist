@@ -1,46 +1,46 @@
 ## TODO
 
 - [x] /
-  - [x] i18nサポート
+    - [x] i18nサポート
 - [x] /login
-  - [x] i18nサポート
+    - [x] i18nサポート
 - [x] /reset-password
-  - [x] 実装する
+    - [x] 実装する
 - [ ] /new#/home
-  - [ ] paramsのtaskListIdに合わせてtasklistをスクロール
-  - [ ] 並び替えがなんかバグってるぽい？たまに変
-  - [ ] mobileで、2つめ以降のtask listで、taskをソートした時、スクロールxが0になる
+    - [ ] paramsのtaskListIdに合わせてtasklistをスクロール
+    - [ ] 並び替えがなんかバグってるぽい？たまに変
+    - [ ] mobileで、2つめ以降のtask listで、taskをソートした時、スクロールxが0になる
 - [x] /new#/menu
 - [ ] /new#/settings
-  - [ ] i18nの定義
-  - [ ] change passwordを実装
-  - [ ] logoutを実装
-  - [ ] delete accountを実装
+    - [x] i18nの定義
+    - [ ] change passwordを実装
+    - [ ] logoutを実装
+    - [ ] delete accountを実装
 - [ ] /new#/sharing/:taskListId
-  - [ ] shareCodeの更新
-  - [ ] 他のアプリで共有の動作確認
+    - [ ] shareCodeの更新
+    - [ ] 他のアプリで共有の動作確認
 - [x] /new#/task-lists/:taskListId/tasks/:taskId/date
 - [ ] /new#/404
-  - [ ] 実装する
+    - [ ] 実装する
 - [ ] /share
-  - [ ] 実装する
+    - [ ] 実装する
 - [ ] 全体
-  - [ ] i18nの見直し
-  - [ ] themeの見直し
-  - [ ] tailwindの見直し https://future-architect.github.io/articles/20250314a/
+    - [ ] i18nの見直し
+    - [ ] themeの見直し
+    - [ ] tailwindの見直し https://future-architect.github.io/articles/20250314a/
 
 ## Platform & Devices
 
 - desktop
-  - MacOS
-  - Windows
+    - MacOS
+    - Windows
 - tablet
-  - iPadOS
-  - Android
-  - Windows
+    - iPadOS
+    - Android
+    - Windows
 - mobile
-  - iOS
-  - Android
+    - iOS
+    - Android
 
 ## UI
 

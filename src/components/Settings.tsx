@@ -14,20 +14,21 @@ import {
 } from "mutations";
 
 export function Settings({ preferences, app, profile }) {
-  const [, , mutate] = useGlobalState();
   const { t, supportedLanguages } = useCustomTranslation("components.Settings");
+
+  const [, , mutate] = useGlobalState();
   const [displayName, setDisplayName] = useState(profile.displayName || "");
   const [email, setEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const themes = ["SYSTEM", "LIGHT", "DARK"];
-  const lang = preferences.lang.toLowerCase();
+  const lang = preferences.lang.toUpperCase();
 
   return (
     <div className="bg-primary m-auto h-full w-full overflow-scroll p-4">
       <div className="m-auto max-w-3xl">
-        <h1>設定</h1>
+        <h1>{t("Settings")}</h1>
         <div className="mb-8">
           <h2 className="mb-4 text-lg font-bold">
             {t("Appearance & Language")}
@@ -209,7 +210,7 @@ export function Settings({ preferences, app, profile }) {
                 // TODO: sign out by supabase
               }}
             >
-              {t("Log out")}
+              {t("Log Out")}
             </button>
             <ConfirmDialog
               title="Delete Account"
@@ -229,7 +230,7 @@ export function Settings({ preferences, app, profile }) {
               }}
             >
               <button className="w-full rounded-sm border bg-gray-100 px-4 py-2 text-red-400 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700">
-                {t("Delete account")}
+                {t("Delete Account")}
               </button>
             </ConfirmDialog>
           </div>

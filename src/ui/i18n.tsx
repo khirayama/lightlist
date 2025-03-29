@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useRef } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 
 import i18n from "i18next";
 
@@ -17,7 +17,7 @@ export const I18nProvider = (props: { children: ReactNode }) => {
         supportedLanguages: Object.keys(i18n.options.resources).map((l) =>
           l.toUpperCase(),
         ),
-        changeLanguage: (l) => {
+        changeLanguage: (l: string) => {
           if (l !== i18n.resolvedLanguage) {
             i18n.changeLanguage(l);
             setLng(i18n.resolvedLanguage);
@@ -30,7 +30,7 @@ export const I18nProvider = (props: { children: ReactNode }) => {
   );
 };
 
-export const useCustomTranslation = (prefix: string) => {
+export const useCustomTranslation = (prefix: string = "") => {
   const ctx = useContext(I18nContext);
 
   return {

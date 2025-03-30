@@ -86,6 +86,9 @@ function MainContent({ app, preferences, profile, taskLists }) {
 }
 
 export function App({ app, preferences, profile, taskLists }) {
+  const { changeLanguage } = useCustomTranslation();
+  changeLanguage(preferences.lang.toLowerCase());
+
   const { isDarkTheme } = useTheme(preferences.theme);
   const navigation = useNavigation();
   const {

@@ -88,6 +88,11 @@ export async function updatePassword(newPassword: string) {
   return { success: true, user: data.user };
 }
 
+export async function signOut() {
+  const supabase = createSupabaseClient();
+  return supabase.auth.signOut();
+}
+
 /* TaskList Services */
 function errorHandler(err: Error) {
   console.warn(err);

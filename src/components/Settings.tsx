@@ -12,6 +12,7 @@ import {
   updatePreferences,
   updateProfile,
 } from "mutations";
+import { signOut } from "services";
 
 export function Settings({ preferences, app, profile }) {
   const { t, supportedLanguages } = useCustomTranslation("components.Settings");
@@ -207,7 +208,7 @@ export function Settings({ preferences, app, profile }) {
             <button
               className="w-full rounded-sm border bg-gray-100 px-4 py-2 focus-visible:bg-gray-200 dark:bg-gray-600 dark:focus-visible:bg-gray-700"
               onClick={() => {
-                // TODO: sign out by supabase
+                signOut().then(() => (window.location.href = "/login"));
               }}
             >
               {t("Log Out")}

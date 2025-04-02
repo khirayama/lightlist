@@ -16,3 +16,4 @@
 .env.sentry-build-plugin
 
 /tmp
+.aider*

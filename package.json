@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "next",
-    "build": "prisma db push && prisma generate && next build",
+    "build": "prisma db push --accept-data-loss && prisma generate && next build",
     "build:analyze": "ANALYZE=true next build",
     "postinstall": "prisma generate",
     "supabase": "supabase stop && supabase start",

@@ -4,15 +4,21 @@ import { CheckIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 
 import { useCustomTranslation } from "ui/i18n";
 import { ConfirmDialog } from "components/primitives/ConfirmDialog";
+import {
+  FormField,
+  SubmitButton,
+  ErrorMessage,
+  validatePassword,
+  validatePasswordConfirmation,
+} from "components/AuthComponents"; // Import necessary components and validators
 import { useGlobalState } from "globalstate/react";
 import {
   updateEmail,
-  updatePassword,
   deleteTaskList,
   updatePreferences,
   updateProfile,
 } from "mutations";
-import { signOut } from "services";
+import { signOut, updatePassword } from "services";
 
 export function Settings({ preferences, app, profile }) {
   const { t, supportedLanguages } = useCustomTranslation("components.Settings");
@@ -23,6 +29,9 @@ export function Settings({ preferences, app, profile }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const themes = ["SYSTEM", "LIGHT", "DARK"];
   const lang = preferences.lang.toUpperCase();
 
@@ -142,6 +151,7 @@ export function Settings({ preferences, app, profile }) {
               <div className="flex">
                 <input
                   type="email"
+                  placeholder={t("Enter email")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="flex-1 rounded-sm border px-4 py-2 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
@@ -161,45 +171,107 @@ export function Settings({ preferences, app, profile }) {
 
         <div className="mb-8">
           <h2 className="mb-4 text-lg font-bold">{t("Change Password")}</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="mb-2 block">{t("Current Password")}</label>
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full rounded-sm border px-4 py-2 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
-              />
+          <ErrorMessage message={passwordError} />
+          {passwordSuccess && (
+            <div className="mb-4 rounded border border-green-400 bg-green-100 px-4 py-3 text-green-700">
+              {passwordSuccess}
             </div>
-            <div>
-              <label className="mb-2 block">{t("New Password")}</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full rounded-sm border px-4 py-2 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block">{t("Confirm New Password")}</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-sm border px-4 py-2 focus-visible:bg-gray-200 dark:focus-visible:bg-gray-700"
-              />
-            </div>
-            <button
-              onClick={() => {
-                if (newPassword === confirmPassword) {
-                  mutate(updatePassword, { currentPassword, newPassword });
+          )}
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setPasswordError(null);
+              setPasswordSuccess(null);
+
+              // Basic validation (consider using AuthComponents validators)
+              const currentPasswordValidation =
+                validatePassword(currentPassword);
+              if (!currentPasswordValidation.isValid) {
+                setPasswordError(
+                  t(
+                    currentPasswordValidation.error ||
+                      "Invalid current password",
+                  ),
+                );
+                return;
+              }
+
+              const newPasswordValidation = validatePassword(newPassword);
+              if (!newPasswordValidation.isValid) {
+                setPasswordError(
+                  t(newPasswordValidation.error || "Invalid new password"),
+                );
+                return;
+              }
+
+              const confirmationValidation = validatePasswordConfirmation(
+                newPassword,
+                confirmPassword,
+              );
+              if (!confirmationValidation.isValid) {
+                setPasswordError(
+                  t(confirmationValidation.error || "Passwords do not match"),
+                );
+                return;
+              }
+
+              setIsUpdatingPassword(true);
+              try {
+                const result = await updatePassword(newPassword);
+                if (result.success) {
+                  setPasswordSuccess(t("Password updated successfully"));
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                } else {
+                  setPasswordError(
+                    result.error || t("Failed to update password"),
+                  );
                 }
-              }}
-              className="rounded-sm border bg-gray-100 px-4 py-2 dark:bg-gray-600"
-            >
-              {t("Update Password")}
-            </button>
-          </div>
+              } catch (error: any) {
+                // Catch any unexpected errors during the service call
+                setPasswordError(
+                  error.message || t("An unexpected error occurred"),
+                );
+              } finally {
+                setIsUpdatingPassword(false);
+              }
+            }}
+            className="space-y-4"
+          >
+            <FormField
+              label={t("Current Password")}
+              type="password"
+              placeholder={t("Enter current password")}
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              required
+              disabled={isUpdatingPassword}
+            />
+            <FormField
+              label={t("New Password")}
+              type="password"
+              placeholder={t("Enter new password")}
+              value={newPassword}
+              onChange={setNewPassword}
+              required
+              disabled={isUpdatingPassword}
+            />
+            <FormField
+              label={t("Confirm New Password")}
+              type="password"
+              placeholder={t("Confirm new password")}
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              required
+              disabled={isUpdatingPassword}
+            />
+            <SubmitButton
+              text={t("Update Password")}
+              loadingText={t("Updating...")}
+              isLoading={isUpdatingPassword}
+            />
+          </form>
         </div>
 
         <div className="mb-8">

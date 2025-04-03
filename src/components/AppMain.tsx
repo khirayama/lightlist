@@ -35,13 +35,13 @@ export function AppMain({ app, taskLists }) {
     >
       <CarouselIndicator />
       <CarouselList>
-        {app.taskListIds.map((taskListId) => {
+        {app.taskListIds.map((taskListId: string) => {
           const taskList = taskLists[taskListId];
-          return (
+          return taskList ? (
             <CarouselItem key={taskList.id}>
               <TaskList taskList={taskList} app={app} />
             </CarouselItem>
-          );
+          ) : null;
         })}
       </CarouselList>
     </Carousel>

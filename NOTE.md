@@ -12,10 +12,11 @@
     - [ ] mobileで、2つめ以降のtask listで、taskをソートした時、スクロールxが0になる
 - [x] /new#/menu
 - [ ] /new#/settings
+    - [ ] auto sortの実装
+    - [x] delete accountを実装
     - [x] i18nの定義
-    - [ ] change passwordを実装
-    - [ ] logoutを実装
-    - [ ] delete accountを実装
+    - [x] logoutを実装
+    - [x] change passwordを実装
 - [ ] /new#/sharing/:taskListId
     - [ ] shareCodeの更新
     - [ ] 他のアプリで共有の動作確認

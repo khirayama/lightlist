@@ -93,6 +93,16 @@ export async function signOut() {
   return supabase.auth.signOut();
 }
 
+export async function deleteUser() {
+  try {
+    return await c()
+      .delete("/api/user")
+      .then((res) => res.data);
+  } catch (err) {
+    errorHandler(err);
+  }
+}
+
 /* TaskList Services */
 function errorHandler(err: Error) {
   console.warn(err);

@@ -77,7 +77,7 @@ function MainContent({ app, preferences, profile, taskLists }) {
       </header>
       {attr.path === "/settings" ||
       (attr.path === "/menu" && attr.referrer === "/settings") ? (
-        <Settings preferences={preferences} profile={profile} app={app} />
+        <Settings preferences={preferences} profile={profile} />
       ) : (
         <AppMain app={app} taskLists={taskLists} />
       )}

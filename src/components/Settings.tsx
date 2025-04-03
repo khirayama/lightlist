@@ -10,17 +10,12 @@ import {
   ErrorMessage,
   validatePassword,
   validatePasswordConfirmation,
-} from "components/AuthComponents"; // Import necessary components and validators
+} from "components/AuthComponents";
 import { useGlobalState } from "globalstate/react";
-import {
-  updateEmail,
-  deleteTaskList,
-  updatePreferences,
-  updateProfile,
-} from "mutations";
-import { signOut, updatePassword } from "services";
+import { updateEmail, updatePreferences, updateProfile } from "mutations";
+import { signOut, updatePassword, deleteUser } from "services";
 
-export function Settings({ preferences, app, profile }) {
+export function Settings({ preferences, profile }) {
   const { t, supportedLanguages } = useCustomTranslation("components.Settings");
 
   const [, , mutate] = useGlobalState();
@@ -103,7 +98,7 @@ export function Settings({ preferences, app, profile }) {
                 <Select.Portal>
                   <Select.Content className="bg-primary focus-visible:bg-primary z-500 rounded-sm border p-2 shadow-sm dark:focus-visible:bg-gray-700">
                     <Select.Viewport>
-                      {supportedLanguages.map((ln) => (
+                      {supportedLanguages.map((ln: string) => (
                         <Select.Item
                           key={ln}
                           value={ln}
@@ -183,7 +178,6 @@ export function Settings({ preferences, app, profile }) {
               setPasswordError(null);
               setPasswordSuccess(null);
 
-              // Basic validation (consider using AuthComponents validators)
               const currentPasswordValidation =
                 validatePassword(currentPassword);
               if (!currentPasswordValidation.isValid) {
@@ -218,7 +212,7 @@ export function Settings({ preferences, app, profile }) {
               setIsUpdatingPassword(true);
               try {
                 const result = await updatePassword(newPassword);
-                if (result.success) {
+                if (result) {
                   setPasswordSuccess(t("Password updated successfully"));
                   setCurrentPassword("");
                   setNewPassword("");
@@ -290,15 +284,22 @@ export function Settings({ preferences, app, profile }) {
               description="Are you sure you want to delete your account?"
               trueText="Delete"
               falseText="Cancel"
-              handleSelect={(val) => {
+              handleSelect={async (val) => {
                 if (val) {
-                  Promise.all(
-                    app.taskListIds.map((tlid) => {
-                      mutate(deleteTaskList, { taskListId: tlid });
-                    }),
-                  ).then(async () => {
-                    // TODO: delete user by supabase
-                  });
+                  try {
+                    const result = await deleteUser();
+                    if (result) {
+                      window.location.href = "/login";
+                    } else {
+                      alert(t("Failed to delete account. Please try again."));
+                    }
+                  } catch (error) {
+                    alert(
+                      t(
+                        "An unexpected error occurred while deleting the account.",
+                      ),
+                    );
+                  }
                 }
               }}
             >

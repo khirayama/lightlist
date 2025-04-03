@@ -110,13 +110,13 @@ export function TaskListList(props: {
             strategy={verticalListSortingStrategy}
           >
             {taskLists.map((taskList) => {
-              return (
+              return taskList ? (
                 <TaskListListItem
                   key={taskList.id}
                   disabled={props.disabled}
                   taskList={taskList}
                 />
-              );
+              ) : null;
             })}
           </SortableContext>
         </DndContext>

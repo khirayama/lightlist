@@ -80,6 +80,8 @@ html {
   font-variation-settings: "slnt" 0;
   color: rgba(3, 10, 18, 0.81);
   fill: rgba(3, 10, 18, 0.81);
+  text-rendering: optimizeLegibility;
+  text-box: trim-both cap alphabetic;
   color-scheme: light dark;
 }
 

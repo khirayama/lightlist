@@ -12,7 +12,7 @@
     - [ ] mobileで、2つめ以降のtask listで、taskをソートした時、スクロールxが0になる
 - [x] /new#/menu
 - [ ] /new#/settings
-    - [ ] auto sortの実装
+    - [x] auto sortの実装
     - [x] delete accountを実装
     - [x] i18nの定義
     - [x] logoutを実装

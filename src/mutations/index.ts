@@ -26,6 +26,9 @@ interface State {
   app: {
     update: Uint8Array;
   };
+  preferences: {
+    autoSort: boolean;
+  };
 }
 
 const docs: {
@@ -238,6 +241,49 @@ export const appendTaskList: MutationFunction<
   updateAppAync(newApp);
 };
 
+const sortTasksWithoutCommit = (taskListId: string) => {
+  const doc = docs.taskLists[taskListId];
+  const taskList = doc.getMap(taskListId);
+  const tasks = taskList.get("tasks") as Y.Array<Y.Map<any>>;
+
+  tasks.doc.transact(() => {
+    const sortedTasks = tasks.toJSON().sort((a, b) => {
+      if (a.completed && !b.completed) {
+        return 1;
+      }
+      if (!a.completed && b.completed) {
+        return -1;
+      }
+      if (!a.date && b.date) {
+        return 1;
+      }
+      if (a.date && !b.date) {
+        return -1;
+      }
+      if (a.date > b.date) {
+        return 1;
+      }
+      if (a.date < b.date) {
+        return -1;
+      }
+      return 0;
+    });
+    for (let i = sortedTasks.length - 1; i >= 0; i--) {
+      for (let j = 0; j < tasks.length; j++) {
+        const task = tasks.get(j);
+        if (task.get("id") === sortedTasks[i].id) {
+          const t = task.clone();
+          tasks.delete(j);
+          tasks.insert(0, [t]);
+          break;
+        }
+      }
+    }
+  });
+
+  return taskList.toJSON() as TaskList;
+};
+
 const insertTask: MutationFunction<
   State,
   { taskListId: string; task: Partial<Task>; index: number }
@@ -259,13 +305,11 @@ const insertTask: MutationFunction<
     tasks.insert(index, [newTask]);
   }
 
-  const tl = taskList.toJSON() as TaskList;
+  const tl = getState().preferences.autoSort
+    ? sortTasksWithoutCommit(taskListId)
+    : (taskList.toJSON() as TaskList);
   tl.update = Y.encodeStateAsUpdate(doc);
-
-  commit({
-    taskLists: { [tl.id]: tl },
-  });
-
+  commit({ taskLists: { [tl.id]: tl } });
   updateTaskListAsync(tl);
 };
 
@@ -313,7 +357,6 @@ export const updateTaskList: MutationFunction<State, { taskList: TaskList }> = (
   commit({
     taskLists: { [tl.id]: tl },
   });
-
   updateTaskListAsync(tl);
 };
 
@@ -323,49 +366,9 @@ export const sortTasks: MutationFunction<State, { taskListId: string }> = (
   { taskListId },
 ) => {
   const doc = docs.taskLists[taskListId];
-  const taskList = doc.getMap(taskListId);
-  const tasks = taskList.get("tasks") as Y.Array<Y.Map<any>>;
 
-  tasks.doc.transact(() => {
-    const sortedTasks = tasks.toJSON().sort((a, b) => {
-      if (a.completed && !b.completed) {
-        return 1;
-      }
-      if (!a.completed && b.completed) {
-        return -1;
-      }
-      if (!a.date && b.date) {
-        return 1;
-      }
-      if (a.date && !b.date) {
-        return -1;
-      }
-      if (a.date > b.date) {
-        return 1;
-      }
-      if (a.date < b.date) {
-        return -1;
-      }
-      return 0;
-    });
-    for (let i = sortedTasks.length - 1; i >= 0; i--) {
-      for (let j = 0; j < tasks.length; j++) {
-        const task = tasks.get(j);
-        if (task.get("id") === sortedTasks[i].id) {
-          if (j !== i) {
-            const t = task.clone();
-            tasks.delete(j);
-            tasks.insert(0, [t]);
-          }
-          break;
-        }
-      }
-    }
-  });
-
-  const tl = taskList.toJSON() as TaskList;
+  const tl = sortTasksWithoutCommit(taskListId);
   tl.update = Y.encodeStateAsUpdate(doc);
-
   commit({
     taskLists: { [tl.id]: tl },
   });
@@ -421,20 +424,18 @@ export const moveTask: MutationFunction<
     }
   });
 
-  const tl = taskList.toJSON() as TaskList;
+  const tl = getState().preferences.autoSort
+    ? sortTasksWithoutCommit(taskListId)
+    : (taskList.toJSON() as TaskList);
   tl.update = Y.encodeStateAsUpdate(doc);
-
-  commit({
-    taskLists: { [tl.id]: tl },
-  });
+  commit({ taskLists: { [tl.id]: tl } });
   updateTaskListAsync(tl);
 };
 
-export const updateTask: MutationFunction = (
-  getState,
-  commit,
-  { taskListId, task: newTask },
-) => {
+export const updateTask: MutationFunction<
+  State,
+  { taskListId: string; task: Task }
+> = (getState, commit, { taskListId, task: newTask }) => {
   const doc = docs.taskLists[taskListId];
   const taskList = doc.getMap(taskListId);
   const tasks = taskList.get("tasks") as Y.Array<Y.Map</* FIXME */ any>>;
@@ -443,7 +444,9 @@ export const updateTask: MutationFunction = (
   task.set("completed", newTask.completed);
   task.set("date", newTask.date);
 
-  const tl = taskList.toJSON() as TaskList;
+  const tl = getState().preferences.autoSort
+    ? sortTasksWithoutCommit(taskListId)
+    : (taskList.toJSON() as TaskList);
   tl.update = Y.encodeStateAsUpdate(doc);
   commit({ taskLists: { [tl.id]: tl } });
   updateTaskListAsync(tl);

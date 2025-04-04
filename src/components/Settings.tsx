@@ -115,6 +115,22 @@ export function Settings({ preferences, profile }) {
                 </Select.Portal>
               </Select.Root>
             </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="autoSort"
+                checked={preferences.autoSort}
+                onChange={(e) => {
+                  mutate(updatePreferences, {
+                    preferences: { autoSort: e.target.checked },
+                  });
+                }}
+                className="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="autoSort" className="block">
+                {t("Automatically sort tasks by date")}
+              </label>
+            </div>
           </div>
         </div>
 

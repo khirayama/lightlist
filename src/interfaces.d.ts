@@ -35,6 +35,7 @@ type Profile = {
 type Preferences = {
   lang: "EN" | "JA";
   theme: "SYSTEM" | "LIGHT" | "DARK";
+  autoSort: boolean;
 };
 
 type GlobalState = {

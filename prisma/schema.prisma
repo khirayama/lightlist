@@ -59,6 +59,7 @@ model Profile {
 model Preferences {
   id     Int    @id @default(autoincrement())
   userId String @unique @db.Uuid
-  lang   Lang   @default(JA)
-  theme  Theme  @default(SYSTEM)
+  lang     Lang    @default(JA)
+  theme    Theme   @default(SYSTEM)
+  autoSort Boolean @default(false)
 }

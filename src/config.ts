@@ -19,6 +19,7 @@ export function createInitialState(): GlobalState {
     preferences: {
       lang: "EN",
       theme: "SYSTEM",
+      autoSort: false,
     },
     taskLists: {},
     isInitialized: {

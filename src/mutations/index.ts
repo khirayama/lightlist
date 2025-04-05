@@ -131,15 +131,6 @@ export const updateEmail: MutationFunction = (_, commit, { email }) => {
   // TODO
 };
 
-export const updatePassword: MutationFunction = (
-  _,
-  commit,
-  { currentPassword, newPassword },
-) => {
-  console.log("Executing: updatePassword");
-  // TODO
-};
-
 export const updatePreferences: MutationFunction = (
   _,
   commit,

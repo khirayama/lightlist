@@ -8,10 +8,12 @@
     - [x] 実装する
 - [ ] /new#/home
     - [ ] paramsのtaskListIdに合わせてtasklistをスクロール
-    - [ ] 並び替えがなんかバグってるぽい？たまに変
     - [ ] mobileで、2つめ以降のtask listで、taskをソートした時、スクロールxが0になる
+    - [ ] TaskListの背景色を変える設定を追加
+    - [x] 並び替えがなんかバグってるぽい？たまに変
 - [x] /new#/menu
 - [ ] /new#/settings
+    - [ ] メールアドレス更新
     - [x] auto sortの実装
     - [x] delete accountを実装
     - [x] i18nの定義

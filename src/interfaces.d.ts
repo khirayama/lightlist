@@ -29,7 +29,6 @@ type App = {
 
 type Profile = {
   displayName: string;
-  email: string;
 };
 
 type Preferences = {

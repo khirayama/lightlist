@@ -54,7 +54,7 @@ function AppDrawer({ app, taskLists, profile }) {
   );
 }
 
-function MainContent({ app, preferences, profile, taskLists }) {
+function MainContent({ app, preferences, profile, taskLists, auth }) {
   const { isNarrowLayout } = useDrawerLayout();
   const navigation = useNavigation();
   const attr = navigation.getAttr();
@@ -77,7 +77,7 @@ function MainContent({ app, preferences, profile, taskLists }) {
       </header>
       {attr.path === "/settings" ||
       (attr.path === "/menu" && attr.referrer === "/settings") ? (
-        <Settings preferences={preferences} profile={profile} />
+        <Settings preferences={preferences} profile={profile} auth={auth} />
       ) : (
         <AppMain app={app} taskLists={taskLists} />
       )}
@@ -85,7 +85,7 @@ function MainContent({ app, preferences, profile, taskLists }) {
   );
 }
 
-export function App({ app, preferences, profile, taskLists }) {
+export function App({ app, preferences, profile, taskLists, auth }) {
   const { changeLanguage } = useCustomTranslation();
   changeLanguage(preferences.lang.toLowerCase());
 
@@ -112,6 +112,7 @@ export function App({ app, preferences, profile, taskLists }) {
       <DrawerLayout isDrawerOpen={isDrawerOpen}>
         <AppDrawer app={app} taskLists={taskLists} profile={profile} />
         <MainContent
+          auth={auth}
           app={app}
           preferences={preferences}
           taskLists={taskLists}

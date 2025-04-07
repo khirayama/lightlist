@@ -17,6 +17,7 @@ function Loading() {
 function Content() {
   const [
     {
+      auth,
       app,
       profile,
       preferences,
@@ -38,6 +39,7 @@ function Content() {
       isTaskListsInitialized &&
       isProfileInitialized ? (
         <App
+          auth={auth}
           app={app}
           preferences={preferences}
           profile={profile}

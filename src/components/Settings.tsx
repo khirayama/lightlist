@@ -15,12 +15,12 @@ import { useGlobalState } from "globalstate/react";
 import { updateEmail, updatePreferences, updateProfile } from "mutations";
 import { signOut, updatePassword, deleteUser } from "services";
 
-export function Settings({ preferences, profile }) {
+export function Settings({ preferences, profile, auth }) {
   const { t, supportedLanguages } = useCustomTranslation("components.Settings");
 
   const [, , mutate] = useGlobalState();
   const [displayName, setDisplayName] = useState(profile.displayName || "");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(auth.session.user.email || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

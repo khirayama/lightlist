@@ -15,6 +15,7 @@ import {
   deleteTaskList as deleteTaskListAsync,
   updatePreferences as updatePreferencesAsync,
   updateProfile as updateProfileAsync,
+  updateEmail as updateEmailAsync,
 } from "services";
 import { MutationFunction } from "globalstate/react";
 
@@ -127,8 +128,16 @@ export const fetchTaskLists: MutationFunction = (_, commit) => {
 };
 
 export const updateEmail: MutationFunction = (_, commit, { email }) => {
-  console.log("Executing: updateEmail");
-  // TODO
+  commit({
+    auth: {
+      session: {
+        user: {
+          email,
+        },
+      },
+    },
+  });
+  updateEmailAsync(email);
 };
 
 export const updatePreferences: MutationFunction = (

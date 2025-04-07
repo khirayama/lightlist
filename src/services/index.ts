@@ -74,6 +74,20 @@ export async function resetPasswordForEmail(
   });
 }
 
+export async function updateEmail(newEmail: string) {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase.auth.updateUser({
+    email: newEmail,
+  });
+
+  if (error) {
+    console.error("Email update error:", error.message);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, user: data.user };
+}
+
 export async function updatePassword(newPassword: string) {
   const supabase = createSupabaseClient();
   const { data, error } = await supabase.auth.updateUser({

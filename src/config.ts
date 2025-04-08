@@ -14,7 +14,6 @@ export function createInitialState(): GlobalState {
     },
     profile: {
       displayName: "",
-      email: "",
     },
     preferences: {
       lang: "EN",

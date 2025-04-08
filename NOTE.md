@@ -20,8 +20,8 @@
     - [x] logoutを実装
     - [x] change passwordを実装
 - [ ] /new#/sharing/:taskListId
-    - [ ] shareCodeの更新
     - [ ] 他のアプリで共有の動作確認
+    - [x] shareCodeの更新
 - [x] /new#/task-lists/:taskListId/tasks/:taskId/date
 - [ ] /new#/404
     - [ ] 実装する

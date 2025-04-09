@@ -28,9 +28,9 @@
 - [ ] /share
     - [ ] 実装する
 - [ ] 全体
-    - [ ] i18nの見直し
     - [ ] themeの見直し
     - [ ] tailwindの見直し https://future-architect.github.io/articles/20250314a/
+    - [x] i18nの見直し
 
 ## Platform & Devices
 

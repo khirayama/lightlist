@@ -1,4 +1,8 @@
+import { useCustomTranslation } from "ui/i18n";
+
 export default function NotFound() {
+  const { t } = useCustomTranslation("pages.NotFound");
+
   return (
     <div>
       <a href="/">Go to Home</a>

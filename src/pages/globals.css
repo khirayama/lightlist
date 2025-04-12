@@ -83,6 +83,7 @@ html {
   text-rendering: optimizeLegibility;
   text-box: trim-both cap alphabetic;
   color-scheme: light dark;
+  text-wrap: balance;
 }
 
 .dark {

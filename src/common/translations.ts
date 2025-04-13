@@ -78,6 +78,12 @@ export const jaTranslation = {
         "共有コードに一致するタスクリストがありません",
       "Please join {{name}} list!": "{{name}}リストに参加してください！",
     },
+    "404": {
+      "Go to Home": "ホームに戻る",
+      "Page Not Found": "ページが見つかりません",
+      "The page you are looking for does not exist.":
+        "お探しのページは存在しません。",
+    },
   },
   components: {
     Settings: {
@@ -240,6 +246,12 @@ export const enTranslation: typeof jaTranslation = {
       "No matched task list with the share code":
         "No matched task list with the share code",
       "Please join {{name}} list!": "Please join {{name}} list!",
+    },
+    "404": {
+      "Go to Home": "Go to Home",
+      "Page Not Found": "Page Not Found",
+      "The page you are looking for does not exist.":
+        "The page you are looking for does not exist.",
     },
   },
   components: {

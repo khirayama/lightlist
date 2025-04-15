@@ -23,6 +23,7 @@
     - [ ] 他のアプリで共有の動作確認
     - [x] shareCodeの更新
 - [x] /new#/task-lists/:taskListId/tasks/:taskId/date
+    - [x] 実装する
 - [ ] /new#/404
     - [ ] 実装する
 - [ ] /share

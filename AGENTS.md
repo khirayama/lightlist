@@ -28,12 +28,15 @@
 ## プロジェクト構成
 
 - リポジトリ直下に Node の manifest は置かず、Web の Node ツール・lockfile は `apps/web` に集約する。
-- Web: `apps/web`（Next.js Pages Router + TypeScript + Tailwind）
+- Web: `apps/web`（Vite multi-page app + React + TypeScript + Tailwind）
+- Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
 - iOS: `apps/ios`（SwiftUI, iOS 17+）— XcodeGen (`project.yml`) でプロジェクト生成
 - Android: `apps/android`（Kotlin + Gradle）
 - SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/lib/` に統合済み。独立パッケージ (`packages/sdk`) は廃止。
-- Firebase 初期化は `apps/web/src/lib/firebase.ts` に閉じ、`process.env.NEXT_PUBLIC_FIREBASE_*` を直接読む。Web の App Check も同ファイルで初期化し、`NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` を使う。別途の初期化呼び出しは不要。
+- Firebase 初期化は `apps/web/src/common.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。Web の App Check も同ファイルで初期化し、`VITE_FIREBASE_APPCHECK_SITE_KEY` を使う。別途の初期化呼び出しは不要。
 - pages は `firebase/*` を直接 import しない。Web 共通コードは `apps/web/src/common.tsx` へ集約し、page 側は `@/common` を使う。
+- Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
+- Web の HTML entry から `src/entries/*` を読む script path は、必ず各 HTML ファイル自身の配置位置を基準に相対指定する。`apps/web/html/index.html` と `apps/web/html/404.html` / `500.html` は `../src/entries/*.tsx`、`apps/web/html/*/index.html` は `../../src/entries/*.tsx` を使う。Vite 設定の `/src` alias も維持し、dev server の正規化後パスを `apps/web/src/*` へ解決させる。
 - Firebase デプロイ設定（`firestore.rules`, `firebase.json`, `.firebaserc`, `firestore.indexes.json`）はリポジトリルートに配置。
 - `.gitignore` はルートで共通ローカル生成物（OS / editor / Node / Firebase 設定）を管理し、`apps/web/.gitignore` / `apps/ios/.gitignore` / `apps/android/.gitignore` は各アプリ固有の生成物だけを管理する。
 - `apps/ios` の commit 対象は `project.yml` と `Lightlist/` 配下のソースを基本とし、`xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` は含めない。`GoogleService-Info.plist` は `apps/ios/Lightlist/Resources/` にローカル配置して `.gitignore` で除外する。entitlements は `apps/ios/Lightlist/Lightlist.entitlements` を使う。
@@ -78,15 +81,15 @@
 - Android の launcher icon は `shared/assets/brand/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
 - タスクリストは `taskLists.memberCount` で保持ユーザー数を管理し、削除操作は「`taskListOrder` から外す」を基本とする。`memberCount` が 0 になった場合のみ `taskLists` 実体を削除する。
 - 共有権限モデルは「共有URLを知っているユーザーは未認証でも閲覧・編集可」を仕様として固定する。production readiness 評価で挙がった認可モデル再設計（item1）は 2026-03 時点で対応不要とする。
-- パスワードリセットURLは `NEXT_PUBLIC_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
+- パスワードリセットURLは `VITE_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
 - `shared/locales/locales.json` は英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。
 - Web は言語切替時に `document.documentElement.lang` と `dir` を同期する。`ar` は RTL、それ以外は LTR。
 - Web の `StartupSplash` は hydration mismatch を避けるため、読み上げラベルを i18n の初期言語解決に依存させず固定文字列（`読み込み中`）で扱う。
 - Web の `Carousel` は `direction` prop を必須運用し、RTL 時の `scrollLeft` はブラウザ差分（positive/negative）を正規化して index を算出する。
 - Web の認証後シェルは `apps/web/src/pages/app.tsx` を単一入口とし、`/app#/task-lists` を stack root、`/app#/task-lists/:taskListId` を task list 詳細、`/app#/settings` を設定画面として扱う。`/app` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。
-- Web の開発サーバーと production build は `next dev --webpack` / `next build --webpack` を使う。Next 16 系の Turbopack は `shared/locales/locales.json` のような repo 共通 resource 参照や Vercel の `onBuildComplete` と相性が悪いため、dev/build とも webpack に固定する。
-- Web の本番レスポンスヘッダは `apps/web/next.config.js` で管理し、`Content-Security-Policy`、`Referrer-Policy`、`X-Content-Type-Options`、`X-Frame-Options`、`Permissions-Policy`、`Strict-Transport-Security` を付与する。
+- Web の開発サーバーと production build は `vite` / `vite build` を使う。
+- Web の本番レスポンスヘッダはアプリ内では持たず、配信基盤側で `Content-Security-Policy`、`Referrer-Policy`、`X-Content-Type-Options`、`X-Frame-Options`、`Permissions-Policy`、`Strict-Transport-Security` を付与する。
 - 配信用スクリーンショットの元画像は `apps/ios/screenshots` / `apps/android/screenshots` / `apps/web/screenshots` に置き、生成は `cd apps/web && npm run screenshots:generate -- <target>` またはルートの `just screenshots <target>` で行う。出力は iOS が `apps/ios/screenshots/app-store/iphone-6.9`、Android が `apps/android/screenshots/google-play/phone`、Web が `apps/web/public/screenshots/store/{wide,narrow}`。変換は中央基準の cover crop を使い、iOS App Store は `1290x2796`、Google Play phone は `1080x1920`、Web manifest screenshots は wide `1920x1080` / narrow `750x1334` を正とする。現行フローは iPhone 比率の元画像だけを対象にし、iPad App Store スクリーンショットは別途 iPad 実画面の元画像追加が必要。
 - `apps/web` では `pages/*` 以外の共通 TS/TSX は `apps/web/src/common.tsx` 1 ファイルへ集約し、route file 側は page 固有ロジックだけを持つ。
 - Web の主要ページ:
@@ -94,7 +97,7 @@
   - `apps/web/src/pages/login.tsx`（サインイン/サインアップ/リセット依頼）
   - `apps/web/src/pages/app.tsx`
   - `apps/web/src/pages/password_reset.tsx`
-  - `apps/web/src/pages/sharecodes/[sharecode].tsx`
+  - `apps/web/src/pages/sharecodes.tsx`
   - `apps/web/src/pages/404.tsx`（カスタム404ページ）
   - `apps/web/src/pages/500.tsx`（カスタム500ページ）
 - 共通 import:

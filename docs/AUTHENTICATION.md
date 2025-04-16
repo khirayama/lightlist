@@ -11,23 +11,23 @@
 ## Web の必須環境変数
 
 - Firebase 初期化
-  - `NEXT_PUBLIC_FIREBASE_API_KEY`
-  - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-  - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-  - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
-  - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-  - `NEXT_PUBLIC_FIREBASE_APP_ID`
-  - `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY`
+  - `VITE_FIREBASE_API_KEY`
+  - `VITE_FIREBASE_AUTH_DOMAIN`
+  - `VITE_FIREBASE_PROJECT_ID`
+  - `VITE_FIREBASE_STORAGE_BUCKET`
+  - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+  - `VITE_FIREBASE_APP_ID`
+  - `VITE_FIREBASE_APPCHECK_SITE_KEY`
 - パスワードリセット
-  - `NEXT_PUBLIC_PASSWORD_RESET_URL`
+  - `VITE_PASSWORD_RESET_URL`
 - App Check 開発トークン
-  - `NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN`（localhost で App Check debug token を固定したい場合のみ）
+  - `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`（localhost で App Check debug token を固定したい場合のみ）
 
 ## App Check
 
 - Web は `apps/web/src/common.tsx` で Firebase App 初期化時に App Check を有効化する。
-- Web の provider は `ReCaptchaEnterpriseProvider` を使い、`NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` を必須とする。
-- Web の localhost / `127.0.0.1` では `FIREBASE_APPCHECK_DEBUG_TOKEN` を自動設定し、`NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN` があればその値を使い、未設定時は debug token 自動発行モードを使う。
+- Web の provider は `ReCaptchaEnterpriseProvider` を使い、`VITE_FIREBASE_APPCHECK_SITE_KEY` を必須とする。
+- Web の localhost / `127.0.0.1` では `FIREBASE_APPCHECK_DEBUG_TOKEN` を自動設定し、`VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` があればその値を使い、未設定時は debug token 自動発行モードを使う。
 - iOS は `ContentView.swift` 内の `LightlistApp` で App Check provider factory を設定し、simulator / Debug では debug provider、本番デバイスでは App Attest 優先・DeviceCheck フォールバックで初期化する。
 - Android は `MainActivity.kt` で App Check provider factory を設定し、Debug では debug provider、release では Play Integrity provider を使う。
 - Firebase Console 側で Web / iOS / Android app を App Check 登録し、Firestore / Auth の enforcement を有効化する前提とする。
@@ -65,7 +65,7 @@
 ## Web のパスワードリセット
 
 - リセットメール送信は `sendPasswordResetEmail(email, language?)` を使う。
-- `ActionCodeSettings` は `url: NEXT_PUBLIC_PASSWORD_RESET_URL`、`handleCodeInApp: false`。
+- `ActionCodeSettings` は `url: VITE_PASSWORD_RESET_URL`、`handleCodeInApp: false`。
 - メール送信時の言語は、明示引数、現在設定、`ja` の順で解決する。
 - コード検証は `verifyPasswordResetCode(code)`、確定は `confirmPasswordReset(code, newPassword)`。
 - `apps/web/src/pages/password_reset.tsx` は `oobCode` を検証し、成功時は 2 秒後に `/` へ遷移する。
@@ -96,6 +96,7 @@
 
 - Web の認証画面は `apps/web/src/pages/login.tsx`。
 - iOS のパスワードリセット deep link は `lightlist://password-reset?oobCode=...` を受け、`ContentView` の full screen cover で新しいパスワード入力画面を表示する。
+- Web の共有コードページは `/sharecodes?code=CODE` を受け、未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - iOS の共有コード deep link は `lightlist://sharecodes/CODE` と `https://lightlist.com/sharecodes/CODE` を受け、未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - Android の deep link は `lightlist://password-reset?oobCode=...`、`lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`、`https://lightlist.com/password_reset?oobCode=...` を処理する。
 - Android の共有コード deep link は未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。

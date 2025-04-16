@@ -34,7 +34,7 @@
 
 ## 登録
 
-- `_app.tsx` で HTTPS、`localhost`、`127.0.0.1` のときだけ `/sw.js` を登録する。
+- `apps/web/src/common.tsx` の `AppWrapper` で HTTPS、`localhost`、`127.0.0.1` のときだけ `/sw.js` を登録する。
 - 登録成功後に `registration.update()` を呼ぶ。
 - 登録失敗時は握りつぶす。
 
@@ -46,7 +46,7 @@
 ## すること
 
 - manifest と service worker は最小構成のまま維持する。
-- `_app.tsx` からの登録条件は HTTPS または localhost 系に限定する。
+- `AppWrapper` からの登録条件は HTTPS または localhost 系に限定する。
 
 ## しないこと
 

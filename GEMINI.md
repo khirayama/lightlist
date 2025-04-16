@@ -18,9 +18,12 @@
 ## 3. 現在の構成
 
 - リポジトリ直下に Node の manifest は置かず、Web の Node ツール・lockfile は `apps/web` に集約する
-- `apps/web`（Next.js）/ `apps/ios`（SwiftUI）/ `apps/android`（Kotlin）
+- `apps/web`（Vite multi-page app）/ `apps/ios`（SwiftUI）/ `apps/android`（Kotlin）
+- Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
 - SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/lib/` に統合済み。独立パッケージは廃止。
-- Firebase 初期化は `apps/web/src/lib/firebase.ts` に閉じ、`process.env.NEXT_PUBLIC_FIREBASE_*` を直接読む。Web の App Check も同ファイルで初期化し、`NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` を使う。
+- Firebase 初期化は `apps/web/src/common.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。Web の App Check も同ファイルで初期化し、`VITE_FIREBASE_APPCHECK_SITE_KEY` を使う。
+- Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
+- Web の HTML entry から `src/entries/*` を読む script path は、各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。
 - pages は `firebase/*` を直接 import しない。Web 共通コードは `apps/web/src/common.tsx` へ集約し、page 側は `@/common` を使う。
 - タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/common.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。
 - Firebase デプロイ設定（`firestore.rules`, `firebase.json`, `.firebaserc`）はリポジトリルートに配置。
@@ -49,10 +52,10 @@
 - iOS の SwiftUI 並び替えドラッグは、移動中の行の local 座標系ではなく親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で収集した行高さだけを使う。`frame(in:)` の位置監視を drag state に戻さない。
 - iOS の全画面ルートと sheet / dialog は `frame(maxWidth: .infinity, maxHeight: .infinity)` を維持しつつ、背景ビュー側だけで safe area を無視する。標準ナビゲーションバーを使わない iPhone ヘッダーは `SafeAreaNavigationHeader` と `safeAreaInset(edge: .top)` を使う。
 - iOS の custom header 付き画面と sheet / dialog は、header を `safeAreaInset(edge: .top)` に載せ、本文 root も `frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)` で画面高または detent 高いっぱいまで広げる。
-- パスワードリセットURLは `NEXT_PUBLIC_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
+- パスワードリセットURLは `VITE_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
 - iOS のパスワードリセット URL は Info.plist の `PASSWORD_RESET_URL`、Android は `BuildConfig.PASSWORD_RESET_URL` を使い、既定値は `https://lightlist.com/password_reset` とする。
 - iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。共有コード deep link は未認証でも共有リストプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。Android の deep link は `lightlist://password-reset?...`、`lightlist://sharecodes/...`、`https://lightlist.com/sharecodes/...`、`https://lightlist.com/password_reset?...` を処理する。
-- Web の本番 security headers は `apps/web/next.config.js` で管理する。
+- Web の本番 security headers は配信基盤側で管理する。
 - Android の release build は `isMinifyEnabled = true`、`allowBackup = false`、App Check は release で Play Integrity provider を使う。
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
 - `shared/locales/locales.json` は英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。
@@ -70,14 +73,14 @@
 - Web は言語切替時に `document.documentElement.lang` と `dir` を同期する。`ar` は RTL、それ以外は LTR。
 - Web の `StartupSplash` は hydration mismatch 回避のため、読み上げラベルを i18n の初期言語解決に依存させず固定文字列（`読み込み中`）で扱う。
 - Web の `Carousel` は `direction` prop で方向を受け取り、RTL 時の `scrollLeft` はブラウザ差分を正規化して index を管理する。
-- Web の開発サーバーと production build は `next dev --webpack` / `next build --webpack` を使う。Next 16 系の Turbopack は `shared/locales/locales.json` のような repo 共通 resource 参照や Vercel の `onBuildComplete` と相性が悪いため、dev/build とも webpack に固定する。
+- Web の開発サーバーと production build は `vite` / `vite build` を使う。
 - iOS / Android の task row は drag handle・完了トグル・本文の縦方向中心を揃え、日付ラベルは本文や編集欄の縦位置を押し下げず、同じ本文領域内の直上へ近接表示する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
 - 配信用スクリーンショットの元画像は `apps/ios/screenshots` / `apps/android/screenshots` / `apps/web/screenshots` に置き、生成は `cd apps/web && npm run screenshots:generate -- <target>` または `just screenshots <target>` で行う。出力は iOS が `apps/ios/screenshots/app-store/iphone-6.9`、Android が `apps/android/screenshots/google-play/phone`、Web が `apps/web/public/screenshots/store/{wide,narrow}`。中央基準の cover crop を使い、iOS は `1290x2796`、Android phone は `1080x1920`、Web manifest screenshots は wide `1920x1080` / narrow `750x1334` を正とする。iPad App Store スクリーンショットは別途 iPad 実画面の元画像追加が必要。
 - `apps/web` では画面固有、または 1〜2 箇所でしか使わない UI / helper / hook は standalone file にせず、`pages/*` または直近のドメインファイルへ近接配置する。
-- `apps/web`: Next.js Pages Router
+- `apps/web`: Vite multi-page app
   - 認証: `apps/web/src/pages/login.tsx`
-  - 共有: `apps/web/src/pages/sharecodes/[sharecode].tsx`
-- Web の本番 env は Next.js 標準の `.env.production` / `.env.production.local` または deploy 環境変数で供給し、build/start 前に `.env` をコピーしない。
+  - 共有: `apps/web/src/pages/sharecodes.tsx`
+- Web の本番 env は Vite の `.env.production` / `.env.production.local` または deploy 環境変数で供給し、build 前に `.env` をコピーしない。
 
 ## 4. 作業フロー
 

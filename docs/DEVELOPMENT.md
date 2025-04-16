@@ -22,7 +22,8 @@
 
 - ルートに Node の manifest は置かない。
 - Web の Node ツールと lockfile は `apps/web` に集約する。
-- Web は Next.js Pages Router + TypeScript + Tailwind。
+- Web は Vite multi-page app + React + TypeScript + Tailwind。
+- Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
 - iOS は SwiftUI + XcodeGen。
 - Android は Kotlin + Gradle。
 - Firebase デプロイ設定はリポジトリルートに置く。
@@ -40,9 +41,11 @@
 - Firebase 初期化、App Check 初期化、i18n、認証・設定・タスクリスト関連の Web 共通コードは `apps/web/src/common.tsx` に集約する。
 - Web の状態購読は `apps/web/src/common.tsx` の `AppStateProvider` を正とし、Auth / settings / taskLists は `Context + useEffect` で購読する。
 - Web UI から `firebase/*` を直接 import せず、共通実装は `@/common` を通す。
+- Web の Vite root は `apps/web/html` とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
+- Web の各 HTML entry から `src/entries/*` を読む script は、その HTML ファイル自身の配置位置を基準に相対参照する。`apps/web/html/index.html` と `apps/web/html/404.html` / `500.html` は `../src/entries/*.tsx`、`apps/web/html/*/index.html` は `../../src/entries/*.tsx` を使う。dev server では `/src/*` へ正規化された参照も `apps/web/src/*` へ解決できるように Vite alias を維持する。
 - Web の認証後シェルは `apps/web/src/pages/app.tsx` を単一入口とし、`/app#/task-lists` を stack root、`/app#/task-lists/:taskListId` を task list 詳細、`/app#/settings` を設定画面として扱う。`/app` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。mobile では tasklists root・detail・settings を同じシェル内の stack と横スライドで扱う。
-- 開発サーバーと本番 build は `next dev --webpack` / `next build --webpack` を使う。
-- 本番レスポンスヘッダは `apps/web/next.config.js` で管理する。
+- 開発サーバーと本番 build は `vite` / `vite build` を使う。
+- 本番レスポンスヘッダは配信基盤側で管理する。
 
 ## Native の前提
 

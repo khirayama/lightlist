@@ -1,0 +1,36 @@
+{
+  "name": "lightlist",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "check": "turbo run lint type-check",
+    "clean": "turbo run clean",
+    "setup": "npm install && turbo run setup",
+    "setup:dev": "npm run setup && npm run db:start && npm run db:setup",
+    "setup:test": "npm run setup && npm run db:start:test && npm run db:setup:test",
+    "setup:full": "npm run setup:dev && npm run setup:test",
+    "db:start": "docker-compose up -d db",
+    "db:stop": "docker-compose down db",
+    "db:start:test": "docker-compose up -d db-test",
+    "db:stop:test": "docker-compose down db-test",
+    "db:setup": "turbo run db:migrate db:generate --filter=@lightlist/api",
+    "db:setup:test": "turbo run db:migrate:test db:generate --filter=@lightlist/api"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

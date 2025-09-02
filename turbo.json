@@ -1,0 +1,92 @@
+{
+  "tasks": {
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [
+        "dist/**",
+        "build/**",
+        ".next/**",
+        "!.next/cache/**",
+        "android/app/build/**",
+        "ios/build/**"
+      ],
+      "inputs": [
+        "src/**",
+        "index.ts",
+        "*.config.js",
+        "*.config.ts",
+        "tsconfig.json",
+        "package.json"
+      ]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "src/**",
+        "test/**",
+        "*.test.ts",
+        "*.test.js",
+        "*.spec.ts",
+        "*.spec.js",
+        "tsconfig.json",
+        "jest.config.js",
+        "vitest.config.ts"
+      ]
+    },
+    "test:integration": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "cache": false
+    },
+    "lint": {
+      "outputs": [],
+      "inputs": [
+        "src/**",
+        "*.ts",
+        "*.js",
+        "*.tsx",
+        "*.jsx",
+        "tsconfig.json",
+        ".eslintrc.js",
+        ".eslintrc.json"
+      ]
+    },
+    "type-check": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "inputs": [
+        "src/**",
+        "*.ts",
+        "*.tsx",
+        "tsconfig.json"
+      ]
+    },
+    "clean": {
+      "cache": false
+    },
+    "setup": {
+      "dependsOn": ["^setup"],
+      "cache": false
+    },
+    "db:generate": {
+      "cache": false
+    },
+    "db:migrate": {
+      "cache": false
+    },
+    "db:migrate:test": {
+      "cache": false
+    }
+  },
+  "globalDependencies": [
+    ".env",
+    ".env.local",
+    "docker-compose.yml"
+  ]
+}

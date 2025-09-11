@@ -21,12 +21,38 @@
 // });
 import "./src/global.css"
 import { Text, View } from "react-native";
+import i18n from "i18next";
+import { useTranslation, initReactI18next } from "react-i18next";
+
+i18n
+  .use(initReactI18next)
+  .init({
+    resources: {
+      en: {
+        translation: {
+          "Welcome to Nativewind": "Welcome to Nativewind",
+        }
+      },
+      ja: {
+        translation: {
+          "Welcome to Nativewind": "Nativewindへようこそ",
+        }
+      }
+    },
+    lng: "ja",
+    fallbackLng: "ja",
+    interpolation: {
+      escapeValue: false
+    }
+  });
  
 export default function App() {
+  const { t } = useTranslation();
+
   return (
     <View className="flex-1 items-center justify-center bg-white">
       <Text className="text-xl font-bold text-red-500">
-        Welcome to Nativewind!
+        {t('Welcome to Nativewind')}
       </Text>
     </View>
   );

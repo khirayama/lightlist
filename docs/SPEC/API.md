@@ -16,14 +16,14 @@
 
 認証は全てSupabase Authを使用。
 
-- `GET    /api/app` - App(AppDoc)設定取得（theme, language, taskInsertPosition, autoSort）
-- `PUT    /api/app` - App(AppDoc)設定更新
-- `POST   /api/tasklists` - TaskList(TaskListDoc)作成
-- `GET    /api/tasklists` - TaskList(TaskListDoc)一覧取得
-- `PUT    /api/tasklists/:taskListId` - TaskList(TaskListDoc)更新
-- `DELETE /api/tasklists/:taskListId` - TaskList(TaskListDoc)削除
-- `GET    /api/tasklists?token=token` - 共有トークンによるTaskList(TaskListDoc)取得
-- `POST   /api/tasklists/:taskListId/token` - タスクリスト共有トークンを生成・更新
+- `GET    /api/appdoc` - App(AppDoc)設定取得（theme, language, taskInsertPosition, autoSort）
+- `PUT    /api/appdoc` - App(AppDoc)設定更新
+- `POST   /api/tasklistdocs` - TaskList(TaskListDoc)作成
+- `GET    /api/tasklistdocs` - TaskList(TaskListDoc)一覧取得
+- `PUT    /api/tasklistdocs/:taskListId` - TaskList(TaskListDoc)更新
+- `DELETE /api/tasklistdocs/:taskListId` - TaskList(TaskListDoc)削除
+- `GET    /api/tasklistdocs?token=token` - 共有トークンによるTaskList(TaskListDoc)取得
+- `POST   /api/tasklistdocs/:taskListId/token` - タスクリスト共有トークンを生成・更新
 
 ### 注意事項
 
@@ -34,7 +34,7 @@
 ## 3. リクエスト/レスポンス例
 
 ```json
-// GET /app
+// GET /appdoc
 // Response
 {
   "data": {
@@ -47,7 +47,7 @@
   "message": "App settings retrieved successfully"
 }
 
-// PUT /app
+// PUT /appdoc
 {
   "taskInsertPosition": "bottom",
   "autoSort": true
@@ -63,31 +63,6 @@
   "message": "App settings updated successfully"
 }
 
-// POST /collaborative/sessions
-{
-  "sessionType": "active"  // オプション（デフォルト: "active"）
-}
-
-// Response
-{
-  "data": {
-    "sessions": [
-      {
-        "taskListId": "list1",
-        "sessionId": "session_xxx",
-        "documentState": "base64-encoded-yjs-document",
-        "stateVector": "base64-encoded-state-vector"
-      },
-      {
-        "taskListId": "list2",
-        "sessionId": "session_yyy",
-        "documentState": "base64-encoded-yjs-document",
-        "stateVector": "base64-encoded-state-vector"
-      }
-    ]
-  },
-  "message": "Sessions started successfully"
-}
 
 // GET /health
 // Response

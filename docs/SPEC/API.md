@@ -21,6 +21,7 @@
 - `POST   /api/tasklistdocs` - TaskList(TaskListDoc)作成
 - `GET    /api/tasklistdocs` - TaskList(TaskListDoc)一覧取得
 - `PUT    /api/tasklistdocs/:taskListId` - TaskList(TaskListDoc)更新
+- `PUT    /api/tasklistdocs/order` - TaskList(TaskListDoc)の順序更新
 - `DELETE /api/tasklistdocs/:taskListId` - TaskList(TaskListDoc)削除
 - `GET    /api/tasklistdocs?token=token` - 共有トークンによるTaskList(TaskListDoc)取得
 - `POST   /api/tasklistdocs/:taskListId/token` - タスクリスト共有トークンを生成・更新

@@ -17,15 +17,15 @@
 認証は全てSupabase Authを使用。
 TaskListDocとTaskListDocOrderはLoroのCRDTドキュメントとして管理。TaskListDocはLoro Docを明示するため、doc suffixを付与。
 
-- `GET    /api/app` - App設定取得
-- `PUT    /api/app` - App設定更新
-- `PUT    /api/tasklistdocs/order` - TaskList(TaskListDoc)の順序更新。taskListDocOrderの更新。
+- `GET    /api/settings` - Settings設定取得
+- `PUT    /api/settings` - Settings設定更新
 - `POST   /api/tasklistdocs` - TaskList(TaskListDoc)作成
 - `GET    /api/tasklistdocs` - TaskList(TaskListDoc)一覧取得
 - `PUT    /api/tasklistdocs/:taskListId` - TaskList(TaskListDoc)更新
 - `DELETE /api/tasklistdocs/:taskListId` - TaskList(TaskListDoc)削除
-- `GET    /api/tasklistdocs?token=token` - 共有トークンによるTaskList(TaskListDoc)取得
+- `PUT    /api/tasklistdocs/order` - TaskList(TaskListDoc)の順序更新。taskListDocOrderの更新。
 - `POST   /api/tasklistdocs/:taskListId/token` - タスクリスト共有トークンを生成・更新
+- `GET    /api/tasklistdocs?token=token` - 共有トークンによるTaskList(TaskListDoc)取得
 - `GET    /api/health` - システムヘルスチェック
 - `GET    /api/metrics` - システムメトリクス取得
 

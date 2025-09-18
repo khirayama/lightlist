@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,5 +7,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Add your models here as needed
-// This is a minimal schema to get started
+// ユーザー管理にはSupabase Authを使用
+// User: Settings = 1:1
+// User: TaskListDocOrderDoc = 1:1
+// User: TaskListDoc = N:N
+
+// ユーザー設定とプリファレンス
+// Supabase Authユーザーとの1:1リレーション
+model Settings {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  theme              String   @default("light") @db.VarChar(50)
+  language           String   @default("ja") @db.VarChar(20)
+  taskInsertPosition String   @default("top") @db.VarChar(50)
+  autoSort           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// LoroのCRDTを使用したタスクリスト順序管理
+// ユーザーとの1:1リレーション - 全タスクリストの順序を管理
+// データ整合性: order[]にはTaskListDoc.idの値が格納される
+// 責任: ユーザーが所有するTaskListDocの順序を管理
+model TaskListDocOrderDoc {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  doc       Bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // doc value snapshot
+  order     String[]
+}
+
+// 共同編集用のLoroのCRDTを使用した個別タスクリスト
+// 独立したエンティティ - ユーザーへの直接参照なし（TaskListDocOrderDoc経由で管理）
+// 共有: shareTokenによる読み取り専用アクセス
+model TaskListDoc {
+  id         String   @id @default(uuid())
+  doc        Bytes
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  // doc value snapshot
+  name       String   @db.VarChar(300)
+  background String?  @default("") @db.VarChar(100)
+  tasks      Json     @default("[]")
+  history    Json     @default("[]")
+  shareToken String?  @unique
+}

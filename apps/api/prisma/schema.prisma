@@ -12,6 +12,16 @@ datasource db {
 // User: TaskListDocOrderDoc = 1:1
 // User: TaskListDoc = N:N
 
+// 現状では追加インデックスは不要
+// - 重要な検索はすべてユニーク制約でカバー済み
+// - データ規模が小さく、フルスキャンで十分
+// - 複雑な検索クエリが存在しない
+// - アプリケーション側フィルタリングで対応可能
+// インデックスを追加すべきタイミング
+// - ユーザー数が数万人を超える
+// - タスクリスト数がユーザーあたり100個を超える
+// - 複雑な検索機能が必要になる
+
 // ユーザー設定とプリファレンス
 // Supabase Authユーザーとの1:1リレーション
 model Settings {
@@ -41,6 +51,7 @@ model TaskListDocOrderDoc {
 
 // 共同編集用のLoroのCRDTを使用した個別タスクリスト
 // 独立したエンティティ - ユーザーへの直接参照なし（TaskListDocOrderDoc経由で管理）
+// 所有権の概念がないため、ユーザーとのN:NリレーションでuserIdは不要
 // 共有: shareTokenによる読み取り専用アクセス
 model TaskListDoc {
   id         String   @id @default(uuid())

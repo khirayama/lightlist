@@ -55,6 +55,7 @@
 - Vitest
 
 NativeWind設定：
+
 - packages/stylesの共通Tailwind設定を使用
 - babel.config.jsでnativewind/babelプラグインを設定
 - metro.config.jsでwithNativeWindを設定

@@ -86,13 +86,16 @@ export const isValidPassword = (password: string): boolean => {
 // デフォルト値
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
-  language: 'ja'
+  language: 'ja',
 };
 
-export const DEFAULT_APP_SETTINGS: Omit<AppSettings, 'id' | 'userId' | 'createdAt' | 'updatedAt'> = {
+export const DEFAULT_APP_SETTINGS: Omit<
+  AppSettings,
+  'id' | 'userId' | 'createdAt' | 'updatedAt'
+> = {
   taskInsertPosition: 'top',
   autoSort: false,
-  taskListOrder: []
+  taskListOrder: [],
 };
 
 // APIエンドポイント定数
@@ -103,9 +106,9 @@ export const API_ENDPOINTS = {
     LOGOUT: '/api/auth/logout',
     REFRESH: '/api/auth/refresh',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
-    RESET_PASSWORD: '/api/auth/reset-password'
+    RESET_PASSWORD: '/api/auth/reset-password',
   },
   SETTINGS: '/api/settings',
   APP_SETTINGS: '/api/app',
-  TASKLISTS: '/api/tasklists'
+  TASKLISTS: '/api/tasklists',
 } as const;

@@ -1,12 +1,13 @@
 {
-  "name": "newnative",
+  "name": "@lightlist/native",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "setup": "cp .env.example .env 2>/dev/null || echo 'Warning: .env.example not found, please check documentation'"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",

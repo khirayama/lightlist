@@ -21,8 +21,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "lint": "eslint src --ext .ts,.js",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist node_modules",
-    "setup": "npm install"
+    "clean": "rm -rf dist node_modules"
   },
   "dependencies": {
     "zod": "^3.22.0"

@@ -64,97 +64,107 @@ NativeWind設定：
 ## 環境設定
 
 ### 前提条件
+
 - Node.js 18+
 - Docker Desktop
 - npm
 
+**注意:** Supabase CLIはプロジェクトのdevDependenciesに含まれているため、グローバルインストールは不要です。
+
 ### 初期セットアップ
 
 1. 依存関係のインストール
+
    ```bash
    npm install
    ```
 
 2. 環境ファイルのセットアップ
+
    ```bash
    npm run setup
    ```
+
    このコマンドは以下を実行します：
    - apps/api: .envファイル作成
    - apps/native: .envファイル作成
 
 3. データベースのセットアップ
+
    ```bash
    # 開発用データベースの起動とセットアップ（推奨）
    npm run setup:dev
-   
+
    # または個別に実行
-   npm run db:start          # データベースコンテナ起動
+   npm run supabase:start    # Supabaseローカル環境起動
    npm run db:setup          # スキーマ適用とクライアント生成
    ```
 
 ### データベース管理
 
-#### 開発用データベース
-```bash
-# データベースコンテナの起動
-npm run db:start
+#### Supabaseローカル環境
 
-# データベースコンテナの停止
-npm run db:stop
+```bash
+# Supabaseローカル環境の起動
+npm run supabase:start
+
+# Supabaseローカル環境の停止
+npm run supabase:stop
+
+# データベースのリセット（全データ削除・再作成）
+npm run supabase:reset
+
+# Supabaseローカル環境の状態確認
+npm run supabase:status
 
 # スキーマ適用とPrismaクライアント生成
 npm run db:setup
 
-# 開発用データベースの完全セットアップ
+# 開発用環境の完全セットアップ
 npm run setup:dev
 ```
 
-#### テスト用データベース
-```bash
-# テスト用データベースコンテナの起動
-npm run db:start:test
+#### Supabase Studio（管理画面）
 
-# テスト用データベースコンテナの停止
-npm run db:stop:test
+Supabaseローカル環境が起動していると、以下でアクセス可能：
 
-# テスト用データベースのスキーマ適用
-npm run db:setup:test
-
-# テスト用データベースの完全セットアップ
-npm run setup:test
-```
+- URL: http://localhost:54323
+- データベース管理、認証設定、ユーザー管理が可能
 
 #### セットアップオプション
+
 ```bash
 # 最小セットアップ（環境ファイルのみ）
 npm run setup
 
 # 開発環境の完全セットアップ
 npm run setup:dev
-
-# テスト環境の完全セットアップ  
-npm run setup:test
-
-# 全体の完全セットアップ（従来のsetup相当）
-npm run setup:full
 ```
 
 ### 環境変数
 
 #### apps/api/.env
+
 ```env
-DATABASE_URL="postgresql://lightlist_user:lightlist_password@localhost:5432/lightlist_db?schema=public"
+# Database (Supabase Local)
+DATABASE_URL="postgresql://postgres:postgres@localhost:54322/postgres?schema=public"
+
+# Server
 PORT=3001
 NODE_ENV=development
-JWT_SECRET=your-secret-key-here
-JWT_ACCESS_EXPIRES_IN=1h
-JWT_REFRESH_EXPIRES_IN=3y
+
+# Supabase Local
+SUPABASE_URL="http://127.0.0.1:54321"
+SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
+
+# Rate Limiting
 API_RATE_LIMIT_MAX=100
 API_RATE_LIMIT_WINDOW_MS=900000
 ```
 
 #### apps/native/.env
+
 ```env
 EXPO_PUBLIC_API_URL=http://localhost:3001
 ```
@@ -169,8 +179,21 @@ npm run dev
 ```
 
 これにより、以下のサーバーが同時に起動します：
+
 - APIサーバー: http://localhost:3001
 - Nativeアプリ: http://localhost:8081
+
+**注意:** 開発前に必ずSupabaseローカル環境を起動してください：
+
+```bash
+npm run supabase:start
+```
+
+起動後、以下のURLでアクセス可能：
+
+- Supabase API: http://localhost:54321
+- Supabase Studio: http://localhost:54323
+- PostgreSQL: localhost:54322
 
 ### 個別起動
 
@@ -201,31 +224,34 @@ npm run clean
 ### テスト実行
 
 #### 通常のテスト実行
+
 ```bash
-# 全テストを実行（テスト用DBを自動管理）
+# 全テストを実行（Supabaseローカル環境使用）
 npm run test
 
 # APIのテストのみ実行
 npm run test --filter=@lightlist/api
 ```
 
-#### テスト用データベースの事前準備
-テストの度にデータベースコンテナの起動・停止を避けたい場合：
+#### テスト用環境の事前準備
+
+テストを実行する前にSupabaseローカル環境を起動：
 
 ```bash
-# 1. テスト用データベースを事前に起動
-npm run db:start:test
+# 1. Supabaseローカル環境を起動
+npm run supabase:start
 
-# 2. 環境変数を設定してテスト実行（DB起動・停止をスキップ）
-SKIP_DB_SETUP=true SKIP_DB_CLEANUP=true npm run test --filter=@lightlist/api
+# 2. データベースのマイグレーション
+npm run db:setup
 
-# 3. テスト完了後、必要に応じてデータベースを停止
-npm run db:stop:test
+# 3. テスト実行
+npm run test --filter=@lightlist/api
 ```
 
 #### 環境変数オプション
-- `SKIP_DB_SETUP=true`: テスト用DB起動をスキップ
-- `SKIP_DB_CLEANUP=true`: テスト完了後のDB停止をスキップ
+
+- Supabaseローカル環境では開発・テスト環境が統一
+- テスト実行時にもPrismaマイグレーションが自動適用
 
 ### Nativeアプリのプラットフォーム別起動
 

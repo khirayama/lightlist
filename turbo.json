@@ -60,18 +60,9 @@
     "type-check": {
       "dependsOn": ["^build"],
       "outputs": [],
-      "inputs": [
-        "src/**",
-        "*.ts",
-        "*.tsx",
-        "tsconfig.json"
-      ]
+      "inputs": ["src/**", "*.ts", "*.tsx", "tsconfig.json"]
     },
     "clean": {
-      "cache": false
-    },
-    "setup": {
-      "dependsOn": ["^setup"],
       "cache": false
     },
     "db:generate": {
@@ -79,14 +70,7 @@
     },
     "db:migrate": {
       "cache": false
-    },
-    "db:migrate:test": {
-      "cache": false
     }
   },
-  "globalDependencies": [
-    ".env",
-    ".env.local",
-    "docker-compose.yml"
-  ]
+  "globalDependencies": [".env", ".env.local", "docker-compose.yml"]
 }

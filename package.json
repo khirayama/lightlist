@@ -13,19 +13,16 @@
     "test": "turbo run test",
     "check": "turbo run lint type-check",
     "clean": "turbo run clean",
-    "setup": "npm install && turbo run setup",
-    "setup:dev": "npm run setup && npm run db:start && npm run db:setup",
-    "setup:test": "npm run setup && npm run db:start:test && npm run db:setup:test",
-    "setup:full": "npm run setup:dev && npm run setup:test",
-    "db:start": "docker-compose up -d db",
-    "db:stop": "docker-compose down db",
-    "db:start:test": "docker-compose up -d db-test",
-    "db:stop:test": "docker-compose down db-test",
-    "db:setup": "turbo run db:migrate db:generate --filter=@lightlist/api",
-    "db:setup:test": "turbo run db:migrate:test db:generate --filter=@lightlist/api"
+    "setup": "npm run setup --workspace=@lightlist/api && npm run setup --workspace=@lightlist/native && npm run supabase:start && npm run db:setup",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "supabase:status": "supabase status",
+    "db:setup": "turbo run db:migrate db:generate --filter=@lightlist/api"
   },
   "devDependencies": {
     "prettier": "^3.0.0",
+    "supabase": "^2.40.7",
     "turbo": "^2.0.0",
     "typescript": "^5.0.0"
   },

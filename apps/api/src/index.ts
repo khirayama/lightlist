@@ -1,9 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
+import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -15,19 +15,29 @@ app.use(express.urlencoded({ extended: true }));
 
 const prisma = new PrismaClient();
 
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Supabase configuration is missing');
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
 interface AuthenticatedRequest extends express.Request {
   userId?: string;
 }
 
-const authenticateJWT = (
+const authenticateSupabase = async (
   req: AuthenticatedRequest,
   res: express.Response,
   next: express.NextFunction
 ) => {
   const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.startsWith('Bearer ')
-    ? authHeader.substring(7)
-    : null;
+  const token =
+    authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : null;
 
   if (!token) {
     return res.status(401).json({
@@ -36,32 +46,37 @@ const authenticateJWT = (
     });
   }
 
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) {
-    return res.status(500).json({
-      data: null,
-      message: 'JWT secret not configured',
-    });
-  }
-
   try {
-    const decoded = jwt.verify(token, jwtSecret) as { userId: string };
-    req.userId = decoded.userId;
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      return res.status(401).json({
+        data: null,
+        message: 'Invalid token',
+      });
+    }
+
+    req.userId = user.id;
     next();
   } catch (error) {
     return res.status(401).json({
       data: null,
-      message: 'Invalid token',
+      message: 'Authentication failed',
     });
   }
 };
 
-const updateSettingsSchema = z.object({
-  theme: z.enum(['system', 'light', 'dark']).optional(),
-  language: z.enum(['ja', 'en']).optional(),
-  taskInsertPosition: z.enum(['top', 'bottom']).optional(),
-  autoSort: z.boolean().optional(),
-}).strict();
+const updateSettingsSchema = z
+  .object({
+    theme: z.enum(['system', 'light', 'dark']).optional(),
+    language: z.enum(['ja', 'en']).optional(),
+    taskInsertPosition: z.enum(['top', 'bottom']).optional(),
+    autoSort: z.boolean().optional(),
+  })
+  .strict();
 
 const settingsService = {
   async getUserSettings(userId: string) {
@@ -84,7 +99,10 @@ const settingsService = {
     return settings;
   },
 
-  async updateUserSettings(userId: string, updateData: z.infer<typeof updateSettingsSchema>) {
+  async updateUserSettings(
+    userId: string,
+    updateData: z.infer<typeof updateSettingsSchema>
+  ) {
     return await prisma.settings.upsert({
       where: { userId },
       update: updateData,
@@ -119,7 +137,10 @@ const settingsController = {
   async updateSettings(req: AuthenticatedRequest, res: express.Response) {
     const userId = req.userId!;
     const validatedData = updateSettingsSchema.parse(req.body);
-    const settings = await settingsService.updateUserSettings(userId, validatedData);
+    const settings = await settingsService.updateUserSettings(
+      userId,
+      validatedData
+    );
 
     res.json({
       data: {
@@ -163,8 +184,16 @@ apiRouter.get('/metrics', (_, res) => {
   });
 });
 
-apiRouter.get('/settings', authenticateJWT, settingsController.getSettings);
-apiRouter.put('/settings', authenticateJWT, settingsController.updateSettings);
+apiRouter.get(
+  '/settings',
+  authenticateSupabase,
+  settingsController.getSettings
+);
+apiRouter.put(
+  '/settings',
+  authenticateSupabase,
+  settingsController.updateSettings
+);
 
 app.use('/api', apiRouter);
 

@@ -38,6 +38,7 @@
 - express-validator
 - helmet
 - cors
+- Loro
 - Prettier
 - Vitest
 - Supertest
@@ -79,67 +80,21 @@ NativeWind設定：
    npm install
    ```
 
-2. 環境ファイルのセットアップ
+2. Supabaseローカル環境の起動
+
+   ```bash
+   npx supabase start
+   ```
+
+3. 開発環境のセットアップ
 
    ```bash
    npm run setup
    ```
 
    このコマンドは以下を実行します：
-   - apps/api: .envファイル作成
+   - apps/api: .envファイル作成、Prismaマイグレーション、Prismaクライアント生成
    - apps/native: .envファイル作成
-
-3. データベースのセットアップ
-
-   ```bash
-   # 開発用データベースの起動とセットアップ（推奨）
-   npm run setup:dev
-
-   # または個別に実行
-   npm run supabase:start    # Supabaseローカル環境起動
-   npm run db:setup          # スキーマ適用とクライアント生成
-   ```
-
-### データベース管理
-
-#### Supabaseローカル環境
-
-```bash
-# Supabaseローカル環境の起動
-npm run supabase:start
-
-# Supabaseローカル環境の停止
-npm run supabase:stop
-
-# データベースのリセット（全データ削除・再作成）
-npm run supabase:reset
-
-# Supabaseローカル環境の状態確認
-npm run supabase:status
-
-# スキーマ適用とPrismaクライアント生成
-npm run db:setup
-
-# 開発用環境の完全セットアップ
-npm run setup:dev
-```
-
-#### Supabase Studio（管理画面）
-
-Supabaseローカル環境が起動していると、以下でアクセス可能：
-
-- URL: http://localhost:54323
-- データベース管理、認証設定、ユーザー管理が可能
-
-#### セットアップオプション
-
-```bash
-# 最小セットアップ（環境ファイルのみ）
-npm run setup
-
-# 開発環境の完全セットアップ
-npm run setup:dev
-```
 
 ### 環境変数
 
@@ -186,14 +141,8 @@ npm run dev
 **注意:** 開発前に必ずSupabaseローカル環境を起動してください：
 
 ```bash
-npm run supabase:start
+npx supabase start
 ```
-
-起動後、以下のURLでアクセス可能：
-
-- Supabase API: http://localhost:54321
-- Supabase Studio: http://localhost:54323
-- PostgreSQL: localhost:54322
 
 ### 個別起動
 
@@ -239,10 +188,10 @@ npm run test --filter=@lightlist/api
 
 ```bash
 # 1. Supabaseローカル環境を起動
-npm run supabase:start
+npx supabase start
 
-# 2. データベースのマイグレーション
-npm run db:setup
+# 2. 開発環境のセットアップ（必要に応じて）
+npm run setup
 
 # 3. テスト実行
 npm run test --filter=@lightlist/api

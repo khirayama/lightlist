@@ -62,6 +62,10 @@
       "outputs": [],
       "inputs": ["src/**", "*.ts", "*.tsx", "tsconfig.json"]
     },
+    "setup": {
+      "dependsOn": ["^setup"],
+      "cache": false
+    },
     "clean": {
       "cache": false
     },

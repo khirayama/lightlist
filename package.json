@@ -13,12 +13,7 @@
     "test": "turbo run test",
     "check": "turbo run lint type-check",
     "clean": "turbo run clean",
-    "setup": "npm run setup --workspace=@lightlist/api && npm run setup --workspace=@lightlist/native && npm run supabase:start && npm run db:setup",
-    "supabase:start": "supabase start",
-    "supabase:stop": "supabase stop",
-    "supabase:reset": "supabase db reset",
-    "supabase:status": "supabase status",
-    "db:setup": "turbo run db:migrate db:generate --filter=@lightlist/api"
+    "setup": "turbo run setup"
   },
   "devDependencies": {
     "prettier": "^3.0.0",

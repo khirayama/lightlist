@@ -14,11 +14,25 @@
 
 ## 2. APIエンドポイント一覧
 
-認証は全てSupabase Authを使用。
+認証は全てSupabase Authを使用。APIサーバーがSupabase SDKとの唯一の接点となり、クライアントは認証プロバイダーを意識しない。
 TaskListDocとTaskListDocOrderはLoroのCRDTドキュメントとして管理。TaskListDocはLoro Docを明示するため、doc suffixを付与。
+
+### 認証エンドポイント
+
+- `POST   /api/auth/register` - ユーザー登録（Settings、TaskListDocOrderDoc、初期TaskListDoc作成含む）
+- `POST   /api/auth/login` - ログイン
+- `POST   /api/auth/logout` - ログアウト
+- `POST   /api/auth/forgot-password` - パスワードリセットリクエスト
+- `POST   /api/auth/reset-password` - パスワードリセット実行
+- `DELETE /api/auth/account` - アカウント削除
+
+### 設定エンドポイント
 
 - `GET    /api/settings` - Settings設定取得
 - `PUT    /api/settings` - Settings設定更新
+
+### タスクリストエンドポイント
+
 - `POST   /api/tasklistdocs` - TaskList(TaskListDoc)作成
 - `GET    /api/tasklistdocs` - TaskList(TaskListDoc)一覧取得
 - `PUT    /api/tasklistdocs/:taskListId` - TaskList(TaskListDoc)更新
@@ -26,6 +40,9 @@ TaskListDocとTaskListDocOrderはLoroのCRDTドキュメントとして管理。
 - `PUT    /api/tasklistdocs/order` - TaskList(TaskListDoc)の順序更新。taskListDocOrderの更新。
 - `POST   /api/tasklistdocs/:taskListId/token` - タスクリスト共有トークンを生成・更新
 - `GET    /api/tasklistdocs?token=token` - 共有トークンによるTaskList(TaskListDoc)取得
+
+### システムエンドポイント
+
 - `GET    /api/health` - システムヘルスチェック
 - `GET    /api/metrics` - システムメトリクス取得
 
@@ -35,6 +52,94 @@ TaskListDocとTaskListDocOrderはLoroのCRDTドキュメントとして管理。
 - データの一貫性はLoroのCRDTアルゴリズムで保証
 
 ## 3. リクエスト/レスポンス例
+
+### 認証エンドポイント
+
+```json
+// POST /api/auth/register
+// Request
+{
+  "email": "user@example.com",
+  "password": "SecurePass123",
+  "language": "ja"
+}
+
+// Response
+{
+  "data": {
+    "user": {
+      "id": "user_xxx",
+      "email": "user@example.com"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "refresh_token_xxx",
+    "expiresIn": 3600
+  },
+  "message": "User registered successfully"
+}
+
+// POST /api/auth/login
+// Request
+{
+  "email": "user@example.com",
+  "password": "SecurePass123"
+}
+
+// Response
+{
+  "data": {
+    "user": {
+      "id": "user_xxx",
+      "email": "user@example.com"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "refresh_token_xxx",
+    "expiresIn": 3600
+  },
+  "message": "Login successful"
+}
+
+// POST /api/auth/logout
+// Response
+{
+  "data": null,
+  "message": "Logout successful"
+}
+
+// POST /api/auth/forgot-password
+// Request
+{
+  "email": "user@example.com"
+}
+
+// Response
+{
+  "data": null,
+  "message": "Password reset email sent"
+}
+
+// POST /api/auth/reset-password
+// Request
+{
+  "token": "reset_token_xxx",
+  "password": "NewSecurePass123"
+}
+
+// Response
+{
+  "data": null,
+  "message": "Password reset successful"
+}
+
+// DELETE /api/auth/account
+// Response
+{
+  "data": null,
+  "message": "Account deleted successfully"
+}
+```
+
+### 設定エンドポイント
 
 ```json
 // GET /api/appdoc

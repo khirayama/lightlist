@@ -27,7 +27,7 @@
     "express-rate-limit": "^7.0.0",
     "express-validator": "^7.0.0",
     "helmet": "^7.0.0",
-    "loro-crdt": "^1.0.0",
+    "loro-crdt": "^1.8.1",
     "zod": "^3.22.0"
   },
   "devDependencies": {

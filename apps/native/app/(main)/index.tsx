@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { Text, View, TouchableOpacity, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '../../src/lib/supabase';
+import { useRouter } from 'expo-router';
+import { api } from '../../src/lib/api';
 
 export default function Main() {
   const { t } = useTranslation();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await api.logout();
+      router.replace('/(auth)/login');
     } catch (error) {
       Alert.alert(
         t('logout.error'),

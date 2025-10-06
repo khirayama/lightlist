@@ -22,6 +22,7 @@ TaskListDocとTaskListDocOrderはLoroのCRDTドキュメントとして管理。
 - `POST   /api/auth/register` - ユーザー登録（Settings、TaskListDocOrderDoc、初期TaskListDoc作成含む）
 - `POST   /api/auth/login` - ログイン
 - `POST   /api/auth/logout` - ログアウト
+- `POST   /api/auth/refresh` - トークンリフレッシュ
 - `POST   /api/auth/forgot-password` - パスワードリセットリクエスト
 - `POST   /api/auth/reset-password` - パスワードリセット実行
 - `DELETE /api/auth/account` - アカウント削除
@@ -104,6 +105,26 @@ TaskListDocとTaskListDocOrderはLoroのCRDTドキュメントとして管理。
 {
   "data": null,
   "message": "Logout successful"
+}
+
+// POST /api/auth/refresh
+// Request
+{
+  "refreshToken": "refresh_token_xxx"
+}
+
+// Response
+{
+  "data": {
+    "user": {
+      "id": "user_xxx",
+      "email": "user@example.com"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "new_refresh_token_xxx",
+    "expiresIn": 3600
+  },
+  "message": "Token refreshed successfully"
 }
 
 // POST /api/auth/forgot-password

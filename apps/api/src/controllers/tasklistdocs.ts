@@ -13,20 +13,13 @@ const createTaskListDocSchema = z
 
 const updateTaskListDocSchema = z
   .object({
-    name: z.string().min(1).max(300).optional(),
-    background: z.string().max(100).optional(),
-    tasks: z.array(z.any()).optional(),
+    updates: z.string(),
   })
   .strict();
 
 const updateTaskListDocOrderSchema = z
   .object({
-    taskListOrders: z.array(
-      z.object({
-        id: z.string(),
-        order: z.number(),
-      })
-    ),
+    updates: z.string(),
   })
   .strict();
 
@@ -104,11 +97,7 @@ const taskListDocService = {
   async updateTaskListDoc(
     userId: string,
     taskListId: string,
-    updates: {
-      name?: string;
-      background?: string;
-      tasks?: any[];
-    }
+    updates: Uint8Array
   ) {
     const orderDoc = await prisma.taskListDocOrderDoc.findUnique({
       where: { userId },
@@ -128,32 +117,19 @@ const taskListDocService = {
 
     const loroDoc = new LoroDoc();
     loroDoc.import(existingDoc.doc);
+    loroDoc.import(updates);
+
     const root = loroDoc.getMap('root');
-
-    if (updates.name !== undefined) {
-      root.set('name', updates.name);
-    }
-    if (updates.background !== undefined) {
-      root.set('background', updates.background);
-    }
-
-    const updateData: any = {
-      doc: Buffer.from(loroDoc.export({ mode: 'snapshot' })),
-    };
-
-    if (updates.name !== undefined) {
-      updateData.name = updates.name;
-    }
-    if (updates.background !== undefined) {
-      updateData.background = updates.background;
-    }
-    if (updates.tasks !== undefined) {
-      updateData.tasks = updates.tasks;
-    }
+    const tasks = loroDoc.getMovableList('tasks');
 
     const updatedDoc = await prisma.taskListDoc.update({
       where: { id: taskListId },
-      data: updateData,
+      data: {
+        doc: Buffer.from(loroDoc.export({ mode: 'snapshot' })),
+        name: root.get('name') as string,
+        background: root.get('background') as string,
+        tasks: tasks.toJSON(),
+      },
     });
 
     return updatedDoc;
@@ -194,10 +170,7 @@ const taskListDocService = {
     return { id: taskListId };
   },
 
-  async updateTaskListDocOrder(
-    userId: string,
-    taskListOrders: Array<{ id: string; order: number }>
-  ) {
+  async updateTaskListDocOrder(userId: string, updates: Uint8Array) {
     const orderDoc = await prisma.taskListDocOrderDoc.findUnique({
       where: { userId },
     });
@@ -206,33 +179,21 @@ const taskListDocService = {
       throw new Error('TaskListDocOrderDoc not found');
     }
 
-    const sortedOrders = [...taskListOrders].sort((a, b) => a.order - b.order);
-    const newOrder = sortedOrders.map(item => item.id);
-
-    for (const id of newOrder) {
-      if (!orderDoc.order.includes(id)) {
-        throw new Error(`TaskListDoc ${id} not found or unauthorized`);
-      }
-    }
-
     const loroOrderDoc = new LoroDoc();
     loroOrderDoc.import(orderDoc.doc);
-    const orderList = loroOrderDoc.getMovableList('order');
+    loroOrderDoc.import(updates);
 
-    orderList.delete(0, orderList.length);
-    for (const id of newOrder) {
-      orderList.push(id);
-    }
+    const orderList = loroOrderDoc.getMovableList('order');
 
     await prisma.taskListDocOrderDoc.update({
       where: { userId },
       data: {
         doc: Buffer.from(loroOrderDoc.export({ mode: 'snapshot' })),
-        order: newOrder,
+        order: orderList.toArray() as string[],
       },
     });
 
-    return { updatedCount: newOrder.length };
+    return { updatedCount: orderList.length };
   },
 };
 
@@ -279,11 +240,12 @@ export const taskListDocsController = {
   async updateTaskListDoc(req: AuthenticatedRequest, res: express.Response) {
     const userId = req.userId!;
     const { taskListId } = req.params;
-    const updates = updateTaskListDocSchema.parse(req.body);
+    const { updates } = updateTaskListDocSchema.parse(req.body);
+    const updatesData = Buffer.from(updates, 'base64');
     const result = await taskListDocService.updateTaskListDoc(
       userId,
       taskListId,
-      updates
+      updatesData
     );
 
     res.json({
@@ -316,10 +278,11 @@ export const taskListDocsController = {
     res: express.Response
   ) {
     const userId = req.userId!;
-    const { taskListOrders } = updateTaskListDocOrderSchema.parse(req.body);
+    const { updates } = updateTaskListDocOrderSchema.parse(req.body);
+    const updatesData = Buffer.from(updates, 'base64');
     const result = await taskListDocService.updateTaskListDocOrder(
       userId,
-      taskListOrders
+      updatesData
     );
 
     res.json({

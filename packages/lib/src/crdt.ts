@@ -1,24 +1,19 @@
-
-
-
 const POS_ALPHABET =
   '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' as const;
-const POS_BASE = POS_ALPHABET.length; 
-
+const POS_BASE = POS_ALPHABET.length;
 
 export interface Clock {
-  lamport: number; 
-  timestamp: number; 
+  lamport: number;
+  timestamp: number;
   actorId: string;
 }
 
-
 export interface CRDTElement<T> {
-  id: string; 
-  pos: string; 
+  id: string;
+  pos: string;
   value: T;
   deleted?: boolean;
-  clock: Clock; 
+  clock: Clock;
 }
 
 export type OperationType = 'insert' | 'remove' | 'update' | 'move' | 'obj_set';
@@ -65,13 +60,12 @@ export type Operation<T = unknown> =
       actorId: string;
     };
 
-
 function comparePos(a: string, b: string): number {
   const len = Math.max(a.length, b.length);
   for (let i = 0; i < len; i++) {
     const ca = a.charCodeAt(i);
     const cb = b.charCodeAt(i);
-    
+
     if (Number.isNaN(ca)) return -1;
     if (Number.isNaN(cb)) return 1;
     if (ca === cb) continue;
@@ -80,11 +74,10 @@ function comparePos(a: string, b: string): number {
   return 0;
 }
 
-
 function charToDigit(ch: string): number {
   const idx = POS_ALPHABET.indexOf(ch as (typeof POS_ALPHABET)[number]);
   if (idx === -1) throw new Error(`Invalid pos char: ${ch}`);
-  
+
   return idx + 1;
 }
 
@@ -105,53 +98,46 @@ function encodePos(digits: number[]): string {
   return out;
 }
 
-
-
-
 function generatePosBetween(
   a: string | undefined,
   b: string | undefined
 ): string {
   const A = a ? decodePos(a) : [];
   const B = b ? decodePos(b) : [];
-  const boundaryLow = 0; 
-  const boundaryHigh = POS_BASE + 1; 
+  const boundaryLow = 0;
+  const boundaryHigh = POS_BASE + 1;
 
   const result: number[] = [];
   let i = 0;
-  
+
   while (true) {
     const ai = i < A.length ? A[i]! : boundaryLow;
     const bi = i < B.length ? B[i]! : boundaryHigh;
-    
+
     if (bi - ai > 1) {
-      
       const mid = Math.floor((ai + bi) / 2);
       if (mid <= 0 || mid >= boundaryHigh) {
-        
         result.push(ai);
         i++;
         continue;
       }
-      
+
       if (mid > 0 && mid <= POS_BASE) result.push(mid);
       return encodePos(result);
     }
-    
+
     if (ai > 0 && ai <= POS_BASE) result.push(ai);
     i++;
   }
 }
 
-
 function makeElemId(actorId: string, lamport: number): string {
   return `${actorId}:${lamport}`;
 }
 
-
 export class OperationLog<T = unknown> {
   private unsent: Operation<T>[] = [];
-  private applied: Set<string> = new Set(); 
+  private applied: Set<string> = new Set();
 
   record(op: Operation<T>): void {
     const key = `${op.actorId}:${op.lamport}`;
@@ -160,7 +146,6 @@ export class OperationLog<T = unknown> {
     this.unsent.push(op);
   }
 
-  
   markApplied(op: Operation<T>): void {
     const key = `${op.actorId}:${op.lamport}`;
     this.applied.add(key);
@@ -184,12 +169,11 @@ export class OperationLog<T = unknown> {
   }
 }
 
-
 export class CrdtArray<T> {
   private actorId: string;
   private lamport = 0;
   private elementsById: Map<string, CRDTElement<T>> = new Map();
-  private orderedIds: string[] = []; 
+  private orderedIds: string[] = [];
   private log: OperationLog<T> = new OperationLog<T>();
 
   constructor(params: { actorId: string }) {
@@ -222,7 +206,6 @@ export class CrdtArray<T> {
   }
 
   private findOrderedInsertIndexByPos(pos: string): number {
-    
     let lo = 0;
     let hi = this.orderedIds.length;
     while (lo < hi) {
@@ -254,7 +237,6 @@ export class CrdtArray<T> {
     return el;
   }
 
-  
   insert(index: number, value: T): void {
     const clock = this.tick();
     const { left, right } = this.indexToNeighbors(index);
@@ -276,7 +258,6 @@ export class CrdtArray<T> {
     this.log.record(op);
   }
 
-  
   remove(index: number): void {
     const el = this.getElementByVisibleIndex(index);
     if (el.deleted) return;
@@ -292,11 +273,10 @@ export class CrdtArray<T> {
     this.log.record(op);
   }
 
-  
   move(from: number, to: number): void {
     const el = this.getElementByVisibleIndex(from);
     const clock = this.tick();
-    
+
     const prevDeleted = el.deleted;
     el.deleted = true;
     const { left, right } = this.indexToNeighbors(to);
@@ -306,10 +286,9 @@ export class CrdtArray<T> {
     const rightPos = right ? this.elementsById.get(right)?.pos : undefined;
     const newPos = generatePosBetween(leftPos, rightPos);
 
-    
     const currentIndex = this.orderedIds.indexOf(el.id);
     if (currentIndex >= 0) this.orderedIds.splice(currentIndex, 0);
-    
+
     if (currentIndex >= 0) this.orderedIds.splice(currentIndex, 1);
     el.pos = newPos;
     const idx = this.findOrderedInsertIndexByPos(newPos);
@@ -326,12 +305,11 @@ export class CrdtArray<T> {
     this.log.record(op);
   }
 
-  
   update(index: number, updater: (v: T) => T): void {
     const el = this.getElementByVisibleIndex(index);
     const clock = this.tick();
     const newValue = updater(el.value);
-    
+
     if (
       el.clock.lamport < clock.lamport ||
       (el.clock.lamport === clock.lamport && el.clock.actorId < clock.actorId)
@@ -364,16 +342,14 @@ export class CrdtArray<T> {
     return out;
   }
 
-  
   applyRemote(ops: Operation<T>[]): Operation<T>[] {
     const fresh = this.log.applyRemote(ops);
     for (const op of fresh) {
-      
       this.tick(op.lamport);
       switch (op.type) {
         case 'insert': {
           if (!op.targetId || !op.pos) break;
-          if (this.elementsById.has(op.targetId)) break; 
+          if (this.elementsById.has(op.targetId)) break;
           const el: CRDTElement<T> = {
             id: op.targetId,
             pos: op.pos,
@@ -423,7 +399,6 @@ export class CrdtArray<T> {
           break;
         }
         case 'obj_set':
-          
           break;
       }
     }
@@ -434,7 +409,6 @@ export class CrdtArray<T> {
     return this.log.exportOperations();
   }
 
-  
   toSnapshot(): ArraySnapshotData<T> {
     const elements: CRDTElement<T>[] = [];
     for (const id of this.orderedIds) {
@@ -455,7 +429,7 @@ export class CrdtArray<T> {
       arr.elementsById.set(el.id, { ...el });
       arr.orderedIds.push(el.id);
     }
-    
+
     arr.orderedIds.sort((a, b) => {
       const ea = arr.elementsById.get(a)!;
       const eb = arr.elementsById.get(b)!;
@@ -464,7 +438,6 @@ export class CrdtArray<T> {
     return arr;
   }
 }
-
 
 export interface ObjectFieldEntry {
   value: unknown;
@@ -570,7 +543,6 @@ export class CrdtObject {
   }
 }
 
-
 export interface ArraySnapshotData<T> {
   actorId: string;
   lamport: number;
@@ -606,9 +578,7 @@ export const Snapshot = {
   },
 };
 
-
 export class Compressor {
-  
   static compress<T>(ops: Operation<T>[]): Operation<T>[] {
     const lastUpdate = new Map<string, Operation<T>>();
     const lastMove = new Map<string, Operation<T>>();
@@ -638,9 +608,8 @@ export class Compressor {
 
     const out: Operation<T>[] = [];
 
-    
     inserts.forEach((ins, id) => {
-      if (removed.has(id)) return; 
+      if (removed.has(id)) return;
       const move = lastMove.get(id);
       const upd = lastUpdate.get(id);
       let current: Operation<T> = ins;
@@ -659,7 +628,6 @@ export class Compressor {
       if (move && move.type === 'move') out.push(move);
     });
 
-    
     lastUpdate.forEach((upd, id) => {
       if (!inserts.has(id) && !removed.has(id)) out.push(upd);
     });
@@ -667,7 +635,6 @@ export class Compressor {
       if (!inserts.has(id) && !removed.has(id)) out.push(mv);
     });
 
-    
     removed.forEach(id => {
       if (!inserts.has(id))
         out.push({
@@ -679,10 +646,8 @@ export class Compressor {
         } as Operation<T>);
     });
 
-    
     objSets.forEach(setOp => out.push(setOp as Operation<T>));
 
-    
     out.sort(
       (a, b) =>
         a.lamport - b.lamport ||
@@ -691,10 +656,9 @@ export class Compressor {
     return out;
   }
 
-  
   static gcArraySnapshot<T>(snap: ArraySnapshotData<T>): ArraySnapshotData<T> {
     const alive = snap.elements.filter(e => !e.deleted);
-    
+
     alive.sort((a, b) => comparePos(a.pos, b.pos));
     return { actorId: snap.actorId, lamport: snap.lamport, elements: alive };
   }

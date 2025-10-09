@@ -52,7 +52,10 @@ function textArrayExample() {
 }
 
 // -------- Object array ({ id, name })[] example --------
-interface Item { id: string; name: string }
+interface Item {
+  id: string;
+  name: string;
+}
 
 function objectArrayExample() {
   const server = new CrdtArray<Item>({ actorId: 'server-objarr' });
@@ -95,7 +98,8 @@ function objectArrayExample() {
   console.log('B1:', arrB.toArray());
 
   // Show deterministic value for i1
-  const pickName = (arr: CrdtArray<Item>) => arr.toArray().find(x => x.id === 'i1')?.name;
+  const pickName = (arr: CrdtArray<Item>) =>
+    arr.toArray().find(x => x.id === 'i1')?.name;
   console.log('i1 name A/B:', pickName(arrA), '/', pickName(arrB));
 }
 

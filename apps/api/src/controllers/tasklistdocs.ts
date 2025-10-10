@@ -1,8 +1,10 @@
 import express from 'express';
 import { z } from 'zod';
-import { LoroDoc } from 'loro-crdt';
 import { randomBytes } from 'crypto';
+import { CrdtArray } from '@lightlist/lib';
 import { prisma, AuthenticatedRequest } from '../index';
+
+import { TaskListDocument } from '../services/tasklistdocument';
 
 const createTaskListDocSchema = z
   .object({
@@ -24,6 +26,17 @@ const updateTaskListDocOrderSchema = z
   .strict();
 
 const taskListDocService = {
+  // helper to sync denormalized snapshots
+  syncSnapshots(doc: TaskListDocument) {
+    const root = doc.getMap('root');
+    const tasks = doc.getMovableList('tasks');
+    return {
+      name: (root.get('name') as string) || '',
+      background: (root.get('background') as string) || '',
+      tasks: tasks.toArray() as any,
+      history: [],
+    };
+  },
   async createTaskListDoc(
     userId: string,
     name: string,
@@ -31,42 +44,46 @@ const taskListDocService = {
   ) {
     const taskListId = randomBytes(16).toString('hex');
 
-    const taskListDoc = new LoroDoc();
+    const taskListDoc = new TaskListDocument(userId);
     const root = taskListDoc.getMap('root');
     root.set('name', name);
     root.set('background', background);
     taskListDoc.getMovableList('tasks');
     taskListDoc.getMovableList('history');
 
-    const orderDoc = await prisma.taskListDocOrderDoc.findUnique({
+    const orderDoc = await prisma.taskListDocOrderDoc.upsert({
       where: { userId },
+      create: {
+        userId,
+        doc: Buffer.from(
+          JSON.stringify(
+            new CrdtArray<string>({ actorId: userId }).toSnapshot()
+          )
+        ),
+        order: [],
+      },
+      update: {},
     });
-
-    if (!orderDoc) {
-      throw new Error('TaskListDocOrderDoc not found');
+    let orderCrdt = new CrdtArray<string>({ actorId: userId });
+    const orderSnapshot = JSON.parse(orderDoc.doc.toString());
+    if (orderSnapshot) {
+      orderCrdt = CrdtArray.fromSnapshot<string>(orderSnapshot);
     }
-
-    const loroOrderDoc = new LoroDoc();
-    loroOrderDoc.import(orderDoc.doc);
-    const orderList = loroOrderDoc.getMovableList('order');
-    orderList.push(taskListId);
+    orderCrdt.insert(orderCrdt.toArray().length, taskListId);
 
     const [newTaskListDoc] = await prisma.$transaction([
       prisma.taskListDoc.create({
         data: {
           id: taskListId,
-          doc: Buffer.from(taskListDoc.export({ mode: 'snapshot' })),
-          name,
-          background,
-          tasks: [],
-          history: [],
+          doc: Buffer.from(taskListDoc.export()),
+          ...taskListDocService.syncSnapshots(taskListDoc),
         },
       }),
       prisma.taskListDocOrderDoc.update({
         where: { userId },
         data: {
-          doc: Buffer.from(loroOrderDoc.export({ mode: 'snapshot' })),
-          order: orderList.toArray() as string[],
+          doc: Buffer.from(JSON.stringify(orderCrdt.toSnapshot())),
+          order: orderCrdt.toArray() as string[],
         },
       }),
     ]);
@@ -115,20 +132,18 @@ const taskListDocService = {
       throw new Error('TaskListDoc not found');
     }
 
-    const loroDoc = new LoroDoc();
-    loroDoc.import(existingDoc.doc);
-    loroDoc.import(updates);
+    const taskListDoc = new TaskListDocument(userId);
+    taskListDoc.import(existingDoc.doc);
+    taskListDoc.applyUpdates(updates);
 
-    const root = loroDoc.getMap('root');
-    const tasks = loroDoc.getMovableList('tasks');
+    const root = taskListDoc.getMap('root');
+    const tasks = taskListDoc.getMovableList('tasks');
 
     const updatedDoc = await prisma.taskListDoc.update({
       where: { id: taskListId },
       data: {
-        doc: Buffer.from(loroDoc.export({ mode: 'snapshot' })),
-        name: root.get('name') as string,
-        background: root.get('background') as string,
-        tasks: tasks.toJSON(),
+        doc: Buffer.from(taskListDoc.export()),
+        ...taskListDocService.syncSnapshots(taskListDoc),
       },
     });
 
@@ -144,14 +159,16 @@ const taskListDocService = {
       throw new Error('TaskListDoc not found or unauthorized');
     }
 
-    const loroOrderDoc = new LoroDoc();
-    loroOrderDoc.import(orderDoc.doc);
-    const orderList = loroOrderDoc.getMovableList('order');
+    let orderCrdt = new CrdtArray<string>({ actorId: userId });
+    const orderSnapshot = JSON.parse(orderDoc.doc.toString());
+    if (orderSnapshot) {
+      orderCrdt = CrdtArray.fromSnapshot<string>(orderSnapshot);
+    }
 
-    const currentOrder = orderList.toArray() as string[];
+    const currentOrder = orderCrdt.toArray() as string[];
     const index = currentOrder.indexOf(taskListId);
     if (index !== -1) {
-      orderList.delete(index, 1);
+      orderCrdt.remove(index);
     }
 
     await prisma.$transaction([
@@ -161,8 +178,8 @@ const taskListDocService = {
       prisma.taskListDocOrderDoc.update({
         where: { userId },
         data: {
-          doc: Buffer.from(loroOrderDoc.export({ mode: 'snapshot' })),
-          order: orderList.toArray() as string[],
+          doc: Buffer.from(JSON.stringify(orderCrdt.toSnapshot())),
+          order: orderCrdt.toArray() as string[],
         },
       }),
     ]);
@@ -171,29 +188,38 @@ const taskListDocService = {
   },
 
   async updateTaskListDocOrder(userId: string, updates: Uint8Array) {
-    const orderDoc = await prisma.taskListDocOrderDoc.findUnique({
+    const orderDoc = await prisma.taskListDocOrderDoc.upsert({
       where: { userId },
+      create: {
+        userId,
+        doc: Buffer.from(
+          JSON.stringify(
+            new CrdtArray<string>({ actorId: userId }).toSnapshot()
+          )
+        ),
+        order: [],
+      },
+      update: {},
     });
-
-    if (!orderDoc) {
-      throw new Error('TaskListDocOrderDoc not found');
+    let orderCrdt = new CrdtArray<string>({ actorId: userId });
+    const orderSnapshot = JSON.parse(orderDoc.doc.toString());
+    if (orderSnapshot) {
+      orderCrdt = CrdtArray.fromSnapshot<string>(orderSnapshot);
     }
 
-    const loroOrderDoc = new LoroDoc();
-    loroOrderDoc.import(orderDoc.doc);
-    loroOrderDoc.import(updates);
-
-    const orderList = loroOrderDoc.getMovableList('order');
+    // 更新を適用
+    const ops = JSON.parse(Buffer.from(updates).toString());
+    orderCrdt.applyRemote(ops);
 
     await prisma.taskListDocOrderDoc.update({
       where: { userId },
       data: {
-        doc: Buffer.from(loroOrderDoc.export({ mode: 'snapshot' })),
-        order: orderList.toArray() as string[],
+        doc: Buffer.from(JSON.stringify(orderCrdt.toSnapshot())),
+        order: orderCrdt.toArray() as string[],
       },
     });
 
-    return { updatedCount: orderList.length };
+    return { updatedCount: orderCrdt.toArray().length };
   },
 };
 
@@ -214,6 +240,7 @@ export const taskListDocsController = {
         background: result.background,
         createdAt: result.createdAt,
         updatedAt: result.updatedAt,
+        doc: result.doc.toString('base64'),
       },
       message: 'TaskList created successfully',
     });
@@ -232,6 +259,7 @@ export const taskListDocsController = {
         shareToken: doc.shareToken,
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt,
+        doc: doc.doc.toString('base64'),
       })),
       message: 'TaskLists retrieved successfully',
     });
@@ -254,6 +282,7 @@ export const taskListDocsController = {
         name: result.name,
         background: result.background,
         updatedAt: result.updatedAt,
+        doc: result.doc.toString('base64'),
       },
       message: 'TaskList updated successfully',
     });

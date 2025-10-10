@@ -2,9 +2,62 @@ generator client {
   provider = "prisma-client-js"
 }
 
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// Better Auth models
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  Boolean   @default(false)
+  image          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  sessions       Session[]
+  accounts       Account[]
+  settings       Settings?
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                     String   @id @default(cuid())
+  accountId              String
+  providerId             String
+  userId                 String
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken            String?
+  refreshToken           String?
+  idToken                String?
+  accessTokenExpiresAt   DateTime?
+  refreshTokenExpiresAt  DateTime?
+  scope                  String?
+  password               String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 // ユーザー管理にはSupabase Authを使用
@@ -27,6 +80,7 @@ datasource db {
 model Settings {
   id                 String   @id @default(uuid())
   userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   theme              String   @default("light") @db.VarChar(50)
   language           String   @default("ja") @db.VarChar(20)
   taskInsertPosition String   @default("top") @db.VarChar(50)
@@ -35,7 +89,7 @@ model Settings {
   updatedAt          DateTime @updatedAt
 }
 
-// LoroのCRDTを使用したタスクリスト順序管理
+// 自作CRDTを使用したタスクリスト順序管理
 // ユーザーとの1:1リレーション - 全タスクリストの順序を管理
 // データ整合性: order[]にはTaskListDoc.idの値が格納される
 // 責任: ユーザーが所有するTaskListDocの順序を管理
@@ -49,7 +103,7 @@ model TaskListDocOrderDoc {
   order     String[]
 }
 
-// 共同編集用のLoroのCRDTを使用した個別タスクリスト
+// 共同編集用の自作CRDTを使用した個別タスクリスト
 // 独立したエンティティ - ユーザーへの直接参照なし（TaskListDocOrderDoc経由で管理）
 // 所有権の概念がないため、ユーザーとのN:NリレーションでuserIdは不要
 // 共有: shareTokenによる読み取り専用アクセス

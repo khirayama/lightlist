@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
-import { createClient } from '@supabase/supabase-js';
+import { createHmac } from 'crypto';
+import { ZodError } from 'zod';
 import { authController } from './controllers/auth';
 import { settingsController } from './controllers/settings';
 import { systemController } from './controllers/system';
@@ -13,117 +15,115 @@ const port = process.env.PORT || 3001;
 
 app.use(helmet());
 app.use(cors());
+const limiter = rateLimit({ windowMs: 60_000, max: Number(process.env.API_RATE_LIMIT_MAX || 100) });
+app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 export const prisma = new PrismaClient();
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Supabase configuration is missing');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
 export interface AuthenticatedRequest extends express.Request {
   userId?: string;
 }
 
-const authenticateSupabase = async (
+const authenticateJwt = async (
   req: AuthenticatedRequest,
   res: express.Response,
   next: express.NextFunction
 ) => {
   const authHeader = req.headers.authorization;
-  const token =
-    authHeader && authHeader.startsWith('Bearer ')
-      ? authHeader.substring(7)
-      : null;
-
-  if (!token) {
-    return res.status(401).json({
-      data: null,
-      message: 'Access token required',
-    });
-  }
-
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ data: null, message: 'Access token required' });
   try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
-
-    if (error || !user) {
-      return res.status(401).json({
-        data: null,
-        message: 'Invalid token',
-      });
-    }
-
-    req.userId = user.id;
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      data: null,
-      message: 'Authentication failed',
-    });
+    const secret = (process.env.BETTER_AUTH_SECRET as string | undefined) || 'dev-secret-change-me-at-prod';
+    if (!secret) return res.status(500).json({ data: null, message: 'Server misconfigured' });
+    const [h, p, s] = token.split('.');
+    if (!h || !p || !s) return res.status(401).json({ data: null, message: 'Invalid token' });
+    const expected = createHmac('sha256', secret).update(`${h}.${p}`).digest('base64url');
+    if (expected !== s) return res.status(401).json({ data: null, message: 'Invalid token' });
+    const payload = JSON.parse(Buffer.from(p, 'base64url').toString());
+    if (!payload?.sub) return res.status(401).json({ data: null, message: 'Invalid token' });
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return res.status(401).json({ data: null, message: 'Invalid token' });
+    req.userId = payload.sub as string;
+    return next();
+  } catch {
+    return res.status(401).json({ data: null, message: 'Invalid token' });
   }
 };
 
+const asyncHandler =
+  (
+    fn: (
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction
+    ) => Promise<any> | void
+  ) =>
+  (req: express.Request, res: express.Response, next: express.NextFunction) =>
+    Promise.resolve(fn(req, res, next)).catch(next);
+
 const apiRouter = express.Router();
 
-apiRouter.get('/health', systemController.health);
-apiRouter.get('/metrics', systemController.metrics);
+apiRouter.get('/health', asyncHandler(systemController.health));
+apiRouter.get('/metrics', asyncHandler(systemController.metrics));
 
-apiRouter.post('/auth/register', authController.register);
-apiRouter.post('/auth/login', authController.login);
-apiRouter.post('/auth/logout', authenticateSupabase, authController.logout);
-apiRouter.post('/auth/refresh', authController.refreshToken);
-apiRouter.post('/auth/forgot-password', authController.forgotPassword);
-apiRouter.post('/auth/reset-password', authController.resetPassword);
+apiRouter.post('/auth/register', asyncHandler(authController.register));
+apiRouter.post('/auth/login', asyncHandler(authController.login));
+apiRouter.post(
+  '/auth/logout',
+  authenticateJwt,
+  asyncHandler(authController.logout)
+);
+apiRouter.post('/auth/refresh', asyncHandler(authController.refreshToken));
+apiRouter.post(
+  '/auth/forgot-password',
+  asyncHandler(authController.forgotPassword)
+);
+apiRouter.post(
+  '/auth/reset-password',
+  asyncHandler(authController.resetPassword)
+);
 apiRouter.delete(
   '/auth/account',
-  authenticateSupabase,
+  authenticateJwt,
   authController.deleteAccount
 );
 
 apiRouter.get(
   '/settings',
-  authenticateSupabase,
-  settingsController.getSettings
+  authenticateJwt,
+  asyncHandler(settingsController.getSettings)
 );
 apiRouter.put(
   '/settings',
-  authenticateSupabase,
-  settingsController.updateSettings
+  authenticateJwt,
+  asyncHandler(settingsController.updateSettings)
 );
 
 apiRouter.post(
   '/tasklistdocs',
-  authenticateSupabase,
-  taskListDocsController.createTaskListDoc
+  authenticateJwt,
+  asyncHandler(taskListDocsController.createTaskListDoc)
 );
 apiRouter.get(
   '/tasklistdocs',
-  authenticateSupabase,
-  taskListDocsController.getTaskListDocs
+  authenticateJwt,
+  asyncHandler(taskListDocsController.getTaskListDocs)
 );
 apiRouter.put(
   '/tasklistdocs/order',
-  authenticateSupabase,
-  taskListDocsController.updateTaskListDocOrder
+  authenticateJwt,
+  asyncHandler(taskListDocsController.updateTaskListDocOrder)
 );
 apiRouter.put(
   '/tasklistdocs/:taskListId',
-  authenticateSupabase,
-  taskListDocsController.updateTaskListDoc
+  authenticateJwt,
+  asyncHandler(taskListDocsController.updateTaskListDoc)
 );
 apiRouter.delete(
   '/tasklistdocs/:taskListId',
-  authenticateSupabase,
-  taskListDocsController.deleteTaskListDoc
+  authenticateJwt,
+  asyncHandler(taskListDocsController.deleteTaskListDoc)
 );
 
 app.use('/api', apiRouter);
@@ -140,9 +140,17 @@ app.use(
     err: any,
     _: express.Request,
     res: express.Response
-    // next: express.NextFunction
   ) => {
     console.error('Error:', err);
+
+    if (err instanceof ZodError) {
+      return res.status(422).json({
+        data: null,
+        message: 'Validation error',
+        issues:
+          err.errors?.map(e => ({ path: e.path, message: e.message })) ?? [],
+      });
+    }
 
     const status = err.status || err.statusCode || 500;
     const message =
@@ -152,7 +160,7 @@ app.use(
 
     res.status(status).json({
       data: null,
-      message: message,
+      message,
     });
   }
 );

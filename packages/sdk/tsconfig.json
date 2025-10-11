@@ -9,14 +9,16 @@
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "declarationMap": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "skipLibCheck": true,
+    "outDir": "./dist",    "skipLibCheck": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": false,
     "noEmit": false,
     "isolatedModules": true,
-    "removeComments": false
+    "removeComments": false,
+    "baseUrl": ".",
+    "paths": {
+      "lib/*": ["../lib/src/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]

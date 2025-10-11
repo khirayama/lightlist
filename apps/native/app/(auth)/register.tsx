@@ -12,11 +12,12 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { isValidEmail, isValidPassword } from '@lightlist/sdk';
-import { supabase } from '../../src/lib/supabase';
+import clsx from 'clsx';
+import { api } from '../../src/lib/api';
 import { getPasswordStrengthInfo } from '../../src/utils/password';
 
 export default function Register() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,13 +54,12 @@ export default function Register() {
 
     setLoading(true);
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (signUpError) {
-      setError(signUpError.message);
+    try {
+      const language = i18n.language === 'en' ? 'en' : 'ja';
+      await api.register(email, password, language);
+      router.replace('/(main)');
+    } catch (err: any) {
+      setError(err.message || t('register.error.failed'));
       setLoading(false);
     }
   };
@@ -70,7 +70,11 @@ export default function Register() {
       className="flex-1 bg-white"
     >
       <ScrollView
-        contentContainerClassName="flex-1 justify-center px-6"
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          paddingHorizontal: 24,
+        }}
         keyboardShouldPersistTaps="handled"
       >
         <View className="w-full max-w-md mx-auto">
@@ -115,7 +119,15 @@ export default function Register() {
               <View className="mt-2">
                 <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
                   <View
-                    className={`h-full ${passwordStrengthInfo.color} ${passwordStrengthInfo.width}`}
+                    className={clsx(
+                      'h-full',
+                      passwordStrengthInfo.strength === 'weak' &&
+                        'bg-red-500 w-1/3',
+                      passwordStrengthInfo.strength === 'medium' &&
+                        'bg-yellow-500 w-2/3',
+                      passwordStrengthInfo.strength === 'strong' &&
+                        'bg-green-500 w-full'
+                    )}
                   />
                 </View>
                 <Text className="text-xs text-gray-600 mt-1">

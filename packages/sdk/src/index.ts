@@ -1,5 +1,7 @@
 // Lightlist SDK
 // 共通のAPI型定義とユーティリティ関数
+export { store } from './store';
+export type { SettingsDTO as SdkSettings, TaskListDocDTO } from './store';
 
 // 基本的な型定義
 export interface User {

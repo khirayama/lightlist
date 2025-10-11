@@ -12,7 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { isValidEmail } from '@lightlist/sdk';
-import { supabase } from '../../src/lib/supabase';
+import { api } from '../../src/lib/api';
 
 export default function Login() {
   const { t } = useTranslation();
@@ -37,13 +37,11 @@ export default function Login() {
 
     setLoading(true);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      setError(signInError.message);
+    try {
+      await api.login(email, password);
+      router.replace('/(main)');
+    } catch (err: any) {
+      setError(err.message || t('login.error.failed'));
       setLoading(false);
     }
   };
@@ -54,7 +52,11 @@ export default function Login() {
       className="flex-1 bg-white"
     >
       <ScrollView
-        contentContainerClassName="flex-1 justify-center px-6"
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          paddingHorizontal: 24,
+        }}
         keyboardShouldPersistTaps="handled"
       >
         <View className="w-full max-w-md mx-auto">

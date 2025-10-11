@@ -15,6 +15,7 @@
 │   ├── api/                    # Node.js/Express API サーバー
 │   └── native/                 # React Native/Expo モバイルアプリ
 ├── packages/                   # 共通ライブラリやコンポーネント
+│   ├── lib/                    # lib/crdt（CRDT実装）
 │   └── sdk/                    # 共通SDKライブラリ(APIラッパーな側面が強い)
 ├── docs/                       # ドキュメント
 ├── .prettierrc                 # Prettier 設定
@@ -38,7 +39,7 @@
 - express-validator
 - helmet
 - cors
-- Loro
+- CRDT (lib/crdt)
 - Prettier
 - Vitest
 - Supertest
@@ -93,7 +94,7 @@ NativeWind設定：
    ```
 
    このコマンドは以下を実行します：
-   - apps/api: .envファイル作成、Prismaマイグレーション、Prismaクライアント生成
+   - apps/api: .envファイル作成、Prismaマイグレーション適用（migrate deploy）とPrismaクライアント生成。.env.exampleが無い場合はエラーで停止
    - apps/native: .envファイル作成
 
 ### 環境変数
@@ -102,7 +103,7 @@ NativeWind設定：
 
 ```env
 # Database (Supabase Local)
-DATABASE_URL="postgresql://postgres:postgres@localhost:54322/postgres?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public"
 
 # Server
 PORT=3001
@@ -118,11 +119,33 @@ API_RATE_LIMIT_MAX=100
 API_RATE_LIMIT_WINDOW_MS=900000
 ```
 
-#### apps/native/.env
+$1
 
-```env
-EXPO_PUBLIC_API_URL=http://localhost:3001
+### apps/api クイックスタート（最小）
+
+```bash
+# 1) 依存関係
+npm install
+
+# 2) Supabase ローカル起動
+npx supabase start
+
+# 3) 環境ファイル作成（未作成なら）
+cp apps/api/.env.example apps/api/.env
+
+# 4) Prisma セットアップ（DB起動済み）
+npx -w @lightlist/api prisma migrate deploy
+npx -w @lightlist/api prisma generate
+
+# 5) API 起動
+npm run dev --workspace=@lightlist/api
+
+# ヘルスチェック
+curl http://localhost:3001/api/health
 ```
+
+- 必須環境変数: DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY（.env.example参照）。
+- 初回ユーザー登録時に Settings/TaskListDoc/TaskListDocOrderDoc が自動作成されます。
 
 ## 開発
 

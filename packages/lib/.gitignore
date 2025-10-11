@@ -1,5 +1,7 @@
 # Build outputs
 dist/
+
+# TypeScript
 *.tsbuildinfo
 
 # Dependencies
@@ -21,3 +23,9 @@ coverage/
 # Env
 .env
 .env.*.local
+
+# Backups
+*.bak
+
+# Source maps
+*.map

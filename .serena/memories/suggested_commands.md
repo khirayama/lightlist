@@ -1,4 +1,5 @@
 Common commands:
+
 - Install deps: npm install
 - Start Supabase local: npx supabase start
 - Setup repo: npm run setup

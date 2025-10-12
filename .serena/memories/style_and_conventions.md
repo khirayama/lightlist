@@ -1,4 +1,5 @@
 Code style & conventions:
+
 - TypeScript strict; define concrete types; avoid any/unknown.
 - TDD (t-wada style): write failing test, minimal implementation, refactor; small incremental changes.
 - Rob Pike style: keep code simple, clear, consistent, readable, maintainable; avoid redundancy.

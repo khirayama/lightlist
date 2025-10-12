@@ -1,4 +1,6 @@
 import { CrdtArray, CrdtObject } from '@lightlist/lib';
+import { prisma } from '../lib/prisma';
+import type { Prisma } from '@prisma/client';
 
 // 自作CRDTドキュメントのラッパークラス
 export class TaskListDocument {
@@ -75,4 +77,53 @@ export class TaskListDocument {
     };
     return Buffer.from(JSON.stringify(ops));
   }
+}
+
+export function toSnapshotBundle(doc: TaskListDocument) {
+  const root = doc.getMap('root');
+  const tasks = doc.getMovableList('tasks');
+  return {
+    name: (root.get('name') as string) || '',
+    background: (root.get('background') as string) || '',
+    tasks: tasks.toArray() as Prisma.InputJsonValue,
+    history: doc.getMovableList('history').toArray() as Prisma.InputJsonValue,
+  };
+}
+
+export async function loadOrderCrdt(
+  userId: string
+): Promise<CrdtArray<string>> {
+  const orderDoc = await prisma.taskListDocOrderDoc.upsert({
+    where: { userId },
+    create: {
+      userId,
+      doc: Buffer.from(
+        JSON.stringify(new CrdtArray<string>({ actorId: userId }).toSnapshot())
+      ),
+      order: [],
+    },
+    update: {},
+  });
+  let crdt = new CrdtArray<string>({ actorId: userId });
+  const snapshot = JSON.parse(orderDoc.doc.toString());
+  if (snapshot) crdt = CrdtArray.fromSnapshot<string>(snapshot);
+  return crdt;
+}
+
+export async function saveOrderCrdt(
+  userId: string,
+  crdt: CrdtArray<string>
+): Promise<void> {
+  await prisma.taskListDocOrderDoc.upsert({
+    where: { userId },
+    create: {
+      userId,
+      doc: Buffer.from(JSON.stringify(crdt.toSnapshot())),
+      order: crdt.toArray() as string[],
+    },
+    update: {
+      doc: Buffer.from(JSON.stringify(crdt.toSnapshot())),
+      order: crdt.toArray() as string[],
+    },
+  });
 }

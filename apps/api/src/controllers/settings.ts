@@ -1,6 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
-import { prisma, AuthenticatedRequest } from '../index';
+import { prisma } from '../lib/prisma';
+import type { AuthenticatedRequest } from '../types/http';
 
 const updateSettingsSchema = z
   .object({
@@ -13,22 +14,11 @@ const updateSettingsSchema = z
 
 const settingsService = {
   async getUserSettings(userId: string) {
-    let settings = await prisma.settings.findUnique({
+    const settings = await prisma.settings.upsert({
       where: { userId },
+      update: {},
+      create: { userId },
     });
-
-    if (!settings) {
-      settings = await prisma.settings.create({
-        data: {
-          userId,
-          theme: 'light',
-          language: 'ja',
-          taskInsertPosition: 'top',
-          autoSort: false,
-        },
-      });
-    }
-
     return settings;
   },
 
@@ -39,13 +29,7 @@ const settingsService = {
     return await prisma.settings.upsert({
       where: { userId },
       update: updateData,
-      create: {
-        userId,
-        theme: updateData.theme || 'light',
-        language: updateData.language || 'ja',
-        taskInsertPosition: updateData.taskInsertPosition || 'top',
-        autoSort: updateData.autoSort || false,
-      },
+      create: { userId, ...updateData },
     });
   },
 };

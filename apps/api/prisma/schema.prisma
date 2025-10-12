@@ -60,7 +60,7 @@ model Verification {
   updatedAt  DateTime @updatedAt
 }
 
-// ユーザー管理にはSupabase Authを使用
+// ユーザー管理にはBetter Authを使用
 // User: Settings = 1:1
 // User: TaskListDocOrderDoc = 1:1
 // User: TaskListDoc = N:N
@@ -76,7 +76,7 @@ model Verification {
 // - 複雑な検索機能が必要になる
 
 // ユーザー設定とプリファレンス
-// Supabase Authユーザーとの1:1リレーション
+// Better Authユーザーとの1:1リレーション
 model Settings {
   id                 String   @id @default(uuid())
   userId             String   @unique

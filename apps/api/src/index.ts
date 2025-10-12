@@ -2,8 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { PrismaClient } from '@prisma/client';
-import { createHmac } from 'crypto';
+import type { AuthenticatedRequest } from './types/http';
+import { getSessionUserId } from './auth';
 import { ZodError } from 'zod';
 import { authController } from './controllers/auth';
 import { settingsController } from './controllers/settings';
@@ -14,41 +14,35 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(helmet());
-app.use(cors());
-const limiter = rateLimit({ windowMs: 60_000, max: Number(process.env.API_RATE_LIMIT_MAX || 100) });
+const allowlist = process.env.CORS_ORIGIN?.split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+if (!allowlist || allowlist.length === 0) {
+  throw new Error('CORS_ORIGIN must be set (comma-separated)');
+}
+app.use(cors({ origin: allowlist, credentials: true }));
+const limiter = rateLimit({
+  windowMs: 60_000,
+  max: Number(process.env.API_RATE_LIMIT_MAX || 100),
+});
 app.use(limiter);
+
+import { betterAuthHandler } from './auth';
+app.all('/api/auth/*', betterAuthHandler());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-export const prisma = new PrismaClient();
-
-export interface AuthenticatedRequest extends express.Request {
-  userId?: string;
-}
-
-const authenticateJwt = async (
+const authenticate = async (
   req: AuthenticatedRequest,
   res: express.Response,
   next: express.NextFunction
 ) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) return res.status(401).json({ data: null, message: 'Access token required' });
-  try {
-    const secret = (process.env.BETTER_AUTH_SECRET as string | undefined) || 'dev-secret-change-me-at-prod';
-    if (!secret) return res.status(500).json({ data: null, message: 'Server misconfigured' });
-    const [h, p, s] = token.split('.');
-    if (!h || !p || !s) return res.status(401).json({ data: null, message: 'Invalid token' });
-    const expected = createHmac('sha256', secret).update(`${h}.${p}`).digest('base64url');
-    if (expected !== s) return res.status(401).json({ data: null, message: 'Invalid token' });
-    const payload = JSON.parse(Buffer.from(p, 'base64url').toString());
-    if (!payload?.sub) return res.status(401).json({ data: null, message: 'Invalid token' });
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return res.status(401).json({ data: null, message: 'Invalid token' });
-    req.userId = payload.sub as string;
-    return next();
-  } catch {
-    return res.status(401).json({ data: null, message: 'Invalid token' });
-  }
+  const userId = await getSessionUserId(req);
+  if (!userId)
+    return res.status(401).json({ data: null, message: 'Unauthorized' });
+  req.userId = userId;
+  return next();
 };
 
 const asyncHandler =
@@ -60,112 +54,91 @@ const asyncHandler =
     ) => Promise<any> | void
   ) =>
   (req: express.Request, res: express.Response, next: express.NextFunction) =>
-    Promise.resolve(fn(req, res, next)).catch(next);
+    Promise.resolve()
+      .then(() => fn(req, res, next))
+      .catch(next);
+
+// cookie または Bearer のどちらでも可
 
 const apiRouter = express.Router();
 
 apiRouter.get('/health', asyncHandler(systemController.health));
 apiRouter.get('/metrics', asyncHandler(systemController.metrics));
 
-apiRouter.post('/auth/register', asyncHandler(authController.register));
-apiRouter.post('/auth/login', asyncHandler(authController.login));
-apiRouter.post(
-  '/auth/logout',
-  authenticateJwt,
-  asyncHandler(authController.logout)
-);
-apiRouter.post('/auth/refresh', asyncHandler(authController.refreshToken));
-apiRouter.post(
-  '/auth/forgot-password',
-  asyncHandler(authController.forgotPassword)
-);
-apiRouter.post(
-  '/auth/reset-password',
-  asyncHandler(authController.resetPassword)
-);
-apiRouter.delete(
-  '/auth/account',
-  authenticateJwt,
-  authController.deleteAccount
-);
-
 apiRouter.get(
   '/settings',
-  authenticateJwt,
+  authenticate,
   asyncHandler(settingsController.getSettings)
 );
 apiRouter.put(
   '/settings',
-  authenticateJwt,
+  authenticate,
   asyncHandler(settingsController.updateSettings)
 );
 
 apiRouter.post(
   '/tasklistdocs',
-  authenticateJwt,
+  authenticate,
   asyncHandler(taskListDocsController.createTaskListDoc)
 );
 apiRouter.get(
   '/tasklistdocs',
-  authenticateJwt,
+  authenticate,
   asyncHandler(taskListDocsController.getTaskListDocs)
 );
 apiRouter.put(
   '/tasklistdocs/order',
-  authenticateJwt,
+  authenticate,
   asyncHandler(taskListDocsController.updateTaskListDocOrder)
 );
 apiRouter.put(
   '/tasklistdocs/:taskListId',
-  authenticateJwt,
+  authenticate,
   asyncHandler(taskListDocsController.updateTaskListDoc)
 );
 apiRouter.delete(
   '/tasklistdocs/:taskListId',
-  authenticateJwt,
+  authenticate,
   asyncHandler(taskListDocsController.deleteTaskListDoc)
+);
+
+apiRouter.delete(
+  '/account',
+  authenticate,
+  asyncHandler(authController.deleteAccount)
 );
 
 app.use('/api', apiRouter);
 
 app.use('/api/*', (_, res) => {
-  res.status(404).json({
-    data: null,
-    message: 'Endpoint not found',
-  });
+  res.status(404).json({ data: null, message: 'Endpoint not found' });
 });
 
-app.use(
-  (
-    err: any,
-    _: express.Request,
-    res: express.Response
-  ) => {
-    console.error('Error:', err);
+const errorHandler: express.ErrorRequestHandler = (err, _req, res, _next) => {
+  console.error('Error:', (err && (err as any).message) ?? err);
 
-    if (err instanceof ZodError) {
-      return res.status(422).json({
-        data: null,
-        message: 'Validation error',
-        issues:
-          err.errors?.map(e => ({ path: e.path, message: e.message })) ?? [],
-      });
-    }
-
-    const status = err.status || err.statusCode || 500;
-    const message =
-      status === 500
-        ? 'Internal server error'
-        : err.message || 'Something went wrong';
-
-    res.status(status).json({
+  if (err instanceof ZodError) {
+    return res.status(422).json({
       data: null,
-      message,
+      message: 'Validation error',
+      issues:
+        err.errors?.map(e => ({ path: e.path, message: e.message })) ?? [],
     });
   }
-);
 
-if (process.env.NODE_ENV !== 'test') {
+  const status =
+    (err && ((err as any).status || (err as any).statusCode)) || 500;
+  const message =
+    status === 500
+      ? 'Internal server error'
+      : (err && (err as any).message) || 'Something went wrong';
+
+  res.status(status).json({ data: null, message });
+};
+
+app.use(errorHandler);
+
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST_WORKER_ID) {
   app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
   });

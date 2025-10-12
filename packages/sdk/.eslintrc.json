@@ -1,0 +1,14 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "env": { "es6": true, "node": true },
+  "parserOptions": { "sourceType": "module", "ecmaVersion": 2022 },
+  "ignorePatterns": ["dist/**", "node_modules/**"],
+  "overrides": [
+    {
+      "files": ["**/*.ts"],
+      "rules": {}
+    }
+  ]
+}

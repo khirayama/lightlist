@@ -1,0 +1,62 @@
+// User: Settings = 1:1
+// User: TaskListDocOrderDoc = 1:1
+// User: TaskListDoc = N:N
+
+// 現状では追加インデックスは不要
+// - 重要な検索はすべてユニーク制約でカバー済み
+// - データ規模が小さく、フルスキャンで十分
+// - 複雑な検索クエリが存在しない
+// - アプリケーション側フィルタリングで対応可能
+// インデックスを追加すべきタイミング
+// - ユーザー数が数万人を超える
+// - タスクリスト数がユーザーあたり100個を超える
+// - 複雑な検索機能が必要になる
+
+// ユーザー設定とプリファレンス
+// Userとの1:1リレーション
+
+model Settings {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme              String   @default("light") @db.VarChar(50)
+  language           String   @default("ja") @db.VarChar(20)
+  taskInsertPosition String   @default("top") @db.VarChar(50)
+  autoSort           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// 自作CRDTを使用したタスクリスト順序管理
+// Userとの1:1リレーション - 全タスクリストの順序を管理
+// データ整合性: order[]にはTaskListDoc.idの値が格納される
+// 責任: Userが利用するTaskListDocの順序を管理
+
+model TaskListDocOrderDoc {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doc       Bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // doc value snapshot
+  order     String[]
+}
+
+// 共同編集用の自作CRDTを使用した個別タスクリスト
+// 独立したエンティティ - Userへの直接参照なし（TaskListDocOrderDoc経由で管理）
+// 所有権の概念がないため、ユーザーとのN:NリレーションでuserIdは不要
+// 共有: shareTokenによる読み取り専用アクセス
+
+model TaskListDoc {
+  id         String   @id @default(uuid())
+  doc        Bytes
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  // doc value snapshot
+  name       String   @db.VarChar(300)
+  background String   @default("") @db.VarChar(100)
+  tasks      Json     @default("[]")
+  history    Json     @default("[]") // task.name history for completion suggestions
+  shareToken String?  @unique
+}

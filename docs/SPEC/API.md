@@ -16,7 +16,7 @@
 
 Better Authを採用。Expressに toNodeHandler(auth) をマウント（/api/auth/\*）。
 Cookieセッション（ll_session）を基本とし、Authorization: Bearer でのセッション検出も許容。
-CORSはCORS_ORIGINのallowlist必須・credentials=true。
+CORS: CORS_ORIGIN が '_' または未設定の場合は origin='_' かつ credentials=false。カンマ区切りの値を指定した場合は allowlist として適用し、credentials=true。
 
 - `DELETE /api/account` - アカウント削除（アプリ独自）
 
@@ -66,4 +66,13 @@ ID生成ポリシー（Local-first）:
   "id": "7b2f5f34-9d57-4e8d-9b2a-4e9dcd7f7f1a",
   "doc": "eyJhY3RvcklkIjoi..." // base64
 }
+```
+
+{
+"id": "7b2f5f34-9d57-4e8d-9b2a-4e9dcd7f7f1a",
+"doc": "eyJhY3RvcklkIjoi..." // base64
+}
+
+```
+
 ```

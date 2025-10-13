@@ -34,7 +34,7 @@
 - PostgreSQL
 - Zod
 - 認証: Better Auth（apps/api/src/auth.ts, Prisma Adapter）。Cookieセッションを基本とし、Bearerも許容。
-- CORS: CORS_ORIGINをカンマ区切りで指定。空の場合は'\*'かつcredentials=false。
+- CORS: CORS_ORIGIN='_' または未設定なら origin='_' かつ credentials=false。カンマ区切り指定時は allowlist+credentials=true。
 - helmet, cors, express-rate-limit
 - CRDT (packages/lib)
 - Prettier, Vitest, Supertest

@@ -1,13 +1,17 @@
 import express from 'express';
 import { z } from 'zod';
+
+import type { AuthenticatedRequest } from '../types';
 import { prisma } from '../lib/prisma';
-import type { AuthenticatedRequest } from '../types/http';
 import {
-  TaskListDocument,
+  TaskListDoc,
+  importTaskListDoc,
+  exportSnapshot,
+  applyUpdates as applyTaskListUpdates,
   toSnapshotBundle,
   loadOrderCrdt,
   saveOrderCrdt,
-} from '../services/tasklistdocument';
+} from '../lib/tasklistdoc';
 
 const createTaskListDocSchema = z
   .object({
@@ -35,8 +39,7 @@ const taskListDocService = {
   async createTaskListDoc(userId: string, id: string, docBytes: Buffer) {
     const orderCrdt = await loadOrderCrdt(userId);
 
-    const doc = new TaskListDocument(userId);
-    doc.import(docBytes);
+    const doc: TaskListDoc = importTaskListDoc(userId, docBytes);
 
     const arr = orderCrdt.toArray() as string[];
     if (!arr.includes(id)) {
@@ -47,7 +50,7 @@ const taskListDocService = {
       prisma.taskListDoc.create({
         data: {
           id,
-          doc: Buffer.from(doc.export()),
+          doc: Buffer.from(exportSnapshot(doc)),
           ...toSnapshotBundle(doc),
         },
       }),
@@ -99,12 +102,11 @@ const taskListDocService = {
     });
     if (!existingDoc) throw httpError(404, 'TaskListDoc not found');
 
-    const doc = new TaskListDocument(userId);
-    doc.import(existingDoc.doc);
-    doc.applyUpdates(updates);
+    const doc: TaskListDoc = importTaskListDoc(userId, existingDoc.doc);
+    applyTaskListUpdates(doc, updates);
     const updatedDoc = await prisma.taskListDoc.update({
       where: { id: taskListId },
-      data: { doc: Buffer.from(doc.export()), ...toSnapshotBundle(doc) },
+      data: { doc: Buffer.from(exportSnapshot(doc)), ...toSnapshotBundle(doc) },
     });
     return updatedDoc;
   },

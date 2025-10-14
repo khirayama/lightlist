@@ -1,7 +1,8 @@
 import express from 'express';
 import { z } from 'zod';
+
 import { prisma } from '../lib/prisma';
-import type { AuthenticatedRequest } from '../types/http';
+import type { AuthenticatedRequest } from '../types';
 
 const updateSettingsSchema = z
   .object({

@@ -26,13 +26,6 @@ type FullStore = {
   settings: SettingsStore;
 }
 
-function getLoro(platform: string) {
-  if (platform === 'web') {
-    return require('loro-crdt').default;
-  }
-    return require('loro-react-native').default;
-}
-
 function createStore() {
   let state: FullStore = {
     tasklists: [],

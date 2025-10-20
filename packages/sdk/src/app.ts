@@ -26,6 +26,10 @@ export type FullStore = {
   settings: SettingsStore;
 }
 
+function f() {
+  // session lotation and fetcher with bearer token
+}
+
 export function createStore() {
   let state: FullStore = {
     tasklists: [],
@@ -47,7 +51,13 @@ export function createStore() {
 
   const subscribers: ((state: FullStore) => void)[] = [];
 
-  function subscribe(callback: (state: FullStore) => void) {
+  const emit = () => {
+    subscribers.forEach((callback) => callback(state));
+  }
+
+  return {
+    getState: () => stete,
+    subscribe: (callback: (state: FullStore) => void) => {
     subscribers.push(callback);
     callback(state);
     return () => {
@@ -56,14 +66,19 @@ export function createStore() {
         subscribers.splice(index, 1);
       }
     };
-  }
-
-  function getState() {
-    return state;
-  }
-
-  return {
-    subscribe,
-    getState,
+    },
+    // settings
+    updateSettings: (newSettings: Partial<SettingsStore>) => {
+    },
+    // tasklist
+    addTaskList: () => {},
+    updateTaskList: () => {},
+    sortTasks: () => {},
+    deleteCompletedTasks: () => {},
+    moveTaskList: () => {},
+    // task
+    addTask: () => {},
+    updateTask: () => {},
+    moveTask: () => {},
   };  
 }

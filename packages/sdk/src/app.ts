@@ -56,7 +56,7 @@ export function createStore() {
   }
 
   return {
-    getState: () => stete,
+    getState: () => state,
     subscribe: (callback: (state: FullStore) => void) => {
     subscribers.push(callback);
     callback(state);

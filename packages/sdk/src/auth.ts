@@ -13,21 +13,16 @@ const authClient = createAuthClient({
 type Session = typeof authClient.$Infer.Session;
 
 export function createAuth() {
-  const setSession = async (session: Session | null) => {
+  const setStorage = async (key: string, value: Session | string | null) => {
     if (typeof window === 'undefined') return;
-    if (session) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
+    if (value === null) {
+      localStorage.removeItem(key);
+      return;
     }
-  };
-
-  const setJwt = async (token: string | null) => {
-    if (typeof window === 'undefined') return;
-    if (token) {
-      localStorage.setItem(JWT_STORAGE_KEY, token);
+    if (typeof value === 'string') {
+      localStorage.setItem(key, value);
     } else {
-      localStorage.removeItem(JWT_STORAGE_KEY);
+      localStorage.setItem(key, JSON.stringify(value));
     }
   };
 
@@ -37,13 +32,13 @@ export function createAuth() {
         fetchOptions: {
           onSuccess: ctx => {
             const jwt = ctx.response.headers.get('set-auth-jwt');
-            if (jwt) void setJwt(jwt);
+            if (jwt) void setStorage(JWT_STORAGE_KEY, jwt);
           },
         },
       });
       if (error) return null;
-      await setSession(data ?? null);
-      if (!error && !data) await setJwt(null);
+      await setStorage(STORAGE_KEY, data ?? null);
+      if (!error && !data) await setStorage(JWT_STORAGE_KEY, null);
       return data ?? null;
     },
     signUp: async (name: string, email: string, password: string) => {
@@ -57,12 +52,12 @@ export function createAuth() {
         fetchOptions: {
           onSuccess: ctx => {
             const jwt = ctx.response.headers.get('set-auth-jwt');
-            if (jwt) void setJwt(jwt);
+            if (jwt) void setStorage(JWT_STORAGE_KEY, jwt);
           },
         },
       });
-      await setSession(sessionData ?? null);
-      if (!sessionData) await setJwt(null);
+      await setStorage(STORAGE_KEY, sessionData ?? null);
+      if (!sessionData) await setStorage(JWT_STORAGE_KEY, null);
     },
     signIn: async (email: string, password: string) => {
       const { error } = await authClient.signIn.email({ email, password });
@@ -71,18 +66,18 @@ export function createAuth() {
         fetchOptions: {
           onSuccess: ctx => {
             const jwt = ctx.response.headers.get('set-auth-jwt');
-            if (jwt) void setJwt(jwt);
+            if (jwt) void setStorage(JWT_STORAGE_KEY, jwt);
           },
         },
       });
-      await setSession(sessionData ?? null);
-      if (!sessionData) await setJwt(null);
+      await setStorage(STORAGE_KEY, sessionData ?? null);
+      if (!sessionData) await setStorage(JWT_STORAGE_KEY, null);
     },
     signOut: async () => {
       const { error } = await authClient.signOut();
       if (error) throw new Error(error.message);
-      await setSession(null);
-      await setJwt(null);
+      await setStorage(STORAGE_KEY, null);
+      await setStorage(JWT_STORAGE_KEY, null);
     },
     deleteUser: async () => {
       const { error } = await authClient.deleteUser();

@@ -1,0 +1,1 @@
+We created apps/newnative using create-expo-app with the tabs template and expo-router. app.json includes the expo-router plugin and typedRoutes enabled. Context7 docs used: Expo repo docs for expo-router config and tabs layout.

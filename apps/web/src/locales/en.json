@@ -1,0 +1,166 @@
+{
+  "title": "LightList",
+  "copyright": "© 2024 LightList. All rights reserved.",
+  "common": {
+    "loading": "Loading...",
+    "back": "Back",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "close": "Close",
+    "adding": "Adding...",
+    "add": "Add",
+    "copy": "Copy",
+    "copied": "Copied",
+    "error": "An error occurred",
+    "confirmDelete": "Are you sure you want to delete?"
+  },
+  "auth": {
+    "tabs": {
+      "signin": "Sign In",
+      "signup": "Sign Up"
+    },
+    "form": {
+      "email": "Email Address",
+      "password": "Password",
+      "confirmPassword": "Confirm Password"
+    },
+    "validation": {
+      "email": {
+        "required": "Please enter an email address",
+        "invalid": "Please enter a valid email address"
+      },
+      "password": {
+        "required": "Please enter a password",
+        "tooShort": "Password must be at least 6 characters"
+      },
+      "confirmPassword": {
+        "required": "Please enter a confirmation password",
+        "notMatch": "Passwords do not match"
+      }
+    },
+    "error": {
+      "invalidCredential": "Email or password is incorrect",
+      "userNotFound": "No account found with this email address",
+      "emailAlreadyInUse": "This email address is already registered",
+      "weakPassword": "Password is too weak (6 characters or more recommended)",
+      "invalidEmail": "Email address format is invalid",
+      "operationNotAllowed": "This authentication method is not available",
+      "tooManyRequests": "Too many login attempts. Please try again later",
+      "general": "Authentication failed. Please try again",
+      "noUserLoggedIn": "No user is logged in",
+      "taskListNotFound": "Task list not found"
+    },
+    "button": {
+      "signin": "Sign In",
+      "signingIn": "Signing in...",
+      "signup": "Sign Up",
+      "signingUp": "Signing up...",
+      "forgotPassword": "Forgot Password?",
+      "resetPassword": "Reset Password",
+      "sendResetEmail": "Send Reset Email",
+      "sending": "Sending...",
+      "backToSignIn": "Back to Sign In",
+      "signOut": "Sign Out",
+      "deleteAccount": "Delete Account",
+      "cancel": "Cancel",
+      "delete": "Delete"
+    },
+    "passwordReset": {
+      "instruction": "Enter the email address associated with your account. We will send you a password reset email.",
+      "success": "Password reset email sent. Please check your email.",
+      "title": "Reset Password",
+      "newPassword": "New Password",
+      "confirmNewPassword": "Confirm New Password",
+      "setNewPassword": "Reset Password",
+      "settingNewPassword": "Resetting...",
+      "invalidCode": "Password reset link is invalid",
+      "expiredCode": "Password reset link has expired",
+      "resetSuccess": "Password changed successfully"
+    },
+    "placeholder": {
+      "email": "example@email.com",
+      "password": "••••••••"
+    },
+    "signOutConfirm": {
+      "title": "Sign Out",
+      "message": "Are you sure you want to sign out?"
+    },
+    "deleteAccountConfirm": {
+      "title": "Delete Account",
+      "message": "Deleting your account will permanently remove all your data. This action cannot be undone. Are you sure?"
+    }
+  },
+  "app": {
+    "title": "Tasks",
+    "emptyState": "No task lists",
+    "createNew": "Create",
+    "createTaskList": "Create Task List",
+    "taskListName": "Task List Name",
+    "taskListNamePlaceholder": "Enter task list name",
+    "create": "Create",
+    "creating": "Creating...",
+    "cancel": "Cancel",
+    "error": "An error occurred",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "dragHint": "Drag to reorder",
+    "openMenu": "Open Menu"
+  },
+  "taskList": {
+    "taskCount": "tasks",
+    "editColor": "Change Color",
+    "addTask": "Add",
+    "addTaskPlaceholder": "Enter task...",
+    "selectColor": "Select Color",
+    "deleteList": "Delete List",
+    "deleteConfirm": "Delete this task list?",
+    "dragHint": "Drag to reorder",
+    "share": "Share",
+    "shareTitle": "Share List",
+    "shareCode": "Share Code",
+    "shareDescription": "Share this task list with others. Click the button below to generate a share code.",
+    "generateShare": "Generate Share Code",
+    "removeShare": "Stop Sharing"
+  },
+  "settings": {
+    "title": "Settings",
+    "userInfo": {
+      "title": "User Information",
+      "email": "Email Address"
+    },
+    "theme": {
+      "title": "Theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "language": {
+      "title": "Language",
+      "japanese": "日本語",
+      "english": "English"
+    },
+    "danger": {
+      "title": "Danger Zone",
+      "signOut": "Sign Out",
+      "deleteAccount": "Delete Account"
+    }
+  },
+  "pages": {
+    "sharecode": {
+      "notFound": "This task list not found",
+      "error": "Failed to load task list",
+      "addTaskError": "Failed to add task",
+      "updateError": "Failed to update task",
+      "deleteError": "Failed to delete task",
+      "reorderError": "Failed to reorder tasks",
+      "addToOrderError": "Failed to add this task list",
+      "addToOrder": "Add to My Lists"
+    },
+    "tasklist": {
+      "addTaskPlaceholder": "Enter task...",
+      "noTasks": "No tasks",
+      "dragHint": "Drag to reorder"
+    }
+  }
+}

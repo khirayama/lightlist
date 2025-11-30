@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ユーザー設定: 本人のみアクセス可能
+    match /settings/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // タスクリスト順序: 本人のみアクセス可能
+    match /taskListOrder/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // タスクリスト
+    match /taskLists/{taskListId} {
+      // ヘルパー関数: taskListOrderを取得
+      function getTaskListOrder() {
+        return get(/databases/$(database)/documents/taskListOrder/$(request.auth.uid)).data;
+      }
+
+      // ヘルパー関数: taskListOrderに含まれているか確認
+      function isInTaskListOrder() {
+        return request.auth != null && taskListId in getTaskListOrder();
+      }
+
+      // ヘルパー関数: shareCodeが設定されているか確認
+      function hasMatchingShareCode() {
+        return resource.data.shareCode != null
+          && resource.data.shareCode is string;
+      }
+
+      // 読み取り権限: taskListOrderに含まれている、またはshareCodeが存在する
+      allow read: if isInTaskListOrder() || hasMatchingShareCode();
+
+      // 作成権限: 認証済みユーザーであれば誰でも作成可能
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['id', 'name', 'tasks', 'history', 'shareCode', 'background', 'createdAt', 'updatedAt'])
+        && request.resource.data.id == taskListId
+        && request.resource.data.createdAt is int
+        && request.resource.data.updatedAt is int;
+
+      // 更新権限: taskListOrderに含まれている、またはshareCodeが存在する場合
+      allow update: if (isInTaskListOrder() || hasMatchingShareCode())
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      // 削除権限: taskListOrderに含まれている場合のみ
+      allow delete: if isInTaskListOrder();
+    }
+  }
+}

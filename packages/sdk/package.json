@@ -1,0 +1,24 @@
+{
+  "name": "@lightlist/sdk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./auth": "./src/auth.ts",
+    "./store": "./src/store.ts",
+    "./types": "./src/types.ts",
+    "./mutations/auth": "./src/mutations/auth.ts",
+    "./mutations/app": "./src/mutations/app.ts",
+    "./utils/order": "./src/utils/order.ts"
+  },
+  "scripts": {
+    "deploy": "firebase deploy --only firestore:rules,firestore:indexes"
+  },
+  "dependencies": {
+    "firebase": "^12.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}

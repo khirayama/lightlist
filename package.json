@@ -1,0 +1,21 @@
+{
+  "name": "lightlist-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@11.6.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "format": "turbo run format",
+    "deploy:firestore": "cd packages/sdk && firebase deploy --only firestore:rules,firestore:indexes"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "prettier": "^3.6.2",
+    "firebase-tools": "^13.0.0"
+  }
+}

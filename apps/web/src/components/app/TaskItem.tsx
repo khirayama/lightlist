@@ -1,6 +1,5 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
 export interface TaskForSortable {
   id: string;
   text: string;
@@ -9,9 +8,7 @@ export interface TaskForSortable {
   order?: number;
 }
 
-export interface SortableTaskItemProps<
-  T extends TaskForSortable = TaskForSortable,
-> {
+export interface TaskItemProps<T extends TaskForSortable = TaskForSortable> {
   task: T;
   isEditing: boolean;
   editingText: string;
@@ -24,7 +21,7 @@ export interface SortableTaskItemProps<
   dragHintLabel: string;
 }
 
-export function SortableTaskItem<T extends TaskForSortable = TaskForSortable>({
+export function TaskItem<T extends TaskForSortable = TaskForSortable>({
   task,
   isEditing,
   editingText,
@@ -35,7 +32,7 @@ export function SortableTaskItem<T extends TaskForSortable = TaskForSortable>({
   onDelete,
   deleteLabel,
   dragHintLabel,
-}: SortableTaskItemProps<T>) {
+}: TaskItemProps<T>) {
   const {
     attributes,
     listeners,

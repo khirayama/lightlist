@@ -252,31 +252,27 @@ const state: AppState = {
 **パラメータ:**
 
 - `draggedTaskListId`: ドラッグされたタスクリスト ID
-- `targetTaskListId`: ドロップ先のタスクリスト ID（この前に挿入）
+- `targetTaskListId`: ドロップ先のタスクリスト ID（この位置に移動）
 
 **例:**
 
 ```typescript
 await updateTaskListOrder("list-id-1", "list-id-3");
-// list-id-1 が list-id-3 の前に移動
+// list-id-1 が list-id-3 の位置に移動（list-id-3 より下へ移動する場合は直後に配置）
 ```
 
 **動作:**
 
-1. 浮動小数 order を使用して新しい order 値を計算
-   - ドラッグされたリストと対象リストの order の中間値 (例: (1.0 + 2.0) / 2 = 1.5)
-   - 先頭または末尾への移動に対応
-2. 小数が枯渇している場合は自動的に reindex を実行
-3. ローカルストアを楽観的に更新
-4. トランザクションを使用して Firestore の `taskListOrder` ドキュメントを更新
-5. `updatedAt` タイムスタンプを自動設定
-6. ストアの変更をリスナーに通知
+1. 現在の order を昇順で取得し、ドラッグ対象を配列から一度除外
+2. 対象リストの位置にドラッグ対象を挿入し（上方向は直前、下方向は直後）、1 からの連番で再採番
+3. Firestore の `taskListOrder` ドキュメントをまとめて更新し、`updatedAt` を設定
+4. ストアの変更をリスナーに通知
 
 **技術仕様：**
 
-- **order フィールド:** 浮動小数（整数ではなく 1.5, 2.25 など）
-- **reindex 判定:** MIN_ORDER_GAP (0.0001) より小さい order 間隔の場合に自動実行
-- **トランザクション処理:** 並行更新時の安全性を確保
+- **order フィールド:** 1.0 からの連番
+- **更新範囲:** 並び替え後の全リストに対して order を再採番
+- **更新方法:** Firestore の単一アップデートで一括反映
 
 **例外:**
 
@@ -347,63 +343,11 @@ app:
 - **エラー:** 赤（`bg-red-50` / `text-red-700`）
 - **ホバー:** より濃い色へ遷移
 
-## 浮動小数 order システム
+## 順序管理
 
-### 概要
-
-タスクとタスクリストの並び替え時に、整数ではなく浮動小数を使用した `order` フィールドを管理しています。これにより、並び替え時の更新件数を最小化し、並行更新時の競合を大幅に削減しています。
-
-### 設計の利点
-
-1. **最小更新:** 並び替え時にドラッグされたアイテム1件のみ更新
-   - 従来方式: 整数 order で全アイテムを再計算（複数更新）
-   - 新方式: 浮動小数で対象アイテムのみ計算（1件更新）
-
-2. **並行更新への耐性:** 複数ユーザーが同時に並び替えても競合しにくい
-   - 中間値計算により、order の衝突が発生しない設計
-
-3. **トランザクション対応:** Firebase トランザクションを使用した安全な更新
-
-### 実装詳細
-
-**ファイル:** `src/lib/utils/order.ts`
-
-**主要関数:**
-
-- `calculateOrderForInsert(tasks, insertPosition)`: 新規アイテム追加時の order を計算
-- `calculateDragDropOrder(tasks, draggedId, targetId)`: ドラッグ&ドロップ時の order を計算
-- `reindexOrders(tasks)`: order を再割り当て（小数枯渇時）
-- `needsReindex(prevOrder, nextOrder)`: reindex 判定
-- `shouldReindex(orders)`: 複数 order に対する reindex 判定
-
-**定数:**
-
-- `MIN_ORDER_GAP = 0.0001`: order 間隔の閾値（これ未満で reindex トリガー）
-
-### reindex（再割り当て）処理
-
-小数が密集して間隔が `MIN_ORDER_GAP` を下回った場合、自動的に以下の処理を実行：
-
-1. 既存アイテムの order を昇順でソート
-2. 新しい order を `1.0, 2.0, 3.0, ...` に再割り当て
-3. すべての order を1度のトランザクションで更新
-
-**自動トリガー:**
-
-- `addTask` 時：新規タスク追加前に判定
-- `updateTasksOrder` 時：並び替え前に判定
-- `updateTaskListOrder` 時：並び替え前に判定
-
-### 実装上の注意点
-
-1. **float 精度:** JavaScript の float 精度（0.0001以上）を前提
-2. **トランザクション:** Firestore の runTransaction を使用
-3. **ローカルステート:** 楽観的更新 + リモート同期
-
-### 互換性
-
-- 既存の整数 order データはそのまま使用可能
-- 新規作成時は自動的に浮動小数に変換
+- タスクリスト・タスクともに並び替え後は 1.0 からの連番で order を再採番します。
+- 並び替えは昇順に並べ替えた配列を再構成し、Firestore へまとめて反映します。
+- 追加時も挿入位置を確定してから全体を再採番するため、挿入位置がずれません。
 
 ## パフォーマンス考慮事項
 
@@ -496,13 +440,13 @@ app:
    ↓
 3. ドラッグ終了時にドラッグされたタスクと対象タスクを特定
    ↓
-4. 浮動小数 order を使用して新しい order 値を計算
+4. 配列からドラッグ対象を一度除外し、対象タスク位置に挿入
    ↓
-5. `updateTasksOrder(taskListId, draggedTaskId, targetTaskId)` を呼び出し
+5. 1 からの連番で order を再採番
    ↓
-6. 必要に応じて reindex を実行
+6. `updateTasksOrder(taskListId, draggedTaskId, targetTaskId)` を呼び出し
    ↓
-7. トランザクションを使用して Firestore の `tasks[taskId].order` を更新
+7. トランザクションで Firestore の `tasks[taskId].order` を一括更新
    ↓
 8. ストアが更新され、自動的に画面に反映
 ```
@@ -593,7 +537,7 @@ app:
 
 **機能:**
 
-このタスクリストを他の人と共有できます。認証不要でshareCodeを使用して、誰でもタスクの閲覧・編集が可能です。
+このタスクリストを他の人と共有できます。認証不要でshareCodeを使用して、誰でもタスクの閲覧・編集が可能です。shareCode は `shareCodes` コレクションで予約し、一意性を担保しています。
 
 **操作:**
 
@@ -642,13 +586,13 @@ app:
 **動作:**
 
 1. 新しいタスク ID を生成
-2. タスクの order を計算（insertPosition に基づいて先頭または末尾に配置）
-3. 必要に応じて order を再インデックス
-4. 新しいタスクオブジェクトを作成
-5. トランザクション内で以下を実行：
+2. 既存タスクを order 昇順に並べ、挿入位置に新タスクを挿入
+3. 全タスクを 1.0 から連番で再採番
+4. トランザクション内で以下を実行：
    - Firestore にタスクを保存
+   - order の一括更新
    - history フィールドを更新（重複排除、最大300件保持）
-6. `updatedAt` タイムスタンプを設定
+5. `updatedAt` タイムスタンプを設定
 
 **history 管理:**
 
@@ -684,34 +628,63 @@ app:
 
 - `taskListId`: タスクリスト ID
 - `draggedTaskId`: ドラッグされたタスク ID
-- `targetTaskId`: ドロップ先のタスク ID（この前に挿入）
+- `targetTaskId`: ドロップ先のタスク ID（この位置に移動）
 
 **例:**
 
 ```typescript
 await updateTasksOrder(taskListId, "task-1", "task-3");
-// task-1 が task-3 の前に移動
+// task-1 が task-3 の位置に移動（task-3 より下へ移動する場合は直後に配置）
 ```
 
 **動作:**
 
-1. 浮動小数 order を使用して新しい order 値を計算
-   - ドラッグされたタスクと対象タスクの order の中間値（例: (1.0 + 2.0) / 2 = 1.5）
-   - 先頭または末尾への移動に対応
-   - 複数の order 更新が不要な設計（ドラッグされたタスク1件のみ更新）
-2. 小数が枯渇している場合は自動的に reindex を実行
-3. ローカルストアを楽観的に更新
-4. トランザクションを使用して Firestore の `tasks[draggedTaskId].order` を更新
-5. `updatedAt` タイムスタンプを自動設定
-6. ストアの変更をリスナーに通知
+1. 現在の order を昇順で取得し、ドラッグ対象を配列から除外
+2. 対象タスクの位置に挿入し（上方向は直前、下方向は直後）、全タスクを 1.0 から連番で再採番
+3. トランザクションを使用して Firestore の `tasks[taskId].order` を一括更新
+4. `updatedAt` タイムスタンプを自動設定
+5. ストアの変更をリスナーに通知
 
 **技術仕様：**
 
-- **order フィールド:** 浮動小数（整数ではなく 1.5, 2.25 など）
-- **更新件数:** 基本的にドラッグされたタスク1件のみ（reindex 時は全タスク）
-- **reindex 判定:** MIN_ORDER_GAP (0.0001) より小さい order 間隔の場合に自動実行
+- **order フィールド:** 1.0 からの連番
+- **更新件数:** 並び替え後の全タスクに対して order を再採番
 - **トランザクション処理:** 並行更新時の安全性を確保
-- **優位性:** 整数 order に比べて、並び替え時の競合が大幅に減少
+
+#### removeAllCompletedTasks(taskListId: string): Promise<void>
+
+タスクリスト内の完了タスクを一括削除します。
+
+**パラメータ:**
+
+- `taskListId`: タスクリスト ID
+
+**動作:**
+
+1. タスクリストを取得し、完了済みタスクの ID を抽出
+2. 完了済みタスクをまとめて削除
+3. 残ったタスクの order を `1.0` から再採番
+4. `updatedAt` を更新し、トランザクションで Firestore に反映
+
+#### sortTasks(taskListId: string): Promise<void>
+
+タスクを完了状態・日付・現在の order の優先度で並び替えます。
+
+**パラメータ:**
+
+- `taskListId`: タスクリスト ID
+
+**優先順位:**
+
+1. 未完了タスクを先頭、完了タスクを末尾
+2. 日付が早いタスクを優先（未設定・不正な日付は末尾）
+3. 既存の order をタイブレークに使用
+
+**動作:**
+
+1. 上記の優先順位でタスクをソート
+2. 並び替え後の順序に沿って order を `1.0` から再割り当て
+3. `updatedAt` を更新し、トランザクションで Firestore に反映
 
 ### 翻訳キー
 
@@ -864,9 +837,9 @@ const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
 **動作:**
 
-1. Firestore の taskLists コレクションで shareCode フィールドを検索
-2. 一致するタスクリストを返す
-3. 複数一致する場合は最初のドキュメントを返す
+1. `shareCodes/{shareCode}` ドキュメントを取得し、紐づく `taskListId` を確認
+2. 対応する `taskLists/{taskListId}` を取得して返却
+3. shareCode が登録されていない場合は null を返す
 
 #### addSharedTaskListToOrder(taskListId: string): Promise<void>
 

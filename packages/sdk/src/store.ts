@@ -21,24 +21,6 @@ type DataStore = {
 
 type StoreListener = (state: AppState) => void;
 
-const deepEqual = (a: unknown, b: unknown): boolean => {
-  if (a === b) return true;
-  if (a == null || b == null) return a === b;
-  if (typeof a !== "object" || typeof b !== "object") return false;
-
-  const keysA = Object.keys(a);
-  const keysB = Object.keys(b);
-
-  if (keysA.length !== keysB.length) return false;
-
-  return keysA.every((key) =>
-    deepEqual(
-      (a as Record<string, unknown>)[key],
-      (b as Record<string, unknown>)[key],
-    ),
-  );
-};
-
 const transform = (d: DataStore): AppState => {
   return {
     user: d.user,
@@ -98,11 +80,14 @@ function createStore() {
   const unsubscribers: (() => void)[] = [];
 
   let prevState: AppState | null = null;
+  let prevStateKey: string | null = null;
 
   const commit = () => {
     const nextState = transform(data);
-    if (!prevState || !deepEqual(prevState, nextState)) {
+    const nextStateKey = JSON.stringify(nextState);
+    if (!prevStateKey || prevStateKey !== nextStateKey) {
       prevState = nextState;
+      prevStateKey = nextStateKey;
       listeners.forEach((listener) => listener(nextState));
     }
   };

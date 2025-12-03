@@ -39,36 +39,10 @@ src/
 
 ### 共通コンポーネント
 
-#### FormInput
-
-フォーム入力欄を統一されたスタイルで表示します。
-
-**プロップス:**
-
-- `id`: HTML id属性
-- `label`: 入力欄のラベル
-- `type`: input要素のtype属性（text, password, email など）
-- `value`: 現在の入力値
-- `onChange`: 入力値変更時のコールバック関数
-- `error`: エラーメッセージ（表示時のみ）
-- `disabled`: 入力欄の無効化フラグ
-- `placeholder`: プレースホルダーテキスト
-
-#### ErrorMessage
-
-エラーメッセージを赤色で表示します。
-
-**プロップス:**
-
-- `message`: 表示するエラーメッセージ
-
-#### SuccessMessage
-
-成功メッセージを緑色で表示します。
-
-**プロップス:**
-
-- `message`: 表示する成功メッセージ
+- `FormInput`: ラベル付きの入力欄。バリデーションエラー時のメッセージ表示に対応し、ライト/ダークテーマを自動適用。
+- `Alert`: variant（info/error/success/warning）に応じた通知。テーマ対応済み。
+- `ConfirmDialog`: 確認モーダル。破壊的操作用の `isDestructive` をサポート。
+- `Spinner`: ローディング表示。
 
 ### ユーティリティ関数
 
@@ -95,6 +69,7 @@ src/
 - `getErrorMessage(errorCode, t)`: Firebaseエラーコードを多言語対応メッセージに変換
   - サポートするエラーコード: auth/invalid-credential, auth/email-already-in-use, auth/weak-password など
   - 戻り値: 翻訳済みのエラーメッセージ
+- `resolveErrorMessage(error, t, fallbackKey)`: `unknown` を受け取り、`code` プロパティの有無や Error.message を評価して文言を返す。fallbackKey は i18n キー。
 
 ## 認証フロー
 

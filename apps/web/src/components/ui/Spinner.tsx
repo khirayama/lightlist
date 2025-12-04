@@ -1,7 +1,7 @@
 export function Spinner() {
   return (
     <svg
-      className="w-8 h-8 text-indigo-600 animate-spin"
+      className="w-10 h-10 text-cyan-400 drop-shadow-[0_0_18px_rgba(34,211,238,0.45)] animate-spin"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"

@@ -26,12 +26,16 @@ export function ConfirmDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
-        <h2 className="text-lg font-bold text-gray-800 mb-2">{title}</h2>
-        <p className="text-sm text-gray-600 mb-6">{message}</p>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="max-w-sm w-full rounded-2xl border border-white/10 bg-[var(--bg-panel-strong)] shadow-[0_30px_120px_rgba(15,23,42,0.55)] px-6 py-7">
+        <h2 className="text-xl font-semibold text-white mb-2 tracking-tight">
+          {title}
+        </h2>
+        <p className="text-sm text-slate-200/80 mb-6 leading-relaxed">
+          {message}
+        </p>
         {additionalInfo && (
-          <p className="text-sm text-gray-600 mb-6 font-medium">
+          <p className="text-sm text-white mb-6 font-semibold">
             {additionalInfo}
           </p>
         )}
@@ -39,17 +43,17 @@ export function ConfirmDialog({
           <button
             onClick={onClose}
             disabled={disabled}
-            className="flex-1 px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors font-medium disabled:bg-gray-200 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 rounded-xl bg-white/10 text-white border border-white/10 hover:border-white/30 transition-all disabled:opacity-50"
           >
             {cancelText}
           </button>
           <button
             onClick={onConfirm}
             disabled={disabled}
-            className={`flex-1 px-4 py-2 text-white rounded-lg transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed ${
+            className={`flex-1 px-4 py-3 rounded-xl text-white font-semibold transition-all shadow-[0_12px_40px_rgba(56,189,248,0.35)] disabled:opacity-50 ${
               isDestructive
-                ? "bg-red-600 hover:bg-red-700"
-                : "bg-indigo-600 hover:bg-indigo-700"
+                ? "bg-gradient-to-r from-rose-500 to-amber-500 hover:opacity-90"
+                : "bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 hover:opacity-90"
             }`}
           >
             {confirmText}

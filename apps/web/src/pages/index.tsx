@@ -10,8 +10,9 @@ import {
   signUp,
   sendPasswordResetEmail,
 } from "@lightlist/sdk/mutations/auth";
-import { FormInput } from "@/components/FormInput";
-import { getErrorMessage } from "@/utils/errors";
+import { FormInput } from "@/components/ui/FormInput";
+import { Alert } from "@/components/ui/Alert";
+import { resolveErrorMessage } from "@/utils/errors";
 import { validateAuthForm } from "@/utils/validation";
 
 type AuthTab = "signin" | "signup" | "reset";
@@ -66,9 +67,10 @@ export default function IndexPage() {
 
     try {
       await action();
-    } catch (error: any) {
-      const errorCode = error.code || "unknown-error";
-      setErrors({ general: getErrorMessage(errorCode, t) });
+    } catch (error: unknown) {
+      setErrors({
+        general: resolveErrorMessage(error, t, "auth.error.general"),
+      });
     } finally {
       setLoadingState(false);
     }
@@ -107,9 +109,10 @@ export default function IndexPage() {
     try {
       await sendPasswordResetEmail(email);
       setResetSent(true);
-    } catch (error: any) {
-      const errorCode = error.code || "unknown-error";
-      setErrors({ general: getErrorMessage(errorCode, t) });
+    } catch (error: unknown) {
+      setErrors({
+        general: resolveErrorMessage(error, t, "auth.error.general"),
+      });
     } finally {
       setResetLoading(false);
     }
@@ -128,182 +131,208 @@ export default function IndexPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">
-          {t("title")}
-        </h1>
+    <div className="relative min-h-screen overflow-hidden flex items-center justify-center p-6 text-slate-900 dark:text-white">
+      <div className="absolute inset-0 -z-20 bg-gradient-to-br from-white via-cyan-50 to-emerald-50 dark:from-[#0b1020] dark:via-[#0b1020] dark:to-[#0b1020]" />
+      <div
+        className="absolute inset-0 -z-10 pointer-events-none opacity-60"
+        style={{ backgroundImage: "var(--glow)" }}
+      />
+      <div className="absolute -top-32 -left-24 w-72 h-72 bg-gradient-to-br from-cyan-400/40 to-emerald-400/30 blur-3xl -z-10" />
+      <div className="absolute -bottom-20 right-0 w-80 h-80 bg-gradient-to-br from-amber-300/30 via-rose-300/30 to-cyan-400/30 blur-3xl -z-10" />
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => handleTabChange("signin")}
-            className={`flex-1 py-2 px-4 font-medium rounded-t-lg transition-colors ${
-              activeTab === "signin"
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            {t("auth.tabs.signin")}
-          </button>
-          <button
-            onClick={() => handleTabChange("signup")}
-            className={`flex-1 py-2 px-4 font-medium rounded-t-lg transition-colors ${
-              activeTab === "signup"
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
+      <div className="w-full max-w-6xl grid gap-10 lg:grid-cols-[1.05fr_0.95fr] items-center">
+        <div className="hidden lg:flex flex-col gap-6 rounded-3xl border border-white/20 bg-slate-900/80 dark:bg-white/5 backdrop-blur-3xl p-10 shadow-[0_24px_90px_rgba(15,23,42,0.35)] text-white">
+          <p className="text-sm uppercase tracking-[0.18em] text-white/70">
             {t("auth.tabs.signup")}
-          </button>
+          </p>
+          <h1 className="text-4xl font-semibold leading-tight">{t("title")}</h1>
+          <p className="text-lg text-white/80 leading-relaxed">
+            {t("auth.passwordReset.instruction")}
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <span className="px-4 py-2 rounded-full border border-white/25 bg-white/10 text-white/90 text-sm">
+              {t("auth.tabs.signin")}
+            </span>
+            <span className="px-4 py-2 rounded-full border border-white/25 bg-white/10 text-white/90 text-sm">
+              {t("auth.tabs.signup")}
+            </span>
+            <span className="px-4 py-2 rounded-full border border-white/25 bg-white/10 text-white/90 text-sm">
+              {t("auth.button.forgotPassword")}
+            </span>
+          </div>
         </div>
 
-        {/* Sign In Form */}
-        {activeTab === "signin" && (
-          <form onSubmit={handleSignIn} className="space-y-4">
-            <FormInput
-              id="signin-email"
-              label={t("auth.form.email")}
-              type="email"
-              value={email}
-              onChange={setEmail}
-              error={errors.email}
-              disabled={loading}
-              placeholder={t("auth.placeholder.email")}
-            />
-            <FormInput
-              id="signin-password"
-              label={t("auth.form.password")}
-              type="password"
-              value={password}
-              onChange={setPassword}
-              error={errors.password}
-              disabled={loading}
-              placeholder={t("auth.placeholder.password")}
-            />
-            {errors.general && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-700">{errors.general}</p>
-              </div>
-            )}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white font-medium py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {loading ? t("auth.button.signingIn") : t("auth.button.signin")}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange("reset")}
-              className="w-full text-center text-sm text-indigo-600 hover:text-indigo-700 font-medium py-2"
-            >
-              {t("auth.button.forgotPassword")}
-            </button>
-          </form>
-        )}
+        <div className="relative">
+          <div className="absolute inset-0 -z-10 blur-3xl bg-gradient-to-br from-white/50 via-cyan-200/40 to-emerald-200/50 dark:from-cyan-500/20 dark:via-emerald-500/20 dark:to-lime-400/10" />
+          <div className="w-full max-w-lg ml-auto rounded-3xl border border-white/20 bg-white/80 dark:bg-white/5 backdrop-blur-3xl shadow-[0_30px_120px_rgba(15,23,42,0.45)] p-8">
+            <h1 className="text-3xl font-semibold text-center mb-8">
+              {t("title")}
+            </h1>
 
-        {/* Sign Up Form */}
-        {activeTab === "signup" && (
-          <form onSubmit={handleSignUp} className="space-y-4">
-            <FormInput
-              id="signup-email"
-              label={t("auth.form.email")}
-              type="email"
-              value={email}
-              onChange={setEmail}
-              error={errors.email}
-              disabled={loading}
-              placeholder={t("auth.placeholder.email")}
-            />
-            <FormInput
-              id="signup-password"
-              label={t("auth.form.password")}
-              type="password"
-              value={password}
-              onChange={setPassword}
-              error={errors.password}
-              disabled={loading}
-              placeholder={t("auth.placeholder.password")}
-            />
-            <FormInput
-              id="signup-confirm"
-              label={t("auth.form.confirmPassword")}
-              type="password"
-              value={confirmPassword}
-              onChange={setConfirmPassword}
-              error={errors.confirmPassword}
-              disabled={loading}
-              placeholder={t("auth.placeholder.password")}
-            />
-            {errors.general && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-700">{errors.general}</p>
-              </div>
-            )}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white font-medium py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {loading ? t("auth.button.signingUp") : t("auth.button.signup")}
-            </button>
-          </form>
-        )}
+            <div className="flex gap-2 mb-6 bg-white/50 dark:bg-white/5 border border-white/30 rounded-2xl p-1">
+              <button
+                onClick={() => handleTabChange("signin")}
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === "signin"
+                    ? "bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white shadow-[0_14px_40px_rgba(56,189,248,0.28)]"
+                    : "text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                {t("auth.tabs.signin")}
+              </button>
+              <button
+                onClick={() => handleTabChange("signup")}
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === "signup"
+                    ? "bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white shadow-[0_14px_40px_rgba(56,189,248,0.28)]"
+                    : "text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                {t("auth.tabs.signup")}
+              </button>
+            </div>
 
-        {/* Password Reset Form */}
-        {activeTab === "reset" && (
-          <form onSubmit={handlePasswordReset} className="space-y-4">
-            {resetSent ? (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-700">
-                  {t("auth.passwordReset.success")}
-                </p>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-gray-600 mb-4">
-                  {t("auth.passwordReset.instruction")}
-                </p>
+            {activeTab === "signin" && (
+              <form onSubmit={handleSignIn} className="space-y-5">
                 <FormInput
-                  id="reset-email"
+                  id="signin-email"
                   label={t("auth.form.email")}
                   type="email"
                   value={email}
                   onChange={setEmail}
                   error={errors.email}
-                  disabled={resetLoading}
+                  disabled={loading}
                   placeholder={t("auth.placeholder.email")}
                 />
+                <FormInput
+                  id="signin-password"
+                  label={t("auth.form.password")}
+                  type="password"
+                  value={password}
+                  onChange={setPassword}
+                  error={errors.password}
+                  disabled={loading}
+                  placeholder={t("auth.placeholder.password")}
+                />
                 {errors.general && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-700">{errors.general}</p>
-                  </div>
+                  <Alert variant="error">{errors.general}</Alert>
                 )}
                 <button
                   type="submit"
-                  disabled={resetLoading}
-                  className="w-full bg-indigo-600 text-white font-medium py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold py-3 rounded-xl shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {resetLoading
-                    ? t("auth.button.sending")
-                    : t("auth.button.sendResetEmail")}
+                  {loading
+                    ? t("auth.button.signingIn")
+                    : t("auth.button.signin")}
                 </button>
-              </>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("reset")}
+                  className="w-full text-center text-sm text-cyan-700 dark:text-cyan-200 hover:text-cyan-900 dark:hover:text-white font-semibold py-2"
+                >
+                  {t("auth.button.forgotPassword")}
+                </button>
+              </form>
             )}
-            <button
-              type="button"
-              onClick={() => handleTabChange("signin")}
-              className="w-full text-center text-sm text-indigo-600 hover:text-indigo-700 font-medium py-2"
-            >
-              {t("auth.button.backToSignIn")}
-            </button>
-          </form>
-        )}
 
-        <p className="text-xs text-gray-500 text-center mt-6">
-          {t("copyright")}
-        </p>
+            {activeTab === "signup" && (
+              <form onSubmit={handleSignUp} className="space-y-5">
+                <FormInput
+                  id="signup-email"
+                  label={t("auth.form.email")}
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  error={errors.email}
+                  disabled={loading}
+                  placeholder={t("auth.placeholder.email")}
+                />
+                <FormInput
+                  id="signup-password"
+                  label={t("auth.form.password")}
+                  type="password"
+                  value={password}
+                  onChange={setPassword}
+                  error={errors.password}
+                  disabled={loading}
+                  placeholder={t("auth.placeholder.password")}
+                />
+                <FormInput
+                  id="signup-confirm"
+                  label={t("auth.form.confirmPassword")}
+                  type="password"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  error={errors.confirmPassword}
+                  disabled={loading}
+                  placeholder={t("auth.placeholder.password")}
+                />
+                {errors.general && (
+                  <Alert variant="error">{errors.general}</Alert>
+                )}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold py-3 rounded-xl shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading
+                    ? t("auth.button.signingUp")
+                    : t("auth.button.signup")}
+                </button>
+              </form>
+            )}
+
+            {activeTab === "reset" && (
+              <form onSubmit={handlePasswordReset} className="space-y-5">
+                {resetSent ? (
+                  <Alert variant="success">
+                    {t("auth.passwordReset.success")}
+                  </Alert>
+                ) : (
+                  <>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                      {t("auth.passwordReset.instruction")}
+                    </p>
+                    <FormInput
+                      id="reset-email"
+                      label={t("auth.form.email")}
+                      type="email"
+                      value={email}
+                      onChange={setEmail}
+                      error={errors.email}
+                      disabled={resetLoading}
+                      placeholder={t("auth.placeholder.email")}
+                    />
+                    {errors.general && (
+                      <Alert variant="error">{errors.general}</Alert>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={resetLoading}
+                      className="w-full bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold py-3 rounded-xl shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {resetLoading
+                        ? t("auth.button.sending")
+                        : t("auth.button.sendResetEmail")}
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("signin")}
+                  className="w-full text-center text-sm text-cyan-700 dark:text-cyan-200 hover:text-cyan-900 dark:hover:text-white font-semibold py-2"
+                >
+                  {t("auth.button.backToSignIn")}
+                </button>
+              </form>
+            )}
+
+            <p className="text-xs text-slate-500 dark:text-slate-300 text-center mt-6">
+              {t("copyright")}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -10,8 +10,10 @@ import { appStore } from "@lightlist/sdk/store";
 import { AppState, Theme, Language } from "@lightlist/sdk/types";
 import { updateSettings } from "@lightlist/sdk/mutations/app";
 import { signOut, deleteAccount } from "@lightlist/sdk/mutations/auth";
-import { Spinner } from "@/components/Spinner";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { resolveErrorMessage } from "@/utils/errors";
+import { Spinner } from "@/components/ui/Spinner";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Alert } from "@/components/ui/Alert";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -45,8 +47,8 @@ export default function SettingsPage() {
     setError(null);
     try {
       await updateSettings({ theme });
-    } catch (err: any) {
-      setError(err.message || t("auth.error.general"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
 
@@ -55,8 +57,8 @@ export default function SettingsPage() {
     try {
       await updateSettings({ language });
       await i18next.changeLanguage(language);
-    } catch (err: any) {
-      setError(err.message || t("auth.error.general"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
 
@@ -67,8 +69,8 @@ export default function SettingsPage() {
     try {
       await signOut();
       router.push("/");
-    } catch (err: any) {
-      setError(err.message || t("auth.error.general"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
       setLoading(false);
     }
   };
@@ -80,175 +82,178 @@ export default function SettingsPage() {
     try {
       await deleteAccount();
       router.push("/");
-    } catch (err: any) {
-      setError(err.message || t("auth.error.general"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
       setLoading(false);
     }
   };
 
-  const isLoading = !state || !state.user || !state.settings;
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Spinner />
-      </div>
-    );
-  }
-
   if (!state || !state.user || !state.settings) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="relative min-h-screen flex items-center justify-center overflow-hidden text-slate-900 dark:text-white">
+        <div className="absolute inset-0 -z-20 bg-gradient-to-br from-white via-cyan-50 to-emerald-50 dark:from-[#0b1020] dark:via-[#0b1020] dark:to-[#0b1020]" />
+        <div
+          className="absolute inset-0 -z-10 pointer-events-none opacity-60"
+          style={{ backgroundImage: "var(--glow)" }}
+        />
         <Spinner />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-            title="Back"
-          >
-            <svg
-              className="w-5 h-5 text-gray-700"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-          <h1 className="text-2xl font-bold text-gray-800 flex-1 text-center">
-            {t("settings.title")}
-          </h1>
-          <div className="w-10" />
-        </div>
+    <div className="relative min-h-screen overflow-hidden py-12 px-4 text-slate-900 dark:text-white">
+      <div className="absolute inset-0 -z-20 bg-gradient-to-br from-white via-cyan-50 to-emerald-50 dark:from-[#0b1020] dark:via-[#0b1020] dark:to-[#0b1020]" />
+      <div
+        className="absolute inset-0 -z-10 pointer-events-none opacity-60"
+        style={{ backgroundImage: "var(--glow)" }}
+      />
+      <div className="absolute -top-24 left-10 w-72 h-72 bg-gradient-to-br from-cyan-400/35 to-emerald-400/30 blur-3xl -z-10" />
+      <div className="absolute bottom-0 right-0 w-80 h-80 bg-gradient-to-br from-amber-300/25 via-rose-300/30 to-cyan-400/25 blur-3xl -z-10" />
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        )}
-
-        <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-          <p className="text-sm text-gray-600">
-            {t("settings.userInfo.title")}
-          </p>
-          <p className="text-lg font-medium text-gray-800">
-            {state.user.email}
-          </p>
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t("settings.language.title")}
-          </label>
-          <div className="space-y-2">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="language"
-                value="ja"
-                checked={state.settings.language === "ja"}
-                onChange={() => handleLanguageChange("ja")}
-                className="w-4 h-4 text-indigo-600"
-              />
-              <span className="ml-2 text-gray-700">
-                {t("settings.language.japanese")}
-              </span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="language"
-                value="en"
-                checked={state.settings.language === "en"}
-                onChange={() => handleLanguageChange("en")}
-                className="w-4 h-4 text-indigo-600"
-              />
-              <span className="ml-2 text-gray-700">
-                {t("settings.language.english")}
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t("settings.theme.title")}
-          </label>
-          <div className="space-y-2">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="theme"
-                value="system"
-                checked={state.settings.theme === "system"}
-                onChange={() => handleThemeChange("system")}
-                className="w-4 h-4 text-indigo-600"
-              />
-              <span className="ml-2 text-gray-700">
-                {t("settings.theme.system")}
-              </span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="theme"
-                value="light"
-                checked={state.settings.theme === "light"}
-                onChange={() => handleThemeChange("light")}
-                className="w-4 h-4 text-indigo-600"
-              />
-              <span className="ml-2 text-gray-700">
-                {t("settings.theme.light")}
-              </span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="theme"
-                value="dark"
-                checked={state.settings.theme === "dark"}
-                onChange={() => handleThemeChange("dark")}
-                className="w-4 h-4 text-indigo-600"
-              />
-              <span className="ml-2 text-gray-700">
-                {t("settings.theme.dark")}
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <div className="border-t pt-6 mt-6">
-          <h2 className="text-sm font-bold text-gray-800 mb-3">
-            {t("settings.danger.title")}
-          </h2>
-          <div className="space-y-3">
+      <div className="max-w-2xl mx-auto">
+        <div className="rounded-3xl border border-white/20 bg-white/80 dark:bg-white/5 backdrop-blur-3xl shadow-[0_24px_90px_rgba(15,23,42,0.35)] p-8">
+          <div className="flex items-center justify-between mb-6">
             <button
-              onClick={() => setShowSignOutConfirm(true)}
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white font-medium py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              onClick={() => router.back()}
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/60 dark:bg-white/10 border border-white/30 shadow hover:border-white/60 transition-colors"
+              title={t("common.back")}
             >
-              {!loading && t("settings.danger.signOut")}
+              <svg
+                className="w-5 h-5 text-slate-800 dark:text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
             </button>
+            <h1 className="text-2xl font-bold flex-1 text-center">
+              {t("settings.title")}
+            </h1>
+            <div className="w-10" />
+          </div>
 
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={loading}
-              className="w-full bg-red-600 text-white font-medium py-2 rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {!loading && t("settings.danger.deleteAccount")}
-            </button>
+          {error && (
+            <Alert variant="error" className="mb-4">
+              {error}
+            </Alert>
+          )}
+
+          <div className="mb-6 p-5 bg-white/60 dark:bg-white/10 border border-white/20 rounded-2xl">
+            <p className="text-sm text-slate-600 dark:text-slate-200">
+              {t("settings.userInfo.title")}
+            </p>
+            <p className="text-lg font-semibold">{state.user.email}</p>
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
+              {t("settings.language.title")}
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 bg-white/60 dark:bg-white/10 border border-white/20 rounded-xl px-3 py-2">
+                <input
+                  type="radio"
+                  name="language"
+                  value="ja"
+                  checked={state.settings.language === "ja"}
+                  onChange={() => handleLanguageChange("ja")}
+                  className="w-4 h-4 text-cyan-500 focus:ring-cyan-400"
+                />
+                <span className="text-slate-800 dark:text-white">
+                  {t("settings.language.japanese")}
+                </span>
+              </label>
+              <label className="flex items-center gap-2 bg-white/60 dark:bg-white/10 border border-white/20 rounded-xl px-3 py-2">
+                <input
+                  type="radio"
+                  name="language"
+                  value="en"
+                  checked={state.settings.language === "en"}
+                  onChange={() => handleLanguageChange("en")}
+                  className="w-4 h-4 text-cyan-500 focus:ring-cyan-400"
+                />
+                <span className="text-slate-800 dark:text-white">
+                  {t("settings.language.english")}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
+              {t("settings.theme.title")}
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 bg-white/60 dark:bg-white/10 border border-white/20 rounded-xl px-3 py-2">
+                <input
+                  type="radio"
+                  name="theme"
+                  value="system"
+                  checked={state.settings.theme === "system"}
+                  onChange={() => handleThemeChange("system")}
+                  className="w-4 h-4 text-cyan-500 focus:ring-cyan-400"
+                />
+                <span className="text-slate-800 dark:text-white">
+                  {t("settings.theme.system")}
+                </span>
+              </label>
+              <label className="flex items-center gap-2 bg-white/60 dark:bg-white/10 border border-white/20 rounded-xl px-3 py-2">
+                <input
+                  type="radio"
+                  name="theme"
+                  value="light"
+                  checked={state.settings.theme === "light"}
+                  onChange={() => handleThemeChange("light")}
+                  className="w-4 h-4 text-cyan-500 focus:ring-cyan-400"
+                />
+                <span className="text-slate-800 dark:text-white">
+                  {t("settings.theme.light")}
+                </span>
+              </label>
+              <label className="flex items-center gap-2 bg-white/60 dark:bg-white/10 border border-white/20 rounded-xl px-3 py-2">
+                <input
+                  type="radio"
+                  name="theme"
+                  value="dark"
+                  checked={state.settings.theme === "dark"}
+                  onChange={() => handleThemeChange("dark")}
+                  className="w-4 h-4 text-cyan-500 focus:ring-cyan-400"
+                />
+                <span className="text-slate-800 dark:text-white">
+                  {t("settings.theme.dark")}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="border-t border-white/20 pt-6 mt-6">
+            <h2 className="text-sm font-bold mb-3">
+              {t("settings.danger.title")}
+            </h2>
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowSignOutConfirm(true)}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold py-3 rounded-xl shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {!loading && t("settings.danger.signOut")}
+              </button>
+
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-rose-500 to-amber-400 text-white font-semibold py-3 rounded-xl shadow-[0_18px_60px_rgba(251,113,133,0.3)] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {!loading && t("settings.danger.deleteAccount")}
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -16,7 +16,6 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -37,9 +36,11 @@ import {
   generateShareCode,
   removeShareCode,
 } from "@lightlist/sdk/mutations/app";
-import { Spinner } from "@/components/Spinner";
-import { SortableTaskItem } from "@/components/SortableTaskItem";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { resolveErrorMessage } from "@/utils/errors";
+import { Spinner } from "@/components/ui/Spinner";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Alert } from "@/components/ui/Alert";
+import { TaskListPanel } from "@/components/app/TaskListPanel";
 
 interface SortableTaskListItemProps {
   taskList: TaskList;
@@ -76,16 +77,16 @@ function SortableTaskListItem({
       ref={setNodeRef}
       style={style}
       className={`
-        bg-white rounded-lg shadow hover:shadow-md transition-all
-        ${isSelected ? "ring-2 ring-indigo-500" : ""}
-        ${isDragging ? "opacity-50" : ""}
+        rounded-2xl border border-white/20 bg-white/80 dark:bg-white/5 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.32)] transition-all
+        ${isSelected ? "ring-2 ring-cyan-400" : ""}
+        ${isDragging ? "opacity-60 scale-[0.99]" : "hover:shadow-[0_24px_70px_rgba(15,23,42,0.32)]"}
       `}
     >
-      <div className="flex items-center gap-2 p-3">
+      <div className="flex items-center gap-3 p-4">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
+          className="cursor-grab active:cursor-grabbing p-2 text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white rounded-lg bg-white/50 dark:bg-white/10 border border-white/30 flex-shrink-0"
           title={dragHintLabel}
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -95,16 +96,16 @@ function SortableTaskListItem({
 
         <button
           onClick={() => onSelect(taskList.id)}
-          className="flex-1 text-left p-2 hover:bg-gray-50 transition-colors rounded"
+          className="flex-1 text-left p-2 hover:bg-white/60 dark:hover:bg-white/10 transition-colors rounded-xl"
         >
           <div
-            className="w-full h-1 rounded-full mb-2"
+            className="w-full h-1.5 rounded-full mb-2"
             style={{ backgroundColor: taskList.background || "#ffffff" }}
           />
-          <h3 className="text-sm font-medium text-gray-800 truncate">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate">
             {taskList.name}
           </h3>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-slate-500 dark:text-slate-300">
             {taskList.tasks.length} {taskCountLabel}
           </p>
         </button>
@@ -141,7 +142,6 @@ export default function AppPage() {
   const [shareCopySuccess, setShareCopySuccess] = useState(false);
   const [showCreateListForm, setShowCreateListForm] = useState(false);
   const [createListInput, setCreateListInput] = useState("");
-  const [creatingList, setCreatingList] = useState(false);
 
   const sensorsList = useSensors(
     useSensor(PointerSensor, {
@@ -211,8 +211,8 @@ export default function AppPage() {
       setError(null);
       try {
         await updateTaskListOrder(draggedTaskListId, targetTaskListId);
-      } catch (err: any) {
-        setError(err.message || t("common.error"));
+      } catch (err: unknown) {
+        setError(resolveErrorMessage(err, t, "common.error"));
       }
     }
   };
@@ -220,16 +220,14 @@ export default function AppPage() {
   const handleCreateList = async () => {
     if (!createListInput.trim()) return;
 
-    setCreatingList(true);
     setError(null);
 
     try {
       await createTaskList(createListInput.trim());
       setCreateListInput("");
       setShowCreateListForm(false);
-    } catch (err: any) {
-      setError(err.message || t("app.error"));
-      setCreatingList(false);
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "app.error"));
     }
   };
 
@@ -245,8 +243,8 @@ export default function AppPage() {
       setError(null);
       try {
         await updateTasksOrder(selectedTaskListId, draggedTaskId, targetTaskId);
-      } catch (err: any) {
-        setError(err.message || t("common.error"));
+      } catch (err: unknown) {
+        setError(resolveErrorMessage(err, t, "common.error"));
       }
     }
   };
@@ -259,8 +257,8 @@ export default function AppPage() {
       await updateTask(selectedTaskListId, task.id, {
         completed: !task.completed,
       });
-    } catch (err: any) {
-      setError(err.message || t("common.error"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
 
@@ -272,8 +270,8 @@ export default function AppPage() {
     try {
       await addTask(selectedTaskListId, newTaskText.trim());
       setNewTaskText("");
-    } catch (err: any) {
-      setError(err.message || t("common.error"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
 
@@ -291,8 +289,8 @@ export default function AppPage() {
         text: editingTaskText.trim(),
       });
       setEditingTaskId(null);
-    } catch (err: any) {
-      setError(err.message || t("common.error"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
 
@@ -302,8 +300,8 @@ export default function AppPage() {
     setError(null);
     try {
       await deleteTask(selectedTaskListId, taskId);
-    } catch (err: any) {
-      setError(err.message || t("common.error"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
 
@@ -319,8 +317,8 @@ export default function AppPage() {
     try {
       await updateTaskList(selectedTaskListId, { name: editListName.trim() });
       setEditingListName(false);
-    } catch (err: any) {
-      setError(err.message || t("common.error"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
 
@@ -331,8 +329,8 @@ export default function AppPage() {
     try {
       await updateTaskList(selectedTaskListId, { background: color });
       setShowEditListModal(false);
-    } catch (err: any) {
-      setError(err.message || t("common.error"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
 
@@ -353,8 +351,10 @@ export default function AppPage() {
       } else {
         setSelectedTaskListId(null);
       }
-    } catch (err: any) {
-      setError(err.message || t("common.error"));
+      setShowDeleteConfirm(false);
+      setDeletingList(false);
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "common.error"));
       setDeletingList(false);
     }
   };
@@ -368,8 +368,8 @@ export default function AppPage() {
     try {
       const code = await generateShareCode(selectedTaskListId);
       setShareCode(code);
-    } catch (err: any) {
-      setError(err.message || t("common.error"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "common.error"));
     } finally {
       setGeneratingShareCode(false);
     }
@@ -384,8 +384,8 @@ export default function AppPage() {
     try {
       await removeShareCode(selectedTaskListId);
       setShareCode(null);
-    } catch (err: any) {
-      setError(err.message || t("common.error"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "common.error"));
     } finally {
       setRemovingShareCode(false);
     }
@@ -399,7 +399,7 @@ export default function AppPage() {
       await navigator.clipboard.writeText(shareUrl);
       setShareCopySuccess(true);
       setTimeout(() => setShareCopySuccess(false), 2000);
-    } catch (err) {
+    } catch (err: unknown) {
       setError(t("common.error"));
     }
   };
@@ -421,17 +421,27 @@ export default function AppPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="relative min-h-screen flex items-center justify-center overflow-hidden text-slate-900 dark:text-white">
+        <div className="absolute inset-0 -z-20 bg-gradient-to-br from-white via-cyan-50 to-emerald-50 dark:from-[#0b1020] dark:via-[#0b1020] dark:to-[#0b1020]" />
+        <div
+          className="absolute inset-0 -z-10 opacity-60 pointer-events-none"
+          style={{ backgroundImage: "var(--glow)" }}
+        />
         <Spinner />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex overflow-hidden">
+    <div className="relative min-h-screen flex overflow-hidden text-slate-900 dark:text-white">
+      <div className="absolute inset-0 -z-20 bg-gradient-to-br from-white via-cyan-50 to-emerald-50 dark:from-[#0b1020] dark:via-[#0b1020] dark:to-[#0b1020]" />
+      <div
+        className="absolute inset-0 -z-10 pointer-events-none opacity-60"
+        style={{ backgroundImage: "var(--glow)" }}
+      />
       {isDrawerOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
           onClick={() => setIsDrawerOpen(false)}
         />
       )}
@@ -439,22 +449,24 @@ export default function AppPage() {
       <div
         {...swipeHandlersDrawer}
         className={`
-          fixed left-0 top-0 h-full w-80 bg-white shadow-lg z-50
+          fixed left-0 top-0 h-full w-80 bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/20 shadow-[0_24px_90px_rgba(15,23,42,0.4)] z-50
           transform transition-transform duration-300 ease-in-out
           ${isDrawerOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0 md:static md:shadow-none md:transform-none
+          md:translate-x-0 md:static md:shadow-none md:transform-none md:border-r md:border-white/15
           flex flex-col overflow-hidden
         `}
       >
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-          <h1 className="text-xl font-bold text-gray-800">{t("app.title")}</h1>
+        <div className="p-5 border-b border-white/20 flex items-center justify-between flex-shrink-0">
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+            {t("app.title")}
+          </h1>
           <button
             onClick={() => router.push("/settings")}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-            title="Settings"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/60 dark:bg-white/10 border border-white/30 shadow hover:border-white/60 transition-colors"
+            title={t("settings.title")}
           >
             <svg
-              className="w-5 h-5 text-gray-700"
+              className="w-5 h-5 text-slate-800 dark:text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -511,7 +523,7 @@ export default function AppPage() {
             <div className="p-4 border-t border-gray-200 flex-shrink-0">
               <button
                 onClick={() => setShowCreateListForm(true)}
-                className="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold px-4 py-3 rounded-xl shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity"
               >
                 <svg
                   className="w-5 h-5"
@@ -537,7 +549,7 @@ export default function AppPage() {
             </p>
             <button
               onClick={() => setShowCreateListForm(true)}
-              className="inline-flex items-center gap-2 bg-indigo-600 text-white font-medium px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold px-6 py-3 rounded-xl shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity"
             >
               <svg
                 className="w-5 h-5"
@@ -564,15 +576,15 @@ export default function AppPage() {
       >
         {selectedTaskList ? (
           <>
-            <div className="bg-white border-b border-gray-200">
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border-b border-white/15 shadow-[0_12px_60px_rgba(15,23,42,0.28)]">
               <div className="px-4 py-4 flex items-center gap-4">
                 <button
                   onClick={() => setIsDrawerOpen(true)}
-                  className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/60 dark:bg-white/10 border border-white/30 shadow hover:border-white/60 transition-colors"
                   title={t("app.openMenu")}
                 >
                   <svg
-                    className="w-6 h-6 text-gray-700"
+                    className="w-6 h-6 text-slate-800 dark:text-white"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -601,12 +613,12 @@ export default function AppPage() {
                             }
                           }}
                           autoFocus
-                          className="text-2xl font-bold text-gray-800 px-2 py-1 border border-indigo-500 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="text-2xl font-bold text-slate-900 dark:text-white px-3 py-2 rounded-xl border border-cyan-300/60 bg-white/80 dark:bg-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-cyan-400"
                         />
                       </div>
                     ) : (
                       <h1
-                        className="text-2xl font-bold text-gray-800 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                        className="text-2xl font-bold text-slate-900 dark:text-white cursor-pointer px-3 py-2 rounded-lg hover:bg-white/60 dark:hover:bg-white/10 transition-colors"
                         onClick={() => {
                           setEditListName(selectedTaskList.name);
                           setEditingListName(true);
@@ -615,7 +627,7 @@ export default function AppPage() {
                         {selectedTaskList.name}
                       </h1>
                     )}
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-slate-500 dark:text-slate-300 mt-1">
                       {selectedTaskList.tasks.length} {t("taskList.taskCount")}
                     </p>
                   </div>
@@ -628,7 +640,7 @@ export default function AppPage() {
                         );
                         setShowEditListModal(true);
                       }}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                      className="px-4 py-2 rounded-xl bg-white/60 dark:bg-white/10 border border-white/30 text-slate-900 dark:text-white hover:border-white/60 transition-colors text-sm font-semibold"
                     >
                       {t("taskList.editColor")}
                     </button>
@@ -637,7 +649,7 @@ export default function AppPage() {
                         setShowShareModal(true);
                         setShareCode(selectedTaskList?.shareCode || null);
                       }}
-                      className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold shadow-[0_14px_40px_rgba(56,189,248,0.28)] hover:opacity-90 transition-opacity text-sm"
                     >
                       {t("taskList.share")}
                     </button>
@@ -646,79 +658,41 @@ export default function AppPage() {
               </div>
 
               {error && (
-                <div className="mx-4 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
+                <Alert variant="error" className="mx-4 mb-4">
+                  {error}
+                </Alert>
               )}
             </div>
 
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-4xl mx-auto px-4 py-8">
-                <DndContext
+                <TaskListPanel
+                  tasks={selectedTaskList.tasks}
                   sensors={sensorsList}
-                  collisionDetection={closestCenter}
                   onDragEnd={handleDragEndTask}
-                >
-                  <SortableContext
-                    items={selectedTaskList.tasks.map((t) => t.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-2 mb-6">
-                      {selectedTaskList.tasks.map((task) => (
-                        <SortableTaskItem
-                          key={task.id}
-                          task={task}
-                          isEditing={editingTaskId === task.id}
-                          editingText={editingTaskText}
-                          onEditingTextChange={setEditingTaskText}
-                          onEditStart={(t) => {
-                            setEditingTaskId(t.id);
-                            setEditingTaskText(t.text);
-                          }}
-                          onEditEnd={handleEditTask}
-                          onToggle={handleToggleTask}
-                          onDelete={handleDeleteTask}
-                          deleteLabel={t("common.delete")}
-                          dragHintLabel={t("taskList.dragHint")}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-
-                <div className="bg-white rounded-lg shadow p-4 mb-8">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      list="task-history-list"
-                      value={newTaskText}
-                      onChange={(e) => setNewTaskText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleAddTask();
-                        }
-                      }}
-                      placeholder={t("taskList.addTaskPlaceholder")}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <datalist id="task-history-list">
-                      {selectedTaskList?.history?.map((text) => (
-                        <option key={text} value={text} />
-                      ))}
-                    </datalist>
-                    <button
-                      onClick={handleAddTask}
-                      disabled={!newTaskText.trim()}
-                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
-                    >
-                      {t("taskList.addTask")}
-                    </button>
-                  </div>
-                </div>
-
+                  editingTaskId={editingTaskId}
+                  editingText={editingTaskText}
+                  onEditingTextChange={setEditingTaskText}
+                  onEditStart={(t) => {
+                    setEditingTaskId(t.id);
+                    setEditingTaskText(t.text);
+                  }}
+                  onEditEnd={handleEditTask}
+                  onToggle={handleToggleTask}
+                  onDelete={handleDeleteTask}
+                  newTaskText={newTaskText}
+                  onNewTaskTextChange={setNewTaskText}
+                  onAddTask={handleAddTask}
+                  addButtonLabel={t("taskList.addTask")}
+                  addPlaceholder={t("taskList.addTaskPlaceholder")}
+                  deleteLabel={t("common.delete")}
+                  dragHintLabel={t("taskList.dragHint")}
+                  emptyLabel={t("pages.tasklist.noTasks")}
+                  historySuggestions={selectedTaskList.history}
+                />
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
+                  className="px-4 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-amber-400 text-white font-semibold shadow-[0_14px_40px_rgba(251,113,133,0.3)] hover:opacity-90 transition-opacity"
                 >
                   {t("taskList.deleteList")}
                 </button>
@@ -728,10 +702,12 @@ export default function AppPage() {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <p className="text-gray-600 mb-4">{t("app.emptyState")}</p>
+              <p className="text-slate-600 dark:text-slate-300 mb-4">
+                {t("app.emptyState")}
+              </p>
               <button
                 onClick={() => setShowCreateListForm(true)}
-                className="inline-flex items-center gap-2 bg-indigo-600 text-white font-medium px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold px-6 py-3 rounded-xl shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity"
               >
                 <svg
                   className="w-5 h-5"
@@ -754,9 +730,9 @@ export default function AppPage() {
       </div>
 
       {showEditListModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[var(--bg-panel-strong)] border border-white/10 rounded-2xl shadow-[0_30px_120px_rgba(15,23,42,0.55)] p-6 max-w-sm w-full text-white">
+            <h2 className="text-lg font-semibold mb-4">
               {t("taskList.selectColor")}
             </h2>
             <div className="grid grid-cols-4 gap-3 mb-4">
@@ -764,11 +740,11 @@ export default function AppPage() {
                 <button
                   key={color}
                   onClick={() => handleEditListColor(color)}
-                  className="w-12 h-12 rounded-lg border-2 transition-all hover:scale-110"
+                  className="w-12 h-12 rounded-lg border-2 border-transparent transition-all hover:scale-110"
                   style={{
                     backgroundColor: color,
                     borderColor:
-                      editListColor === color ? "#000" : "transparent",
+                      editListColor === color ? "#fff" : "transparent",
                   }}
                   title={color}
                 />
@@ -776,7 +752,7 @@ export default function AppPage() {
             </div>
             <button
               onClick={() => setShowEditListModal(false)}
-              className="w-full px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors font-medium"
+              className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-semibold hover:border-white/40 transition-all"
             >
               {t("common.close")}
             </button>
@@ -798,16 +774,16 @@ export default function AppPage() {
       />
 
       {showShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[var(--bg-panel-strong)] border border-white/10 rounded-2xl shadow-[0_30px_120px_rgba(15,23,42,0.55)] p-6 max-w-sm w-full text-white">
+            <h2 className="text-lg font-semibold mb-4">
               {t("taskList.shareTitle")}
             </h2>
 
             {shareCode ? (
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-600 mb-2">
+                  <p className="text-sm text-slate-200/80 mb-2">
                     {t("taskList.shareCode")}
                   </p>
                   <div className="flex gap-2">
@@ -815,11 +791,11 @@ export default function AppPage() {
                       type="text"
                       value={shareCode}
                       readOnly
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                      className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm"
                     />
                     <button
                       onClick={handleCopyShareLink}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold shadow-[0_14px_40px_rgba(56,189,248,0.28)] hover:opacity-90 transition-opacity text-sm"
                     >
                       {shareCopySuccess ? t("common.copied") : t("common.copy")}
                     </button>
@@ -829,7 +805,7 @@ export default function AppPage() {
                 <button
                   onClick={handleRemoveShareCode}
                   disabled={removingShareCode}
-                  className="w-full px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium disabled:bg-gray-200 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-amber-400 text-white font-semibold shadow-[0_14px_40px_rgba(251,113,133,0.3)] hover:opacity-90 transition-opacity text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {removingShareCode
                     ? t("common.deleting")
@@ -838,13 +814,13 @@ export default function AppPage() {
               </div>
             ) : (
               <div>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-slate-200/80 mb-4">
                   {t("taskList.shareDescription")}
                 </p>
                 <button
                   onClick={handleGenerateShareCode}
                   disabled={generatingShareCode}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold shadow-[0_14px_40px_rgba(56,189,248,0.28)] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {generatingShareCode
                     ? t("common.loading")
@@ -855,7 +831,7 @@ export default function AppPage() {
 
             <button
               onClick={() => setShowShareModal(false)}
-              className="w-full mt-4 px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors font-medium"
+              className="w-full mt-4 px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-semibold hover:border-white/40 transition-all"
             >
               {t("common.close")}
             </button>
@@ -864,9 +840,9 @@ export default function AppPage() {
       )}
 
       {showCreateListForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[var(--bg-panel-strong)] border border-white/10 rounded-2xl shadow-[0_30px_120px_rgba(15,23,42,0.55)] p-6 max-w-sm w-full text-white">
+            <h2 className="text-lg font-semibold mb-4">
               {t("app.createTaskList")}
             </h2>
             <input
@@ -874,13 +850,12 @@ export default function AppPage() {
               value={createListInput}
               onChange={(e) => setCreateListInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !creatingList) {
+                if (e.key === "Enter") {
                   handleCreateList();
                 }
               }}
               placeholder={t("app.taskListNamePlaceholder")}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              disabled={creatingList}
+              className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white mb-4 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
             />
             <div className="flex gap-3">
               <button
@@ -888,17 +863,16 @@ export default function AppPage() {
                   setShowCreateListForm(false);
                   setCreateListInput("");
                 }}
-                disabled={creatingList}
-                className="flex-1 bg-gray-300 text-gray-800 font-medium py-2 rounded-lg hover:bg-gray-400 transition-colors disabled:bg-gray-200 disabled:cursor-not-allowed"
+                className="flex-1 bg-white/10 border border-white/20 text-white font-semibold py-3 rounded-xl hover:border-white/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {t("app.cancel")}
               </button>
               <button
                 onClick={handleCreateList}
-                disabled={creatingList || !createListInput.trim()}
-                className="flex-1 bg-indigo-600 text-white font-medium py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                disabled={!createListInput.trim()}
+                className="flex-1 bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold py-3 rounded-xl shadow-[0_14px_40px_rgba(56,189,248,0.28)] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {creatingList ? t("app.creating") : t("app.create")}
+                {t("app.create")}
               </button>
             </div>
           </div>

@@ -22,7 +22,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
 import { AppState, TaskList, Task } from "@lightlist/sdk/types";
-import { signOut, deleteAccount } from "@lightlist/sdk/mutations/auth";
 import {
   createTaskList,
   updateTaskListOrder,
@@ -51,7 +50,6 @@ interface SortableTaskListItemProps {
 
 function SortableTaskListItem({
   taskList,
-  isSelected,
   onSelect,
   dragHintLabel,
   taskCountLabel,
@@ -95,7 +93,7 @@ export default function AppPage() {
   const { t } = useTranslation();
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
-    null,
+    null
   );
 
   const [state, setState] = useState<AppState | null>(null);
@@ -106,7 +104,7 @@ export default function AppPage() {
   const [newTaskText, setNewTaskText] = useState("");
   const [showEditListModal, setShowEditListModal] = useState(false);
   const [editListName, setEditListName] = useState("");
-  const [editListColor, setEditListColor] = useState("");
+  const [, setEditListColor] = useState("");
   const [editingListName, setEditingListName] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingList, setDeletingList] = useState(false);
@@ -126,7 +124,7 @@ export default function AppPage() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
   useEffect(() => {
@@ -155,7 +153,7 @@ export default function AppPage() {
   }, [state?.taskLists, selectedTaskListId]);
 
   const selectedTaskList = state?.taskLists?.find(
-    (tl) => tl.id === selectedTaskListId,
+    (tl) => tl.id === selectedTaskListId
   ) as TaskList | undefined;
 
   const isLoading = !state || !state.user;
@@ -303,7 +301,7 @@ export default function AppPage() {
       await deleteTaskList(selectedTaskListId);
 
       const remainingLists = state?.taskLists?.filter(
-        (tl) => tl.id !== selectedTaskListId,
+        (tl) => tl.id !== selectedTaskListId
       );
       if (remainingLists && remainingLists.length > 0) {
         setSelectedTaskListId(remainingLists[0].id);
@@ -395,7 +393,6 @@ export default function AppPage() {
 
       <section>
         <div>
-          <h2>{t("app.createNew")}</h2>
           <button onClick={() => setShowCreateListForm(true)}>
             {t("app.createNew")}
           </button>

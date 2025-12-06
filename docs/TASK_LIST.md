@@ -587,7 +587,7 @@ app:
 
 1. 新しいタスク ID を生成
 2. 既存タスクを order 昇順に並べ、挿入位置に新タスクを挿入
-3. 全タスクを 1.0 から連番で再採番
+3. `autoSort` が有効な場合は未完了・日付・現在の order 優先で再ソートしつつ order を再採番、無効な場合は挿入位置に基づいて 1.0 から連番で再採番
 4. トランザクション内で以下を実行：
    - Firestore にタスクを保存
    - order の一括更新
@@ -611,6 +611,11 @@ app:
 - `taskId`: タスク ID
 - `updates`: 更新する内容（テキスト、完了状態など）
 
+**動作:**
+
+- `autoSort` 無効時は指定フィールドのみ更新し、`updatedAt` を設定
+- `autoSort` 有効時は対象タスクの存在を検証し、更新内容を反映した配列を未完了・日付・現在の order 優先で並べ替えて order を再採番した上でトランザクション更新
+
 #### deleteTask(taskListId: string, taskId: string): Promise<void>
 
 タスクを削除します。
@@ -619,6 +624,11 @@ app:
 
 - `taskListId`: タスクリスト ID
 - `taskId`: タスク ID
+
+**動作:**
+
+- `autoSort` 無効時はタスクを削除し、`updatedAt` のみ更新
+- `autoSort` 有効時は対象タスクの存在を検証し、削除後のタスクを未完了・日付・現在の order 優先で並び替えて再採番し、トランザクションでまとめて反映
 
 #### updateTasksOrder(taskListId: string, draggedTaskId: string, targetTaskId: string): Promise<void>
 

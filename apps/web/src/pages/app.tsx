@@ -123,7 +123,6 @@ export default function AppPage() {
   const [editListName, setEditListName] = useState("");
   const [editListBackground, setEditListBackground] = useState(colors[0]);
   const [showEditListDialog, setShowEditListDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingList, setDeletingList] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareCode, setShareCode] = useState<string | null>(null);
@@ -337,7 +336,7 @@ export default function AppPage() {
       } else {
         setSelectedTaskListId(null);
       }
-      setShowDeleteDialog(false);
+      setShowEditListDialog(false);
       setDeletingList(false);
     } catch (err: unknown) {
       setError(resolveErrorMessage(err, t, "common.error"));
@@ -681,6 +680,15 @@ export default function AppPage() {
                     </div>
                   </div>
                   <DialogFooter>
+                    <button
+                      type="button"
+                      onClick={handleDeleteList}
+                      disabled={deletingList}
+                    >
+                      {deletingList
+                        ? t("common.deleting")
+                        : t("taskList.deleteList")}
+                    </button>
                     <DialogClose asChild>
                       <button type="button">{t("common.cancel")}</button>
                     </DialogClose>
@@ -793,45 +801,6 @@ export default function AppPage() {
                     <DialogClose asChild>
                       <button type="button">{t("common.close")}</button>
                     </DialogClose>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Dialog
-                open={showDeleteDialog}
-                onOpenChange={setShowDeleteDialog}
-              >
-                <DialogTrigger asChild>
-                  <button type="button">{t("taskList.deleteList")}</button>
-                </DialogTrigger>
-                <DialogContent
-                  titleId="delete-task-list-title"
-                  descriptionId="delete-task-list-description"
-                >
-                  <DialogHeader
-                    title={
-                      <DialogTitle id="delete-task-list-title">
-                        {t("taskList.deleteConfirm")}
-                      </DialogTitle>
-                    }
-                    description={
-                      <DialogDescription id="delete-task-list-description">
-                        {selectedTaskList.name}
-                      </DialogDescription>
-                    }
-                  />
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <button type="button" disabled={deletingList}>
-                        {t("common.cancel")}
-                      </button>
-                    </DialogClose>
-                    <button
-                      type="button"
-                      onClick={handleDeleteList}
-                      disabled={deletingList}
-                    >
-                      {deletingList ? t("common.deleting") : t("common.delete")}
-                    </button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>

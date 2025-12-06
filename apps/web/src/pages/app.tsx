@@ -36,9 +36,18 @@ import {
 } from "@lightlist/sdk/mutations/app";
 import { resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Alert } from "@/components/ui/Alert";
 import { TaskListPanel } from "@/components/app/TaskListPanel";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/Dialog";
 
 interface SortableTaskListItemProps {
   taskList: TaskList;
@@ -85,6 +94,22 @@ export default function AppPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
+  const colors = [
+    "#FF6B6B",
+    "#4ECDC4",
+    "#45B7D1",
+    "#FFA07A",
+    "#98D8C8",
+    "#6C5CE7",
+    "#A29BFE",
+    "#74B9FF",
+    "#81ECEC",
+    "#55EFC4",
+    "#FD79A8",
+    "#FDCB6E",
+    "#FFFFFF",
+  ];
+
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
     null,
   );
@@ -95,18 +120,19 @@ export default function AppPage() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
-  const [showEditListModal, setShowEditListModal] = useState(false);
   const [editListName, setEditListName] = useState("");
-  const [editingListName, setEditingListName] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editListBackground, setEditListBackground] = useState(colors[0]);
+  const [showEditListDialog, setShowEditListDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingList, setDeletingList] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareCode, setShareCode] = useState<string | null>(null);
   const [generatingShareCode, setGeneratingShareCode] = useState(false);
   const [removingShareCode, setRemovingShareCode] = useState(false);
   const [shareCopySuccess, setShareCopySuccess] = useState(false);
-  const [showCreateListForm, setShowCreateListForm] = useState(false);
   const [createListInput, setCreateListInput] = useState("");
+  const [createListBackground, setCreateListBackground] = useState(colors[0]);
+  const [showCreateListDialog, setShowCreateListDialog] = useState(false);
 
   const sensorsList = useSensors(
     useSensor(PointerSensor, {
@@ -118,6 +144,10 @@ export default function AppPage() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
+
+  const selectedTaskList = state?.taskLists?.find(
+    (tl) => tl.id === selectedTaskListId,
+  ) as TaskList | undefined;
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChange((user) => {
@@ -144,9 +174,13 @@ export default function AppPage() {
     }
   }, [state?.taskLists, selectedTaskListId]);
 
-  const selectedTaskList = state?.taskLists?.find(
-    (tl) => tl.id === selectedTaskListId,
-  ) as TaskList | undefined;
+  useEffect(() => {
+    if (selectedTaskList) {
+      setEditListName(selectedTaskList.name);
+      setEditListBackground(selectedTaskList.background);
+      setShareCode(selectedTaskList.shareCode || null);
+    }
+  }, [selectedTaskList]);
 
   const isLoading = !state || !state.user;
 
@@ -172,9 +206,10 @@ export default function AppPage() {
     setError(null);
 
     try {
-      await createTaskList(createListInput.trim());
+      await createTaskList(createListInput.trim(), createListBackground);
       setCreateListInput("");
-      setShowCreateListForm(false);
+      setCreateListBackground(colors[0]);
+      setShowCreateListDialog(false);
     } catch (err: unknown) {
       setError(resolveErrorMessage(err, t, "app.error"));
     }
@@ -254,30 +289,32 @@ export default function AppPage() {
     }
   };
 
-  const handleEditListName = async () => {
+  const handleSaveListDetails = async () => {
     if (!selectedTaskListId || !selectedTaskList) return;
 
-    if (!editListName.trim() || editListName === selectedTaskList.name) {
-      setEditingListName(false);
+    const trimmedName = editListName.trim();
+    const updates: { name?: string; background?: string } = {};
+
+    if (trimmedName && trimmedName !== selectedTaskList.name) {
+      updates.name = trimmedName;
+    }
+
+    if (
+      editListBackground &&
+      editListBackground !== selectedTaskList.background
+    ) {
+      updates.background = editListBackground;
+    }
+
+    if (!updates.name && !updates.background) {
+      setShowEditListDialog(false);
       return;
     }
 
     setError(null);
     try {
-      await updateTaskList(selectedTaskListId, { name: editListName.trim() });
-      setEditingListName(false);
-    } catch (err: unknown) {
-      setError(resolveErrorMessage(err, t, "common.error"));
-    }
-  };
-
-  const handleEditListColor = async (color: string) => {
-    if (!selectedTaskListId) return;
-
-    setError(null);
-    try {
-      await updateTaskList(selectedTaskListId, { background: color });
-      setShowEditListModal(false);
+      await updateTaskList(selectedTaskListId, updates);
+      setShowEditListDialog(false);
     } catch (err: unknown) {
       setError(resolveErrorMessage(err, t, "common.error"));
     }
@@ -300,7 +337,7 @@ export default function AppPage() {
       } else {
         setSelectedTaskListId(null);
       }
-      setShowDeleteConfirm(false);
+      setShowDeleteDialog(false);
       setDeletingList(false);
     } catch (err: unknown) {
       setError(resolveErrorMessage(err, t, "common.error"));
@@ -353,21 +390,6 @@ export default function AppPage() {
     }
   };
 
-  const colors = [
-    "#FF6B6B",
-    "#4ECDC4",
-    "#45B7D1",
-    "#FFA07A",
-    "#98D8C8",
-    "#6C5CE7",
-    "#A29BFE",
-    "#74B9FF",
-    "#81ECEC",
-    "#55EFC4",
-    "#FD79A8",
-    "#FDCB6E",
-  ];
-
   if (isLoading) {
     return <Spinner />;
   }
@@ -384,40 +406,114 @@ export default function AppPage() {
 
       <section className="border-b">
         <div>
-          <button onClick={() => setShowCreateListForm(true)}>
-            {t("app.createNew")}
-          </button>
-          {showCreateListForm && (
-            <div>
-              <input
-                type="text"
-                value={createListInput}
-                onChange={(e) => setCreateListInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleCreateList();
-                  }
-                }}
-                placeholder={t("app.taskListNamePlaceholder")}
+          <Dialog
+            open={showCreateListDialog}
+            onOpenChange={(open) => {
+              setShowCreateListDialog(open);
+              if (!open) {
+                setCreateListInput("");
+                setCreateListBackground(colors[0]);
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <button type="button">{t("app.createNew")}</button>
+            </DialogTrigger>
+            <DialogContent
+              titleId="create-task-list-title"
+              descriptionId="create-task-list-description"
+            >
+              <DialogHeader
+                title={
+                  <DialogTitle id="create-task-list-title">
+                    {t("app.createTaskList")}
+                  </DialogTitle>
+                }
+                description={
+                  <DialogDescription id="create-task-list-description">
+                    {t("app.taskListName")}
+                  </DialogDescription>
+                }
               />
-              <div>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                  marginTop: "16px",
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px",
+                  }}
+                >
+                  <span>{t("app.taskListName")}</span>
+                  <input
+                    type="text"
+                    value={createListInput}
+                    onChange={(e) => setCreateListInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleCreateList();
+                      }
+                    }}
+                    placeholder={t("app.taskListNamePlaceholder")}
+                  />
+                </label>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  <span>{t("taskList.selectColor")}</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "8px",
+                    }}
+                  >
+                    {colors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        aria-pressed={createListBackground === color}
+                        aria-label={`${t("taskList.selectColor")} ${color}`}
+                        onClick={() => setCreateListBackground(color)}
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "10px",
+                          border:
+                            createListBackground === color
+                              ? "2px solid #111111"
+                              : "1px solid #cccccc",
+                          backgroundColor: color,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <button type="button">{t("app.cancel")}</button>
+                </DialogClose>
                 <button
+                  type="button"
                   onClick={handleCreateList}
                   disabled={!createListInput.trim()}
                 >
                   {t("app.create")}
                 </button>
-                <button
-                  onClick={() => {
-                    setShowCreateListForm(false);
-                    setCreateListInput("");
-                  }}
-                >
-                  {t("app.cancel")}
-                </button>
-              </div>
-            </div>
-          )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
         {state?.taskLists && state.taskLists.length > 0 ? (
           <DndContext
@@ -445,47 +541,300 @@ export default function AppPage() {
 
       {selectedTaskList ? (
         <section className="border-b">
-          <div>
-            {editingListName ? (
-              <input
-                type="text"
-                value={editListName}
-                onChange={(e) => setEditListName(e.target.value)}
-                onBlur={() => handleEditListName()}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleEditListName();
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "space-between",
+              gap: "12px",
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+              }}
+            >
+              <h2 style={{ margin: 0 }}>{selectedTaskList.name}</h2>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <span
+                  aria-label={t("taskList.selectColor")}
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    borderRadius: "4px",
+                    backgroundColor: selectedTaskList.background,
+                    border: "1px solid #cccccc",
+                  }}
+                />
+                <span>{selectedTaskList.background}</span>
+              </div>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+              }}
+            >
+              <Dialog
+                open={showEditListDialog}
+                onOpenChange={(open) => {
+                  setShowEditListDialog(open);
+                  if (open && selectedTaskList) {
+                    setEditListName(selectedTaskList.name);
+                    setEditListBackground(selectedTaskList.background);
                   }
                 }}
-                autoFocus
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditListName(selectedTaskList.name);
-                  setEditingListName(true);
+              >
+                <DialogTrigger asChild>
+                  <button type="button">{t("taskList.editDetails")}</button>
+                </DialogTrigger>
+                <DialogContent
+                  titleId="edit-task-list-title"
+                  descriptionId="edit-task-list-description"
+                >
+                  <DialogHeader
+                    title={
+                      <DialogTitle id="edit-task-list-title">
+                        {t("taskList.editDetails")}
+                      </DialogTitle>
+                    }
+                    description={
+                      <DialogDescription id="edit-task-list-description">
+                        {t("app.taskListName")}
+                      </DialogDescription>
+                    }
+                  />
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "12px",
+                      marginTop: "16px",
+                    }}
+                  >
+                    <label
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                      }}
+                    >
+                      <span>{t("app.taskListName")}</span>
+                      <input
+                        type="text"
+                        value={editListName}
+                        onChange={(e) => setEditListName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleSaveListDetails();
+                          }
+                        }}
+                        placeholder={t("app.taskListNamePlaceholder")}
+                      />
+                    </label>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                      }}
+                    >
+                      <span>{t("taskList.selectColor")}</span>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "8px",
+                        }}
+                      >
+                        {colors.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            aria-pressed={editListBackground === color}
+                            aria-label={`${t("taskList.selectColor")} ${color}`}
+                            onClick={() => setEditListBackground(color)}
+                            style={{
+                              width: "32px",
+                              height: "32px",
+                              borderRadius: "10px",
+                              border:
+                                editListBackground === color
+                                  ? "2px solid #111111"
+                                  : "1px solid #cccccc",
+                              backgroundColor: color,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <button type="button">{t("common.cancel")}</button>
+                    </DialogClose>
+                    <button
+                      type="button"
+                      onClick={handleSaveListDetails}
+                      disabled={!editListName.trim()}
+                    >
+                      {t("taskList.editDetails")}
+                    </button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Dialog
+                open={showShareDialog}
+                onOpenChange={(open) => {
+                  setShowShareDialog(open);
+                  if (open) {
+                    setShareCode(selectedTaskList.shareCode || null);
+                    setShareCopySuccess(false);
+                  }
                 }}
               >
-                {selectedTaskList.name}
-              </button>
-            )}
-            <div>
-              <button
-                onClick={() => {
-                  setShowEditListModal(true);
-                }}
+                <DialogTrigger asChild>
+                  <button type="button">{t("taskList.share")}</button>
+                </DialogTrigger>
+                <DialogContent
+                  titleId="share-task-list-title"
+                  descriptionId="share-task-list-description"
+                >
+                  <DialogHeader
+                    title={
+                      <DialogTitle id="share-task-list-title">
+                        {t("taskList.shareTitle")}
+                      </DialogTitle>
+                    }
+                    description={
+                      <DialogDescription id="share-task-list-description">
+                        {t("taskList.shareDescription")}
+                      </DialogDescription>
+                    }
+                  />
+                  {shareCode ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
+                        marginTop: "16px",
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "6px",
+                        }}
+                      >
+                        <span>{t("taskList.shareCode")}</span>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <input type="text" value={shareCode} readOnly />
+                          <button
+                            type="button"
+                            onClick={handleCopyShareLink}
+                            disabled={!shareCode}
+                          >
+                            {shareCopySuccess
+                              ? t("common.copied")
+                              : t("common.copy")}
+                          </button>
+                        </div>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleRemoveShareCode}
+                        disabled={removingShareCode}
+                      >
+                        {removingShareCode
+                          ? t("common.deleting")
+                          : t("taskList.removeShare")}
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
+                        marginTop: "16px",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={handleGenerateShareCode}
+                        disabled={generatingShareCode}
+                      >
+                        {generatingShareCode
+                          ? t("common.loading")
+                          : t("taskList.generateShare")}
+                      </button>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <button type="button">{t("common.close")}</button>
+                    </DialogClose>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Dialog
+                open={showDeleteDialog}
+                onOpenChange={setShowDeleteDialog}
               >
-                {t("taskList.editColor")}
-              </button>
-              <button
-                onClick={() => {
-                  setShowShareModal(true);
-                  setShareCode(selectedTaskList?.shareCode || null);
-                }}
-              >
-                {t("taskList.share")}
-              </button>
+                <DialogTrigger asChild>
+                  <button type="button">{t("taskList.deleteList")}</button>
+                </DialogTrigger>
+                <DialogContent
+                  titleId="delete-task-list-title"
+                  descriptionId="delete-task-list-description"
+                >
+                  <DialogHeader
+                    title={
+                      <DialogTitle id="delete-task-list-title">
+                        {t("taskList.deleteConfirm")}
+                      </DialogTitle>
+                    }
+                    description={
+                      <DialogDescription id="delete-task-list-description">
+                        {selectedTaskList.name}
+                      </DialogDescription>
+                    }
+                  />
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <button type="button" disabled={deletingList}>
+                        {t("common.cancel")}
+                      </button>
+                    </DialogClose>
+                    <button
+                      type="button"
+                      onClick={handleDeleteList}
+                      disabled={deletingList}
+                    >
+                      {deletingList ? t("common.deleting") : t("common.delete")}
+                    </button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
@@ -513,90 +862,9 @@ export default function AppPage() {
             emptyLabel={t("pages.tasklist.noTasks")}
             historySuggestions={selectedTaskList.history}
           />
-          <button onClick={() => setShowDeleteConfirm(true)}>
-            {t("taskList.deleteList")}
-          </button>
         </section>
       ) : (
         <p>{t("app.emptyState")}</p>
-      )}
-
-      {showEditListModal && (
-        <div>
-          <h2>{t("taskList.selectColor")}</h2>
-          <div>
-            {colors.map((color) => (
-              <button
-                key={color}
-                onClick={() => handleEditListColor(color)}
-                title={color}
-              >
-                {color}
-              </button>
-            ))}
-          </div>
-          <button onClick={() => setShowEditListModal(false)}>
-            {t("common.close")}
-          </button>
-        </div>
-      )}
-
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={handleDeleteList}
-        title={t("taskList.deleteConfirm")}
-        message={t("common.confirmDelete")}
-        additionalInfo={selectedTaskList?.name}
-        confirmText={deletingList ? t("common.deleting") : t("common.delete")}
-        cancelText={t("common.cancel")}
-        isDestructive={true}
-        disabled={deletingList}
-      />
-
-      {showShareModal && (
-        <div>
-          <h2>{t("taskList.shareTitle")}</h2>
-
-          {shareCode ? (
-            <div>
-              <div>
-                <p>{t("taskList.shareCode")}</p>
-                <div>
-                  <input type="text" value={shareCode} readOnly />
-                  <button onClick={handleCopyShareLink}>
-                    {shareCopySuccess ? t("common.copied") : t("common.copy")}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                onClick={handleRemoveShareCode}
-                disabled={removingShareCode}
-              >
-                {removingShareCode
-                  ? t("common.deleting")
-                  : t("taskList.removeShare")}
-              </button>
-            </div>
-          ) : (
-            <div>
-              <p>{t("taskList.shareDescription")}</p>
-              <button
-                onClick={handleGenerateShareCode}
-                disabled={generatingShareCode}
-              >
-                {generatingShareCode
-                  ? t("common.loading")
-                  : t("taskList.generateShare")}
-              </button>
-            </div>
-          )}
-
-          <button onClick={() => setShowShareModal(false)}>
-            {t("common.close")}
-          </button>
-        </div>
       )}
     </div>
   );

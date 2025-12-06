@@ -109,6 +109,7 @@
   },
   "taskList": {
     "taskCount": "個のタスク",
+    "editDetails": "リストを編集",
     "editColor": "色を変更",
     "addTask": "追加",
     "addTaskPlaceholder": "タスクを入力...",

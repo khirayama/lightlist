@@ -2,7 +2,7 @@
 
 ## 分類
 
-- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, ConfirmDialog, FormInput, Spinner）で、現在はスタイルを持たないシンプルな実装
+- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, ConfirmDialog, Dialog, FormInput, Spinner）で、現在はスタイルを持たないシンプルな実装
 - `apps/web/src/components/app`: 設定や、タスク表示・並び替えなど、アプリ固有の共有コンポーネント。SDKへの依存が判断基準（TaskListPanel が単一タスクの描画も内包）
 
 ## 追加・変更ルール
@@ -11,6 +11,7 @@
 - SDKやタスクドメインに触れる場合は `tasks` など機能ベースのディレクトリにまとめる
 - ボタンや入力などのプリミティブは `ui` に集約し、スタイルの重複を避ける
 - テーマとi18nはプリミティブで吸収し、ページ側での個別対応を増やさない
+- モーダルは `ui/Dialog` を使用し、`titleId`/`descriptionId` を設定してアクセシビリティを担保する
 
 ## app 配下のコンポーネント
 

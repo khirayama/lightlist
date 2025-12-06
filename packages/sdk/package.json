@@ -8,8 +8,7 @@
     "./store": "./src/store.ts",
     "./types": "./src/types.ts",
     "./mutations/auth": "./src/mutations/auth.ts",
-    "./mutations/app": "./src/mutations/app.ts",
-    "./utils/order": "./src/utils/order.ts"
+    "./mutations/app": "./src/mutations/app.ts"
   },
   "scripts": {
     "deploy": "firebase deploy --only firestore:rules,firestore:indexes"

@@ -14,8 +14,12 @@
     "deploy:firestore": "cd packages/sdk && firebase deploy --only firestore:rules,firestore:indexes"
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
+    "firebase-tools": "^13.0.0",
     "prettier": "^3.6.2",
-    "firebase-tools": "^13.0.0"
+    "turbo": "^2.0.0"
+  },
+  "dependencies": {
+    "embla-carousel-react": "^8.6.0",
+    "embla-carousel-wheel-gestures": "^8.1.0"
   }
 }

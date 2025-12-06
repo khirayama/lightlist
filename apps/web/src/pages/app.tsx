@@ -73,6 +73,9 @@ function SortableTaskListItem({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
   };
 
   return (
@@ -82,6 +85,16 @@ function SortableTaskListItem({
           <path d="M8 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
         </svg>
       </button>
+      <span
+        aria-hidden="true"
+        style={{
+          width: "12px",
+          height: "12px",
+          borderRadius: "4px",
+          backgroundColor: taskList.background,
+          border: "1px solid #cccccc",
+        }}
+      />
 
       <button onClick={() => onSelect(taskList.id)}>
         {taskList.name} {taskList.tasks.length} {taskList.background}
@@ -407,7 +420,7 @@ export default function AppPage() {
         <div>
           <Dialog
             open={showCreateListDialog}
-            onOpenChange={(open) => {
+            onOpenChange={(open: boolean) => {
               setShowCreateListDialog(open);
               if (!open) {
                 setCreateListInput("");
@@ -539,7 +552,10 @@ export default function AppPage() {
       </section>
 
       {selectedTaskList ? (
-        <section className="border-b">
+        <section
+          className="border-b"
+          style={{ backgroundColor: selectedTaskList.background }}
+        >
           <div
             style={{
               display: "flex",
@@ -587,7 +603,7 @@ export default function AppPage() {
             >
               <Dialog
                 open={showEditListDialog}
-                onOpenChange={(open) => {
+                onOpenChange={(open: boolean) => {
                   setShowEditListDialog(open);
                   if (open && selectedTaskList) {
                     setEditListName(selectedTaskList.name);
@@ -704,7 +720,7 @@ export default function AppPage() {
               </Dialog>
               <Dialog
                 open={showShareDialog}
-                onOpenChange={(open) => {
+                onOpenChange={(open: boolean) => {
                   setShowShareDialog(open);
                   if (open) {
                     setShareCode(selectedTaskList.shareCode || null);

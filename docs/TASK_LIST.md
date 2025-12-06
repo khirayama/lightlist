@@ -4,169 +4,43 @@
 
 LightList はタスクリスト管理機能を提供しており、複数のタスクリストを作成・管理できます。各タスクリストは個別のタスクを含み、ユーザーが効率的に作業を管理できるように設計されています。
 
-## タスク管理ページ（統合ドロワーレイアウト）
+## タスク管理ページ
 
 **ページ:** `src/pages/app.tsx`
 
 ### 概要
 
-タスク管理ページは、タスクリスト一覧とタスク詳細を統合したドロワーレイアウトで表示します。モバイルではオーバーレイドロワー、デスクトップでは2カラムレイアウトで表示され、シームレスなタスク管理体験を提供します。
+- 単一ページでタスクリスト一覧とタスク詳細を縦に配置したシンプルなレイアウト。デバイスによるレイアウト差分やドロワーは持たない。
+- タスクリストとタスクの並び替えはすべて `@dnd-kit` のドラッグハンドルで行い、オーダーは Firestore に即時反映される。
+- Firebase 認証の状態を監視し、未ログインの場合は `/` にリダイレクト。
 
-### レイアウト仕様
+### UI 構成
 
-#### モバイル（< 768px）
+- **ヘッダー:** 設定画面への遷移ボタンと、エラーを `Alert` で表示する領域。
+- **タスクリスト一覧:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力して `createTaskList` を実行。リストが空のときは `app.emptyState` を表示し、並び替えハンドルの直後に `TaskList.background` を示す小さな角丸ボックスを置いて色を確認できる。
+- **タスク詳細カルーセル:** 各タスクリストを `Carousel` (Embla) で横スライド化し、ホイール左右操作や前後ボタン、インジケータなしのスワイプで切り替える。表示中スライドの `TaskList.background` をセクション全体に適用し、`TaskListPanel` にタスク配列と履歴 (`history`) を渡して完了・削除・追加・編集を行う。
+- **色と共有:** 編集Dialogでリスト名と背景色をまとめて変更。共有Dialogでコードの生成/停止とクリップボードコピーを行う。
+- **削除確認:** リスト編集Dialog内の削除ボタンから `deleteTaskList` を実行。
 
-- **サイドバー:** オーバーレイドロワー（左からスライドイン）
-  - ハンバーガーメニューボタンで開閉
-  - スワイプジェスチャーで開閉（右スワイプで開く、左スワイプで閉じる）
-  - タスクリスト選択後は自動で閉じる
-  - 半透明背景で画面を覆う
+### カルーセル操作
 
-#### デスクトップ（>= 768px）
+- `embla-carousel-wheel-gestures` を有効化し、ホイールで左右にスクロールするとスライドが切り替わり、`selectedTaskListId` を同期する。
+- リスト一覧での選択や Dialog オープン時は対象リストを事前に選択し、カルーセル位置とフォーム入力を一致させる。
 
-- **レイアウト:** 固定サイドバー（w-80 / 320px）+ メインコンテンツ
-- **サイドバー:** 常に表示、開閉機能なし
-- **ハンバーガーメニュー:** 非表示
+### 並び替え
 
-### 主要機能
+- **タスクリスト:** `updateTaskListOrder(draggedTaskListId, targetTaskListId)` で全リストの order を再採番。
+- **タスク:** `updateTasksOrder(taskListId, draggedTaskId, targetTaskId)` でタスク順を更新。`autoSort` が有効な場合、`updateTask` 内でも完了状態と日付に基づき order を再計算する。
 
-#### 1. タスクリスト一覧表示（サイドバー）
+### 入力とエラー
 
-**仕様:**
+- 追加ボタンは入力が空白のときに無効化。
+- Firebase 由来のエラーコードは `resolveErrorMessage` で i18n キーに変換し、`Alert` で表示する。
 
-- 縦並びリスト形式でタスクリストを表示
-- 各リスト項目は以下の情報を表示：
-  - 背景色インジケータ（上部の色付きバー）
-  - リスト名（切り詰め表示対応）
-  - タスク数
-- リスト項目はホバー時に視覚的フィードバック
+### アクセシビリティ
 
-**選択状態:**
-
-- 現在選択中のリストは `ring-2 ring-indigo-500` で視覚化
-- リスト項目クリックで選択（メインエリアにタスク一覧を表示）
-
-**エラーハンドリング:**
-
-- 認証されていないユーザーはリダイレクト処理により、`/` へ移動
-- リスト読み込み中の状態をローディング表示で表現
-
-#### 2. スワイプジェスチャー対応（モバイルのみ）
-
-**スワイプ操作:**
-
-- **右スワイプ:** メインエリアから右にスワイプするとドロワーが開く
-- **左スワイプ:** ドロワーから左にスワイプするとドロワーが閉じる
-- **スクロール保護:** `preventScrollOnSwipe: true` でスクロール操作との競合を回避
-
-**技術実装:**
-
-- ライブラリ: `react-swipeable`
-- `trackMouse: false` でマウスでのスワイプを無効化（デスクトップ向け）
-
-#### 3. 空の状態表示（サイドバー）
-
-**表示条件:**
-
-タスクリストが存在しない場合、サイドバーに以下を表示：
-
-- "タスクリストがありません" メッセージ
-- 新規作成ボタン
-
-**メイン エリア:**
-
-- タスクリストが選択されていない場合は、空の状態メッセージと新規作成ボタンを表示
-
-#### 4. 新規作成機能
-
-**ページレイアウト:**
-
-- 一覧下部に「新規作成」ボタンを配置
-- 空の状態でも「新規作成」ボタンを表示可能
-
-**モーダルフォーム:**
-
-1. ボタンをクリックするとモーダルフォームが表示される
-2. リスト名入力フィールドと確認ボタンを提供
-3. 以下の操作をサポート：
-   - **テキスト入力:** リスト名の入力
-   - **Enter キー:** フォーム送信のショートカット（`creatingList` が false の場合）
-   - **キャンセルボタン:** モーダルを閉じて入力をクリア
-   - **作成ボタ:** 新規リストを作成
-
-**処理フロー:**
-
-```
-1. ユーザーが「新規作成」ボタンをクリック
-   ↓
-2. モーダルフォーム表示
-   ↓
-3. リスト名を入力（検証：空白は不可）
-   ↓
-4. 「作成」ボタンをクリック
-   ↓
-5. `createTaskList(name)` 関数を呼び出し
-   ↓
-6. Firestore にリストを作成
-   ↓
-7. ストアを更新（自動的に画面に反映）
-   ↓
-8. モーダルを閉じて、入力をリセット
-```
-
-**エラーハンドリング:**
-
-- 作成中にエラーが発生した場合、エラーメッセージを表示
-- ユーザーは同じモーダル内で再度試行可能
-
-#### 4. タスクリストの並び替え（ドラッグ&ドロップ）
-
-**機能:**
-
-各タスクリストカードの左側にあるドラッグハンドル（≡アイコン）をドラッグして、リストの順序を変更できます。
-
-**ユーザー操作:**
-
-1. ドラッグハンドルをマウスで押下（ポインタ感度: 8px）
-2. マウスを上下・左右に移動してリストの順序を変更
-3. マウスボタンを放すと新しい順序が保存される
-
-**キーボード操作:**
-
-- `arrow-up/down` キーでもドラッグハンドルをフォーカス後に順序変更が可能（アクセシビリティ対応）
-
-**処理フロー:**
-
-```
-1. ユーザーがドラッグハンドルをドラッグ開始
-   ↓
-2. ドラッグ中はカードが半透明表示
-   ↓
-3. ドラッグ終了時にドラッグされたリストと対象リストを特定
-   ↓
-4. 浮動小数 order を使用して新しい order 値を計算
-   ↓
-5. `updateTaskListOrder(draggedTaskListId, targetTaskListId)` を呼び出し
-   ↓
-6. 必要に応じて reindex を実行
-   ↓
-7. Firestore を更新（トランザクション使用）
-   ↓
-8. ストアが更新され、自動的に画面に反映
-```
-
-**視覚的フィードバック:**
-
-- ドラッグハンドルはホバー時に色が濃くなる（`hover:text-gray-600`）
-- ドラッグ中のカードは半透明表示（`opacity-50`）
-- ドラッグハンドルは `cursor-grab` から `cursor-grabbing` に変更
-
-**技術詳細:**
-
-- ライブラリ: `@dnd-kit/core` と `@dnd-kit/sortable` を使用
-- ポインタセンサーとキーボードセンサーの両方に対応
-- 最も近い衝突検出アルゴリズムを使用（`closestCenter`）
-- グリッドレイアウトに対応
+- DnD ハンドルにはタイトルを付与し、`Spinner` は `aria-busy` を持つ。
+- テキストボタン主体で、キーボード操作でタスク編集/確定が可能。
 
 ## 状態管理
 
@@ -174,24 +48,30 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 ```typescript
 // ドロワーとタスクリスト選択状態
-const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
   null,
 );
+const [taskListCarouselApi, setTaskListCarouselApi] =
+  useState<CarouselApi | null>(null);
 
 // タスクリスト作成
-const [showCreateListForm, setShowCreateListForm] = useState(false);
+const [showCreateListDialog, setShowCreateListDialog] = useState(false);
 const [createListInput, setCreateListInput] = useState("");
-const [creatingList, setCreatingList] = useState(false);
+const [createListBackground, setCreateListBackground] = useState(colors[0]);
 
 // タスク操作状態（メインコンテンツ内）
 const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 const [editingTaskText, setEditingTaskText] = useState("");
 const [newTaskText, setNewTaskText] = useState("");
-const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-const [showEditColorModal, setShowEditColorModal] = useState(false);
-const [editingColor, setEditingColor] = useState("");
-const [showShareModal, setShowShareModal] = useState(false);
+const [showEditListDialog, setShowEditListDialog] = useState(false);
+const [editListName, setEditListName] = useState("");
+const [editListBackground, setEditListBackground] = useState(colors[0]);
+const [deletingList, setDeletingList] = useState(false);
+const [showShareDialog, setShowShareDialog] = useState(false);
+const [shareCode, setShareCode] = useState<string | null>(null);
+const [shareCopySuccess, setShareCopySuccess] = useState(false);
+const [generatingShareCode, setGeneratingShareCode] = useState(false);
+const [removingShareCode, setRemovingShareCode] = useState(false);
 ```
 
 **ドロワー状態の詳細:**
@@ -299,6 +179,13 @@ app:
   error: エラーメッセージ（汎用）
   moveUp: 上へ移動ボタンのテキスト
   moveDown: 下へ移動ボタンのテキスト
+  dragHint: ドラッグして並び替え
+  openMenu: メニューを開く
+taskList:
+  editDetails: 編集ダイアログのタイトルとボタン文言
+  shareTitle: 共有ダイアログタイトル
+  shareDescription: 共有ダイアログ本文
+  selectColor: 色選択ラベル
 ```
 
 詳細は `locales/ja.json` および `locales/en.json` を参照してください。
@@ -307,41 +194,9 @@ app:
 
 ### タスクリストカード
 
-- **背景:** 白色（`bg-white`）
-- **シャドウ:** 標準シャドウ（`shadow`）、ホバー時に強調（`hover:shadow-lg`）
-- **コーナー:** 丸角（`rounded-lg`）
-- **上部ボーダー:** 4px の色付きボーダー（背景色を視覚化）
-- **内部構造:**
-  - ドラッグハンドル、リスト情報が横方向に配置
-  - パディング中程度（`p-4`）
-  - ドラッグハンドルは flex-shrink-0 で幅固定
-- **ホバー効果:**
-  - シャドウ増加（`shadow-lg`）
-  - スムーズなトランジション（`transition-all`）
-- **ドラッグ中:**
-  - 半透明表示（`opacity-50`）
-
-### ドラッグハンドル
-
-- **アイコン:** ≡ アイコン（6ドット）
-- **色:** グレー（`text-gray-400`）
-- **ホバー色:** より濃いグレー（`hover:text-gray-600`）
-- **カーソル:** `cursor-grab` / `cursor-grabbing`
-
-### モーダルフォーム
-
-- **背景オーバーレイ:** 半透明黒（`bg-black bg-opacity-50`）
-- **フォーム背景:** 白色（`bg-white`）
-- **最大幅:** 中程度（`max-w-sm`）
-- **パディング:** 中程度（`p-6`）
-- **入力フィールド:** ボーダースタイル、フォーカス時はインディゴリング
-
-### 色スキーム
-
-- **プライマリアクション:** インディゴ（`bg-indigo-600`）
-- **キャンセル:** グレー（`bg-gray-300`）
-- **エラー:** 赤（`bg-red-50` / `text-red-700`）
-- **ホバー:** より濃い色へ遷移
+- **背景:** 選択中のタスクリストに設定された `background` をセクション全体に反映
+- 並び替えハンドルの右に、タスクリストの背景色を示す角丸ボックスを配置
+- スタイルは最小限で、Tailwind などのユーティリティクラスには依存していません。視覚効果より動作確認を優先し、基本的なボタンと入力のみで構成します。
 
 ## 順序管理
 
@@ -556,16 +411,36 @@ app:
 
 ### 状態管理
 
-メインコンテンツエリアの状態は、親の app.tsx コンポーネントで一元管理されます。詳細は上記の「状態管理」セクションを参照してください。
+app.tsx では以下のように状態を一元管理しています。
 
-主な状態変数：
+```typescript
+const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(null);
+const [state, setState] = useState<AppState | null>(null);
+const [error, setError] = useState<string | null>(null);
+const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+const [editingTaskText, setEditingTaskText] = useState("");
+const [newTaskText, setNewTaskText] = useState("");
+const [showEditListModal, setShowEditListModal] = useState(false);
+const [editListName, setEditListName] = useState("");
+const [editingListName, setEditingListName] = useState(false);
+const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+const [showShareModal, setShowShareModal] = useState(false);
+const [shareCode, setShareCode] = useState<string | null>(null);
+const [generatingShareCode, setGeneratingShareCode] = useState(false);
+const [removingShareCode, setRemovingShareCode] = useState(false);
+const [shareCopySuccess, setShareCopySuccess] = useState(false);
+const [showCreateListForm, setShowCreateListForm] = useState(false);
+const [createListInput, setCreateListInput] = useState("");
+```
 
-- `editingTaskId`: 編集中のタスク ID
-- `editingTaskText`: 編集中のテキスト
-- `newTaskText`: 新規タスク入力テキスト
-- `showDeleteConfirm`: 削除確認モーダルの表示状態
-- `showEditColorModal`: 色編集モーダルの表示状態
-- `showShareModal`: 共有モーダルの表示状態
+- `selectedTaskListId`: 表示対象のタスクリスト ID。初回ロード時に最初のリストを自動選択。
+- `state`: `appStore` から購読した `AppState`。ユーザー、設定、タスクリストを保持。
+- `error`: 画面上部に表示するエラーメッセージ。
+- `editingTaskId`/`editingTaskText`: インライン編集中のタスク識別と内容。
+- `newTaskText`: タスク追加フォームの入力内容。
+- `showEditListModal` ほかのフラグ: 色選択、削除確認、共有モーダルなどの開閉制御。
+- `shareCode` とコピー関連のフラグ: 共有コードの生成・削除・コピー状態を保持。
+- `showCreateListForm`/`createListInput`: タスクリスト作成フォームの表示と入力値。
 
 ### API インターフェース
 
@@ -587,7 +462,7 @@ app:
 
 1. 新しいタスク ID を生成
 2. 既存タスクを order 昇順に並べ、挿入位置に新タスクを挿入
-3. 全タスクを 1.0 から連番で再採番
+3. `autoSort` が有効な場合は未完了・日付・現在の order 優先で再ソートしつつ order を再採番、無効な場合は挿入位置に基づいて 1.0 から連番で再採番
 4. トランザクション内で以下を実行：
    - Firestore にタスクを保存
    - order の一括更新
@@ -611,6 +486,11 @@ app:
 - `taskId`: タスク ID
 - `updates`: 更新する内容（テキスト、完了状態など）
 
+**動作:**
+
+- `autoSort` 無効時は指定フィールドのみ更新し、`updatedAt` を設定
+- `autoSort` 有効時は対象タスクの存在を検証し、更新内容を反映した配列を未完了・日付・現在の order 優先で並べ替えて order を再採番した上でトランザクション更新
+
 #### deleteTask(taskListId: string, taskId: string): Promise<void>
 
 タスクを削除します。
@@ -619,6 +499,11 @@ app:
 
 - `taskListId`: タスクリスト ID
 - `taskId`: タスク ID
+
+**動作:**
+
+- `autoSort` 無効時はタスクを削除し、`updatedAt` のみ更新
+- `autoSort` 有効時は対象タスクの存在を検証し、削除後のタスクを未完了・日付・現在の order 優先で並び替えて再採番し、トランザクションでまとめて反映
 
 #### updateTasksOrder(taskListId: string, draggedTaskId: string, targetTaskId: string): Promise<void>
 
@@ -651,41 +536,6 @@ await updateTasksOrder(taskListId, "task-1", "task-3");
 - **更新件数:** 並び替え後の全タスクに対して order を再採番
 - **トランザクション処理:** 並行更新時の安全性を確保
 
-#### removeAllCompletedTasks(taskListId: string): Promise<void>
-
-タスクリスト内の完了タスクを一括削除します。
-
-**パラメータ:**
-
-- `taskListId`: タスクリスト ID
-
-**動作:**
-
-1. タスクリストを取得し、完了済みタスクの ID を抽出
-2. 完了済みタスクをまとめて削除
-3. 残ったタスクの order を `1.0` から再採番
-4. `updatedAt` を更新し、トランザクションで Firestore に反映
-
-#### sortTasks(taskListId: string): Promise<void>
-
-タスクを完了状態・日付・現在の order の優先度で並び替えます。
-
-**パラメータ:**
-
-- `taskListId`: タスクリスト ID
-
-**優先順位:**
-
-1. 未完了タスクを先頭、完了タスクを末尾
-2. 日付が早いタスクを優先（未設定・不正な日付は末尾）
-3. 既存の order をタイブレークに使用
-
-**動作:**
-
-1. 上記の優先順位でタスクをソート
-2. 並び替え後の順序に沿って order を `1.0` から再割り当て
-3. `updatedAt` を更新し、トランザクションで Firestore に反映
-
 ### 翻訳キー
 
 タスク詳細ページの UI テキストは i18next を使用して多言語対応されています。
@@ -710,7 +560,7 @@ taskList:
 
 #### タスクアイテム
 
-- **背景:** 白色（`bg-white`）
+- **背景:** 個別の背景色は付けず、親セクションの色に従う
 - **シャドウ:** 標準シャドウ（`shadow`）
 - **コーナー:** 丸角（`rounded-lg`）
 - **内部構造:**

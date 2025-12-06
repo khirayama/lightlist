@@ -349,7 +349,19 @@ document.documentElement.classList.toggle("dark", isDark);
 - `i18next.changeLanguage()` で UI の言語を即座に切り替え
 - 言語変更後、自動的に UI テキストが更新される
 
-#### 4. ログアウト
+#### 4. タスク追加位置
+
+- **末尾に追加** (`bottom`) と **先頭に追加** (`top`) をラジオボタンで切り替え
+- `updateSettings({ taskInsertPosition })` で Firestore に保存
+- SDK 内でタスク追加時の挿入位置に利用する
+
+#### 5. 自動ソート
+
+- チェックボックスで ON/OFF を切り替え
+- `updateSettings({ autoSort })` で Firestore に保存
+- タスクの並び替え挙動を切り替えるためのフラグとして保持
+
+#### 6. ログアウト
 
 ログアウトボタンは以下の動作を実行します：
 
@@ -358,7 +370,7 @@ document.documentElement.classList.toggle("dark", isDark);
 3. Firebase セッションを終了
 4. ログインページ (`/`) へリダイレクト
 
-#### 5. アカウント削除
+#### 7. アカウント削除
 
 アカウント削除ボタンは以下の動作を実行します：
 
@@ -382,6 +394,8 @@ document.documentElement.classList.toggle("dark", isDark);
 - `settings`: 更新対象の設定オブジェクト
   - `theme?: Theme` - テーマ（"system" | "light" | "dark"）
   - `language?: Language` - 言語（"ja" | "en"）
+  - `taskInsertPosition?: TaskInsertPosition` - タスク挿入位置（"bottom" | "top"）
+  - `autoSort?: boolean` - 自動ソートフラグ
   - その他の設定フィールドも対応
 
 **動作:**
@@ -414,6 +428,13 @@ settings:
     title: 言語設定のタイトル
     japanese: 日本語オプション
     english: English オプション
+  taskInsertPosition:
+    title: タスク挿入位置のタイトル
+    top: 先頭に追加オプション
+    bottom: 末尾に追加オプション
+  autoSort:
+    title: 自動ソートセクションのタイトル
+    enable: 自動ソート切り替えラベル
   danger:
     title: 危険な操作セクションのタイトル
     signOut: ログアウトボタンテキスト

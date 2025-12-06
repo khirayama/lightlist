@@ -7,7 +7,12 @@ import i18next from "i18next";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
-import { AppState, Theme, Language } from "@lightlist/sdk/types";
+import {
+  AppState,
+  Theme,
+  Language,
+  TaskInsertPosition,
+} from "@lightlist/sdk/types";
 import { updateSettings } from "@lightlist/sdk/mutations/app";
 import { signOut, deleteAccount } from "@lightlist/sdk/mutations/auth";
 import { resolveErrorMessage } from "@/utils/errors";
@@ -57,6 +62,26 @@ export default function SettingsPage() {
     try {
       await updateSettings({ language });
       await i18next.changeLanguage(language);
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
+    }
+  };
+
+  const handleTaskInsertPositionChange = async (
+    taskInsertPosition: TaskInsertPosition,
+  ) => {
+    setError(null);
+    try {
+      await updateSettings({ taskInsertPosition });
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
+    }
+  };
+
+  const handleAutoSortChange = async (autoSort: boolean) => {
+    setError(null);
+    try {
+      await updateSettings({ autoSort });
     } catch (err: unknown) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
@@ -163,6 +188,43 @@ export default function SettingsPage() {
             onChange={() => handleThemeChange("dark")}
           />
           {t("settings.theme.dark")}
+        </label>
+      </div>
+
+      <div>
+        <p>{t("settings.taskInsertPosition.title")}</p>
+        <label>
+          <input
+            type="radio"
+            name="taskInsertPosition"
+            value="bottom"
+            checked={state.settings.taskInsertPosition === "bottom"}
+            onChange={() => handleTaskInsertPositionChange("bottom")}
+          />
+          {t("settings.taskInsertPosition.bottom")}
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="taskInsertPosition"
+            value="top"
+            checked={state.settings.taskInsertPosition === "top"}
+            onChange={() => handleTaskInsertPositionChange("top")}
+          />
+          {t("settings.taskInsertPosition.top")}
+        </label>
+      </div>
+
+      <div>
+        <p>{t("settings.autoSort.title")}</p>
+        <label>
+          <input
+            type="checkbox"
+            name="autoSort"
+            checked={state.settings.autoSort}
+            onChange={(event) => handleAutoSortChange(event.target.checked)}
+          />
+          {t("settings.autoSort.enable")}
         </label>
       </div>
 

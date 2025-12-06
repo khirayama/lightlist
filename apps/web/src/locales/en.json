@@ -140,6 +140,15 @@
       "japanese": "日本語",
       "english": "English"
     },
+    "taskInsertPosition": {
+      "title": "Task insertion position",
+      "top": "Add to top",
+      "bottom": "Add to bottom"
+    },
+    "autoSort": {
+      "title": "Auto sort",
+      "enable": "Auto sort tasks"
+    },
     "danger": {
       "title": "Danger Zone",
       "signOut": "Sign Out",

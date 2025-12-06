@@ -87,7 +87,7 @@ export default function AppPage() {
   const { t } = useTranslation();
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
-    null
+    null,
   );
 
   const [state, setState] = useState<AppState | null>(null);
@@ -118,7 +118,7 @@ export default function AppPage() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   useEffect(() => {
@@ -147,7 +147,7 @@ export default function AppPage() {
   }, [state?.taskLists, selectedTaskListId]);
 
   const selectedTaskList = state?.taskLists?.find(
-    (tl) => tl.id === selectedTaskListId
+    (tl) => tl.id === selectedTaskListId,
   ) as TaskList | undefined;
 
   const isLoading = !state || !state.user;
@@ -295,7 +295,7 @@ export default function AppPage() {
       await deleteTaskList(selectedTaskListId);
 
       const remainingLists = state?.taskLists?.filter(
-        (tl) => tl.id !== selectedTaskListId
+        (tl) => tl.id !== selectedTaskListId,
       );
       if (remainingLists && remainingLists.length > 0) {
         setSelectedTaskListId(remainingLists[0].id);

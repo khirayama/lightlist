@@ -140,6 +140,15 @@
       "japanese": "日本語",
       "english": "English"
     },
+    "taskInsertPosition": {
+      "title": "タスクの追加位置",
+      "top": "先頭に追加",
+      "bottom": "末尾に追加"
+    },
+    "autoSort": {
+      "title": "自動ソート",
+      "enable": "タスクを自動で並び替える"
+    },
     "danger": {
       "title": "危険な操作",
       "signOut": "ログアウト",

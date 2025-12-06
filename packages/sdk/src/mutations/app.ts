@@ -18,7 +18,6 @@ import {
   TaskListStoreTask,
 } from "../types";
 import { appStore } from "../store";
-import { reindexOrders } from "../utils/order";
 
 function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
   const getDateValue = (task: TaskListStoreTask): number => {
@@ -376,64 +375,6 @@ export async function updateTasksOrder(
     normalizedTasks.forEach((task) => {
       updateData[`tasks.${task.id}.order`] = task.order;
     });
-    transaction.update(taskListRef, updateData);
-  });
-}
-
-export async function removeAllCompletedTasks(taskListId: string) {
-  const data = appStore.getData();
-
-  const taskListData = data.taskLists[taskListId];
-  if (!taskListData) throw new Error("Task list not found");
-
-  const tasks = Object.values(taskListData.tasks);
-  const completedTasks = tasks.filter((task) => task.completed);
-  if (completedTasks.length === 0) return;
-
-  const remainingTasks = tasks.filter((task) => !task.completed);
-  const reindexedTasks = reindexOrders(
-    remainingTasks.map((task) => ({ id: task.id, order: task.order }))
-  );
-
-  const now = Date.now();
-
-  await runTransaction(db, async (transaction) => {
-    const taskListRef = doc(db, "taskLists", taskListId);
-    const updateData: Record<string, unknown> = { updatedAt: now };
-
-    completedTasks.forEach((task) => {
-      updateData[`tasks.${task.id}`] = deleteField();
-    });
-
-    reindexedTasks.forEach((task) => {
-      updateData[`tasks.${task.id}.order`] = task.order;
-    });
-
-    transaction.update(taskListRef, updateData);
-  });
-}
-
-export async function sortTasks(taskListId: string) {
-  const data = appStore.getData();
-
-  const taskListData = data.taskLists[taskListId];
-  if (!taskListData) throw new Error("Task list not found");
-
-  const sortedTasks = getAutoSortedTasks(
-    Object.values(taskListData.tasks),
-  );
-  if (sortedTasks.length === 0) return;
-
-  const now = Date.now();
-
-  await runTransaction(db, async (transaction) => {
-    const taskListRef = doc(db, "taskLists", taskListId);
-    const updateData: Record<string, unknown> = { updatedAt: now };
-
-    sortedTasks.forEach((task) => {
-      updateData[`tasks.${task.id}.order`] = task.order;
-    });
-
     transaction.update(taskListRef, updateData);
   });
 }

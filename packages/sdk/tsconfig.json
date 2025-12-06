@@ -10,10 +10,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/sdk/*": ["./src/*"]
-    }
+    "baseUrl": "."
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules"]

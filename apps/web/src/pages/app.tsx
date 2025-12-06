@@ -42,7 +42,6 @@ import { TaskListPanel } from "@/components/app/TaskListPanel";
 
 interface SortableTaskListItemProps {
   taskList: TaskList;
-  isSelected: boolean;
   onSelect: (taskListId: string) => void;
   dragHintLabel: string;
 }
@@ -98,7 +97,6 @@ export default function AppPage() {
   const [newTaskText, setNewTaskText] = useState("");
   const [showEditListModal, setShowEditListModal] = useState(false);
   const [editListName, setEditListName] = useState("");
-  const [, setEditListColor] = useState("");
   const [editingListName, setEditingListName] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingList, setDeletingList] = useState(false);
@@ -432,7 +430,6 @@ export default function AppPage() {
                 <SortableTaskListItem
                   key={taskList.id}
                   taskList={taskList}
-                  isSelected={taskList.id === selectedTaskListId}
                   onSelect={(taskListId) => {
                     setSelectedTaskListId(taskListId);
                   }}
@@ -476,7 +473,6 @@ export default function AppPage() {
             <div>
               <button
                 onClick={() => {
-                  setEditListColor(selectedTaskList.background || "#ffffff");
                   setShowEditListModal(true);
                 }}
               >

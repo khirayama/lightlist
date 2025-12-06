@@ -18,7 +18,34 @@ import {
   TaskListStoreTask,
 } from "../types";
 import { appStore } from "../store";
-import { reindexOrders } from "../utils/order";
+
+function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
+  const getDateValue = (task: TaskListStoreTask): number => {
+    if (!task.date) return Number.POSITIVE_INFINITY;
+    const parsed = Date.parse(task.date);
+    if (Number.isNaN(parsed)) return Number.POSITIVE_INFINITY;
+    return parsed;
+  };
+
+  return [...tasks]
+    .sort((a, b) => {
+      if (a.completed !== b.completed) {
+        return Number(a.completed) - Number(b.completed);
+      }
+
+      const aDate = getDateValue(a);
+      const bDate = getDateValue(b);
+      if (aDate !== bDate) {
+        return aDate - bDate;
+      }
+
+      return a.order - b.order;
+    })
+    .map((task, index) => ({
+      ...task,
+      order: (index + 1) * 1.0,
+    }));
+}
 
 export async function updateSettings(settings: Partial<Settings>) {
   const uid = auth.currentUser?.uid;
@@ -170,6 +197,7 @@ export async function addTask(
   const taskListData: TaskListStore = data.taskLists[taskListId];
   if (!taskListData) throw new Error("Task list not found");
 
+  const autoSortEnabled = Boolean(data.settings?.autoSort);
   const tasks = Object.values(taskListData.tasks).sort(
     (a, b) => a.order - b.order,
   );
@@ -188,10 +216,12 @@ export async function addTask(
 
   const reorderedTasks = [...tasks];
   reorderedTasks.splice(insertIndex, 0, newTask);
-  const normalizedTasks = reorderedTasks.map((task, index) => ({
-    ...task,
-    order: (index + 1) * 1.0,
-  }));
+  const normalizedTasks = autoSortEnabled
+    ? getAutoSortedTasks(reorderedTasks)
+    : reorderedTasks.map((task, index) => ({
+        ...task,
+        order: (index + 1) * 1.0,
+      }));
 
   await runTransaction(db, async (transaction) => {
     const taskListRef = doc(db, "taskLists", taskListId);
@@ -228,20 +258,75 @@ export async function updateTask(
   updates: Partial<Task>
 ) {
   const now = Date.now();
+  const data = appStore.getData();
+  const autoSortEnabled = Boolean(data.settings?.autoSort);
   const taskListRef = doc(db, "taskLists", taskListId);
-  const updateData: Record<string, unknown> = { updatedAt: now };
-  Object.entries(updates).forEach(([key, value]) => {
-    updateData[`tasks.${taskId}.${key}`] = value;
+
+  if (!autoSortEnabled) {
+    const updateData: Record<string, unknown> = { updatedAt: now };
+    Object.entries(updates).forEach(([key, value]) => {
+      updateData[`tasks.${taskId}.${key}`] = value;
+    });
+    await updateDoc(taskListRef, updateData);
+    return;
+  }
+
+  const taskListData = data.taskLists[taskListId];
+  if (!taskListData) throw new Error("Task list not found");
+  if (!taskListData.tasks[taskId]) throw new Error("Task not found");
+
+  const updatedTasks = Object.values(taskListData.tasks).map((task) =>
+    task.id === taskId ? { ...task, ...updates } : task,
+  );
+  const normalizedTasks = getAutoSortedTasks(updatedTasks);
+
+  await runTransaction(db, async (transaction) => {
+    const updateData: Record<string, unknown> = { updatedAt: now };
+    normalizedTasks.forEach((task) => {
+      if (task.id === taskId) {
+        updateData[`tasks.${task.id}`] = task;
+      } else {
+        updateData[`tasks.${task.id}.order`] = task.order;
+      }
+    });
+    transaction.update(taskListRef, updateData);
   });
-  await updateDoc(taskListRef, updateData);
 }
 
 export async function deleteTask(taskListId: string, taskId: string) {
   const now = Date.now();
+  const data = appStore.getData();
+  const autoSortEnabled = Boolean(data.settings?.autoSort);
   const taskListRef = doc(db, "taskLists", taskListId);
-  await updateDoc(taskListRef, {
-    [`tasks.${taskId}`]: deleteField(),
-    updatedAt: now,
+
+  if (!autoSortEnabled) {
+    await updateDoc(taskListRef, {
+      [`tasks.${taskId}`]: deleteField(),
+      updatedAt: now,
+    });
+    return;
+  }
+
+  const taskListData = data.taskLists[taskListId];
+  if (!taskListData) throw new Error("Task list not found");
+  if (!taskListData.tasks[taskId]) throw new Error("Task not found");
+
+  const remainingTasks = Object.values(taskListData.tasks).filter(
+    (task) => task.id !== taskId,
+  );
+  const normalizedTasks = getAutoSortedTasks(remainingTasks);
+
+  await runTransaction(db, async (transaction) => {
+    const updateData: Record<string, unknown> = {
+      [`tasks.${taskId}`]: deleteField(),
+      updatedAt: now,
+    };
+
+    normalizedTasks.forEach((task) => {
+      updateData[`tasks.${task.id}.order`] = task.order;
+    });
+
+    transaction.update(taskListRef, updateData);
   });
 }
 
@@ -290,83 +375,6 @@ export async function updateTasksOrder(
     normalizedTasks.forEach((task) => {
       updateData[`tasks.${task.id}.order`] = task.order;
     });
-    transaction.update(taskListRef, updateData);
-  });
-}
-
-export async function removeAllCompletedTasks(taskListId: string) {
-  const data = appStore.getData();
-
-  const taskListData = data.taskLists[taskListId];
-  if (!taskListData) throw new Error("Task list not found");
-
-  const tasks = Object.values(taskListData.tasks);
-  const completedTasks = tasks.filter((task) => task.completed);
-  if (completedTasks.length === 0) return;
-
-  const remainingTasks = tasks.filter((task) => !task.completed);
-  const reindexedTasks = reindexOrders(
-    remainingTasks.map((task) => ({ id: task.id, order: task.order }))
-  );
-
-  const now = Date.now();
-
-  await runTransaction(db, async (transaction) => {
-    const taskListRef = doc(db, "taskLists", taskListId);
-    const updateData: Record<string, unknown> = { updatedAt: now };
-
-    completedTasks.forEach((task) => {
-      updateData[`tasks.${task.id}`] = deleteField();
-    });
-
-    reindexedTasks.forEach((task) => {
-      updateData[`tasks.${task.id}.order`] = task.order;
-    });
-
-    transaction.update(taskListRef, updateData);
-  });
-}
-
-export async function sortTasks(taskListId: string) {
-  const getDateValue = (task: TaskListStoreTask): number => {
-    if (!task.date) return Number.POSITIVE_INFINITY;
-    const parsed = Date.parse(task.date);
-    if (Number.isNaN(parsed)) return Number.POSITIVE_INFINITY;
-    return parsed;
-  };
-
-  const data = appStore.getData();
-
-  const taskListData = data.taskLists[taskListId];
-  if (!taskListData) throw new Error("Task list not found");
-
-  const tasks = Object.values(taskListData.tasks);
-  if (tasks.length === 0) return;
-
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (a.completed !== b.completed) {
-      return Number(a.completed) - Number(b.completed);
-    }
-
-    const aDate = getDateValue(a);
-    const bDate = getDateValue(b);
-    if (aDate !== bDate) {
-      return aDate - bDate;
-    }
-
-    return a.order - b.order;
-  });
-
-  const now = Date.now();
-
-  await runTransaction(db, async (transaction) => {
-    const taskListRef = doc(db, "taskLists", taskListId);
-    const updateData: Record<string, unknown> = { updatedAt: now };
-
-    sortedTasks.forEach((task, index) => {
-      updateData[`tasks.${task.id}.order`] = (index + 1) * 1.0;
-    });
-
     transaction.update(taskListRef, updateData);
   });
 }

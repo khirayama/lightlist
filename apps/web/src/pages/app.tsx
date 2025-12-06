@@ -45,14 +45,12 @@ interface SortableTaskListItemProps {
   isSelected: boolean;
   onSelect: (taskListId: string) => void;
   dragHintLabel: string;
-  taskCountLabel: string;
 }
 
 function SortableTaskListItem({
   taskList,
   onSelect,
   dragHintLabel,
-  taskCountLabel,
 }: SortableTaskListItemProps) {
   const {
     attributes,
@@ -78,11 +76,7 @@ function SortableTaskListItem({
       </button>
 
       <button onClick={() => onSelect(taskList.id)}>
-        <div>{taskList.name}</div>
-        <div>
-          {taskList.tasks.length} {taskCountLabel}
-        </div>
-        {taskList.background ? <div>{taskList.background}</div> : null}
+        {taskList.name} {taskList.tasks.length} {taskList.background}
       </button>
     </div>
   );
@@ -383,7 +377,6 @@ export default function AppPage() {
   return (
     <div>
       <div>
-        <h1>{t("app.title")}</h1>
         <button onClick={() => router.push("/settings")}>
           {t("settings.title")}
         </button>
@@ -391,11 +384,42 @@ export default function AppPage() {
 
       {error && <Alert variant="error">{error}</Alert>}
 
-      <section>
+      <section className="border-b">
         <div>
           <button onClick={() => setShowCreateListForm(true)}>
             {t("app.createNew")}
           </button>
+          {showCreateListForm && (
+            <div>
+              <input
+                type="text"
+                value={createListInput}
+                onChange={(e) => setCreateListInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleCreateList();
+                  }
+                }}
+                placeholder={t("app.taskListNamePlaceholder")}
+              />
+              <div>
+                <button
+                  onClick={handleCreateList}
+                  disabled={!createListInput.trim()}
+                >
+                  {t("app.create")}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCreateListForm(false);
+                    setCreateListInput("");
+                  }}
+                >
+                  {t("app.cancel")}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         {state?.taskLists && state.taskLists.length > 0 ? (
           <DndContext
@@ -404,20 +428,17 @@ export default function AppPage() {
             onDragEnd={handleDragEndTaskList}
           >
             <SortableContext items={state.taskLists.map((t) => t.id)}>
-              <div>
-                {state.taskLists.map((taskList) => (
-                  <SortableTaskListItem
-                    key={taskList.id}
-                    taskList={taskList}
-                    isSelected={taskList.id === selectedTaskListId}
-                    onSelect={(taskListId) => {
-                      setSelectedTaskListId(taskListId);
-                    }}
-                    dragHintLabel={t("app.dragHint")}
-                    taskCountLabel={t("taskList.taskCount")}
-                  />
-                ))}
-              </div>
+              {state.taskLists.map((taskList) => (
+                <SortableTaskListItem
+                  key={taskList.id}
+                  taskList={taskList}
+                  isSelected={taskList.id === selectedTaskListId}
+                  onSelect={(taskListId) => {
+                    setSelectedTaskListId(taskListId);
+                  }}
+                  dragHintLabel={t("app.dragHint")}
+                />
+              ))}
             </SortableContext>
           </DndContext>
         ) : (
@@ -426,7 +447,7 @@ export default function AppPage() {
       </section>
 
       {selectedTaskList ? (
-        <section>
+        <section className="border-b">
           <div>
             {editingListName ? (
               <input
@@ -452,9 +473,6 @@ export default function AppPage() {
                 {selectedTaskList.name}
               </button>
             )}
-            <div>
-              {selectedTaskList.tasks.length} {t("taskList.taskCount")}
-            </div>
             <div>
               <button
                 onClick={() => {
@@ -582,39 +600,6 @@ export default function AppPage() {
           <button onClick={() => setShowShareModal(false)}>
             {t("common.close")}
           </button>
-        </div>
-      )}
-
-      {showCreateListForm && (
-        <div>
-          <h2>{t("app.createTaskList")}</h2>
-          <input
-            type="text"
-            value={createListInput}
-            onChange={(e) => setCreateListInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleCreateList();
-              }
-            }}
-            placeholder={t("app.taskListNamePlaceholder")}
-          />
-          <div>
-            <button
-              onClick={() => {
-                setShowCreateListForm(false);
-                setCreateListInput("");
-              }}
-            >
-              {t("app.cancel")}
-            </button>
-            <button
-              onClick={handleCreateList}
-              disabled={!createListInput.trim()}
-            >
-              {t("app.create")}
-            </button>
-          </div>
         </div>
       )}
     </div>

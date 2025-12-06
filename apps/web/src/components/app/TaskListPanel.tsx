@@ -94,7 +94,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
         />
       ) : (
         <button type="button" onClick={() => onEditStart(task)}>
-          {task.completed ? `✔︎ ${task.text}` : task.text}
+          {task.text}
         </button>
       )}
 

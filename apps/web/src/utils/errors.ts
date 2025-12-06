@@ -16,3 +16,27 @@ export const getErrorMessage = (
   const key = errorKeyMap[errorCode] || "auth.error.general";
   return t(key);
 };
+
+type ErrorLike = { code?: string; message?: string };
+
+export const resolveErrorMessage = (
+  error: unknown,
+  t: (key: string) => string,
+  fallbackKey: string,
+): string => {
+  if (typeof error === "object" && error !== null) {
+    const err = error as ErrorLike;
+    if (typeof err.code === "string") {
+      return getErrorMessage(err.code, t);
+    }
+    if (typeof err.message === "string") {
+      return err.message;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return t(fallbackKey);
+};

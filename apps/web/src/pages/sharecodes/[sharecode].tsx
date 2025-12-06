@@ -202,7 +202,7 @@ export default function ShareCodePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 flex items-center justify-center">
+      <div>
         <Alert variant="error">{error}</Alert>
       </div>
     );
@@ -210,11 +210,9 @@ export default function ShareCodePage() {
 
   if (!taskList) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-300">
-            {t("pages.sharecode.notFound")}
-          </p>
+      <div>
+        <div>
+          <p>{t("pages.sharecode.notFound")}</p>
         </div>
       </div>
     );
@@ -225,64 +223,46 @@ export default function ShareCodePage() {
   );
 
   return (
-    <div
-      className="min-h-screen p-4 md:p-8 bg-white dark:bg-gray-950"
-      style={{ backgroundColor: taskList.background }}
-    >
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-8 flex items-center justify-between">
-          <button
-            onClick={() => router.back()}
-            className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 mb-4"
-          >
-            ← {t("common.back")}
+    <div>
+      <div>
+        <button onClick={() => router.back()}>{t("common.back")}</button>
+        {user && (
+          <button onClick={handleAddToOrder} disabled={addToOrderLoading}>
+            {addToOrderLoading
+              ? t("common.loading")
+              : t("pages.sharecode.addToOrder")}
           </button>
-          {user && (
-            <button
-              onClick={handleAddToOrder}
-              disabled={addToOrderLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-            >
-              {addToOrderLoading
-                ? t("common.loading")
-                : t("pages.sharecode.addToOrder")}
-            </button>
-          )}
-        </div>
-
-        {addToOrderError && (
-          <Alert variant="error" className="mb-4">
-            {addToOrderError}
-          </Alert>
         )}
-
-        <h1 className="text-3xl font-bold mb-8">{taskList.name}</h1>
-
-        <TaskListPanel
-          tasks={tasks}
-          sensors={sensors}
-          onDragEnd={handleDragEnd}
-          editingTaskId={editingTaskId}
-          editingText={editingText}
-          onEditingTextChange={setEditingText}
-          onEditStart={handleEditStart}
-          onEditEnd={handleEditEnd}
-          onToggle={handleToggleTask}
-          onDelete={handleDeleteTask}
-          newTaskText={newTaskText}
-          onNewTaskTextChange={setNewTaskText}
-          onAddTask={handleAddTask}
-          addButtonLabel={t("common.add")}
-          addPlaceholder={t("pages.tasklist.addTaskPlaceholder")}
-          deleteLabel={t("common.delete")}
-          dragHintLabel={t("pages.tasklist.dragHint")}
-          emptyLabel={t("pages.tasklist.noTasks")}
-          addDisabled={isAddingTask}
-          inputDisabled={isAddingTask}
-          addError={addTaskError}
-          variant="card"
-        />
       </div>
+
+      {addToOrderError && <Alert variant="error">{addToOrderError}</Alert>}
+
+      <h1>{taskList.name}</h1>
+
+      <TaskListPanel
+        tasks={tasks}
+        sensors={sensors}
+        onDragEnd={handleDragEnd}
+        editingTaskId={editingTaskId}
+        editingText={editingText}
+        onEditingTextChange={setEditingText}
+        onEditStart={handleEditStart}
+        onEditEnd={handleEditEnd}
+        onToggle={handleToggleTask}
+        onDelete={handleDeleteTask}
+        newTaskText={newTaskText}
+        onNewTaskTextChange={setNewTaskText}
+        onAddTask={handleAddTask}
+        addButtonLabel={t("common.add")}
+        addPlaceholder={t("pages.tasklist.addTaskPlaceholder")}
+        deleteLabel={t("common.delete")}
+        dragHintLabel={t("pages.tasklist.dragHint")}
+        emptyLabel={t("pages.tasklist.noTasks")}
+        addDisabled={isAddingTask}
+        inputDisabled={isAddingTask}
+        addError={addTaskError}
+        variant="card"
+      />
     </div>
   );
 }

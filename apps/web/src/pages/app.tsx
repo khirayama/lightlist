@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
-import { useSwipeable } from "react-swipeable";
 import {
   DndContext,
   closestCenter,
@@ -73,43 +72,20 @@ function SortableTaskListItem({
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`
-        rounded-2xl border border-white/20 bg-white/80 dark:bg-white/5 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.32)] transition-all
-        ${isSelected ? "ring-2 ring-cyan-400" : ""}
-        ${isDragging ? "opacity-60 scale-[0.99]" : "hover:shadow-[0_24px_70px_rgba(15,23,42,0.32)]"}
-      `}
-    >
-      <div className="flex items-center gap-3 p-4">
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing p-2 text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white rounded-lg bg-white/50 dark:bg-white/10 border border-white/30 flex-shrink-0"
-          title={dragHintLabel}
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M8 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-          </svg>
-        </button>
+    <div ref={setNodeRef} style={style}>
+      <button {...attributes} {...listeners} title={dragHintLabel}>
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M8 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+        </svg>
+      </button>
 
-        <button
-          onClick={() => onSelect(taskList.id)}
-          className="flex-1 text-left p-2 hover:bg-white/60 dark:hover:bg-white/10 transition-colors rounded-xl"
-        >
-          <div
-            className="w-full h-1.5 rounded-full mb-2"
-            style={{ backgroundColor: taskList.background || "#ffffff" }}
-          />
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-            {taskList.name}
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-300">
-            {taskList.tasks.length} {taskCountLabel}
-          </p>
-        </button>
-      </div>
+      <button onClick={() => onSelect(taskList.id)}>
+        <div>{taskList.name}</div>
+        <div>
+          {taskList.tasks.length} {taskCountLabel}
+        </div>
+        {taskList.background ? <div>{taskList.background}</div> : null}
+      </button>
     </div>
   );
 }
@@ -118,7 +94,6 @@ export default function AppPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
     null,
   );
@@ -184,22 +159,6 @@ export default function AppPage() {
   ) as TaskList | undefined;
 
   const isLoading = !state || !state.user;
-
-  const swipeHandlersDrawer = useSwipeable({
-    onSwipedLeft: () => setIsDrawerOpen(false),
-    preventScrollOnSwipe: true,
-    trackMouse: false,
-  });
-
-  const swipeHandlersMain = useSwipeable({
-    onSwipedRight: () => {
-      if (typeof window !== "undefined" && window.innerWidth < 768) {
-        setIsDrawerOpen(true);
-      }
-    },
-    preventScrollOnSwipe: true,
-    trackMouse: false,
-  });
 
   const handleDragEndTaskList = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -420,343 +379,154 @@ export default function AppPage() {
   ];
 
   if (isLoading) {
-    return (
-      <div className="relative min-h-screen flex items-center justify-center overflow-hidden text-slate-900 dark:text-white">
-        <div className="absolute inset-0 -z-20 bg-gradient-to-br from-white via-cyan-50 to-emerald-50 dark:from-[#0b1020] dark:via-[#0b1020] dark:to-[#0b1020]" />
-        <div
-          className="absolute inset-0 -z-10 opacity-60 pointer-events-none"
-          style={{ backgroundImage: "var(--glow)" }}
-        />
-        <Spinner />
-      </div>
-    );
+    return <Spinner />;
   }
 
   return (
-    <div className="relative min-h-screen flex overflow-hidden text-slate-900 dark:text-white">
-      <div className="absolute inset-0 -z-20 bg-gradient-to-br from-white via-cyan-50 to-emerald-50 dark:from-[#0b1020] dark:via-[#0b1020] dark:to-[#0b1020]" />
-      <div
-        className="absolute inset-0 -z-10 pointer-events-none opacity-60"
-        style={{ backgroundImage: "var(--glow)" }}
-      />
-      {isDrawerOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
-          onClick={() => setIsDrawerOpen(false)}
-        />
-      )}
+    <div>
+      <div>
+        <h1>{t("app.title")}</h1>
+        <button onClick={() => router.push("/settings")}>
+          {t("settings.title")}
+        </button>
+      </div>
 
-      <div
-        {...swipeHandlersDrawer}
-        className={`
-          fixed left-0 top-0 h-full w-80 bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/20 shadow-[0_24px_90px_rgba(15,23,42,0.4)] z-50
-          transform transition-transform duration-300 ease-in-out
-          ${isDrawerOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0 md:static md:shadow-none md:transform-none md:border-r md:border-white/15
-          flex flex-col overflow-hidden
-        `}
-      >
-        <div className="p-5 border-b border-white/20 flex items-center justify-between flex-shrink-0">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
-            {t("app.title")}
-          </h1>
-          <button
-            onClick={() => router.push("/settings")}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/60 dark:bg-white/10 border border-white/30 shadow hover:border-white/60 transition-colors"
-            title={t("settings.title")}
-          >
-            <svg
-              className="w-5 h-5 text-slate-800 dark:text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
+      {error && <Alert variant="error">{error}</Alert>}
+
+      <section>
+        <div>
+          <h2>{t("app.createNew")}</h2>
+          <button onClick={() => setShowCreateListForm(true)}>
+            {t("app.createNew")}
           </button>
         </div>
-
         {state?.taskLists && state.taskLists.length > 0 ? (
-          <>
-            <div className="flex-1 overflow-y-auto p-4">
-              <DndContext
-                sensors={sensorsList}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEndTaskList}
-              >
-                <SortableContext items={state.taskLists.map((t) => t.id)}>
-                  <div className="space-y-2">
-                    {state.taskLists.map((taskList) => (
-                      <SortableTaskListItem
-                        key={taskList.id}
-                        taskList={taskList}
-                        isSelected={taskList.id === selectedTaskListId}
-                        onSelect={(taskListId) => {
-                          setSelectedTaskListId(taskListId);
-                          if (
-                            typeof window !== "undefined" &&
-                            window.innerWidth < 768
-                          ) {
-                            setIsDrawerOpen(false);
-                          }
-                        }}
-                        dragHintLabel={t("app.dragHint")}
-                        taskCountLabel={t("taskList.taskCount")}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            </div>
-
-            <div className="p-4 border-t border-gray-200 flex-shrink-0">
-              <button
-                onClick={() => setShowCreateListForm(true)}
-                className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold px-4 py-3 rounded-xl shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
+          <DndContext
+            sensors={sensorsList}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEndTaskList}
+          >
+            <SortableContext items={state.taskLists.map((t) => t.id)}>
+              <div>
+                {state.taskLists.map((taskList) => (
+                  <SortableTaskListItem
+                    key={taskList.id}
+                    taskList={taskList}
+                    isSelected={taskList.id === selectedTaskListId}
+                    onSelect={(taskListId) => {
+                      setSelectedTaskListId(taskListId);
+                    }}
+                    dragHintLabel={t("app.dragHint")}
+                    taskCountLabel={t("taskList.taskCount")}
                   />
-                </svg>
-                {t("app.createNew")}
-              </button>
-            </div>
-          </>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <p className="text-gray-600 mb-4 text-center">
-              {t("app.emptyState")}
-            </p>
-            <button
-              onClick={() => setShowCreateListForm(true)}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold px-6 py-3 rounded-xl shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              {t("app.createNew")}
-            </button>
-          </div>
+          <p>{t("app.emptyState")}</p>
         )}
-      </div>
+      </section>
 
-      <div
-        {...swipeHandlersMain}
-        className="flex-1 flex flex-col overflow-hidden"
-      >
-        {selectedTaskList ? (
-          <>
-            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border-b border-white/15 shadow-[0_12px_60px_rgba(15,23,42,0.28)]">
-              <div className="px-4 py-4 flex items-center gap-4">
-                <button
-                  onClick={() => setIsDrawerOpen(true)}
-                  className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/60 dark:bg-white/10 border border-white/30 shadow hover:border-white/60 transition-colors"
-                  title={t("app.openMenu")}
-                >
-                  <svg
-                    className="w-6 h-6 text-slate-800 dark:text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 12h16M4 18h16"
-                    />
-                  </svg>
-                </button>
-
-                <div className="flex-1 flex items-start justify-between gap-4">
-                  <div>
-                    {editingListName ? (
-                      <div className="flex gap-2 items-center">
-                        <input
-                          type="text"
-                          value={editListName}
-                          onChange={(e) => setEditListName(e.target.value)}
-                          onBlur={() => handleEditListName()}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              handleEditListName();
-                            }
-                          }}
-                          autoFocus
-                          className="text-2xl font-bold text-slate-900 dark:text-white px-3 py-2 rounded-xl border border-cyan-300/60 bg-white/80 dark:bg-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                        />
-                      </div>
-                    ) : (
-                      <h1
-                        className="text-2xl font-bold text-slate-900 dark:text-white cursor-pointer px-3 py-2 rounded-lg hover:bg-white/60 dark:hover:bg-white/10 transition-colors"
-                        onClick={() => {
-                          setEditListName(selectedTaskList.name);
-                          setEditingListName(true);
-                        }}
-                      >
-                        {selectedTaskList.name}
-                      </h1>
-                    )}
-                    <p className="text-sm text-slate-500 dark:text-slate-300 mt-1">
-                      {selectedTaskList.tasks.length} {t("taskList.taskCount")}
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setEditListColor(
-                          selectedTaskList.background || "#ffffff",
-                        );
-                        setShowEditListModal(true);
-                      }}
-                      className="px-4 py-2 rounded-xl bg-white/60 dark:bg-white/10 border border-white/30 text-slate-900 dark:text-white hover:border-white/60 transition-colors text-sm font-semibold"
-                    >
-                      {t("taskList.editColor")}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowShareModal(true);
-                        setShareCode(selectedTaskList?.shareCode || null);
-                      }}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold shadow-[0_14px_40px_rgba(56,189,248,0.28)] hover:opacity-90 transition-opacity text-sm"
-                    >
-                      {t("taskList.share")}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {error && (
-                <Alert variant="error" className="mx-4 mb-4">
-                  {error}
-                </Alert>
-              )}
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <div className="max-w-4xl mx-auto px-4 py-8">
-                <TaskListPanel
-                  tasks={selectedTaskList.tasks}
-                  sensors={sensorsList}
-                  onDragEnd={handleDragEndTask}
-                  editingTaskId={editingTaskId}
-                  editingText={editingTaskText}
-                  onEditingTextChange={setEditingTaskText}
-                  onEditStart={(t) => {
-                    setEditingTaskId(t.id);
-                    setEditingTaskText(t.text);
-                  }}
-                  onEditEnd={handleEditTask}
-                  onToggle={handleToggleTask}
-                  onDelete={handleDeleteTask}
-                  newTaskText={newTaskText}
-                  onNewTaskTextChange={setNewTaskText}
-                  onAddTask={handleAddTask}
-                  addButtonLabel={t("taskList.addTask")}
-                  addPlaceholder={t("taskList.addTaskPlaceholder")}
-                  deleteLabel={t("common.delete")}
-                  dragHintLabel={t("taskList.dragHint")}
-                  emptyLabel={t("pages.tasklist.noTasks")}
-                  historySuggestions={selectedTaskList.history}
-                />
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="px-4 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-amber-400 text-white font-semibold shadow-[0_14px_40px_rgba(251,113,133,0.3)] hover:opacity-90 transition-opacity"
-                >
-                  {t("taskList.deleteList")}
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-slate-600 dark:text-slate-300 mb-4">
-                {t("app.emptyState")}
-              </p>
+      {selectedTaskList ? (
+        <section>
+          <div>
+            {editingListName ? (
+              <input
+                type="text"
+                value={editListName}
+                onChange={(e) => setEditListName(e.target.value)}
+                onBlur={() => handleEditListName()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleEditListName();
+                  }
+                }}
+                autoFocus
+              />
+            ) : (
               <button
-                onClick={() => setShowCreateListForm(true)}
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold px-6 py-3 rounded-xl shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity"
+                type="button"
+                onClick={() => {
+                  setEditListName(selectedTaskList.name);
+                  setEditingListName(true);
+                }}
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                {t("app.createNew")}
+                {selectedTaskList.name}
+              </button>
+            )}
+            <div>
+              {selectedTaskList.tasks.length} {t("taskList.taskCount")}
+            </div>
+            <div>
+              <button
+                onClick={() => {
+                  setEditListColor(selectedTaskList.background || "#ffffff");
+                  setShowEditListModal(true);
+                }}
+              >
+                {t("taskList.editColor")}
+              </button>
+              <button
+                onClick={() => {
+                  setShowShareModal(true);
+                  setShareCode(selectedTaskList?.shareCode || null);
+                }}
+              >
+                {t("taskList.share")}
               </button>
             </div>
           </div>
-        )}
-      </div>
+
+          <TaskListPanel
+            tasks={selectedTaskList.tasks}
+            sensors={sensorsList}
+            onDragEnd={handleDragEndTask}
+            editingTaskId={editingTaskId}
+            editingText={editingTaskText}
+            onEditingTextChange={setEditingTaskText}
+            onEditStart={(t) => {
+              setEditingTaskId(t.id);
+              setEditingTaskText(t.text);
+            }}
+            onEditEnd={handleEditTask}
+            onToggle={handleToggleTask}
+            onDelete={handleDeleteTask}
+            newTaskText={newTaskText}
+            onNewTaskTextChange={setNewTaskText}
+            onAddTask={handleAddTask}
+            addButtonLabel={t("taskList.addTask")}
+            addPlaceholder={t("taskList.addTaskPlaceholder")}
+            deleteLabel={t("common.delete")}
+            dragHintLabel={t("taskList.dragHint")}
+            emptyLabel={t("pages.tasklist.noTasks")}
+            historySuggestions={selectedTaskList.history}
+          />
+          <button onClick={() => setShowDeleteConfirm(true)}>
+            {t("taskList.deleteList")}
+          </button>
+        </section>
+      ) : (
+        <p>{t("app.emptyState")}</p>
+      )}
 
       {showEditListModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[var(--bg-panel-strong)] border border-white/10 rounded-2xl shadow-[0_30px_120px_rgba(15,23,42,0.55)] p-6 max-w-sm w-full text-white">
-            <h2 className="text-lg font-semibold mb-4">
-              {t("taskList.selectColor")}
-            </h2>
-            <div className="grid grid-cols-4 gap-3 mb-4">
-              {colors.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => handleEditListColor(color)}
-                  className="w-12 h-12 rounded-lg border-2 border-transparent transition-all hover:scale-110"
-                  style={{
-                    backgroundColor: color,
-                    borderColor:
-                      editListColor === color ? "#fff" : "transparent",
-                  }}
-                  title={color}
-                />
-              ))}
-            </div>
-            <button
-              onClick={() => setShowEditListModal(false)}
-              className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-semibold hover:border-white/40 transition-all"
-            >
-              {t("common.close")}
-            </button>
+        <div>
+          <h2>{t("taskList.selectColor")}</h2>
+          <div>
+            {colors.map((color) => (
+              <button
+                key={color}
+                onClick={() => handleEditListColor(color)}
+                title={color}
+              >
+                {color}
+              </button>
+            ))}
           </div>
+          <button onClick={() => setShowEditListModal(false)}>
+            {t("common.close")}
+          </button>
         </div>
       )}
 
@@ -774,107 +544,79 @@ export default function AppPage() {
       />
 
       {showShareModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[var(--bg-panel-strong)] border border-white/10 rounded-2xl shadow-[0_30px_120px_rgba(15,23,42,0.55)] p-6 max-w-sm w-full text-white">
-            <h2 className="text-lg font-semibold mb-4">
-              {t("taskList.shareTitle")}
-            </h2>
+        <div>
+          <h2>{t("taskList.shareTitle")}</h2>
 
-            {shareCode ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-slate-200/80 mb-2">
-                    {t("taskList.shareCode")}
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={shareCode}
-                      readOnly
-                      className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm"
-                    />
-                    <button
-                      onClick={handleCopyShareLink}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold shadow-[0_14px_40px_rgba(56,189,248,0.28)] hover:opacity-90 transition-opacity text-sm"
-                    >
-                      {shareCopySuccess ? t("common.copied") : t("common.copy")}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleRemoveShareCode}
-                  disabled={removingShareCode}
-                  className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-amber-400 text-white font-semibold shadow-[0_14px_40px_rgba(251,113,133,0.3)] hover:opacity-90 transition-opacity text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {removingShareCode
-                    ? t("common.deleting")
-                    : t("taskList.removeShare")}
-                </button>
-              </div>
-            ) : (
+          {shareCode ? (
+            <div>
               <div>
-                <p className="text-sm text-slate-200/80 mb-4">
-                  {t("taskList.shareDescription")}
-                </p>
-                <button
-                  onClick={handleGenerateShareCode}
-                  disabled={generatingShareCode}
-                  className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold shadow-[0_14px_40px_rgba(56,189,248,0.28)] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {generatingShareCode
-                    ? t("common.loading")
-                    : t("taskList.generateShare")}
-                </button>
+                <p>{t("taskList.shareCode")}</p>
+                <div>
+                  <input type="text" value={shareCode} readOnly />
+                  <button onClick={handleCopyShareLink}>
+                    {shareCopySuccess ? t("common.copied") : t("common.copy")}
+                  </button>
+                </div>
               </div>
-            )}
 
-            <button
-              onClick={() => setShowShareModal(false)}
-              className="w-full mt-4 px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-semibold hover:border-white/40 transition-all"
-            >
-              {t("common.close")}
-            </button>
-          </div>
+              <button
+                onClick={handleRemoveShareCode}
+                disabled={removingShareCode}
+              >
+                {removingShareCode
+                  ? t("common.deleting")
+                  : t("taskList.removeShare")}
+              </button>
+            </div>
+          ) : (
+            <div>
+              <p>{t("taskList.shareDescription")}</p>
+              <button
+                onClick={handleGenerateShareCode}
+                disabled={generatingShareCode}
+              >
+                {generatingShareCode
+                  ? t("common.loading")
+                  : t("taskList.generateShare")}
+              </button>
+            </div>
+          )}
+
+          <button onClick={() => setShowShareModal(false)}>
+            {t("common.close")}
+          </button>
         </div>
       )}
 
       {showCreateListForm && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[var(--bg-panel-strong)] border border-white/10 rounded-2xl shadow-[0_30px_120px_rgba(15,23,42,0.55)] p-6 max-w-sm w-full text-white">
-            <h2 className="text-lg font-semibold mb-4">
-              {t("app.createTaskList")}
-            </h2>
-            <input
-              type="text"
-              value={createListInput}
-              onChange={(e) => setCreateListInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleCreateList();
-                }
+        <div>
+          <h2>{t("app.createTaskList")}</h2>
+          <input
+            type="text"
+            value={createListInput}
+            onChange={(e) => setCreateListInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleCreateList();
+              }
+            }}
+            placeholder={t("app.taskListNamePlaceholder")}
+          />
+          <div>
+            <button
+              onClick={() => {
+                setShowCreateListForm(false);
+                setCreateListInput("");
               }}
-              placeholder={t("app.taskListNamePlaceholder")}
-              className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white mb-4 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowCreateListForm(false);
-                  setCreateListInput("");
-                }}
-                className="flex-1 bg-white/10 border border-white/20 text-white font-semibold py-3 rounded-xl hover:border-white/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {t("app.cancel")}
-              </button>
-              <button
-                onClick={handleCreateList}
-                disabled={!createListInput.trim()}
-                className="flex-1 bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold py-3 rounded-xl shadow-[0_14px_40px_rgba(56,189,248,0.28)] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {t("app.create")}
-              </button>
-            </div>
+            >
+              {t("app.cancel")}
+            </button>
+            <button
+              onClick={handleCreateList}
+              disabled={!createListInput.trim()}
+            >
+              {t("app.create")}
+            </button>
           </div>
         </div>
       )}

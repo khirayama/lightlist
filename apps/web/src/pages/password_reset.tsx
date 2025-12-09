@@ -8,9 +8,10 @@ import {
   verifyPasswordResetCode,
   confirmPasswordReset,
 } from "@lightlist/sdk/mutations/auth";
-import { Spinner } from "@/components/Spinner";
-import { FormInput } from "@/components/FormInput";
-import { getErrorMessage } from "@/utils/errors";
+import { Spinner } from "@/components/ui/Spinner";
+import { FormInput } from "@/components/ui/FormInput";
+import { Alert } from "@/components/ui/Alert";
+import { resolveErrorMessage } from "@/utils/errors";
 import { validatePasswordForm } from "@/utils/validation";
 
 interface FormErrors {
@@ -45,8 +46,10 @@ export default function PasswordResetPage() {
       try {
         await verifyPasswordResetCode(oobCode);
         setCodeValid(true);
-      } catch (err: any) {
-        setErrors({ general: getErrorMessage(err.code, t) });
+      } catch (err: unknown) {
+        setErrors({
+          general: resolveErrorMessage(err, t, "auth.error.general"),
+        });
         setCodeValid(false);
       }
     };
@@ -85,118 +88,81 @@ export default function PasswordResetPage() {
       setTimeout(() => {
         router.push("/");
       }, 2000);
-    } catch (err: any) {
-      const errorMessage = getErrorMessage(err.code, t);
-      setErrors({ general: errorMessage });
+    } catch (err: unknown) {
+      setErrors({
+        general: resolveErrorMessage(err, t, "auth.error.general"),
+      });
       setLoading(false);
     }
   };
 
   if (!router.isReady) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Spinner />
-      </div>
-    );
+    return <Spinner />;
   }
 
   if (codeValid === false) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow p-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-6">
-            {t("auth.passwordReset.title")}
-          </h1>
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700">
-              {errors.general || t("auth.passwordReset.invalidCode")}
-            </p>
-          </div>
-          <button
-            onClick={() => router.push("/")}
-            className="mt-6 w-full bg-indigo-600 text-white font-medium py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            {t("auth.button.backToSignIn")}
-          </button>
-        </div>
+      <div>
+        <h1>{t("auth.passwordReset.title")}</h1>
+        <Alert variant="error">
+          {errors.general || t("auth.passwordReset.invalidCode")}
+        </Alert>
+        <button onClick={() => router.push("/")}>
+          {t("auth.button.backToSignIn")}
+        </button>
       </div>
     );
   }
 
   if (resetSuccess) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow p-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-6">
-            {t("auth.passwordReset.title")}
-          </h1>
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-sm text-green-700">
-              {t("auth.passwordReset.resetSuccess")}
-            </p>
-          </div>
-          <div className="mt-4 flex justify-center">
-            <Spinner />
-          </div>
-        </div>
+      <div>
+        <h1>{t("auth.passwordReset.title")}</h1>
+        <Alert variant="success">{t("auth.passwordReset.resetSuccess")}</Alert>
+        <Spinner />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">
-          {t("auth.passwordReset.title")}
-        </h1>
+    <div>
+      <h1>{t("auth.passwordReset.title")}</h1>
 
-        {errors.general && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700">{errors.general}</p>
-          </div>
-        )}
+      {errors.general && <Alert variant="error">{errors.general}</Alert>}
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-          <FormInput
-            id="password"
-            label={t("auth.passwordReset.newPassword")}
-            type="password"
-            value={password}
-            onChange={setPassword}
-            error={errors.password}
-            disabled={loading}
-            placeholder={t("auth.placeholder.password")}
-          />
+      <form onSubmit={handleSubmit}>
+        <FormInput
+          id="password"
+          label={t("auth.passwordReset.newPassword")}
+          type="password"
+          value={password}
+          onChange={setPassword}
+          error={errors.password}
+          disabled={loading}
+          placeholder={t("auth.placeholder.password")}
+        />
 
-          <FormInput
-            id="confirmPassword"
-            label={t("auth.passwordReset.confirmNewPassword")}
-            type="password"
-            value={confirmPassword}
-            onChange={setConfirmPassword}
-            error={errors.confirmPassword}
-            disabled={loading}
-            placeholder={t("auth.placeholder.password")}
-          />
+        <FormInput
+          id="confirmPassword"
+          label={t("auth.passwordReset.confirmNewPassword")}
+          type="password"
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          error={errors.confirmPassword}
+          disabled={loading}
+          placeholder={t("auth.placeholder.password")}
+        />
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 text-white font-medium py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed mt-6"
-          >
-            {loading
-              ? t("auth.passwordReset.settingNewPassword")
-              : t("auth.passwordReset.setNewPassword")}
-          </button>
-        </form>
-
-        <button
-          onClick={() => router.push("/")}
-          className="mt-4 w-full bg-gray-300 text-gray-800 font-medium py-2 rounded-lg hover:bg-gray-400 transition-colors"
-        >
-          {t("auth.button.backToSignIn")}
+        <button type="submit" disabled={loading}>
+          {loading
+            ? t("auth.passwordReset.settingNewPassword")
+            : t("auth.passwordReset.setNewPassword")}
         </button>
-      </div>
+      </form>
+
+      <button onClick={() => router.push("/")}>
+        {t("auth.button.backToSignIn")}
+      </button>
     </div>
   );
 }

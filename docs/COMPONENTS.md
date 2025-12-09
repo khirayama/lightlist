@@ -2,7 +2,7 @@
 
 ## 分類
 
-- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, ConfirmDialog, Dialog, FormInput, Spinner）で、現在はスタイルを持たないシンプルな実装
+- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。その他はスタイル最小限のシンプル実装
 - `apps/web/src/components/app`: 設定や、タスク表示・並び替えなど、アプリ固有の共有コンポーネント。SDKへの依存が判断基準（TaskListPanel が単一タスクの描画も内包）
 
 ## 追加・変更ルール
@@ -11,7 +11,7 @@
 - SDKやタスクドメインに触れる場合は `tasks` など機能ベースのディレクトリにまとめる
 - ボタンや入力などのプリミティブは `ui` に集約し、スタイルの重複を避ける
 - テーマとi18nはプリミティブで吸収し、ページ側での個別対応を増やさない
-- モーダルは `ui/Dialog` を使用し、`titleId`/`descriptionId` を設定してアクセシビリティを担保する
+- モーダルは `ui/Dialog` を使用し、`titleId`/`descriptionId` を設定してアクセシビリティを担保する。Drawer は shadcn 構成要素（Overlay/Content/Header/Title/Description/Trigger/Close/Portal）を利用する
 
 ## app 配下のコンポーネント
 
@@ -19,5 +19,5 @@
 
 ## ビジュアルスタイル
 
-- スタイルはデザイン検証ではなく機能確認を優先するため、基本的に付与しない
-- 背景や配色のトークンは廃止し、素のマークアップで動作を確認する
+- Drawer はオーバーレイやスライド方向、背景/文字色を Tailwind で定義し、ライト/ダークの可読性を担保する
+- その他のプリミティブは機能確認を優先し、スタイルは最小限にとどめる

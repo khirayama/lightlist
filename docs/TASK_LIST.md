@@ -10,14 +10,14 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 ### 概要
 
-- 単一ページでタスクリスト一覧とタスク詳細を縦に配置したシンプルなレイアウト。デバイスによるレイアウト差分やドロワーは持たない。
+- Shadcn Drawer で左側にタスクリスト一覧と作成フローをまとめ、右側にタスク詳細カルーセルを置く 2 カラム構成。
 - タスクリストとタスクの並び替えはすべて `@dnd-kit` のドラッグハンドルで行い、オーダーは Firestore に即時反映される。
 - Firebase 認証の状態を監視し、未ログインの場合は `/` にリダイレクト。
 
 ### UI 構成
 
-- **ヘッダー:** 設定画面への遷移ボタンと、エラーを `Alert` で表示する領域。
-- **タスクリスト一覧:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力して `createTaskList` を実行。リストが空のときは `app.emptyState` を表示し、並び替えハンドルの直後に `TaskList.background` を示す小さな角丸ボックスを置いて色を確認できる。
+- **ヘッダー / ドロワー:** ページタイトルと Drawer トリガーを配置。shadcn Drawer（左スライド、オーバーレイ付き）でログインメールを表示し、設定画面へのリンクを提供する。
+- **タスクリスト一覧（ドロワー内）:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力して `createTaskList` を実行。リストが空のときは `app.emptyState` を表示し、各行には背景色スウォッチとタスク数を併記する。
 - **タスク詳細カルーセル:** 各タスクリストを `Carousel` (Embla) で横スライド化し、ホイール左右操作や前後ボタン、インジケータなしのスワイプで切り替える。表示中スライドの `TaskList.background` をセクション全体に適用し、`TaskListPanel` にタスク配列と履歴 (`history`) を渡して完了・削除・追加・編集を行う。
 - **色と共有:** 編集Dialogでリスト名と背景色をまとめて変更。共有Dialogでコードの生成/停止とクリップボードコピーを行う。
 - **削除確認:** リスト編集Dialog内の削除ボタンから `deleteTaskList` を実行。
@@ -41,49 +41,43 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 - DnD ハンドルにはタイトルを付与し、`Spinner` は `aria-busy` を持つ。
 - テキストボタン主体で、キーボード操作でタスク編集/確定が可能。
+- Drawer は shadcn コンポーネントを利用し、`DrawerTitle`/`DrawerDescription` と `aria-labelledby`/`aria-describedby` を関連付ける。
 
 ## 状態管理
 
 ### ページレベルの状態
 
 ```typescript
-// ドロワーとタスクリスト選択状態
 const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
   null,
 );
-const [taskListCarouselApi, setTaskListCarouselApi] =
-  useState<CarouselApi | null>(null);
+const [state, setState] = useState<AppState | null>(null);
+const [error, setError] = useState<string | null>(null);
 
-// タスクリスト作成
-const [showCreateListDialog, setShowCreateListDialog] = useState(false);
-const [createListInput, setCreateListInput] = useState("");
-const [createListBackground, setCreateListBackground] = useState(colors[0]);
-
-// タスク操作状態（メインコンテンツ内）
 const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 const [editingTaskText, setEditingTaskText] = useState("");
 const [newTaskText, setNewTaskText] = useState("");
-const [showEditListDialog, setShowEditListDialog] = useState(false);
 const [editListName, setEditListName] = useState("");
 const [editListBackground, setEditListBackground] = useState(colors[0]);
+const [showEditListDialog, setShowEditListDialog] = useState(false);
 const [deletingList, setDeletingList] = useState(false);
 const [showShareDialog, setShowShareDialog] = useState(false);
 const [shareCode, setShareCode] = useState<string | null>(null);
-const [shareCopySuccess, setShareCopySuccess] = useState(false);
 const [generatingShareCode, setGeneratingShareCode] = useState(false);
 const [removingShareCode, setRemovingShareCode] = useState(false);
+const [shareCopySuccess, setShareCopySuccess] = useState(false);
+const [createListInput, setCreateListInput] = useState("");
+const [createListBackground, setCreateListBackground] = useState(colors[0]);
+const [showCreateListDialog, setShowCreateListDialog] = useState(false);
+const [taskListCarouselApi, setTaskListCarouselApi] =
+  useState<CarouselApi | null>(null);
+const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 ```
 
 **ドロワー状態の詳細:**
 
-- `isDrawerOpen`: モバイルでドロワーが開いている状態
-  - モバイル（< 768px）: クリック/スワイプで動的に変更
-  - デスクトップ（>= 768px）: 常に false（常時表示）
-
-- `selectedTaskListId`: 現在選択中のタスクリスト ID
-  - マウント時に自動的に最初のリストを選択
-  - リスト項目クリックで変更
-  - モバイルでの選択時に自動的にドロワーが閉じる
+- `isDrawerOpen`: Drawer の開閉状態。タスクリストを選択したタイミングで閉じ、右側のカルーセル表示にフォーカスを移す。
+- `selectedTaskListId`: 現在選択中のタスクリスト ID。マウント時に最初のリストを選択し、Drawer 内の選択やカルーセルスクロールに合わせて同期する。
 
 ### アプリケーション状態（Store）
 
@@ -181,7 +175,11 @@ app:
   moveDown: 下へ移動ボタンのテキスト
   dragHint: ドラッグして並び替え
   openMenu: メニューを開く
+  drawerTitle: ドロワーのタイトル表示
+  drawerSignedIn: ログインメール表示用ラベル
+  drawerNoEmail: メールが未設定の場合のラベル
 taskList:
+  taskCount: タスク件数の表示（{{count}} 形式）
   editDetails: 編集ダイアログのタイトルとボタン文言
   shareTitle: 共有ダイアログタイトル
   shareDescription: 共有ダイアログ本文

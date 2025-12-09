@@ -7,11 +7,18 @@ import i18next from "i18next";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
-import { AppState, Theme, Language } from "@lightlist/sdk/types";
+import {
+  AppState,
+  Theme,
+  Language,
+  TaskInsertPosition,
+} from "@lightlist/sdk/types";
 import { updateSettings } from "@lightlist/sdk/mutations/app";
 import { signOut, deleteAccount } from "@lightlist/sdk/mutations/auth";
-import { Spinner } from "@/components/Spinner";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { resolveErrorMessage } from "@/utils/errors";
+import { Spinner } from "@/components/ui/Spinner";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Alert } from "@/components/ui/Alert";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -45,8 +52,8 @@ export default function SettingsPage() {
     setError(null);
     try {
       await updateSettings({ theme });
-    } catch (err: any) {
-      setError(err.message || t("auth.error.general"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
 
@@ -55,8 +62,28 @@ export default function SettingsPage() {
     try {
       await updateSettings({ language });
       await i18next.changeLanguage(language);
-    } catch (err: any) {
-      setError(err.message || t("auth.error.general"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
+    }
+  };
+
+  const handleTaskInsertPositionChange = async (
+    taskInsertPosition: TaskInsertPosition,
+  ) => {
+    setError(null);
+    try {
+      await updateSettings({ taskInsertPosition });
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
+    }
+  };
+
+  const handleAutoSortChange = async (autoSort: boolean) => {
+    setError(null);
+    try {
+      await updateSettings({ autoSort });
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
 
@@ -67,8 +94,8 @@ export default function SettingsPage() {
     try {
       await signOut();
       router.push("/");
-    } catch (err: any) {
-      setError(err.message || t("auth.error.general"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
       setLoading(false);
     }
   };
@@ -80,176 +107,140 @@ export default function SettingsPage() {
     try {
       await deleteAccount();
       router.push("/");
-    } catch (err: any) {
-      setError(err.message || t("auth.error.general"));
+    } catch (err: unknown) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
       setLoading(false);
     }
   };
 
-  const isLoading = !state || !state.user || !state.settings;
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Spinner />
-      </div>
-    );
-  }
-
   if (!state || !state.user || !state.settings) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Spinner />
-      </div>
-    );
+    return <Spinner />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-6">
+    <div>
+      <div>
+        <button onClick={() => router.back()} title={t("common.back")}>
+          {t("common.back")}
+        </button>
+        <h1>{t("settings.title")}</h1>
+      </div>
+
+      {error && <Alert variant="error">{error}</Alert>}
+
+      <div>
+        <p>{t("settings.userInfo.title")}</p>
+        <p>{state.user.email}</p>
+      </div>
+
+      <div>
+        <p>{t("settings.language.title")}</p>
+        <label>
+          <input
+            type="radio"
+            name="language"
+            value="ja"
+            checked={state.settings.language === "ja"}
+            onChange={() => handleLanguageChange("ja")}
+          />
+          {t("settings.language.japanese")}
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="language"
+            value="en"
+            checked={state.settings.language === "en"}
+            onChange={() => handleLanguageChange("en")}
+          />
+          {t("settings.language.english")}
+        </label>
+      </div>
+
+      <div>
+        <p>{t("settings.theme.title")}</p>
+        <label>
+          <input
+            type="radio"
+            name="theme"
+            value="system"
+            checked={state.settings.theme === "system"}
+            onChange={() => handleThemeChange("system")}
+          />
+          {t("settings.theme.system")}
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="theme"
+            value="light"
+            checked={state.settings.theme === "light"}
+            onChange={() => handleThemeChange("light")}
+          />
+          {t("settings.theme.light")}
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="theme"
+            value="dark"
+            checked={state.settings.theme === "dark"}
+            onChange={() => handleThemeChange("dark")}
+          />
+          {t("settings.theme.dark")}
+        </label>
+      </div>
+
+      <div>
+        <p>{t("settings.taskInsertPosition.title")}</p>
+        <label>
+          <input
+            type="radio"
+            name="taskInsertPosition"
+            value="bottom"
+            checked={state.settings.taskInsertPosition === "bottom"}
+            onChange={() => handleTaskInsertPositionChange("bottom")}
+          />
+          {t("settings.taskInsertPosition.bottom")}
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="taskInsertPosition"
+            value="top"
+            checked={state.settings.taskInsertPosition === "top"}
+            onChange={() => handleTaskInsertPositionChange("top")}
+          />
+          {t("settings.taskInsertPosition.top")}
+        </label>
+      </div>
+
+      <div>
+        <p>{t("settings.autoSort.title")}</p>
+        <label>
+          <input
+            type="checkbox"
+            name="autoSort"
+            checked={state.settings.autoSort}
+            onChange={(event) => handleAutoSortChange(event.target.checked)}
+          />
+          {t("settings.autoSort.enable")}
+        </label>
+      </div>
+
+      <div>
+        <h2>{t("settings.danger.title")}</h2>
+        <div>
           <button
-            onClick={() => router.back()}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-            title="Back"
+            onClick={() => setShowSignOutConfirm(true)}
+            disabled={loading}
           >
-            <svg
-              className="w-5 h-5 text-gray-700"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+            {!loading && t("settings.danger.signOut")}
           </button>
-          <h1 className="text-2xl font-bold text-gray-800 flex-1 text-center">
-            {t("settings.title")}
-          </h1>
-          <div className="w-10" />
-        </div>
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        )}
-
-        <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-          <p className="text-sm text-gray-600">
-            {t("settings.userInfo.title")}
-          </p>
-          <p className="text-lg font-medium text-gray-800">
-            {state.user.email}
-          </p>
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t("settings.language.title")}
-          </label>
-          <div className="space-y-2">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="language"
-                value="ja"
-                checked={state.settings.language === "ja"}
-                onChange={() => handleLanguageChange("ja")}
-                className="w-4 h-4 text-indigo-600"
-              />
-              <span className="ml-2 text-gray-700">
-                {t("settings.language.japanese")}
-              </span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="language"
-                value="en"
-                checked={state.settings.language === "en"}
-                onChange={() => handleLanguageChange("en")}
-                className="w-4 h-4 text-indigo-600"
-              />
-              <span className="ml-2 text-gray-700">
-                {t("settings.language.english")}
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t("settings.theme.title")}
-          </label>
-          <div className="space-y-2">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="theme"
-                value="system"
-                checked={state.settings.theme === "system"}
-                onChange={() => handleThemeChange("system")}
-                className="w-4 h-4 text-indigo-600"
-              />
-              <span className="ml-2 text-gray-700">
-                {t("settings.theme.system")}
-              </span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="theme"
-                value="light"
-                checked={state.settings.theme === "light"}
-                onChange={() => handleThemeChange("light")}
-                className="w-4 h-4 text-indigo-600"
-              />
-              <span className="ml-2 text-gray-700">
-                {t("settings.theme.light")}
-              </span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="theme"
-                value="dark"
-                checked={state.settings.theme === "dark"}
-                onChange={() => handleThemeChange("dark")}
-                className="w-4 h-4 text-indigo-600"
-              />
-              <span className="ml-2 text-gray-700">
-                {t("settings.theme.dark")}
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <div className="border-t pt-6 mt-6">
-          <h2 className="text-sm font-bold text-gray-800 mb-3">
-            {t("settings.danger.title")}
-          </h2>
-          <div className="space-y-3">
-            <button
-              onClick={() => setShowSignOutConfirm(true)}
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white font-medium py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {!loading && t("settings.danger.signOut")}
-            </button>
-
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={loading}
-              className="w-full bg-red-600 text-white font-medium py-2 rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {!loading && t("settings.danger.deleteAccount")}
-            </button>
-          </div>
+          <button onClick={() => setShowDeleteConfirm(true)} disabled={loading}>
+            {!loading && t("settings.danger.deleteAccount")}
+          </button>
         </div>
       </div>
 

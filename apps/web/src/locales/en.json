@@ -13,7 +13,9 @@
     "copy": "Copy",
     "copied": "Copied",
     "error": "An error occurred",
-    "confirmDelete": "Are you sure you want to delete?"
+    "confirmDelete": "Are you sure you want to delete?",
+    "previous": "Previous",
+    "next": "Next"
   },
   "auth": {
     "tabs": {
@@ -105,10 +107,16 @@
     "moveUp": "Move Up",
     "moveDown": "Move Down",
     "dragHint": "Drag to reorder",
-    "openMenu": "Open Menu"
+    "openMenu": "Open Menu",
+    "drawerTitle": "Task Lists",
+    "drawerSignedIn": "Signed in as",
+    "drawerNoEmail": "No email available"
   },
   "taskList": {
-    "taskCount": "tasks",
+    "taskCount": "{{count}} tasks",
+    "taskCount_one": "{{count}} task",
+    "taskCount_other": "{{count}} tasks",
+    "editDetails": "Edit List",
     "editColor": "Change Color",
     "addTask": "Add",
     "addTaskPlaceholder": "Enter task...",
@@ -139,6 +147,15 @@
       "title": "Language",
       "japanese": "日本語",
       "english": "English"
+    },
+    "taskInsertPosition": {
+      "title": "Task insertion position",
+      "top": "Add to top",
+      "bottom": "Add to bottom"
+    },
+    "autoSort": {
+      "title": "Auto sort",
+      "enable": "Auto sort tasks"
     },
     "danger": {
       "title": "Danger Zone",

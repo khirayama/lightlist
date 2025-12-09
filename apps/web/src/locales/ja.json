@@ -13,7 +13,9 @@
     "copy": "コピー",
     "copied": "コピーしました",
     "error": "エラーが発生しました",
-    "confirmDelete": "削除してもよろしいですか？"
+    "confirmDelete": "削除してもよろしいですか？",
+    "previous": "前へ",
+    "next": "次へ"
   },
   "auth": {
     "tabs": {
@@ -105,10 +107,16 @@
     "moveUp": "上へ",
     "moveDown": "下へ",
     "dragHint": "ドラッグして並び替え",
-    "openMenu": "メニューを開く"
+    "openMenu": "メニューを開く",
+    "drawerTitle": "タスクリスト",
+    "drawerSignedIn": "ログイン中:",
+    "drawerNoEmail": "メールアドレス未設定"
   },
   "taskList": {
-    "taskCount": "個のタスク",
+    "taskCount": "{{count}}個のタスク",
+    "taskCount_one": "{{count}}個のタスク",
+    "taskCount_other": "{{count}}個のタスク",
+    "editDetails": "リストを編集",
     "editColor": "色を変更",
     "addTask": "追加",
     "addTaskPlaceholder": "タスクを入力...",
@@ -139,6 +147,15 @@
       "title": "言語",
       "japanese": "日本語",
       "english": "English"
+    },
+    "taskInsertPosition": {
+      "title": "タスクの追加位置",
+      "top": "先頭に追加",
+      "bottom": "末尾に追加"
+    },
+    "autoSort": {
+      "title": "自動ソート",
+      "enable": "タスクを自動で並び替える"
     },
     "danger": {
       "title": "危険な操作",

@@ -65,22 +65,9 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`rounded-2xl border border-white/20 bg-white/80 dark:bg-white/5 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.35)] transition-all p-4 flex items-center gap-3 ${
-        isDragging
-          ? "opacity-60 scale-[0.99]"
-          : "hover:shadow-[0_24px_70px_rgba(15,23,42,0.35)]"
-      }`}
-    >
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing p-2 text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white rounded-lg bg-white/50 dark:bg-white/10 border border-white/30"
-        title={dragHintLabel}
-      >
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+    <div ref={setNodeRef} style={style}>
+      <button {...attributes} {...listeners} title={dragHintLabel}>
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
           <path d="M8 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
         </svg>
       </button>
@@ -89,7 +76,6 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
         type="checkbox"
         checked={task.completed}
         onChange={() => onToggle(task)}
-        className="w-5 h-5 rounded border border-white/40 bg-white/60 dark:bg-white/10 text-cyan-500 focus:ring-cyan-400 cursor-pointer"
       />
 
       {isEditing ? (
@@ -105,27 +91,14 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             }
           }}
           autoFocus
-          className="flex-1 px-4 py-2 rounded-xl border border-cyan-300/60 bg-white/80 dark:bg-white/10 text-slate-900 dark:text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-cyan-400"
         />
       ) : (
-        <span
-          className={`flex-1 cursor-pointer px-3 py-2 rounded-lg transition-colors ${
-            task.completed
-              ? "line-through text-slate-400"
-              : "text-slate-900 dark:text-white"
-          } ${task.completed ? "" : "hover:bg-white/60 dark:hover:bg-white/10"}`}
-          onClick={() => onEditStart(task)}
-        >
+        <button type="button" onClick={() => onEditStart(task)}>
           {task.text}
-        </span>
+        </button>
       )}
 
-      <button
-        onClick={() => onDelete(task.id)}
-        className="px-3 py-2 text-sm rounded-xl bg-gradient-to-r from-rose-500 to-amber-400 text-white font-semibold shadow-[0_14px_35px_rgba(251,113,133,0.28)] hover:opacity-90 transition-opacity"
-      >
-        {deleteLabel}
-      </button>
+      <button onClick={() => onDelete(task.id)}>{deleteLabel}</button>
     </div>
   );
 }
@@ -198,11 +171,9 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
 
   const listContent =
     tasks.length === 0 ? (
-      <p className="text-slate-500 dark:text-slate-300 text-center py-10 tracking-tight">
-        {emptyLabel}
-      </p>
+      <p>{emptyLabel}</p>
     ) : (
-      <div className="space-y-3">
+      <div>
         {tasks.map((task) => (
           <TaskItem
             key={task.id}
@@ -223,7 +194,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
 
   const inputSection = (
     <>
-      <div className="flex gap-2">
+      <div>
         <input
           type="text"
           list={historyListId}
@@ -236,7 +207,6 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
           }}
           placeholder={addPlaceholder}
           disabled={inputDisabled}
-          className="flex-1 px-4 py-3 rounded-xl bg-white/85 dark:bg-white/10 border border-white/60 dark:border-white/10 text-slate-900 dark:text-white shadow-[0_18px_60px_rgba(15,23,42,0.25)] focus:outline-none focus:ring-2 focus:ring-cyan-400 disabled:opacity-60 placeholder:text-slate-400"
         />
         {historyListId ? (
           <datalist id={historyListId}>
@@ -245,40 +215,30 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
             ))}
           </datalist>
         ) : null}
-        <button
-          onClick={onAddTask}
-          disabled={isAddDisabled}
-          className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-emerald-500 to-lime-400 text-white font-semibold shadow-[0_18px_60px_rgba(56,189,248,0.35)] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <button onClick={onAddTask} disabled={isAddDisabled}>
           {addButtonLabel}
         </button>
       </div>
-      {addError ? (
-        <Alert variant="error" className="mt-4">
-          {addError}
-        </Alert>
-      ) : null}
+      {addError ? <Alert variant="error">{addError}</Alert> : null}
     </>
   );
 
   if (variant === "card") {
     return (
-      <div className="rounded-2xl border border-white/20 bg-white/80 dark:bg-white/5 backdrop-blur-2xl shadow-[0_24px_90px_rgba(15,23,42,0.32)] p-6 mb-6">
+      <div>
         {inputSection}
-        <div className="mt-6">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={collision}
-            onDragEnd={onDragEnd}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={collision}
+          onDragEnd={onDragEnd}
+        >
+          <SortableContext
+            items={tasks.map((task) => task.id)}
+            strategy={strategyValue}
           >
-            <SortableContext
-              items={tasks.map((task) => task.id)}
-              strategy={strategyValue}
-            >
-              {listContent}
-            </SortableContext>
-          </DndContext>
-        </div>
+            {listContent}
+          </SortableContext>
+        </DndContext>
       </div>
     );
   }
@@ -294,13 +254,11 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
           items={tasks.map((task) => task.id)}
           strategy={strategyValue}
         >
-          <div className="space-y-3 mb-6">{listContent}</div>
+          <div>{listContent}</div>
         </SortableContext>
       </DndContext>
 
-      <div className="rounded-2xl border border-white/20 bg-white/80 dark:bg-white/5 backdrop-blur-2xl shadow-[0_24px_90px_rgba(15,23,42,0.32)] p-5 mb-10">
-        {inputSection}
-      </div>
+      <div>{inputSection}</div>
     </>
   );
 }

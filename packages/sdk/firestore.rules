@@ -11,6 +11,30 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    match /shareCodes/{shareCode} {
+      function getUserTaskListOrder() {
+        return request.auth != null
+          ? get(/databases/$(database)/documents/taskListOrder/$(request.auth.uid)).data
+          : null;
+      }
+
+      function canAccessTaskList(taskListId) {
+        let order = getUserTaskListOrder();
+        return order != null && taskListId in order;
+      }
+
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['taskListId', 'createdAt'])
+        && request.resource.data.taskListId is string
+        && request.resource.data.createdAt is int
+        && canAccessTaskList(request.resource.data.taskListId);
+      allow update: if false;
+      allow delete: if request.auth != null
+        && resource.data.taskListId is string
+        && canAccessTaskList(resource.data.taskListId);
+    }
+
     // タスクリスト
     match /taskLists/{taskListId} {
       // ヘルパー関数: taskListOrderを取得

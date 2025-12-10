@@ -10,13 +10,14 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 ### 概要
 
-- Shadcn Drawer で左側にタスクリスト一覧と作成フローをまとめ、右側にタスク詳細カルーセルを置く 2 カラム構成。
+- Shadcn Drawer で左側にタスクリスト一覧と作成フローをまとめ、右側にタスク詳細カルーセルを置く 2 カラム構成。幅 1024px 以上ではドロワー内容を左カラムとして常時表示し、狭い幅ではトリガー付きのオーバーレイ表示に切り替える。
 - タスクリストとタスクの並び替えはすべて `@dnd-kit` のドラッグハンドルで行い、オーダーは Firestore に即時反映される。
+- 並び替えのドラッグは縦方向のみに制限し、`DndContext` の `modifiers` に `restrictToVerticalAxis` を設定している。
 - Firebase 認証の状態を監視し、未ログインの場合は `/` にリダイレクト。
 
 ### UI 構成
 
-- **ヘッダー / ドロワー:** ページタイトルと Drawer トリガーを配置。shadcn Drawer（左スライド、オーバーレイ付き）でログインメールを表示し、設定画面へのリンクを提供する。
+- **ヘッダー / ドロワー:** ページタイトルと Drawer トリガーを配置。幅 1024px 以上ではドロワー内容を左カラムに固定し、より狭い幅では shadcn Drawer（左スライド、オーバーレイ付き）でログインメールを表示し、設定画面へのリンクを提供する。
 - **タスクリスト一覧（ドロワー内）:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力して `createTaskList` を実行。リストが空のときは `app.emptyState` を表示し、各行には背景色スウォッチとタスク数を併記する。
 - **タスク詳細カルーセル:** 各タスクリストを `Carousel` (Embla) で横スライド化し、ホイール左右操作や前後ボタン、インジケータなしのスワイプで切り替える。表示中スライドの `TaskList.background` をセクション全体に適用し、`TaskListPanel` にタスク配列と履歴 (`history`) を渡して完了・削除・追加・編集を行う。
 - **色と共有:** 編集Dialogでリスト名と背景色をまとめて変更。共有Dialogでコードの生成/停止とクリップボードコピーを行う。
@@ -25,6 +26,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 ### カルーセル操作
 
 - `embla-carousel-wheel-gestures` を有効化し、ホイールで左右にスクロールするとスライドが切り替わり、`selectedTaskListId` を同期する。
+- タスク並び替え中は `TaskListPanel` からの sorting 状態を受け取り、カルーセルのホイール操作とドラッグを無効化して横スクロールを抑制する。
 - リスト一覧での選択や Dialog オープン時は対象リストを事前に選択し、カルーセル位置とフォーム入力を一致させる。
 
 ### 並び替え
@@ -35,7 +37,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 ### 入力とエラー
 
 - 追加ボタンは入力が空白のときに無効化。
-- Firebase 由来のエラーコードは `resolveErrorMessage` で i18n キーに変換し、`Alert` で表示する。
+- Firebase 由来のエラーコードは `AppError` を渡して `resolveErrorMessage` で i18n キーに変換し、`Alert` で表示する。
 
 ### アクセシビリティ
 
@@ -72,11 +74,13 @@ const [showCreateListDialog, setShowCreateListDialog] = useState(false);
 const [taskListCarouselApi, setTaskListCarouselApi] =
   useState<CarouselApi | null>(null);
 const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+const [isWideLayout, setIsWideLayout] = useState(false);
 ```
 
 **ドロワー状態の詳細:**
 
-- `isDrawerOpen`: Drawer の開閉状態。タスクリストを選択したタイミングで閉じ、右側のカルーセル表示にフォーカスを移す。
+- `isDrawerOpen`: Drawer の開閉状態。幅が狭いときのみ利用し、タスクリストを選択したタイミングで閉じてカルーセル表示にフォーカスを移す。
+- `isWideLayout`: 画面幅 1024px 以上で左カラムを常時表示するかどうかを判定する。真の場合、Drawer は閉じたままオーバーレイを使用しない。
 - `selectedTaskListId`: 現在選択中のタスクリスト ID。マウント時に最初のリストを選択し、Drawer 内の選択やカルーセルスクロールに合わせて同期する。
 
 ### アプリケーション状態（Store）
@@ -406,6 +410,8 @@ taskList:
 - ユニーク性を確保するためにFirestoreで検証
 - 複数回生成することで異なるコードを取得可能
 - 共有を停止するとコードは無効化される
+- `shareCodes` コレクションは誰でも読み取り可能で、タスクリストへのアクセス判定に使用する
+- 共有コードの作成・削除は、`taskListOrder` に含まれる認証済みユーザーのみ許可する
 
 ### 状態管理
 
@@ -431,7 +437,7 @@ const [showCreateListForm, setShowCreateListForm] = useState(false);
 const [createListInput, setCreateListInput] = useState("");
 ```
 
-- `selectedTaskListId`: 表示対象のタスクリスト ID。初回ロード時に最初のリストを自動選択。
+- `selectedTaskListId`: 表示対象のタスクリスト ID。初回ロード時に最初のリストを自動選択し、Embla の select イベントでカルーセルと Drawer 選択を片方向同期する。
 - `state`: `appStore` から購読した `AppState`。ユーザー、設定、タスクリストを保持。
 - `error`: 画面上部に表示するエラーメッセージ。
 - `editingTaskId`/`editingTaskText`: インライン編集中のタスク識別と内容。
@@ -488,6 +494,7 @@ const [createListInput, setCreateListInput] = useState("");
 
 - `autoSort` 無効時は指定フィールドのみ更新し、`updatedAt` を設定
 - `autoSort` 有効時は対象タスクの存在を検証し、更新内容を反映した配列を未完了・日付・現在の order 優先で並べ替えて order を再採番した上でトランザクション更新
+- ストアに対象タスクリストがない場合は Firestore から取得して同じ検証と更新を行う
 
 #### deleteTask(taskListId: string, taskId: string): Promise<void>
 
@@ -502,6 +509,7 @@ const [createListInput, setCreateListInput] = useState("");
 
 - `autoSort` 無効時はタスクを削除し、`updatedAt` のみ更新
 - `autoSort` 有効時は対象タスクの存在を検証し、削除後のタスクを未完了・日付・現在の order 優先で並び替えて再採番し、トランザクションでまとめて反映
+- ストアに対象タスクリストがない場合は Firestore から取得して同じ検証と更新を行う
 
 #### updateTasksOrder(taskListId: string, draggedTaskId: string, targetTaskId: string): Promise<void>
 
@@ -522,11 +530,12 @@ await updateTasksOrder(taskListId, "task-1", "task-3");
 
 **動作:**
 
-1. 現在の order を昇順で取得し、ドラッグ対象を配列から除外
-2. 対象タスクの位置に挿入し（上方向は直前、下方向は直後）、全タスクを 1.0 から連番で再採番
-3. トランザクションを使用して Firestore の `tasks[taskId].order` を一括更新
-4. `updatedAt` タイムスタンプを自動設定
-5. ストアの変更をリスナーに通知
+1. ストアに対象タスクリストが存在しない場合は Firestore から取得して最新データを使用
+2. 現在の order を昇順で取得し、ドラッグ対象を配列から除外
+3. 対象タスクの位置に挿入し（上方向は直前、下方向は直後）、全タスクを 1.0 から連番で再採番
+4. トランザクションを使用して Firestore の `tasks[taskId].order` を一括更新
+5. `updatedAt` タイムスタンプを自動設定
+6. ストアの変更をリスナーに通知
 
 **技術仕様：**
 
@@ -668,6 +677,10 @@ const [user, setUser] = useState<typeof auth.currentUser>(null);
 const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 // ... その他のタスク編集状態
 ```
+
+**データ同期:**
+
+- shareCode で取得したタスクリストは `appStore.subscribeToSharedTaskList(taskListId)` で Firestore を購読し、`appStore.taskLists` を常に最新化している。タスク追加・並び替え・削除など SDK 側が store を参照する操作を成立させるための前提になる。
 
 ### API インターフェース
 

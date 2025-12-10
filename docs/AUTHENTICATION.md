@@ -52,6 +52,9 @@ src/
 
 **エクスポート:**
 
+- `FormErrors`: 入力項目ごとのエラーメッセージを保持する型
+- `AuthFormData`: サインイン/サインアップフォームの入力データ型
+- `PasswordFormData`: パスワード再設定フォームの入力データ型
 - `validateAuthForm(data, t)`: サインイン/サインアップフォームのバリデーション
   - メールアドレス形式、パスワード最小長、確認パスワード一致などをチェック
   - 戻り値: エラーメッセージオブジェクト
@@ -66,10 +69,11 @@ src/
 
 **エクスポート:**
 
+- `AppError`: Firebase 由来のコード付きエラーや Error オブジェクト、メッセージ文字列をまとめたユニオン型
 - `getErrorMessage(errorCode, t)`: Firebaseエラーコードを多言語対応メッセージに変換
-  - サポートするエラーコード: auth/invalid-credential, auth/email-already-in-use, auth/weak-password など
+  - サポートするエラーコード: auth/invalid-credential, auth/email-already-in-use, auth/weak-password など（`ERROR_KEY_MAP` に列挙）
   - 戻り値: 翻訳済みのエラーメッセージ
-- `resolveErrorMessage(error, t, fallbackKey)`: `unknown` を受け取り、`code` プロパティの有無や Error.message を評価して文言を返す。fallbackKey は i18n キー。
+- `resolveErrorMessage(error, t, fallbackKey)`: `AppError` を受け取り、`code` プロパティや message を評価して文言を返す。fallbackKey は i18n キー。
 
 ## 認証フロー
 

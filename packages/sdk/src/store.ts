@@ -78,9 +78,16 @@ function createStore() {
 
   const listeners = new Set<StoreListener>();
   const unsubscribers: (() => void)[] = [];
+  const sharedTaskListUnsubscribers = new Map<string, () => void>();
 
   let prevState: AppState | null = null;
   let prevStateKey: string | null = null;
+
+  const unsubscribeSharedTaskLists = () => {
+    const unsubscribes = Array.from(sharedTaskListUnsubscribers.values());
+    sharedTaskListUnsubscribers.clear();
+    unsubscribes.forEach((unsubscribe) => unsubscribe());
+  };
 
   const commit = () => {
     const nextState = transform(data);
@@ -162,6 +169,28 @@ function createStore() {
     });
   };
 
+  const subscribeToSharedTaskList = (taskListId: string): (() => void) => {
+    const existing = sharedTaskListUnsubscribers.get(taskListId);
+    if (existing) return existing;
+
+    const unsubscribe = onSnapshot(doc(db, "taskLists", taskListId), (snapshot) => {
+      if (snapshot.exists()) {
+        data.taskLists[taskListId] = snapshot.data() as TaskListStore;
+      } else {
+        delete data.taskLists[taskListId];
+      }
+      commit();
+    });
+
+    const wrappedUnsubscribe = () => {
+      unsubscribe();
+      sharedTaskListUnsubscribers.delete(taskListId);
+    };
+
+    sharedTaskListUnsubscribers.set(taskListId, wrappedUnsubscribe);
+    return wrappedUnsubscribe;
+  };
+
   const authUnsubscribe = onAuthStateChanged(auth, (user) => {
     data.user = user;
     if (user) {
@@ -169,6 +198,7 @@ function createStore() {
     } else {
       unsubscribers.forEach((unsub) => unsub());
       unsubscribers.length = 0;
+      unsubscribeSharedTaskLists();
       data.settings = null;
       data.taskListOrder = null;
       data.taskLists = {};
@@ -184,10 +214,12 @@ function createStore() {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    subscribeToSharedTaskList,
     // Actions
     unsubscribeAll: () => {
       authUnsubscribe();
       unsubscribers.forEach((unsub) => unsub());
+      unsubscribeSharedTaskLists();
     },
   };
 

@@ -47,6 +47,15 @@ function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
     }));
 }
 
+async function getTaskListData(taskListId: string): Promise<TaskListStore> {
+  const cached = appStore.getData().taskLists[taskListId];
+  if (cached) return cached;
+
+  const snapshot = await getDoc(doc(db, "taskLists", taskListId));
+  if (!snapshot.exists()) throw new Error("Task list not found");
+  return snapshot.data() as TaskListStore;
+}
+
 export async function updateSettings(settings: Partial<Settings>) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("No user logged in");
@@ -271,8 +280,7 @@ export async function updateTask(
     return;
   }
 
-  const taskListData = data.taskLists[taskListId];
-  if (!taskListData) throw new Error("Task list not found");
+  const taskListData = await getTaskListData(taskListId);
   if (!taskListData.tasks[taskId]) throw new Error("Task not found");
 
   const updatedTasks = Object.values(taskListData.tasks).map((task) =>
@@ -307,8 +315,7 @@ export async function deleteTask(taskListId: string, taskId: string) {
     return;
   }
 
-  const taskListData = data.taskLists[taskListId];
-  if (!taskListData) throw new Error("Task list not found");
+  const taskListData = await getTaskListData(taskListId);
   if (!taskListData.tasks[taskId]) throw new Error("Task not found");
 
   const remainingTasks = Object.values(taskListData.tasks).filter(
@@ -343,10 +350,7 @@ export async function updateTasksOrder(
   draggedTaskId: string,
   targetTaskId: string
 ) {
-  const data = appStore.getData();
-
-  const taskListData = data.taskLists[taskListId];
-  if (!taskListData) throw new Error("Task list not found");
+  const taskListData = await getTaskListData(taskListId);
   if (draggedTaskId === targetTaskId) return;
 
   const tasks = Object.values(taskListData.tasks).sort(

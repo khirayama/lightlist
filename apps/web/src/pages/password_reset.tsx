@@ -11,14 +11,8 @@ import {
 import { Spinner } from "@/components/ui/Spinner";
 import { FormInput } from "@/components/ui/FormInput";
 import { Alert } from "@/components/ui/Alert";
-import { resolveErrorMessage } from "@/utils/errors";
-import { validatePasswordForm } from "@/utils/validation";
-
-interface FormErrors {
-  password?: string;
-  confirmPassword?: string;
-  general?: string;
-}
+import { AppError, resolveErrorMessage } from "@/utils/errors";
+import { FormErrors, validatePasswordForm } from "@/utils/validation";
 
 // ===== Main Component =====
 export default function PasswordResetPage() {
@@ -46,7 +40,7 @@ export default function PasswordResetPage() {
       try {
         await verifyPasswordResetCode(oobCode);
         setCodeValid(true);
-      } catch (err: unknown) {
+      } catch (err: AppError) {
         setErrors({
           general: resolveErrorMessage(err, t, "auth.error.general"),
         });
@@ -88,7 +82,7 @@ export default function PasswordResetPage() {
       setTimeout(() => {
         router.push("/");
       }, 2000);
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setErrors({
         general: resolveErrorMessage(err, t, "auth.error.general"),
       });

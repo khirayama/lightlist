@@ -15,7 +15,7 @@ import {
 } from "@lightlist/sdk/types";
 import { updateSettings } from "@lightlist/sdk/mutations/app";
 import { signOut, deleteAccount } from "@lightlist/sdk/mutations/auth";
-import { resolveErrorMessage } from "@/utils/errors";
+import { AppError, resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Alert } from "@/components/ui/Alert";
@@ -28,6 +28,20 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleBack = () => {
+    if (typeof window === "undefined") {
+      router.push("/app");
+      return;
+    }
+
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push("/app");
+  };
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChange((user) => {
@@ -52,7 +66,7 @@ export default function SettingsPage() {
     setError(null);
     try {
       await updateSettings({ theme });
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
@@ -62,7 +76,7 @@ export default function SettingsPage() {
     try {
       await updateSettings({ language });
       await i18next.changeLanguage(language);
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
@@ -73,7 +87,7 @@ export default function SettingsPage() {
     setError(null);
     try {
       await updateSettings({ taskInsertPosition });
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
@@ -82,7 +96,7 @@ export default function SettingsPage() {
     setError(null);
     try {
       await updateSettings({ autoSort });
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
@@ -94,7 +108,7 @@ export default function SettingsPage() {
     try {
       await signOut();
       router.push("/");
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
       setLoading(false);
     }
@@ -107,7 +121,7 @@ export default function SettingsPage() {
     try {
       await deleteAccount();
       router.push("/");
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
       setLoading(false);
     }
@@ -120,7 +134,7 @@ export default function SettingsPage() {
   return (
     <div>
       <div>
-        <button onClick={() => router.back()} title={t("common.back")}>
+        <button onClick={handleBack} title={t("common.back")}>
           {t("common.back")}
         </button>
         <h1>{t("settings.title")}</h1>

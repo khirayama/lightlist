@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import i18n from "@/utils/i18n";
 import { appStore } from "@lightlist/sdk/store";
+import { AppState, Theme } from "@lightlist/sdk/types";
 
 import "@/styles/globals.css";
 
@@ -11,7 +12,7 @@ export default function App({ Component, pageProps }: AppProps) {
   const prevLanguageRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const applyTheme = (theme: string) => {
+    const applyTheme = (theme: Theme) => {
       const isDark =
         theme === "dark" ||
         (theme === "system" &&
@@ -23,7 +24,7 @@ export default function App({ Component, pageProps }: AppProps) {
       }
     };
 
-    const initialState = appStore.getState();
+    const initialState: AppState = appStore.getState();
     if (initialState.settings) {
       applyTheme(initialState.settings.theme);
       prevLanguageRef.current = initialState.settings.language;
@@ -32,7 +33,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
     setMounted(true);
 
-    const unsubscribe = appStore.subscribe((state) => {
+    const unsubscribe = appStore.subscribe((state: AppState) => {
       if (state.settings) {
         applyTheme(state.settings.theme);
         if (prevLanguageRef.current !== state.settings.language) {

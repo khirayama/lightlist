@@ -2,10 +2,13 @@ import {
   CollisionDetection,
   DndContext,
   DragEndEvent,
+  DragStartEvent,
   SensorDescriptor,
   SensorOptions,
   closestCenter,
+  UniqueIdentifier,
 } from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   SortableContext,
   SortingStrategy,
@@ -127,11 +130,26 @@ export interface TaskListPanelProps<T extends SortableTask = SortableTask> {
   dragHintLabel: string;
   emptyLabel: string;
   historySuggestions?: string[];
+  onSortingChange?: (sorting: boolean) => void;
   addDisabled?: boolean;
   inputDisabled?: boolean;
   addError?: string | null;
   variant?: "split" | "card";
 }
+
+type SortableData = {
+  sortable: {
+    containerId: UniqueIdentifier;
+    items: UniqueIdentifier[];
+    index: number;
+  };
+};
+
+const hasSortableData = (data: unknown): data is SortableData => {
+  if (!data || typeof data !== "object") return false;
+  const sortable = (data as { sortable?: unknown }).sortable;
+  return Boolean(sortable && typeof sortable === "object");
+};
 
 export function TaskListPanel<T extends SortableTask = SortableTask>({
   tasks,
@@ -155,6 +173,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
   dragHintLabel,
   emptyLabel,
   historySuggestions,
+  onSortingChange,
   addDisabled = false,
   inputDisabled = false,
   addError = null,
@@ -191,6 +210,26 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
         ))}
       </div>
     );
+
+  const handleSortingChange = (sorting: boolean) => {
+    onSortingChange?.(sorting);
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const data = event.active.data.current;
+    if (hasSortableData(data)) {
+      handleSortingChange(true);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    handleSortingChange(false);
+    onDragEnd(event);
+  };
+
+  const handleDragCancel = () => {
+    handleSortingChange(false);
+  };
 
   const inputSection = (
     <>
@@ -230,7 +269,10 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
         <DndContext
           sensors={sensors}
           collisionDetection={collision}
-          onDragEnd={onDragEnd}
+          modifiers={[restrictToVerticalAxis]}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
         >
           <SortableContext
             items={tasks.map((task) => task.id)}
@@ -248,7 +290,10 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
       <DndContext
         sensors={sensors}
         collisionDetection={collision}
-        onDragEnd={onDragEnd}
+        modifiers={[restrictToVerticalAxis]}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
         <SortableContext
           items={tasks.map((task) => task.id)}

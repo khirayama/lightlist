@@ -8,11 +8,14 @@ import {
   ForwardedRef,
   ReactNode,
   forwardRef,
+  useId,
 } from "react";
 
 type DialogContentProps = ComponentPropsWithoutRef<
   typeof DialogPrimitive.Content
 > & {
+  title: ReactNode;
+  description?: ReactNode;
   titleId?: string;
   descriptionId?: string;
 };
@@ -96,19 +99,33 @@ const DialogContent = forwardRef<
   ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
 >(function DialogContent(
-  { children, titleId, descriptionId, ...props },
+  { children, title, description, titleId, descriptionId, ...props },
   ref: ForwardedRef<ElementRef<typeof DialogPrimitive.Content>>,
 ) {
+  const generatedTitleId = titleId ?? useId();
+  const generatedDescriptionId =
+    description !== undefined ? (descriptionId ?? useId()) : undefined;
+
   return (
     <DialogPrimitive.Portal>
       <DialogOverlay />
       <DialogPrimitive.Content
         {...props}
         ref={ref}
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
+        aria-labelledby={generatedTitleId}
+        aria-describedby={generatedDescriptionId}
         style={{ ...contentStyle, ...props.style }}
       >
+        <DialogHeader
+          title={<DialogTitle id={generatedTitleId}>{title}</DialogTitle>}
+          description={
+            description !== undefined ? (
+              <DialogDescription id={generatedDescriptionId}>
+                {description}
+              </DialogDescription>
+            ) : undefined
+          }
+        />
         {children}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>

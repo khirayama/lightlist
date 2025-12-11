@@ -1,7 +1,9 @@
+import { HTMLInputTypeAttribute } from "react";
+
 interface FormInputProps {
   id: string;
   label: string;
-  type: string;
+  type: HTMLInputTypeAttribute;
   value: string;
   onChange: (value: string) => void;
   error?: string;

@@ -12,17 +12,10 @@ import {
 } from "@lightlist/sdk/mutations/auth";
 import { FormInput } from "@/components/ui/FormInput";
 import { Alert } from "@/components/ui/Alert";
-import { resolveErrorMessage } from "@/utils/errors";
-import { validateAuthForm } from "@/utils/validation";
+import { AppError, resolveErrorMessage } from "@/utils/errors";
+import { FormErrors, validateAuthForm } from "@/utils/validation";
 
 type AuthTab = "signin" | "signup" | "reset";
-
-interface FormErrors {
-  email?: string;
-  password?: string;
-  confirmPassword?: string;
-  general?: string;
-}
 
 // ===== Main Component =====
 export default function IndexPage() {
@@ -67,7 +60,7 @@ export default function IndexPage() {
 
     try {
       await action();
-    } catch (error: unknown) {
+    } catch (error: AppError) {
       setErrors({
         general: resolveErrorMessage(error, t, "auth.error.general"),
       });
@@ -109,7 +102,7 @@ export default function IndexPage() {
     try {
       await sendPasswordResetEmail(email);
       setResetSent(true);
-    } catch (error: unknown) {
+    } catch (error: AppError) {
       setErrors({
         general: resolveErrorMessage(error, t, "auth.error.general"),
       });

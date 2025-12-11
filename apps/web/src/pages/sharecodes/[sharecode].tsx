@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,6 +9,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  UniqueIdentifier,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
@@ -22,10 +23,14 @@ import {
   updateTasksOrder,
   addSharedTaskListToOrder,
 } from "@lightlist/sdk/mutations/app";
-import { resolveErrorMessage } from "@/utils/errors";
+import { appStore } from "@lightlist/sdk/store";
+import { AppError, resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { TaskListPanel } from "@/components/app/TaskListPanel";
+
+const getStringId = (id: UniqueIdentifier): string | null =>
+  typeof id === "string" ? id : null;
 
 export default function ShareCodePage() {
   const router = useRouter();
@@ -44,6 +49,7 @@ export default function ShareCodePage() {
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
   const [addToOrderLoading, setAddToOrderLoading] = useState(false);
   const [addToOrderError, setAddToOrderError] = useState<string | null>(null);
+  const sharedTaskListUnsubscribeRef = useRef<(() => void) | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -63,7 +69,16 @@ export default function ShareCodePage() {
     if (!sharecode || typeof sharecode !== "string") return null;
     const updatedTaskList = await fetchTaskListByShareCode(sharecode);
     if (updatedTaskList) {
+      if (!taskList || taskList.id !== updatedTaskList.id) {
+        sharedTaskListUnsubscribeRef.current?.();
+        sharedTaskListUnsubscribeRef.current =
+          appStore.subscribeToSharedTaskList(updatedTaskList.id);
+      }
       setTaskList(updatedTaskList);
+    }
+    if (!updatedTaskList) {
+      sharedTaskListUnsubscribeRef.current?.();
+      sharedTaskListUnsubscribeRef.current = null;
     }
     return updatedTaskList;
   };
@@ -78,12 +93,21 @@ export default function ShareCodePage() {
         const data = await fetchTaskListByShareCode(sharecode);
         if (!data) {
           setError(t("pages.sharecode.notFound"));
+          sharedTaskListUnsubscribeRef.current?.();
+          sharedTaskListUnsubscribeRef.current = null;
           setTaskList(null);
         } else {
+          if (!taskList || taskList.id !== data.id) {
+            sharedTaskListUnsubscribeRef.current?.();
+            sharedTaskListUnsubscribeRef.current =
+              appStore.subscribeToSharedTaskList(data.id);
+          }
           setTaskList(data);
         }
-      } catch (err: unknown) {
+      } catch (err: AppError) {
         setError(resolveErrorMessage(err, t, "pages.sharecode.error"));
+        sharedTaskListUnsubscribeRef.current?.();
+        sharedTaskListUnsubscribeRef.current = null;
         setTaskList(null);
       } finally {
         setLoading(false);
@@ -92,6 +116,13 @@ export default function ShareCodePage() {
 
     loadTaskList();
   }, [sharecode, t]);
+
+  useEffect(
+    () => () => {
+      sharedTaskListUnsubscribeRef.current?.();
+    },
+    [],
+  );
 
   const handleAddTask = async () => {
     if (!newTaskText.trim() || !taskList) return;
@@ -103,7 +134,7 @@ export default function ShareCodePage() {
       setNewTaskText("");
 
       await refreshTaskList();
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setAddTaskError(
         resolveErrorMessage(err, t, "pages.sharecode.addTaskError"),
       );
@@ -134,7 +165,7 @@ export default function ShareCodePage() {
       await updateTask(taskList.id, task.id, { text: editingText });
       await refreshTaskList();
       setEditingTaskId(null);
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.updateError"));
     }
   };
@@ -147,7 +178,7 @@ export default function ShareCodePage() {
         completed: !task.completed,
       });
       await refreshTaskList();
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.updateError"));
     }
   };
@@ -158,7 +189,7 @@ export default function ShareCodePage() {
     try {
       await deleteTask(taskList.id, taskId);
       await refreshTaskList();
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.deleteError"));
     }
   };
@@ -168,15 +199,14 @@ export default function ShareCodePage() {
 
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+    const activeId = getStringId(active.id);
+    const overId = getStringId(over.id);
+    if (!activeId || !overId) return;
 
     try {
-      await updateTasksOrder(
-        taskList.id,
-        active.id as string,
-        over.id as string,
-      );
+      await updateTasksOrder(taskList.id, activeId, overId);
       await refreshTaskList();
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.reorderError"));
     }
   };
@@ -189,7 +219,7 @@ export default function ShareCodePage() {
       setAddToOrderError(null);
       await addSharedTaskListToOrder(taskList.id);
       router.push("/app");
-    } catch (err: unknown) {
+    } catch (err: AppError) {
       setAddToOrderError(
         resolveErrorMessage(err, t, "pages.sharecode.addToOrderError"),
       );

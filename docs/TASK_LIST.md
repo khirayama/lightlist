@@ -81,6 +81,7 @@ const [isWideLayout, setIsWideLayout] = useState(false);
 
 - `isDrawerOpen`: Drawer の開閉状態。幅が狭いときのみ利用し、タスクリストを選択したタイミングで閉じてカルーセル表示にフォーカスを移す。
 - `isWideLayout`: 画面幅 1024px 以上で左カラムを常時表示するかどうかを判定する。真の場合、Drawer は閉じたままオーバーレイを使用しない。
+- 狭い幅で Drawer を開いたときに `history.pushState` でダミーエントリを積み、`popstate` で戻る操作が行われたら Drawer を閉じる。手動で閉じた場合は履歴を 1 件戻して積み上がりを防ぐ。
 - `selectedTaskListId`: 現在選択中のタスクリスト ID。マウント時に最初のリストを選択し、Drawer 内の選択やカルーセルスクロールに合わせて同期する。
 
 ### アプリケーション状態（Store）
@@ -418,7 +419,9 @@ taskList:
 app.tsx では以下のように状態を一元管理しています。
 
 ```typescript
-const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(null);
+const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
+  null,
+);
 const [state, setState] = useState<AppState | null>(null);
 const [error, setError] = useState<string | null>(null);
 const [editingTaskId, setEditingTaskId] = useState<string | null>(null);

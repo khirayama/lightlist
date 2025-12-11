@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { useRef } from "react";
 import { useRouter } from "next/router";
@@ -48,7 +46,7 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui/carousel";
+} from "@/components/ui/Carousel";
 import {
   Dialog,
   DialogClose,
@@ -171,7 +169,7 @@ export default function AppPage() {
   ];
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
-    null,
+    null
   );
 
   const [state, setState] = useState<AppState | null>(null);
@@ -206,11 +204,11 @@ export default function AppPage() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
   const selectedTaskList = state?.taskLists?.find(
-    (tl) => tl.id === selectedTaskListId,
+    (tl) => tl.id === selectedTaskListId
   ) as TaskList | undefined;
 
   useEffect(() => {
@@ -254,7 +252,7 @@ export default function AppPage() {
       const taskList = state.taskLists[index];
       if (taskList) {
         setSelectedTaskListId((prev) =>
-          prev === taskList.id ? prev : taskList.id,
+          prev === taskList.id ? prev : taskList.id
         );
       }
     };
@@ -270,7 +268,7 @@ export default function AppPage() {
   useEffect(() => {
     if (!taskListCarouselApi || !state?.taskLists) return;
     const index = state.taskLists.findIndex(
-      (taskList) => taskList.id === selectedTaskListId,
+      (taskList) => taskList.id === selectedTaskListId
     );
     if (index >= 0) {
       taskListCarouselApi.scrollTo(index);
@@ -477,7 +475,7 @@ export default function AppPage() {
       await deleteTaskList(selectedTaskListId);
 
       const remainingLists = state?.taskLists?.filter(
-        (tl) => tl.id !== selectedTaskListId,
+        (tl) => tl.id !== selectedTaskListId
       );
       if (remainingLists && remainingLists.length > 0) {
         setSelectedTaskListId(remainingLists[0].id);
@@ -923,7 +921,7 @@ export default function AppPage() {
                                       }
                                     }}
                                     placeholder={t(
-                                      "app.taskListNamePlaceholder",
+                                      "app.taskListNamePlaceholder"
                                     )}
                                   />
                                 </label>

@@ -2,7 +2,6 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
-  CSSProperties,
   ComponentPropsWithoutRef,
   ElementRef,
   ForwardedRef,
@@ -10,6 +9,7 @@ import {
   forwardRef,
   useId,
 } from "react";
+import clsx from "clsx";
 
 type DialogContentProps = ComponentPropsWithoutRef<
   typeof DialogPrimitive.Content
@@ -30,54 +30,6 @@ type DialogFooterProps = {
   children: ReactNode;
 };
 
-const overlayStyle: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  backgroundColor: "rgba(0, 0, 0, 0.4)",
-  backdropFilter: "blur(2px)",
-};
-
-const contentStyle: CSSProperties = {
-  position: "fixed",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  background: "var(--dialog-bg, #ffffff)",
-  color: "var(--dialog-fg, #111111)",
-  minWidth: "320px",
-  maxWidth: "min(640px, 90vw)",
-  borderRadius: "12px",
-  boxShadow: "0 16px 48px rgba(0, 0, 0, 0.18)",
-  padding: "20px",
-  zIndex: 50,
-};
-
-const sectionSpacing: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "8px",
-};
-
-const footerStyle: CSSProperties = {
-  marginTop: "16px",
-  display: "flex",
-  justifyContent: "flex-end",
-  gap: "8px",
-  flexWrap: "wrap",
-};
-
-const titleStyle: CSSProperties = {
-  margin: 0,
-  fontSize: "18px",
-  fontWeight: 600,
-};
-
-const descriptionStyle: CSSProperties = {
-  margin: 0,
-  fontSize: "14px",
-  color: "var(--dialog-muted, #444444)",
-};
-
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
@@ -86,11 +38,12 @@ const DialogOverlay = forwardRef<
   ElementRef<typeof DialogPrimitive.Overlay>,
   ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
 >(function DialogOverlay(props, ref) {
+  const { className, ...rest } = props;
   return (
     <DialogPrimitive.Overlay
-      {...props}
+      {...rest}
       ref={ref}
-      style={{ ...overlayStyle, ...props.style }}
+      className={clsx("fixed inset-0 bg-black/40 backdrop-blur-sm", className)}
     />
   );
 });
@@ -99,7 +52,7 @@ const DialogContent = forwardRef<
   ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
 >(function DialogContent(
-  { children, title, description, titleId, descriptionId, ...props },
+  { children, title, description, titleId, descriptionId, className, ...props },
   ref: ForwardedRef<ElementRef<typeof DialogPrimitive.Content>>,
 ) {
   const generatedTitleId = titleId ?? useId();
@@ -114,7 +67,10 @@ const DialogContent = forwardRef<
         ref={ref}
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
-        style={{ ...contentStyle, ...props.style }}
+        className={clsx(
+          "fixed left-1/2 top-1/2 z-50 min-w-[320px] max-w-[min(640px,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--dialog-bg,#ffffff)] p-5 text-[var(--dialog-fg,#111111)] shadow-2xl",
+          className,
+        )}
       >
         <DialogHeader
           title={<DialogTitle id={generatedTitleId}>{title}</DialogTitle>}
@@ -134,7 +90,7 @@ const DialogContent = forwardRef<
 
 function DialogHeader({ title, description, children }: DialogHeaderProps) {
   return (
-    <div style={sectionSpacing}>
+    <div className="flex flex-col gap-2">
       {title}
       {description}
       {children}
@@ -144,7 +100,7 @@ function DialogHeader({ title, description, children }: DialogHeaderProps) {
 
 function DialogTitle({ children, id }: { children: ReactNode; id?: string }) {
   return (
-    <DialogPrimitive.Title id={id} style={titleStyle}>
+    <DialogPrimitive.Title id={id} className="m-0 text-lg font-semibold">
       {children}
     </DialogPrimitive.Title>
   );
@@ -158,14 +114,21 @@ function DialogDescription({
   id?: string;
 }) {
   return (
-    <DialogPrimitive.Description id={id} style={descriptionStyle}>
+    <DialogPrimitive.Description
+      id={id}
+      className="m-0 text-sm text-[var(--dialog-muted,#444444)]"
+    >
       {children}
     </DialogPrimitive.Description>
   );
 }
 
 function DialogFooter({ children }: DialogFooterProps) {
-  return <div style={footerStyle}>{children}</div>;
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+      {children}
+    </div>
+  );
 }
 
 export {

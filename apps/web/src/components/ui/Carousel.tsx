@@ -6,11 +6,10 @@ import {
 import useEmblaCarousel from "embla-carousel-react";
 import {
   WheelGesturesPlugin,
-  WheelGesturesOptions,
+  WheelGesturesPluginOptions,
 } from "embla-carousel-wheel-gestures";
 import {
   ComponentProps,
-  HTMLAttributes,
   ReactNode,
   createContext,
   forwardRef,
@@ -20,19 +19,22 @@ import {
   useMemo,
   useState,
 } from "react";
+import clsx from "clsx";
 
 type CarouselApi = EmblaCarouselType;
 
-interface CarouselProps extends HTMLAttributes<HTMLDivElement> {
+type CarouselRootProps = Omit<ComponentProps<"div">, "onSelect">;
+
+interface CarouselProps extends CarouselRootProps {
   opts?: EmblaOptionsType;
   plugins?: EmblaPluginType[];
-  wheelGestures?: boolean | WheelGesturesOptions;
+  wheelGestures?: boolean | WheelGesturesPluginOptions;
   setApi?: (api: CarouselApi) => void;
   onSelect?: (api: CarouselApi) => void;
 }
 
 interface CarouselContextValue {
-  emblaApi: CarouselApi | null;
+  emblaApi: CarouselApi | undefined;
   viewportRef: (element: HTMLDivElement | null) => void;
   scrollPrev: () => void;
   scrollNext: () => void;
@@ -56,7 +58,7 @@ export function Carousel({
   wheelGestures = false,
   setApi,
   onSelect,
-  style,
+  className,
   children,
   ...props
 }: CarouselProps) {
@@ -117,36 +119,24 @@ export function Carousel({
         selectedIndex,
       }}
     >
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          ...style,
-        }}
-        {...props}
-      >
+      <div className={clsx("relative w-full", className)} {...props}>
         {children}
       </div>
     </CarouselContext.Provider>
   );
 }
 
-type CarouselContentProps = HTMLAttributes<HTMLDivElement>;
+type CarouselContentProps = ComponentProps<"div">;
 
 export const CarouselContent = forwardRef<HTMLDivElement, CarouselContentProps>(
-  ({ style, children, ...props }, ref) => {
+  ({ className, children, ...props }, ref) => {
     const { viewportRef } = useCarousel();
 
     return (
-      <div ref={viewportRef} style={{ overflow: "hidden" }}>
+      <div ref={viewportRef} className="overflow-hidden">
         <div
           ref={ref}
-          style={{
-            display: "flex",
-            alignItems: "stretch",
-            gap: "0px",
-            ...style,
-          }}
+          className={clsx("flex items-stretch gap-0", className)}
           {...props}
         >
           {children}
@@ -158,19 +148,15 @@ export const CarouselContent = forwardRef<HTMLDivElement, CarouselContentProps>(
 
 CarouselContent.displayName = "CarouselContent";
 
-interface CarouselItemProps extends HTMLAttributes<HTMLDivElement> {
+interface CarouselItemProps extends ComponentProps<"div"> {
   children: ReactNode;
 }
 
 export const CarouselItem = forwardRef<HTMLDivElement, CarouselItemProps>(
-  ({ style, children, ...props }, ref) => (
+  ({ className, children, ...props }, ref) => (
     <div
       ref={ref}
-      style={{
-        flex: "0 0 100%",
-        minWidth: 0,
-        ...style,
-      }}
+      className={clsx("min-w-0 shrink-0 basis-full", className)}
       {...props}
     >
       {children}
@@ -185,7 +171,7 @@ type CarouselControlProps = ComponentProps<"button">;
 export const CarouselPrevious = forwardRef<
   HTMLButtonElement,
   CarouselControlProps
->(({ style, ...props }, ref) => {
+>(({ className, ...props }, ref) => {
   const { scrollPrev } = useCarousel();
 
   return (
@@ -193,7 +179,7 @@ export const CarouselPrevious = forwardRef<
       type="button"
       ref={ref}
       onClick={scrollPrev}
-      style={{ position: "absolute", top: "50%", left: "8px", ...style }}
+      className={clsx("absolute left-2 top-1/2 -translate-y-1/2", className)}
       {...props}
     >
       ‹
@@ -204,7 +190,7 @@ export const CarouselPrevious = forwardRef<
 CarouselPrevious.displayName = "CarouselPrevious";
 
 export const CarouselNext = forwardRef<HTMLButtonElement, CarouselControlProps>(
-  ({ style, ...props }, ref) => {
+  ({ className, ...props }, ref) => {
     const { scrollNext } = useCarousel();
 
     return (
@@ -212,7 +198,7 @@ export const CarouselNext = forwardRef<HTMLButtonElement, CarouselControlProps>(
         type="button"
         ref={ref}
         onClick={scrollNext}
-        style={{ position: "absolute", top: "50%", right: "8px", ...style }}
+        className={clsx("absolute right-2 top-1/2 -translate-y-1/2", className)}
         {...props}
       >
         ›

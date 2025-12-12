@@ -3,8 +3,6 @@ import { useRef } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
-  DndContext,
-  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -12,13 +10,7 @@ import {
   DragEndEvent,
   UniqueIdentifier,
 } from "@dnd-kit/core";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
@@ -35,7 +27,8 @@ import {
   generateShareCode,
   removeShareCode,
 } from "@lightlist/sdk/mutations/app";
-import { AppError, resolveErrorMessage } from "@/utils/errors";
+import clsx from "clsx";
+import { resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { TaskListPanel } from "@/components/app/TaskListPanel";
@@ -54,104 +47,15 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/Dialog";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/Drawer";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/Drawer";
+import { DrawerPanel } from "./_DrawerPanel";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
 
-interface SortableTaskListItemProps {
-  taskList: TaskList;
-  onSelect: (taskListId: string) => void;
-  dragHintLabel: string;
-  taskCountLabel: string;
-  isActive: boolean;
-}
-
-function SortableTaskListItem({
-  taskList,
-  onSelect,
-  dragHintLabel,
-  taskCountLabel,
-  isActive,
-}: SortableTaskListItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: taskList.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "8px",
-    borderRadius: "10px",
-    backgroundColor: isActive ? "#f5f5f5" : "transparent",
-  };
-
-  return (
-    <div ref={setNodeRef} style={style}>
-      <button
-        {...attributes}
-        {...listeners}
-        title={dragHintLabel}
-        type="button"
-        style={{ display: "flex", alignItems: "center" }}
-      >
-        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M8 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-        </svg>
-      </button>
-      <span
-        aria-hidden="true"
-        style={{
-          width: "16px",
-          height: "16px",
-          borderRadius: "6px",
-          backgroundColor: taskList.background,
-          border: "1px solid #cccccc",
-        }}
-      />
-
-      <button
-        type="button"
-        onClick={() => onSelect(taskList.id)}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: "2px",
-          textAlign: "left",
-        }}
-      >
-        <span style={{ fontWeight: isActive ? 700 : 500 }}>
-          {taskList.name}
-        </span>
-        <span style={{ color: "#555555", fontSize: "12px" }}>
-          {taskCountLabel}
-        </span>
-      </button>
-    </div>
-  );
-}
-
 export default function AppPage() {
   const router = useRouter();
   const { t } = useTranslation();
-
   const colors = [
     "#FF6B6B",
     "#4ECDC4",
@@ -169,7 +73,7 @@ export default function AppPage() {
   ];
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
-    null
+    null,
   );
 
   const [state, setState] = useState<AppState | null>(null);
@@ -204,11 +108,11 @@ export default function AppPage() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const selectedTaskList = state?.taskLists?.find(
-    (tl) => tl.id === selectedTaskListId
+    (tl) => tl.id === selectedTaskListId,
   ) as TaskList | undefined;
 
   useEffect(() => {
@@ -252,7 +156,7 @@ export default function AppPage() {
       const taskList = state.taskLists[index];
       if (taskList) {
         setSelectedTaskListId((prev) =>
-          prev === taskList.id ? prev : taskList.id
+          prev === taskList.id ? prev : taskList.id,
         );
       }
     };
@@ -268,7 +172,7 @@ export default function AppPage() {
   useEffect(() => {
     if (!taskListCarouselApi || !state?.taskLists) return;
     const index = state.taskLists.findIndex(
-      (taskList) => taskList.id === selectedTaskListId
+      (taskList) => taskList.id === selectedTaskListId,
     );
     if (index >= 0) {
       taskListCarouselApi.scrollTo(index);
@@ -326,6 +230,7 @@ export default function AppPage() {
   const isLoading = !state || !state.user;
   const hasTaskLists = Boolean(state?.taskLists?.length);
   const userEmail = state?.user?.email || t("app.drawerNoEmail");
+  const taskLists = state?.taskLists ?? [];
 
   const handleDragEndTaskList = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -338,7 +243,7 @@ export default function AppPage() {
       setError(null);
       try {
         await updateTaskListOrder(draggedTaskListId, targetTaskListId);
-      } catch (err: AppError) {
+      } catch (err) {
         setError(resolveErrorMessage(err, t, "common.error"));
       }
     }
@@ -354,7 +259,7 @@ export default function AppPage() {
       setCreateListInput("");
       setCreateListBackground(colors[0]);
       setShowCreateListDialog(false);
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "app.error"));
     }
   };
@@ -372,7 +277,7 @@ export default function AppPage() {
       setError(null);
       try {
         await updateTasksOrder(selectedTaskListId, draggedTaskId, targetTaskId);
-      } catch (err: AppError) {
+      } catch (err) {
         setError(resolveErrorMessage(err, t, "common.error"));
       }
     }
@@ -386,7 +291,7 @@ export default function AppPage() {
       await updateTask(selectedTaskListId, task.id, {
         completed: !task.completed,
       });
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
@@ -399,7 +304,7 @@ export default function AppPage() {
     try {
       await addTask(selectedTaskListId, newTaskText.trim());
       setNewTaskText("");
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
@@ -418,7 +323,7 @@ export default function AppPage() {
         text: editingTaskText.trim(),
       });
       setEditingTaskId(null);
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
@@ -429,7 +334,7 @@ export default function AppPage() {
     setError(null);
     try {
       await deleteTask(selectedTaskListId, taskId);
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
@@ -460,7 +365,7 @@ export default function AppPage() {
     try {
       await updateTaskList(selectedTaskListId, updates);
       setShowEditListDialog(false);
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
@@ -475,7 +380,7 @@ export default function AppPage() {
       await deleteTaskList(selectedTaskListId);
 
       const remainingLists = state?.taskLists?.filter(
-        (tl) => tl.id !== selectedTaskListId
+        (tl) => tl.id !== selectedTaskListId,
       );
       if (remainingLists && remainingLists.length > 0) {
         setSelectedTaskListId(remainingLists[0].id);
@@ -484,7 +389,7 @@ export default function AppPage() {
       }
       setShowEditListDialog(false);
       setDeletingList(false);
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "common.error"));
       setDeletingList(false);
     }
@@ -499,7 +404,7 @@ export default function AppPage() {
     try {
       const code = await generateShareCode(selectedTaskListId);
       setShareCode(code);
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "common.error"));
     } finally {
       setGeneratingShareCode(false);
@@ -515,7 +420,7 @@ export default function AppPage() {
     try {
       await removeShareCode(selectedTaskListId);
       setShareCode(null);
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "common.error"));
     } finally {
       setRemovingShareCode(false);
@@ -530,254 +435,65 @@ export default function AppPage() {
       await navigator.clipboard.writeText(shareUrl);
       setShareCopySuccess(true);
       setTimeout(() => setShareCopySuccess(false), 2000);
-    } catch (err: AppError) {
+    } catch (err) {
       setError(t("common.error"));
     }
   };
+
+  const drawerPanel = (
+    <DrawerPanel
+      isWideLayout={isWideLayout}
+      userEmail={userEmail}
+      showCreateListDialog={showCreateListDialog}
+      onCreateListDialogChange={setShowCreateListDialog}
+      createListInput={createListInput}
+      onCreateListInputChange={setCreateListInput}
+      createListBackground={createListBackground}
+      onCreateListBackgroundChange={setCreateListBackground}
+      colors={colors}
+      onCreateList={handleCreateList}
+      hasTaskLists={hasTaskLists}
+      taskLists={taskLists}
+      sensorsList={sensorsList}
+      onDragEndTaskList={handleDragEndTaskList}
+      selectedTaskListId={selectedTaskListId}
+      onSelectTaskList={(taskListId) => setSelectedTaskListId(taskListId)}
+      onCloseDrawer={() => setIsDrawerOpen(false)}
+      onOpenSettings={() => {
+        setIsDrawerOpen(false);
+        router.push("/settings");
+      }}
+      t={t}
+    />
+  );
 
   if (isLoading) {
     return <Spinner />;
   }
 
-  const drawerPanel = (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-        height: "100%",
-      }}
-    >
-      <DrawerHeader>
-        {isWideLayout ? (
-          <h2
-            id="drawer-task-lists-title"
-            style={{ margin: 0, fontSize: "20px", fontWeight: 600 }}
-          >
-            {t("app.drawerTitle")}
-          </h2>
-        ) : (
-          <DrawerTitle id="drawer-task-lists-title">
-            {t("app.drawerTitle")}
-          </DrawerTitle>
-        )}
-        {isWideLayout ? (
-          <p
-            id="drawer-task-lists-description"
-            style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}
-          >
-            {t("app.drawerSignedIn")} {userEmail}
-          </p>
-        ) : (
-          <DrawerDescription id="drawer-task-lists-description">
-            {t("app.drawerSignedIn")} {userEmail}
-          </DrawerDescription>
-        )}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            gap: "8px",
-            flexWrap: "wrap",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setIsDrawerOpen(false);
-              router.push("/settings");
-            }}
-          >
-            {t("settings.title")}
-          </button>
-        </div>
-      </DrawerHeader>
-
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-          flex: 1,
-          overflowY: "auto",
-        }}
-      >
-        <Dialog
-          open={showCreateListDialog}
-          onOpenChange={(open: boolean) => {
-            setShowCreateListDialog(open);
-            if (!open) {
-              setCreateListInput("");
-              setCreateListBackground(colors[0]);
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <button type="button">{t("app.createNew")}</button>
-          </DialogTrigger>
-          <DialogContent
-            title={t("app.createTaskList")}
-            description={t("app.taskListName")}
-          >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-                marginTop: "16px",
-              }}
-            >
-              <label
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "4px",
-                }}
-              >
-                <span>{t("app.taskListName")}</span>
-                <input
-                  type="text"
-                  value={createListInput}
-                  onChange={(e) => setCreateListInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleCreateList();
-                    }
-                  }}
-                  placeholder={t("app.taskListNamePlaceholder")}
-                />
-              </label>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                }}
-              >
-                <span>{t("taskList.selectColor")}</span>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "8px",
-                  }}
-                >
-                  {colors.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      aria-pressed={createListBackground === color}
-                      aria-label={`${t("taskList.selectColor")} ${color}`}
-                      onClick={() => setCreateListBackground(color)}
-                      style={{
-                        width: "32px",
-                        height: "32px",
-                        borderRadius: "10px",
-                        border:
-                          createListBackground === color
-                            ? "2px solid #111111"
-                            : "1px solid #cccccc",
-                        backgroundColor: color,
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <button type="button">{t("app.cancel")}</button>
-              </DialogClose>
-              <button
-                type="button"
-                onClick={handleCreateList}
-                disabled={!createListInput.trim()}
-              >
-                {t("app.create")}
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {hasTaskLists ? (
-          <DndContext
-            sensors={sensorsList}
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
-            onDragEnd={handleDragEndTaskList}
-          >
-            <SortableContext items={state.taskLists.map((t) => t.id)}>
-              {state.taskLists.map((taskList) => (
-                <SortableTaskListItem
-                  key={taskList.id}
-                  taskList={taskList}
-                  onSelect={(taskListId) => {
-                    setSelectedTaskListId(taskListId);
-                    setIsDrawerOpen(false);
-                  }}
-                  dragHintLabel={t("app.dragHint")}
-                  taskCountLabel={t("taskList.taskCount", {
-                    count: taskList.tasks.length,
-                  })}
-                  isActive={selectedTaskListId === taskList.id}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
-        ) : (
-          <p>{t("app.emptyState")}</p>
-        )}
-      </div>
-    </div>
-  );
-
   return (
     <div
-      style={{
-        display: "flex",
-        flexDirection: isWideLayout ? "row" : "column",
-        gap: "16px",
-        padding: "16px",
-        alignItems: isWideLayout ? "flex-start" : undefined,
-      }}
+      className={clsx(
+        "flex gap-4 p-4",
+        isWideLayout ? "flex-row items-start" : "flex-col",
+      )}
     >
       {isWideLayout && (
-        <aside
-          style={{
-            width: "360px",
-            maxWidth: "420px",
-            flexShrink: 0,
-            position: "sticky",
-            top: "16px",
-            alignSelf: "stretch",
-          }}
-        >
+        <aside className="sticky top-4 w-[360px] max-w-[420px] shrink-0 self-stretch">
           <div className="flex h-full max-h-[calc(100vh-32px)] flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-4 text-gray-900 shadow-2xl dark:bg-gray-900 dark:text-gray-50">
             {drawerPanel}
           </div>
         </aside>
       )}
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          flex: 1,
-          minWidth: 0,
-        }}
-      >
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
         <header
-          style={{
-            display: "flex",
-            justifyContent: isWideLayout ? "flex-start" : "space-between",
-            alignItems: "center",
-            gap: "12px",
-            flexWrap: "wrap",
-          }}
+          className={clsx(
+            "flex flex-wrap items-center gap-3",
+            isWideLayout ? "justify-start" : "justify-between",
+          )}
         >
-          <h1 style={{ margin: 0 }}>{t("app.title")}</h1>
+          <h1 className="m-0 text-2xl font-bold">{t("app.title")}</h1>
           {!isWideLayout && (
             <Drawer
               direction="left"
@@ -806,7 +522,6 @@ export default function AppPage() {
             opts={{
               align: "start",
               containScroll: "trimSnaps",
-              draggable: !isTaskSorting,
             }}
           >
             <CarouselPrevious aria-label={t("common.previous")} />
@@ -817,57 +532,29 @@ export default function AppPage() {
                 return (
                   <CarouselItem key={taskList.id}>
                     <section
-                      className="border-b"
-                      style={{
-                        backgroundColor: taskList.background,
-                        pointerEvents: isActive ? "auto" : "none",
-                      }}
+                      className={clsx(
+                        "border-b",
+                        isActive
+                          ? "pointer-events-auto"
+                          : "pointer-events-none",
+                      )}
+                      style={{ backgroundColor: taskList.background }}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          justifyContent: "space-between",
-                          gap: "12px",
-                          alignItems: "center",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "6px",
-                          }}
-                        >
-                          <h2 style={{ margin: 0 }}>{taskList.name}</h2>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
-                          >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-col gap-1.5">
+                          <h2 className="m-0 text-xl font-semibold">
+                            {taskList.name}
+                          </h2>
+                          <div className="flex items-center gap-2">
                             <span
                               aria-label={t("taskList.selectColor")}
-                              style={{
-                                width: "16px",
-                                height: "16px",
-                                borderRadius: "4px",
-                                backgroundColor: taskList.background,
-                                border: "1px solid #cccccc",
-                              }}
+                              className="h-4 w-4 rounded border border-[#cccccc]"
+                              style={{ backgroundColor: taskList.background }}
                             />
                             <span>{taskList.background}</span>
                           </div>
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "8px",
-                            flexWrap: "wrap",
-                            justifyContent: "flex-end",
-                          }}
-                        >
+                        <div className="flex flex-wrap justify-end gap-2">
                           <Dialog
                             open={isActive && showEditListDialog}
                             onOpenChange={(open: boolean) => {
@@ -893,21 +580,8 @@ export default function AppPage() {
                               title={t("taskList.editDetails")}
                               description={t("app.taskListName")}
                             >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: "12px",
-                                  marginTop: "16px",
-                                }}
-                              >
-                                <label
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "4px",
-                                  }}
-                                >
+                              <div className="mt-4 flex flex-col gap-3">
+                                <label className="flex flex-col gap-1">
                                   <span>{t("app.taskListName")}</span>
                                   <input
                                     type="text"
@@ -921,25 +595,13 @@ export default function AppPage() {
                                       }
                                     }}
                                     placeholder={t(
-                                      "app.taskListNamePlaceholder"
+                                      "app.taskListNamePlaceholder",
                                     )}
                                   />
                                 </label>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "8px",
-                                  }}
-                                >
+                                <div className="flex flex-col gap-2">
                                   <span>{t("taskList.selectColor")}</span>
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      flexWrap: "wrap",
-                                      gap: "8px",
-                                    }}
-                                  >
+                                  <div className="flex flex-wrap gap-2">
                                     {colors.map((color) => (
                                       <button
                                         key={color}
@@ -951,16 +613,13 @@ export default function AppPage() {
                                         onClick={() =>
                                           setEditListBackground(color)
                                         }
-                                        style={{
-                                          width: "32px",
-                                          height: "32px",
-                                          borderRadius: "10px",
-                                          border:
-                                            editListBackground === color
-                                              ? "2px solid #111111"
-                                              : "1px solid #cccccc",
-                                          backgroundColor: color,
-                                        }}
+                                        className={clsx(
+                                          "h-8 w-8 rounded-[10px]",
+                                          editListBackground === color
+                                            ? "border-2 border-[#111111]"
+                                            : "border border-[#cccccc]",
+                                        )}
+                                        style={{ backgroundColor: color }}
                                       />
                                     ))}
                                   </div>
@@ -1017,29 +676,10 @@ export default function AppPage() {
                               description={t("taskList.shareDescription")}
                             >
                               {shareCode ? (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "12px",
-                                    marginTop: "16px",
-                                  }}
-                                >
-                                  <label
-                                    style={{
-                                      display: "flex",
-                                      flexDirection: "column",
-                                      gap: "6px",
-                                    }}
-                                  >
+                                <div className="mt-4 flex flex-col gap-3">
+                                  <label className="flex flex-col gap-1.5">
                                     <span>{t("taskList.shareCode")}</span>
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        gap: "8px",
-                                        flexWrap: "wrap",
-                                      }}
-                                    >
+                                    <div className="flex flex-wrap gap-2">
                                       <input
                                         type="text"
                                         value={shareCode}
@@ -1067,14 +707,7 @@ export default function AppPage() {
                                   </button>
                                 </div>
                               ) : (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "12px",
-                                    marginTop: "16px",
-                                  }}
-                                >
+                                <div className="mt-4 flex flex-col gap-3">
                                   <button
                                     type="button"
                                     onClick={handleGenerateShareCode}

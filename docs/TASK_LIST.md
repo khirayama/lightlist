@@ -179,7 +179,7 @@ app:
   moveUp: 上へ移動ボタンのテキスト
   moveDown: 下へ移動ボタンのテキスト
   dragHint: ドラッグして並び替え
-  openMenu: メニューを開く
+  openMenu: メニューを開く（ハンバーガーアイコンのツールチップ/スクリーンリーダー用）
   drawerTitle: ドロワーのタイトル表示
   drawerSignedIn: ログインメール表示用ラベル
   drawerNoEmail: メールが未設定の場合のラベル

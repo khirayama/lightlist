@@ -486,36 +486,39 @@ export default function AppPage() {
   }
 
   return (
-    <div className="h-full min-h-full w-full bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
+    <div className="h-full min-h-full w-full bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50 overflow-hidden">
       <div
         className={clsx(
-          "mx-auto flex max-w-6xl gap-4 h-full",
+          "flex h-full",
           isWideLayout ? "flex-row items-start" : "flex-col"
         )}
       >
         {isWideLayout && (
-          <aside className="sticky top-4 w-[360px] max-w-[420px] shrink-0 self-stretch">
-            <div className="flex h-full max-h-[calc(100dvh-32px)] flex-col gap-4 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <aside className="sticky top-0 w-[360px] max-w-[420px] shrink-0 self-stretch">
+            <div className="flex h-full flex-col overflow-y-auto border-l border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
               {drawerPanel}
             </div>
           </aside>
         )}
 
         <div className="flex min-w-0 flex-1 flex-col w-full h-full min-h-0">
-          <div className="sticky top-0 z-20">
-            {!isWideLayout && (
+          {!isWideLayout && (
+            <div className="sticky top-0 z-20 w-full">
               <AppHeader
                 isWideLayout={isWideLayout}
                 isDrawerOpen={isDrawerOpen}
                 onDrawerOpenChange={setIsDrawerOpen}
                 drawerPanel={drawerPanel}
               />
-            )}
+              {error && <Alert variant="error">{error}</Alert>}
+            </div>
+          )}
 
+          <div className="flex-1 flex flex-col relative overflow-hidden">
             {showTaskListLocator && (
               <nav
                 aria-label={t("app.taskListLocator.label")}
-                className="flex justify-center sticky top-0 z-10 center-x-0 w-full"
+                className="flex justify-center absolute top-0 z-20 center-x-0 w-full"
               >
                 <ul className="flex items-center gap-1">
                   {taskLists.map((taskList, index) => {
@@ -552,82 +555,83 @@ export default function AppPage() {
                 </ul>
               </nav>
             )}
-          </div>
 
-          {error && <Alert variant="error">{error}</Alert>}
+            <div className="h-full overflow-y-scroll">
+              {hasTaskLists ? (
+                <Carousel
+                  wheelGestures={!isTaskSorting}
+                  setApi={setTaskListCarouselApi}
+                  opts={{
+                    align: "start",
+                    containScroll: "trimSnaps",
+                  }}
+                >
+                  <CarouselContent>
+                    {state.taskLists.map((taskList) => {
+                      const isActive = selectedTaskListId === taskList.id;
+                      return (
+                        <CarouselItem key={taskList.id}>
+                          <div
+                            className="h-8" // placeholder for top offset
+                            style={{ background: taskList.background }}
+                          />
 
-          <div className="flex-1 overflow-scroll">
-            {hasTaskLists ? (
-              <Carousel
-                wheelGestures={!isTaskSorting}
-                setApi={setTaskListCarouselApi}
-                opts={{
-                  align: "start",
-                  containScroll: "trimSnaps",
-                }}
-              >
-                <CarouselContent>
-                  {state.taskLists.map((taskList) => {
-                    const isActive = selectedTaskListId === taskList.id;
-                    return (
-                      <CarouselItem key={taskList.id}>
-                        <div
-                          className="h-8"
-                          style={{ background: taskList.background }}
-                        />
-                        <TaskListCard
-                          taskList={taskList}
-                          isActive={isActive}
-                          onActivate={(taskListId) =>
-                            setSelectedTaskListId(taskListId)
-                          }
-                          colors={colors}
-                          showEditListDialog={showEditListDialog}
-                          onEditDialogOpenChange={handleEditDialogOpenChange}
-                          editListName={editListName}
-                          onEditListNameChange={setEditListName}
-                          editListBackground={editListBackground}
-                          onEditListBackgroundChange={setEditListBackground}
-                          onSaveListDetails={handleSaveListDetails}
-                          deletingList={deletingList}
-                          onDeleteList={handleDeleteList}
-                          showShareDialog={showShareDialog}
-                          onShareDialogOpenChange={handleShareDialogOpenChange}
-                          shareCode={shareCode}
-                          shareCopySuccess={shareCopySuccess}
-                          generatingShareCode={generatingShareCode}
-                          onGenerateShareCode={handleGenerateShareCode}
-                          removingShareCode={removingShareCode}
-                          onRemoveShareCode={handleRemoveShareCode}
-                          onCopyShareLink={handleCopyShareLink}
-                          sensorsList={sensorsList}
-                          onDragEndTask={handleDragEndTask}
-                          editingTaskId={editingTaskId}
-                          editingTaskText={editingTaskText}
-                          onEditingTaskTextChange={setEditingTaskText}
-                          onEditStartTask={(task) => {
-                            setEditingTaskId(task.id);
-                            setEditingTaskText(task.text);
-                          }}
-                          onEditEndTask={handleEditTask}
-                          onToggleTask={handleToggleTask}
-                          onDeleteTask={handleDeleteTask}
-                          newTaskText={newTaskText}
-                          onNewTaskTextChange={setNewTaskText}
-                          onAddTask={handleAddTask}
-                          onSortingChange={setIsTaskSorting}
-                          t={t}
-                        />
-                      </CarouselItem>
-                    );
-                  })}
-                </CarouselContent>
-              </Carousel>
-            ) : (
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                {t("app.emptyState")}
-              </p>
-            )}
+                          <TaskListCard
+                            taskList={taskList}
+                            isActive={isActive}
+                            onActivate={(taskListId) =>
+                              setSelectedTaskListId(taskListId)
+                            }
+                            colors={colors}
+                            showEditListDialog={showEditListDialog}
+                            onEditDialogOpenChange={handleEditDialogOpenChange}
+                            editListName={editListName}
+                            onEditListNameChange={setEditListName}
+                            editListBackground={editListBackground}
+                            onEditListBackgroundChange={setEditListBackground}
+                            onSaveListDetails={handleSaveListDetails}
+                            deletingList={deletingList}
+                            onDeleteList={handleDeleteList}
+                            showShareDialog={showShareDialog}
+                            onShareDialogOpenChange={
+                              handleShareDialogOpenChange
+                            }
+                            shareCode={shareCode}
+                            shareCopySuccess={shareCopySuccess}
+                            generatingShareCode={generatingShareCode}
+                            onGenerateShareCode={handleGenerateShareCode}
+                            removingShareCode={removingShareCode}
+                            onRemoveShareCode={handleRemoveShareCode}
+                            onCopyShareLink={handleCopyShareLink}
+                            sensorsList={sensorsList}
+                            onDragEndTask={handleDragEndTask}
+                            editingTaskId={editingTaskId}
+                            editingTaskText={editingTaskText}
+                            onEditingTaskTextChange={setEditingTaskText}
+                            onEditStartTask={(task) => {
+                              setEditingTaskId(task.id);
+                              setEditingTaskText(task.text);
+                            }}
+                            onEditEndTask={handleEditTask}
+                            onToggleTask={handleToggleTask}
+                            onDeleteTask={handleDeleteTask}
+                            newTaskText={newTaskText}
+                            onNewTaskTextChange={setNewTaskText}
+                            onAddTask={handleAddTask}
+                            onSortingChange={setIsTaskSorting}
+                            t={t}
+                          />
+                        </CarouselItem>
+                      );
+                    })}
+                  </CarouselContent>
+                </Carousel>
+              ) : (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {t("app.emptyState")}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

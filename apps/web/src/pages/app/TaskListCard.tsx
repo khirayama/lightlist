@@ -106,12 +106,12 @@ export function TaskListCard({
   return (
     <section
       className={clsx(
-        "rounded-2xl p-2 sm:p-3",
-        isActive ? "pointer-events-auto" : "pointer-events-none",
+        "p-2 sm:p-3",
+        isActive ? "pointer-events-auto" : "pointer-events-none"
       )}
       style={{ backgroundColor: taskList.background }}
     >
-      <div className="rounded-xl bg-white/90 p-4 shadow-sm backdrop-blur dark:bg-gray-900/80">
+      <div className="p-4 shadow-sm backdrop-blur dark:bg-gray-900/80">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col gap-1.5">
             <h2 className="m-0 text-xl font-semibold">{taskList.name}</h2>

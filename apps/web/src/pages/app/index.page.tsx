@@ -64,7 +64,7 @@ export default function AppPage() {
   ];
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
-    null,
+    null
   );
 
   const [state, setState] = useState<AppState | null>(null);
@@ -99,11 +99,11 @@ export default function AppPage() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
   const selectedTaskList = state?.taskLists?.find(
-    (tl) => tl.id === selectedTaskListId,
+    (tl) => tl.id === selectedTaskListId
   ) as TaskList | undefined;
 
   useEffect(() => {
@@ -147,7 +147,7 @@ export default function AppPage() {
       const taskList = state.taskLists[index];
       if (taskList) {
         setSelectedTaskListId((prev) =>
-          prev === taskList.id ? prev : taskList.id,
+          prev === taskList.id ? prev : taskList.id
         );
       }
     };
@@ -163,7 +163,7 @@ export default function AppPage() {
   useEffect(() => {
     if (!taskListCarouselApi || !state?.taskLists) return;
     const index = state.taskLists.findIndex(
-      (taskList) => taskList.id === selectedTaskListId,
+      (taskList) => taskList.id === selectedTaskListId
     );
     if (index >= 0) {
       taskListCarouselApi.scrollTo(index);
@@ -224,7 +224,7 @@ export default function AppPage() {
   const taskLists = state?.taskLists ?? [];
   const selectedTaskListIndex = Math.max(
     0,
-    taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
+    taskLists.findIndex((taskList) => taskList.id === selectedTaskListId)
   );
   const showTaskListLocator = hasTaskLists && taskLists.length > 1;
 
@@ -376,7 +376,7 @@ export default function AppPage() {
       await deleteTaskList(selectedTaskListId);
 
       const remainingLists = state?.taskLists?.filter(
-        (tl) => tl.id !== selectedTaskListId,
+        (tl) => tl.id !== selectedTaskListId
       );
       if (remainingLists && remainingLists.length > 0) {
         setSelectedTaskListId(remainingLists[0].id);
@@ -486,11 +486,11 @@ export default function AppPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
+    <div className="h-full min-h-dvh bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
       <div
         className={clsx(
           "mx-auto flex max-w-6xl gap-4",
-          isWideLayout ? "flex-row items-start" : "flex-col",
+          isWideLayout ? "flex-row items-start" : "flex-col"
         )}
       >
         {isWideLayout && (
@@ -501,7 +501,7 @@ export default function AppPage() {
           </aside>
         )}
 
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="flex min-w-0 flex-1 flex-col w-full h-screen">
           <AppHeader
             isWideLayout={isWideLayout}
             isDrawerOpen={isDrawerOpen}
@@ -512,7 +512,7 @@ export default function AppPage() {
           {showTaskListLocator && (
             <nav
               aria-label={t("app.taskListLocator.label")}
-              className="flex justify-center"
+              className="flex justify-center sticky top-0 z-10 center-x-0 w-full"
             >
               <ul className="flex items-center gap-1">
                 {taskLists.map((taskList, index) => {
@@ -531,7 +531,7 @@ export default function AppPage() {
                           "inline-flex h-8 w-8 items-center justify-center rounded-full",
                           "transition-colors",
                           "hover:bg-gray-200/60 dark:hover:bg-gray-800/60",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-gray-50/30",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-gray-50/30"
                         )}
                       >
                         <span
@@ -539,7 +539,7 @@ export default function AppPage() {
                             "h-2 w-2 rounded-full transition-colors",
                             isSelected
                               ? "bg-gray-900 dark:bg-gray-50"
-                              : "bg-gray-300 dark:bg-gray-700",
+                              : "bg-gray-300 dark:bg-gray-700"
                           )}
                         />
                       </button>
@@ -566,6 +566,10 @@ export default function AppPage() {
                   const isActive = selectedTaskListId === taskList.id;
                   return (
                     <CarouselItem key={taskList.id}>
+                      <div
+                        className="h-8"
+                        style={{ background: taskList.background }}
+                      />
                       <TaskListCard
                         taskList={taskList}
                         isActive={isActive}

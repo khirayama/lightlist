@@ -486,7 +486,7 @@ export default function AppPage() {
     <div className="min-h-dvh bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
       <div
         className={clsx(
-          "mx-auto flex max-w-6xl gap-4 px-4 py-4 sm:px-6 lg:px-8",
+          "mx-auto flex max-w-6xl gap-4",
           isWideLayout ? "flex-row items-start" : "flex-col"
         )}
       >
@@ -501,7 +501,6 @@ export default function AppPage() {
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <AppHeader
             isWideLayout={isWideLayout}
-            openMenuLabel={t("app.openMenu")}
             isDrawerOpen={isDrawerOpen}
             onDrawerOpenChange={setIsDrawerOpen}
             drawerPanel={drawerPanel}

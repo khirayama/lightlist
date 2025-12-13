@@ -22,17 +22,17 @@ export type AppError =
   | null
   | undefined;
 
-const isAuthErrorCode = (code: string): code is AuthErrorCode =>
-  code in ERROR_KEY_MAP;
+const isAuthErrorCode = (code: unknown): code is AuthErrorCode =>
+  typeof code === "string" && code in ERROR_KEY_MAP;
 
-const isCodedError = (error: AppError): error is { code: string } =>
+const isCodedError = (error: unknown): error is { code: string } =>
   Boolean(
     error &&
     typeof error === "object" &&
     typeof (error as { code?: unknown }).code === "string",
   );
 
-const hasMessage = (error: AppError): error is { message: string } =>
+const hasMessage = (error: unknown): error is { message: string } =>
   Boolean(
     error &&
     typeof error === "object" &&
@@ -41,7 +41,7 @@ const hasMessage = (error: AppError): error is { message: string } =>
 
 export const getErrorMessage = (
   errorCode: string,
-  t: (key: string) => string,
+  t: TFunction<"translation">,
 ): string => {
   if (isAuthErrorCode(errorCode)) {
     return t(ERROR_KEY_MAP[errorCode]);
@@ -50,9 +50,9 @@ export const getErrorMessage = (
 };
 
 export const resolveErrorMessage = (
-  error: AppError,
-  t: (key: string) => string,
-  fallbackKey: string,
+  error: unknown,
+  t: TFunction<"translation">,
+  fallbackKey: Parameters<TFunction<"translation">>[0],
 ): string => {
   if (typeof error === "string") {
     return error;
@@ -70,5 +70,6 @@ export const resolveErrorMessage = (
     return error.message;
   }
 
-  return t(fallbackKey);
+  return t(fallbackKey as never);
 };
+import { TFunction } from "i18next";

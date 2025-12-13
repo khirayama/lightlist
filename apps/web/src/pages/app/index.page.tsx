@@ -193,30 +193,22 @@ export default function AppPage() {
     }
   }, [isWideLayout]);
 
-  const drawerHistoryEntryAdded = useRef(false);
-
   useEffect(() => {
-    if (isWideLayout || !isDrawerOpen) return;
+    if (typeof window === "undefined") return;
+    if (isWideLayout || !isDrawerOpen) {
+      router.beforePopState(() => true);
+      return;
+    }
 
-    drawerHistoryEntryAdded.current = true;
-
-    const handlePopState = () => {
+    router.beforePopState(() => {
       setIsDrawerOpen(false);
-      drawerHistoryEntryAdded.current = false;
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    const currentState = window.history.state;
-    window.history.pushState(currentState, "");
+      return false;
+    });
 
     return () => {
-      window.removeEventListener("popstate", handlePopState);
-      if (drawerHistoryEntryAdded.current) {
-        window.history.back();
-        drawerHistoryEntryAdded.current = false;
-      }
+      router.beforePopState(() => true);
     };
-  }, [isDrawerOpen, isWideLayout]);
+  }, [isDrawerOpen, isWideLayout, router]);
 
   const isLoading = !state || !state.user;
   const hasTaskLists = Boolean(state?.taskLists?.length);

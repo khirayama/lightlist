@@ -1,9 +1,6 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
-import i18next from "i18next";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
@@ -15,7 +12,7 @@ import {
 } from "@lightlist/sdk/types";
 import { updateSettings } from "@lightlist/sdk/mutations/app";
 import { signOut, deleteAccount } from "@lightlist/sdk/mutations/auth";
-import { AppError, resolveErrorMessage } from "@/utils/errors";
+import { resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Alert } from "@/components/ui/Alert";
@@ -66,7 +63,7 @@ export default function SettingsPage() {
     setError(null);
     try {
       await updateSettings({ theme });
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
@@ -75,8 +72,7 @@ export default function SettingsPage() {
     setError(null);
     try {
       await updateSettings({ language });
-      await i18next.changeLanguage(language);
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
@@ -87,7 +83,7 @@ export default function SettingsPage() {
     setError(null);
     try {
       await updateSettings({ taskInsertPosition });
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
@@ -96,7 +92,7 @@ export default function SettingsPage() {
     setError(null);
     try {
       await updateSettings({ autoSort });
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
     }
   };
@@ -108,7 +104,7 @@ export default function SettingsPage() {
     try {
       await signOut();
       router.push("/");
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
       setLoading(false);
     }
@@ -121,7 +117,7 @@ export default function SettingsPage() {
     try {
       await deleteAccount();
       router.push("/");
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
       setLoading(false);
     }

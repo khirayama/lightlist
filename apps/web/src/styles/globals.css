@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --dialog-bg: #ffffff;
+  --dialog-fg: #111827;
+  --dialog-muted: #4b5563;
+}
+
+.dark {
+  --dialog-bg: #111827;
+  --dialog-fg: #f9fafb;
+  --dialog-muted: #d1d5db;
+}
+
 body {
   margin: 0;
   font-family:

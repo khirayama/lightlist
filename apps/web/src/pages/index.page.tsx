@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
@@ -12,7 +10,7 @@ import {
 } from "@lightlist/sdk/mutations/auth";
 import { FormInput } from "@/components/ui/FormInput";
 import { Alert } from "@/components/ui/Alert";
-import { AppError, resolveErrorMessage } from "@/utils/errors";
+import { resolveErrorMessage } from "@/utils/errors";
 import { FormErrors, validateAuthForm } from "@/utils/validation";
 
 type AuthTab = "signin" | "signup" | "reset";
@@ -60,7 +58,7 @@ export default function IndexPage() {
 
     try {
       await action();
-    } catch (error: AppError) {
+    } catch (error) {
       setErrors({
         general: resolveErrorMessage(error, t, "auth.error.general"),
       });
@@ -102,7 +100,7 @@ export default function IndexPage() {
     try {
       await sendPasswordResetEmail(email);
       setResetSent(true);
-    } catch (error: AppError) {
+    } catch (error) {
       setErrors({
         general: resolveErrorMessage(error, t, "auth.error.general"),
       });

@@ -46,8 +46,9 @@ export function SortableTaskListItem({
         {...attributes}
         {...listeners}
         title={dragHintLabel}
+        aria-label={dragHintLabel}
         type="button"
-        className="flex items-center"
+        className="flex items-center rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
       >
         <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
           <path d="M8 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
@@ -55,7 +56,7 @@ export function SortableTaskListItem({
       </button>
       <span
         aria-hidden="true"
-        className="h-4 w-4 rounded-[6px] border border-[#cccccc]"
+        className="h-4 w-4 rounded-[6px] border border-gray-300 dark:border-gray-700"
         style={{ backgroundColor: taskList.background }}
       />
 
@@ -67,7 +68,9 @@ export function SortableTaskListItem({
         <span className={clsx(isActive ? "font-bold" : "font-medium")}>
           {taskList.name}
         </span>
-        <span className="text-xs text-gray-600">{taskCountLabel}</span>
+        <span className="text-xs text-gray-600 dark:text-gray-400">
+          {taskCountLabel}
+        </span>
       </button>
     </div>
   );

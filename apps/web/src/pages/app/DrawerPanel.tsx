@@ -8,7 +8,6 @@ import type { TaskList } from "@lightlist/sdk/types";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext } from "@dnd-kit/sortable";
-import clsx from "clsx";
 
 import {
   DrawerDescription,
@@ -22,7 +21,8 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/Dialog";
-import { SortableTaskListItem } from "./_SortableTaskListItem";
+import { SortableTaskListItem } from "./SortableTaskListItem";
+import { ColorPicker } from "./ColorPicker";
 
 type DrawerPanelProps = {
   isWideLayout: boolean;
@@ -85,7 +85,7 @@ export function DrawerPanel({
         {isWideLayout ? (
           <p
             id="drawer-task-lists-description"
-            className="m-0 text-sm text-gray-500"
+            className="m-0 text-sm text-gray-600 dark:text-gray-400"
           >
             {t("app.drawerSignedIn")} {userEmail}
           </p>
@@ -95,7 +95,11 @@ export function DrawerPanel({
           </DrawerDescription>
         )}
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <button type="button" onClick={onOpenSettings}>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+          >
             {t("settings.title")}
           </button>
         </div>
@@ -113,7 +117,12 @@ export function DrawerPanel({
           }}
         >
           <DialogTrigger asChild>
-            <button type="button">{t("app.createNew")}</button>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+            >
+              {t("app.createNew")}
+            </button>
           </DialogTrigger>
           <DialogContent
             title={t("app.createTaskList")}
@@ -132,38 +141,33 @@ export function DrawerPanel({
                     }
                   }}
                   placeholder={t("app.taskListNamePlaceholder")}
+                  className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
                 />
               </label>
               <div className="flex flex-col gap-2">
                 <span>{t("taskList.selectColor")}</span>
-                <div className="flex flex-wrap gap-2">
-                  {colors.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      aria-pressed={createListBackground === color}
-                      aria-label={`${t("taskList.selectColor")} ${color}`}
-                      onClick={() => onCreateListBackgroundChange(color)}
-                      className={clsx(
-                        "h-8 w-8 rounded-[10px]",
-                        createListBackground === color
-                          ? "border-2 border-[#111111]"
-                          : "border border-[#cccccc]",
-                      )}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
+                <ColorPicker
+                  colors={colors}
+                  selectedColor={createListBackground}
+                  onSelect={onCreateListBackgroundChange}
+                  ariaLabelPrefix={t("taskList.selectColor")}
+                />
               </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>
-                <button type="button">{t("app.cancel")}</button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+                >
+                  {t("app.cancel")}
+                </button>
               </DialogClose>
               <button
                 type="button"
                 onClick={onCreateList}
                 disabled={!createListInput.trim()}
+                className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
               >
                 {t("app.create")}
               </button>
@@ -197,7 +201,9 @@ export function DrawerPanel({
             </SortableContext>
           </DndContext>
         ) : (
-          <p>{t("app.emptyState")}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {t("app.emptyState")}
+          </p>
         )}
       </div>
     </div>

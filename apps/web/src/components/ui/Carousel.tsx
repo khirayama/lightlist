@@ -179,7 +179,10 @@ export const CarouselPrevious = forwardRef<
       type="button"
       ref={ref}
       onClick={scrollPrev}
-      className={clsx("absolute left-2 top-1/2 -translate-y-1/2", className)}
+      className={clsx(
+        "absolute left-2 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-300 bg-white/80 text-lg font-semibold text-gray-900 shadow-sm backdrop-blur hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900/70 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500",
+        className,
+      )}
       {...props}
     >
       ‹
@@ -198,7 +201,10 @@ export const CarouselNext = forwardRef<HTMLButtonElement, CarouselControlProps>(
         type="button"
         ref={ref}
         onClick={scrollNext}
-        className={clsx("absolute right-2 top-1/2 -translate-y-1/2", className)}
+        className={clsx(
+          "absolute right-2 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-300 bg-white/80 text-lg font-semibold text-gray-900 shadow-sm backdrop-blur hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900/70 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500",
+          className,
+        )}
         {...props}
       >
         ›

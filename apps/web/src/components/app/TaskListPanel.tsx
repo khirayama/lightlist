@@ -68,8 +68,19 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <button {...attributes} {...listeners} title={dragHintLabel}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-start gap-2 rounded-xl px-2 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        title={dragHintLabel}
+        aria-label={dragHintLabel}
+        type="button"
+        className="mt-0.5 rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+      >
         <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
           <path d="M8 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
         </svg>
@@ -79,6 +90,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
         type="checkbox"
         checked={task.completed}
         onChange={() => onToggle(task)}
+        className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50"
       />
 
       {isEditing ? (
@@ -94,14 +106,29 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             }
           }}
           autoFocus
+          className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
         />
       ) : (
-        <button type="button" onClick={() => onEditStart(task)}>
+        <button
+          type="button"
+          onClick={() => onEditStart(task)}
+          className={
+            task.completed
+              ? "min-w-0 flex-1 text-left text-sm font-medium text-gray-600 line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:focus-visible:outline-gray-500"
+              : "min-w-0 flex-1 text-left text-sm font-medium text-gray-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+          }
+        >
           {task.text}
         </button>
       )}
 
-      <button onClick={() => onDelete(task.id)}>{deleteLabel}</button>
+      <button
+        type="button"
+        onClick={() => onDelete(task.id)}
+        className="rounded-lg px-2 py-1 text-sm font-medium text-red-700 hover:bg-red-50 hover:text-red-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 dark:text-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-200 dark:focus-visible:outline-red-700"
+      >
+        {deleteLabel}
+      </button>
     </div>
   );
 }
@@ -190,9 +217,9 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
 
   const listContent =
     tasks.length === 0 ? (
-      <p>{emptyLabel}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-300">{emptyLabel}</p>
     ) : (
-      <div>
+      <div className="flex flex-col gap-1">
         {tasks.map((task) => (
           <TaskItem
             key={task.id}
@@ -233,7 +260,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
 
   const inputSection = (
     <>
-      <div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <input
           type="text"
           list={historyListId}
@@ -246,6 +273,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
           }}
           placeholder={addPlaceholder}
           disabled={inputDisabled}
+          className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
         />
         {historyListId ? (
           <datalist id={historyListId}>
@@ -254,7 +282,12 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
             ))}
           </datalist>
         ) : null}
-        <button onClick={onAddTask} disabled={isAddDisabled}>
+        <button
+          type="button"
+          onClick={onAddTask}
+          disabled={isAddDisabled}
+          className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+        >
           {addButtonLabel}
         </button>
       </div>
@@ -264,7 +297,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
 
   if (variant === "card") {
     return (
-      <div>
+      <div className="flex flex-col gap-4">
         {inputSection}
         <DndContext
           sensors={sensors}
@@ -303,7 +336,9 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
         </SortableContext>
       </DndContext>
 
-      <div>{inputSection}</div>
+      <div className="mt-4 rounded-2xl bg-gray-50 p-3 dark:bg-gray-950/30">
+        {inputSection}
+      </div>
     </>
   );
 }

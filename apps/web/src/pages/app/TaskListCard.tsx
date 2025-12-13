@@ -107,7 +107,7 @@ export function TaskListCard({
     <section
       className={clsx(
         "h-full p-2 sm:p-3",
-        isActive ? "pointer-events-auto" : "pointer-events-none"
+        isActive ? "pointer-events-auto" : "pointer-events-none",
       )}
       style={{ backgroundColor: taskList.background }}
     >

@@ -64,7 +64,7 @@ export default function AppPage() {
   ];
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
-    null
+    null,
   );
 
   const [state, setState] = useState<AppState | null>(null);
@@ -99,11 +99,11 @@ export default function AppPage() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const selectedTaskList = state?.taskLists?.find(
-    (tl) => tl.id === selectedTaskListId
+    (tl) => tl.id === selectedTaskListId,
   ) as TaskList | undefined;
 
   useEffect(() => {
@@ -147,7 +147,7 @@ export default function AppPage() {
       const taskList = state.taskLists[index];
       if (taskList) {
         setSelectedTaskListId((prev) =>
-          prev === taskList.id ? prev : taskList.id
+          prev === taskList.id ? prev : taskList.id,
         );
       }
     };
@@ -163,7 +163,7 @@ export default function AppPage() {
   useEffect(() => {
     if (!taskListCarouselApi || !state?.taskLists) return;
     const index = state.taskLists.findIndex(
-      (taskList) => taskList.id === selectedTaskListId
+      (taskList) => taskList.id === selectedTaskListId,
     );
     if (index >= 0) {
       taskListCarouselApi.scrollTo(index);
@@ -224,7 +224,7 @@ export default function AppPage() {
   const taskLists = state?.taskLists ?? [];
   const selectedTaskListIndex = Math.max(
     0,
-    taskLists.findIndex((taskList) => taskList.id === selectedTaskListId)
+    taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
   );
   const showTaskListLocator = hasTaskLists && taskLists.length > 1;
 
@@ -376,7 +376,7 @@ export default function AppPage() {
       await deleteTaskList(selectedTaskListId);
 
       const remainingLists = state?.taskLists?.filter(
-        (tl) => tl.id !== selectedTaskListId
+        (tl) => tl.id !== selectedTaskListId,
       );
       if (remainingLists && remainingLists.length > 0) {
         setSelectedTaskListId(remainingLists[0].id);
@@ -490,12 +490,12 @@ export default function AppPage() {
       <div
         className={clsx(
           "flex h-full",
-          isWideLayout ? "flex-row items-start" : "flex-col"
+          isWideLayout ? "flex-row items-start" : "flex-col",
         )}
       >
         {isWideLayout && (
-          <aside className="sticky top-0 w-[360px] max-w-[420px] shrink-0 self-stretch">
-            <div className="flex h-full flex-col overflow-y-auto border-l border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+          <aside className="sticky top-0 w-[360px] max-w-[420px] shrink-0 self-stretch border-l border-gray-200">
+            <div className="flex h-full flex-col overflow-y-auto bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
               {drawerPanel}
             </div>
           </aside>
@@ -537,7 +537,7 @@ export default function AppPage() {
                             "inline-flex h-8 w-8 items-center justify-center rounded-full",
                             "transition-colors",
                             "hover:bg-gray-200/60 dark:hover:bg-gray-800/60",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-gray-50/30"
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-gray-50/30",
                           )}
                         >
                           <span
@@ -545,7 +545,7 @@ export default function AppPage() {
                               "h-2 w-2 rounded-full transition-colors",
                               isSelected
                                 ? "bg-gray-900 dark:bg-gray-50"
-                                : "bg-gray-300 dark:bg-gray-700"
+                                : "bg-gray-300 dark:bg-gray-700",
                             )}
                           />
                         </button>

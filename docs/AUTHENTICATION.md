@@ -19,8 +19,8 @@ src/
 │   ├── validation.ts          - フォームバリデーション関数
 │   └── errors.ts              - エラーメッセージハンドリング関数
 └── pages/
-    ├── index.tsx              - サインイン/サインアップ/パスワードリセット依頼ページ
-    └── password_reset.tsx     - パスワードリセット実行ページ
+    ├── index.page.tsx         - サインイン/サインアップ/パスワードリセット依頼ページ
+    └── password_reset.page.tsx - パスワードリセット実行ページ
 ```
 
 **SDK側（packages/sdk）:**
@@ -79,7 +79,7 @@ src/
 
 ### 1. サインアップ (Sign Up)
 
-**ページ:** `src/pages/index.tsx` (signup タブ)
+**ページ:** `src/pages/index.page.tsx` (signup タブ)
 
 **処理フロー:**
 
@@ -102,7 +102,7 @@ src/
 
 ### 2. ログイン (Sign In)
 
-**ページ:** `src/pages/index.tsx` (signin タブ)
+**ページ:** `src/pages/index.page.tsx` (signin タブ)
 
 **処理フロー:**
 
@@ -125,7 +125,7 @@ src/
 
 #### ステップ1: リセットメール送信
 
-**ページ:** `src/pages/index.tsx` (reset タブ)
+**ページ:** `src/pages/index.page.tsx` (reset タブ)
 
 **処理フロー:**
 
@@ -155,7 +155,7 @@ https://[PROJECT].firebaseapp.com/password-reset?oobCode=[CODE]&mode=resetPasswo
 
 #### ステップ2: パスワード再設定
 
-**ページ:** `src/pages/password_reset.tsx`
+**ページ:** `src/pages/password_reset.page.tsx`
 
 **処理フロー:**
 
@@ -304,7 +304,7 @@ Firebase 認証エラーをスロー
 
 ## 設定機能（Settings）
 
-設定ページは `src/pages/settings.tsx` に実装されています。
+設定ページは `src/pages/settings.page.tsx` に実装されています。
 
 ### 設定ページの機能
 
@@ -325,13 +325,13 @@ Firebase 認証エラーをスロー
 
 - テーマ選択はラジオボタンで実装
 - 選択後、`updateSettings({ theme })` で Firestore に保存
-- `_app.tsx` でテーマを監視し、HTML の `dark` クラスを切り替え
+- `_app.page.tsx` でテーマを監視し、HTML の `dark` クラスを切り替え
 - Tailwind CSS の `dark:` プレフィックスでダークモード対応
 
 **テーマ適用ロジック:**
 
 ```typescript
-// _app.tsx の applyTheme 関数
+// _app.page.tsx の applyTheme 関数
 const isDark =
   theme === "dark" ||
   (theme === "system" &&
@@ -350,7 +350,7 @@ document.documentElement.classList.toggle("dark", isDark);
 
 - 言語選択はラジオボタンで実装
 - `updateSettings({ language })`で Firestore に保存
-- `i18next.changeLanguage()` で UI の言語を即座に切り替え
+- `appStore` の言語設定変更を `_app.page.tsx` が監視し、UI の言語を即座に切り替え
 - 言語変更後、自動的に UI テキストが更新される
 
 #### 4. タスク追加位置
@@ -487,7 +487,7 @@ auth:
 
 ## ページコンポーネント実装
 
-### index.tsx（認証ページ）
+### index.page.tsx（認証ページ）
 
 3つのタブを備えた統一された認証ページです。
 
@@ -508,7 +508,7 @@ auth:
 - validateAuthForm: フォームバリデーション
 - getErrorMessage: エラーメッセージ変換
 
-### password_reset.tsx（パスワードリセット実行ページ）
+### password_reset.page.tsx（パスワードリセット実行ページ）
 
 メール内のリセットリンクから遷移し、新しいパスワード設定を行うページです。
 

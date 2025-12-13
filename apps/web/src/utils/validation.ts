@@ -1,3 +1,5 @@
+import { TFunction } from "i18next";
+
 export type FormErrors = Partial<{
   email: string;
   password: string;
@@ -23,7 +25,7 @@ const validateEmail = (email: string): boolean => {
 
 export const validateAuthForm = (
   data: AuthFormData,
-  t: (key: string) => string,
+  t: TFunction<"translation">,
 ): FormErrors => {
   const errors: FormErrors = {};
 
@@ -52,7 +54,7 @@ export const validateAuthForm = (
 
 export const validatePasswordForm = (
   data: PasswordFormData,
-  t: (key: string) => string,
+  t: TFunction<"translation">,
 ): FormErrors => {
   const errors: FormErrors = {};
 

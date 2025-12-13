@@ -36,8 +36,6 @@ import {
   CarouselApi,
   CarouselContent,
   CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
 } from "@/components/ui/Carousel";
 import { DrawerPanel } from "./DrawerPanel";
 import { AppHeader } from "./AppHeader";
@@ -517,8 +515,6 @@ export default function AppPage() {
                 containScroll: "trimSnaps",
               }}
             >
-              <CarouselPrevious aria-label={t("common.previous")} />
-              <CarouselNext aria-label={t("common.next")} />
               <CarouselContent>
                 {state.taskLists.map((taskList) => {
                   const isActive = selectedTaskListId === taskList.id;

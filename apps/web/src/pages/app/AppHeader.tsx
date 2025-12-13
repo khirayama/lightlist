@@ -26,6 +26,7 @@ export function AppHeader({
       {!isWideLayout && (
         <Drawer
           direction="left"
+          handleOnly
           open={isDrawerOpen}
           onOpenChange={onDrawerOpenChange}
         >

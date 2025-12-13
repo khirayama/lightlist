@@ -559,6 +559,7 @@ export default function AppPage() {
             <div className="h-full overflow-y-scroll">
               {hasTaskLists ? (
                 <Carousel
+                  className="h-full"
                   wheelGestures={!isTaskSorting}
                   setApi={setTaskListCarouselApi}
                   opts={{

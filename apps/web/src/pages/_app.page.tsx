@@ -64,5 +64,11 @@ export default function App({ Component, pageProps }: AppProps) {
     return null;
   }
 
-  return <Component {...pageProps} />;
+  return (
+    <div className="h-dvh w-full overflow-hidden">
+      <div className="h-full w-full overflow-y-auto">
+        <Component {...pageProps} />
+      </div>
+    </div>
+  );
 }

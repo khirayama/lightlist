@@ -19,9 +19,8 @@ export function AppHeader({
   return (
     <header
       className={clsx(
-        "flex flex-wrap items-center gap-3 border-b-[0.4px] border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900 sticky top-0 z-20",
-        isWideLayout ? "justify-start" : "justify-between",
-        isWideLayout && "hidden"
+        "flex flex-wrap items-center gap-3 border-b-[0.4px] border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900",
+        isWideLayout ? "justify-start" : "justify-between"
       )}
     >
       {!isWideLayout && (

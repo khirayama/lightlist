@@ -18,6 +18,12 @@
 - `apps/web` は `pageExtensions` を使い、`src/pages` 配下の `.page.tsx` / `.page.ts` のみをルーティング対象とする
 - ページに密結合の補助コンポーネントは、同じディレクトリに `.tsx` として同居させる（例: `src/pages/app/DrawerPanel.tsx`）
 
+## レイアウト基盤（画面100%基準）
+
+- `apps/web/src/styles/globals.css` で `html` / `body` / `#__next` を `width: 100%` / `height: 100%` にし、`h-full` を成立させる
+- `apps/web/src/pages/_app.page.tsx` は AppShell を持ち、`h-dvh` を高さの基準（画面100%）として扱う
+- 画面スクロールは AppShell（`overflow-y-auto`）を基本とし、ページ側は `min-h-full w-full` を基準にレイアウトする
+
 ## app 配下のコンポーネント
 
 - TaskListPanel: タスクリスト全体の DnD 並び替え、単一タスクのドラッグハンドル・編集・削除、追加フォームをまとめて提供する。`tasks` と `sensors`、編集/削除/完了/追加の各ハンドラ、`addPlaceholder` や `dragHintLabel` などの文言を props で受け取る。履歴入力候補（`historySuggestions`）や追加ボタンの状態制御（`addDisabled`/`inputDisabled`）、`variant`（`split` or `card`）でレイアウトを切り替えられる

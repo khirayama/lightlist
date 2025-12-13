@@ -39,7 +39,7 @@ export function SortableTaskListItem({
       style={style}
       className={clsx(
         "flex items-center gap-2 rounded-[10px] p-2",
-        isActive ? "bg-gray-100 dark:bg-gray-800" : "bg-transparent"
+        isActive ? "bg-gray-100 dark:bg-gray-800" : "bg-transparent",
       )}
     >
       <button

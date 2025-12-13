@@ -486,10 +486,10 @@ export default function AppPage() {
   }
 
   return (
-    <div className="h-full min-h-dvh bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
+    <div className="h-full min-h-full w-full bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
       <div
         className={clsx(
-          "mx-auto flex max-w-6xl gap-4",
+          "mx-auto flex max-w-6xl gap-4 h-full",
           isWideLayout ? "flex-row items-start" : "flex-col"
         )}
       >
@@ -501,128 +501,134 @@ export default function AppPage() {
           </aside>
         )}
 
-        <div className="flex min-w-0 flex-1 flex-col w-full h-screen">
-          <AppHeader
-            isWideLayout={isWideLayout}
-            isDrawerOpen={isDrawerOpen}
-            onDrawerOpenChange={setIsDrawerOpen}
-            drawerPanel={drawerPanel}
-          />
+        <div className="flex min-w-0 flex-1 flex-col w-full h-full min-h-0">
+          <div className="sticky top-0 z-20">
+            {!isWideLayout && (
+              <AppHeader
+                isWideLayout={isWideLayout}
+                isDrawerOpen={isDrawerOpen}
+                onDrawerOpenChange={setIsDrawerOpen}
+                drawerPanel={drawerPanel}
+              />
+            )}
 
-          {showTaskListLocator && (
-            <nav
-              aria-label={t("app.taskListLocator.label")}
-              className="flex justify-center sticky top-0 z-10 center-x-0 w-full"
-            >
-              <ul className="flex items-center gap-1">
-                {taskLists.map((taskList, index) => {
-                  const isSelected = index === selectedTaskListIndex;
-                  return (
-                    <li key={taskList.id}>
-                      <button
-                        type="button"
-                        aria-label={t("app.taskListLocator.goTo", {
-                          index: index + 1,
-                          total: taskLists.length,
-                        })}
-                        aria-current={isSelected ? "page" : undefined}
-                        onClick={() => setSelectedTaskListId(taskList.id)}
-                        className={clsx(
-                          "inline-flex h-8 w-8 items-center justify-center rounded-full",
-                          "transition-colors",
-                          "hover:bg-gray-200/60 dark:hover:bg-gray-800/60",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-gray-50/30"
-                        )}
-                      >
-                        <span
+            {showTaskListLocator && (
+              <nav
+                aria-label={t("app.taskListLocator.label")}
+                className="flex justify-center sticky top-0 z-10 center-x-0 w-full"
+              >
+                <ul className="flex items-center gap-1">
+                  {taskLists.map((taskList, index) => {
+                    const isSelected = index === selectedTaskListIndex;
+                    return (
+                      <li key={taskList.id}>
+                        <button
+                          type="button"
+                          aria-label={t("app.taskListLocator.goTo", {
+                            index: index + 1,
+                            total: taskLists.length,
+                          })}
+                          aria-current={isSelected ? "page" : undefined}
+                          onClick={() => setSelectedTaskListId(taskList.id)}
                           className={clsx(
-                            "h-2 w-2 rounded-full transition-colors",
-                            isSelected
-                              ? "bg-gray-900 dark:bg-gray-50"
-                              : "bg-gray-300 dark:bg-gray-700"
+                            "inline-flex h-8 w-8 items-center justify-center rounded-full",
+                            "transition-colors",
+                            "hover:bg-gray-200/60 dark:hover:bg-gray-800/60",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-gray-50/30"
                           )}
-                        />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          )}
+                        >
+                          <span
+                            className={clsx(
+                              "h-2 w-2 rounded-full transition-colors",
+                              isSelected
+                                ? "bg-gray-900 dark:bg-gray-50"
+                                : "bg-gray-300 dark:bg-gray-700"
+                            )}
+                          />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            )}
+          </div>
 
           {error && <Alert variant="error">{error}</Alert>}
 
-          {hasTaskLists ? (
-            <Carousel
-              wheelGestures={!isTaskSorting}
-              setApi={setTaskListCarouselApi}
-              opts={{
-                align: "start",
-                containScroll: "trimSnaps",
-              }}
-            >
-              <CarouselContent>
-                {state.taskLists.map((taskList) => {
-                  const isActive = selectedTaskListId === taskList.id;
-                  return (
-                    <CarouselItem key={taskList.id}>
-                      <div
-                        className="h-8"
-                        style={{ background: taskList.background }}
-                      />
-                      <TaskListCard
-                        taskList={taskList}
-                        isActive={isActive}
-                        onActivate={(taskListId) =>
-                          setSelectedTaskListId(taskListId)
-                        }
-                        colors={colors}
-                        showEditListDialog={showEditListDialog}
-                        onEditDialogOpenChange={handleEditDialogOpenChange}
-                        editListName={editListName}
-                        onEditListNameChange={setEditListName}
-                        editListBackground={editListBackground}
-                        onEditListBackgroundChange={setEditListBackground}
-                        onSaveListDetails={handleSaveListDetails}
-                        deletingList={deletingList}
-                        onDeleteList={handleDeleteList}
-                        showShareDialog={showShareDialog}
-                        onShareDialogOpenChange={handleShareDialogOpenChange}
-                        shareCode={shareCode}
-                        shareCopySuccess={shareCopySuccess}
-                        generatingShareCode={generatingShareCode}
-                        onGenerateShareCode={handleGenerateShareCode}
-                        removingShareCode={removingShareCode}
-                        onRemoveShareCode={handleRemoveShareCode}
-                        onCopyShareLink={handleCopyShareLink}
-                        sensorsList={sensorsList}
-                        onDragEndTask={handleDragEndTask}
-                        editingTaskId={editingTaskId}
-                        editingTaskText={editingTaskText}
-                        onEditingTaskTextChange={setEditingTaskText}
-                        onEditStartTask={(task) => {
-                          setEditingTaskId(task.id);
-                          setEditingTaskText(task.text);
-                        }}
-                        onEditEndTask={handleEditTask}
-                        onToggleTask={handleToggleTask}
-                        onDeleteTask={handleDeleteTask}
-                        newTaskText={newTaskText}
-                        onNewTaskTextChange={setNewTaskText}
-                        onAddTask={handleAddTask}
-                        onSortingChange={setIsTaskSorting}
-                        t={t}
-                      />
-                    </CarouselItem>
-                  );
-                })}
-              </CarouselContent>
-            </Carousel>
-          ) : (
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              {t("app.emptyState")}
-            </p>
-          )}
+          <div className="flex-1 overflow-scroll">
+            {hasTaskLists ? (
+              <Carousel
+                wheelGestures={!isTaskSorting}
+                setApi={setTaskListCarouselApi}
+                opts={{
+                  align: "start",
+                  containScroll: "trimSnaps",
+                }}
+              >
+                <CarouselContent>
+                  {state.taskLists.map((taskList) => {
+                    const isActive = selectedTaskListId === taskList.id;
+                    return (
+                      <CarouselItem key={taskList.id}>
+                        <div
+                          className="h-8"
+                          style={{ background: taskList.background }}
+                        />
+                        <TaskListCard
+                          taskList={taskList}
+                          isActive={isActive}
+                          onActivate={(taskListId) =>
+                            setSelectedTaskListId(taskListId)
+                          }
+                          colors={colors}
+                          showEditListDialog={showEditListDialog}
+                          onEditDialogOpenChange={handleEditDialogOpenChange}
+                          editListName={editListName}
+                          onEditListNameChange={setEditListName}
+                          editListBackground={editListBackground}
+                          onEditListBackgroundChange={setEditListBackground}
+                          onSaveListDetails={handleSaveListDetails}
+                          deletingList={deletingList}
+                          onDeleteList={handleDeleteList}
+                          showShareDialog={showShareDialog}
+                          onShareDialogOpenChange={handleShareDialogOpenChange}
+                          shareCode={shareCode}
+                          shareCopySuccess={shareCopySuccess}
+                          generatingShareCode={generatingShareCode}
+                          onGenerateShareCode={handleGenerateShareCode}
+                          removingShareCode={removingShareCode}
+                          onRemoveShareCode={handleRemoveShareCode}
+                          onCopyShareLink={handleCopyShareLink}
+                          sensorsList={sensorsList}
+                          onDragEndTask={handleDragEndTask}
+                          editingTaskId={editingTaskId}
+                          editingTaskText={editingTaskText}
+                          onEditingTaskTextChange={setEditingTaskText}
+                          onEditStartTask={(task) => {
+                            setEditingTaskId(task.id);
+                            setEditingTaskText(task.text);
+                          }}
+                          onEditEndTask={handleEditTask}
+                          onToggleTask={handleToggleTask}
+                          onDeleteTask={handleDeleteTask}
+                          newTaskText={newTaskText}
+                          onNewTaskTextChange={setNewTaskText}
+                          onAddTask={handleAddTask}
+                          onSortingChange={setIsTaskSorting}
+                          t={t}
+                        />
+                      </CarouselItem>
+                    );
+                  })}
+                </CarouselContent>
+              </Carousel>
+            ) : (
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {t("app.emptyState")}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

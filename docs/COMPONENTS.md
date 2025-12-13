@@ -18,6 +18,10 @@
 - `apps/web` は `pageExtensions` を使い、`src/pages` 配下の `.page.tsx` / `.page.ts` のみをルーティング対象とする
 - ページに密結合の補助コンポーネントは、同じディレクトリに `.tsx` として同居させる（例: `src/pages/app/DrawerPanel.tsx`）
 
+## モノレポ内SDKの取り込み
+
+- `@lightlist/sdk` は TypeScript ソースを export する前提のため、`apps/web/next.config.js` で `transpilePackages: ["@lightlist/sdk"]` を有効化し、Next.js のビルドで確実にトランスパイルできるようにする
+
 ## レイアウト基盤（画面100%基準）
 
 - `apps/web/src/styles/globals.css` で `html` / `body` / `#__next` を `width: 100%` / `height: 100%` にし、`h-full` を成立させる
@@ -26,7 +30,7 @@
 
 ## app 配下のコンポーネント
 
-- TaskListPanel: タスクリスト全体の DnD 並び替え、単一タスクのドラッグハンドル・編集・削除、追加フォームをまとめて提供する。`tasks` と `sensors`、編集/削除/完了/追加の各ハンドラ、`addPlaceholder` や `dragHintLabel` などの文言を props で受け取る。履歴入力候補（`historySuggestions`）や追加ボタンの状態制御（`addDisabled`/`inputDisabled`）、`variant`（`split` or `card`）でレイアウトを切り替えられる
+- TaskListPanel: タスクリスト全体の DnD 並び替え、単一タスクのドラッグハンドル・編集・削除、追加フォームをまとめて提供する。追加フォームはパネル上部（ヘッダー相当）に表示する。`tasks` と `sensors`、編集/削除/完了/追加の各ハンドラ、`addPlaceholder` や `dragHintLabel` などの文言を props で受け取る。履歴入力候補（`historySuggestions`）や追加ボタンの状態制御（`addDisabled`/`inputDisabled`）、`variant`（`split` or `card`）でレイアウトを切り替えられる
 
 ## ビジュアルスタイル
 

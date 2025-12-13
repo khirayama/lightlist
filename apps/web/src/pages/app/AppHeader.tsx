@@ -5,7 +5,6 @@ import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/Drawer";
 
 type AppHeaderProps = {
   isWideLayout: boolean;
-  title: string;
   openMenuLabel: string;
   isDrawerOpen: boolean;
   onDrawerOpenChange: (open: boolean) => void;
@@ -14,7 +13,6 @@ type AppHeaderProps = {
 
 export function AppHeader({
   isWideLayout,
-  title,
   openMenuLabel,
   isDrawerOpen,
   onDrawerOpenChange,
@@ -24,10 +22,9 @@ export function AppHeader({
     <header
       className={clsx(
         "flex flex-wrap items-center gap-3 rounded-2xl border border-gray-200 bg-white/80 p-3 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/60",
-        isWideLayout ? "justify-start" : "justify-between",
+        isWideLayout ? "justify-start" : "justify-between"
       )}
     >
-      <h1 className="m-0 text-xl font-semibold sm:text-2xl">{title}</h1>
       {!isWideLayout && (
         <Drawer
           direction="left"

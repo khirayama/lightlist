@@ -66,7 +66,7 @@ export default function AppPage() {
   ];
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
-    null,
+    null
   );
 
   const [state, setState] = useState<AppState | null>(null);
@@ -101,11 +101,11 @@ export default function AppPage() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
   const selectedTaskList = state?.taskLists?.find(
-    (tl) => tl.id === selectedTaskListId,
+    (tl) => tl.id === selectedTaskListId
   ) as TaskList | undefined;
 
   useEffect(() => {
@@ -149,7 +149,7 @@ export default function AppPage() {
       const taskList = state.taskLists[index];
       if (taskList) {
         setSelectedTaskListId((prev) =>
-          prev === taskList.id ? prev : taskList.id,
+          prev === taskList.id ? prev : taskList.id
         );
       }
     };
@@ -165,7 +165,7 @@ export default function AppPage() {
   useEffect(() => {
     if (!taskListCarouselApi || !state?.taskLists) return;
     const index = state.taskLists.findIndex(
-      (taskList) => taskList.id === selectedTaskListId,
+      (taskList) => taskList.id === selectedTaskListId
     );
     if (index >= 0) {
       taskListCarouselApi.scrollTo(index);
@@ -373,7 +373,7 @@ export default function AppPage() {
       await deleteTaskList(selectedTaskListId);
 
       const remainingLists = state?.taskLists?.filter(
-        (tl) => tl.id !== selectedTaskListId,
+        (tl) => tl.id !== selectedTaskListId
       );
       if (remainingLists && remainingLists.length > 0) {
         setSelectedTaskListId(remainingLists[0].id);
@@ -487,7 +487,7 @@ export default function AppPage() {
       <div
         className={clsx(
           "mx-auto flex max-w-6xl gap-4 px-4 py-4 sm:px-6 lg:px-8",
-          isWideLayout ? "flex-row items-start" : "flex-col",
+          isWideLayout ? "flex-row items-start" : "flex-col"
         )}
       >
         {isWideLayout && (
@@ -501,7 +501,6 @@ export default function AppPage() {
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <AppHeader
             isWideLayout={isWideLayout}
-            title={t("app.title")}
             openMenuLabel={t("app.openMenu")}
             isDrawerOpen={isDrawerOpen}
             onDrawerOpenChange={setIsDrawerOpen}

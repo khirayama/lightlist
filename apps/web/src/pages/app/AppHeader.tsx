@@ -21,7 +21,7 @@ export function AppHeader({
       className={clsx(
         "flex flex-wrap items-center gap-3 border-b-[0.4px] border-gray-200 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/60",
         isWideLayout ? "justify-start" : "justify-between",
-        isWideLayout && "hidden"
+        isWideLayout && "hidden",
       )}
     >
       {!isWideLayout && (

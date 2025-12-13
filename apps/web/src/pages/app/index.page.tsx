@@ -64,7 +64,7 @@ export default function AppPage() {
   ];
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
-    null
+    null,
   );
 
   const [state, setState] = useState<AppState | null>(null);
@@ -99,11 +99,11 @@ export default function AppPage() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const selectedTaskList = state?.taskLists?.find(
-    (tl) => tl.id === selectedTaskListId
+    (tl) => tl.id === selectedTaskListId,
   ) as TaskList | undefined;
 
   useEffect(() => {
@@ -147,7 +147,7 @@ export default function AppPage() {
       const taskList = state.taskLists[index];
       if (taskList) {
         setSelectedTaskListId((prev) =>
-          prev === taskList.id ? prev : taskList.id
+          prev === taskList.id ? prev : taskList.id,
         );
       }
     };
@@ -163,7 +163,7 @@ export default function AppPage() {
   useEffect(() => {
     if (!taskListCarouselApi || !state?.taskLists) return;
     const index = state.taskLists.findIndex(
-      (taskList) => taskList.id === selectedTaskListId
+      (taskList) => taskList.id === selectedTaskListId,
     );
     if (index >= 0) {
       taskListCarouselApi.scrollTo(index);
@@ -222,6 +222,11 @@ export default function AppPage() {
   const hasTaskLists = Boolean(state?.taskLists?.length);
   const userEmail = state?.user?.email || t("app.drawerNoEmail");
   const taskLists = state?.taskLists ?? [];
+  const selectedTaskListIndex = Math.max(
+    0,
+    taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
+  );
+  const showTaskListLocator = hasTaskLists && taskLists.length > 1;
 
   const handleDragEndTaskList = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -371,7 +376,7 @@ export default function AppPage() {
       await deleteTaskList(selectedTaskListId);
 
       const remainingLists = state?.taskLists?.filter(
-        (tl) => tl.id !== selectedTaskListId
+        (tl) => tl.id !== selectedTaskListId,
       );
       if (remainingLists && remainingLists.length > 0) {
         setSelectedTaskListId(remainingLists[0].id);
@@ -485,7 +490,7 @@ export default function AppPage() {
       <div
         className={clsx(
           "mx-auto flex max-w-6xl gap-4",
-          isWideLayout ? "flex-row items-start" : "flex-col"
+          isWideLayout ? "flex-row items-start" : "flex-col",
         )}
       >
         {isWideLayout && (
@@ -503,6 +508,47 @@ export default function AppPage() {
             onDrawerOpenChange={setIsDrawerOpen}
             drawerPanel={drawerPanel}
           />
+
+          {showTaskListLocator && (
+            <nav
+              aria-label={t("app.taskListLocator.label")}
+              className="flex justify-center"
+            >
+              <ul className="flex items-center gap-1">
+                {taskLists.map((taskList, index) => {
+                  const isSelected = index === selectedTaskListIndex;
+                  return (
+                    <li key={taskList.id}>
+                      <button
+                        type="button"
+                        aria-label={t("app.taskListLocator.goTo", {
+                          index: index + 1,
+                          total: taskLists.length,
+                        })}
+                        aria-current={isSelected ? "page" : undefined}
+                        onClick={() => setSelectedTaskListId(taskList.id)}
+                        className={clsx(
+                          "inline-flex h-8 w-8 items-center justify-center rounded-full",
+                          "transition-colors",
+                          "hover:bg-gray-200/60 dark:hover:bg-gray-800/60",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-gray-50/30",
+                        )}
+                      >
+                        <span
+                          className={clsx(
+                            "h-2 w-2 rounded-full transition-colors",
+                            isSelected
+                              ? "bg-gray-900 dark:bg-gray-50"
+                              : "bg-gray-300 dark:bg-gray-700",
+                          )}
+                        />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          )}
 
           {error && <Alert variant="error">{error}</Alert>}
 

@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
@@ -11,7 +9,7 @@ import {
 import { Spinner } from "@/components/ui/Spinner";
 import { FormInput } from "@/components/ui/FormInput";
 import { Alert } from "@/components/ui/Alert";
-import { AppError, resolveErrorMessage } from "@/utils/errors";
+import { resolveErrorMessage } from "@/utils/errors";
 import { FormErrors, validatePasswordForm } from "@/utils/validation";
 
 // ===== Main Component =====
@@ -40,7 +38,7 @@ export default function PasswordResetPage() {
       try {
         await verifyPasswordResetCode(oobCode);
         setCodeValid(true);
-      } catch (err: AppError) {
+      } catch (err) {
         setErrors({
           general: resolveErrorMessage(err, t, "auth.error.general"),
         });
@@ -72,7 +70,7 @@ export default function PasswordResetPage() {
       const { oobCode } = router.query;
 
       if (!oobCode || typeof oobCode !== "string") {
-        throw new Error("Invalid reset code");
+        throw new Error(t("auth.passwordReset.invalidCode"));
       }
 
       await confirmPasswordReset(oobCode, password);
@@ -82,7 +80,7 @@ export default function PasswordResetPage() {
       setTimeout(() => {
         router.push("/");
       }, 2000);
-    } catch (err: AppError) {
+    } catch (err) {
       setErrors({
         general: resolveErrorMessage(err, t, "auth.error.general"),
       });

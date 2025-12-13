@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
@@ -24,7 +22,7 @@ import {
   addSharedTaskListToOrder,
 } from "@lightlist/sdk/mutations/app";
 import { appStore } from "@lightlist/sdk/store";
-import { AppError, resolveErrorMessage } from "@/utils/errors";
+import { resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { TaskListPanel } from "@/components/app/TaskListPanel";
@@ -104,7 +102,7 @@ export default function ShareCodePage() {
           }
           setTaskList(data);
         }
-      } catch (err: AppError) {
+      } catch (err) {
         setError(resolveErrorMessage(err, t, "pages.sharecode.error"));
         sharedTaskListUnsubscribeRef.current?.();
         sharedTaskListUnsubscribeRef.current = null;
@@ -125,16 +123,18 @@ export default function ShareCodePage() {
   );
 
   const handleAddTask = async () => {
-    if (!newTaskText.trim() || !taskList) return;
+    if (!taskList) return;
+    const trimmedText = newTaskText.trim();
+    if (trimmedText === "") return;
 
     try {
       setIsAddingTask(true);
       setAddTaskError(null);
-      await addTask(taskList.id, newTaskText);
+      await addTask(taskList.id, trimmedText);
       setNewTaskText("");
 
       await refreshTaskList();
-    } catch (err: AppError) {
+    } catch (err) {
       setAddTaskError(
         resolveErrorMessage(err, t, "pages.sharecode.addTaskError"),
       );
@@ -151,21 +151,22 @@ export default function ShareCodePage() {
   const handleEditEnd = async (task: TaskListStoreTask) => {
     if (!taskList) return;
 
-    if (editingText.trim() === "") {
+    const trimmedText = editingText.trim();
+    if (trimmedText === "") {
       setEditingTaskId(null);
       return;
     }
 
-    if (editingText === task.text) {
+    if (trimmedText === task.text) {
       setEditingTaskId(null);
       return;
     }
 
     try {
-      await updateTask(taskList.id, task.id, { text: editingText });
+      await updateTask(taskList.id, task.id, { text: trimmedText });
       await refreshTaskList();
       setEditingTaskId(null);
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.updateError"));
     }
   };
@@ -178,7 +179,7 @@ export default function ShareCodePage() {
         completed: !task.completed,
       });
       await refreshTaskList();
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.updateError"));
     }
   };
@@ -189,7 +190,7 @@ export default function ShareCodePage() {
     try {
       await deleteTask(taskList.id, taskId);
       await refreshTaskList();
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.deleteError"));
     }
   };
@@ -206,7 +207,7 @@ export default function ShareCodePage() {
     try {
       await updateTasksOrder(taskList.id, activeId, overId);
       await refreshTaskList();
-    } catch (err: AppError) {
+    } catch (err) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.reorderError"));
     }
   };
@@ -219,7 +220,7 @@ export default function ShareCodePage() {
       setAddToOrderError(null);
       await addSharedTaskListToOrder(taskList.id);
       router.push("/app");
-    } catch (err: AppError) {
+    } catch (err) {
       setAddToOrderError(
         resolveErrorMessage(err, t, "pages.sharecode.addToOrderError"),
       );

@@ -71,10 +71,14 @@ export type TaskList = {
   history: string[];
   shareCode: string | null;
   background: string;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export type AppState = {
   user: User | null;
   settings: Settings | null;
   taskLists: TaskList[];
+  taskListOrderUpdatedAt: number | null;
+  sharedTaskListsById: Record<string, TaskList>;
 };

@@ -5,6 +5,7 @@ import { auth, db } from "./firebase";
 import {
   AppState,
   SettingsStore,
+  TaskList,
   TaskListStore,
   TaskListOrderStore,
   User,
@@ -22,6 +23,55 @@ type DataStore = {
 type StoreListener = (state: AppState) => void;
 
 const transform = (d: DataStore): AppState => {
+  const mapStoreTaskListToAppTaskList = (listId: string, listData: TaskListStore) => {
+    return {
+      id: listId,
+      name: listData.name,
+      tasks: Object.values(listData.tasks).sort((a, b) => a.order - b.order),
+      history: listData.history,
+      shareCode: listData.shareCode,
+      background: listData.background,
+      createdAt: listData.createdAt,
+      updatedAt: listData.updatedAt,
+    };
+  };
+
+  const taskListOrderEntries = d.taskListOrder
+    ? Object.entries(d.taskListOrder)
+        .flatMap(([taskListId, value]) => {
+          if (typeof value !== "object" || value === null) return [];
+          if (!("order" in value)) return [];
+          return [{ taskListId, order: (value as { order: number }).order }];
+        })
+        .sort((a, b) => a.order - b.order)
+    : [];
+
+  const orderedTaskListIds = taskListOrderEntries.map((entry) => entry.taskListId);
+  const orderedIdSet = new Set(orderedTaskListIds);
+
+  const taskLists = orderedTaskListIds.map((listId) => {
+    const listData = d.taskLists[listId];
+    if (!listData) {
+      return {
+        id: listId,
+        name: "",
+        tasks: [],
+        history: [],
+        shareCode: null,
+        background: "#ffffff",
+        createdAt: 0,
+        updatedAt: 0,
+      };
+    }
+    return mapStoreTaskListToAppTaskList(listId, listData);
+  });
+
+  const sharedTaskListsById: Record<string, TaskList> = {};
+  Object.entries(d.taskLists).forEach(([listId, listData]) => {
+    if (orderedIdSet.has(listId)) return;
+    sharedTaskListsById[listId] = mapStoreTaskListToAppTaskList(listId, listData);
+  });
+
   return {
     user: d.user,
     settings: d.settings
@@ -32,39 +82,9 @@ const transform = (d: DataStore): AppState => {
           autoSort: d.settings.autoSort,
         }
       : null,
-    taskLists:
-      d.taskListOrder && d.taskLists
-        ? Object.entries(d.taskListOrder)
-            .filter(([key]) => key !== "createdAt" && key !== "updatedAt")
-            .sort(
-              (a, b) =>
-                (a[1] as unknown as { order: number }).order -
-                (b[1] as unknown as { order: number }).order,
-            )
-            .map(([listId]) => {
-              const listData = d.taskLists[listId];
-              if (!listData) {
-                return {
-                  id: listId,
-                  name: "",
-                  tasks: [],
-                  history: [],
-                  shareCode: null,
-                  background: "#ffffff",
-                };
-              }
-              return {
-                id: listId,
-                name: listData.name,
-                tasks: Object.values(listData.tasks).sort(
-                  (a, b) => a.order - b.order,
-                ),
-                history: listData.history,
-                shareCode: listData.shareCode,
-                background: listData.background,
-              };
-            })
-        : [],
+    taskLists,
+    taskListOrderUpdatedAt: d.taskListOrder?.updatedAt ?? null,
+    sharedTaskListsById,
   };
 };
 

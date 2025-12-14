@@ -133,7 +133,7 @@ export const CarouselContent = forwardRef<HTMLDivElement, CarouselContentProps>(
     const { viewportRef } = useCarousel();
 
     return (
-      <div ref={viewportRef} className="overflow-hidden">
+      <div ref={viewportRef} className="overflow-hidden h-full">
         <div
           ref={ref}
           className={clsx("flex items-stretch gap-0", className)}

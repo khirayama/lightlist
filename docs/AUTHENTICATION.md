@@ -537,9 +537,10 @@ auth:
 ```typescript
 interface AppState {
   user: User | null;
-  settings: Settings;
-  taskListOrder: TaskListOrder;
-  taskLists: Record<string, TaskList>;
+  settings: Settings | null;
+  taskLists: TaskList[];
+  taskListOrderUpdatedAt: number | null;
+  sharedTaskListsById: Record<string, TaskList>;
 }
 ```
 

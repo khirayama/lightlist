@@ -6,21 +6,23 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 ## タスク管理ページ
 
-**ページ:** `src/pages/app/index.page.tsx`
+**ページ:** `apps/web/src/pages/app/index.page.tsx`
 
 ### 概要
 
 - Shadcn Drawer で左側にタスクリスト一覧と作成フローをまとめ、右側にタスク詳細カルーセルを置く 2 カラム構成。幅 1024px 以上ではドロワー内容を左カラムとして常時表示し、狭い幅ではトリガー付きのオーバーレイ表示に切り替える。
-- タスクリストとタスクの並び替えはすべて `@dnd-kit` のドラッグハンドルで行い、オーダーは Firestore に即時反映される。
+- レイアウトは AppShell の画面100%（`h-dvh`）を基準とし、ページ最上位は `min-h-full w-full` を前提に組み立てる。
+- タスクリストとタスクの並び替えはすべて `@dnd-kit` のドラッグハンドルで行う。UI はドロップ直後にローカルで順序を即時反映（optimistic）し、Firestore への反映は非同期で追従する。`appStore` の購読更新で順序が確定し、他ユーザー更新が入った場合も最新状態に追従する。
+- モバイルではドラッグ開始時のスクロール競合を避けるため、ドラッグハンドルに `touch-action: none`（Tailwind: `touch-none`）を付与している。
 - 並び替えのドラッグは縦方向のみに制限し、`DndContext` の `modifiers` に `restrictToVerticalAxis` を設定している。
 - Firebase 認証の状態を監視し、未ログインの場合は `/` にリダイレクト。
 
 ### UI 構成
 
-- **ヘッダー / ドロワー:** ページタイトルと Drawer トリガーを配置。幅 1024px 以上ではドロワー内容を左カラムに固定し、より狭い幅では shadcn Drawer（左スライド、オーバーレイ付き）でログインメールを表示し、設定画面へのリンクを提供する。
+- **ヘッダー / ドロワー:** ページタイトルと Drawer トリガーを配置。幅 1024px 以上ではドロワー内容を左カラムに固定し、より狭い幅では shadcn Drawer（左スライド、オーバーレイ付き）でログインメールを表示し、設定画面へのリンクを提供する。左右ドロワーはタップ操作を優先するため `handleOnly` を有効化し、コンテンツ上でのドラッグ開始を抑止している。
 - **タスクリスト一覧（ドロワー内）:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力して `createTaskList` を実行。リストが空のときは `app.emptyState` を表示し、各行には背景色スウォッチとタスク数を併記する。
-- **タスク詳細カルーセル:** 各タスクリストを `Carousel` (Embla) で横スライド化し、ホイール左右操作や前後ボタン、インジケータなしのスワイプで切り替える。表示中スライドの `TaskList.background` を外枠アクセントとして適用し、内側を可読性の高いサーフェス（ライト/ダーク対応）として構成する。`TaskListPanel` にタスク配列と履歴 (`history`) を渡して完了・削除・追加・編集を行う。
-- **色と共有:** 編集Dialogでリスト名と背景色をまとめて変更。共有Dialogでコードの生成/停止とクリップボードコピーを行う。
+- **タスク詳細カルーセル:** 各タスクリストを `Carousel` (Embla) で横スライド化し、ホイール左右操作や前後ボタン、スワイプで切り替える。AppHeader 直下にドット型の locator を表示し、現在位置を示しつつクリックでリストを切り替えられる。表示中スライドの `TaskList.background` を外枠アクセントとして適用し、内側を可読性の高いサーフェス（ライト/ダーク対応）として構成する。`TaskListPanel` は `variant="card"` を使用し、共有ページと同じレイアウト（入力欄が上、一覧が下）で完了・削除・追加・編集を行う。
+- **色と共有:** タスクリストカード右上の編集/共有アイコンボタンから Dialog を開き、編集Dialogでリスト名と背景色をまとめて変更する。共有Dialogでコードの生成/停止とクリップボードコピーを行う。
 - **削除確認:** リスト編集Dialog内の削除ボタンから `deleteTaskList` を実行。
 
 ### カルーセル操作
@@ -28,11 +30,13 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 - `embla-carousel-wheel-gestures` を有効化し、ホイールで左右にスクロールするとスライドが切り替わり、`selectedTaskListId` を同期する。
 - タスク並び替え中は `TaskListPanel` からの sorting 状態を受け取り、カルーセルのホイール操作とドラッグを無効化して横スクロールを抑制する。
 - リスト一覧での選択や Dialog オープン時は対象リストを事前に選択し、カルーセル位置とフォーム入力を一致させる。
+- locator（ドット）をクリックして `selectedTaskListId` を切り替え、カルーセル位置を同期する。
 
 ### 並び替え
 
 - **タスクリスト:** `updateTaskListOrder(draggedTaskListId, targetTaskListId)` で全リストの order を再採番。
 - **タスク:** `updateTasksOrder(taskListId, draggedTaskId, targetTaskId)` でタスク順を更新。`autoSort` が有効な場合、`updateTask` 内でも完了状態と日付に基づき order を再計算する。
+- **UI の順序確定:** ドロップ直後は local の並び替えオーバーレイを表示し、`appStore` の更新（`taskListOrderUpdatedAt` / `TaskList.updatedAt`）で確定・解除する。
 
 ### 入力とエラー
 
@@ -42,7 +46,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 ### アクセシビリティ
 
 - DnD ハンドルには `title` と `aria-label` を付与し、`Spinner` は `aria-busy` を持つ。
-- テキストボタン主体で、キーボード操作でタスク編集/確定が可能。
+- 編集/共有はアイコンボタンだが、`aria-label` と `sr-only` を付与してスクリーンリーダーでも操作できる。
 - Drawer は shadcn コンポーネントを利用し、`DrawerTitle`/`DrawerDescription` と `aria-labelledby`/`aria-describedby` を関連付ける。
 
 ## 状態管理
@@ -75,13 +79,22 @@ const [taskListCarouselApi, setTaskListCarouselApi] =
   useState<CarouselApi | null>(null);
 const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 const [isWideLayout, setIsWideLayout] = useState(false);
+const [optimisticTaskListOrder, setOptimisticTaskListOrder] = useState<{
+  ids: string[];
+  startedAt: number;
+} | null>(null);
+const [optimisticTaskOrder, setOptimisticTaskOrder] = useState<{
+  taskListId: string;
+  ids: string[];
+  startedAt: number;
+} | null>(null);
 ```
 
 **ドロワー状態の詳細:**
 
 - `isDrawerOpen`: Drawer の開閉状態。幅が狭いときのみ利用し、タスクリストを選択したタイミングで閉じてカルーセル表示にフォーカスを移す。
 - `isWideLayout`: 画面幅 1024px 以上で左カラムを常時表示するかどうかを判定する。真の場合、Drawer は閉じたままオーバーレイを使用しない。
-- 狭い幅で Drawer を開いたときに `history.pushState` でダミーエントリを積み、`popstate` で戻る操作が行われたら Drawer を閉じる。手動で閉じた場合は履歴を 1 件戻して積み上がりを防ぐ。
+- 狭い幅で Drawer を開いている間は `router.beforePopState` で「戻る」操作をフックし、ページ遷移ではなく Drawer を閉じる。履歴にダミーエントリを積まないため、設定画面などへの遷移と競合しない。
 - `selectedTaskListId`: 現在選択中のタスクリスト ID。マウント時に最初のリストを選択し、Drawer 内の選択やカルーセルスクロールに合わせて同期する。
 
 ### アプリケーション状態（Store）
@@ -92,7 +105,9 @@ const [isWideLayout, setIsWideLayout] = useState(false);
 const state: AppState = {
   user: User | null,
   settings: Settings | null,
-  taskLists: TaskList[]  // 順序付きリスト
+  taskLists: TaskList[], // 順序付きリスト
+  taskListOrderUpdatedAt: number | null,
+  sharedTaskListsById: Record<string, TaskList>,
 };
 ```
 
@@ -179,7 +194,7 @@ app:
   moveUp: 上へ移動ボタンのテキスト
   moveDown: 下へ移動ボタンのテキスト
   dragHint: ドラッグして並び替え
-  openMenu: メニューを開く
+  openMenu: メニューを開く（ハンバーガーアイコンのツールチップ/スクリーンリーダー用）
   drawerTitle: ドロワーのタイトル表示
   drawerSignedIn: ログインメール表示用ラベル
   drawerNoEmail: メールが未設定の場合のラベル
@@ -615,8 +630,18 @@ taskList:
 **メッセージキー:**
 
 ```
+common:
+  add: 追加
+  delete: 削除
+
 app:
   dragHint: ドラッグハンドルのツールチップ
+
+pages:
+  tasklist:
+    addTaskPlaceholder: タスク追加の入力プレースホルダー
+    dragHint: ドラッグハンドルのツールチップ
+    noTasks: 空状態テキスト
 ```
 
 詳細は `locales/ja.json` および `locales/en.json` を参照してください。
@@ -674,23 +699,48 @@ shareCodeを使用して、認証なしでタスクリストを閲覧・編集�
 **ページレベルの状態:**
 
 ```typescript
-const [taskList, setTaskList] = useState<TaskListStore | null>(null);
+const [storeState, setStoreState] = useState<AppState>(() =>
+  appStore.getState(),
+);
+const [sharedTaskListId, setSharedTaskListId] = useState<string | null>(null);
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState<string | null>(null);
 const [user, setUser] = useState<typeof auth.currentUser>(null);
 const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 // ... その他のタスク編集状態
+const [optimisticTaskOrder, setOptimisticTaskOrder] = useState<{
+  ids: string[];
+  startedAt: number;
+} | null>(null);
 ```
 
 **データ同期:**
 
-- shareCode で取得したタスクリストは `appStore.subscribeToSharedTaskList(taskListId)` で Firestore を購読し、`appStore.taskLists` を常に最新化している。タスク追加・並び替え・削除など SDK 側が store を参照する操作を成立させるための前提になる。
+- shareCode は `fetchTaskListIdByShareCode(shareCode)` で `taskListId` を解決し、`appStore.subscribeToSharedTaskList(taskListId)` で Firestore を購読する。
+- 画面描画は `appStore.subscribe()` で購読した `AppState` の `sharedTaskListsById[taskListId]`（もしくは `taskLists`）を参照し、常に最新状態に追従する。
 
 ### API インターフェース
 
+#### fetchTaskListIdByShareCode(shareCode: string): Promise<string | null>
+
+指定された shareCode から `taskListId` を取得します。
+
+**パラメータ:**
+
+- `shareCode`: 共有コード（必須）
+
+**戻り値:**
+
+- 対応する taskListId、または見つからない場合は null
+
+**動作:**
+
+1. `shareCodes/{shareCode}` ドキュメントを取得し、紐づく `taskListId` を確認
+2. shareCode が登録されていない場合は null を返す
+
 #### fetchTaskListByShareCode(shareCode: string): Promise<TaskListStore | null>
 
-指定されたshareCodeでタスクリストを取得します。
+指定された shareCode でタスクリストを取得します。
 
 **パラメータ:**
 
@@ -704,7 +754,7 @@ const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
 1. `shareCodes/{shareCode}` ドキュメントを取得し、紐づく `taskListId` を確認
 2. 対応する `taskLists/{taskListId}` を取得して返却
-3. shareCode が登録されていない場合は null を返す
+3. shareCode または taskList が存在しない場合は null を返す
 
 #### addSharedTaskListToOrder(taskListId: string): Promise<void>
 

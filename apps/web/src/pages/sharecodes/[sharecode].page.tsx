@@ -9,12 +9,12 @@ import {
   useSensors,
   UniqueIdentifier,
 } from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
-import { User, TaskListStore, TaskListStoreTask } from "@lightlist/sdk/types";
+import { AppState, Task, User } from "@lightlist/sdk/types";
 import {
-  fetchTaskListByShareCode,
+  fetchTaskListIdByShareCode,
   addTask,
   updateTask,
   deleteTask,
@@ -30,15 +30,25 @@ import { TaskListPanel } from "@/components/app/TaskListPanel";
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
 
+type OptimisticOrder = {
+  ids: string[];
+  startedAt: number;
+};
+
 export default function ShareCodePage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { sharecode } = router.query;
 
-  const [taskList, setTaskList] = useState<TaskListStore | null>(null);
+  const [storeState, setStoreState] = useState<AppState>(() =>
+    appStore.getState(),
+  );
+  const [sharedTaskListId, setSharedTaskListId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [optimisticTaskOrder, setOptimisticTaskOrder] =
+    useState<OptimisticOrder | null>(null);
 
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
@@ -63,56 +73,54 @@ export default function ShareCodePage() {
     return () => unsubscribe();
   }, []);
 
-  const refreshTaskList = async () => {
-    if (!sharecode || typeof sharecode !== "string") return null;
-    const updatedTaskList = await fetchTaskListByShareCode(sharecode);
-    if (updatedTaskList) {
-      if (!taskList || taskList.id !== updatedTaskList.id) {
-        sharedTaskListUnsubscribeRef.current?.();
-        sharedTaskListUnsubscribeRef.current =
-          appStore.subscribeToSharedTaskList(updatedTaskList.id);
-      }
-      setTaskList(updatedTaskList);
-    }
-    if (!updatedTaskList) {
-      sharedTaskListUnsubscribeRef.current?.();
-      sharedTaskListUnsubscribeRef.current = null;
-    }
-    return updatedTaskList;
-  };
+  useEffect(() => {
+    const unsubscribe = appStore.subscribe((newState) => {
+      setStoreState(newState);
+    });
+    setStoreState(appStore.getState());
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (!sharecode || typeof sharecode !== "string") return;
 
+    let cancelled = false;
     const loadTaskList = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await fetchTaskListByShareCode(sharecode);
-        if (!data) {
+        const taskListId = await fetchTaskListIdByShareCode(sharecode);
+        if (cancelled) return;
+        if (!taskListId) {
+          setSharedTaskListId(null);
           setError(t("pages.sharecode.notFound"));
           sharedTaskListUnsubscribeRef.current?.();
           sharedTaskListUnsubscribeRef.current = null;
-          setTaskList(null);
-        } else {
-          if (!taskList || taskList.id !== data.id) {
-            sharedTaskListUnsubscribeRef.current?.();
-            sharedTaskListUnsubscribeRef.current =
-              appStore.subscribeToSharedTaskList(data.id);
-          }
-          setTaskList(data);
+          return;
         }
+
+        setSharedTaskListId(taskListId);
+        sharedTaskListUnsubscribeRef.current?.();
+        sharedTaskListUnsubscribeRef.current =
+          appStore.subscribeToSharedTaskList(taskListId);
       } catch (err) {
         setError(resolveErrorMessage(err, t, "pages.sharecode.error"));
+        setSharedTaskListId(null);
         sharedTaskListUnsubscribeRef.current?.();
         sharedTaskListUnsubscribeRef.current = null;
-        setTaskList(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
     loadTaskList();
+    return () => {
+      cancelled = true;
+    };
   }, [sharecode, t]);
 
   useEffect(
@@ -121,6 +129,24 @@ export default function ShareCodePage() {
     },
     [],
   );
+
+  const taskList =
+    sharedTaskListId === null
+      ? null
+      : (storeState.taskLists.find((tl) => tl.id === sharedTaskListId) ??
+        storeState.sharedTaskListsById[sharedTaskListId] ??
+        null);
+
+  useEffect(() => {
+    if (!optimisticTaskOrder) return;
+    if (!taskList || taskList.id !== sharedTaskListId) {
+      setOptimisticTaskOrder(null);
+      return;
+    }
+    if (taskList.updatedAt >= optimisticTaskOrder.startedAt) {
+      setOptimisticTaskOrder(null);
+    }
+  }, [optimisticTaskOrder, sharedTaskListId, taskList]);
 
   const handleAddTask = async () => {
     if (!taskList) return;
@@ -132,8 +158,6 @@ export default function ShareCodePage() {
       setAddTaskError(null);
       await addTask(taskList.id, trimmedText);
       setNewTaskText("");
-
-      await refreshTaskList();
     } catch (err) {
       setAddTaskError(
         resolveErrorMessage(err, t, "pages.sharecode.addTaskError"),
@@ -143,12 +167,12 @@ export default function ShareCodePage() {
     }
   };
 
-  const handleEditStart = (task: TaskListStoreTask) => {
+  const handleEditStart = (task: Task) => {
     setEditingTaskId(task.id);
     setEditingText(task.text);
   };
 
-  const handleEditEnd = async (task: TaskListStoreTask) => {
+  const handleEditEnd = async (task: Task) => {
     if (!taskList) return;
 
     const trimmedText = editingText.trim();
@@ -164,21 +188,19 @@ export default function ShareCodePage() {
 
     try {
       await updateTask(taskList.id, task.id, { text: trimmedText });
-      await refreshTaskList();
       setEditingTaskId(null);
     } catch (err) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.updateError"));
     }
   };
 
-  const handleToggleTask = async (task: TaskListStoreTask) => {
+  const handleToggleTask = async (task: Task) => {
     if (!taskList) return;
 
     try {
       await updateTask(taskList.id, task.id, {
         completed: !task.completed,
       });
-      await refreshTaskList();
     } catch (err) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.updateError"));
     }
@@ -189,7 +211,6 @@ export default function ShareCodePage() {
 
     try {
       await deleteTask(taskList.id, taskId);
-      await refreshTaskList();
     } catch (err) {
       setError(resolveErrorMessage(err, t, "pages.sharecode.deleteError"));
     }
@@ -204,10 +225,22 @@ export default function ShareCodePage() {
     const overId = getStringId(over.id);
     if (!activeId || !overId) return;
 
+    const baseTaskIds = optimisticTaskOrder
+      ? optimisticTaskOrder.ids
+      : taskList.tasks.map((task) => task.id);
+    const oldIndex = baseTaskIds.indexOf(activeId);
+    const newIndex = baseTaskIds.indexOf(overId);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    setOptimisticTaskOrder({
+      ids: arrayMove(baseTaskIds, oldIndex, newIndex),
+      startedAt: Date.now(),
+    });
+
     try {
       await updateTasksOrder(taskList.id, activeId, overId);
-      await refreshTaskList();
     } catch (err) {
+      setOptimisticTaskOrder(null);
       setError(resolveErrorMessage(err, t, "pages.sharecode.reorderError"));
     }
   };
@@ -239,6 +272,8 @@ export default function ShareCodePage() {
     );
   }
 
+  if (!loading && sharedTaskListId && !taskList) return <Spinner />;
+
   if (!taskList) {
     return (
       <div>
@@ -249,9 +284,12 @@ export default function ShareCodePage() {
     );
   }
 
-  const tasks = Object.values(taskList.tasks || {}).sort(
-    (a, b) => a.order - b.order,
-  );
+  const optimisticTasks = optimisticTaskOrder
+    ? optimisticTaskOrder.ids
+        .map((taskId) => taskList.tasks.find((task) => task.id === taskId))
+        .filter((task): task is Task => Boolean(task))
+    : null;
+  const tasks = optimisticTasks ?? taskList.tasks;
 
   return (
     <div>

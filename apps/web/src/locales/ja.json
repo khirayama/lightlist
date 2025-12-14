@@ -110,7 +110,11 @@
     "openMenu": "メニューを開く",
     "drawerTitle": "タスクリスト",
     "drawerSignedIn": "ログイン中:",
-    "drawerNoEmail": "メールアドレス未設定"
+    "drawerNoEmail": "メールアドレス未設定",
+    "taskListLocator": {
+      "label": "タスクリストの位置",
+      "goTo": "タスクリスト{{index}}（全{{total}}）へ移動"
+    }
   },
   "taskList": {
     "taskCount": "{{count}}個のタスク",

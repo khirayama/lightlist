@@ -95,6 +95,31 @@ export function DrawerPanel({
           </DrawerDescription>
         )}
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {!isWideLayout && (
+            <button
+              type="button"
+              onClick={onCloseDrawer}
+              title={t("common.close")}
+              aria-label={t("common.close")}
+              data-vaul-no-drag
+              className="inline-flex items-center justify-center rounded-xl p-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M6 6l8 8M14 6l-8 8"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          )}
           <button
             type="button"
             onClick={onOpenSettings}

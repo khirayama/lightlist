@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useRef } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,7 +9,7 @@ import {
   DragEndEvent,
   UniqueIdentifier,
 } from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
@@ -36,8 +35,6 @@ import {
   CarouselApi,
   CarouselContent,
   CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
 } from "@/components/ui/Carousel";
 import { DrawerPanel } from "./DrawerPanel";
 import { AppHeader } from "./AppHeader";
@@ -45,6 +42,17 @@ import { TaskListCard } from "./TaskListCard";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
+
+type OptimisticOrder = {
+  ids: string[];
+  startedAt: number;
+};
+
+type OptimisticTaskOrder = {
+  taskListId: string;
+  ids: string[];
+  startedAt: number;
+};
 
 export default function AppPage() {
   const router = useRouter();
@@ -92,6 +100,10 @@ export default function AppPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isWideLayout, setIsWideLayout] = useState(false);
   const [isTaskSorting, setIsTaskSorting] = useState(false);
+  const [optimisticTaskListOrder, setOptimisticTaskListOrder] =
+    useState<OptimisticOrder | null>(null);
+  const [optimisticTaskOrder, setOptimisticTaskOrder] =
+    useState<OptimisticTaskOrder | null>(null);
 
   const sensorsList = useSensors(
     useSensor(PointerSensor, {
@@ -106,7 +118,7 @@ export default function AppPage() {
 
   const selectedTaskList = state?.taskLists?.find(
     (tl) => tl.id === selectedTaskListId,
-  ) as TaskList | undefined;
+  );
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChange((user) => {
@@ -132,6 +144,28 @@ export default function AppPage() {
       setSelectedTaskListId(state.taskLists[0].id);
     }
   }, [state?.taskLists, selectedTaskListId]);
+
+  useEffect(() => {
+    if (!optimisticTaskListOrder) return;
+    if (!state?.taskListOrderUpdatedAt) return;
+    if (state.taskListOrderUpdatedAt >= optimisticTaskListOrder.startedAt) {
+      setOptimisticTaskListOrder(null);
+    }
+  }, [optimisticTaskListOrder, state?.taskListOrderUpdatedAt]);
+
+  useEffect(() => {
+    if (!optimisticTaskOrder) return;
+    const taskList = state?.taskLists.find(
+      (tl) => tl.id === optimisticTaskOrder.taskListId,
+    );
+    if (!taskList) {
+      setOptimisticTaskOrder(null);
+      return;
+    }
+    if (taskList.updatedAt >= optimisticTaskOrder.startedAt) {
+      setOptimisticTaskOrder(null);
+    }
+  }, [optimisticTaskOrder, state?.taskLists]);
 
   useEffect(() => {
     if (selectedTaskList) {
@@ -195,50 +229,64 @@ export default function AppPage() {
     }
   }, [isWideLayout]);
 
-  const drawerHistoryEntryAdded = useRef(false);
-
   useEffect(() => {
-    if (isWideLayout || !isDrawerOpen) return;
+    if (typeof window === "undefined") return;
+    if (isWideLayout || !isDrawerOpen) {
+      router.beforePopState(() => true);
+      return;
+    }
 
-    drawerHistoryEntryAdded.current = true;
-
-    const handlePopState = () => {
+    router.beforePopState(() => {
       setIsDrawerOpen(false);
-      drawerHistoryEntryAdded.current = false;
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    const currentState = window.history.state;
-    window.history.pushState(currentState, "");
+      return false;
+    });
 
     return () => {
-      window.removeEventListener("popstate", handlePopState);
-      if (drawerHistoryEntryAdded.current) {
-        window.history.back();
-        drawerHistoryEntryAdded.current = false;
-      }
+      router.beforePopState(() => true);
     };
-  }, [isDrawerOpen, isWideLayout]);
+  }, [isDrawerOpen, isWideLayout, router]);
 
   const isLoading = !state || !state.user;
   const hasTaskLists = Boolean(state?.taskLists?.length);
   const userEmail = state?.user?.email || t("app.drawerNoEmail");
   const taskLists = state?.taskLists ?? [];
+  const taskListsForDrawer = optimisticTaskListOrder
+    ? optimisticTaskListOrder.ids
+        .map((taskListId) =>
+          taskLists.find((taskList) => taskList.id === taskListId),
+        )
+        .filter((taskList): taskList is TaskList => Boolean(taskList))
+    : taskLists;
+  const selectedTaskListIndex = Math.max(
+    0,
+    taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
+  );
+  const showTaskListLocator = hasTaskLists && taskLists.length > 1;
 
   const handleDragEndTaskList = async (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (over && active.id !== over.id) {
-      const draggedTaskListId = getStringId(active.id);
-      const targetTaskListId = getStringId(over.id);
-      if (!draggedTaskListId || !targetTaskListId) return;
+    if (!over || active.id === over.id) return;
+    const draggedTaskListId = getStringId(active.id);
+    const targetTaskListId = getStringId(over.id);
+    if (!draggedTaskListId || !targetTaskListId) return;
 
-      setError(null);
-      try {
-        await updateTaskListOrder(draggedTaskListId, targetTaskListId);
-      } catch (err) {
-        setError(resolveErrorMessage(err, t, "common.error"));
-      }
+    const currentIds = taskListsForDrawer.map((taskList) => taskList.id);
+    const oldIndex = currentIds.indexOf(draggedTaskListId);
+    const newIndex = currentIds.indexOf(targetTaskListId);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    setOptimisticTaskListOrder({
+      ids: arrayMove(currentIds, oldIndex, newIndex),
+      startedAt: Date.now(),
+    });
+
+    setError(null);
+    try {
+      await updateTaskListOrder(draggedTaskListId, targetTaskListId);
+    } catch (err) {
+      setOptimisticTaskListOrder(null);
+      setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
 
@@ -262,17 +310,31 @@ export default function AppPage() {
 
     const { active, over } = event;
 
-    if (over && active.id !== over.id) {
-      const draggedTaskId = getStringId(active.id);
-      const targetTaskId = getStringId(over.id);
-      if (!draggedTaskId || !targetTaskId) return;
+    if (!over || active.id === over.id) return;
+    const draggedTaskId = getStringId(active.id);
+    const targetTaskId = getStringId(over.id);
+    if (!draggedTaskId || !targetTaskId) return;
 
-      setError(null);
-      try {
-        await updateTasksOrder(selectedTaskListId, draggedTaskId, targetTaskId);
-      } catch (err) {
-        setError(resolveErrorMessage(err, t, "common.error"));
-      }
+    const baseTaskIds =
+      optimisticTaskOrder?.taskListId === selectedTaskListId
+        ? optimisticTaskOrder.ids
+        : (selectedTaskList?.tasks.map((task) => task.id) ?? []);
+    const oldIndex = baseTaskIds.indexOf(draggedTaskId);
+    const newIndex = baseTaskIds.indexOf(targetTaskId);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    setOptimisticTaskOrder({
+      taskListId: selectedTaskListId,
+      ids: arrayMove(baseTaskIds, oldIndex, newIndex),
+      startedAt: Date.now(),
+    });
+
+    setError(null);
+    try {
+      await updateTasksOrder(selectedTaskListId, draggedTaskId, targetTaskId);
+    } catch (err) {
+      setOptimisticTaskOrder(null);
+      setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
 
@@ -464,7 +526,7 @@ export default function AppPage() {
       colors={colors}
       onCreateList={handleCreateList}
       hasTaskLists={hasTaskLists}
-      taskLists={taskLists}
+      taskLists={taskListsForDrawer}
       sensorsList={sensorsList}
       onDragEndTaskList={handleDragEndTaskList}
       selectedTaskListId={selectedTaskListId}
@@ -483,102 +545,166 @@ export default function AppPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
+    <div className="h-full min-h-full w-full bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50 overflow-hidden">
       <div
         className={clsx(
-          "mx-auto flex max-w-6xl gap-4 px-4 py-4 sm:px-6 lg:px-8",
+          "flex h-full",
           isWideLayout ? "flex-row items-start" : "flex-col",
         )}
       >
         {isWideLayout && (
-          <aside className="sticky top-4 w-[360px] max-w-[420px] shrink-0 self-stretch">
-            <div className="flex h-full max-h-[calc(100dvh-32px)] flex-col gap-4 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <aside className="sticky top-0 w-[360px] max-w-[420px] shrink-0 self-stretch border-l border-gray-200">
+            <div className="flex h-full flex-col overflow-y-auto bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
               {drawerPanel}
             </div>
           </aside>
         )}
 
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <AppHeader
-            isWideLayout={isWideLayout}
-            title={t("app.title")}
-            openMenuLabel={t("app.openMenu")}
-            isDrawerOpen={isDrawerOpen}
-            onDrawerOpenChange={setIsDrawerOpen}
-            drawerPanel={drawerPanel}
-          />
-
-          {error && <Alert variant="error">{error}</Alert>}
-
-          {hasTaskLists ? (
-            <Carousel
-              wheelGestures={!isTaskSorting}
-              setApi={setTaskListCarouselApi}
-              opts={{
-                align: "start",
-                containScroll: "trimSnaps",
-              }}
-            >
-              <CarouselPrevious aria-label={t("common.previous")} />
-              <CarouselNext aria-label={t("common.next")} />
-              <CarouselContent>
-                {state.taskLists.map((taskList) => {
-                  const isActive = selectedTaskListId === taskList.id;
-                  return (
-                    <CarouselItem key={taskList.id}>
-                      <TaskListCard
-                        taskList={taskList}
-                        isActive={isActive}
-                        onActivate={(taskListId) =>
-                          setSelectedTaskListId(taskListId)
-                        }
-                        colors={colors}
-                        showEditListDialog={showEditListDialog}
-                        onEditDialogOpenChange={handleEditDialogOpenChange}
-                        editListName={editListName}
-                        onEditListNameChange={setEditListName}
-                        editListBackground={editListBackground}
-                        onEditListBackgroundChange={setEditListBackground}
-                        onSaveListDetails={handleSaveListDetails}
-                        deletingList={deletingList}
-                        onDeleteList={handleDeleteList}
-                        showShareDialog={showShareDialog}
-                        onShareDialogOpenChange={handleShareDialogOpenChange}
-                        shareCode={shareCode}
-                        shareCopySuccess={shareCopySuccess}
-                        generatingShareCode={generatingShareCode}
-                        onGenerateShareCode={handleGenerateShareCode}
-                        removingShareCode={removingShareCode}
-                        onRemoveShareCode={handleRemoveShareCode}
-                        onCopyShareLink={handleCopyShareLink}
-                        sensorsList={sensorsList}
-                        onDragEndTask={handleDragEndTask}
-                        editingTaskId={editingTaskId}
-                        editingTaskText={editingTaskText}
-                        onEditingTaskTextChange={setEditingTaskText}
-                        onEditStartTask={(task) => {
-                          setEditingTaskId(task.id);
-                          setEditingTaskText(task.text);
-                        }}
-                        onEditEndTask={handleEditTask}
-                        onToggleTask={handleToggleTask}
-                        onDeleteTask={handleDeleteTask}
-                        newTaskText={newTaskText}
-                        onNewTaskTextChange={setNewTaskText}
-                        onAddTask={handleAddTask}
-                        onSortingChange={setIsTaskSorting}
-                        t={t}
-                      />
-                    </CarouselItem>
-                  );
-                })}
-              </CarouselContent>
-            </Carousel>
-          ) : (
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              {t("app.emptyState")}
-            </p>
+        <div className="flex min-w-0 flex-1 flex-col w-full h-full min-h-0">
+          {!isWideLayout && (
+            <div className="sticky top-0 z-20 w-full">
+              <AppHeader
+                isWideLayout={isWideLayout}
+                isDrawerOpen={isDrawerOpen}
+                onDrawerOpenChange={setIsDrawerOpen}
+                drawerPanel={drawerPanel}
+              />
+              {error && <Alert variant="error">{error}</Alert>}
+            </div>
           )}
+
+          <div className="flex-1 flex flex-col relative overflow-hidden">
+            {showTaskListLocator && (
+              <nav
+                aria-label={t("app.taskListLocator.label")}
+                className="flex justify-center absolute top-0 z-20 center-x-0 w-full"
+              >
+                <ul className="flex items-center gap-1">
+                  {taskLists.map((taskList, index) => {
+                    const isSelected = index === selectedTaskListIndex;
+                    return (
+                      <li key={taskList.id}>
+                        <button
+                          type="button"
+                          aria-label={t("app.taskListLocator.goTo", {
+                            index: index + 1,
+                            total: taskLists.length,
+                          })}
+                          aria-current={isSelected ? "page" : undefined}
+                          onClick={() => setSelectedTaskListId(taskList.id)}
+                          className={clsx(
+                            "inline-flex h-4 w-4 items-center justify-center rounded-full",
+                            "transition-colors",
+                            "hover:bg-gray-200/60 dark:hover:bg-gray-800/60",
+                          )}
+                        >
+                          <span
+                            className={clsx(
+                              "h-2 w-2 rounded-full transition-colors",
+                              isSelected
+                                ? "bg-gray-900 dark:bg-gray-50"
+                                : "bg-gray-300 dark:bg-gray-700",
+                            )}
+                          />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            )}
+
+            <div className="h-full overflow-y-scroll">
+              {hasTaskLists ? (
+                <Carousel
+                  className="h-full"
+                  wheelGestures={!isTaskSorting}
+                  setApi={setTaskListCarouselApi}
+                  opts={{
+                    align: "start",
+                    containScroll: "trimSnaps",
+                  }}
+                >
+                  <CarouselContent>
+                    {taskLists.map((taskList) => {
+                      const isActive = selectedTaskListId === taskList.id;
+                      const optimisticTaskList =
+                        optimisticTaskOrder?.taskListId === taskList.id
+                          ? optimisticTaskOrder.ids
+                              .map((taskId) =>
+                                taskList.tasks.find(
+                                  (task) => task.id === taskId,
+                                ),
+                              )
+                              .filter((task): task is Task => Boolean(task))
+                          : null;
+                      const taskListForRender = optimisticTaskList
+                        ? { ...taskList, tasks: optimisticTaskList }
+                        : taskList;
+                      return (
+                        <CarouselItem key={taskList.id}>
+                          <div
+                            className="h-4" // placeholder for top offset
+                            style={{ background: taskListForRender.background }}
+                          />
+
+                          <TaskListCard
+                            taskList={taskListForRender}
+                            isActive={isActive}
+                            onActivate={(taskListId) =>
+                              setSelectedTaskListId(taskListId)
+                            }
+                            colors={colors}
+                            showEditListDialog={showEditListDialog}
+                            onEditDialogOpenChange={handleEditDialogOpenChange}
+                            editListName={editListName}
+                            onEditListNameChange={setEditListName}
+                            editListBackground={editListBackground}
+                            onEditListBackgroundChange={setEditListBackground}
+                            onSaveListDetails={handleSaveListDetails}
+                            deletingList={deletingList}
+                            onDeleteList={handleDeleteList}
+                            showShareDialog={showShareDialog}
+                            onShareDialogOpenChange={
+                              handleShareDialogOpenChange
+                            }
+                            shareCode={shareCode}
+                            shareCopySuccess={shareCopySuccess}
+                            generatingShareCode={generatingShareCode}
+                            onGenerateShareCode={handleGenerateShareCode}
+                            removingShareCode={removingShareCode}
+                            onRemoveShareCode={handleRemoveShareCode}
+                            onCopyShareLink={handleCopyShareLink}
+                            sensorsList={sensorsList}
+                            onDragEndTask={handleDragEndTask}
+                            editingTaskId={editingTaskId}
+                            editingTaskText={editingTaskText}
+                            onEditingTaskTextChange={setEditingTaskText}
+                            onEditStartTask={(task) => {
+                              setEditingTaskId(task.id);
+                              setEditingTaskText(task.text);
+                            }}
+                            onEditEndTask={handleEditTask}
+                            onToggleTask={handleToggleTask}
+                            onDeleteTask={handleDeleteTask}
+                            newTaskText={newTaskText}
+                            onNewTaskTextChange={setNewTaskText}
+                            onAddTask={handleAddTask}
+                            onSortingChange={setIsTaskSorting}
+                            t={t}
+                          />
+                        </CarouselItem>
+                      );
+                    })}
+                  </CarouselContent>
+                </Carousel>
+              ) : (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {t("app.emptyState")}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

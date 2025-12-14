@@ -110,7 +110,11 @@
     "openMenu": "Open Menu",
     "drawerTitle": "Task Lists",
     "drawerSignedIn": "Signed in as",
-    "drawerNoEmail": "No email available"
+    "drawerNoEmail": "No email available",
+    "taskListLocator": {
+      "label": "Task list position",
+      "goTo": "Go to task list {{index}} of {{total}}"
+    }
   },
   "taskList": {
     "taskCount": "{{count}} tasks",

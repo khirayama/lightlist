@@ -460,6 +460,19 @@ export async function removeShareCode(taskListId: string): Promise<void> {
   });
 }
 
+export async function fetchTaskListIdByShareCode(
+  shareCode: string
+): Promise<string | null> {
+  const shareCodeRef = doc(db, "shareCodes", shareCode);
+  const shareCodeSnapshot = await getDoc(shareCodeRef);
+  if (!shareCodeSnapshot.exists()) {
+    return null;
+  }
+
+  const data = shareCodeSnapshot.data() as { taskListId?: string };
+  return data.taskListId ?? null;
+}
+
 export async function fetchTaskListByShareCode(
   shareCode: string
 ): Promise<TaskListStore | null> {

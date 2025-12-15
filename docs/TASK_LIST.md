@@ -36,7 +36,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 - **タスクリスト:** `updateTaskListOrder(draggedTaskListId, targetTaskListId)` で全リストの order を再採番。
 - **タスク:** `updateTasksOrder(taskListId, draggedTaskId, targetTaskId)` でタスク順を更新。`autoSort` が有効な場合、`updateTask` 内でも完了状態と日付に基づき order を再計算する。
-- **UI の順序確定:** ドロップ直後は local の並び替えオーバーレイを表示し、`appStore` の更新（`taskListOrderUpdatedAt` / `TaskList.updatedAt`）で確定・解除する。
+- **UI の順序確定:** タスクリストの並び替えは `taskListOrderUpdatedAt`、タスクの並び替えは各 `TaskListCard` が監視する `TaskList.updatedAt` を基準に、`appStore` の更新で optimistic 表示を確定・解除する。
 
 ### 入力とエラー
 
@@ -47,6 +47,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 - DnD ハンドルには `title` と `aria-label` を付与し、`Spinner` は `aria-busy` を持つ。
 - 編集/共有はアイコンボタンだが、`aria-label` と `sr-only` を付与してスクリーンリーダーでも操作できる。
+- タスク追加は送信アイコンボタンだが、`aria-label` と `sr-only` を付与してスクリーンリーダーでも操作できる。
 - Drawer は shadcn コンポーネントを利用し、`DrawerTitle`/`DrawerDescription` と `aria-labelledby`/`aria-describedby` を関連付ける。
 
 ## 状態管理
@@ -60,9 +61,6 @@ const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
 const [state, setState] = useState<AppState | null>(null);
 const [error, setError] = useState<string | null>(null);
 
-const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-const [editingTaskText, setEditingTaskText] = useState("");
-const [newTaskText, setNewTaskText] = useState("");
 const [editListName, setEditListName] = useState("");
 const [editListBackground, setEditListBackground] = useState(colors[0]);
 const [showEditListDialog, setShowEditListDialog] = useState(false);
@@ -79,12 +77,8 @@ const [taskListCarouselApi, setTaskListCarouselApi] =
   useState<CarouselApi | null>(null);
 const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 const [isWideLayout, setIsWideLayout] = useState(false);
+const [isTaskSorting, setIsTaskSorting] = useState(false);
 const [optimisticTaskListOrder, setOptimisticTaskListOrder] = useState<{
-  ids: string[];
-  startedAt: number;
-} | null>(null);
-const [optimisticTaskOrder, setOptimisticTaskOrder] = useState<{
-  taskListId: string;
   ids: string[];
   startedAt: number;
 } | null>(null);
@@ -96,6 +90,8 @@ const [optimisticTaskOrder, setOptimisticTaskOrder] = useState<{
 - `isWideLayout`: 画面幅 1024px 以上で左カラムを常時表示するかどうかを判定する。真の場合、Drawer は閉じたままオーバーレイを使用しない。
 - 狭い幅で Drawer を開いている間は `router.beforePopState` で「戻る」操作をフックし、ページ遷移ではなく Drawer を閉じる。履歴にダミーエントリを積まないため、設定画面などへの遷移と競合しない。
 - `selectedTaskListId`: 現在選択中のタスクリスト ID。マウント時に最初のリストを選択し、Drawer 内の選択やカルーセルスクロールに合わせて同期する。
+- `isTaskSorting`: `TaskListPanel` の DnD 並び替え中フラグ。`Carousel` のホイールジェスチャーを抑止して誤操作を防ぐ。
+- タスクの追加/編集入力（`newTaskText` / `editingTaskId` / `editingTaskText` など）とタスク並び替えの optimistic 表示は、各 `TaskListCard` に閉じ込めて管理する（リスト間でフォーム状態を共有しない）。
 
 ### アプリケーション状態（Store）
 
@@ -342,17 +338,17 @@ taskList:
 **フォーム:**
 
 - タスク入力フィールド：テキスト入力、履歴補完対応
-- 追加ボタン：タスクを追加
+- 送信アイコンボタン：タスクを追加
 
 **操作:**
 
 1. 入力フィールドにタスク内容を入力
-2. `Enter` キーを押すか「追加」ボタンをクリック
+2. `Enter` キーを押すか送信アイコンボタンをクリック
 3. タスクがリストの最後に追加される
 
 **履歴補完:**
 
-- 入力フィールドは HTML の `datalist` を使用した補完機能を提供
+- 入力フィールドは shadcn/ui の Combobox（`cmdk` ベース）で補完候補を表示
 - 過去に作成されたタスクテキストが候補として表示される
 - リアルタイムでマッチしたテキストを候補リストから選択可能
 
@@ -432,7 +428,7 @@ taskList:
 
 ### 状態管理
 
-app/index.page.tsx では以下のように状態を一元管理しています。
+`apps/web/src/pages/app/index.page.tsx` は、タスクリスト選択・Drawer/Carousel・各 Dialog（リスト編集/共有/作成）などページ横断の状態を管理する。タスク追加/編集入力やタスク並び替えの optimistic 表示、タスク操作のエラーは各 `TaskListCard` に閉じ込める。
 
 ```typescript
 const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
@@ -440,30 +436,36 @@ const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
 );
 const [state, setState] = useState<AppState | null>(null);
 const [error, setError] = useState<string | null>(null);
-const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-const [editingTaskText, setEditingTaskText] = useState("");
-const [newTaskText, setNewTaskText] = useState("");
-const [showEditListModal, setShowEditListModal] = useState(false);
+
 const [editListName, setEditListName] = useState("");
-const [editingListName, setEditingListName] = useState(false);
-const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-const [showShareModal, setShowShareModal] = useState(false);
+const [editListBackground, setEditListBackground] = useState(colors[0]);
+const [showEditListDialog, setShowEditListDialog] = useState(false);
+const [deletingList, setDeletingList] = useState(false);
+const [showShareDialog, setShowShareDialog] = useState(false);
 const [shareCode, setShareCode] = useState<string | null>(null);
 const [generatingShareCode, setGeneratingShareCode] = useState(false);
 const [removingShareCode, setRemovingShareCode] = useState(false);
 const [shareCopySuccess, setShareCopySuccess] = useState(false);
-const [showCreateListForm, setShowCreateListForm] = useState(false);
 const [createListInput, setCreateListInput] = useState("");
+const [createListBackground, setCreateListBackground] = useState(colors[0]);
+const [showCreateListDialog, setShowCreateListDialog] = useState(false);
+const [taskListCarouselApi, setTaskListCarouselApi] =
+  useState<CarouselApi | null>(null);
+const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+const [isWideLayout, setIsWideLayout] = useState(false);
+const [isTaskSorting, setIsTaskSorting] = useState(false);
+const [optimisticTaskListOrder, setOptimisticTaskListOrder] = useState<{
+  ids: string[];
+  startedAt: number;
+} | null>(null);
 ```
 
 - `selectedTaskListId`: 表示対象のタスクリスト ID。初回ロード時に最初のリストを自動選択し、Embla の select イベントでカルーセルと Drawer 選択を片方向同期する。
 - `state`: `appStore` から購読した `AppState`。ユーザー、設定、タスクリストを保持。
-- `error`: 画面上部に表示するエラーメッセージ。
-- `editingTaskId`/`editingTaskText`: インライン編集中のタスク識別と内容。
-- `newTaskText`: タスク追加フォームの入力内容。
-- `showEditListModal` ほかのフラグ: 色選択、削除確認、共有モーダルなどの開閉制御。
-- `shareCode` とコピー関連のフラグ: 共有コードの生成・削除・コピー状態を保持。
-- `showCreateListForm`/`createListInput`: タスクリスト作成フォームの表示と入力値。
+- `error`: ページ上部に表示するページレベルのエラーメッセージ（リスト作成/編集/削除/共有など）。
+- `isTaskSorting`: `TaskListPanel` からの sorting 状態を受け取り、カルーセルのホイールジェスチャーを抑止する。
+- `optimisticTaskListOrder`: タスクリスト並び替えの optimistic 表示。
+- タスク操作（追加/編集/完了/削除/並び替え）の状態とエラーは `TaskListCard` が担当し、リストごとに独立して保持する。
 
 ### API インターフェース
 
@@ -489,15 +491,16 @@ const [createListInput, setCreateListInput] = useState("");
 4. トランザクション内で以下を実行：
    - Firestore にタスクを保存
    - order の一括更新
-   - history フィールドを更新（重複排除、最大300件保持）
+   - history フィールドを更新（trim、大小文字を無視して重複扱い、最大300件保持）
 5. `updatedAt` タイムスタンプを設定
 
 **history 管理:**
 
-- タスク作成時にテキストが既に history に存在しない場合のみ追加
-- 新しいテキストは history の先頭に挿入（新しい順）
+- タスク作成時に `text` を trim し、空文字の場合はエラー
+- history は各要素を trim し、空要素は除外
+- 大文字小文字を無視して既存要素を検索し、存在する場合は削除して先頭に挿入（新しい順）
 - history の件数が300を超えた場合、最古のテキストを削除
-- 重複なし：同じテキストは複数回登録されない
+- 重複なし：同じテキスト（trim後・大小文字無視）は複数回登録されない
 
 #### updateTask(taskListId: string, taskId: string, updates: Partial<Task>): Promise<void>
 
@@ -572,7 +575,7 @@ await updateTasksOrder(taskListId, "task-1", "task-3");
 taskList:
   taskCount: タスク数表示
   editColor: 色変更ボタンのテキスト
-  addTask: 追加ボタンのテキスト
+  addTask: 追加ボタンの `aria-label` / `title`
   addTaskPlaceholder: タスク入力フィールドのプレースホルダー
   selectColor: カラーピッカーのタイトル
   deleteList: リスト削除ボタンのテキスト
@@ -673,7 +676,7 @@ shareCodeを使用して、認証なしでタスクリストを閲覧・編集�
 
 **可能な操作:**
 
-- タスク追加：新規タスク入力と「追加」ボタン
+- タスク追加：新規タスク入力と送信アイコンボタン
 - タスク編集：テキストをクリックして編集モード
 - タスク削除：削除ボタンをクリック
 - 完了状態切り替え：チェックボックスをクリック

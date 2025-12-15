@@ -200,6 +200,8 @@ export async function addTask(
   date: string = ""
 ) {
   const data = appStore.getData();
+  const normalizedText = text.trim();
+  if (normalizedText === "") throw new Error("Task text is empty");
 
   const taskId = doc(collection(db, "taskLists")).id;
 
@@ -217,7 +219,7 @@ export async function addTask(
   const now = Date.now();
   const newTask: TaskListStoreTask = {
     id: taskId,
-    text,
+    text: normalizedText,
     completed: false,
     date,
     order: 0,
@@ -246,14 +248,22 @@ export async function addTask(
       }
     });
 
-    const history = [...(taskListData.history || [])];
-    if (!history.includes(text)) {
-      history.unshift(text);
-      if (history.length > 300) {
-        history.pop();
-      }
-      updateData.history = history;
+    const history = (taskListData.history || [])
+      .map((item) => item.trim())
+      .filter((item) => item !== "");
+    const normalizedTextLower = normalizedText.toLowerCase();
+    const existingIndex = history.findIndex(
+      (item) => item.toLowerCase() === normalizedTextLower,
+    );
+    if (existingIndex >= 0) {
+      history.splice(existingIndex, 1);
     }
+
+    history.unshift(normalizedText);
+    while (history.length > 300) {
+      history.pop();
+    }
+    updateData.history = history;
 
     transaction.update(taskListRef, updateData);
   });

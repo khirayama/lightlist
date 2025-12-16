@@ -16,8 +16,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { MouseEvent } from "react";
+import { useId, useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/Alert";
+import { Command, CommandItem, CommandList } from "@/components/ui/Command";
 
 export interface TaskForSortable {
   id: string;
@@ -206,14 +209,45 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
   addError = null,
   variant = "split",
 }: TaskListPanelProps<T>) {
+  const reactId = useId();
+  const [historyOpen, setHistoryOpen] = useState(false);
   const collision = collisionDetection ?? closestCenter;
   const strategyValue = strategy ?? verticalListSortingStrategy;
   const isAddDisabled =
     addDisabled || inputDisabled || newTaskText.trim() === "";
-  const historyListId =
-    historySuggestions && historySuggestions.length > 0
-      ? "task-history-list"
-      : undefined;
+  const historyOptions = (() => {
+    const input = newTaskText.trim();
+    if (!historySuggestions || historySuggestions.length === 0) return [];
+    if (input.length < 2) return [];
+
+    const inputLower = input.toLowerCase();
+    const seen = new Set<string>();
+    const options: string[] = [];
+
+    for (const candidate of historySuggestions) {
+      const option = candidate.trim();
+      if (option === "") continue;
+
+      const optionLower = option.toLowerCase();
+      if (optionLower === inputLower) continue;
+      if (!optionLower.includes(inputLower)) continue;
+      if (seen.has(optionLower)) continue;
+
+      seen.add(optionLower);
+      options.push(option);
+      if (options.length >= 20) break;
+    }
+
+    return options;
+  })();
+
+  const historyListId = `task-history-${reactId.replace(/:/g, "")}`;
+
+  useEffect(() => {
+    if (historyOptions.length === 0) {
+      setHistoryOpen(false);
+    }
+  }, [historyOptions.length]);
 
   const listContent =
     tasks.length === 0 ? (
@@ -260,35 +294,82 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
 
   const inputSection = (
     <>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <input
-          type="text"
-          list={historyListId}
-          value={newTaskText}
-          onChange={(e) => onNewTaskTextChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              onAddTask();
-            }
-          }}
-          placeholder={addPlaceholder}
-          disabled={inputDisabled}
-          className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
-        />
-        {historyListId ? (
-          <datalist id={historyListId}>
-            {historySuggestions?.map((text) => (
-              <option key={text} value={text} />
-            ))}
-          </datalist>
-        ) : null}
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Command shouldFilter={false} className="bg-transparent">
+            <input
+              type="text"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              aria-controls={
+                historyOptions.length > 0 ? historyListId : undefined
+              }
+              aria-expanded={historyOpen && historyOptions.length > 0}
+              value={newTaskText}
+              onChange={(e) => {
+                onNewTaskTextChange(e.target.value);
+                setHistoryOpen(true);
+              }}
+              onFocus={() => setHistoryOpen(true)}
+              onBlur={() => setHistoryOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onAddTask();
+                }
+                if (e.key === "Escape") {
+                  setHistoryOpen(false);
+                }
+              }}
+              placeholder={addPlaceholder}
+              disabled={inputDisabled}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+            />
+            {historyOpen && historyOptions.length > 0 ? (
+              <CommandList
+                id={historyListId}
+                className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-800 dark:bg-gray-900"
+              >
+                {historyOptions.map((text) => (
+                  <CommandItem
+                    key={text}
+                    value={text}
+                    onMouseDown={(event: MouseEvent<HTMLDivElement>) =>
+                      event.preventDefault()
+                    }
+                    onSelect={(value: string) => {
+                      onNewTaskTextChange(value);
+                      setHistoryOpen(false);
+                    }}
+                  >
+                    {text}
+                  </CommandItem>
+                ))}
+              </CommandList>
+            ) : null}
+          </Command>
+        </div>
         <button
           type="button"
           onClick={onAddTask}
           disabled={isAddDisabled}
-          className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+          aria-label={addButtonLabel}
+          title={addButtonLabel}
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
         >
-          {addButtonLabel}
+          <span className="sr-only">{addButtonLabel}</span>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5"
+          >
+            <path d="M6 12 3.269 3.125A59.768 59.768 0 0 1 21.485 12 59.77 59.77 0 0 1 3.27 20.875L6 12Zm0 0h7.5" />
+          </svg>
         </button>
       </div>
       {addError ? <Alert variant="error">{addError}</Alert> : null}

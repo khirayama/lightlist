@@ -13,8 +13,11 @@ LightList は Firebase Authentication を使用したメール/パスワード�
 ```
 src/
 ├── components/
-│   ├── FormInput.tsx          - フォーム入力欄コンポーネント
-│   └── ...
+│   └── ui/
+│       ├── FormInput.tsx      - フォーム入力欄コンポーネント
+│       ├── Alert.tsx          - 通知コンポーネント
+│       ├── ConfirmDialog.tsx  - 確認ダイアログ
+│       └── Spinner.tsx        - ローディング表示
 ├── utils/
 │   ├── validation.ts          - フォームバリデーション関数
 │   └── errors.ts              - エラーメッセージハンドリング関数
@@ -39,14 +42,14 @@ src/
 
 ### 共通コンポーネント
 
-- `FormInput`: ラベル付きの入力欄。バリデーションエラー時のメッセージ表示に対応し、ライト/ダークテーマを自動適用。
-- `Alert`: variant（info/error/success/warning）に応じた通知。テーマ対応済み。
-- `ConfirmDialog`: 確認モーダル。破壊的操作用の `isDestructive` をサポート。
-- `Spinner`: ローディング表示。
+- `FormInput`: ラベル付きの入力欄。バリデーションエラー時のメッセージ表示と `aria-invalid` / `aria-describedby` に対応し、ライト/ダークテーマを自動適用。
+- `Alert`: variant（info/error/success/warning）に応じた配色を適用し、テーマに追従する通知。
+- `ConfirmDialog`: `Dialog` で構成した確認モーダル。破壊的操作用の `isDestructive` をサポート。
+- `Spinner`: i18next の `common.loading` をデフォルト文言にしたローディング表示（必要に応じて文言を上書き可）。
 
 ### ユーティリティ関数
 
-#### lib/utils/validation.ts
+#### src/utils/validation.ts
 
 フォームバリデーション関数を提供します。
 
@@ -63,17 +66,16 @@ src/
   - パスワード最小長、確認パスワード一致などをチェック
   - 戻り値: エラーメッセージオブジェクト
 
-#### lib/utils/errors.ts
+#### src/utils/errors.ts
 
 エラーハンドリング関数を提供します。
 
 **エクスポート:**
 
-- `AppError`: Firebase 由来のコード付きエラーや Error オブジェクト、メッセージ文字列をまとめたユニオン型
 - `getErrorMessage(errorCode, t)`: Firebaseエラーコードを多言語対応メッセージに変換
   - サポートするエラーコード: auth/invalid-credential, auth/email-already-in-use, auth/weak-password など（`ERROR_KEY_MAP` に列挙）
   - 戻り値: 翻訳済みのエラーメッセージ
-- `resolveErrorMessage(error, t, fallbackKey)`: `AppError` を受け取り、`code` プロパティや message を評価して文言を返す。fallbackKey は i18n キー。
+- `resolveErrorMessage(error, t, fallbackKey)`: `error` の `code` や `message` を評価して文言を返す。fallbackKey は i18n キー。
 
 ## 認証フロー
 

@@ -2,7 +2,7 @@
 
 ## 分類
 
-- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel, Command）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。Dialog/Carousel も含め、ライト/ダークの可読性と操作性（focus-visible 等）を優先して必要なスタイルを持つ
+- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, Calendar, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel, Command, Popover）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。Dialog/Carousel も含め、ライト/ダークの可読性と操作性（focus-visible 等）を優先して必要なスタイルを持つ。Alert は variant 別に配色を切り替え、ConfirmDialog は Dialog を使って破壊的アクションのスタイルを切り替える。Spinner は `common.loading` をデフォルト文言として使い、Calendar は i18next の言語に合わせて locale を切り替える
 - `apps/web/src/components/app`: 設定や、タスク表示・並び替えなど、アプリ固有の共有コンポーネント。SDKへの依存が判断基準（TaskListPanel が単一タスクの描画も内包）
 
 ## 追加・変更ルール
@@ -27,10 +27,11 @@
 - `apps/web/src/styles/globals.css` で `html` / `body` / `#__next` を `width: 100%` / `height: 100%` にし、`h-full` を成立させる
 - `apps/web/src/pages/_app.page.tsx` は AppShell を持ち、`h-dvh` を高さの基準（画面100%）として扱う
 - 画面スクロールは AppShell（`overflow-y-auto`）を基本とし、ページ側は `min-h-full w-full` を基準にレイアウトする
+- PWA の manifest と共通メタデータは `apps/web/public/manifest.webmanifest` と `apps/web/src/pages/_app.page.tsx` の `Head` で管理する
 
 ## app 配下のコンポーネント
 
-- TaskListPanel: タスクリスト全体の DnD 並び替え、単一タスクのドラッグハンドル・編集・削除、追加フォームをまとめて提供する。追加フォームは `variant="card"` ではパネル上部（ヘッダー相当）に、`variant="split"` では下部の入力エリアに表示する。入力と追加ボタンは常に横並びで、追加ボタンは送信アイコン表示（`addButtonLabel` は `aria-label`/`title` 用）。`tasks` と `sensors`、編集/削除/完了/追加の各ハンドラ、`addPlaceholder` や `dragHintLabel` などの文言を props で受け取る。履歴入力候補（`historySuggestions`）は shadcn/ui の Combobox（`cmdk`）で表示し、候補リストはインスタンスごとにユニークな `id` を持つ。候補は入力が2文字以上のときのみ表示し、入力文字列を含むものを大小文字を無視して重複排除したうえで最大20件表示する。追加ボタンの状態制御（`addDisabled`/`inputDisabled`）も props で制御できる
+- TaskListPanel: タスクリスト全体の DnD 並び替え、単一タスクのドラッグハンドル・編集・日付設定・完了、追加フォームをまとめて提供する。追加フォームはパネル上部（ヘッダー相当）に表示する。入力と追加ボタンは常に横並びで、追加ボタンは送信アイコン表示（`addButtonLabel` は `aria-label`/`title` 用）。`tasks` と `sensors`、編集/完了/日付設定/追加の各ハンドラ、`addPlaceholder` や `dragHintLabel` などの文言を props で受け取る。履歴入力候補（`historySuggestions`）は shadcn/ui の Combobox（`cmdk`）で表示し、候補リストはインスタンスごとにユニークな `id` を持つ。候補は入力が2文字以上のときのみ表示し、入力文字列を含むものを大小文字を無視して重複排除したうえで最大20件表示する。追加ボタンの状態制御（`addDisabled`/`inputDisabled`）も props で制御でき、追加フォーム送信後は入力欄にフォーカスを戻す
 
 ## ビジュアルスタイル
 

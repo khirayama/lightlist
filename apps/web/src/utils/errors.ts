@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+
 const ERROR_KEY_MAP = {
   "auth/invalid-credential": "auth.error.invalidCredential",
   "auth/user-not-found": "auth.error.userNotFound",
@@ -11,16 +13,6 @@ const ERROR_KEY_MAP = {
 } as const;
 
 type AuthErrorCode = keyof typeof ERROR_KEY_MAP;
-
-export type AppError =
-  | Error
-  | string
-  | {
-      code?: string;
-      message?: string;
-    }
-  | null
-  | undefined;
 
 const isAuthErrorCode = (code: unknown): code is AuthErrorCode =>
   typeof code === "string" && code in ERROR_KEY_MAP;
@@ -72,4 +64,3 @@ export const resolveErrorMessage = (
 
   return t(fallbackKey as never);
 };
-import { TFunction } from "i18next";

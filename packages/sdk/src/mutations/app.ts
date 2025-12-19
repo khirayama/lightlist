@@ -80,7 +80,7 @@ export async function updateSettings(settings: Partial<Settings>) {
  */
 export async function updateTaskListOrder(
   draggedTaskListId: string,
-  targetTaskListId: string
+  targetTaskListId: string,
 ) {
   const data = appStore.getData();
 
@@ -122,7 +122,7 @@ export async function updateTaskListOrder(
 
 export async function createTaskList(
   name: string,
-  background: string = "#ffffff"
+  background: string = "#ffffff",
 ) {
   const data = appStore.getData();
 
@@ -169,7 +169,7 @@ export async function createTaskList(
 
 export async function updateTaskList(
   taskListId: string,
-  updates: Partial<Omit<TaskListStore, "id" | "createdAt" | "updatedAt">>
+  updates: Partial<Omit<TaskListStore, "id" | "createdAt" | "updatedAt">>,
 ) {
   const now = Date.now();
   const updateData: Record<string, unknown> = {
@@ -197,7 +197,7 @@ export async function deleteTaskList(taskListId: string) {
 export async function addTask(
   taskListId: string,
   text: string,
-  date: string = ""
+  date: string = "",
 ) {
   const data = appStore.getData();
   const normalizedText = text.trim();
@@ -274,7 +274,7 @@ export async function addTask(
 export async function updateTask(
   taskListId: string,
   taskId: string,
-  updates: Partial<Task>
+  updates: Partial<Task>,
 ) {
   const now = Date.now();
   const data = appStore.getData();
@@ -358,7 +358,7 @@ export async function deleteTask(taskListId: string, taskId: string) {
 export async function updateTasksOrder(
   taskListId: string,
   draggedTaskId: string,
-  targetTaskId: string
+  targetTaskId: string,
 ) {
   const taskListData = await getTaskListData(taskListId);
   if (draggedTaskId === targetTaskId) return;
@@ -391,6 +391,63 @@ export async function updateTasksOrder(
     });
     transaction.update(taskListRef, updateData);
   });
+}
+
+export async function sortTasks(taskListId: string): Promise<void> {
+  const taskListData = await getTaskListData(taskListId);
+  const tasks = Object.values(taskListData.tasks);
+  if (tasks.length < 2) return;
+
+  const normalizedTasks = getAutoSortedTasks(tasks);
+  const now = Date.now();
+
+  await runTransaction(db, async (transaction) => {
+    const taskListRef = doc(db, "taskLists", taskListId);
+    const updateData: Record<string, unknown> = { updatedAt: now };
+    normalizedTasks.forEach((task) => {
+      updateData[`tasks.${task.id}.order`] = task.order;
+    });
+    transaction.update(taskListRef, updateData);
+  });
+}
+
+export async function deleteCompletedTasks(
+  taskListId: string,
+): Promise<number> {
+  const data = appStore.getData();
+  const autoSortEnabled = Boolean(data.settings?.autoSort);
+
+  const taskListData = await getTaskListData(taskListId);
+  const tasks = Object.values(taskListData.tasks);
+  const completedTasks = tasks.filter((task) => task.completed);
+  if (completedTasks.length === 0) return 0;
+
+  const remainingTasks = tasks.filter((task) => !task.completed);
+  const normalizedRemainingTasks = autoSortEnabled
+    ? getAutoSortedTasks(remainingTasks)
+    : [...remainingTasks]
+        .sort((a, b) => a.order - b.order)
+        .map((task, index) => ({
+          ...task,
+          order: (index + 1) * 1.0,
+        }));
+
+  const now = Date.now();
+  await runTransaction(db, async (transaction) => {
+    const taskListRef = doc(db, "taskLists", taskListId);
+    const updateData: Record<string, unknown> = { updatedAt: now };
+
+    completedTasks.forEach((task) => {
+      updateData[`tasks.${task.id}`] = deleteField();
+    });
+    normalizedRemainingTasks.forEach((task) => {
+      updateData[`tasks.${task.id}.order`] = task.order;
+    });
+
+    transaction.update(taskListRef, updateData);
+  });
+
+  return completedTasks.length;
 }
 
 function generateRandomShareCode(length: number = 8): string {
@@ -471,7 +528,7 @@ export async function removeShareCode(taskListId: string): Promise<void> {
 }
 
 export async function fetchTaskListIdByShareCode(
-  shareCode: string
+  shareCode: string,
 ): Promise<string | null> {
   const shareCodeRef = doc(db, "shareCodes", shareCode);
   const shareCodeSnapshot = await getDoc(shareCodeRef);
@@ -484,7 +541,7 @@ export async function fetchTaskListIdByShareCode(
 }
 
 export async function fetchTaskListByShareCode(
-  shareCode: string
+  shareCode: string,
 ): Promise<TaskListStore | null> {
   const shareCodeRef = doc(db, "shareCodes", shareCode);
   const shareCodeSnapshot = await getDoc(shareCodeRef);
@@ -503,7 +560,7 @@ export async function fetchTaskListByShareCode(
 }
 
 export async function addSharedTaskListToOrder(
-  taskListId: string
+  taskListId: string,
 ): Promise<void> {
   const data = appStore.getData();
 

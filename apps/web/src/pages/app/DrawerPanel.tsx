@@ -7,7 +7,9 @@ import type {
 import type { TaskList } from "@lightlist/sdk/types";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import { SortableContext } from "@dnd-kit/sortable";
+import { SortableContext, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import clsx from "clsx";
 
 import {
   DrawerDescription,
@@ -21,7 +23,6 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/Dialog";
-import { SortableTaskListItem } from "./SortableTaskListItem";
 import { ColorPicker } from "./ColorPicker";
 
 type DrawerPanelProps = {
@@ -45,6 +46,80 @@ type DrawerPanelProps = {
   onOpenSettings: () => void;
   t: TFunction;
 };
+
+type SortableTaskListItemProps = {
+  taskList: TaskList;
+  onSelect: (taskListId: string) => void;
+  dragHintLabel: string;
+  taskCountLabel: string;
+  isActive: boolean;
+};
+
+function SortableTaskListItem({
+  taskList,
+  onSelect,
+  dragHintLabel,
+  taskCountLabel,
+  isActive,
+}: SortableTaskListItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: taskList.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={clsx(
+        "flex items-center gap-2 rounded-[10px] p-2",
+        isActive ? "bg-gray-100 dark:bg-gray-800" : "bg-transparent",
+      )}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        title={dragHintLabel}
+        aria-label={dragHintLabel}
+        type="button"
+        className="flex touch-none items-center rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+      >
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M8 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+        </svg>
+      </button>
+
+      <span
+        aria-hidden="true"
+        className="h-3 w-3 rounded-full border border-gray-300 dark:border-gray-700"
+        style={{ backgroundColor: taskList.background }}
+      />
+
+      <button
+        type="button"
+        onClick={() => onSelect(taskList.id)}
+        className="flex-1 flex flex-col items-start gap-0.5 text-left"
+      >
+        <span className={clsx(isActive ? "font-bold" : "font-medium")}>
+          {taskList.name}
+        </span>
+        <span className="text-xs text-gray-600 dark:text-gray-400">
+          {taskCountLabel}
+        </span>
+      </button>
+    </div>
+  );
+}
 
 export function DrawerPanel({
   isWideLayout,
@@ -70,31 +145,56 @@ export function DrawerPanel({
   return (
     <div className="flex h-full flex-col gap-4">
       <DrawerHeader>
-        {isWideLayout ? (
-          <h2
-            id="drawer-task-lists-title"
-            className="m-0 text-xl font-semibold"
-          >
-            {t("app.drawerTitle")}
-          </h2>
-        ) : (
-          <DrawerTitle id="drawer-task-lists-title">
-            {t("app.drawerTitle")}
-          </DrawerTitle>
-        )}
-        {isWideLayout ? (
-          <p
-            id="drawer-task-lists-description"
-            className="m-0 text-sm text-gray-600 dark:text-gray-400"
-          >
-            {t("app.drawerSignedIn")} {userEmail}
-          </p>
-        ) : (
-          <DrawerDescription id="drawer-task-lists-description">
-            {t("app.drawerSignedIn")} {userEmail}
-          </DrawerDescription>
-        )}
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <DrawerTitle id="drawer-task-lists-title" className="sr-only">
+          {t("app.drawerTitle")}
+        </DrawerTitle>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {isWideLayout ? (
+              <p
+                id="drawer-task-lists-description"
+                className="m-0 min-w-0 flex-1 truncate text-sm text-gray-600 dark:text-gray-400"
+              >
+                {userEmail}
+              </p>
+            ) : (
+              <DrawerDescription
+                id="drawer-task-lists-description"
+                className="min-w-0 flex-1 truncate"
+              >
+                {userEmail}
+              </DrawerDescription>
+            )}
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              title={t("settings.title")}
+              aria-label={t("settings.title")}
+              data-vaul-no-drag
+              className="inline-flex items-center justify-center rounded-xl p-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M19.4 15a1.9 1.9 0 0 0 .38 2.1l.06.06a2.3 2.3 0 0 1 0 3.25 2.3 2.3 0 0 1-3.25 0l-.06-.06a1.9 1.9 0 0 0-2.1-.38 1.9 1.9 0 0 0-1.16 1.74V22a2.3 2.3 0 0 1-4.6 0v-.09A1.9 1.9 0 0 0 7.55 20.2a1.9 1.9 0 0 0-2.1.38l-.06.06a2.3 2.3 0 0 1-3.25 0 2.3 2.3 0 0 1 0-3.25l.06-.06a1.9 1.9 0 0 0 .38-2.1 1.9 1.9 0 0 0-1.74-1.16H1.8a2.3 2.3 0 0 1 0-4.6h.09A1.9 1.9 0 0 0 3.63 7.55a1.9 1.9 0 0 0-.38-2.1l-.06-.06a2.3 2.3 0 0 1 0-3.25 2.3 2.3 0 0 1 3.25 0l.06.06a1.9 1.9 0 0 0 2.1.38A1.9 1.9 0 0 0 9.76 1.8V1.7a2.3 2.3 0 0 1 4.6 0v.09a1.9 1.9 0 0 0 1.16 1.74 1.9 1.9 0 0 0 2.1-.38l.06-.06a2.3 2.3 0 0 1 3.25 0 2.3 2.3 0 0 1 0 3.25l-.06.06a1.9 1.9 0 0 0-.38 2.1 1.9 1.9 0 0 0 1.74 1.16H22.2a2.3 2.3 0 0 1 0 4.6h-.09a1.9 1.9 0 0 0-1.74 1.16Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
           {!isWideLayout && (
             <button
               type="button"
@@ -120,86 +220,10 @@ export function DrawerPanel({
               </svg>
             </button>
           )}
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
-          >
-            {t("settings.title")}
-          </button>
         </div>
       </DrawerHeader>
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
-        <Dialog
-          open={Boolean(showCreateListDialog)}
-          onOpenChange={(open: boolean) => {
-            onCreateListDialogChange(open);
-            if (!open) {
-              onCreateListInputChange("");
-              onCreateListBackgroundChange(colors[0]);
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
-            >
-              {t("app.createNew")}
-            </button>
-          </DialogTrigger>
-          <DialogContent
-            title={t("app.createTaskList")}
-            description={t("app.taskListName")}
-          >
-            <div className="mt-4 flex flex-col gap-3">
-              <label className="flex flex-col gap-1">
-                <span>{t("app.taskListName")}</span>
-                <input
-                  type="text"
-                  value={createListInput}
-                  onChange={(e) => onCreateListInputChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      onCreateList();
-                    }
-                  }}
-                  placeholder={t("app.taskListNamePlaceholder")}
-                  className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
-                />
-              </label>
-              <div className="flex flex-col gap-2">
-                <span>{t("taskList.selectColor")}</span>
-                <ColorPicker
-                  colors={colors}
-                  selectedColor={createListBackground}
-                  onSelect={onCreateListBackgroundChange}
-                  ariaLabelPrefix={t("taskList.selectColor")}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
-                >
-                  {t("app.cancel")}
-                </button>
-              </DialogClose>
-              <button
-                type="button"
-                onClick={onCreateList}
-                disabled={!createListInput.trim()}
-                className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
-              >
-                {t("app.create")}
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
         {hasTaskLists ? (
           <DndContext
             sensors={sensorsList}
@@ -230,6 +254,76 @@ export function DrawerPanel({
             {t("app.emptyState")}
           </p>
         )}
+
+        <Dialog
+          open={Boolean(showCreateListDialog)}
+          onOpenChange={(open: boolean) => {
+            onCreateListDialogChange(open);
+            if (!open) {
+              onCreateListInputChange("");
+              onCreateListBackgroundChange(colors[0]);
+            }
+          }}
+        >
+          <DialogTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+            >
+              {t("app.createNew")}
+            </button>
+          </DialogTrigger>
+          <DialogContent
+            title={t("app.createTaskList")}
+            description={t("app.taskListName")}
+          >
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void onCreateList();
+              }}
+            >
+              <div className="mt-4 flex flex-col gap-3">
+                <label className="flex flex-col gap-1">
+                  <span>{t("app.taskListName")}</span>
+                  <input
+                    type="text"
+                    value={createListInput}
+                    onChange={(e) => onCreateListInputChange(e.target.value)}
+                    placeholder={t("app.taskListNamePlaceholder")}
+                    className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+                  />
+                </label>
+                <div className="flex flex-col gap-2">
+                  <span>{t("taskList.selectColor")}</span>
+                  <ColorPicker
+                    colors={colors}
+                    selectedColor={createListBackground}
+                    onSelect={onCreateListBackgroundChange}
+                    ariaLabelPrefix={t("taskList.selectColor")}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+                  >
+                    {t("app.cancel")}
+                  </button>
+                </DialogClose>
+                <button
+                  type="submit"
+                  disabled={!createListInput.trim()}
+                  className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+                >
+                  {t("app.create")}
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

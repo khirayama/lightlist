@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
@@ -13,16 +13,12 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
-import { AppState, TaskList, Task } from "@lightlist/sdk/types";
+import { AppState, TaskList } from "@lightlist/sdk/types";
 import {
   createTaskList,
   updateTaskListOrder,
-  updateTask,
-  deleteTask,
-  addTask,
   updateTaskList,
   deleteTaskList,
-  updateTasksOrder,
   generateShareCode,
   removeShareCode,
 } from "@lightlist/sdk/mutations/app";
@@ -30,6 +26,7 @@ import clsx from "clsx";
 import { resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/Drawer";
 import {
   Carousel,
   CarouselApi,
@@ -37,7 +34,6 @@ import {
   CarouselItem,
 } from "@/components/ui/Carousel";
 import { DrawerPanel } from "./DrawerPanel";
-import { AppHeader } from "./AppHeader";
 import { TaskListCard } from "./TaskListCard";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
@@ -48,11 +44,70 @@ type OptimisticOrder = {
   startedAt: number;
 };
 
-type OptimisticTaskOrder = {
-  taskListId: string;
-  ids: string[];
-  startedAt: number;
+type AppHeaderProps = {
+  isWideLayout: boolean;
+  isDrawerOpen: boolean;
+  onDrawerOpenChange: (open: boolean) => void;
+  drawerPanel: ReactNode;
+  openMenuLabel: string;
 };
+
+function AppHeader({
+  isWideLayout,
+  isDrawerOpen,
+  onDrawerOpenChange,
+  drawerPanel,
+  openMenuLabel,
+}: AppHeaderProps) {
+  return (
+    <header
+      className={clsx(
+        "flex flex-wrap items-center gap-3 bg-white py-2 px-3 dark:bg-gray-900",
+        isWideLayout ? "justify-start" : "justify-between",
+      )}
+    >
+      {!isWideLayout && (
+        <Drawer
+          direction="left"
+          handleOnly
+          open={isDrawerOpen}
+          onOpenChange={onDrawerOpenChange}
+        >
+          <DrawerTrigger asChild>
+            <button
+              type="button"
+              aria-label={openMenuLabel}
+              title={openMenuLabel}
+              className="inline-flex items-center justify-center rounded bg-white p-2 text-gray-900 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 6h16" />
+                <path d="M4 12h16" />
+                <path d="M4 18h16" />
+              </svg>
+              <span className="sr-only">{openMenuLabel}</span>
+            </button>
+          </DrawerTrigger>
+          <DrawerContent
+            aria-labelledby="drawer-task-lists-title"
+            aria-describedby="drawer-task-lists-description"
+          >
+            {drawerPanel}
+          </DrawerContent>
+        </Drawer>
+      )}
+    </header>
+  );
+}
 
 export default function AppPage() {
   const router = useRouter();
@@ -80,9 +135,6 @@ export default function AppPage() {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingTaskText, setEditingTaskText] = useState("");
-  const [newTaskText, setNewTaskText] = useState("");
   const [editListName, setEditListName] = useState("");
   const [editListBackground, setEditListBackground] = useState(colors[0]);
   const [showEditListDialog, setShowEditListDialog] = useState(false);
@@ -102,8 +154,6 @@ export default function AppPage() {
   const [isTaskSorting, setIsTaskSorting] = useState(false);
   const [optimisticTaskListOrder, setOptimisticTaskListOrder] =
     useState<OptimisticOrder | null>(null);
-  const [optimisticTaskOrder, setOptimisticTaskOrder] =
-    useState<OptimisticTaskOrder | null>(null);
 
   const sensorsList = useSensors(
     useSensor(PointerSensor, {
@@ -154,20 +204,6 @@ export default function AppPage() {
   }, [optimisticTaskListOrder, state?.taskListOrderUpdatedAt]);
 
   useEffect(() => {
-    if (!optimisticTaskOrder) return;
-    const taskList = state?.taskLists.find(
-      (tl) => tl.id === optimisticTaskOrder.taskListId,
-    );
-    if (!taskList) {
-      setOptimisticTaskOrder(null);
-      return;
-    }
-    if (taskList.updatedAt >= optimisticTaskOrder.startedAt) {
-      setOptimisticTaskOrder(null);
-    }
-  }, [optimisticTaskOrder, state?.taskLists]);
-
-  useEffect(() => {
     if (selectedTaskList) {
       setEditListName(selectedTaskList.name);
       setEditListBackground(selectedTaskList.background);
@@ -205,11 +241,6 @@ export default function AppPage() {
       taskListCarouselApi.scrollTo(index);
     }
   }, [selectedTaskListId, state?.taskLists, taskListCarouselApi]);
-
-  useEffect(() => {
-    setEditingTaskId(null);
-    setEditingTaskText("");
-  }, [selectedTaskListId]);
 
   useEffect(() => {
     const updateLayout = () => {
@@ -302,95 +333,6 @@ export default function AppPage() {
       setShowCreateListDialog(false);
     } catch (err) {
       setError(resolveErrorMessage(err, t, "app.error"));
-    }
-  };
-
-  const handleDragEndTask = async (event: DragEndEvent) => {
-    if (!selectedTaskListId) return;
-
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) return;
-    const draggedTaskId = getStringId(active.id);
-    const targetTaskId = getStringId(over.id);
-    if (!draggedTaskId || !targetTaskId) return;
-
-    const baseTaskIds =
-      optimisticTaskOrder?.taskListId === selectedTaskListId
-        ? optimisticTaskOrder.ids
-        : (selectedTaskList?.tasks.map((task) => task.id) ?? []);
-    const oldIndex = baseTaskIds.indexOf(draggedTaskId);
-    const newIndex = baseTaskIds.indexOf(targetTaskId);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    setOptimisticTaskOrder({
-      taskListId: selectedTaskListId,
-      ids: arrayMove(baseTaskIds, oldIndex, newIndex),
-      startedAt: Date.now(),
-    });
-
-    setError(null);
-    try {
-      await updateTasksOrder(selectedTaskListId, draggedTaskId, targetTaskId);
-    } catch (err) {
-      setOptimisticTaskOrder(null);
-      setError(resolveErrorMessage(err, t, "common.error"));
-    }
-  };
-
-  const handleToggleTask = async (task: Task) => {
-    if (!selectedTaskListId) return;
-
-    setError(null);
-    try {
-      await updateTask(selectedTaskListId, task.id, {
-        completed: !task.completed,
-      });
-    } catch (err) {
-      setError(resolveErrorMessage(err, t, "common.error"));
-    }
-  };
-
-  const handleAddTask = async () => {
-    if (!selectedTaskListId || !newTaskText.trim()) return;
-
-    setError(null);
-
-    try {
-      await addTask(selectedTaskListId, newTaskText.trim());
-      setNewTaskText("");
-    } catch (err) {
-      setError(resolveErrorMessage(err, t, "common.error"));
-    }
-  };
-
-  const handleEditTask = async (task: Task) => {
-    if (!selectedTaskListId) return;
-
-    if (!editingTaskText.trim() || editingTaskText === task.text) {
-      setEditingTaskId(null);
-      return;
-    }
-
-    setError(null);
-    try {
-      await updateTask(selectedTaskListId, task.id, {
-        text: editingTaskText.trim(),
-      });
-      setEditingTaskId(null);
-    } catch (err) {
-      setError(resolveErrorMessage(err, t, "common.error"));
-    }
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
-    if (!selectedTaskListId) return;
-
-    setError(null);
-    try {
-      await deleteTask(selectedTaskListId, taskId);
-    } catch (err) {
-      setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
 
@@ -568,6 +510,7 @@ export default function AppPage() {
                 isDrawerOpen={isDrawerOpen}
                 onDrawerOpenChange={setIsDrawerOpen}
                 drawerPanel={drawerPanel}
+                openMenuLabel={t("app.openMenu")}
               />
               {error && <Alert variant="error">{error}</Alert>}
             </div>
@@ -628,28 +571,18 @@ export default function AppPage() {
                   <CarouselContent>
                     {taskLists.map((taskList) => {
                       const isActive = selectedTaskListId === taskList.id;
-                      const optimisticTaskList =
-                        optimisticTaskOrder?.taskListId === taskList.id
-                          ? optimisticTaskOrder.ids
-                              .map((taskId) =>
-                                taskList.tasks.find(
-                                  (task) => task.id === taskId,
-                                ),
-                              )
-                              .filter((task): task is Task => Boolean(task))
-                          : null;
-                      const taskListForRender = optimisticTaskList
-                        ? { ...taskList, tasks: optimisticTaskList }
-                        : taskList;
                       return (
                         <CarouselItem key={taskList.id}>
                           <div
-                            className="h-4" // placeholder for top offset
-                            style={{ background: taskListForRender.background }}
+                            className="h-4"
+                            style={{ background: taskList.background }}
                           />
 
                           <TaskListCard
-                            taskList={taskListForRender}
+                            taskList={taskList}
+                            taskInsertPosition={
+                              state?.settings?.taskInsertPosition ?? "bottom"
+                            }
                             isActive={isActive}
                             onActivate={(taskListId) =>
                               setSelectedTaskListId(taskListId)
@@ -676,20 +609,6 @@ export default function AppPage() {
                             onRemoveShareCode={handleRemoveShareCode}
                             onCopyShareLink={handleCopyShareLink}
                             sensorsList={sensorsList}
-                            onDragEndTask={handleDragEndTask}
-                            editingTaskId={editingTaskId}
-                            editingTaskText={editingTaskText}
-                            onEditingTaskTextChange={setEditingTaskText}
-                            onEditStartTask={(task) => {
-                              setEditingTaskId(task.id);
-                              setEditingTaskText(task.text);
-                            }}
-                            onEditEndTask={handleEditTask}
-                            onToggleTask={handleToggleTask}
-                            onDeleteTask={handleDeleteTask}
-                            newTaskText={newTaskText}
-                            onNewTaskTextChange={setNewTaskText}
-                            onAddTask={handleAddTask}
                             onSortingChange={setIsTaskSorting}
                             t={t}
                           />

@@ -15,7 +15,6 @@ import { FormErrors, validateAuthForm } from "@/utils/validation";
 
 type AuthTab = "signin" | "signup" | "reset";
 
-// ===== Main Component =====
 export default function IndexPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -28,7 +27,6 @@ export default function IndexPage() {
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
-  // Check if user is already authenticated
   useEffect(() => {
     const unsubscribe = onAuthStateChange((user) => {
       if (user) {

@@ -11,8 +11,6 @@ import { FormInput } from "@/components/ui/FormInput";
 import { Alert } from "@/components/ui/Alert";
 import { resolveErrorMessage } from "@/utils/errors";
 import { FormErrors, validatePasswordForm } from "@/utils/validation";
-
-// ===== Main Component =====
 export default function PasswordResetPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -23,7 +21,6 @@ export default function PasswordResetPage() {
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  // Verify password reset code
   useEffect(() => {
     if (!router.isReady) return;
 
@@ -53,7 +50,6 @@ export default function PasswordResetPage() {
     e.preventDefault();
     setErrors({});
 
-    // Validate form
     const validationErrors = validatePasswordForm(
       { password, confirmPassword },
       t,
@@ -76,7 +72,6 @@ export default function PasswordResetPage() {
       await confirmPasswordReset(oobCode, password);
       setResetSuccess(true);
 
-      // Redirect to home after 2 seconds
       setTimeout(() => {
         router.push("/");
       }, 2000);

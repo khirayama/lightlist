@@ -173,15 +173,19 @@
       "error": "タスクリストを読み込めませんでした",
       "addTaskError": "タスクを追加できませんでした",
       "updateError": "タスクを更新できませんでした",
-      "deleteError": "タスクを削除できませんでした",
       "reorderError": "タスクの順序を変更できませんでした",
+      "deleteError": "完了したタスクを削除できませんでした",
       "addToOrderError": "このタスクリストを追加できませんでした",
       "addToOrder": "自分のリストに追加"
     },
     "tasklist": {
       "addTaskPlaceholder": "タスクを入力...",
+      "setDate": "日付を設定",
       "noTasks": "タスクがありません",
-      "dragHint": "ドラッグして並び替え"
+      "dragHint": "ドラッグして並び替え",
+      "sort": "並び替え",
+      "deleteCompleted": "完了したタスクを削除",
+      "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？"
     }
   }
 }

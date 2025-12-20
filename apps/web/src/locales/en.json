@@ -173,15 +173,19 @@
       "error": "Failed to load task list",
       "addTaskError": "Failed to add task",
       "updateError": "Failed to update task",
-      "deleteError": "Failed to delete task",
       "reorderError": "Failed to reorder tasks",
+      "deleteError": "Failed to delete completed tasks",
       "addToOrderError": "Failed to add this task list",
       "addToOrder": "Add to My Lists"
     },
     "tasklist": {
       "addTaskPlaceholder": "Enter task...",
+      "setDate": "Set date",
       "noTasks": "No tasks",
-      "dragHint": "Drag to reorder"
+      "dragHint": "Drag to reorder",
+      "sort": "Sort",
+      "deleteCompleted": "Delete completed tasks",
+      "deleteCompletedConfirm": "Delete {{count}} completed tasks?"
     }
   }
 }

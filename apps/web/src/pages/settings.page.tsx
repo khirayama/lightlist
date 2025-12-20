@@ -26,6 +26,20 @@ export default function SettingsPage() {
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const updateSetting = async (next: {
+    theme?: Theme;
+    language?: Language;
+    taskInsertPosition?: TaskInsertPosition;
+    autoSort?: boolean;
+  }) => {
+    setError(null);
+    try {
+      await updateSettings(next);
+    } catch (err) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
+    }
+  };
+
   const handleBack = () => {
     if (typeof window === "undefined") {
       router.push("/app");
@@ -60,41 +74,21 @@ export default function SettingsPage() {
   }, [router]);
 
   const handleThemeChange = async (theme: Theme) => {
-    setError(null);
-    try {
-      await updateSettings({ theme });
-    } catch (err) {
-      setError(resolveErrorMessage(err, t, "auth.error.general"));
-    }
+    await updateSetting({ theme });
   };
 
   const handleLanguageChange = async (language: Language) => {
-    setError(null);
-    try {
-      await updateSettings({ language });
-    } catch (err) {
-      setError(resolveErrorMessage(err, t, "auth.error.general"));
-    }
+    await updateSetting({ language });
   };
 
   const handleTaskInsertPositionChange = async (
     taskInsertPosition: TaskInsertPosition,
   ) => {
-    setError(null);
-    try {
-      await updateSettings({ taskInsertPosition });
-    } catch (err) {
-      setError(resolveErrorMessage(err, t, "auth.error.general"));
-    }
+    await updateSetting({ taskInsertPosition });
   };
 
   const handleAutoSortChange = async (autoSort: boolean) => {
-    setError(null);
-    try {
-      await updateSettings({ autoSort });
-    } catch (err) {
-      setError(resolveErrorMessage(err, t, "auth.error.general"));
-    }
+    await updateSetting({ autoSort });
   };
 
   const handleSignOut = async () => {

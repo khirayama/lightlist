@@ -1,13 +1,24 @@
 import type { TFunction } from "i18next";
+import { useEffect, useState } from "react";
 import type {
   DragEndEvent,
   SensorDescriptor,
   SensorOptions,
+  UniqueIdentifier,
 } from "@dnd-kit/core";
-import type { Task, TaskList } from "@lightlist/sdk/types";
+import { arrayMove } from "@dnd-kit/sortable";
+import type { Task, TaskInsertPosition, TaskList } from "@lightlist/sdk/types";
 import clsx from "clsx";
 
+import {
+  addTask,
+  updateTask,
+  updateTasksOrder,
+  sortTasks,
+  deleteCompletedTasks,
+} from "@lightlist/sdk/mutations/app";
 import { TaskListPanel } from "@/components/app/TaskListPanel";
+import { Alert } from "@/components/ui/Alert";
 import {
   Dialog,
   DialogClose,
@@ -15,10 +26,19 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/Dialog";
+import { resolveErrorMessage } from "@/utils/errors";
 import { ColorPicker } from "./ColorPicker";
 
 type IconProps = {
   className?: string;
+};
+
+const getStringId = (id: UniqueIdentifier): string | null =>
+  typeof id === "string" ? id : null;
+
+type OptimisticOrder = {
+  ids: string[];
+  startedAt: number;
 };
 
 function EditIcon({ className }: IconProps) {
@@ -62,6 +82,7 @@ function ShareIcon({ className }: IconProps) {
 
 type TaskListCardProps = {
   taskList: TaskList;
+  taskInsertPosition: TaskInsertPosition;
   isActive: boolean;
   onActivate: (taskListId: string) => void;
   colors: readonly string[];
@@ -84,23 +105,13 @@ type TaskListCardProps = {
   onRemoveShareCode: () => void;
   onCopyShareLink: () => void;
   sensorsList: SensorDescriptor<SensorOptions>[];
-  onDragEndTask: (event: DragEndEvent) => void;
-  editingTaskId: string | null;
-  editingTaskText: string;
-  onEditingTaskTextChange: (value: string) => void;
-  onEditStartTask: (task: Task) => void;
-  onEditEndTask: (task: Task) => void;
-  onToggleTask: (task: Task) => void;
-  onDeleteTask: (taskId: string) => void;
-  newTaskText: string;
-  onNewTaskTextChange: (value: string) => void;
-  onAddTask: () => void;
   onSortingChange: (sorting: boolean) => void;
   t: TFunction;
 };
 
 export function TaskListCard({
   taskList,
+  taskInsertPosition,
   isActive,
   onActivate,
   colors,
@@ -123,20 +134,178 @@ export function TaskListCard({
   onRemoveShareCode,
   onCopyShareLink,
   sensorsList,
-  onDragEndTask,
-  editingTaskId,
-  editingTaskText,
-  onEditingTaskTextChange,
-  onEditStartTask,
-  onEditEndTask,
-  onToggleTask,
-  onDeleteTask,
-  newTaskText,
-  onNewTaskTextChange,
-  onAddTask,
   onSortingChange,
   t,
 }: TaskListCardProps) {
+  const [optimisticTaskOrder, setOptimisticTaskOrder] =
+    useState<OptimisticOrder | null>(null);
+  const [optimisticAddedTasks, setOptimisticAddedTasks] = useState<Task[]>([]);
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskText, setEditingTaskText] = useState("");
+  const [newTaskText, setNewTaskText] = useState("");
+  const [addTaskError, setAddTaskError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!optimisticTaskOrder) return;
+    if (taskList.updatedAt >= optimisticTaskOrder.startedAt) {
+      setOptimisticTaskOrder(null);
+    }
+  }, [optimisticTaskOrder, taskList.updatedAt]);
+
+  useEffect(() => {
+    if (optimisticAddedTasks.length === 0) return;
+    const existingIds = new Set(taskList.tasks.map((task) => task.id));
+    const next = optimisticAddedTasks.filter(
+      (task) => !existingIds.has(task.id),
+    );
+    if (next.length === optimisticAddedTasks.length) return;
+    setOptimisticAddedTasks(next);
+  }, [optimisticAddedTasks, taskList.tasks]);
+
+  const optimisticTasks = optimisticTaskOrder
+    ? optimisticTaskOrder.ids
+        .map((taskId) => taskList.tasks.find((task) => task.id === taskId))
+        .filter((task): task is Task => Boolean(task))
+    : null;
+  const baseTasks = optimisticTasks ?? taskList.tasks;
+  const baseTaskIds = new Set(baseTasks.map((task) => task.id));
+  const pendingTasks = optimisticAddedTasks.filter(
+    (task) => !baseTaskIds.has(task.id),
+  );
+  const tasks = [
+    ...(taskInsertPosition === "top" ? pendingTasks : baseTasks),
+    ...(taskInsertPosition === "top" ? baseTasks : pendingTasks),
+  ];
+
+  const handleDragEndTask = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const draggedTaskId = getStringId(active.id);
+    const targetTaskId = getStringId(over.id);
+    if (!draggedTaskId || !targetTaskId) return;
+
+    const baseTaskIds = optimisticTaskOrder
+      ? optimisticTaskOrder.ids
+      : taskList.tasks.map((task) => task.id);
+    const oldIndex = baseTaskIds.indexOf(draggedTaskId);
+    const newIndex = baseTaskIds.indexOf(targetTaskId);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    setOptimisticTaskOrder({
+      ids: arrayMove(baseTaskIds, oldIndex, newIndex),
+      startedAt: Date.now(),
+    });
+
+    setTaskError(null);
+    try {
+      await updateTasksOrder(taskList.id, draggedTaskId, targetTaskId);
+    } catch (err) {
+      setOptimisticTaskOrder(null);
+      setTaskError(resolveErrorMessage(err, t, "common.error"));
+    }
+  };
+
+  const handleSortTasks = async () => {
+    setTaskError(null);
+    try {
+      await sortTasks(taskList.id);
+    } catch (err) {
+      setTaskError(resolveErrorMessage(err, t, "common.error"));
+    }
+  };
+
+  const handleDeleteCompletedTasks = async () => {
+    setTaskError(null);
+    try {
+      await deleteCompletedTasks(taskList.id);
+    } catch (err) {
+      setTaskError(resolveErrorMessage(err, t, "common.error"));
+    }
+  };
+
+  const handleEditStartTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditingTaskText(task.text);
+  };
+
+  const handleEditEndTask = async (task: Task) => {
+    const trimmedText = editingTaskText.trim();
+    if (trimmedText === "" || trimmedText === task.text) {
+      setEditingTaskId(null);
+      return;
+    }
+
+    setTaskError(null);
+    try {
+      await updateTask(taskList.id, task.id, { text: trimmedText });
+      setEditingTaskId(null);
+    } catch (err) {
+      setTaskError(resolveErrorMessage(err, t, "common.error"));
+    }
+  };
+
+  const handleToggleTask = async (task: Task) => {
+    setTaskError(null);
+    try {
+      await updateTask(taskList.id, task.id, { completed: !task.completed });
+    } catch (err) {
+      setTaskError(resolveErrorMessage(err, t, "common.error"));
+    }
+  };
+
+  const handleChangeTaskDate = async (taskId: string, date: string) => {
+    setTaskError(null);
+    try {
+      await updateTask(taskList.id, taskId, { date });
+    } catch (err) {
+      setTaskError(resolveErrorMessage(err, t, "common.error"));
+    }
+  };
+
+  const handleAddTask = () => {
+    const trimmedText = newTaskText.trim();
+    if (trimmedText === "") return;
+
+    const tempTaskId = `optimistic-${Date.now()}-${Math.random()
+      .toString(16)
+      .slice(2)}`;
+    const optimisticTask: Task = {
+      id: tempTaskId,
+      text: trimmedText,
+      completed: false,
+      date: "",
+    };
+
+    setTaskError(null);
+    setAddTaskError(null);
+    setOptimisticAddedTasks((prev) =>
+      taskInsertPosition === "top"
+        ? [optimisticTask, ...prev]
+        : [...prev, optimisticTask],
+    );
+    setNewTaskText("");
+
+    void (async () => {
+      try {
+        const createdTaskId = await addTask(taskList.id, trimmedText);
+        setOptimisticAddedTasks((prev) =>
+          prev.map((task) =>
+            task.id === tempTaskId ? { ...task, id: createdTaskId } : task,
+          ),
+        );
+      } catch (err) {
+        setOptimisticAddedTasks((prev) =>
+          prev.filter((task) => task.id !== tempTaskId),
+        );
+        setAddTaskError(resolveErrorMessage(err, t, "common.error"));
+        setNewTaskText((current) =>
+          current.trim() === "" ? trimmedText : current,
+        );
+      }
+    })();
+  };
+
   const inputClass =
     "rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800";
   const primaryButtonClass =
@@ -183,57 +352,59 @@ export function TaskListCard({
                 title={t("taskList.editDetails")}
                 description={t("app.taskListName")}
               >
-                <div className="mt-4 flex flex-col gap-3">
-                  <label className="flex flex-col gap-1">
-                    <span>{t("app.taskListName")}</span>
-                    <input
-                      type="text"
-                      value={editListName}
-                      onChange={(e) => onEditListNameChange(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          onSaveListDetails();
-                        }
-                      }}
-                      placeholder={t("app.taskListNamePlaceholder")}
-                      className={inputClass}
-                    />
-                  </label>
-                  <div className="flex flex-col gap-2">
-                    <span>{t("taskList.selectColor")}</span>
-                    <ColorPicker
-                      colors={colors}
-                      selectedColor={editListBackground}
-                      onSelect={onEditListBackgroundChange}
-                      ariaLabelPrefix={t("taskList.selectColor")}
-                    />
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!editListName.trim()) return;
+                    void onSaveListDetails();
+                  }}
+                >
+                  <div className="mt-4 flex flex-col gap-3">
+                    <label className="flex flex-col gap-1">
+                      <span>{t("app.taskListName")}</span>
+                      <input
+                        type="text"
+                        value={editListName}
+                        onChange={(e) => onEditListNameChange(e.target.value)}
+                        placeholder={t("app.taskListNamePlaceholder")}
+                        className={inputClass}
+                      />
+                    </label>
+                    <div className="flex flex-col gap-2">
+                      <span>{t("taskList.selectColor")}</span>
+                      <ColorPicker
+                        colors={colors}
+                        selectedColor={editListBackground}
+                        onSelect={onEditListBackgroundChange}
+                        ariaLabelPrefix={t("taskList.selectColor")}
+                      />
+                    </div>
                   </div>
-                </div>
-                <DialogFooter>
-                  <button
-                    type="button"
-                    onClick={onDeleteList}
-                    disabled={deletingList}
-                    className={destructiveButtonClass}
-                  >
-                    {deletingList
-                      ? t("common.deleting")
-                      : t("taskList.deleteList")}
-                  </button>
-                  <DialogClose asChild>
-                    <button type="button" className={secondaryButtonClass}>
-                      {t("common.cancel")}
+                  <DialogFooter>
+                    <button
+                      type="button"
+                      onClick={onDeleteList}
+                      disabled={deletingList}
+                      className={destructiveButtonClass}
+                    >
+                      {deletingList
+                        ? t("common.deleting")
+                        : t("taskList.deleteList")}
                     </button>
-                  </DialogClose>
-                  <button
-                    type="button"
-                    onClick={onSaveListDetails}
-                    disabled={!editListName.trim()}
-                    className={primaryButtonClass}
-                  >
-                    {t("taskList.editDetails")}
-                  </button>
-                </DialogFooter>
+                    <DialogClose asChild>
+                      <button type="button" className={secondaryButtonClass}>
+                        {t("common.cancel")}
+                      </button>
+                    </DialogClose>
+                    <button
+                      type="submit"
+                      disabled={!editListName.trim()}
+                      className={primaryButtonClass}
+                    >
+                      {t("taskList.editDetails")}
+                    </button>
+                  </DialogFooter>
+                </form>
               </DialogContent>
             </Dialog>
 
@@ -319,28 +490,34 @@ export function TaskListCard({
         </div>
 
         <div className="mt-4 border-gray-200/70 pt-4 dark:border-gray-800">
+          {taskError ? <Alert variant="error">{taskError}</Alert> : null}
           <TaskListPanel
-            tasks={taskList.tasks}
+            tasks={tasks}
             sensors={sensorsList}
-            onDragEnd={onDragEndTask}
+            onSortTasks={handleSortTasks}
+            onDeleteCompletedTasks={handleDeleteCompletedTasks}
+            onDragEnd={handleDragEndTask}
             editingTaskId={editingTaskId}
             editingText={editingTaskText}
-            onEditingTextChange={onEditingTaskTextChange}
-            onEditStart={onEditStartTask}
-            onEditEnd={onEditEndTask}
-            onToggle={onToggleTask}
-            onDelete={onDeleteTask}
+            onEditingTextChange={setEditingTaskText}
+            onEditStart={handleEditStartTask}
+            onEditEnd={handleEditEndTask}
+            onToggle={handleToggleTask}
+            onDateChange={handleChangeTaskDate}
             newTaskText={newTaskText}
-            onNewTaskTextChange={onNewTaskTextChange}
-            onAddTask={onAddTask}
+            onNewTaskTextChange={(value) => {
+              setNewTaskText(value);
+              setAddTaskError(null);
+            }}
+            onAddTask={handleAddTask}
             addButtonLabel={t("common.add")}
             addPlaceholder={t("pages.tasklist.addTaskPlaceholder")}
-            deleteLabel={t("common.delete")}
+            setDateLabel={t("pages.tasklist.setDate")}
             dragHintLabel={t("pages.tasklist.dragHint")}
             emptyLabel={t("pages.tasklist.noTasks")}
             historySuggestions={taskList.history}
             onSortingChange={onSortingChange}
-            variant="card"
+            addError={addTaskError}
           />
         </div>
       </div>

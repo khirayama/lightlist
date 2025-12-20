@@ -17,8 +17,9 @@ import {
   fetchTaskListIdByShareCode,
   addTask,
   updateTask,
-  deleteTask,
   updateTasksOrder,
+  sortTasks,
+  deleteCompletedTasks,
   addSharedTaskListToOrder,
 } from "@lightlist/sdk/mutations/app";
 import { appStore } from "@lightlist/sdk/store";
@@ -49,11 +50,11 @@ export default function ShareCodePage() {
   const [user, setUser] = useState<User | null>(null);
   const [optimisticTaskOrder, setOptimisticTaskOrder] =
     useState<OptimisticOrder | null>(null);
+  const [optimisticAddedTasks, setOptimisticAddedTasks] = useState<Task[]>([]);
 
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
-  const [isAddingTask, setIsAddingTask] = useState(false);
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
   const [addToOrderLoading, setAddToOrderLoading] = useState(false);
   const [addToOrderError, setAddToOrderError] = useState<string | null>(null);
@@ -136,6 +137,8 @@ export default function ShareCodePage() {
       : (storeState.taskLists.find((tl) => tl.id === sharedTaskListId) ??
         storeState.sharedTaskListsById[sharedTaskListId] ??
         null);
+  const taskInsertPosition =
+    storeState.settings?.taskInsertPosition === "top" ? "top" : "bottom";
 
   useEffect(() => {
     if (!optimisticTaskOrder) return;
@@ -148,23 +151,60 @@ export default function ShareCodePage() {
     }
   }, [optimisticTaskOrder, sharedTaskListId, taskList]);
 
-  const handleAddTask = async () => {
+  useEffect(() => {
+    if (optimisticAddedTasks.length === 0) return;
+    if (!taskList) return;
+    const existingIds = new Set(taskList.tasks.map((task) => task.id));
+    const next = optimisticAddedTasks.filter(
+      (task) => !existingIds.has(task.id),
+    );
+    if (next.length === optimisticAddedTasks.length) return;
+    setOptimisticAddedTasks(next);
+  }, [optimisticAddedTasks, taskList]);
+
+  const handleAddTask = () => {
     if (!taskList) return;
     const trimmedText = newTaskText.trim();
     if (trimmedText === "") return;
 
-    try {
-      setIsAddingTask(true);
-      setAddTaskError(null);
-      await addTask(taskList.id, trimmedText);
-      setNewTaskText("");
-    } catch (err) {
-      setAddTaskError(
-        resolveErrorMessage(err, t, "pages.sharecode.addTaskError"),
-      );
-    } finally {
-      setIsAddingTask(false);
-    }
+    const tempTaskId = `optimistic-${Date.now()}-${Math.random()
+      .toString(16)
+      .slice(2)}`;
+    const optimisticTask: Task = {
+      id: tempTaskId,
+      text: trimmedText,
+      completed: false,
+      date: "",
+    };
+
+    setAddTaskError(null);
+    setOptimisticAddedTasks((prev) =>
+      taskInsertPosition === "top"
+        ? [optimisticTask, ...prev]
+        : [...prev, optimisticTask],
+    );
+    setNewTaskText("");
+
+    void (async () => {
+      try {
+        const createdTaskId = await addTask(taskList.id, trimmedText);
+        setOptimisticAddedTasks((prev) =>
+          prev.map((task) =>
+            task.id === tempTaskId ? { ...task, id: createdTaskId } : task,
+          ),
+        );
+      } catch (err) {
+        setOptimisticAddedTasks((prev) =>
+          prev.filter((task) => task.id !== tempTaskId),
+        );
+        setAddTaskError(
+          resolveErrorMessage(err, t, "pages.sharecode.addTaskError"),
+        );
+        setNewTaskText((current) =>
+          current.trim() === "" ? trimmedText : current,
+        );
+      }
+    })();
   };
 
   const handleEditStart = (task: Task) => {
@@ -206,13 +246,13 @@ export default function ShareCodePage() {
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleChangeTaskDate = async (taskId: string, date: string) => {
     if (!taskList) return;
 
     try {
-      await deleteTask(taskList.id, taskId);
+      await updateTask(taskList.id, taskId, { date });
     } catch (err) {
-      setError(resolveErrorMessage(err, t, "pages.sharecode.deleteError"));
+      setError(resolveErrorMessage(err, t, "pages.sharecode.updateError"));
     }
   };
 
@@ -242,6 +282,28 @@ export default function ShareCodePage() {
     } catch (err) {
       setOptimisticTaskOrder(null);
       setError(resolveErrorMessage(err, t, "pages.sharecode.reorderError"));
+    }
+  };
+
+  const handleSortTasks = async () => {
+    if (!taskList) return;
+
+    setError(null);
+    try {
+      await sortTasks(taskList.id);
+    } catch (err) {
+      setError(resolveErrorMessage(err, t, "pages.sharecode.reorderError"));
+    }
+  };
+
+  const handleDeleteCompletedTasks = async () => {
+    if (!taskList) return;
+
+    setError(null);
+    try {
+      await deleteCompletedTasks(taskList.id);
+    } catch (err) {
+      setError(resolveErrorMessage(err, t, "pages.sharecode.deleteError"));
     }
   };
 
@@ -289,7 +351,15 @@ export default function ShareCodePage() {
         .map((taskId) => taskList.tasks.find((task) => task.id === taskId))
         .filter((task): task is Task => Boolean(task))
     : null;
-  const tasks = optimisticTasks ?? taskList.tasks;
+  const baseTasks = optimisticTasks ?? taskList.tasks;
+  const baseTaskIds = new Set(baseTasks.map((task) => task.id));
+  const pendingTasks = optimisticAddedTasks.filter(
+    (task) => !baseTaskIds.has(task.id),
+  );
+  const tasks = [
+    ...(taskInsertPosition === "top" ? pendingTasks : baseTasks),
+    ...(taskInsertPosition === "top" ? baseTasks : pendingTasks),
+  ];
 
   return (
     <div>
@@ -311,6 +381,8 @@ export default function ShareCodePage() {
       <TaskListPanel
         tasks={tasks}
         sensors={sensors}
+        onSortTasks={handleSortTasks}
+        onDeleteCompletedTasks={handleDeleteCompletedTasks}
         onDragEnd={handleDragEnd}
         editingTaskId={editingTaskId}
         editingText={editingText}
@@ -318,19 +390,16 @@ export default function ShareCodePage() {
         onEditStart={handleEditStart}
         onEditEnd={handleEditEnd}
         onToggle={handleToggleTask}
-        onDelete={handleDeleteTask}
+        onDateChange={handleChangeTaskDate}
         newTaskText={newTaskText}
         onNewTaskTextChange={setNewTaskText}
         onAddTask={handleAddTask}
         addButtonLabel={t("common.add")}
         addPlaceholder={t("pages.tasklist.addTaskPlaceholder")}
-        deleteLabel={t("common.delete")}
+        setDateLabel={t("pages.tasklist.setDate")}
         dragHintLabel={t("pages.tasklist.dragHint")}
         emptyLabel={t("pages.tasklist.noTasks")}
-        addDisabled={isAddingTask}
-        inputDisabled={isAddingTask}
         addError={addTaskError}
-        variant="card"
       />
     </div>
   );

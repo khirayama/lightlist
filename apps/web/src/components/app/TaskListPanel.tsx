@@ -17,10 +17,17 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { MouseEvent } from "react";
-import { useId, useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Alert } from "@/components/ui/Alert";
+import { Calendar } from "@/components/ui/Calendar";
 import { Command, CommandItem, CommandList } from "@/components/ui/Command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/Popover";
 
 export interface TaskForSortable {
   id: string;
@@ -38,10 +45,38 @@ interface TaskItemProps<T extends TaskForSortable = TaskForSortable> {
   onEditStart: (task: T) => void;
   onEditEnd: (task: T) => void;
   onToggle: (task: T) => void;
-  onDelete: (taskId: string) => void;
-  deleteLabel: string;
+  onDateChange?: (taskId: string, date: string) => void;
+  setDateLabel: string;
   dragHintLabel: string;
 }
+
+const parseTaskDate = (value: string | undefined): Date | undefined => {
+  if (!value) return undefined;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (
+      !Number.isFinite(year) ||
+      !Number.isFinite(month) ||
+      !Number.isFinite(day)
+    )
+      return undefined;
+    return new Date(year, month - 1, day);
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed;
+};
+
+const formatTaskDate = (value: Date): string => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 function TaskItem<T extends TaskForSortable = TaskForSortable>({
   task,
@@ -51,8 +86,8 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
   onEditStart,
   onEditEnd,
   onToggle,
-  onDelete,
-  deleteLabel,
+  onDateChange,
+  setDateLabel,
   dragHintLabel,
 }: TaskItemProps<T>) {
   const {
@@ -69,6 +104,18 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
+    parseTaskDate(task.date),
+  );
+
+  useEffect(() => {
+    setSelectedDate(parseTaskDate(task.date));
+  }, [task.date]);
+
+  const dateValue = selectedDate ? formatTaskDate(selectedDate) : null;
+  const dateTitle = dateValue ? `${setDateLabel}: ${dateValue}` : setDateLabel;
 
   return (
     <div
@@ -125,13 +172,45 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
         </button>
       )}
 
-      <button
-        type="button"
-        onClick={() => onDelete(task.id)}
-        className="rounded-lg px-2 py-1 text-sm font-medium text-red-700 hover:bg-red-50 hover:text-red-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 dark:text-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-200 dark:focus-visible:outline-red-700"
-      >
-        {deleteLabel}
-      </button>
+      <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={setDateLabel}
+            title={dateTitle}
+            className={`mt-0.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500 ${
+              dateValue ? "px-2 py-1 text-xs font-semibold tabular-nums" : "p-1"
+            }`}
+          >
+            {dateValue ? (
+              <span aria-hidden="true">{dateValue}</span>
+            ) : (
+              <svg
+                width="20"
+                height="20"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M7 2a2 2 0 0 0-2 2v1H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2h-1V4a2 2 0 0 0-2-2H7Zm0 3V4h10v1H7Zm-1 5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v9a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-9Zm2 1v2h2v-2H8Zm4 0v2h2v-2h-2Zm4 0v2h2v-2h-2Zm-8 4v2h2v-2H8Zm4 0v2h2v-2h-2Zm4 0v2h2v-2h-2Z" />
+              </svg>
+            )}
+            <span className="sr-only">{setDateLabel}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="p-0">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(next) => {
+              setSelectedDate(next);
+              onDateChange?.(task.id, next ? formatTaskDate(next) : "");
+              setDatePickerOpen(false);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
@@ -149,22 +228,23 @@ export interface TaskListPanelProps<T extends SortableTask = SortableTask> {
   onEditStart: (task: T) => void;
   onEditEnd: (task: T) => void;
   onToggle: (task: T) => void;
-  onDelete: (taskId: string) => void;
+  onDateChange?: (taskId: string, date: string) => void;
   onDragEnd: (event: DragEndEvent) => void;
   newTaskText: string;
   onNewTaskTextChange: (text: string) => void;
   onAddTask: () => void;
   addButtonLabel: string;
   addPlaceholder: string;
-  deleteLabel: string;
+  setDateLabel: string;
   dragHintLabel: string;
   emptyLabel: string;
   historySuggestions?: string[];
   onSortingChange?: (sorting: boolean) => void;
+  onSortTasks?: () => Promise<void> | void;
+  onDeleteCompletedTasks?: () => Promise<void> | void;
   addDisabled?: boolean;
   inputDisabled?: boolean;
   addError?: string | null;
-  variant?: "split" | "card";
 }
 
 type SortableData = {
@@ -192,25 +272,31 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
   onEditStart,
   onEditEnd,
   onToggle,
-  onDelete,
+  onDateChange,
   onDragEnd,
   newTaskText,
   onNewTaskTextChange,
   onAddTask,
   addButtonLabel,
   addPlaceholder,
-  deleteLabel,
+  setDateLabel,
   dragHintLabel,
   emptyLabel,
   historySuggestions,
   onSortingChange,
+  onSortTasks,
+  onDeleteCompletedTasks,
   addDisabled = false,
   inputDisabled = false,
   addError = null,
-  variant = "split",
 }: TaskListPanelProps<T>) {
+  const { t } = useTranslation();
   const reactId = useId();
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [sortPending, setSortPending] = useState(false);
+  const [deleteCompletedPending, setDeleteCompletedPending] = useState(false);
+  const newTaskInputRef = useRef<HTMLInputElement | null>(null);
+  const restoreNewTaskFocusRef = useRef(false);
   const collision = collisionDetection ?? closestCenter;
   const strategyValue = strategy ?? verticalListSortingStrategy;
   const isAddDisabled =
@@ -249,6 +335,13 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
     }
   }, [historyOptions.length]);
 
+  useEffect(() => {
+    if (inputDisabled) return;
+    if (!restoreNewTaskFocusRef.current) return;
+    restoreNewTaskFocusRef.current = false;
+    newTaskInputRef.current?.focus();
+  }, [inputDisabled]);
+
   const listContent =
     tasks.length === 0 ? (
       <p className="text-sm text-gray-600 dark:text-gray-300">{emptyLabel}</p>
@@ -264,13 +357,18 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
             onEditStart={onEditStart}
             onEditEnd={onEditEnd}
             onToggle={onToggle}
-            onDelete={onDelete}
-            deleteLabel={deleteLabel}
+            onDateChange={onDateChange}
+            setDateLabel={setDateLabel}
             dragHintLabel={dragHintLabel}
           />
         ))}
       </div>
     );
+
+  const completedTaskCount = tasks.reduce(
+    (count, task) => count + (task.completed ? 1 : 0),
+    0,
+  );
 
   const handleSortingChange = (sorting: boolean) => {
     onSortingChange?.(sorting);
@@ -294,10 +392,27 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
 
   const inputSection = (
     <>
-      <div className="flex items-center gap-2">
+      <form
+        className="flex items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (isAddDisabled) return;
+          restoreNewTaskFocusRef.current = true;
+          newTaskInputRef.current?.focus();
+          requestAnimationFrame(() => {
+            const input = newTaskInputRef.current;
+            if (!input) return;
+            if (!input.disabled) {
+              restoreNewTaskFocusRef.current = false;
+            }
+          });
+          void onAddTask();
+        }}
+      >
         <div className="relative min-w-0 flex-1">
           <Command shouldFilter={false} className="bg-transparent">
             <input
+              ref={newTaskInputRef}
               type="text"
               role="combobox"
               aria-autocomplete="list"
@@ -315,7 +430,9 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
               onBlur={() => setHistoryOpen(false)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  onAddTask();
+                  if (isAddDisabled) return;
+                  e.preventDefault();
+                  e.currentTarget.form?.requestSubmit();
                 }
                 if (e.key === "Escape") {
                   setHistoryOpen(false);
@@ -350,8 +467,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
           </Command>
         </div>
         <button
-          type="button"
-          onClick={onAddTask}
+          type="submit"
           disabled={isAddDisabled}
           aria-label={addButtonLabel}
           title={addButtonLabel}
@@ -371,36 +487,65 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
             <path d="M6 12 3.269 3.125A59.768 59.768 0 0 1 21.485 12 59.77 59.77 0 0 1 3.27 20.875L6 12Zm0 0h7.5" />
           </svg>
         </button>
-      </div>
+      </form>
       {addError ? <Alert variant="error">{addError}</Alert> : null}
     </>
   );
 
-  if (variant === "card") {
-    return (
-      <div className="flex flex-col gap-4">
-        {inputSection}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={collision}
-          modifiers={[restrictToVerticalAxis]}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          <SortableContext
-            items={tasks.map((task) => task.id)}
-            strategy={strategyValue}
-          >
-            {listContent}
-          </SortableContext>
-        </DndContext>
-      </div>
-    );
-  }
-
   return (
-    <>
+    <div className="flex flex-col gap-4">
+      {inputSection}
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          disabled={
+            sortPending || inputDisabled || tasks.length < 2 || !onSortTasks
+          }
+          onClick={async () => {
+            if (!onSortTasks) return;
+            setSortPending(true);
+            try {
+              await onSortTasks();
+            } finally {
+              setSortPending(false);
+            }
+          }}
+          className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+        >
+          {t("pages.tasklist.sort")}
+        </button>
+        <button
+          type="button"
+          disabled={
+            deleteCompletedPending ||
+            inputDisabled ||
+            completedTaskCount === 0 ||
+            !onDeleteCompletedTasks
+          }
+          onClick={async () => {
+            if (!onDeleteCompletedTasks) return;
+            if (completedTaskCount === 0) return;
+            const confirmed = window.confirm(
+              t("pages.tasklist.deleteCompletedConfirm", {
+                count: completedTaskCount,
+              }),
+            );
+            if (!confirmed) return;
+
+            setDeleteCompletedPending(true);
+            try {
+              await onDeleteCompletedTasks();
+            } finally {
+              setDeleteCompletedPending(false);
+            }
+          }}
+          className="inline-flex items-center justify-center rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:outline-red-400"
+        >
+          {deleteCompletedPending
+            ? t("common.deleting")
+            : t("pages.tasklist.deleteCompleted")}
+        </button>
+      </div>
       <DndContext
         sensors={sensors}
         collisionDetection={collision}
@@ -413,13 +558,9 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
           items={tasks.map((task) => task.id)}
           strategy={strategyValue}
         >
-          <div>{listContent}</div>
+          {listContent}
         </SortableContext>
       </DndContext>
-
-      <div className="mt-4 rounded-2xl bg-gray-50 p-3 dark:bg-gray-950/30">
-        {inputSection}
-      </div>
-    </>
+    </div>
   );
 }

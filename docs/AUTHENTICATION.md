@@ -477,7 +477,7 @@ auth:
   form: メールアドレス、パスワード入力フィールド
   validation: フォームバリデーションエラーメッセージ
   error: Firebase 認証エラーメッセージ
-  button: ボタンテキスト
+  button: ボタンテキスト（forgotPassword は reset タブのラベルに利用）
   passwordReset: パスワードリセット関連メッセージ
   placeholder: 入力フィールドのプレースホルダー
   signOutConfirm: ログアウト確認ダイアログ
@@ -498,17 +498,17 @@ auth:
 - **Sign In タブ**: メールアドレスとパスワードでログイン
 - **Sign Up タブ**: メールアドレス、パスワード、パスワード確認でアカウント作成
 - **Password Reset タブ**: パスワードリセットメール送信
+- 背景はライト/ダーク対応、中央のカード内にフォームを配置
 
 **使用コンポーネント:**
 
 - FormInput: フォーム入力
-- ErrorMessage: エラー表示
-- SuccessMessage: 成功メッセージ表示
+- Alert: 成功/エラー表示
 
 **使用ユーティリティ:**
 
 - validateAuthForm: フォームバリデーション
-- getErrorMessage: エラーメッセージ変換
+- resolveErrorMessage: エラーメッセージ変換
 
 ### password_reset.page.tsx（パスワードリセット実行ページ）
 

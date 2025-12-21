@@ -145,9 +145,15 @@ export function DrawerPanel({
   return (
     <div className="flex h-full flex-col gap-4">
       <DrawerHeader>
-        <DrawerTitle id="drawer-task-lists-title" className="sr-only">
-          {t("app.drawerTitle")}
-        </DrawerTitle>
+        {isWideLayout ? (
+          <h2 id="drawer-task-lists-title" className="sr-only">
+            {t("app.drawerTitle")}
+          </h2>
+        ) : (
+          <DrawerTitle id="drawer-task-lists-title" className="sr-only">
+            {t("app.drawerTitle")}
+          </DrawerTitle>
+        )}
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {isWideLayout ? (

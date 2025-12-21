@@ -11,6 +11,7 @@ import { FormInput } from "@/components/ui/FormInput";
 import { Alert } from "@/components/ui/Alert";
 import { resolveErrorMessage } from "@/utils/errors";
 import { FormErrors, validatePasswordForm } from "@/utils/validation";
+
 export default function PasswordResetPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -20,6 +21,12 @@ export default function PasswordResetPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
+
+  const primaryButtonClass =
+    "inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-200 dark:focus-visible:outline-gray-500";
+
+  const secondaryButtonClass =
+    "inline-flex w-full items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500";
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -84,72 +91,108 @@ export default function PasswordResetPage() {
   };
 
   if (!router.isReady) {
-    return <Spinner />;
-  }
-
-  if (codeValid === false) {
     return (
-      <div>
-        <h1>{t("auth.passwordReset.title")}</h1>
-        <Alert variant="error">
-          {errors.general || t("auth.passwordReset.invalidCode")}
-        </Alert>
-        <button onClick={() => router.push("/")}>
-          {t("auth.button.backToSignIn")}
-        </button>
-      </div>
-    );
-  }
-
-  if (resetSuccess) {
-    return (
-      <div>
-        <h1>{t("auth.passwordReset.title")}</h1>
-        <Alert variant="success">{t("auth.passwordReset.resetSuccess")}</Alert>
+      <div className="flex min-h-screen w-full items-center justify-center bg-gray-50 px-4 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
         <Spinner />
       </div>
     );
   }
 
-  return (
-    <div>
-      <h1>{t("auth.passwordReset.title")}</h1>
+  const content = (() => {
+    if (codeValid === false) {
+      return (
+        <div className="space-y-4">
+          <Alert variant="error">
+            {errors.general || t("auth.passwordReset.invalidCode")}
+          </Alert>
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className={secondaryButtonClass}
+          >
+            {t("auth.button.backToSignIn")}
+          </button>
+        </div>
+      );
+    }
 
-      {errors.general && <Alert variant="error">{errors.general}</Alert>}
+    if (resetSuccess) {
+      return (
+        <div className="space-y-4">
+          <Alert variant="success">
+            {t("auth.passwordReset.resetSuccess")}
+          </Alert>
+          <div className="flex justify-center">
+            <Spinner />
+          </div>
+        </div>
+      );
+    }
 
-      <form onSubmit={handleSubmit}>
-        <FormInput
-          id="password"
-          label={t("auth.passwordReset.newPassword")}
-          type="password"
-          value={password}
-          onChange={setPassword}
-          error={errors.password}
-          disabled={loading}
-          placeholder={t("auth.placeholder.password")}
-        />
+    return (
+      <div className="space-y-4">
+        {errors.general && <Alert variant="error">{errors.general}</Alert>}
 
-        <FormInput
-          id="confirmPassword"
-          label={t("auth.passwordReset.confirmNewPassword")}
-          type="password"
-          value={confirmPassword}
-          onChange={setConfirmPassword}
-          error={errors.confirmPassword}
-          disabled={loading}
-          placeholder={t("auth.placeholder.password")}
-        />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <FormInput
+            id="password"
+            label={t("auth.passwordReset.newPassword")}
+            type="password"
+            value={password}
+            onChange={setPassword}
+            error={errors.password}
+            disabled={loading}
+            placeholder={t("auth.placeholder.password")}
+          />
 
-        <button type="submit" disabled={loading}>
-          {loading
-            ? t("auth.passwordReset.settingNewPassword")
-            : t("auth.passwordReset.setNewPassword")}
+          <FormInput
+            id="confirmPassword"
+            label={t("auth.passwordReset.confirmNewPassword")}
+            type="password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            error={errors.confirmPassword}
+            disabled={loading}
+            placeholder={t("auth.placeholder.password")}
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className={primaryButtonClass}
+          >
+            {loading
+              ? t("auth.passwordReset.settingNewPassword")
+              : t("auth.passwordReset.setNewPassword")}
+          </button>
+        </form>
+
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className={secondaryButtonClass}
+        >
+          {t("auth.button.backToSignIn")}
         </button>
-      </form>
+      </div>
+    );
+  })();
 
-      <button onClick={() => router.push("/")}>
-        {t("auth.button.backToSignIn")}
-      </button>
+  return (
+    <div className="min-h-screen w-full bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
+      <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4 py-10 sm:px-6">
+        <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-8">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              {t("auth.passwordReset.title")}
+            </h1>
+          </div>
+          {content}
+        </div>
+        <p className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
+          {t("copyright")}
+        </p>
+      </div>
     </div>
   );
 }

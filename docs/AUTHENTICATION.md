@@ -26,10 +26,19 @@ src/
     └── password_reset.page.tsx - パスワードリセット実行ページ
 ```
 
+**アプリケーション側（apps/native）:**
+
+```
+apps/native/
+└── App.tsx                  - ログイン画面（メール/パスワード）
+```
+
 **SDK側（packages/sdk）:**
 
 ```
-├── firebase.ts                - Firebase初期化とauth/dbのexport
+├── firebase/
+│   ├── index.ts               - Firebase初期化（Web/Next.js）
+│   └── index.native.ts        - Firebase初期化（Expo/React Native）
 ├── mutations/
 │   └── auth.ts                - 認証関連のミューテーション関数
 ├── store.ts                   - アプリケーション状態管理
@@ -39,6 +48,26 @@ src/
 **アーキテクチャ:**
 
 `apps/web` はすべてのFirebase機能を `@lightlist/sdk` 経由で使用し、直接Firebaseに依存しません。
+
+### Firebase 初期化の環境変数
+
+**Web/Next.js（apps/web）**
+
+- `NEXT_PUBLIC_FIREBASE_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
+
+**Expo/React Native（apps/native）**
+
+- `EXPO_PUBLIC_FIREBASE_API_KEY`
+- `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
+- `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `EXPO_PUBLIC_FIREBASE_APP_ID`
 
 ### 共通コンポーネント
 
@@ -197,6 +226,26 @@ https://[PROJECT].firebaseapp.com/password-reset?oobCode=[CODE]&mode=resetPasswo
 - `auth/weak-password`: 入力されたパスワードが弱い
 - `auth/too-many-requests`: リクエスト数が多すぎる
 - その他の Firebase エラーは多言語対応で表示
+
+### 4. ネイティブログイン (apps/native)
+
+**画面:** `apps/native/App.tsx`
+
+**処理フロー:**
+
+1. ユーザーがメールアドレスとパスワードを入力
+2. 入力チェック（未入力時はエラーメッセージを表示）
+3. `signIn(email, password)` を呼び出し
+4. Firebase Authentication でログイン
+5. `onAuthStateChange` でログイン状態を反映
+
+**エラーハンドリング:**
+
+- `auth/invalid-credential`: メールアドレスまたはパスワードが正しくない
+- `auth/user-not-found`: アカウントが見つからない
+- `auth/too-many-requests`: ログイン試行回数が多すぎる
+- `auth/invalid-email`: メールアドレス形式が無効
+- その他のエラーは多言語対応で表示
 
 ## SDK インターフェース
 

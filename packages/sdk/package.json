@@ -14,6 +14,8 @@
     "deploy": "firebase deploy --only firestore:rules,firestore:indexes"
   },
   "dependencies": {
+    "@firebase/auth": "^1.11.1",
+    "@react-native-async-storage/async-storage": "^1.24.0",
     "firebase": "^12.6.0"
   },
   "devDependencies": {

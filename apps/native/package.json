@@ -1,0 +1,28 @@
+{
+  "name": "native",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "expo start --tunnel",
+    "start": "expo start --tunnel",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@lightlist/sdk": "*",
+    "expo": "~54.0.30",
+    "expo-status-bar": "~3.0.9",
+    "i18next": "^25.6.2",
+    "react": "19.2.1",
+    "react-i18next": "^16.3.3",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}

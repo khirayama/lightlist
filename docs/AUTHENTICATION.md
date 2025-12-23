@@ -30,7 +30,7 @@ src/
 
 ```
 apps/native/
-└── App.tsx                  - ログイン画面（メール/パスワード）
+└── App.tsx                  - サインイン/サインアップ/パスワードリセット画面
 ```
 
 **SDK側（packages/sdk）:**
@@ -126,6 +126,7 @@ apps/native/
 ### 1. サインアップ (Sign Up)
 
 **ページ:** `src/pages/index.page.tsx` (signup タブ)
+**ネイティブ:** `apps/native/App.tsx` (signup タブ)
 
 **処理フロー:**
 
@@ -149,6 +150,7 @@ apps/native/
 ### 2. ログイン (Sign In)
 
 **ページ:** `src/pages/index.page.tsx` (signin タブ)
+**ネイティブ:** `apps/native/App.tsx` (signin タブ)
 
 **処理フロー:**
 
@@ -172,6 +174,7 @@ apps/native/
 #### ステップ1: リセットメール送信
 
 **ページ:** `src/pages/index.page.tsx` (reset タブ)
+**ネイティブ:** `apps/native/App.tsx` (reset タブ)
 
 **処理フロー:**
 

@@ -14,6 +14,14 @@
 - テーマ: `useColorScheme` によるライト/ダーク切替
 - セーフエリア: `react-native-safe-area-context` による Safe Area 対応
 
+## Appページ
+
+- `App.tsx` 内でログイン後にタスクリスト画面を表示
+- タスクリストの選択、作成（名前＋色）、編集（名前＋色）、削除に対応
+- タスクの追加、完了切り替え、削除に対応
+- サインアウトはヘッダーのボタンから実行
+- 画面文言は `app` / `taskList` / `pages.tasklist` を中心に i18next で管理
+
 ## Firebase 設定
 
 - Expo の環境変数として `EXPO_PUBLIC_FIREBASE_*` を設定する
@@ -34,6 +42,6 @@
 
 ## 主な変更点
 
-- `apps/native/App.tsx`: i18next 初期化、テーマ適用、ログイン画面（SDK 経由でサインイン）
+- `apps/native/App.tsx`: i18next 初期化、テーマ適用、認証画面とタスクリスト画面（SDK 経由で認証・データ操作）
 - `apps/native/app.json`: `userInterfaceStyle` を `automatic` に変更し、テーマ切替に追従
 - `apps/native/package.json`: React を 19.2.1 に更新

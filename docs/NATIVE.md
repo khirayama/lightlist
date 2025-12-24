@@ -9,14 +9,23 @@
 
 - `apps/native`: Expo + React Native（TypeScript）
 - `i18next` / `react-i18next`: 文字列はすべて i18next で管理
+- `@react-navigation/native` / `@react-navigation/native-stack`: 認証/タスクリスト画面のルーティング
+- `react-native-screens`: Expo Go に合わせたバージョン固定でネイティブスタックを安定化
+- 依存解決: ルート `package.json` の `overrides` で Expo Go と整合するバージョンに固定
 - `@lightlist/sdk`: Firebase 認証の呼び出しは SDK 経由
-- React: Expo 依存と揃えて 19.2.1 を利用し、単一バージョンで運用
+- React: モノレポ全体で 19.1.0 に統一し、Expo Go の renderer と整合させる
 - テーマ: `useColorScheme` によるライト/ダーク切替
 - セーフエリア: `react-native-safe-area-context` による Safe Area 対応
+- i18n 初期化: `apps/native/i18n.ts` に集約
+- テーマ定義: `apps/native/theme.ts` に集約
+- 画面: `apps/native/screens` に `AuthScreen` / `TaskListScreen` を配置
+- スタイル: `apps/native/appStyles.ts` で画面共通のスタイルを管理
 
 ## Appページ
 
-- `App.tsx` 内でログイン後にタスクリスト画面を表示
+- `App.tsx` で認証状態に応じて `AuthScreen` / `TaskListScreen` を切り替え
+- 認証状態の変化時にナビゲーションをリセットし、ログイン時は `TaskListScreen` に遷移
+- `NavigationContainer` + `NativeStack` で画面を構成
 - タスクリストの選択、作成（名前＋色）、編集（名前＋色）、削除に対応
 - タスクの追加、完了切り替え、削除に対応
 - サインアウトはヘッダーのボタンから実行
@@ -42,6 +51,12 @@
 
 ## 主な変更点
 
-- `apps/native/App.tsx`: i18next 初期化、テーマ適用、認証画面とタスクリスト画面（SDK 経由で認証・データ操作）
+- `apps/native/App.tsx`: アプリ状態と画面切替、SDK 経由の認証/データ操作
+- `apps/native/screens/AuthScreen.tsx`: 認証画面の UI
+- `apps/native/screens/TaskListScreen.tsx`: タスクリスト画面の UI
+- `apps/native/appStyles.ts`: 共有スタイル
+- `apps/native/i18n.ts`: i18next のリソースと初期化
+- `apps/native/theme.ts`: テーマ定義とリストカラー
 - `apps/native/app.json`: `userInterfaceStyle` を `automatic` に変更し、テーマ切替に追従
-- `apps/native/package.json`: React を 19.2.1 に更新
+- `apps/native/package.json`: `react-native-screens` を Expo Go に合わせて固定
+- `package.json`: `react` / `react-dom` / `@types/react` / `@types/react-dom` / `react-native-screens` を Expo Go 互換で固定

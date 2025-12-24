@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ComponentPropsWithoutRef, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
@@ -44,11 +44,15 @@ type OptimisticOrder = {
   startedAt: number;
 };
 
+type DrawerPanelContent = ComponentPropsWithoutRef<
+  typeof DrawerContent
+>["children"];
+
 type AppHeaderProps = {
   isWideLayout: boolean;
   isDrawerOpen: boolean;
   onDrawerOpenChange: (open: boolean) => void;
-  drawerPanel: ReactNode;
+  drawerPanel: DrawerPanelContent;
   openMenuLabel: string;
 };
 
@@ -455,7 +459,7 @@ export default function AppPage() {
     }
   };
 
-  const drawerPanel = (
+  const drawerPanel: DrawerPanelContent = (
     <DrawerPanel
       isWideLayout={isWideLayout}
       userEmail={userEmail}

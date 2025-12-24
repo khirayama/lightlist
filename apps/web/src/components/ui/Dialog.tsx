@@ -14,21 +14,30 @@ import clsx from "clsx";
 type DialogContentProps = ComponentPropsWithoutRef<
   typeof DialogPrimitive.Content
 > & {
-  title: ReactNode;
-  description?: ReactNode;
+  title: ComponentPropsWithoutRef<typeof DialogPrimitive.Title>["children"];
+  description?: ComponentPropsWithoutRef<
+    typeof DialogPrimitive.Description
+  >["children"];
   titleId?: string;
   descriptionId?: string;
 };
 
 type DialogHeaderProps = {
-  title?: ReactNode;
-  description?: ReactNode;
+  title?: ComponentPropsWithoutRef<typeof DialogPrimitive.Title>["children"];
+  description?: ComponentPropsWithoutRef<
+    typeof DialogPrimitive.Description
+  >["children"];
   children?: ReactNode;
 };
 
 type DialogFooterProps = {
   children: ReactNode;
 };
+
+type DialogTitleProps = ComponentPropsWithoutRef<typeof DialogPrimitive.Title>;
+type DialogDescriptionProps = ComponentPropsWithoutRef<
+  typeof DialogPrimitive.Description
+>;
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -98,9 +107,12 @@ function DialogHeader({ title, description, children }: DialogHeaderProps) {
   );
 }
 
-function DialogTitle({ children, id }: { children: ReactNode; id?: string }) {
+function DialogTitle({ children, className, ...props }: DialogTitleProps) {
   return (
-    <DialogPrimitive.Title id={id} className="m-0 text-lg font-semibold">
+    <DialogPrimitive.Title
+      {...props}
+      className={clsx("m-0 text-lg font-semibold", className)}
+    >
       {children}
     </DialogPrimitive.Title>
   );
@@ -108,15 +120,16 @@ function DialogTitle({ children, id }: { children: ReactNode; id?: string }) {
 
 function DialogDescription({
   children,
-  id,
-}: {
-  children: ReactNode;
-  id?: string;
-}) {
+  className,
+  ...props
+}: DialogDescriptionProps) {
   return (
     <DialogPrimitive.Description
-      id={id}
-      className="m-0 text-sm text-[var(--dialog-muted,#444444)]"
+      {...props}
+      className={clsx(
+        "m-0 text-sm text-[var(--dialog-muted,#444444)]",
+        className,
+      )}
     >
       {children}
     </DialogPrimitive.Description>

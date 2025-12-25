@@ -30,7 +30,9 @@ src/
 
 ```
 apps/native/
-└── App.tsx                  - サインイン/サインアップ/パスワードリセット画面
+├── App.tsx                  - サインイン/サインアップ/パスワードリセット画面
+└── screens/
+    └── PasswordResetScreen.tsx - パスワード再設定画面
 ```
 
 **SDK側（packages/sdk）:**
@@ -205,6 +207,7 @@ https://[PROJECT].firebaseapp.com/password-reset?oobCode=[CODE]&mode=resetPasswo
 #### ステップ2: パスワード再設定
 
 **ページ:** `src/pages/password_reset.page.tsx`
+**ネイティブ:** `apps/native/screens/PasswordResetScreen.tsx`
 
 **処理フロー:**
 
@@ -229,6 +232,11 @@ https://[PROJECT].firebaseapp.com/password-reset?oobCode=[CODE]&mode=resetPasswo
 - `auth/weak-password`: 入力されたパスワードが弱い
 - `auth/too-many-requests`: リクエスト数が多すぎる
 - その他の Firebase エラーは多言語対応で表示
+
+**ネイティブ補足:**
+
+- リセットリンクは `password-reset?oobCode=...` を含むディープリンクとして受け取り、`PasswordResetScreen` を表示
+- リンクが無効な場合は専用メッセージを表示し、ログイン画面へ戻る導線を提供
 
 ### 4. ネイティブログイン (apps/native)
 

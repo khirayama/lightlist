@@ -12,6 +12,7 @@ out/
 # Cache and temp
 .turbo/
 .cache/
+*.tsbuildinfo
 
 # Environment variables
 .env

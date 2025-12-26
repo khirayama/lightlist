@@ -11,7 +11,9 @@
     "./mutations/app": "./src/mutations/app.ts"
   },
   "scripts": {
-    "deploy": "firebase deploy --only firestore:rules,firestore:indexes"
+    "deploy": "firebase deploy --only firestore:rules,firestore:indexes",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@firebase/auth": "^1.11.1",

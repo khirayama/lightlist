@@ -11,6 +11,10 @@
     },
     "format": {
       "cache": false
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
     }
   }
 }

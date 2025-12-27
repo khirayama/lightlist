@@ -324,4 +324,44 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
+  dialogOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  dialogBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
+  dialogKeyboard: {
+    width: "100%",
+    alignItems: "center",
+  },
+  dialogCard: {
+    width: "100%",
+    maxWidth: 460,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+  },
+  dialogHeader: {
+    gap: 6,
+    marginBottom: 12,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  dialogDescription: {
+    fontSize: 13,
+  },
+  dialogBody: {
+    gap: 16,
+  },
+  dialogFooter: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 20,
+  },
 });

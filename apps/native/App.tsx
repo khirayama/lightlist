@@ -482,24 +482,27 @@ export default function App() {
     );
   };
 
-  const handleCreateList = async () => {
+  const handleCreateList = async (): Promise<boolean> => {
     const trimmedName = createListName.trim();
     if (!trimmedName) {
       setAppErrorMessage(t("form.required"));
-      return;
+      return false;
     }
     setIsCreatingList(true);
     setAppErrorMessage(null);
     try {
       const newListId = await createTaskList(trimmedName, createListBackground);
       setCreateListName("");
+      setCreateListBackground(listColors[0]);
       setSelectedTaskListId(newListId);
+      return true;
     } catch (error) {
       if (error instanceof Error) {
         setAppErrorMessage(error.message);
       } else {
         setAppErrorMessage(t("app.error"));
       }
+      return false;
     } finally {
       setIsCreatingList(false);
     }

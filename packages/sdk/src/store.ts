@@ -110,6 +110,7 @@ function createStore() {
 
   let prevState: AppState | null = null;
   let prevStateKey: string | null = null;
+  let taskListIdsKey: string | null = null;
 
   const unsubscribeSharedTaskLists = () => {
     const unsubscribes = Array.from(sharedTaskListUnsubscribers.values());
@@ -130,6 +131,7 @@ function createStore() {
   const subscribeToUserData = (uid: string) => {
     unsubscribers.forEach((unsub) => unsub());
     unsubscribers.length = 0;
+    taskListIdsKey = null;
 
     const settingsUnsub = onSnapshot(doc(db, "settings", uid), (snapshot) => {
       if (snapshot.exists()) {
@@ -143,6 +145,7 @@ function createStore() {
 
     const taskListOrderUnsub = onSnapshot(
       doc(db, "taskListOrder", uid),
+      { includeMetadataChanges: true },
       (snapshot) => {
         if (snapshot.exists()) {
           data.taskListOrder = snapshot.data() as TaskListOrderStore;
@@ -150,35 +153,52 @@ function createStore() {
           data.taskListOrder = null;
         }
         commit();
-        subscribeToTaskLists(data.taskListOrder);
+        subscribeToTaskLists(
+          data.taskListOrder,
+          snapshot.metadata.hasPendingWrites,
+        );
       },
     );
     unsubscribers.push(taskListOrderUnsub);
   };
 
-  const subscribeToTaskLists = (taskListOrder: TaskListOrderStore | null) => {
+  const subscribeToTaskLists = (
+    taskListOrder: TaskListOrderStore | null,
+    hasPendingWrites: boolean,
+  ) => {
+    const nextTaskListIds = taskListOrder
+      ? Object.entries(taskListOrder)
+          .filter(([key]) => key !== "createdAt" && key !== "updatedAt")
+          .map(([id]) => id)
+      : [];
+    const currentTaskListIds =
+      taskListIdsKey && taskListIdsKey.length > 0
+        ? taskListIdsKey.split("|")
+        : [];
+    const nextTaskListIdsSet = new Set(nextTaskListIds);
+    const effectiveTaskListIds =
+      hasPendingWrites && taskListIdsKey !== null
+        ? currentTaskListIds.filter((id) => nextTaskListIdsSet.has(id))
+        : nextTaskListIds;
+    const nextTaskListIdsKey =
+      effectiveTaskListIds.length > 0
+        ? [...effectiveTaskListIds].sort().join("|")
+        : "";
+    if (taskListIdsKey === nextTaskListIdsKey) return;
+    taskListIdsKey = nextTaskListIdsKey;
+
     const taskListUnsubscribers = unsubscribers.splice(2);
     taskListUnsubscribers.forEach((unsub) => unsub());
 
-    if (!taskListOrder) {
-      data.taskLists = {};
-      commit();
-      return;
-    }
-
-    const taskListIds = Object.entries(taskListOrder)
-      .filter(([key]) => key !== "createdAt" && key !== "updatedAt")
-      .map(([id]) => id);
-
-    if (taskListIds.length === 0) {
+    if (!taskListOrder || effectiveTaskListIds.length === 0) {
       data.taskLists = {};
       commit();
       return;
     }
 
     const chunks = [];
-    for (let i = 0; i < taskListIds.length; i += 10) {
-      chunks.push(taskListIds.slice(i, i + 10));
+    for (let i = 0; i < effectiveTaskListIds.length; i += 10) {
+      chunks.push(effectiveTaskListIds.slice(i, i + 10));
     }
 
     chunks.forEach((chunk) => {
@@ -233,6 +253,7 @@ function createStore() {
       data.settings = null;
       data.taskListOrder = null;
       data.taskLists = {};
+      taskListIdsKey = null;
     }
     commit();
   });

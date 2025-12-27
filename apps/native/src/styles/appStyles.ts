@@ -38,6 +38,8 @@ export const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
     gap: 8,
   },
   headerButton: {
@@ -46,6 +48,13 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     alignItems: "center",
+  },
+  headerIconButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerButtonText: {
     fontSize: 13,
@@ -122,10 +131,6 @@ export const styles = StyleSheet.create({
   },
   drawerListItemCount: {
     fontSize: 12,
-  },
-  appTitle: {
-    fontSize: 24,
-    fontWeight: "700",
   },
   appSubtitle: {
     fontSize: 13,

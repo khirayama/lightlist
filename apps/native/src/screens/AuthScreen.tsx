@@ -1,8 +1,8 @@
 import type { TFunction } from "i18next";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { styles } from "../appStyles";
-import type { Theme } from "../theme";
+import { styles } from "../styles/appStyles";
+import type { Theme } from "../styles/theme";
 
 type AuthTab = "signin" | "signup" | "reset";
 type AuthFormState = {

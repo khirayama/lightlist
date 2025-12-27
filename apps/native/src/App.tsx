@@ -1,4 +1,3 @@
-import type { TFunction } from "i18next";
 import { useEffect, useRef, useState } from "react";
 import {
   NavigationContainer,
@@ -16,15 +15,23 @@ import {
   TextInput,
   useColorScheme,
 } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { styles } from "./appStyles";
-import i18n from "./i18n";
+import { styles } from "./styles/appStyles";
+import i18n from "./utils/i18n";
+import { resolveAuthErrorMessage } from "./utils/errors";
+import { isValidEmail } from "./utils/validation";
 import { AuthScreen } from "./screens/AuthScreen";
 import { PasswordResetScreen } from "./screens/PasswordResetScreen";
 import { ShareCodeScreen } from "./screens/ShareCodeScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { TaskListScreen } from "./screens/TaskListScreen";
-import { listColors, themes, type ThemeMode, type ThemeName } from "./theme";
+import {
+  listColors,
+  themes,
+  type ThemeMode,
+  type ThemeName,
+} from "./styles/theme";
 import { appStore } from "@lightlist/sdk/store";
 import { AppState, Settings, Task, TaskList } from "@lightlist/sdk/types";
 import {
@@ -75,34 +82,6 @@ const linking = {
     },
   },
 };
-
-type FirebaseAuthError = Error & {
-  code?: string;
-};
-
-const resolveAuthErrorMessage = (error: Error, t: TFunction) => {
-  const errorCode =
-    "code" in error ? String((error as FirebaseAuthError).code ?? "") : "";
-  switch (errorCode) {
-    case "auth/invalid-credential":
-      return t("errors.invalidCredential");
-    case "auth/user-not-found":
-      return t("errors.userNotFound");
-    case "auth/email-already-in-use":
-      return t("errors.emailAlreadyInUse");
-    case "auth/weak-password":
-      return t("errors.weakPassword");
-    case "auth/too-many-requests":
-      return t("errors.tooManyRequests");
-    case "auth/invalid-email":
-      return t("errors.invalidEmail");
-    default:
-      return t("errors.generic");
-  }
-};
-
-const isValidEmail = (email: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 export default function App() {
   const { t } = useTranslation();
@@ -942,47 +921,49 @@ export default function App() {
   );
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.background }]}
-      >
-        <KeyboardAvoidingView
-          style={styles.keyboard}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <GestureHandlerRootView style={styles.container}>
+      <SafeAreaProvider>
+        <SafeAreaView
+          style={[styles.container, { backgroundColor: theme.background }]}
         >
-          <NavigationContainer
-            ref={navigationRef}
-            theme={navigationTheme}
-            linking={linking}
-            onReady={() => setNavigationReady(true)}
+          <KeyboardAvoidingView
+            style={styles.keyboard}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
-            <Stack.Navigator
-              key={screenMode}
-              initialRouteName={screenMode === "task" ? "TaskList" : "Auth"}
-              screenOptions={{ headerShown: false }}
+            <NavigationContainer
+              ref={navigationRef}
+              theme={navigationTheme}
+              linking={linking}
+              onReady={() => setNavigationReady(true)}
             >
-              {screenMode === "task" ? (
-                <>
-                  <Stack.Screen name="TaskList">
-                    {renderTaskListScreen}
-                  </Stack.Screen>
-                  <Stack.Screen name="Settings">
-                    {renderSettingsScreen}
-                  </Stack.Screen>
-                </>
-              ) : (
-                <Stack.Screen name="Auth">{renderAuthScreen}</Stack.Screen>
-              )}
-              <Stack.Screen name="PasswordReset">
-                {renderPasswordResetScreen}
-              </Stack.Screen>
-              <Stack.Screen name="ShareCode">
-                {renderShareCodeScreen}
-              </Stack.Screen>
-            </Stack.Navigator>
-          </NavigationContainer>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </SafeAreaProvider>
+              <Stack.Navigator
+                key={screenMode}
+                initialRouteName={screenMode === "task" ? "TaskList" : "Auth"}
+                screenOptions={{ headerShown: false }}
+              >
+                {screenMode === "task" ? (
+                  <>
+                    <Stack.Screen name="TaskList">
+                      {renderTaskListScreen}
+                    </Stack.Screen>
+                    <Stack.Screen name="Settings">
+                      {renderSettingsScreen}
+                    </Stack.Screen>
+                  </>
+                ) : (
+                  <Stack.Screen name="Auth">{renderAuthScreen}</Stack.Screen>
+                )}
+                <Stack.Screen name="PasswordReset">
+                  {renderPasswordResetScreen}
+                </Stack.Screen>
+                <Stack.Screen name="ShareCode">
+                  {renderShareCodeScreen}
+                </Stack.Screen>
+              </Stack.Navigator>
+            </NavigationContainer>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

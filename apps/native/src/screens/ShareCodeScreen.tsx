@@ -21,8 +21,8 @@ import {
   updateTask,
   updateTasksOrder,
 } from "@lightlist/sdk/mutations/app";
-import { styles } from "../appStyles";
-import type { Theme } from "../theme";
+import { styles } from "../styles/appStyles";
+import type { Theme } from "../styles/theme";
 
 type ShareCodeScreenProps = {
   t: TFunction;

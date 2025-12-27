@@ -7,8 +7,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { styles } from "../appStyles";
-import type { Theme } from "../theme";
+import { styles } from "../../styles/appStyles";
+import type { Theme } from "../../styles/theme";
 
 type DialogProps = {
   open: boolean;

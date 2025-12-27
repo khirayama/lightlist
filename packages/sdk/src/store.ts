@@ -23,7 +23,10 @@ type DataStore = {
 type StoreListener = (state: AppState) => void;
 
 const transform = (d: DataStore): AppState => {
-  const mapStoreTaskListToAppTaskList = (listId: string, listData: TaskListStore) => {
+  const mapStoreTaskListToAppTaskList = (
+    listId: string,
+    listData: TaskListStore,
+  ) => {
     return {
       id: listId,
       name: listData.name,
@@ -46,7 +49,9 @@ const transform = (d: DataStore): AppState => {
         .sort((a, b) => a.order - b.order)
     : [];
 
-  const orderedTaskListIds = taskListOrderEntries.map((entry) => entry.taskListId);
+  const orderedTaskListIds = taskListOrderEntries.map(
+    (entry) => entry.taskListId,
+  );
   const orderedIdSet = new Set(orderedTaskListIds);
 
   const taskLists = orderedTaskListIds.map((listId) => {
@@ -69,7 +74,10 @@ const transform = (d: DataStore): AppState => {
   const sharedTaskListsById: Record<string, TaskList> = {};
   Object.entries(d.taskLists).forEach(([listId, listData]) => {
     if (orderedIdSet.has(listId)) return;
-    sharedTaskListsById[listId] = mapStoreTaskListToAppTaskList(listId, listData);
+    sharedTaskListsById[listId] = mapStoreTaskListToAppTaskList(
+      listId,
+      listData,
+    );
   });
 
   return {
@@ -193,14 +201,17 @@ function createStore() {
     const existing = sharedTaskListUnsubscribers.get(taskListId);
     if (existing) return existing;
 
-    const unsubscribe = onSnapshot(doc(db, "taskLists", taskListId), (snapshot) => {
-      if (snapshot.exists()) {
-        data.taskLists[taskListId] = snapshot.data() as TaskListStore;
-      } else {
-        delete data.taskLists[taskListId];
-      }
-      commit();
-    });
+    const unsubscribe = onSnapshot(
+      doc(db, "taskLists", taskListId),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          data.taskLists[taskListId] = snapshot.data() as TaskListStore;
+        } else {
+          delete data.taskLists[taskListId];
+        }
+        commit();
+      },
+    );
 
     const wrappedUnsubscribe = () => {
       unsubscribe();

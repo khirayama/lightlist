@@ -10,32 +10,39 @@
 - `apps/native`: Expo + React Native（TypeScript）
 - `i18next` / `react-i18next`: 文字列はすべて i18next で管理
 - `@react-navigation/native` / `@react-navigation/native-stack`: 認証/タスクリスト/設定画面のルーティング
+- `react-native-gesture-handler`: ドラッグ操作を含むジェスチャの基盤
+- `react-native-reanimated` / `react-native-worklets`: ドラッグ操作のアニメーション基盤
+- `react-native-draggable-flatlist`: タスクのドラッグ並び替え
 - `react-native-screens`: Expo Go に合わせたバージョン固定でネイティブスタックを安定化
 - 依存解決: ルート `package.json` の `overrides` で Expo Go と整合するバージョンに固定
 - `@lightlist/sdk`: Firebase 認証の呼び出しは SDK 経由
 - React: モノレポ全体で 19.1.0 に統一し、Expo Go の renderer と整合させる
 - テーマ: `useColorScheme` によるライト/ダーク切替
 - セーフエリア: `react-native-safe-area-context` による Safe Area 対応
-- i18n 初期化: `apps/native/i18n.ts` に集約
-- テーマ定義: `apps/native/theme.ts` に集約
-- 画面: `apps/native/screens` に `AuthScreen` / `TaskListScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置
-- UIコンポーネント: `apps/native/components/Dialog.tsx` に作成/編集用ダイアログの共通UIを集約
-- スタイル: `apps/native/appStyles.ts` で画面共通のスタイルを管理
+- i18n 初期化: `apps/native/src/utils/i18n.ts` に集約
+- 翻訳リソース: `apps/native/src/locales/ja.json` / `apps/native/src/locales/en.json`
+- テーマ定義: `apps/native/src/styles/theme.ts` に集約
+- 画面: `apps/native/src/screens` に `AuthScreen` / `TaskListScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置
+- UIコンポーネント: `apps/native/src/components/ui/Dialog.tsx` に作成/編集用ダイアログの共通UIを集約
+- appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` でタスクの追加・編集・並び替え・削除などの操作UIを集約
+- バリデーション/エラーハンドリング: `apps/native/src/utils/validation.ts` / `apps/native/src/utils/errors.ts` に集約
+- スタイル: `apps/native/src/styles/appStyles.ts` で画面共通のスタイルを管理
 
 ## Appページ
 
-- `App.tsx` で認証状態に応じて `AuthScreen` / `TaskListScreen` を切り替え、ログイン時は `SettingsScreen` もスタックに追加
+- `apps/native/src/App.tsx` で認証状態に応じて `AuthScreen` / `TaskListScreen` を切り替え、ログイン時は `SettingsScreen` もスタックに追加
 - 共有コード画面 `ShareCodeScreen` を追加し、共有コード入力で共有リストの閲覧・追加・編集（テキスト/期限）・完了切り替え・並び替え・完了タスク削除・自分のリスト追加に対応
 - `password-reset?oobCode=...` のディープリンクを `PasswordResetScreen` にマッピングし、パスワード再設定を実行
 - 認証状態の変化時にナビゲーションをリセットし、ログイン時は `TaskListScreen` に遷移
 - `NavigationContainer` + `NativeStack` で画面を構成
-- `TaskListScreen` はドロワーに設定リンクとタスクリスト一覧を集約し、ヘッダーのドロワーボタンで開閉する
-- タスクリストの選択、作成（ダイアログ内で名前＋色）、編集（ダイアログ内で名前＋色）、削除、順序変更に対応
-- タスクリストの共有コード発行/停止に対応
-- タスクの追加、編集（テキスト/期限）、完了切り替え、削除、並び替え、ソート、完了タスク削除に対応
+- `TaskListScreen` はドロワーに設定リンク/共有コード/サインアウト/タスクリスト一覧/タスクリスト作成を集約し、ヘッダー左のハンバーガーボタンで開閉する
+- タスクリストの選択、作成（ドロワー内のダイアログで名前＋色）、編集（ダイアログ内で名前＋色）、削除、ドロワー内のドラッグハンドルで順序変更に対応
+- タスクリストの編集/共有はヘッダー右のアイコンボタンからダイアログを開き、名前・色の更新と共有コードの発行/停止を行う
+- タスクの追加、編集（テキスト/期限）、完了切り替え、削除、ドラッグハンドルによる並び替え、ソート、完了タスク削除に対応
 - 設定画面でテーマ/言語/追加位置/自動並び替えを更新し、アカウント削除にも対応
-- サインアウトはヘッダーと設定画面から実行
+- サインアウトはドロワーと設定画面から実行
 - 画面文言は `app` / `taskList` / `settings` / `pages.tasklist` を中心に i18next で管理
+- `GestureHandlerRootView` でアプリルートをラップし、ドラッグ操作を安定化
 
 ## Firebase 設定
 
@@ -57,16 +64,23 @@
 
 ## 主な変更点
 
-- `apps/native/App.tsx`: アプリ状態と画面切替、SDK 経由の認証/データ操作
-- `apps/native/screens/AuthScreen.tsx`: 認証画面の UI
-- `apps/native/screens/TaskListScreen.tsx`: タスクリスト画面の UI
-- `apps/native/screens/SettingsScreen.tsx`: 設定画面の UI
-- `apps/native/screens/ShareCodeScreen.tsx`: 共有コード画面の UI
-- `apps/native/screens/PasswordResetScreen.tsx`: パスワード再設定画面の UI
-- `apps/native/components/Dialog.tsx`: タスクリスト作成などに使うダイアログの共通UI
-- `apps/native/appStyles.ts`: 共有スタイル
-- `apps/native/i18n.ts`: i18next のリソースと初期化
-- `apps/native/theme.ts`: テーマ定義とリストカラー
+- `apps/native/src/App.tsx`: アプリ状態と画面切替、SDK 経由の認証/データ操作
+- `apps/native/src/index.ts`: Gesture Handler 初期化
+- `apps/native/babel.config.js`: Worklets プラグイン設定
+- `apps/native/src/screens/AuthScreen.tsx`: 認証画面の UI
+- `apps/native/src/screens/TaskListScreen.tsx`: タスクリスト画面の UI
+- `apps/native/src/screens/SettingsScreen.tsx`: 設定画面の UI
+- `apps/native/src/screens/ShareCodeScreen.tsx`: 共有コード画面の UI
+- `apps/native/src/screens/PasswordResetScreen.tsx`: パスワード再設定画面の UI
+- `apps/native/src/components/ui/Dialog.tsx`: タスクリスト作成などに使うダイアログの共通UI
+- `apps/native/src/components/app/TaskListPanel.tsx`: タスク操作の共通パネル
+- `apps/native/src/styles/appStyles.ts`: 共有スタイル
+- `apps/native/src/utils/i18n.ts`: i18next のリソースと初期化
+- `apps/native/src/utils/validation.ts`: 入力バリデーション
+- `apps/native/src/utils/errors.ts`: 認証/リセットのエラーメッセージ解決
+- `apps/native/src/locales/ja.json`: 日本語リソース
+- `apps/native/src/locales/en.json`: 英語リソース
+- `apps/native/src/styles/theme.ts`: テーマ定義とリストカラー
 - `apps/native/app.json`: `userInterfaceStyle` を `automatic` に変更し、テーマ切替に追従。`scheme` を追加してディープリンクに対応
 - `apps/native/package.json`: `react-native-screens` を Expo Go に合わせて固定
 - `package.json`: `react` / `react-dom` / `@types/react` / `@types/react-dom` / `react-native-screens` を Expo Go 互換で固定

@@ -51,6 +51,78 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+  drawerRoot: {
+    flex: 1,
+  },
+  drawerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000000",
+  },
+  drawerOverlayPressable: {
+    flex: 1,
+  },
+  drawerPanel: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    borderRightWidth: 1,
+    padding: 20,
+    gap: 16,
+  },
+  drawerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  drawerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  drawerSubtitle: {
+    fontSize: 12,
+  },
+  drawerNavButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  drawerNavText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  drawerList: {
+    gap: 12,
+    paddingBottom: 20,
+  },
+  drawerListItem: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  drawerListSwatch: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1,
+  },
+  drawerListItemText: {
+    flex: 1,
+    gap: 4,
+  },
+  drawerListItemName: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  drawerListItemCount: {
+    fontSize: 12,
+  },
   appTitle: {
     fontSize: 24,
     fontWeight: "700",
@@ -90,24 +162,6 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 10,
-  },
-  listScroll: {
-    gap: 12,
-  },
-  taskListItem: {
-    minWidth: 140,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
-    marginRight: 12,
-  },
-  taskListName: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  taskListCount: {
-    fontSize: 12,
-    marginTop: 6,
   },
   colorRow: {
     flexDirection: "row",

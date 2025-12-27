@@ -20,11 +20,13 @@ const resources = {
         signOutConfirm: "Sign out from this device?",
         moveUp: "Move up",
         moveDown: "Move down",
+        drawerTitle: "Task Lists",
       },
       common: {
         back: "Back",
         loading: "Loading...",
         delete: "Delete",
+        close: "Close",
       },
       login: {
         title: "Sign in",
@@ -183,11 +185,13 @@ const resources = {
         signOutConfirm: "この端末でログアウトしますか？",
         moveUp: "上へ移動",
         moveDown: "下へ移動",
+        drawerTitle: "タスクリスト",
       },
       common: {
         back: "戻る",
         loading: "読み込み中...",
         delete: "削除",
+        close: "閉じる",
       },
       login: {
         title: "ログイン",

@@ -136,6 +136,7 @@ export const TaskListScreen = ({
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskDate, setEditingTaskDate] = useState("");
   const [isCreateListDialogOpen, setIsCreateListDialogOpen] = useState(false);
+  const [isEditListDialogOpen, setIsEditListDialogOpen] = useState(false);
   const completedTasksCount = tasks.filter((task) => task.completed).length;
   const canSortTasks = tasks.length > 1 && !isSortingTasks;
   const canDeleteCompletedTasks =
@@ -229,6 +230,18 @@ export const TaskListScreen = ({
       onChangeCreateListName("");
       onChangeCreateListBackground(listColors[0]);
     }
+  };
+
+  const handleEditListDialogChange = (open: boolean) => {
+    setIsEditListDialogOpen(open);
+    if (open) return;
+    if (!selectedTaskList) {
+      onChangeEditListName("");
+      onChangeEditListBackground(listColors[0]);
+      return;
+    }
+    onChangeEditListName(selectedTaskList.name);
+    onChangeEditListBackground(selectedTaskList.background || listColors[0]);
   };
 
   const handleCreateListSubmit = async () => {
@@ -575,87 +588,138 @@ export const TaskListScreen = ({
                   </Text>
                 </Pressable>
               </View>
-              <View style={styles.form}>
-                <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.text }]}>
-                    {t("app.taskListName")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: theme.text,
-                        borderColor: theme.border,
-                        backgroundColor: theme.inputBackground,
-                      },
-                    ]}
-                    value={editListName}
-                    onChangeText={onChangeEditListName}
-                    placeholder={t("app.taskListNamePlaceholder")}
-                    placeholderTextColor={theme.placeholder}
-                    returnKeyType="done"
-                    onSubmitEditing={onSaveList}
-                    editable={!isSavingList}
-                    accessibilityLabel={t("app.taskListName")}
-                  />
-                </View>
-                <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.text }]}>
-                    {t("taskList.selectColor")}
-                  </Text>
-                  <View style={styles.colorRow}>
-                    {listColors.map((color) => {
-                      const isSelected = color === editListBackground;
-                      return (
-                        <Pressable
-                          key={`edit-${color}`}
-                          accessibilityRole="button"
-                          accessibilityLabel={t("taskList.selectColor")}
-                          accessibilityState={{ selected: isSelected }}
-                          onPress={() => onChangeEditListBackground(color)}
-                          style={[
-                            styles.colorSwatch,
-                            {
-                              backgroundColor: color,
-                              borderColor: isSelected
-                                ? theme.primary
-                                : theme.border,
-                              borderWidth: isSelected ? 2 : 1,
-                            },
-                          ]}
-                        />
-                      );
-                    })}
-                  </View>
-                </View>
-                <View style={styles.buttonRow}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("app.save")}
-                    onPress={onSaveList}
-                    disabled={!canSaveList}
-                    style={({ pressed }) => [
-                      styles.button,
-                      {
-                        flex: 1,
-                        backgroundColor: canSaveList
-                          ? theme.primary
-                          : theme.border,
-                        opacity: pressed ? 0.9 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.buttonText,
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("taskList.editDetails")}
+                onPress={() => handleEditListDialogChange(true)}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  {
+                    borderColor: theme.border,
+                    opacity: pressed ? 0.9 : 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.secondaryButtonText, { color: theme.text }]}
+                >
+                  {t("taskList.editDetails")}
+                </Text>
+              </Pressable>
+              <Dialog
+                open={isEditListDialogOpen}
+                onOpenChange={handleEditListDialogChange}
+                title={t("taskList.editDetails")}
+                theme={theme}
+                footer={
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("app.cancel")}
+                      onPress={() => handleEditListDialogChange(false)}
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
                         {
-                          color: canSaveList ? theme.primaryText : theme.muted,
+                          flex: 1,
+                          borderColor: theme.border,
+                          opacity: pressed ? 0.9 : 1,
                         },
                       ]}
                     >
-                      {t("app.save")}
+                      <Text
+                        style={[
+                          styles.secondaryButtonText,
+                          { color: theme.text },
+                        ]}
+                      >
+                        {t("app.cancel")}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("app.save")}
+                      onPress={onSaveList}
+                      disabled={!canSaveList}
+                      style={({ pressed }) => [
+                        styles.button,
+                        {
+                          flex: 1,
+                          backgroundColor: canSaveList
+                            ? theme.primary
+                            : theme.border,
+                          opacity: pressed ? 0.9 : 1,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          {
+                            color: canSaveList
+                              ? theme.primaryText
+                              : theme.muted,
+                          },
+                        ]}
+                      >
+                        {t("app.save")}
+                      </Text>
+                    </Pressable>
+                  </>
+                }
+              >
+                <View style={styles.form}>
+                  <View style={styles.field}>
+                    <Text style={[styles.label, { color: theme.text }]}>
+                      {t("app.taskListName")}
                     </Text>
-                  </Pressable>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          color: theme.text,
+                          borderColor: theme.border,
+                          backgroundColor: theme.inputBackground,
+                        },
+                      ]}
+                      value={editListName}
+                      onChangeText={onChangeEditListName}
+                      placeholder={t("app.taskListNamePlaceholder")}
+                      placeholderTextColor={theme.placeholder}
+                      returnKeyType="done"
+                      onSubmitEditing={onSaveList}
+                      editable={!isSavingList}
+                      accessibilityLabel={t("app.taskListName")}
+                    />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={[styles.label, { color: theme.text }]}>
+                      {t("taskList.selectColor")}
+                    </Text>
+                    <View style={styles.colorRow}>
+                      {listColors.map((color) => {
+                        const isSelected = color === editListBackground;
+                        return (
+                          <Pressable
+                            key={`edit-${color}`}
+                            accessibilityRole="button"
+                            accessibilityLabel={t("taskList.selectColor")}
+                            accessibilityState={{ selected: isSelected }}
+                            onPress={() => onChangeEditListBackground(color)}
+                            style={[
+                              styles.colorSwatch,
+                              {
+                                backgroundColor: color,
+                                borderColor: isSelected
+                                  ? theme.primary
+                                  : theme.border,
+                                borderWidth: isSelected ? 2 : 1,
+                              },
+                            ]}
+                          />
+                        );
+                      })}
+                    </View>
+                  </View>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={t("taskList.deleteList")}
@@ -664,7 +728,6 @@ export const TaskListScreen = ({
                     style={({ pressed }) => [
                       styles.secondaryButton,
                       {
-                        flex: 1,
                         borderColor: theme.error,
                         opacity: pressed ? 0.9 : 1,
                       },
@@ -680,7 +743,7 @@ export const TaskListScreen = ({
                     </Text>
                   </Pressable>
                 </View>
-              </View>
+              </Dialog>
             </View>
           ) : null}
           {selectedTaskList ? (

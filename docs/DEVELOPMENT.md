@@ -31,3 +31,7 @@
 - `npm run format`
 - `npm run typecheck`
 - `npm run deploy`
+
+## Firestore 購読
+
+- `taskListOrder` は `includeMetadataChanges` を使い、`hasPendingWrites` が false のときのみ `taskLists` の購読を更新する

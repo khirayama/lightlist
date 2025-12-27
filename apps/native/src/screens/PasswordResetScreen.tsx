@@ -12,52 +12,16 @@ import {
   confirmPasswordReset,
   verifyPasswordResetCode,
 } from "@lightlist/sdk/mutations/auth";
-import { styles } from "../appStyles";
-import type { Theme } from "../theme";
+import { styles } from "../styles/appStyles";
+import type { Theme } from "../styles/theme";
+import { resolvePasswordResetErrorMessage } from "../utils/errors";
+import { validatePasswordResetForm } from "../utils/validation";
 
 type PasswordResetScreenProps = {
   t: TFunction;
   theme: Theme;
   oobCode: string | null;
   onBack: () => void;
-};
-
-type FirebaseAuthError = Error & {
-  code?: string;
-};
-
-const resolvePasswordResetErrorMessage = (error: Error, t: TFunction) => {
-  const errorCode =
-    "code" in error ? String((error as FirebaseAuthError).code ?? "") : "";
-  switch (errorCode) {
-    case "auth/expired-action-code":
-      return t("pages.passwordReset.expiredCode");
-    case "auth/invalid-action-code":
-      return t("pages.passwordReset.invalidCode");
-    case "auth/weak-password":
-      return t("form.passwordTooShort");
-    case "auth/too-many-requests":
-      return t("errors.tooManyRequests");
-    default:
-      return t("errors.generic");
-  }
-};
-
-const validatePasswordResetForm = (
-  password: string,
-  confirmPassword: string,
-  t: TFunction,
-) => {
-  if (!password || !confirmPassword) {
-    return t("form.required");
-  }
-  if (password.length < 6) {
-    return t("form.passwordTooShort");
-  }
-  if (password !== confirmPassword) {
-    return t("form.passwordMismatch");
-  }
-  return null;
 };
 
 export const PasswordResetScreen = ({

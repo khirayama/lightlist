@@ -13,8 +13,8 @@ import type {
   TaskInsertPosition,
   Theme as ThemeMode,
 } from "@lightlist/sdk/types";
-import type { Theme } from "../theme";
-import { styles } from "../appStyles";
+import type { Theme } from "../styles/theme";
+import { styles } from "../styles/appStyles";
 
 type SettingsScreenProps = {
   t: TFunction;

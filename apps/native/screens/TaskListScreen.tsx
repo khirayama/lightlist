@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import type { Task, TaskList } from "@lightlist/sdk/types";
 import { styles } from "../appStyles";
+import { Dialog } from "../components/Dialog";
 import { listColors, type Theme } from "../theme";
 
 type TaskListScreenProps = {
@@ -43,7 +44,7 @@ type TaskListScreenProps = {
   onChangeEditListName: (value: string) => void;
   onChangeEditListBackground: (color: string) => void;
   onChangeNewTaskText: (value: string) => void;
-  onCreateList: () => void | Promise<void>;
+  onCreateList: () => Promise<boolean>;
   onSaveList: () => void | Promise<void>;
   onConfirmDeleteList: () => void;
   onAddTask: () => void | Promise<void>;
@@ -134,6 +135,7 @@ export const TaskListScreen = ({
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskDate, setEditingTaskDate] = useState("");
+  const [isCreateListDialogOpen, setIsCreateListDialogOpen] = useState(false);
   const completedTasksCount = tasks.filter((task) => task.completed).length;
   const canSortTasks = tasks.length > 1 && !isSortingTasks;
   const canDeleteCompletedTasks =
@@ -219,6 +221,22 @@ export const TaskListScreen = ({
     const target = taskLists[selectedTaskListIndex + 1];
     if (!target) return;
     void onReorderTaskList(selectedTaskListId, target.id);
+  };
+
+  const handleCreateListDialogChange = (open: boolean) => {
+    setIsCreateListDialogOpen(open);
+    if (!open) {
+      onChangeCreateListName("");
+      onChangeCreateListBackground(listColors[0]);
+    }
+  };
+
+  const handleCreateListSubmit = async () => {
+    if (!canCreateList) return;
+    const created = await onCreateList();
+    if (created) {
+      handleCreateListDialogChange(false);
+    }
   };
 
   return (
@@ -369,86 +387,140 @@ export const TaskListScreen = ({
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               {t("app.createTaskList")}
             </Text>
-            <View style={styles.form}>
-              <View style={styles.field}>
-                <Text style={[styles.label, { color: theme.text }]}>
-                  {t("app.taskListName")}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: theme.text,
-                      borderColor: theme.border,
-                      backgroundColor: theme.inputBackground,
-                    },
-                  ]}
-                  value={createListName}
-                  onChangeText={onChangeCreateListName}
-                  placeholder={t("app.taskListNamePlaceholder")}
-                  placeholderTextColor={theme.placeholder}
-                  returnKeyType="done"
-                  onSubmitEditing={onCreateList}
-                  editable={!isCreatingList}
-                  accessibilityLabel={t("app.taskListName")}
-                />
-              </View>
-              <View style={styles.field}>
-                <Text style={[styles.label, { color: theme.text }]}>
-                  {t("taskList.selectColor")}
-                </Text>
-                <View style={styles.colorRow}>
-                  {listColors.map((color) => {
-                    const isSelected = color === createListBackground;
-                    return (
-                      <Pressable
-                        key={`create-${color}`}
-                        accessibilityRole="button"
-                        accessibilityLabel={t("taskList.selectColor")}
-                        accessibilityState={{ selected: isSelected }}
-                        onPress={() => onChangeCreateListBackground(color)}
-                        style={[
-                          styles.colorSwatch,
-                          {
-                            backgroundColor: color,
-                            borderColor: isSelected
-                              ? theme.primary
-                              : theme.border,
-                            borderWidth: isSelected ? 2 : 1,
-                          },
-                        ]}
-                      />
-                    );
-                  })}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("app.createTaskList")}
+              onPress={() => handleCreateListDialogChange(true)}
+              style={({ pressed }) => [
+                styles.button,
+                {
+                  backgroundColor: theme.primary,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.buttonText, { color: theme.primaryText }]}>
+                {t("app.createTaskList")}
+              </Text>
+            </Pressable>
+            <Dialog
+              open={isCreateListDialogOpen}
+              onOpenChange={handleCreateListDialogChange}
+              title={t("app.createTaskList")}
+              description={t("app.taskListName")}
+              theme={theme}
+              footer={
+                <>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("app.cancel")}
+                    onPress={() => handleCreateListDialogChange(false)}
+                    style={({ pressed }) => [
+                      styles.secondaryButton,
+                      {
+                        flex: 1,
+                        borderColor: theme.border,
+                        opacity: pressed ? 0.9 : 1,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.secondaryButtonText,
+                        { color: theme.text },
+                      ]}
+                    >
+                      {t("app.cancel")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("app.create")}
+                    onPress={handleCreateListSubmit}
+                    disabled={!canCreateList}
+                    style={({ pressed }) => [
+                      styles.button,
+                      {
+                        flex: 1,
+                        backgroundColor: canCreateList
+                          ? theme.primary
+                          : theme.border,
+                        opacity: pressed ? 0.9 : 1,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        {
+                          color: canCreateList
+                            ? theme.primaryText
+                            : theme.muted,
+                        },
+                      ]}
+                    >
+                      {isCreatingList ? t("app.creating") : t("app.create")}
+                    </Text>
+                  </Pressable>
+                </>
+              }
+            >
+              <View style={styles.form}>
+                <View style={styles.field}>
+                  <Text style={[styles.label, { color: theme.text }]}>
+                    {t("app.taskListName")}
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        color: theme.text,
+                        borderColor: theme.border,
+                        backgroundColor: theme.inputBackground,
+                      },
+                    ]}
+                    value={createListName}
+                    onChangeText={onChangeCreateListName}
+                    placeholder={t("app.taskListNamePlaceholder")}
+                    placeholderTextColor={theme.placeholder}
+                    returnKeyType="done"
+                    onSubmitEditing={handleCreateListSubmit}
+                    editable={!isCreatingList}
+                    accessibilityLabel={t("app.taskListName")}
+                    autoFocus
+                  />
+                </View>
+                <View style={styles.field}>
+                  <Text style={[styles.label, { color: theme.text }]}>
+                    {t("taskList.selectColor")}
+                  </Text>
+                  <View style={styles.colorRow}>
+                    {listColors.map((color) => {
+                      const isSelected = color === createListBackground;
+                      return (
+                        <Pressable
+                          key={`create-${color}`}
+                          accessibilityRole="button"
+                          accessibilityLabel={t("taskList.selectColor")}
+                          accessibilityState={{ selected: isSelected }}
+                          onPress={() => onChangeCreateListBackground(color)}
+                          style={[
+                            styles.colorSwatch,
+                            {
+                              backgroundColor: color,
+                              borderColor: isSelected
+                                ? theme.primary
+                                : theme.border,
+                              borderWidth: isSelected ? 2 : 1,
+                            },
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
                 </View>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("app.create")}
-                onPress={onCreateList}
-                disabled={!canCreateList}
-                style={({ pressed }) => [
-                  styles.button,
-                  {
-                    backgroundColor: canCreateList
-                      ? theme.primary
-                      : theme.border,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.buttonText,
-                    {
-                      color: canCreateList ? theme.primaryText : theme.muted,
-                    },
-                  ]}
-                >
-                  {isCreatingList ? t("app.creating") : t("app.create")}
-                </Text>
-              </Pressable>
-            </View>
+            </Dialog>
           </View>
           {selectedTaskList ? (
             <View style={styles.section}>

@@ -19,6 +19,7 @@
 - i18n 初期化: `apps/native/i18n.ts` に集約
 - テーマ定義: `apps/native/theme.ts` に集約
 - 画面: `apps/native/screens` に `AuthScreen` / `TaskListScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置
+- UIコンポーネント: `apps/native/components/Dialog.tsx` にダイアログの共通UIを集約
 - スタイル: `apps/native/appStyles.ts` で画面共通のスタイルを管理
 
 ## Appページ
@@ -28,7 +29,7 @@
 - `password-reset?oobCode=...` のディープリンクを `PasswordResetScreen` にマッピングし、パスワード再設定を実行
 - 認証状態の変化時にナビゲーションをリセットし、ログイン時は `TaskListScreen` に遷移
 - `NavigationContainer` + `NativeStack` で画面を構成
-- タスクリストの選択、作成（名前＋色）、編集（名前＋色）、削除、順序変更に対応
+- タスクリストの選択、作成（ダイアログ内で名前＋色）、編集（名前＋色）、削除、順序変更に対応
 - タスクリストの共有コード発行/停止に対応
 - タスクの追加、編集（テキスト/期限）、完了切り替え、削除、並び替え、ソート、完了タスク削除に対応
 - 設定画面でテーマ/言語/追加位置/自動並び替えを更新し、アカウント削除にも対応
@@ -61,6 +62,7 @@
 - `apps/native/screens/SettingsScreen.tsx`: 設定画面の UI
 - `apps/native/screens/ShareCodeScreen.tsx`: 共有コード画面の UI
 - `apps/native/screens/PasswordResetScreen.tsx`: パスワード再設定画面の UI
+- `apps/native/components/Dialog.tsx`: タスクリスト作成などに使うダイアログの共通UI
 - `apps/native/appStyles.ts`: 共有スタイル
 - `apps/native/i18n.ts`: i18next のリソースと初期化
 - `apps/native/theme.ts`: テーマ定義とリストカラー

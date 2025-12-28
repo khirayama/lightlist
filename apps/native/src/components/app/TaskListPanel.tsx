@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { TFunction } from "i18next";
 import {
   Alert,
@@ -115,7 +115,6 @@ export const TaskListPanel = ({
 }: TaskListPanelProps) => {
   const canAddTask =
     !addDisabled && !isAddingTask && newTaskText.trim().length > 0;
-  const newTaskInputRef = useRef<TextInput>(null);
   const completedTasksCount = tasks.filter((task) => task.completed).length;
   const canSortTasks = tasks.length > 1 && !isSortingTasks;
   const canDeleteCompletedTasks =
@@ -204,10 +203,7 @@ export const TaskListPanel = ({
 
   const handleAddTask = () => {
     if (!canAddTask) return;
-    const result = onAddTask();
-    void Promise.resolve(result).finally(() => {
-      newTaskInputRef.current?.focus();
-    });
+    void onAddTask();
   };
 
   const datePickerFooter = (
@@ -316,7 +312,6 @@ export const TaskListPanel = ({
       </View>
       <View style={styles.taskInputRow}>
         <TextInput
-          ref={newTaskInputRef}
           style={[
             styles.input,
             styles.taskInput,

@@ -1029,6 +1029,37 @@ export const TaskListScreen = ({
                     },
                   ]}
                 >
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("taskList.reorder")}
+                    accessibilityActions={accessibilityActions}
+                    onAccessibilityAction={(event) => {
+                      if (event.nativeEvent.actionName === "moveUp") {
+                        handleMoveListByOffset(-1);
+                        return;
+                      }
+                      if (event.nativeEvent.actionName === "moveDown") {
+                        handleMoveListByOffset(1);
+                      }
+                    }}
+                    onLongPress={canDragList ? drag : undefined}
+                    delayLongPress={150}
+                    onPress={() => {}}
+                    disabled={!canDragList}
+                    style={({ pressed }) => [
+                      styles.taskActionButton,
+                      {
+                        borderColor: theme.border,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                  >
+                    <Feather
+                      name="menu"
+                      size={18}
+                      color={canDragList ? theme.text : theme.muted}
+                    />
+                  </Pressable>
                   <View
                     style={[
                       styles.drawerListSwatch,
@@ -1056,40 +1087,6 @@ export const TaskListScreen = ({
                       })}
                     </Text>
                   </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("taskList.reorder")}
-                    accessibilityActions={accessibilityActions}
-                    onAccessibilityAction={(event) => {
-                      if (event.nativeEvent.actionName === "moveUp") {
-                        handleMoveListByOffset(-1);
-                        return;
-                      }
-                      if (event.nativeEvent.actionName === "moveDown") {
-                        handleMoveListByOffset(1);
-                      }
-                    }}
-                    onLongPress={canDragList ? drag : undefined}
-                    delayLongPress={150}
-                    onPress={() => {}}
-                    disabled={!canDragList}
-                    style={({ pressed }) => [
-                      styles.taskActionButton,
-                      {
-                        borderColor: theme.border,
-                        opacity: pressed ? 0.8 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.taskActionText,
-                        { color: canDragList ? theme.text : theme.muted },
-                      ]}
-                    >
-                      {t("taskList.reorder")}
-                    </Text>
-                  </Pressable>
                 </Pressable>
               );
             }}

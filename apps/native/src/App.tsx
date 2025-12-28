@@ -38,7 +38,6 @@ import {
   addTask,
   createTaskList,
   deleteCompletedTasks,
-  deleteTask,
   deleteTaskList,
   generateShareCode,
   removeShareCode,
@@ -715,33 +714,6 @@ export default function App() {
     }
   };
 
-  const handleDeleteTask = async (task: Task) => {
-    if (!selectedTaskList) return;
-    setAppErrorMessage(null);
-    try {
-      await deleteTask(selectedTaskList.id, task.id);
-    } catch (error) {
-      if (error instanceof Error) {
-        setAppErrorMessage(error.message);
-      } else {
-        setAppErrorMessage(t("app.error"));
-      }
-    }
-  };
-
-  const confirmDeleteTask = (task: Task) => {
-    Alert.alert(t("taskList.deleteTask"), t("taskList.deleteTaskConfirm"), [
-      { text: t("app.cancel"), style: "cancel" },
-      {
-        text: t("taskList.deleteTask"),
-        style: "destructive",
-        onPress: () => {
-          void handleDeleteTask(task);
-        },
-      },
-    ]);
-  };
-
   const confirmSignOut = () => {
     Alert.alert(t("app.signOut"), t("app.signOutConfirm"), [
       { text: t("app.cancel"), style: "cancel" },
@@ -866,7 +838,6 @@ export default function App() {
       onReorderTask={handleReorderTask}
       onSortTasks={handleSortTasks}
       onDeleteCompletedTasks={handleDeleteCompletedTasks}
-      onConfirmDeleteTask={confirmDeleteTask}
       onConfirmSignOut={confirmSignOut}
       onReorderTaskList={handleReorderTaskList}
       onGenerateShareCode={handleGenerateShareCode}

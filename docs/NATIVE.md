@@ -24,7 +24,7 @@
 - テーマ定義: `apps/native/src/styles/theme.ts` に集約
 - 画面: `apps/native/src/screens` に `AuthScreen` / `TaskListScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置
 - UIコンポーネント: `apps/native/src/components/ui/Dialog.tsx` に作成/編集用ダイアログの共通UIを集約
-- appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` を `TaskListScreen` / `ShareCodeScreen` で共通利用し、タスク操作UIを集約
+- appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` を `TaskListScreen` / `ShareCodeScreen` で共通利用し、タスク追加/編集/並び替え/完了/完了削除の操作UIを集約（ヘッダーやリスト選択は画面側で管理）
 - バリデーション/エラーハンドリング: `apps/native/src/utils/validation.ts` / `apps/native/src/utils/errors.ts` に集約
 - スタイル: `apps/native/src/styles/appStyles.ts` で画面共通のスタイルを管理
 
@@ -38,7 +38,7 @@
 - `TaskListScreen` はドロワーに設定リンク/共有コード/サインアウト/タスクリスト一覧/タスクリスト作成を集約し、ヘッダー左のハンバーガーボタンで開閉する
 - タスクリストの選択、作成（ドロワー内のダイアログで名前＋色）、編集（ダイアログ内で名前＋色）、削除、ドロワー内のドラッグハンドルで順序変更に対応
 - タスクリストの編集/共有はヘッダー右のアイコンボタンからダイアログを開き、名前・色の更新と共有コードの発行/停止を行う
-- タスクの追加、編集（テキスト/期限）、完了切り替え、削除、ドラッグハンドルによる並び替え、ソート、完了タスク削除に対応
+- タスクの追加、編集（テキスト/期限）、完了切り替え、ドラッグハンドルによる並び替え、ソート、完了タスク削除に対応
 - 設定画面でテーマ/言語/追加位置/自動並び替えを更新し、アカウント削除にも対応
 - サインアウトはドロワーと設定画面から実行
 - 画面文言は `app` / `taskList` / `settings` / `pages.tasklist` を中心に i18next で管理

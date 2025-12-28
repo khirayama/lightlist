@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { TFunction } from "i18next";
 import {
   Alert,
@@ -113,8 +113,9 @@ export const TaskListPanel = ({
   onReorderHandlePressIn,
   onReorderHandlePressOut,
 }: TaskListPanelProps) => {
-  const inputDisabled = addDisabled || isAddingTask;
-  const canAddTask = !inputDisabled && newTaskText.trim().length > 0;
+  const canAddTask =
+    !addDisabled && !isAddingTask && newTaskText.trim().length > 0;
+  const newTaskInputRef = useRef<TextInput>(null);
   const completedTasksCount = tasks.filter((task) => task.completed).length;
   const canSortTasks = tasks.length > 1 && !isSortingTasks;
   const canDeleteCompletedTasks =
@@ -199,6 +200,14 @@ export const TaskListPanel = ({
     }
     applyDateChange(datePickerTask, "");
     closeDatePicker();
+  };
+
+  const handleAddTask = () => {
+    if (!canAddTask) return;
+    const result = onAddTask();
+    void Promise.resolve(result).finally(() => {
+      newTaskInputRef.current?.focus();
+    });
   };
 
   const datePickerFooter = (
@@ -307,6 +316,7 @@ export const TaskListPanel = ({
       </View>
       <View style={styles.taskInputRow}>
         <TextInput
+          ref={newTaskInputRef}
           style={[
             styles.input,
             styles.taskInput,
@@ -321,17 +331,15 @@ export const TaskListPanel = ({
           placeholder={t("taskList.addTaskPlaceholder")}
           placeholderTextColor={theme.placeholder}
           returnKeyType="done"
-          onSubmitEditing={() => {
-            if (!canAddTask) return;
-            void onAddTask();
-          }}
-          editable={!inputDisabled}
+          blurOnSubmit={false}
+          onSubmitEditing={handleAddTask}
+          editable={!addDisabled}
           accessibilityLabel={t("taskList.addTaskPlaceholder")}
         />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("taskList.addTask")}
-          onPress={onAddTask}
+          onPress={handleAddTask}
           disabled={!canAddTask}
           style={({ pressed }) => [
             styles.button,

@@ -239,10 +239,6 @@ export const styles = StyleSheet.create({
   taskMetaText: {
     fontSize: 12,
   },
-  taskActionColumn: {
-    gap: 6,
-    alignItems: "flex-end",
-  },
   taskActionButton: {
     borderRadius: 10,
     borderWidth: 1,

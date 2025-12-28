@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Pressable,
   Text,
   TextInput,
@@ -21,6 +20,7 @@ import {
   updateTask,
   updateTasksOrder,
 } from "@lightlist/sdk/mutations/app";
+import { TaskListPanel } from "../components/app/TaskListPanel";
 import { styles } from "../styles/appStyles";
 import type { Theme } from "../styles/theme";
 
@@ -58,9 +58,6 @@ export const ShareCodeScreen = ({
   const [newTaskText, setNewTaskText] = useState("");
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
   const [isAddingTask, setIsAddingTask] = useState(false);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingTaskText, setEditingTaskText] = useState("");
-  const [editingTaskDate, setEditingTaskDate] = useState("");
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
   const [isReorderingTasks, setIsReorderingTasks] = useState(false);
   const [isSortingTasks, setIsSortingTasks] = useState(false);
@@ -141,18 +138,6 @@ export const ShareCodeScreen = ({
         storeState.sharedTaskListsById[sharedTaskListId] ??
         null);
   const taskListTasks = taskList?.tasks ?? [];
-  const completedTasksCount = taskListTasks.filter(
-    (task) => task.completed,
-  ).length;
-  const canSortTasks = taskListTasks.length > 1 && !isSortingTasks;
-  const canDeleteCompletedTasks =
-    completedTasksCount > 0 && !isDeletingCompletedTasks;
-
-  useEffect(() => {
-    setEditingTaskId(null);
-    setEditingTaskText("");
-    setEditingTaskDate("");
-  }, [taskList?.id]);
 
   const handleShareCodeSubmit = () => {
     const normalized = shareCodeInput.trim().toUpperCase();
@@ -165,9 +150,6 @@ export const ShareCodeScreen = ({
   };
 
   const canLoadShareCode = !loading && shareCodeInput.trim().length > 0;
-  const canAddTask =
-    Boolean(taskList) && !isAddingTask && newTaskText.trim().length > 0;
-
   const handleAddTask = async () => {
     if (!taskList) return;
     const trimmedText = newTaskText.trim();
@@ -189,31 +171,12 @@ export const ShareCodeScreen = ({
     }
   };
 
-  const startEditTask = (task: Task) => {
-    setEditingTaskId(task.id);
-    setEditingTaskText(task.text);
-    setEditingTaskDate(task.date ?? "");
-  };
-
-  const cancelEditTask = () => {
-    setEditingTaskId(null);
-    setEditingTaskText("");
-    setEditingTaskDate("");
-  };
-
-  const handleSaveTask = async () => {
-    if (!taskList || !editingTaskId) return;
-    const trimmedText = editingTaskText.trim();
-    if (!trimmedText) return;
-    const normalizedDate = editingTaskDate.trim();
+  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
+    if (!taskList) return;
     setIsUpdatingTask(true);
     setError(null);
     try {
-      await updateTask(taskList.id, editingTaskId, {
-        text: trimmedText,
-        date: normalizedDate,
-      });
-      cancelEditTask();
+      await updateTask(taskList.id, taskId, updates);
     } catch (err) {
       if (err instanceof Error && err.message) {
         setError(err.message);
@@ -294,26 +257,6 @@ export const ShareCodeScreen = ({
     }
   };
 
-  const confirmDeleteCompletedTasks = () => {
-    if (!taskList || completedTasksCount === 0) return;
-    Alert.alert(
-      t("pages.tasklist.deleteCompleted"),
-      t("pages.tasklist.deleteCompletedConfirm", {
-        count: completedTasksCount,
-      }),
-      [
-        { text: t("app.cancel"), style: "cancel" },
-        {
-          text: t("common.delete"),
-          style: "destructive",
-          onPress: () => {
-            void handleDeleteCompletedTasks();
-          },
-        },
-      ],
-    );
-  };
-
   const handleDeleteTask = async (task: Task) => {
     if (!taskList) return;
     try {
@@ -360,17 +303,20 @@ export const ShareCodeScreen = ({
   };
 
   return (
-    <FlatList
-      data={taskListTasks}
-      keyExtractor={(item) => item.id}
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.appContent}
-      ItemSeparatorComponent={() => (
-        <View
-          style={[styles.taskSeparator, { backgroundColor: theme.border }]}
-        />
-      )}
-      ListHeaderComponent={
+    <TaskListPanel
+      t={t}
+      theme={theme}
+      selectedTaskList={taskList}
+      selectedTaskListId={taskList?.id ?? null}
+      tasks={taskListTasks}
+      newTaskText={newTaskText}
+      taskListError={addTaskError}
+      isAddingTask={isAddingTask}
+      isUpdatingTask={isUpdatingTask}
+      isReorderingTasks={isReorderingTasks}
+      isSortingTasks={isSortingTasks}
+      isDeletingCompletedTasks={isDeletingCompletedTasks}
+      header={
         <View>
           <View style={styles.settingsHeader}>
             <Pressable
@@ -485,370 +431,19 @@ export const ShareCodeScreen = ({
               </Text>
             ) : null}
           </View>
-
-          {taskList ? (
-            <View style={styles.section}>
-              <View style={styles.taskHeaderRow}>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                  {taskList.name || t("app.taskListName")}
-                </Text>
-                <Text style={[styles.taskCount, { color: theme.muted }]}>
-                  {t("taskList.taskCount", { count: taskList.tasks.length })}
-                </Text>
-              </View>
-              <View style={styles.taskActionRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("pages.tasklist.sort")}
-                  onPress={handleSortTasks}
-                  disabled={!canSortTasks}
-                  style={({ pressed }) => [
-                    styles.secondaryButton,
-                    {
-                      flex: 1,
-                      borderColor: theme.border,
-                      opacity: pressed ? 0.9 : 1,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.secondaryButtonText,
-                      { color: canSortTasks ? theme.text : theme.muted },
-                    ]}
-                  >
-                    {isSortingTasks
-                      ? t("common.loading")
-                      : t("pages.tasklist.sort")}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("pages.tasklist.deleteCompleted")}
-                  onPress={confirmDeleteCompletedTasks}
-                  disabled={!canDeleteCompletedTasks}
-                  style={({ pressed }) => [
-                    styles.secondaryButton,
-                    {
-                      flex: 1,
-                      borderColor: theme.error,
-                      opacity: pressed ? 0.9 : 1,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.secondaryButtonText,
-                      {
-                        color: canDeleteCompletedTasks
-                          ? theme.error
-                          : theme.muted,
-                      },
-                    ]}
-                  >
-                    {isDeletingCompletedTasks
-                      ? t("common.loading")
-                      : t("pages.tasklist.deleteCompleted")}
-                  </Text>
-                </Pressable>
-              </View>
-              <View style={styles.taskInputRow}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    styles.taskInput,
-                    {
-                      color: theme.text,
-                      borderColor: theme.border,
-                      backgroundColor: theme.inputBackground,
-                    },
-                  ]}
-                  value={newTaskText}
-                  onChangeText={(value) => {
-                    setNewTaskText(value);
-                    setAddTaskError(null);
-                  }}
-                  placeholder={t("taskList.addTaskPlaceholder")}
-                  placeholderTextColor={theme.placeholder}
-                  returnKeyType="done"
-                  onSubmitEditing={handleAddTask}
-                  editable={!isAddingTask}
-                  accessibilityLabel={t("taskList.addTaskPlaceholder")}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("taskList.addTask")}
-                  onPress={handleAddTask}
-                  disabled={!canAddTask}
-                  style={({ pressed }) => [
-                    styles.button,
-                    {
-                      backgroundColor: canAddTask
-                        ? theme.primary
-                        : theme.border,
-                      opacity: pressed ? 0.9 : 1,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.buttonText,
-                      {
-                        color: canAddTask ? theme.primaryText : theme.muted,
-                      },
-                    ]}
-                  >
-                    {t("taskList.addTask")}
-                  </Text>
-                </Pressable>
-              </View>
-              {addTaskError ? (
-                <Text style={[styles.error, { color: theme.error }]}>
-                  {addTaskError}
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
         </View>
       }
-      ListEmptyComponent={
-        taskList && !loading ? (
-          <Text style={[styles.emptyText, { color: theme.muted }]}>
-            {t("pages.tasklist.noTasks")}
-          </Text>
-        ) : null
-      }
-      renderItem={({ item, index }) => {
-        const isEditing = editingTaskId === item.id;
-        const canMoveTaskUp = !isEditing && !isReorderingTasks && index > 0;
-        const canMoveTaskDown =
-          !isEditing && !isReorderingTasks && index < taskListTasks.length - 1;
-        const canSaveTask =
-          !isUpdatingTask && editingTaskText.trim().length > 0;
-
-        const handleMoveTaskUp = () => {
-          if (!canMoveTaskUp) return;
-          const targetTask = taskListTasks[index - 1];
-          if (!targetTask) return;
-          void handleReorderTask(item.id, targetTask.id);
-        };
-
-        const handleMoveTaskDown = () => {
-          if (!canMoveTaskDown) return;
-          const targetTask = taskListTasks[index + 1];
-          if (!targetTask) return;
-          void handleReorderTask(item.id, targetTask.id);
-        };
-
-        return (
-          <View style={styles.taskItem}>
-            <View style={styles.taskRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("taskList.toggleComplete")}
-                onPress={() => {
-                  void handleToggleTask(item);
-                }}
-                disabled={isEditing}
-                style={[
-                  styles.taskCheck,
-                  {
-                    borderColor: theme.border,
-                    backgroundColor: item.completed
-                      ? theme.primary
-                      : "transparent",
-                    opacity: isEditing ? 0.6 : 1,
-                  },
-                ]}
-              />
-              <View style={styles.taskContent}>
-                {isEditing ? (
-                  <TextInput
-                    style={[
-                      styles.input,
-                      styles.taskEditInput,
-                      {
-                        color: theme.text,
-                        borderColor: theme.border,
-                        backgroundColor: theme.inputBackground,
-                      },
-                    ]}
-                    value={editingTaskText}
-                    onChangeText={setEditingTaskText}
-                    placeholder={t("taskList.addTaskPlaceholder")}
-                    placeholderTextColor={theme.placeholder}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="done"
-                    onSubmitEditing={handleSaveTask}
-                    editable={!isUpdatingTask}
-                    accessibilityLabel={t("taskList.editTask")}
-                  />
-                ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("taskList.editTask")}
-                    onPress={() => startEditTask(item)}
-                    style={({ pressed }) => [
-                      styles.taskTextButton,
-                      { opacity: pressed ? 0.8 : 1 },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.taskText,
-                        { color: theme.text },
-                        item.completed && styles.taskTextCompleted,
-                      ]}
-                    >
-                      {item.text}
-                    </Text>
-                  </Pressable>
-                )}
-                {!isEditing && item.date ? (
-                  <Text style={[styles.taskMetaText, { color: theme.muted }]}>
-                    {item.date}
-                  </Text>
-                ) : null}
-              </View>
-              <View style={styles.taskActionColumn}>
-                {isEditing ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("app.save")}
-                    onPress={handleSaveTask}
-                    disabled={!canSaveTask}
-                    style={({ pressed }) => [
-                      styles.taskActionButton,
-                      {
-                        borderColor: theme.border,
-                        opacity: pressed ? 0.8 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.taskActionText,
-                        { color: canSaveTask ? theme.text : theme.muted },
-                      ]}
-                    >
-                      {t("app.save")}
-                    </Text>
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("app.moveUp")}
-                    onPress={handleMoveTaskUp}
-                    disabled={!canMoveTaskUp}
-                    style={({ pressed }) => [
-                      styles.taskActionButton,
-                      {
-                        borderColor: theme.border,
-                        opacity: pressed ? 0.8 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.taskActionText,
-                        { color: canMoveTaskUp ? theme.text : theme.muted },
-                      ]}
-                    >
-                      {t("app.moveUp")}
-                    </Text>
-                  </Pressable>
-                )}
-                {isEditing ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("app.cancel")}
-                    onPress={cancelEditTask}
-                    style={({ pressed }) => [
-                      styles.taskActionButton,
-                      {
-                        borderColor: theme.border,
-                        opacity: pressed ? 0.8 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.taskActionText, { color: theme.text }]}
-                    >
-                      {t("app.cancel")}
-                    </Text>
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("app.moveDown")}
-                    onPress={handleMoveTaskDown}
-                    disabled={!canMoveTaskDown}
-                    style={({ pressed }) => [
-                      styles.taskActionButton,
-                      {
-                        borderColor: theme.border,
-                        opacity: pressed ? 0.8 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.taskActionText,
-                        { color: canMoveTaskDown ? theme.text : theme.muted },
-                      ]}
-                    >
-                      {t("app.moveDown")}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-            {isEditing ? (
-              <View style={styles.field}>
-                <Text style={[styles.label, { color: theme.text }]}>
-                  {t("pages.tasklist.setDate")}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    styles.taskEditInput,
-                    {
-                      color: theme.text,
-                      borderColor: theme.border,
-                      backgroundColor: theme.inputBackground,
-                    },
-                  ]}
-                  value={editingTaskDate}
-                  onChangeText={setEditingTaskDate}
-                  placeholder={t("pages.tasklist.setDate")}
-                  placeholderTextColor={theme.placeholder}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  editable={!isUpdatingTask}
-                  accessibilityLabel={t("pages.tasklist.setDate")}
-                />
-              </View>
-            ) : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("taskList.deleteTask")}
-              onPress={() => {
-                confirmDeleteTask(item);
-              }}
-              style={({ pressed }) => [
-                styles.taskDeleteButton,
-                { opacity: pressed ? 0.8 : 1 },
-              ]}
-            >
-              <Text style={[styles.taskDeleteText, { color: theme.error }]}>
-                {t("taskList.deleteTask")}
-              </Text>
-            </Pressable>
-          </View>
-        );
+      onChangeNewTaskText={(value) => {
+        setNewTaskText(value);
+        setAddTaskError(null);
       }}
+      onAddTask={handleAddTask}
+      onToggleTask={handleToggleTask}
+      onConfirmDeleteTask={confirmDeleteTask}
+      onUpdateTask={handleUpdateTask}
+      onReorderTask={handleReorderTask}
+      onSortTasks={handleSortTasks}
+      onDeleteCompletedTasks={handleDeleteCompletedTasks}
     />
   );
 };

@@ -282,6 +282,15 @@ export const TaskListScreen = ({
     setEditingTaskDate("");
   };
 
+  const handleDateChange = async (task: Task, nextDate: string) => {
+    const normalizedDate = nextDate.trim();
+    if (editingTaskId === task.id) {
+      setEditingTaskDate(normalizedDate);
+    }
+    if (normalizedDate === (task.date ?? "")) return;
+    await onUpdateTask(task.id, { date: normalizedDate });
+  };
+
   useEffect(() => {
     if (!taskListCarouselApi || taskLists.length === 0) return;
     const index = taskLists.findIndex(
@@ -1021,6 +1030,10 @@ export const TaskListScreen = ({
                     if (!isActive) return;
                     void handleEditEnd(task);
                   }}
+                  onDateChange={(task, nextDate) => {
+                    if (!isActive) return;
+                    return handleDateChange(task, nextDate);
+                  }}
                   onChangeNewTaskText={(value) => {
                     if (!isActive) return;
                     onChangeNewTaskText(value);
@@ -1086,6 +1099,7 @@ export const TaskListScreen = ({
         onEditingTaskDateChange={() => {}}
         onEditStart={() => {}}
         onEditEnd={() => {}}
+        onDateChange={() => {}}
         onChangeNewTaskText={() => {}}
         onAddTask={() => {}}
         onToggleTask={() => {}}

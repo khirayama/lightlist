@@ -77,6 +77,25 @@ export const styles = StyleSheet.create({
     padding: 20,
     gap: 16,
   },
+  splitRoot: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  splitSidebar: {
+    width: 360,
+    maxWidth: 420,
+    flexShrink: 0,
+    borderRightWidth: 1,
+  },
+  splitSidebarContent: {
+    flex: 1,
+    padding: 20,
+    gap: 16,
+  },
+  splitMain: {
+    flex: 1,
+    minWidth: 0,
+  },
   drawerHeader: {
     flexDirection: "row",
     alignItems: "center",

@@ -37,6 +37,7 @@
 - 認証状態の変化時にナビゲーションをリセットし、ログイン時は `TaskListScreen` に遷移
 - `NavigationContainer` + `NativeStack` で画面を構成
 - `TaskListScreen` はドロワーに設定リンク/共有コード/サインアウト/タスクリスト一覧/タスクリスト作成を集約し、ヘッダー左のハンバーガーボタンで開閉する
+- 画面幅が広い場合はドロワーの内容を常時表示し、左にタスクリスト一覧、右にタスクリスト詳細の2カラムで操作する
 - タスクリストの選択、作成（ドロワー内のダイアログで名前＋色）、編集（ダイアログ内で名前＋色）、削除、ドロワー内のドラッグハンドルで順序変更に対応
 - タスクリストの編集/共有はヘッダー右のアイコンボタンからダイアログを開き、名前・色の更新と共有コードの発行/停止を行う
 - タスクリスト詳細はカルーセルで横スワイプ切り替えでき、スワイプ位置と選択中のリストIDを同期する。並び替えハンドルのタッチ中のみ横スワイプを停止し、それ以外は横スワイプ優先で操作する。タスクリストのドラッグ操作は `activationDistance` を設定し、横スワイプ時にリストのジェスチャが先に反応しないよう調整する
@@ -84,6 +85,6 @@
 - `apps/native/src/locales/ja.json`: 日本語リソース
 - `apps/native/src/locales/en.json`: 英語リソース
 - `apps/native/src/styles/theme.ts`: テーマ定義とリストカラー
-- `apps/native/app.json`: `userInterfaceStyle` を `automatic` に変更し、テーマ切替に追従。`scheme` を追加してディープリンクに対応
+- `apps/native/app.json`: `userInterfaceStyle` を `automatic` に変更し、テーマ切替に追従。`scheme` を追加してディープリンクに対応。`orientation` を `default` にして回転に対応
 - `apps/native/package.json`: `react-native-screens` を Expo Go に合わせて固定
 - `package.json`: `react` / `react-dom` / `@types/react` / `@types/react-dom` / `react-native-screens` を Expo Go 互換で固定

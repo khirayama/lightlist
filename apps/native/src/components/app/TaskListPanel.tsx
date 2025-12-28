@@ -17,6 +17,7 @@ type TaskListPanelProps = {
   selectedTaskListId: string | null;
   tasks: Task[];
   newTaskText: string;
+  taskListError?: string | null;
   isAddingTask: boolean;
   isUpdatingTask: boolean;
   isReorderingTasks: boolean;
@@ -46,6 +47,7 @@ export const TaskListPanel = ({
   selectedTaskListId,
   tasks,
   newTaskText,
+  taskListError,
   isAddingTask,
   isUpdatingTask,
   isReorderingTasks,
@@ -249,6 +251,11 @@ export const TaskListPanel = ({
               </Text>
             </Pressable>
           </View>
+          {taskListError ? (
+            <Text style={[styles.error, { color: theme.error }]}>
+              {taskListError}
+            </Text>
+          ) : null}
         </View>
       ) : null}
     </View>

@@ -24,7 +24,7 @@
 - テーマ定義: `apps/native/src/styles/theme.ts` に集約
 - 画面: `apps/native/src/screens` に `AuthScreen` / `TaskListScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置
 - UIコンポーネント: `apps/native/src/components/ui/Dialog.tsx` に作成/編集用ダイアログの共通UIを集約
-- appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` でタスクの追加・編集・並び替え・削除などの操作UIを集約
+- appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` を `TaskListScreen` / `ShareCodeScreen` で共通利用し、タスク操作UIを集約
 - バリデーション/エラーハンドリング: `apps/native/src/utils/validation.ts` / `apps/native/src/utils/errors.ts` に集約
 - スタイル: `apps/native/src/styles/appStyles.ts` で画面共通のスタイルを管理
 

@@ -38,6 +38,8 @@ type TaskListPanelProps = {
   onReorderPreview?: (nextTasks: Task[]) => void;
   onSortTasks: () => void | Promise<void>;
   onDeleteCompletedTasks: () => void | Promise<void>;
+  onReorderHandlePressIn?: () => void;
+  onReorderHandlePressOut?: () => void;
 };
 
 export const TaskListPanel = ({
@@ -67,6 +69,8 @@ export const TaskListPanel = ({
   onReorderPreview,
   onSortTasks,
   onDeleteCompletedTasks,
+  onReorderHandlePressIn,
+  onReorderHandlePressOut,
 }: TaskListPanelProps) => {
   const inputDisabled = addDisabled || isAddingTask;
   const canAddTask = !inputDisabled && newTaskText.trim().length > 0;
@@ -207,6 +211,7 @@ export const TaskListPanel = ({
     <DraggableFlatList
       data={tasks}
       keyExtractor={(item) => item.id}
+      activationDistance={8}
       onDragEnd={({ data, from, to }) => {
         onReorderPreview?.(data);
         if (isReorderingTasks) return;
@@ -357,6 +362,8 @@ export const TaskListPanel = ({
                     }
                   }}
                   onLongPress={canDragTask ? drag : undefined}
+                  onPressIn={onReorderHandlePressIn}
+                  onPressOut={onReorderHandlePressOut}
                   delayLongPress={150}
                   disabled={!canDragTask}
                   style={({ pressed }) => [

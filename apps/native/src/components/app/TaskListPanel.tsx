@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import DraggableFlatList, {
   type RenderItemParams,
 } from "react-native-draggable-flatlist";
@@ -276,6 +277,38 @@ export const TaskListPanel = ({
             <View style={styles.taskRow}>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={t("taskList.reorder")}
+                accessibilityActions={accessibilityActions}
+                onAccessibilityAction={(event) => {
+                  if (event.nativeEvent.actionName === "moveUp") {
+                    handleMoveTaskByOffset(-1);
+                    return;
+                  }
+                  if (event.nativeEvent.actionName === "moveDown") {
+                    handleMoveTaskByOffset(1);
+                  }
+                }}
+                onLongPress={canDragTask ? drag : undefined}
+                onPressIn={onReorderHandlePressIn}
+                onPressOut={onReorderHandlePressOut}
+                delayLongPress={150}
+                disabled={!canDragTask}
+                style={({ pressed }) => [
+                  styles.taskActionButton,
+                  {
+                    borderColor: theme.border,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <Feather
+                  name="menu"
+                  size={18}
+                  color={canDragTask ? theme.text : theme.muted}
+                />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
                 accessibilityLabel={t("taskList.toggleComplete")}
                 onPress={() => {
                   void onToggleTask(item);
@@ -346,43 +379,6 @@ export const TaskListPanel = ({
                     {item.date}
                   </Text>
                 ) : null}
-              </View>
-              <View style={styles.taskActionColumn}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("taskList.reorder")}
-                  accessibilityActions={accessibilityActions}
-                  onAccessibilityAction={(event) => {
-                    if (event.nativeEvent.actionName === "moveUp") {
-                      handleMoveTaskByOffset(-1);
-                      return;
-                    }
-                    if (event.nativeEvent.actionName === "moveDown") {
-                      handleMoveTaskByOffset(1);
-                    }
-                  }}
-                  onLongPress={canDragTask ? drag : undefined}
-                  onPressIn={onReorderHandlePressIn}
-                  onPressOut={onReorderHandlePressOut}
-                  delayLongPress={150}
-                  disabled={!canDragTask}
-                  style={({ pressed }) => [
-                    styles.taskActionButton,
-                    {
-                      borderColor: theme.border,
-                      opacity: pressed ? 0.8 : 1,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.taskActionText,
-                      { color: canDragTask ? theme.text : theme.muted },
-                    ]}
-                  >
-                    {t("taskList.reorder")}
-                  </Text>
-                </Pressable>
               </View>
             </View>
             {isEditing ? (

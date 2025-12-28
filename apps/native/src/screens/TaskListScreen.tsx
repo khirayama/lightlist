@@ -1,19 +1,21 @@
 import type { TFunction } from "i18next";
-import { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Pressable,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import DraggableFlatList, {
   type RenderItemParams,
 } from "react-native-draggable-flatlist";
 import type { Task, TaskList } from "@lightlist/sdk/types";
 import { styles } from "../styles/appStyles";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "../components/ui/Drawer";
 import { Dialog } from "../components/ui/Dialog";
 import { TaskListPanel } from "../components/app/TaskListPanel";
 import { listColors, type Theme } from "../styles/theme";
@@ -142,9 +144,6 @@ export const TaskListScreen = ({
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskDate, setEditingTaskDate] = useState("");
-  const { width } = useWindowDimensions();
-  const drawerWidth = Math.min(width * 0.85, 360);
-  const drawerTranslateX = useRef(new Animated.Value(-drawerWidth)).current;
 
   useEffect(() => {
     setOrderedTaskLists(taskLists);
@@ -168,14 +167,6 @@ export const TaskListScreen = ({
     setEditingTaskText("");
     setEditingTaskDate("");
   }, [editingTaskId, tasks]);
-
-  useEffect(() => {
-    Animated.timing(drawerTranslateX, {
-      toValue: isDrawerOpen ? 0 : -drawerWidth,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [drawerTranslateX, drawerWidth, isDrawerOpen]);
 
   const handleCreateListDialogChange = (open: boolean) => {
     setIsCreateListDialogOpen(open);
@@ -207,10 +198,6 @@ export const TaskListScreen = ({
     if (created) {
       handleCreateListDialogChange(false);
     }
-  };
-
-  const openDrawer = () => {
-    setIsDrawerOpen(true);
   };
 
   const closeDrawer = () => {
@@ -268,20 +255,13 @@ export const TaskListScreen = ({
     setEditingTaskDate("");
   };
 
-  const drawerOverlayOpacity = drawerTranslateX.interpolate({
-    inputRange: [-drawerWidth, 0],
-    outputRange: [0, 0.4],
-    extrapolate: "clamp",
-  });
-
   const taskListHeader = (
     <View>
       <View style={styles.appHeader}>
         <View style={styles.appTitleRow}>
-          <Pressable
+          <DrawerTrigger
             accessibilityRole="button"
             accessibilityLabel={t("app.drawerTitle")}
-            onPress={openDrawer}
             style={({ pressed }) => [
               styles.headerIconButton,
               {
@@ -291,7 +271,7 @@ export const TaskListScreen = ({
             ]}
           >
             <Feather name="menu" size={20} color={theme.text} />
-          </Pressable>
+          </DrawerTrigger>
           <View style={styles.headerActions}>
             {selectedTaskList ? (
               <>
@@ -575,413 +555,407 @@ export const TaskListScreen = ({
 
   return (
     <View style={styles.drawerRoot}>
-      <View style={[styles.appContent, { paddingBottom: 0 }]}>
-        {taskListHeader}
-      </View>
-      <TaskListPanel
-        t={t}
-        theme={theme}
-        tasks={orderedTasks}
-        newTaskText={newTaskText}
-        isAddingTask={isAddingTask}
-        isUpdatingTask={isUpdatingTask}
-        isReorderingTasks={isReorderingTasks}
-        isSortingTasks={isSortingTasks}
-        isDeletingCompletedTasks={isDeletingCompletedTasks}
-        addDisabled={!selectedTaskList}
-        emptyLabel={selectedTaskList ? t("pages.tasklist.noTasks") : ""}
-        editingTaskId={editingTaskId}
-        editingTaskText={editingTaskText}
-        editingTaskDate={editingTaskDate}
-        onEditingTaskTextChange={setEditingTaskText}
-        onEditingTaskDateChange={setEditingTaskDate}
-        onEditStart={handleEditStart}
-        onEditEnd={handleEditEnd}
-        onChangeNewTaskText={onChangeNewTaskText}
-        onAddTask={onAddTask}
-        onToggleTask={onToggleTask}
-        onReorderTask={onReorderTask}
-        onReorderPreview={setOrderedTasks}
-        onSortTasks={onSortTasks}
-        onDeleteCompletedTasks={onDeleteCompletedTasks}
-      />
-      <Animated.View
-        pointerEvents={isDrawerOpen ? "auto" : "none"}
-        style={[styles.drawerOverlay, { opacity: drawerOverlayOpacity }]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("common.close")}
-          style={styles.drawerOverlayPressable}
-          onPress={closeDrawer}
+      <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+        <View style={[styles.appContent, { paddingBottom: 0 }]}>
+          {taskListHeader}
+        </View>
+        <TaskListPanel
+          t={t}
+          theme={theme}
+          tasks={orderedTasks}
+          newTaskText={newTaskText}
+          isAddingTask={isAddingTask}
+          isUpdatingTask={isUpdatingTask}
+          isReorderingTasks={isReorderingTasks}
+          isSortingTasks={isSortingTasks}
+          isDeletingCompletedTasks={isDeletingCompletedTasks}
+          addDisabled={!selectedTaskList}
+          emptyLabel={selectedTaskList ? t("pages.tasklist.noTasks") : ""}
+          editingTaskId={editingTaskId}
+          editingTaskText={editingTaskText}
+          editingTaskDate={editingTaskDate}
+          onEditingTaskTextChange={setEditingTaskText}
+          onEditingTaskDateChange={setEditingTaskDate}
+          onEditStart={handleEditStart}
+          onEditEnd={handleEditEnd}
+          onChangeNewTaskText={onChangeNewTaskText}
+          onAddTask={onAddTask}
+          onToggleTask={onToggleTask}
+          onReorderTask={onReorderTask}
+          onReorderPreview={setOrderedTasks}
+          onSortTasks={onSortTasks}
+          onDeleteCompletedTasks={onDeleteCompletedTasks}
         />
-      </Animated.View>
-      <Animated.View
-        style={[
-          styles.drawerPanel,
-          {
-            width: drawerWidth,
+        <DrawerContent
+          style={{
             backgroundColor: theme.surface,
             borderColor: theme.border,
-            transform: [{ translateX: drawerTranslateX }],
-          },
-        ]}
-      >
-        <View style={styles.drawerHeader}>
-          <Text style={[styles.drawerTitle, { color: theme.text }]}>
-            {t("app.drawerTitle")}
-          </Text>
+          }}
+          overlayProps={{ accessibilityLabel: t("common.close") }}
+        >
+          <DrawerHeader>
+            <DrawerTitle style={{ color: theme.text }}>
+              {t("app.drawerTitle")}
+            </DrawerTitle>
+            <DrawerClose
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close")}
+              style={({ pressed }) => [
+                styles.headerButton,
+                {
+                  borderColor: theme.border,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.headerButtonText, { color: theme.text }]}>
+                {t("common.close")}
+              </Text>
+            </DrawerClose>
+          </DrawerHeader>
+          {userEmail ? (
+            <DrawerDescription style={{ color: theme.muted }}>
+              {t("status.signedInAs", { email: userEmail })}
+            </DrawerDescription>
+          ) : null}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("common.close")}
-            onPress={closeDrawer}
+            accessibilityLabel={t("settings.title")}
+            onPress={handleOpenSettingsFromDrawer}
             style={({ pressed }) => [
-              styles.headerButton,
+              styles.drawerNavButton,
               {
                 borderColor: theme.border,
                 opacity: pressed ? 0.9 : 1,
               },
             ]}
           >
-            <Text style={[styles.headerButtonText, { color: theme.text }]}>
-              {t("common.close")}
+            <Text style={[styles.drawerNavText, { color: theme.text }]}>
+              {t("settings.title")}
             </Text>
           </Pressable>
-        </View>
-        {userEmail ? (
-          <Text style={[styles.drawerSubtitle, { color: theme.muted }]}>
-            {t("status.signedInAs", { email: userEmail })}
-          </Text>
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("settings.title")}
-          onPress={handleOpenSettingsFromDrawer}
-          style={({ pressed }) => [
-            styles.drawerNavButton,
-            {
-              borderColor: theme.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
-        >
-          <Text style={[styles.drawerNavText, { color: theme.text }]}>
-            {t("settings.title")}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("pages.sharecode.title")}
-          onPress={handleOpenShareCodeFromDrawer}
-          style={({ pressed }) => [
-            styles.drawerNavButton,
-            {
-              borderColor: theme.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
-        >
-          <Text style={[styles.drawerNavText, { color: theme.text }]}>
-            {t("pages.sharecode.title")}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("app.signOut")}
-          onPress={handleConfirmSignOutFromDrawer}
-          style={({ pressed }) => [
-            styles.drawerNavButton,
-            {
-              borderColor: theme.error,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
-        >
-          <Text style={[styles.drawerNavText, { color: theme.error }]}>
-            {t("app.signOut")}
-          </Text>
-        </Pressable>
-        <DraggableFlatList
-          data={orderedTaskLists}
-          keyExtractor={(item) => item.id}
-          onDragEnd={({ data, from, to }) => {
-            if (isReorderingTaskLists) {
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("pages.sharecode.title")}
+            onPress={handleOpenShareCodeFromDrawer}
+            style={({ pressed }) => [
+              styles.drawerNavButton,
+              {
+                borderColor: theme.border,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.drawerNavText, { color: theme.text }]}>
+              {t("pages.sharecode.title")}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("app.signOut")}
+            onPress={handleConfirmSignOutFromDrawer}
+            style={({ pressed }) => [
+              styles.drawerNavButton,
+              {
+                borderColor: theme.error,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.drawerNavText, { color: theme.error }]}>
+              {t("app.signOut")}
+            </Text>
+          </Pressable>
+          <DraggableFlatList
+            data={orderedTaskLists}
+            keyExtractor={(item) => item.id}
+            onDragEnd={({ data, from, to }) => {
+              if (isReorderingTaskLists) {
+                setOrderedTaskLists(data);
+                return;
+              }
+              const draggedList = orderedTaskLists[from];
+              const targetList = orderedTaskLists[to];
               setOrderedTaskLists(data);
-              return;
-            }
-            const draggedList = orderedTaskLists[from];
-            const targetList = orderedTaskLists[to];
-            setOrderedTaskLists(data);
-            if (!draggedList || !targetList || from === to) return;
-            void onReorderTaskList(draggedList.id, targetList.id);
-          }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.drawerList}
-          ListHeaderComponent={
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                {t("app.createTaskList")}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("app.createTaskList")}
-                onPress={() => handleCreateListDialogChange(true)}
-                style={({ pressed }) => [
-                  styles.button,
-                  {
-                    backgroundColor: theme.primary,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
-              >
-                <Text style={[styles.buttonText, { color: theme.primaryText }]}>
+              if (!draggedList || !targetList || from === to) return;
+              void onReorderTaskList(draggedList.id, targetList.id);
+            }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.drawerList}
+            ListHeaderComponent={
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>
                   {t("app.createTaskList")}
                 </Text>
-              </Pressable>
-              <Dialog
-                open={isCreateListDialogOpen}
-                onOpenChange={handleCreateListDialogChange}
-                title={t("app.createTaskList")}
-                description={t("app.taskListName")}
-                theme={theme}
-                footer={
-                  <>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t("app.cancel")}
-                      onPress={() => handleCreateListDialogChange(false)}
-                      style={({ pressed }) => [
-                        styles.secondaryButton,
-                        {
-                          flex: 1,
-                          borderColor: theme.border,
-                          opacity: pressed ? 0.9 : 1,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.secondaryButtonText,
-                          { color: theme.text },
-                        ]}
-                      >
-                        {t("app.cancel")}
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t("app.create")}
-                      onPress={handleCreateListSubmit}
-                      disabled={!canCreateList}
-                      style={({ pressed }) => [
-                        styles.button,
-                        {
-                          flex: 1,
-                          backgroundColor: canCreateList
-                            ? theme.primary
-                            : theme.border,
-                          opacity: pressed ? 0.9 : 1,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          {
-                            color: canCreateList
-                              ? theme.primaryText
-                              : theme.muted,
-                          },
-                        ]}
-                      >
-                        {isCreatingList ? t("app.creating") : t("app.create")}
-                      </Text>
-                    </Pressable>
-                  </>
-                }
-              >
-                <View style={styles.form}>
-                  <View style={styles.field}>
-                    <Text style={[styles.label, { color: theme.text }]}>
-                      {t("app.taskListName")}
-                    </Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        {
-                          color: theme.text,
-                          borderColor: theme.border,
-                          backgroundColor: theme.inputBackground,
-                        },
-                      ]}
-                      value={createListName}
-                      onChangeText={onChangeCreateListName}
-                      placeholder={t("app.taskListNamePlaceholder")}
-                      placeholderTextColor={theme.placeholder}
-                      returnKeyType="done"
-                      onSubmitEditing={handleCreateListSubmit}
-                      editable={!isCreatingList}
-                      accessibilityLabel={t("app.taskListName")}
-                      autoFocus
-                    />
-                  </View>
-                  <View style={styles.field}>
-                    <Text style={[styles.label, { color: theme.text }]}>
-                      {t("taskList.selectColor")}
-                    </Text>
-                    <View style={styles.colorRow}>
-                      {listColors.map((color) => {
-                        const isSelected = color === createListBackground;
-                        return (
-                          <Pressable
-                            key={`create-${color}`}
-                            accessibilityRole="button"
-                            accessibilityLabel={t("taskList.selectColor")}
-                            accessibilityState={{ selected: isSelected }}
-                            onPress={() => onChangeCreateListBackground(color)}
-                            style={[
-                              styles.colorSwatch,
-                              {
-                                backgroundColor: color,
-                                borderColor: isSelected
-                                  ? theme.primary
-                                  : theme.border,
-                                borderWidth: isSelected ? 2 : 1,
-                              },
-                            ]}
-                          />
-                        );
-                      })}
-                    </View>
-                  </View>
-                </View>
-              </Dialog>
-            </View>
-          }
-          ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: theme.muted }]}>
-              {t("app.emptyState")}
-            </Text>
-          }
-          renderItem={({
-            item,
-            drag,
-            isActive,
-            getIndex,
-          }: RenderItemParams<TaskList>) => {
-            const isSelected = item.id === selectedTaskListId;
-            const currentIndex =
-              getIndex() ??
-              orderedTaskLists.findIndex((list) => list.id === item.id);
-            const canDragList =
-              !isReorderingTaskLists && orderedTaskLists.length > 1;
-            const canMoveListUp = canDragList && currentIndex > 0;
-            const canMoveListDown =
-              canDragList &&
-              currentIndex >= 0 &&
-              currentIndex < orderedTaskLists.length - 1;
-            const accessibilityActions: { name: string; label: string }[] = [];
-
-            if (canMoveListUp) {
-              accessibilityActions.push({
-                name: "moveUp",
-                label: t("app.moveUp"),
-              });
-            }
-            if (canMoveListDown) {
-              accessibilityActions.push({
-                name: "moveDown",
-                label: t("app.moveDown"),
-              });
-            }
-
-            const handleMoveListByOffset = (offset: number) => {
-              if (!canDragList || currentIndex < 0) return;
-              const targetList = orderedTaskLists[currentIndex + offset];
-              if (!targetList) return;
-              void onReorderTaskList(item.id, targetList.id);
-            };
-
-            return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={item.name || t("app.taskListName")}
-                onPress={() => handleSelectTaskListFromDrawer(item.id)}
-                style={({ pressed }) => [
-                  styles.drawerListItem,
-                  {
-                    borderColor: isSelected ? theme.primary : theme.border,
-                    backgroundColor: isSelected
-                      ? theme.inputBackground
-                      : theme.surface,
-                    opacity: pressed ? 0.9 : isActive ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.drawerListSwatch,
-                    {
-                      backgroundColor: item.background,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                />
-                <View style={styles.drawerListItemText}>
-                  <Text
-                    style={[styles.drawerListItemName, { color: theme.text }]}
-                    numberOfLines={1}
-                  >
-                    {item.name || t("app.taskListName")}
-                  </Text>
-                  <Text
-                    style={[styles.drawerListItemCount, { color: theme.muted }]}
-                  >
-                    {t("taskList.taskCount", {
-                      count: item.tasks.length,
-                    })}
-                  </Text>
-                </View>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={t("taskList.reorder")}
-                  accessibilityActions={accessibilityActions}
-                  onAccessibilityAction={(event) => {
-                    if (event.nativeEvent.actionName === "moveUp") {
-                      handleMoveListByOffset(-1);
-                      return;
-                    }
-                    if (event.nativeEvent.actionName === "moveDown") {
-                      handleMoveListByOffset(1);
-                    }
-                  }}
-                  onLongPress={canDragList ? drag : undefined}
-                  delayLongPress={150}
-                  onPress={() => {}}
-                  disabled={!canDragList}
+                  accessibilityLabel={t("app.createTaskList")}
+                  onPress={() => handleCreateListDialogChange(true)}
                   style={({ pressed }) => [
-                    styles.taskActionButton,
+                    styles.button,
                     {
-                      borderColor: theme.border,
-                      opacity: pressed ? 0.8 : 1,
+                      backgroundColor: theme.primary,
+                      opacity: pressed ? 0.9 : 1,
                     },
                   ]}
                 >
                   <Text
-                    style={[
-                      styles.taskActionText,
-                      { color: canDragList ? theme.text : theme.muted },
-                    ]}
+                    style={[styles.buttonText, { color: theme.primaryText }]}
                   >
-                    {t("taskList.reorder")}
+                    {t("app.createTaskList")}
                   </Text>
                 </Pressable>
-              </Pressable>
-            );
-          }}
-        />
-      </Animated.View>
+                <Dialog
+                  open={isCreateListDialogOpen}
+                  onOpenChange={handleCreateListDialogChange}
+                  title={t("app.createTaskList")}
+                  description={t("app.taskListName")}
+                  theme={theme}
+                  footer={
+                    <>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("app.cancel")}
+                        onPress={() => handleCreateListDialogChange(false)}
+                        style={({ pressed }) => [
+                          styles.secondaryButton,
+                          {
+                            flex: 1,
+                            borderColor: theme.border,
+                            opacity: pressed ? 0.9 : 1,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.secondaryButtonText,
+                            { color: theme.text },
+                          ]}
+                        >
+                          {t("app.cancel")}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("app.create")}
+                        onPress={handleCreateListSubmit}
+                        disabled={!canCreateList}
+                        style={({ pressed }) => [
+                          styles.button,
+                          {
+                            flex: 1,
+                            backgroundColor: canCreateList
+                              ? theme.primary
+                              : theme.border,
+                            opacity: pressed ? 0.9 : 1,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.buttonText,
+                            {
+                              color: canCreateList
+                                ? theme.primaryText
+                                : theme.muted,
+                            },
+                          ]}
+                        >
+                          {isCreatingList ? t("app.creating") : t("app.create")}
+                        </Text>
+                      </Pressable>
+                    </>
+                  }
+                >
+                  <View style={styles.form}>
+                    <View style={styles.field}>
+                      <Text style={[styles.label, { color: theme.text }]}>
+                        {t("app.taskListName")}
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          {
+                            color: theme.text,
+                            borderColor: theme.border,
+                            backgroundColor: theme.inputBackground,
+                          },
+                        ]}
+                        value={createListName}
+                        onChangeText={onChangeCreateListName}
+                        placeholder={t("app.taskListNamePlaceholder")}
+                        placeholderTextColor={theme.placeholder}
+                        returnKeyType="done"
+                        onSubmitEditing={handleCreateListSubmit}
+                        editable={!isCreatingList}
+                        accessibilityLabel={t("app.taskListName")}
+                        autoFocus
+                      />
+                    </View>
+                    <View style={styles.field}>
+                      <Text style={[styles.label, { color: theme.text }]}>
+                        {t("taskList.selectColor")}
+                      </Text>
+                      <View style={styles.colorRow}>
+                        {listColors.map((color) => {
+                          const isSelected = color === createListBackground;
+                          return (
+                            <Pressable
+                              key={`create-${color}`}
+                              accessibilityRole="button"
+                              accessibilityLabel={t("taskList.selectColor")}
+                              accessibilityState={{ selected: isSelected }}
+                              onPress={() =>
+                                onChangeCreateListBackground(color)
+                              }
+                              style={[
+                                styles.colorSwatch,
+                                {
+                                  backgroundColor: color,
+                                  borderColor: isSelected
+                                    ? theme.primary
+                                    : theme.border,
+                                  borderWidth: isSelected ? 2 : 1,
+                                },
+                              ]}
+                            />
+                          );
+                        })}
+                      </View>
+                    </View>
+                  </View>
+                </Dialog>
+              </View>
+            }
+            ListEmptyComponent={
+              <Text style={[styles.emptyText, { color: theme.muted }]}>
+                {t("app.emptyState")}
+              </Text>
+            }
+            renderItem={({
+              item,
+              drag,
+              isActive,
+              getIndex,
+            }: RenderItemParams<TaskList>) => {
+              const isSelected = item.id === selectedTaskListId;
+              const currentIndex =
+                getIndex() ??
+                orderedTaskLists.findIndex((list) => list.id === item.id);
+              const canDragList =
+                !isReorderingTaskLists && orderedTaskLists.length > 1;
+              const canMoveListUp = canDragList && currentIndex > 0;
+              const canMoveListDown =
+                canDragList &&
+                currentIndex >= 0 &&
+                currentIndex < orderedTaskLists.length - 1;
+              const accessibilityActions: { name: string; label: string }[] =
+                [];
+
+              if (canMoveListUp) {
+                accessibilityActions.push({
+                  name: "moveUp",
+                  label: t("app.moveUp"),
+                });
+              }
+              if (canMoveListDown) {
+                accessibilityActions.push({
+                  name: "moveDown",
+                  label: t("app.moveDown"),
+                });
+              }
+
+              const handleMoveListByOffset = (offset: number) => {
+                if (!canDragList || currentIndex < 0) return;
+                const targetList = orderedTaskLists[currentIndex + offset];
+                if (!targetList) return;
+                void onReorderTaskList(item.id, targetList.id);
+              };
+
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={item.name || t("app.taskListName")}
+                  onPress={() => handleSelectTaskListFromDrawer(item.id)}
+                  style={({ pressed }) => [
+                    styles.drawerListItem,
+                    {
+                      borderColor: isSelected ? theme.primary : theme.border,
+                      backgroundColor: isSelected
+                        ? theme.inputBackground
+                        : theme.surface,
+                      opacity: pressed ? 0.9 : isActive ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.drawerListSwatch,
+                      {
+                        backgroundColor: item.background,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  />
+                  <View style={styles.drawerListItemText}>
+                    <Text
+                      style={[styles.drawerListItemName, { color: theme.text }]}
+                      numberOfLines={1}
+                    >
+                      {item.name || t("app.taskListName")}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.drawerListItemCount,
+                        { color: theme.muted },
+                      ]}
+                    >
+                      {t("taskList.taskCount", {
+                        count: item.tasks.length,
+                      })}
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("taskList.reorder")}
+                    accessibilityActions={accessibilityActions}
+                    onAccessibilityAction={(event) => {
+                      if (event.nativeEvent.actionName === "moveUp") {
+                        handleMoveListByOffset(-1);
+                        return;
+                      }
+                      if (event.nativeEvent.actionName === "moveDown") {
+                        handleMoveListByOffset(1);
+                      }
+                    }}
+                    onLongPress={canDragList ? drag : undefined}
+                    delayLongPress={150}
+                    onPress={() => {}}
+                    disabled={!canDragList}
+                    style={({ pressed }) => [
+                      styles.taskActionButton,
+                      {
+                        borderColor: theme.border,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.taskActionText,
+                        { color: canDragList ? theme.text : theme.muted },
+                      ]}
+                    >
+                      {t("taskList.reorder")}
+                    </Text>
+                  </Pressable>
+                </Pressable>
+              );
+            }}
+          />
+        </DrawerContent>
+      </Drawer>
     </View>
   );
 };

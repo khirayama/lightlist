@@ -74,8 +74,6 @@ export const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     bottom: 0,
-    left: 0,
-    borderRightWidth: 1,
     padding: 20,
     gap: 16,
   },

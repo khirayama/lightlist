@@ -53,7 +53,6 @@ type TaskListScreenProps = {
   onConfirmDeleteList: () => void;
   onAddTask: () => void | Promise<void>;
   onToggleTask: (task: Task) => void | Promise<void>;
-  onConfirmDeleteTask: (task: Task) => void;
   onConfirmSignOut: () => void;
   onUpdateTask: (
     taskId: string,
@@ -113,7 +112,6 @@ export const TaskListScreen = ({
   onConfirmDeleteList,
   onAddTask,
   onToggleTask,
-  onConfirmDeleteTask,
   onConfirmSignOut,
   onUpdateTask,
   onReorderTask,
@@ -140,6 +138,10 @@ export const TaskListScreen = ({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [orderedTaskLists, setOrderedTaskLists] =
     useState<TaskList[]>(taskLists);
+  const [orderedTasks, setOrderedTasks] = useState<Task[]>(tasks);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskText, setEditingTaskText] = useState("");
+  const [editingTaskDate, setEditingTaskDate] = useState("");
   const { width } = useWindowDimensions();
   const drawerWidth = Math.min(width * 0.85, 360);
   const drawerTranslateX = useRef(new Animated.Value(-drawerWidth)).current;
@@ -147,6 +149,25 @@ export const TaskListScreen = ({
   useEffect(() => {
     setOrderedTaskLists(taskLists);
   }, [taskLists]);
+
+  useEffect(() => {
+    setOrderedTasks(tasks);
+  }, [tasks]);
+
+  useEffect(() => {
+    setEditingTaskId(null);
+    setEditingTaskText("");
+    setEditingTaskDate("");
+  }, [selectedTaskListId]);
+
+  useEffect(() => {
+    if (!editingTaskId) return;
+    const exists = tasks.some((task) => task.id === editingTaskId);
+    if (exists) return;
+    setEditingTaskId(null);
+    setEditingTaskText("");
+    setEditingTaskDate("");
+  }, [editingTaskId, tasks]);
 
   useEffect(() => {
     Animated.timing(drawerTranslateX, {
@@ -214,6 +235,37 @@ export const TaskListScreen = ({
   const handleConfirmSignOutFromDrawer = () => {
     closeDrawer();
     onConfirmSignOut();
+  };
+
+  const handleEditStart = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditingTaskText(task.text);
+    setEditingTaskDate(task.date ?? "");
+  };
+
+  const handleEditEnd = async (task: Task) => {
+    if (!editingTaskId || editingTaskId !== task.id) return;
+    const trimmedText = editingTaskText.trim();
+    if (!trimmedText) {
+      setEditingTaskId(null);
+      setEditingTaskText("");
+      setEditingTaskDate("");
+      return;
+    }
+    const normalizedDate = editingTaskDate.trim();
+    if (trimmedText === task.text && normalizedDate === (task.date ?? "")) {
+      setEditingTaskId(null);
+      setEditingTaskText("");
+      setEditingTaskDate("");
+      return;
+    }
+    await onUpdateTask(task.id, {
+      text: trimmedText,
+      date: normalizedDate,
+    });
+    setEditingTaskId(null);
+    setEditingTaskText("");
+    setEditingTaskDate("");
   };
 
   const drawerOverlayOpacity = drawerTranslateX.interpolate({
@@ -523,25 +575,33 @@ export const TaskListScreen = ({
 
   return (
     <View style={styles.drawerRoot}>
+      <View style={[styles.appContent, { paddingBottom: 0 }]}>
+        {taskListHeader}
+      </View>
       <TaskListPanel
         t={t}
         theme={theme}
-        selectedTaskList={selectedTaskList}
-        selectedTaskListId={selectedTaskListId}
-        tasks={tasks}
+        tasks={orderedTasks}
         newTaskText={newTaskText}
         isAddingTask={isAddingTask}
         isUpdatingTask={isUpdatingTask}
         isReorderingTasks={isReorderingTasks}
         isSortingTasks={isSortingTasks}
         isDeletingCompletedTasks={isDeletingCompletedTasks}
-        header={taskListHeader}
+        addDisabled={!selectedTaskList}
+        emptyLabel={selectedTaskList ? t("pages.tasklist.noTasks") : ""}
+        editingTaskId={editingTaskId}
+        editingTaskText={editingTaskText}
+        editingTaskDate={editingTaskDate}
+        onEditingTaskTextChange={setEditingTaskText}
+        onEditingTaskDateChange={setEditingTaskDate}
+        onEditStart={handleEditStart}
+        onEditEnd={handleEditEnd}
         onChangeNewTaskText={onChangeNewTaskText}
         onAddTask={onAddTask}
         onToggleTask={onToggleTask}
-        onConfirmDeleteTask={onConfirmDeleteTask}
-        onUpdateTask={onUpdateTask}
         onReorderTask={onReorderTask}
+        onReorderPreview={setOrderedTasks}
         onSortTasks={onSortTasks}
         onDeleteCompletedTasks={onDeleteCompletedTasks}
       />

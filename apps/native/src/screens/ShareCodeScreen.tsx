@@ -2,7 +2,6 @@ import type { TFunction } from "i18next";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   Text,
   TextInput,
@@ -14,7 +13,6 @@ import {
   addSharedTaskListToOrder,
   addTask,
   deleteCompletedTasks,
-  deleteTask,
   fetchTaskListIdByShareCode,
   sortTasks,
   updateTask,
@@ -63,6 +61,10 @@ export const ShareCodeScreen = ({
   const [isSortingTasks, setIsSortingTasks] = useState(false);
   const [isDeletingCompletedTasks, setIsDeletingCompletedTasks] =
     useState(false);
+  const [orderedTasks, setOrderedTasks] = useState<Task[]>([]);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskText, setEditingTaskText] = useState("");
+  const [editingTaskDate, setEditingTaskDate] = useState("");
   const sharedTaskListUnsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -138,6 +140,25 @@ export const ShareCodeScreen = ({
         storeState.sharedTaskListsById[sharedTaskListId] ??
         null);
   const taskListTasks = taskList?.tasks ?? [];
+
+  useEffect(() => {
+    setOrderedTasks(taskListTasks);
+  }, [taskListTasks]);
+
+  useEffect(() => {
+    setEditingTaskId(null);
+    setEditingTaskText("");
+    setEditingTaskDate("");
+  }, [sharedTaskListId]);
+
+  useEffect(() => {
+    if (!editingTaskId) return;
+    const exists = taskListTasks.some((task) => task.id === editingTaskId);
+    if (exists) return;
+    setEditingTaskId(null);
+    setEditingTaskText("");
+    setEditingTaskDate("");
+  }, [editingTaskId, taskListTasks]);
 
   const handleShareCodeSubmit = () => {
     const normalized = shareCodeInput.trim().toUpperCase();
@@ -257,30 +278,35 @@ export const ShareCodeScreen = ({
     }
   };
 
-  const handleDeleteTask = async (task: Task) => {
-    if (!taskList) return;
-    try {
-      await deleteTask(taskList.id, task.id);
-    } catch (err) {
-      if (err instanceof Error && err.message) {
-        setError(err.message);
-      } else {
-        setError(t("pages.sharecode.updateError"));
-      }
-    }
+  const handleEditStart = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditingTaskText(task.text);
+    setEditingTaskDate(task.date ?? "");
   };
 
-  const confirmDeleteTask = (task: Task) => {
-    Alert.alert(t("taskList.deleteTask"), t("taskList.deleteTaskConfirm"), [
-      { text: t("app.cancel"), style: "cancel" },
-      {
-        text: t("taskList.deleteTask"),
-        style: "destructive",
-        onPress: () => {
-          void handleDeleteTask(task);
-        },
-      },
-    ]);
+  const handleEditEnd = async (task: Task) => {
+    if (!editingTaskId || editingTaskId !== task.id) return;
+    const trimmedText = editingTaskText.trim();
+    if (!trimmedText) {
+      setEditingTaskId(null);
+      setEditingTaskText("");
+      setEditingTaskDate("");
+      return;
+    }
+    const normalizedDate = editingTaskDate.trim();
+    if (trimmedText === task.text && normalizedDate === (task.date ?? "")) {
+      setEditingTaskId(null);
+      setEditingTaskText("");
+      setEditingTaskDate("");
+      return;
+    }
+    await handleUpdateTask(task.id, {
+      text: trimmedText,
+      date: normalizedDate,
+    });
+    setEditingTaskId(null);
+    setEditingTaskText("");
+    setEditingTaskDate("");
   };
 
   const handleAddToOrder = async () => {
@@ -302,148 +328,156 @@ export const ShareCodeScreen = ({
     }
   };
 
-  return (
-    <TaskListPanel
-      t={t}
-      theme={theme}
-      selectedTaskList={taskList}
-      selectedTaskListId={taskList?.id ?? null}
-      tasks={taskListTasks}
-      newTaskText={newTaskText}
-      taskListError={addTaskError}
-      isAddingTask={isAddingTask}
-      isUpdatingTask={isUpdatingTask}
-      isReorderingTasks={isReorderingTasks}
-      isSortingTasks={isSortingTasks}
-      isDeletingCompletedTasks={isDeletingCompletedTasks}
-      header={
-        <View>
-          <View style={styles.settingsHeader}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("common.back")}
-              onPress={onBack}
-              style={({ pressed }) => [
-                styles.headerButton,
-                {
-                  borderColor: theme.border,
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}
-            >
-              <Text style={[styles.headerButtonText, { color: theme.text }]}>
-                {t("common.back")}
-              </Text>
-            </Pressable>
-            <Text style={[styles.settingsTitle, { color: theme.text }]}>
-              {t("pages.sharecode.title")}
+  const taskListHeader = (
+    <View>
+      <View style={styles.settingsHeader}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("common.back")}
+          onPress={onBack}
+          style={({ pressed }) => [
+            styles.headerButton,
+            {
+              borderColor: theme.border,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
+        >
+          <Text style={[styles.headerButtonText, { color: theme.text }]}>
+            {t("common.back")}
+          </Text>
+        </Pressable>
+        <Text style={[styles.settingsTitle, { color: theme.text }]}>
+          {t("pages.sharecode.title")}
+        </Text>
+        {user ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("pages.sharecode.addToOrder")}
+            onPress={handleAddToOrder}
+            disabled={!taskList || addToOrderLoading}
+            style={({ pressed }) => [
+              styles.headerButton,
+              {
+                borderColor: theme.border,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.headerButtonText, { color: theme.text }]}>
+              {addToOrderLoading
+                ? t("pages.sharecode.addToOrderLoading")
+                : t("pages.sharecode.addToOrder")}
             </Text>
-            {user ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("pages.sharecode.addToOrder")}
-                onPress={handleAddToOrder}
-                disabled={!taskList || addToOrderLoading}
-                style={({ pressed }) => [
-                  styles.headerButton,
-                  {
-                    borderColor: theme.border,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
-              >
-                <Text style={[styles.headerButtonText, { color: theme.text }]}>
-                  {addToOrderLoading
-                    ? t("pages.sharecode.addToOrderLoading")
-                    : t("pages.sharecode.addToOrder")}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
+          </Pressable>
+        ) : null}
+      </View>
 
-          <View style={styles.section}>
-            <Text style={[styles.helpText, { color: theme.muted }]}>
-              {t("pages.sharecode.description")}
-            </Text>
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: theme.text }]}>
-                {t("pages.sharecode.codeLabel")}
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    color: theme.text,
-                    borderColor: theme.border,
-                    backgroundColor: theme.inputBackground,
-                  },
-                ]}
-                value={shareCodeInput}
-                onChangeText={(value) => {
-                  setShareCodeInput(value);
-                  setError(null);
-                }}
-                placeholder={t("pages.sharecode.codePlaceholder")}
-                placeholderTextColor={theme.placeholder}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                returnKeyType="go"
-                onSubmitEditing={handleShareCodeSubmit}
-                editable={!loading}
-                accessibilityLabel={t("pages.sharecode.codeLabel")}
-              />
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("pages.sharecode.load")}
-              onPress={handleShareCodeSubmit}
-              disabled={!canLoadShareCode}
-              style={({ pressed }) => [
-                styles.button,
-                {
-                  backgroundColor: canLoadShareCode
-                    ? theme.primary
-                    : theme.border,
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.buttonText,
-                  {
-                    color: canLoadShareCode ? theme.primaryText : theme.muted,
-                  },
-                ]}
-              >
-                {loading ? t("common.loading") : t("pages.sharecode.load")}
-              </Text>
-            </Pressable>
-            {loading ? <ActivityIndicator color={theme.primary} /> : null}
-            {error ? (
-              <Text style={[styles.error, { color: theme.error }]}>
-                {error}
-              </Text>
-            ) : null}
-            {addToOrderError ? (
-              <Text style={[styles.error, { color: theme.error }]}>
-                {addToOrderError}
-              </Text>
-            ) : null}
-          </View>
+      <View style={styles.section}>
+        <Text style={[styles.helpText, { color: theme.muted }]}>
+          {t("pages.sharecode.description")}
+        </Text>
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.text }]}>
+            {t("pages.sharecode.codeLabel")}
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: theme.text,
+                borderColor: theme.border,
+                backgroundColor: theme.inputBackground,
+              },
+            ]}
+            value={shareCodeInput}
+            onChangeText={(value) => {
+              setShareCodeInput(value);
+              setError(null);
+            }}
+            placeholder={t("pages.sharecode.codePlaceholder")}
+            placeholderTextColor={theme.placeholder}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            returnKeyType="go"
+            onSubmitEditing={handleShareCodeSubmit}
+            editable={!loading}
+            accessibilityLabel={t("pages.sharecode.codeLabel")}
+          />
         </View>
-      }
-      onChangeNewTaskText={(value) => {
-        setNewTaskText(value);
-        setAddTaskError(null);
-      }}
-      onAddTask={handleAddTask}
-      onToggleTask={handleToggleTask}
-      onConfirmDeleteTask={confirmDeleteTask}
-      onUpdateTask={handleUpdateTask}
-      onReorderTask={handleReorderTask}
-      onSortTasks={handleSortTasks}
-      onDeleteCompletedTasks={handleDeleteCompletedTasks}
-    />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("pages.sharecode.load")}
+          onPress={handleShareCodeSubmit}
+          disabled={!canLoadShareCode}
+          style={({ pressed }) => [
+            styles.button,
+            {
+              backgroundColor: canLoadShareCode ? theme.primary : theme.border,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.buttonText,
+              {
+                color: canLoadShareCode ? theme.primaryText : theme.muted,
+              },
+            ]}
+          >
+            {loading ? t("common.loading") : t("pages.sharecode.load")}
+          </Text>
+        </Pressable>
+        {loading ? <ActivityIndicator color={theme.primary} /> : null}
+        {error ? (
+          <Text style={[styles.error, { color: theme.error }]}>{error}</Text>
+        ) : null}
+        {addToOrderError ? (
+          <Text style={[styles.error, { color: theme.error }]}>
+            {addToOrderError}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <View style={[styles.appContent, { paddingBottom: 0 }]}>
+        {taskListHeader}
+      </View>
+      <TaskListPanel
+        t={t}
+        theme={theme}
+        tasks={orderedTasks}
+        newTaskText={newTaskText}
+        taskListError={addTaskError}
+        isAddingTask={isAddingTask}
+        isUpdatingTask={isUpdatingTask}
+        isReorderingTasks={isReorderingTasks}
+        isSortingTasks={isSortingTasks}
+        isDeletingCompletedTasks={isDeletingCompletedTasks}
+        addDisabled={!taskList}
+        emptyLabel={taskList ? t("pages.tasklist.noTasks") : ""}
+        editingTaskId={editingTaskId}
+        editingTaskText={editingTaskText}
+        editingTaskDate={editingTaskDate}
+        onEditingTaskTextChange={setEditingTaskText}
+        onEditingTaskDateChange={setEditingTaskDate}
+        onEditStart={handleEditStart}
+        onEditEnd={handleEditEnd}
+        onChangeNewTaskText={(value) => {
+          setNewTaskText(value);
+          setAddTaskError(null);
+        }}
+        onAddTask={handleAddTask}
+        onToggleTask={handleToggleTask}
+        onReorderTask={handleReorderTask}
+        onReorderPreview={setOrderedTasks}
+        onSortTasks={handleSortTasks}
+        onDeleteCompletedTasks={handleDeleteCompletedTasks}
+      />
+    </View>
   );
 };

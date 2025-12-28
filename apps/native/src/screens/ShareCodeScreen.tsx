@@ -309,6 +309,15 @@ export const ShareCodeScreen = ({
     setEditingTaskDate("");
   };
 
+  const handleDateChange = async (task: Task, nextDate: string) => {
+    const normalizedDate = nextDate.trim();
+    if (editingTaskId === task.id) {
+      setEditingTaskDate(normalizedDate);
+    }
+    if (normalizedDate === (task.date ?? "")) return;
+    await handleUpdateTask(task.id, { date: normalizedDate });
+  };
+
   const handleAddToOrder = async () => {
     if (!taskList || !user) return;
 
@@ -467,6 +476,7 @@ export const ShareCodeScreen = ({
         onEditingTaskDateChange={setEditingTaskDate}
         onEditStart={handleEditStart}
         onEditEnd={handleEditEnd}
+        onDateChange={handleDateChange}
         onChangeNewTaskText={(value) => {
           setNewTaskText(value);
           setAddTaskError(null);

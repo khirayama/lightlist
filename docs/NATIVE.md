@@ -14,6 +14,7 @@
 - `react-native-reanimated` / `react-native-worklets`: ドラッグ操作のアニメーション基盤
 - `react-native-draggable-flatlist`: タスクのドラッグ並び替え
 - `react-native-reanimated-carousel`: タスクリストの横スワイプ切り替え
+- `@react-native-community/datetimepicker`: タスクの日付設定用Date Picker
 - `react-native-screens`: Expo Go に合わせたバージョン固定でネイティブスタックを安定化
 - 依存解決: ルート `package.json` の `overrides` で Expo Go と整合するバージョンに固定
 - `@lightlist/sdk`: Firebase 認証の呼び出しは SDK 経由
@@ -32,7 +33,7 @@
 ## Appページ
 
 - `apps/native/src/App.tsx` で認証状態に応じて `AuthScreen` / `TaskListScreen` を切り替え、ログイン時は `SettingsScreen` もスタックに追加
-- 共有コード画面 `ShareCodeScreen` を追加し、共有コード入力で共有リストの閲覧・追加・編集（テキスト/期限）・完了切り替え・並び替え・完了タスク削除・自分のリスト追加に対応
+- 共有コード画面 `ShareCodeScreen` を追加し、共有コード入力で共有リストの閲覧・追加・編集（テキスト/期限、日付設定ボタンのDate Picker経由）・完了切り替え・並び替え・完了タスク削除・自分のリスト追加に対応
 - `password-reset?oobCode=...` のディープリンクを `PasswordResetScreen` にマッピングし、パスワード再設定を実行
 - 認証状態の変化時にナビゲーションをリセットし、ログイン時は `TaskListScreen` に遷移
 - `NavigationContainer` + `NativeStack` で画面を構成
@@ -41,7 +42,7 @@
 - タスクリストの選択、作成（ドロワー内のダイアログで名前＋色）、編集（ダイアログ内で名前＋色）、削除、ドロワー内のドラッグハンドルで順序変更に対応
 - タスクリストの編集/共有はヘッダー右のアイコンボタンからダイアログを開き、名前・色の更新と共有コードの発行/停止を行う
 - タスクリスト詳細はカルーセルで横スワイプ切り替えでき、スワイプ位置と選択中のリストIDを同期する。並び替えハンドルのタッチ中のみ横スワイプを停止し、それ以外は横スワイプ優先で操作する。タスクリストのドラッグ操作は `activationDistance` を設定し、横スワイプ時にリストのジェスチャが先に反応しないよう調整する
-- タスクの追加、編集（テキスト/期限）、完了切り替え、左端のハンドルアイコンによる並び替え、ソート、完了タスク削除に対応
+- タスクの追加、編集（テキスト/期限）、右側の日付設定ボタンからDate Pickerで日付設定、完了切り替え、左端のハンドルアイコンによる並び替え、ソート、完了タスク削除に対応
 - 設定画面でテーマ/言語/追加位置/自動並び替えを更新し、アカウント削除にも対応
 - サインアウトはドロワーと設定画面から実行
 - 画面文言は `app` / `taskList` / `settings` / `pages.tasklist` を中心に i18next で管理

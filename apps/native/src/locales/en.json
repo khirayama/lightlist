@@ -154,6 +154,7 @@
     "tasklist": {
       "noTasks": "No tasks",
       "setDate": "Set date",
+      "clearDate": "Clear date",
       "sort": "Sort",
       "deleteCompleted": "Delete completed tasks",
       "deleteCompletedConfirm": "Delete {{count}} completed tasks?"

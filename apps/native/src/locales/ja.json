@@ -154,6 +154,7 @@
     "tasklist": {
       "noTasks": "タスクがありません",
       "setDate": "期限を設定",
+      "clearDate": "期限をクリア",
       "sort": "並び替え",
       "deleteCompleted": "完了タスクを削除",
       "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？"

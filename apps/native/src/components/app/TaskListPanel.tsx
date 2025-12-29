@@ -516,6 +516,7 @@ export const TaskListPanel = ({
                           backgroundColor: theme.inputBackground,
                         },
                       ]}
+                      autoFocus
                       value={editingTaskText}
                       onChangeText={onEditingTaskTextChange}
                       placeholder={t("taskList.addTaskPlaceholder")}

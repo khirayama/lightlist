@@ -23,7 +23,6 @@ import {
   Drawer,
   DrawerClose,
   DrawerContent,
-  DrawerDescription,
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
@@ -39,7 +38,6 @@ type TaskListScreenProps = {
   selectedTaskList: TaskList | null;
   selectedTaskListId: string | null;
   tasks: Task[];
-  userEmail: string;
   appErrorMessage: string | null;
   createListName: string;
   createListBackground: string;
@@ -98,7 +96,6 @@ export const TaskListScreen = ({
   selectedTaskList,
   selectedTaskListId,
   tasks,
-  userEmail,
   appErrorMessage,
   createListName,
   createListBackground,
@@ -367,14 +364,6 @@ export const TaskListScreen = ({
             ) : null}
           </View>
         </View>
-        {userEmail ? (
-          <Text
-            accessibilityLiveRegion="polite"
-            style={[styles.appSubtitle, { color: theme.muted }]}
-          >
-            {t("status.signedInAs", { email: userEmail })}
-          </Text>
-        ) : null}
       </View>
       {appErrorMessage ? (
         <Text
@@ -637,11 +626,6 @@ export const TaskListScreen = ({
           </DrawerClose>
         ) : null}
       </DrawerHeader>
-      {userEmail ? (
-        <DrawerDescription style={{ color: theme.muted }}>
-          {t("status.signedInAs", { email: userEmail })}
-        </DrawerDescription>
-      ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("settings.title")}
@@ -672,22 +656,6 @@ export const TaskListScreen = ({
       >
         <Text style={[styles.drawerNavText, { color: theme.text }]}>
           {t("pages.sharecode.title")}
-        </Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("app.signOut")}
-        onPress={handleConfirmSignOutFromDrawer}
-        style={({ pressed }) => [
-          styles.drawerNavButton,
-          {
-            borderColor: theme.error,
-            opacity: pressed ? 0.9 : 1,
-          },
-        ]}
-      >
-        <Text style={[styles.drawerNavText, { color: theme.error }]}>
-          {t("app.signOut")}
         </Text>
       </Pressable>
       <DraggableFlatList

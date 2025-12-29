@@ -806,7 +806,6 @@ export default function App() {
       selectedTaskList={selectedTaskList}
       selectedTaskListId={selectedTaskListId}
       tasks={tasks}
-      userEmail={userEmail}
       appErrorMessage={appErrorMessage}
       createListName={createListName}
       createListBackground={createListBackground}

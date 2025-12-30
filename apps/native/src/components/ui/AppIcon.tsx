@@ -10,6 +10,8 @@ const APP_ICON_NAMES = [
   "settings",
   "close",
   "send",
+  "sort",
+  "delete",
 ] as const;
 
 type AppIconName = (typeof APP_ICON_NAMES)[number];

@@ -271,8 +271,17 @@ export const styles = StyleSheet.create({
   },
   taskActionRow: {
     flexDirection: "row",
-    gap: 12,
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
+  },
+  taskActionButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  taskSendButton: {
+    paddingHorizontal: 14,
   },
   taskCheck: {
     width: 22,

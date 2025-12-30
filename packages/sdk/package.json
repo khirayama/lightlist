@@ -7,6 +7,7 @@
     "./auth": "./src/auth.ts",
     "./store": "./src/store.ts",
     "./types": "./src/types.ts",
+    "./icons": "./src/icons.ts",
     "./mutations/auth": "./src/mutations/auth.ts",
     "./mutations/app": "./src/mutations/app.ts"
   },

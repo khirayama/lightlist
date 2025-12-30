@@ -250,7 +250,7 @@ https://[PROJECT].firebaseapp.com/password-reset?oobCode=[CODE]&mode=resetPasswo
 3. `signIn(email, password)` を呼び出し
 4. Firebase Authentication でログイン
 5. `onAuthStateChange` でログイン状態を反映
-6. 認証状態がログインならナビゲーションをリセットして `TaskListScreen` へ遷移
+6. 認証状態がログインならナビゲーションをリセットして `AppScreen` へ遷移
 
 **エラーハンドリング:**
 

@@ -24,25 +24,27 @@
 - i18n 初期化: `apps/native/src/utils/i18n.ts` に集約
 - 翻訳リソース: `apps/native/src/locales/ja.json` / `apps/native/src/locales/en.json`
 - テーマ定義: `apps/native/src/styles/theme.ts` に集約
-- 画面: `apps/native/src/screens` に `AuthScreen` / `TaskListScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置
+- 画面: `apps/native/src/screens` に `AuthScreen` / `AppScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置
 - UIコンポーネント: `apps/native/src/components/ui/Dialog.tsx` に作成/編集用ダイアログの共通UIを集約
-- appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` を `TaskListScreen` / `ShareCodeScreen` で共通利用し、タスク追加/編集/並び替え/完了/完了削除の操作UIを集約（ヘッダーやリスト選択は画面側で管理）
+- appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` を `AppScreen` / `ShareCodeScreen` で共通利用し、タスク追加/編集/並び替え/完了/完了削除の操作UIを集約（ヘッダーやリスト選択は画面側で管理）
 - バリデーション/エラーハンドリング: `apps/native/src/utils/validation.ts` / `apps/native/src/utils/errors.ts` に集約
 - スタイル: `apps/native/src/styles/appStyles.ts` で画面共通のスタイルを管理
 
 ## Appページ
 
-- `apps/native/src/App.tsx` で認証状態に応じて `AuthScreen` / `TaskListScreen` を切り替え、ログイン時は `SettingsScreen` もスタックに追加
+- `apps/native/src/App.tsx` で認証状態に応じて `AuthScreen` / `AppScreen` を切り替え、ログイン時は `SettingsScreen` もスタックに追加
 - 共有コード画面 `ShareCodeScreen` を追加し、共有コード入力で共有リストの閲覧・追加・編集（テキスト/期限、日付設定ボタンのDate Picker経由）・完了切り替え・並び替え・完了タスク削除・自分のリスト追加に対応
+- `ShareCodeScreen` は共有リスト未取得時のタスク配列参照を固定し、状態同期の無限再レンダーを回避
+- `AppScreen` はタスクリスト未取得時の配列参照を固定し、依存関係の無限再実行を防止
 - `password-reset?oobCode=...` のディープリンクを `PasswordResetScreen` にマッピングし、パスワード再設定を実行
-- 認証状態の変化時にナビゲーションをリセットし、ログイン時は `TaskListScreen` に遷移
+- 認証状態の変化時にナビゲーションをリセットし、ログイン時は `AppScreen` に遷移
 - `NavigationContainer` + `NativeStack` で画面を構成
-- `TaskListScreen` はドロワーに設定リンク/共有コード/サインアウト/タスクリスト一覧/タスクリスト作成を集約し、ヘッダー左のハンバーガーボタンで開閉する
+- `AppScreen` はドロワーに設定リンク/共有コード/サインアウト/タスクリスト一覧/タスクリスト作成を集約し、ヘッダー左の menu アイコンボタンで開閉する
 - 画面幅が広い場合はドロワーの内容を常時表示し、左にタスクリスト一覧、右にタスクリスト詳細の2カラムで操作する
-- タスクリストの選択、作成（ドロワー内のダイアログで名前＋色）、編集（ダイアログ内で名前＋色）、削除、ドロワー内のドラッグハンドルで順序変更に対応
-- タスクリストの編集/共有はヘッダー右のアイコンボタンからダイアログを開き、名前・色の更新と共有コードの発行/停止を行う
+- タスクリストの選択、作成（ドロワー内のダイアログで名前＋色）、編集（ダイアログ内で名前＋色）、削除、ドロワー内の drag_indicator アイコンで順序変更に対応
+- タスクリストの編集/共有はヘッダー右の edit/share アイコンボタンからダイアログを開き、名前・色の更新と共有コードの発行/停止を行う
 - タスクリスト詳細はカルーセルで横スワイプ切り替えでき、スワイプ位置と選択中のリストIDを同期する。並び替えハンドルのタッチ中のみ横スワイプを停止し、それ以外は横スワイプ優先で操作する。タスクリストのドラッグ操作は `activationDistance` を設定し、横スワイプ時にリストのジェスチャが先に反応しないよう調整する
-- タスクの追加、編集（テキスト/期限）、右側の日付設定ボタンからDate Pickerで日付設定、完了切り替え、左端のハンドルアイコンによる並び替え、ソート、完了タスク削除に対応
+- タスクの追加、編集（テキスト/期限）、右側の calendar_today アイコンボタンからDate Pickerで日付設定、完了切り替え、左端の drag_indicator アイコンによる並び替え、ソート、完了タスク削除に対応
 - 設定画面でテーマ/言語/追加位置/自動並び替えを更新し、アカウント削除にも対応
 - サインアウトはドロワーと設定画面から実行
 - 画面文言は `app` / `taskList` / `settings` / `pages.tasklist` を中心に i18next で管理
@@ -72,7 +74,7 @@
 - `apps/native/src/index.ts`: Gesture Handler 初期化
 - `apps/native/babel.config.js`: Worklets プラグイン設定
 - `apps/native/src/screens/AuthScreen.tsx`: 認証画面の UI
-- `apps/native/src/screens/TaskListScreen.tsx`: タスクリスト画面の UI
+- `apps/native/src/screens/AppScreen.tsx`: タスクリスト画面の UI
 - `apps/native/src/screens/SettingsScreen.tsx`: 設定画面の UI
 - `apps/native/src/screens/ShareCodeScreen.tsx`: 共有コード画面の UI
 - `apps/native/src/screens/PasswordResetScreen.tsx`: パスワード再設定画面の UI

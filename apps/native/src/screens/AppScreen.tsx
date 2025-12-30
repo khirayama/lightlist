@@ -326,7 +326,6 @@ export const AppScreen = ({
               style={({ pressed }) => [
                 styles.headerIconButton,
                 {
-                  borderColor: theme.border,
                   opacity: pressed ? 0.9 : 1,
                 },
               ]}
@@ -344,7 +343,6 @@ export const AppScreen = ({
                   style={({ pressed }) => [
                     styles.headerIconButton,
                     {
-                      borderColor: theme.border,
                       opacity: pressed ? 0.9 : 1,
                     },
                   ]}
@@ -358,7 +356,6 @@ export const AppScreen = ({
                   style={({ pressed }) => [
                     styles.headerIconButton,
                     {
-                      borderColor: theme.border,
                       opacity: pressed ? 0.9 : 1,
                     },
                   ]}
@@ -898,7 +895,6 @@ export const AppScreen = ({
                 style={({ pressed }) => [
                   styles.taskActionButton,
                   {
-                    borderColor: theme.border,
                     opacity: pressed ? 0.8 : 1,
                   },
                 ]}

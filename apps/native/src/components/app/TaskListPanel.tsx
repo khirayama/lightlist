@@ -309,7 +309,9 @@ export const TaskListPanel = ({
           style={({ pressed }) => [
             styles.secondaryButton,
             {
-              borderColor: theme.border,
+              borderWidth: 0,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
               opacity: pressed ? 0.9 : 1,
             },
           ]}
@@ -338,7 +340,9 @@ export const TaskListPanel = ({
           style={({ pressed }) => [
             styles.secondaryButton,
             {
-              borderColor: theme.error,
+              borderWidth: 0,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
               opacity: pressed ? 0.9 : 1,
             },
           ]}
@@ -485,7 +489,6 @@ export const TaskListPanel = ({
                   style={({ pressed }) => [
                     styles.taskActionButton,
                     {
-                      borderColor: theme.border,
                       opacity: pressed ? 0.8 : 1,
                     },
                   ]}
@@ -573,7 +576,6 @@ export const TaskListPanel = ({
                   style={({ pressed }) => [
                     styles.taskActionButton,
                     {
-                      borderColor: theme.border,
                       opacity: isUpdatingTask ? 0.6 : pressed ? 0.8 : 1,
                     },
                   ]}

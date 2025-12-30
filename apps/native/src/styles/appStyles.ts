@@ -51,8 +51,7 @@ export const styles = StyleSheet.create({
   },
   headerIconButton: {
     borderRadius: 12,
-    borderWidth: 1,
-    padding: 8,
+    padding: 10,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -260,9 +259,8 @@ export const styles = StyleSheet.create({
   },
   taskActionButton: {
     borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     alignItems: "center",
   },
   taskActionText: {

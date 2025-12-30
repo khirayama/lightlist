@@ -258,58 +258,6 @@ export const TaskListPanel = ({
 
   const listHeader = (
     <View style={styles.section}>
-      <View style={styles.taskActionRow}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("pages.tasklist.sort")}
-          onPress={onSortTasks}
-          disabled={!canSortTasks}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            {
-              flex: 1,
-              borderColor: theme.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.secondaryButtonText,
-              { color: canSortTasks ? theme.text : theme.muted },
-            ]}
-          >
-            {isSortingTasks ? t("common.loading") : t("pages.tasklist.sort")}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("pages.tasklist.deleteCompleted")}
-          onPress={confirmDeleteCompletedTasks}
-          disabled={!canDeleteCompletedTasks}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            {
-              flex: 1,
-              borderColor: theme.error,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.secondaryButtonText,
-              {
-                color: canDeleteCompletedTasks ? theme.error : theme.muted,
-              },
-            ]}
-          >
-            {isDeletingCompletedTasks
-              ? t("common.loading")
-              : t("pages.tasklist.deleteCompleted")}
-          </Text>
-        </Pressable>
-      </View>
       <View style={styles.taskInputRow}>
         <TextInput
           style={[
@@ -338,20 +286,82 @@ export const TaskListPanel = ({
           disabled={!canAddTask}
           style={({ pressed }) => [
             styles.button,
+            styles.taskSendButton,
             {
               backgroundColor: canAddTask ? theme.primary : theme.border,
               opacity: pressed ? 0.9 : 1,
             },
           ]}
         >
-          <Text
-            style={[
-              styles.buttonText,
-              { color: canAddTask ? theme.primaryText : theme.muted },
-            ]}
-          >
-            {t("taskList.addTask")}
-          </Text>
+          <AppIcon
+            name="send"
+            size={20}
+            color={canAddTask ? theme.primaryText : theme.muted}
+          />
+        </Pressable>
+      </View>
+      <View style={styles.taskActionRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("pages.tasklist.sort")}
+          onPress={onSortTasks}
+          disabled={!canSortTasks}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            {
+              borderColor: theme.border,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
+        >
+          <View style={styles.taskActionButtonContent}>
+            <AppIcon
+              name="sort"
+              size={18}
+              color={canSortTasks ? theme.text : theme.muted}
+            />
+            <Text
+              style={[
+                styles.secondaryButtonText,
+                { color: canSortTasks ? theme.text : theme.muted },
+              ]}
+            >
+              {isSortingTasks ? t("common.loading") : t("pages.tasklist.sort")}
+            </Text>
+          </View>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("pages.tasklist.deleteCompleted")}
+          onPress={confirmDeleteCompletedTasks}
+          disabled={!canDeleteCompletedTasks}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            {
+              borderColor: theme.error,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
+        >
+          <View style={styles.taskActionButtonContent}>
+            <Text
+              style={[
+                styles.secondaryButtonText,
+                {
+                  color: canDeleteCompletedTasks ? theme.error : theme.muted,
+                },
+              ]}
+            >
+              {isDeletingCompletedTasks
+                ? t("common.loading")
+                : t("pages.tasklist.deleteCompleted")}
+            </Text>
+            <AppIcon
+              name="delete"
+              size={18}
+              color={canDeleteCompletedTasks ? theme.error : theme.muted}
+            />
+          </View>
         </Pressable>
       </View>
       {taskListError ? (

@@ -610,40 +610,32 @@ export const AppScreen = ({
         <DrawerTitle style={{ color: theme.text }}>
           {t("app.drawerTitle")}
         </DrawerTitle>
-        {!isWideLayout ? (
-          <DrawerClose
+        <View style={styles.drawerHeaderActions}>
+          <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("common.close")}
+            accessibilityLabel={t("settings.title")}
+            onPress={handleOpenSettingsFromDrawer}
             style={({ pressed }) => [
-              styles.headerButton,
-              {
-                borderColor: theme.border,
-                opacity: pressed ? 0.9 : 1,
-              },
+              styles.headerIconButton,
+              { opacity: pressed ? 0.9 : 1 },
             ]}
           >
-            <Text style={[styles.headerButtonText, { color: theme.text }]}>
-              {t("common.close")}
-            </Text>
-          </DrawerClose>
-        ) : null}
+            <AppIcon name="settings" size={20} color={theme.text} />
+          </Pressable>
+          {!isWideLayout ? (
+            <DrawerClose
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close")}
+              style={({ pressed }) => [
+                styles.headerIconButton,
+                { opacity: pressed ? 0.9 : 1 },
+              ]}
+            >
+              <AppIcon name="close" size={20} color={theme.text} />
+            </DrawerClose>
+          ) : null}
+        </View>
       </DrawerHeader>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("settings.title")}
-        onPress={handleOpenSettingsFromDrawer}
-        style={({ pressed }) => [
-          styles.drawerNavButton,
-          {
-            borderColor: theme.border,
-            opacity: pressed ? 0.9 : 1,
-          },
-        ]}
-      >
-        <Text style={[styles.drawerNavText, { color: theme.text }]}>
-          {t("settings.title")}
-        </Text>
-      </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("pages.sharecode.title")}

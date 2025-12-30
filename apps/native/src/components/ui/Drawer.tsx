@@ -174,8 +174,8 @@ type DrawerContentProps = ViewProps & {
 
 export const DrawerContent = ({
   children,
-  maxWidth = 360,
-  widthRatio = 0.85,
+  maxWidth = 420,
+  widthRatio = 1,
   overlayProps,
   style,
   ...props

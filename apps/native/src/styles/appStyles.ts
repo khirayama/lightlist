@@ -81,7 +81,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
   },
   splitSidebar: {
-    width: 360,
+    width: 420,
     maxWidth: 420,
     flexShrink: 0,
     borderRightWidth: 1,
@@ -100,6 +100,11 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
+  },
+  drawerHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   drawerTitle: {
     fontSize: 18,

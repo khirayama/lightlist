@@ -25,7 +25,7 @@ import { AuthScreen } from "./screens/AuthScreen";
 import { PasswordResetScreen } from "./screens/PasswordResetScreen";
 import { ShareCodeScreen } from "./screens/ShareCodeScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { TaskListScreen } from "./screens/TaskListScreen";
+import { AppScreen } from "./screens/AppScreen";
 import {
   listColors,
   themes,
@@ -798,8 +798,8 @@ export default function App() {
       onOpenShareCode={handleOpenShareCode}
     />
   );
-  const renderTaskListScreen = () => (
-    <TaskListScreen
+  const renderAppScreen = () => (
+    <AppScreen
       t={t}
       theme={theme}
       taskLists={appState.taskLists}
@@ -914,7 +914,7 @@ export default function App() {
                 {screenMode === "task" ? (
                   <>
                     <Stack.Screen name="TaskList">
-                      {renderTaskListScreen}
+                      {renderAppScreen}
                     </Stack.Screen>
                     <Stack.Screen name="Settings">
                       {renderSettingsScreen}

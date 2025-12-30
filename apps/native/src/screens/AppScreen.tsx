@@ -7,7 +7,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { AppIcon } from "../components/ui/AppIcon";
 import DraggableFlatList, {
   type RenderItemParams,
 } from "react-native-draggable-flatlist";
@@ -31,7 +31,7 @@ import { Dialog } from "../components/ui/Dialog";
 import { TaskListPanel } from "../components/app/TaskListPanel";
 import { listColors, type Theme } from "../styles/theme";
 
-type TaskListScreenProps = {
+type AppScreenProps = {
   t: TFunction;
   theme: Theme;
   taskLists: TaskList[];
@@ -89,7 +89,10 @@ type TaskListScreenProps = {
   isReorderingTaskLists: boolean;
 };
 
-export const TaskListScreen = ({
+const EMPTY_TASKS: Task[] = [];
+const EMPTY_TASK_LISTS: TaskList[] = [];
+
+export const AppScreen = ({
   t,
   theme,
   taskLists,
@@ -136,7 +139,7 @@ export const TaskListScreen = ({
   isSortingTasks,
   isDeletingCompletedTasks,
   isReorderingTaskLists,
-}: TaskListScreenProps) => {
+}: AppScreenProps) => {
   const canCreateList = !isCreatingList && createListName.trim().length > 0;
   const canSaveList =
     Boolean(selectedTaskList) &&
@@ -160,18 +163,20 @@ export const TaskListScreen = ({
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskDate, setEditingTaskDate] = useState("");
+  const stableTaskLists = taskLists.length > 0 ? taskLists : EMPTY_TASK_LISTS;
+  const stableTasks = tasks.length > 0 ? tasks : EMPTY_TASKS;
 
   useEffect(() => {
-    setOrderedTaskLists(taskLists);
-  }, [taskLists]);
+    setOrderedTaskLists(stableTaskLists);
+  }, [stableTaskLists]);
 
   useEffect(() => {
     const next: Record<string, Task[]> = {};
-    taskLists.forEach((taskList) => {
+    stableTaskLists.forEach((taskList) => {
       next[taskList.id] = taskList.tasks;
     });
     setOrderedTasksByListId(next);
-  }, [taskLists]);
+  }, [stableTaskLists]);
 
   useEffect(() => {
     setEditingTaskId(null);
@@ -185,12 +190,12 @@ export const TaskListScreen = ({
 
   useEffect(() => {
     if (!editingTaskId) return;
-    const exists = tasks.some((task) => task.id === editingTaskId);
+    const exists = stableTasks.some((task) => task.id === editingTaskId);
     if (exists) return;
     setEditingTaskId(null);
     setEditingTaskText("");
     setEditingTaskDate("");
-  }, [editingTaskId, tasks]);
+  }, [editingTaskId, stableTasks]);
 
   const handleCreateListDialogChange = (open: boolean) => {
     setIsCreateListDialogOpen(open);
@@ -289,14 +294,14 @@ export const TaskListScreen = ({
   };
 
   useEffect(() => {
-    if (!taskListCarouselApi || taskLists.length === 0) return;
-    const index = taskLists.findIndex(
+    if (!taskListCarouselApi || stableTaskLists.length === 0) return;
+    const index = stableTaskLists.findIndex(
       (taskList) => taskList.id === selectedTaskListId,
     );
     if (index >= 0) {
       taskListCarouselApi.scrollTo(index);
     }
-  }, [selectedTaskListId, taskListCarouselApi, taskLists]);
+  }, [selectedTaskListId, taskListCarouselApi, stableTaskLists]);
 
   useEffect(() => {
     if (isWideLayout) {
@@ -305,7 +310,7 @@ export const TaskListScreen = ({
   }, [isWideLayout]);
 
   const handleCarouselSelect = (api: CarouselApi) => {
-    const taskList = taskLists[api.selectedIndex];
+    const taskList = stableTaskLists[api.selectedIndex];
     if (!taskList || taskList.id === selectedTaskListId) return;
     onSelectTaskList(taskList.id);
   };
@@ -326,7 +331,7 @@ export const TaskListScreen = ({
                 },
               ]}
             >
-              <Feather name="menu" size={20} color={theme.text} />
+              <AppIcon name="menu" size={20} color={theme.text} />
             </DrawerTrigger>
           ) : null}
           <View style={styles.headerActions}>
@@ -344,7 +349,7 @@ export const TaskListScreen = ({
                     },
                   ]}
                 >
-                  <Feather name="edit-2" size={18} color={theme.text} />
+                  <AppIcon name="edit" size={18} color={theme.text} />
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
@@ -358,7 +363,7 @@ export const TaskListScreen = ({
                     },
                   ]}
                 >
-                  <Feather name="share-2" size={18} color={theme.text} />
+                  <AppIcon name="share" size={18} color={theme.text} />
                 </Pressable>
               </>
             ) : null}
@@ -674,11 +679,8 @@ export const TaskListScreen = ({
         }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.drawerList}
-        ListHeaderComponent={
+        ListFooterComponent={
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              {t("app.createTaskList")}
-            </Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("app.createTaskList")}
@@ -901,8 +903,8 @@ export const TaskListScreen = ({
                   },
                 ]}
               >
-                <Feather
-                  name="menu"
+                <AppIcon
+                  name="drag-indicator"
                   size={18}
                   color={canDragList ? theme.text : theme.muted}
                 />
@@ -939,7 +941,7 @@ export const TaskListScreen = ({
   );
 
   const taskListContent =
-    taskLists.length > 0 ? (
+    stableTaskLists.length > 0 ? (
       <Carousel
         style={{ flex: 1 }}
         setApi={setTaskListCarouselApi}
@@ -954,7 +956,7 @@ export const TaskListScreen = ({
         }}
       >
         <CarouselContent style={{ flex: 1 }}>
-          {taskLists.map((taskList) => {
+          {stableTaskLists.map((taskList) => {
             const isActive = taskList.id === selectedTaskListId;
             const listTasks =
               orderedTasksByListId[taskList.id] ?? taskList.tasks;
@@ -1051,7 +1053,7 @@ export const TaskListScreen = ({
       <TaskListPanel
         t={t}
         theme={theme}
-        tasks={[]}
+        tasks={EMPTY_TASKS}
         newTaskText=""
         isAddingTask={false}
         isUpdatingTask={false}

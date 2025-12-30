@@ -23,6 +23,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/Dialog";
+import { AppIcon } from "@/components/ui/AppIcon";
 import { ColorPicker } from "./ColorPicker";
 
 type DrawerPanelProps = {
@@ -94,9 +95,12 @@ function SortableTaskListItem({
         type="button"
         className="flex touch-none items-center rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
       >
-        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M8 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-        </svg>
+        <AppIcon
+          name="drag-indicator"
+          className="h-5 w-5"
+          aria-hidden="true"
+          focusable="false"
+        />
       </button>
 
       <span
@@ -179,26 +183,12 @@ export function DrawerPanel({
               data-vaul-no-drag
               className="inline-flex items-center justify-center rounded-xl p-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
             >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
+              <AppIcon
+                name="settings"
+                className="h-5 w-5"
                 aria-hidden="true"
-              >
-                <path
-                  d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M19.4 15a1.9 1.9 0 0 0 .38 2.1l.06.06a2.3 2.3 0 0 1 0 3.25 2.3 2.3 0 0 1-3.25 0l-.06-.06a1.9 1.9 0 0 0-2.1-.38 1.9 1.9 0 0 0-1.16 1.74V22a2.3 2.3 0 0 1-4.6 0v-.09A1.9 1.9 0 0 0 7.55 20.2a1.9 1.9 0 0 0-2.1.38l-.06.06a2.3 2.3 0 0 1-3.25 0 2.3 2.3 0 0 1 0-3.25l.06-.06a1.9 1.9 0 0 0 .38-2.1 1.9 1.9 0 0 0-1.74-1.16H1.8a2.3 2.3 0 0 1 0-4.6h.09A1.9 1.9 0 0 0 3.63 7.55a1.9 1.9 0 0 0-.38-2.1l-.06-.06a2.3 2.3 0 0 1 0-3.25 2.3 2.3 0 0 1 3.25 0l.06.06a1.9 1.9 0 0 0 2.1.38A1.9 1.9 0 0 0 9.76 1.8V1.7a2.3 2.3 0 0 1 4.6 0v.09a1.9 1.9 0 0 0 1.16 1.74 1.9 1.9 0 0 0 2.1-.38l.06-.06a2.3 2.3 0 0 1 3.25 0 2.3 2.3 0 0 1 0 3.25l-.06.06a1.9 1.9 0 0 0-.38 2.1 1.9 1.9 0 0 0 1.74 1.16H22.2a2.3 2.3 0 0 1 0 4.6h-.09a1.9 1.9 0 0 0-1.74 1.16Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                />
-              </svg>
+                focusable="false"
+              />
             </button>
           </div>
           {!isWideLayout && (
@@ -210,20 +200,12 @@ export function DrawerPanel({
               data-vaul-no-drag
               className="inline-flex items-center justify-center rounded-xl p-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
             >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
+              <AppIcon
+                name="close"
+                className="h-5 w-5"
                 aria-hidden="true"
-              >
-                <path
-                  d="M6 6l8 8M14 6l-8 8"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
+                focusable="false"
+              />
             </button>
           )}
         </div>

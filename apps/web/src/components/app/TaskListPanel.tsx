@@ -21,6 +21,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Alert } from "@/components/ui/Alert";
+import { AppIcon } from "@/components/ui/AppIcon";
 import { Calendar } from "@/components/ui/Calendar";
 import { Command, CommandItem, CommandList } from "@/components/ui/Command";
 import {
@@ -131,9 +132,12 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
         type="button"
         className="mt-0.5 touch-none rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
       >
-        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M8 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-        </svg>
+        <AppIcon
+          name="drag-indicator"
+          className="h-5 w-5"
+          aria-hidden="true"
+          focusable="false"
+        />
       </button>
 
       <input
@@ -185,16 +189,12 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             {dateValue ? (
               <span aria-hidden="true">{dateValue}</span>
             ) : (
-              <svg
-                width="20"
-                height="20"
-                fill="currentColor"
-                viewBox="0 0 24 24"
+              <AppIcon
+                name="calendar-today"
+                className="h-5 w-5"
                 aria-hidden="true"
                 focusable="false"
-              >
-                <path d="M7 2a2 2 0 0 0-2 2v1H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2h-1V4a2 2 0 0 0-2-2H7Zm0 3V4h10v1H7Zm-1 5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v9a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-9Zm2 1v2h2v-2H8Zm4 0v2h2v-2h-2Zm4 0v2h2v-2h-2Zm-8 4v2h2v-2H8Zm4 0v2h2v-2h-2Zm4 0v2h2v-2h-2Z" />
-              </svg>
+              />
             )}
             <span className="sr-only">{setDateLabel}</span>
           </button>
@@ -474,18 +474,12 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
         >
           <span className="sr-only">{addButtonLabel}</span>
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          <AppIcon
+            name="send"
             className="h-5 w-5"
-          >
-            <path d="M6 12 3.269 3.125A59.768 59.768 0 0 1 21.485 12 59.77 59.77 0 0 1 3.27 20.875L6 12Zm0 0h7.5" />
-          </svg>
+            aria-hidden="true"
+            focusable="false"
+          />
         </button>
       </form>
       {addError ? <Alert variant="error">{addError}</Alert> : null}

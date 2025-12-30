@@ -26,12 +26,9 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/Dialog";
+import { AppIcon } from "@/components/ui/AppIcon";
 import { resolveErrorMessage } from "@/utils/errors";
 import { ColorPicker } from "./ColorPicker";
-
-type IconProps = {
-  className?: string;
-};
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
@@ -40,45 +37,6 @@ type OptimisticOrder = {
   ids: string[];
   startedAt: number;
 };
-
-function EditIcon({ className }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
-    </svg>
-  );
-}
-
-function ShareIcon({ className }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M12 3v12" />
-      <path d="M8 7l4-4 4 4" />
-      <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
-    </svg>
-  );
-}
 
 type TaskListCardProps = {
   taskList: TaskList;
@@ -344,7 +302,12 @@ export function TaskListCard({
                   aria-label={t("taskList.editDetails")}
                   title={t("taskList.editDetails")}
                 >
-                  <EditIcon className="h-5 w-5" />
+                  <AppIcon
+                    name="edit"
+                    className="h-5 w-5"
+                    aria-hidden="true"
+                    focusable="false"
+                  />
                   <span className="sr-only">{t("taskList.editDetails")}</span>
                 </button>
               </DialogTrigger>
@@ -422,7 +385,12 @@ export function TaskListCard({
                   aria-label={t("taskList.share")}
                   title={t("taskList.share")}
                 >
-                  <ShareIcon className="h-5 w-5" />
+                  <AppIcon
+                    name="share"
+                    className="h-5 w-5"
+                    aria-hidden="true"
+                    focusable="false"
+                  />
                   <span className="sr-only">{t("taskList.share")}</span>
                 </button>
               </DialogTrigger>

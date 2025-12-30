@@ -26,6 +26,17 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    padding: 24,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
   appHeader: {
     marginBottom: 16,
   },

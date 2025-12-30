@@ -9,7 +9,19 @@ import {
   MdSettings,
   MdShare,
 } from "react-icons/md";
-import type { AppIconName } from "@lightlist/sdk/ui/icons";
+
+const APP_ICON_NAMES = [
+  "menu",
+  "edit",
+  "share",
+  "calendar-today",
+  "drag-indicator",
+  "settings",
+  "close",
+  "send",
+] as const;
+
+type AppIconName = (typeof APP_ICON_NAMES)[number];
 
 const ICONS: Record<AppIconName, IconType> = {
   "calendar-today": MdCalendarToday,

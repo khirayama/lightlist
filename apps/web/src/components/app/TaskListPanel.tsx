@@ -489,56 +489,72 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
   return (
     <div className="flex flex-col gap-4">
       {inputSection}
-      <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          disabled={
-            sortPending || inputDisabled || tasks.length < 2 || !onSortTasks
-          }
-          onClick={async () => {
-            if (!onSortTasks) return;
-            setSortPending(true);
-            try {
-              await onSortTasks();
-            } finally {
-              setSortPending(false);
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center">
+          <button
+            type="button"
+            disabled={
+              sortPending || inputDisabled || tasks.length < 2 || !onSortTasks
             }
-          }}
-          className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
-        >
-          {t("pages.tasklist.sort")}
-        </button>
-        <button
-          type="button"
-          disabled={
-            deleteCompletedPending ||
-            inputDisabled ||
-            completedTaskCount === 0 ||
-            !onDeleteCompletedTasks
-          }
-          onClick={async () => {
-            if (!onDeleteCompletedTasks) return;
-            if (completedTaskCount === 0) return;
-            const confirmed = window.confirm(
-              t("pages.tasklist.deleteCompletedConfirm", {
-                count: completedTaskCount,
-              }),
-            );
-            if (!confirmed) return;
+            onClick={async () => {
+              if (!onSortTasks) return;
+              setSortPending(true);
+              try {
+                await onSortTasks();
+              } finally {
+                setSortPending(false);
+              }
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+          >
+            <AppIcon
+              name="sort"
+              className="h-4 w-4"
+              aria-hidden="true"
+              focusable="false"
+            />
+            {t("pages.tasklist.sort")}
+          </button>
+        </div>
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            disabled={
+              deleteCompletedPending ||
+              inputDisabled ||
+              completedTaskCount === 0 ||
+              !onDeleteCompletedTasks
+            }
+            onClick={async () => {
+              if (!onDeleteCompletedTasks) return;
+              if (completedTaskCount === 0) return;
+              const confirmed = window.confirm(
+                t("pages.tasklist.deleteCompletedConfirm", {
+                  count: completedTaskCount,
+                }),
+              );
+              if (!confirmed) return;
 
-            setDeleteCompletedPending(true);
-            try {
-              await onDeleteCompletedTasks();
-            } finally {
-              setDeleteCompletedPending(false);
-            }
-          }}
-          className="inline-flex items-center justify-center rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:outline-red-400"
-        >
-          {deleteCompletedPending
-            ? t("common.deleting")
-            : t("pages.tasklist.deleteCompleted")}
-        </button>
+              setDeleteCompletedPending(true);
+              try {
+                await onDeleteCompletedTasks();
+              } finally {
+                setDeleteCompletedPending(false);
+              }
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:outline-red-400"
+          >
+            {deleteCompletedPending
+              ? t("common.deleting")
+              : t("pages.tasklist.deleteCompleted")}
+            <AppIcon
+              name="delete"
+              className="h-4 w-4"
+              aria-hidden="true"
+              focusable="false"
+            />
+          </button>
+        </div>
       </div>
       <DndContext
         sensors={sensors}

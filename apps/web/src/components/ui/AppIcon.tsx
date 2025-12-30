@@ -6,8 +6,10 @@ import {
   MdEdit,
   MdMenu,
   MdSend,
+  MdSort,
   MdSettings,
   MdShare,
+  MdDelete,
 } from "react-icons/md";
 
 const APP_ICON_NAMES = [
@@ -19,6 +21,8 @@ const APP_ICON_NAMES = [
   "settings",
   "close",
   "send",
+  "sort",
+  "delete",
 ] as const;
 
 type AppIconName = (typeof APP_ICON_NAMES)[number];
@@ -32,6 +36,8 @@ const ICONS: Record<AppIconName, IconType> = {
   send: MdSend,
   settings: MdSettings,
   share: MdShare,
+  sort: MdSort,
+  delete: MdDelete,
 };
 
 type AppIconProps = IconBaseProps & {

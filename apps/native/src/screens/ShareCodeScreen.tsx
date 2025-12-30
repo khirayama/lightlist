@@ -30,6 +30,8 @@ type ShareCodeScreenProps = {
   onOpenTaskList: () => void;
 };
 
+const EMPTY_TASKS: Task[] = [];
+
 export const ShareCodeScreen = ({
   t,
   theme,
@@ -139,7 +141,7 @@ export const ShareCodeScreen = ({
       : (storeState.taskLists.find((list) => list.id === sharedTaskListId) ??
         storeState.sharedTaskListsById[sharedTaskListId] ??
         null);
-  const taskListTasks = taskList?.tasks ?? [];
+  const taskListTasks = taskList?.tasks ?? EMPTY_TASKS;
 
   useEffect(() => {
     setOrderedTasks(taskListTasks);

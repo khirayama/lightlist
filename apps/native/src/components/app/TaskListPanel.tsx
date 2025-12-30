@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { AppIcon } from "../ui/AppIcon";
 import DateTimePicker, {
   DateTimePickerAndroid,
   type DateTimePickerEvent,
@@ -480,8 +480,8 @@ export const TaskListPanel = ({
                     },
                   ]}
                 >
-                  <Feather
-                    name="menu"
+                  <AppIcon
+                    name="drag-indicator"
                     size={18}
                     color={canDragTask ? theme.text : theme.muted}
                   />
@@ -575,7 +575,11 @@ export const TaskListPanel = ({
                       {dateValue}
                     </Text>
                   ) : (
-                    <Feather name="calendar" size={18} color={theme.muted} />
+                    <AppIcon
+                      name="calendar-today"
+                      size={18}
+                      color={theme.muted}
+                    />
                   )}
                 </Pressable>
               </View>

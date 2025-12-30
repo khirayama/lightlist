@@ -13,7 +13,7 @@
 - SDKやタスクドメインに触れる場合は `tasks` など機能ベースのディレクトリにまとめる
 - ボタンや入力などのプリミティブは `ui` に集約し、スタイルの重複を避ける
 - テーマとi18nはプリミティブで吸収し、ページ側での個別対応を増やさない
-- アイコンは `@lightlist/sdk/icons` の共通名を使い、Webは AppIcon（react-icons/md）、Nativeは AppIcon（MaterialIcons）で揃える
+- アイコンは `@lightlist/sdk/ui/icons` の共通名を使い、Webは AppIcon（react-icons/md）、Nativeは AppIcon（MaterialIcons）で揃える
 - モーダルは `ui/Dialog` を使用し、`titleId`/`descriptionId` を設定してアクセシビリティを担保する。Drawer は shadcn 構成要素（Overlay/Content/Header/Title/Description/Trigger/Close/Portal）を利用し、Title/Description は Drawer 配下のみで使う。常設サイドバー表示では通常の見出し/本文要素でタイトル/説明を補う
 
 ## Pages ルーティング

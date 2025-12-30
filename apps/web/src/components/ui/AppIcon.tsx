@@ -9,7 +9,7 @@ import {
   MdSettings,
   MdShare,
 } from "react-icons/md";
-import type { AppIconName } from "@lightlist/sdk/icons";
+import type { AppIconName } from "@lightlist/sdk/ui/icons";
 
 const ICONS: Record<AppIconName, IconType> = {
   "calendar-today": MdCalendarToday,

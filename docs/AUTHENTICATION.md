@@ -48,6 +48,8 @@ apps/native/
 └── types.ts                   - 型定義
 ```
 
+React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結させる。
+
 **アーキテクチャ:**
 
 `apps/web` はすべてのFirebase機能を `@lightlist/sdk` 経由で使用し、直接Firebaseに依存しません。

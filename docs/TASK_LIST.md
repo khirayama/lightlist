@@ -182,22 +182,17 @@ await updateTaskListOrder("list-id-1", "list-id-3");
 
 ```
 app:
-  title: タスクページのタイトル（"タスク" / "Tasks"）
   emptyState: タスクリストがない状態のメッセージ
   createNew: 新規作成ボタンのテキスト
   createTaskList: モーダルタイトル
   taskListName: リスト名入力フィールドのラベル
   taskListNamePlaceholder: 入力フィールドのプレースホルダー
   create: 作成ボタンのテキスト
-  creating: 作成中の状態表示テキスト
   cancel: キャンセルボタンのテキスト
   error: エラーメッセージ（汎用）
-  moveUp: 上へ移動ボタンのテキスト
-  moveDown: 下へ移動ボタンのテキスト
   dragHint: ドラッグして並び替え
   openMenu: メニューを開く（menu アイコンのツールチップ/スクリーンリーダー用）
   drawerTitle: ドロワーのタイトル表示
-  drawerSignedIn: ログインメール表示用ラベル
   drawerNoEmail: メールが未設定の場合のラベル
 taskList:
   taskCount: タスク件数の表示（{{count}} 形式）
@@ -207,7 +202,6 @@ taskList:
   shareCode: 共有コード表示ラベル
   generateShare: 共有コード生成ボタン
   removeShare: 共有停止ボタン
-  shareError: 共有設定エラー文言
   selectColor: 色選択ラベル
 ```
 

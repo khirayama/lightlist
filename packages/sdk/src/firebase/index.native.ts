@@ -1,11 +1,21 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initializeApp, getApps } from "firebase/app";
-import {
-  getAuth,
-  getReactNativePersistence,
-  initializeAuth,
-} from "@firebase/auth";
+import type { Persistence, ReactNativeAsyncStorage } from "@firebase/auth";
+import { getAuth, initializeAuth } from "@firebase/auth";
+import * as FirebaseAuth from "@firebase/auth";
 import { getFirestore } from "firebase/firestore";
+
+const getReactNativePersistence = (
+  FirebaseAuth as {
+    getReactNativePersistence?: (
+      storage: ReactNativeAsyncStorage,
+    ) => Persistence;
+  }
+).getReactNativePersistence;
+
+if (!getReactNativePersistence) {
+  throw new Error("getReactNativePersistence is not available");
+}
 
 const requireEnv = (value: string | undefined, key: string): string => {
   if (!value) {

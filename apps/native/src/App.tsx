@@ -87,7 +87,7 @@ const linking = {
 };
 
 export default function App() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [appState, setAppState] = useState<AppState>(appStore.getState());
   const [isAuthReady, setIsAuthReady] = useState(false);
   const systemScheme = useColorScheme();
@@ -353,10 +353,13 @@ export default function App() {
       return;
     }
     const trimmedEmail = form.email.trim();
+    const resolvedLanguage = i18n.language.toLowerCase().startsWith("ja")
+      ? "ja"
+      : "en";
     setIsSubmitting(true);
     setAuthErrorMessage(null);
     try {
-      await signUp(trimmedEmail, form.password);
+      await signUp(trimmedEmail, form.password, resolvedLanguage);
     } catch (error) {
       if (error instanceof Error) {
         setAuthErrorMessage(resolveAuthErrorMessage(error, t));

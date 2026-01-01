@@ -17,7 +17,7 @@ type AuthTab = "signin" | "signup" | "reset";
 
 export default function IndexPage() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<AuthTab>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -75,9 +75,12 @@ export default function IndexPage() {
   };
 
   const handleSignUp = (e: React.FormEvent) => {
+    const resolvedLanguage = i18n.language.toLowerCase().startsWith("ja")
+      ? "ja"
+      : "en";
     handleAuthAction(
       e,
-      () => signUp(email, password),
+      () => signUp(email, password, resolvedLanguage),
       { email, password, confirmPassword, requirePasswordConfirm: true },
       setLoading,
     );

@@ -140,9 +140,12 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
    - メールアドレス形式チェック
    - パスワード最低6文字
    - パスワード確認一致チェック
-3. `signUp(email, password)` を呼び出し
+3. `signUp(email, password, language)` を呼び出し
 4. Firebase Authentication でアカウント作成
-5. 初期設定データを Firestore に作成
+5. 初期設定データと初期タスクリストを Firestore に作成
+   - `settings`: テーマ、言語、タスク挿入位置など
+   - `taskListOrder`: 初期タスクリストの順序
+   - `taskLists`: 言語に応じた空の初期タスクリスト（`"📒個人"` / `"📒PERSONAL"`）
 6. ログイン完了後、`/app` へリダイレクト
 
 **エラーハンドリング:**
@@ -266,7 +269,7 @@ https://[PROJECT].firebaseapp.com/password-reset?oobCode=[CODE]&mode=resetPasswo
 
 認証機能は `@lightlist/sdk/mutations/auth` からexportされています。
 
-### signUp(email: string, password: string): Promise<void>
+### signUp(email: string, password: string, language: Language): Promise<void>
 
 Firebase Authentication でメール/パスワード認証によるサインアップを実行します。
 
@@ -274,14 +277,15 @@ Firebase Authentication でメール/パスワード認証によるサインア�
 
 - `email`: メールアドレス
 - `password`: パスワード（6文字以上推奨）
+- `language`: 初期設定と初期タスクリストの言語（`"ja"` または `"en"`）
 
 **動作:**
 
 1. `createUserWithEmailAndPassword` でアカウント作成
 2. 初期設定データを Firestore に作成：
    - `settings`: テーマ、言語、タスク挿入位置など
-   - `taskListOrder`: タスクリストの順序
-   - `taskLists`: 空のタスクリスト
+   - `taskListOrder`: 初期タスクリストの順序
+   - `taskLists`: 言語に応じた空の初期タスクリスト（`"📒個人"` / `"📒PERSONAL"`）
 
 **例外:**
 Firebase 認証エラーをスロー

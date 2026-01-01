@@ -8,35 +8,63 @@ import {
   deleteUser,
   ActionCodeSettings,
 } from "firebase/auth";
-import { doc, setDoc, writeBatch } from "firebase/firestore";
+import { collection, doc, writeBatch } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
-import { SettingsStore, TaskListOrderStore, Language } from "../types";
+import {
+  SettingsStore,
+  TaskListOrderStore,
+  TaskListStore,
+  Language,
+} from "../types";
 import { appStore } from "../store";
 
-export async function signUp(email: string, password: string) {
+export async function signUp(
+  email: string,
+  password: string,
+  language: Language,
+) {
   const userCredential = await createUserWithEmailAndPassword(
     auth,
     email,
     password,
   );
   const uid = userCredential.user.uid;
+  const now = Date.now();
+  const taskListId = doc(collection(db, "taskLists")).id;
+  const taskListName = language === "ja" ? "📒個人" : "📒PERSONAL";
 
   const settingsData: SettingsStore = {
     theme: "system",
-    language: "ja",
+    language,
     taskInsertPosition: "bottom",
     autoSort: false,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt: now,
+    updatedAt: now,
   };
-  await setDoc(doc(db, "settings", uid), settingsData);
+
+  const taskListData: TaskListStore = {
+    id: taskListId,
+    name: taskListName,
+    tasks: {},
+    history: [],
+    shareCode: null,
+    background: "#ffffff",
+    createdAt: now,
+    updatedAt: now,
+  };
 
   const taskListOrderData = {
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    [taskListId]: { order: 1.0 },
+    createdAt: now,
+    updatedAt: now,
   } as TaskListOrderStore;
-  await setDoc(doc(db, "taskListOrder", uid), taskListOrderData);
+
+  const batch = writeBatch(db);
+  batch.set(doc(db, "settings", uid), settingsData);
+  batch.set(doc(db, "taskLists", taskListId), taskListData);
+  batch.set(doc(db, "taskListOrder", uid), taskListOrderData);
+  await batch.commit();
 }
 
 export async function signIn(email: string, password: string) {

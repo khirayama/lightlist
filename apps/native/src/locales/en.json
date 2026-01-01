@@ -1,7 +1,6 @@
 {
   "app": {
     "name": "LightList",
-    "title": "Tasks",
     "emptyState": "No task lists",
     "createTaskList": "Create Task List",
     "taskListName": "Task List Name",
@@ -83,9 +82,6 @@
     "signingOut": "Signing out...",
     "deletingAccount": "Deleting account..."
   },
-  "status": {
-    "signedInAs": "Signed in as {{email}}"
-  },
   "errors": {
     "invalidCredential": "Email or password is incorrect.",
     "userNotFound": "Account not found.",
@@ -117,8 +113,6 @@
     "addTaskPlaceholder": "Enter task...",
     "deleteList": "Delete List",
     "deleteConfirm": "Delete this task list?",
-    "deleteTask": "Delete Task",
-    "deleteTaskConfirm": "Delete this task?",
     "toggleComplete": "Toggle completion",
     "editTask": "Edit task",
     "reorder": "Reorder"

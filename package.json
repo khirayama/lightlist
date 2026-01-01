@@ -12,7 +12,8 @@
     "build": "turbo run build",
     "format": "turbo run format",
     "typecheck": "turbo run typecheck",
-    "deploy:firestore": "cd packages/sdk && firebase deploy --only firestore:rules,firestore:indexes"
+    "deploy:firestore": "cd packages/sdk && firebase deploy --only firestore:rules,firestore:indexes",
+    "deploy:firestore:prod": "cd packages/sdk && firebase deploy --only firestore:rules,firestore:indexes --project prod"
   },
   "devDependencies": {
     "firebase-tools": "^13.0.0",

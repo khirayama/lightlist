@@ -12,6 +12,7 @@
   },
   "scripts": {
     "deploy": "firebase deploy --only firestore:rules,firestore:indexes",
+    "deploy:prod": "firebase deploy --only firestore:rules,firestore:indexes --project prod",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"
   },

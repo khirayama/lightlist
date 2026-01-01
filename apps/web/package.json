@@ -7,6 +7,9 @@
     "dev": "next",
     "format": "prettier --write .",
     "build": "next build",
+    "build:prod": "node -e \"const fs = require('fs'); fs.copyFileSync('.env.prod', '.env.production');\" && next build",
+    "start": "next start",
+    "start:prod": "node -e \"const fs = require('fs'); fs.copyFileSync('.env.prod', '.env.production');\" && next start",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],

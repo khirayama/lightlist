@@ -5,17 +5,12 @@
     "loading": "Loading...",
     "back": "Back",
     "cancel": "Cancel",
-    "delete": "Delete",
     "deleting": "Deleting...",
     "close": "Close",
-    "adding": "Adding...",
     "add": "Add",
     "copy": "Copy",
     "copied": "Copied",
-    "error": "An error occurred",
-    "confirmDelete": "Are you sure you want to delete?",
-    "previous": "Previous",
-    "next": "Next"
+    "error": "An error occurred"
   },
   "auth": {
     "tabs": {
@@ -49,9 +44,7 @@
       "invalidEmail": "Email address format is invalid",
       "operationNotAllowed": "This authentication method is not available",
       "tooManyRequests": "Too many login attempts. Please try again later",
-      "general": "Authentication failed. Please try again",
-      "noUserLoggedIn": "No user is logged in",
-      "taskListNotFound": "Task list not found"
+      "general": "Authentication failed. Please try again"
     },
     "button": {
       "signin": "Sign In",
@@ -59,12 +52,10 @@
       "signup": "Sign Up",
       "signingUp": "Signing up...",
       "forgotPassword": "Forgot Password?",
-      "resetPassword": "Reset Password",
       "sendResetEmail": "Send Reset Email",
       "sending": "Sending...",
       "backToSignIn": "Back to Sign In",
       "signOut": "Sign Out",
-      "deleteAccount": "Delete Account",
       "cancel": "Cancel",
       "delete": "Delete"
     },
@@ -94,22 +85,17 @@
     }
   },
   "app": {
-    "title": "Tasks",
     "emptyState": "No task lists",
     "createNew": "Create",
     "createTaskList": "Create Task List",
     "taskListName": "Task List Name",
     "taskListNamePlaceholder": "Enter task list name",
     "create": "Create",
-    "creating": "Creating...",
     "cancel": "Cancel",
     "error": "An error occurred",
-    "moveUp": "Move Up",
-    "moveDown": "Move Down",
     "dragHint": "Drag to reorder",
     "openMenu": "Open Menu",
     "drawerTitle": "Task Lists",
-    "drawerSignedIn": "Signed in as",
     "drawerNoEmail": "No email available",
     "taskListLocator": {
       "label": "Task list position",
@@ -121,25 +107,19 @@
     "taskCount_one": "{{count}} task",
     "taskCount_other": "{{count}} tasks",
     "editDetails": "Edit List",
-    "editColor": "Change Color",
-    "addTask": "Add",
-    "addTaskPlaceholder": "Enter task...",
     "selectColor": "Select Color",
     "deleteList": "Delete List",
-    "deleteConfirm": "Delete this task list?",
-    "dragHint": "Drag to reorder",
     "share": "Share",
     "shareTitle": "Share List",
     "shareCode": "Share Code",
-    "shareDescription": "Share this task list with others. Click the button below to generate a share code.",
+    "shareDescription": "Generate a share code to let others view and edit this list.",
     "generateShare": "Generate Share Code",
     "removeShare": "Stop Sharing"
   },
   "settings": {
     "title": "Settings",
     "userInfo": {
-      "title": "User Information",
-      "email": "Email Address"
+      "title": "Account"
     },
     "theme": {
       "title": "Theme",
@@ -149,16 +129,16 @@
     },
     "language": {
       "title": "Language",
-      "japanese": "日本語",
+      "japanese": "Japanese",
       "english": "English"
     },
     "taskInsertPosition": {
-      "title": "Task insertion position",
+      "title": "New task position",
       "top": "Add to top",
       "bottom": "Add to bottom"
     },
     "autoSort": {
-      "title": "Auto sort",
+      "title": "Auto sort tasks",
       "enable": "Auto sort tasks"
     },
     "danger": {

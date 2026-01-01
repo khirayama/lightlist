@@ -1,7 +1,6 @@
 {
   "app": {
     "name": "LightList",
-    "title": "タスク",
     "emptyState": "タスクリストがありません",
     "createTaskList": "タスクリスト作成",
     "taskListName": "タスクリスト名",
@@ -83,9 +82,6 @@
     "signingOut": "ログアウト中...",
     "deletingAccount": "削除中..."
   },
-  "status": {
-    "signedInAs": "{{email}}でログイン済み"
-  },
   "errors": {
     "invalidCredential": "メールアドレスまたはパスワードが正しくありません。",
     "userNotFound": "アカウントが見つかりません。",
@@ -117,8 +113,6 @@
     "addTaskPlaceholder": "タスクを入力...",
     "deleteList": "リストを削除",
     "deleteConfirm": "このタスクリストを削除しますか？",
-    "deleteTask": "タスクを削除",
-    "deleteTaskConfirm": "このタスクを削除しますか？",
     "toggleComplete": "完了を切り替え",
     "editTask": "タスクを編集",
     "reorder": "並び替え"

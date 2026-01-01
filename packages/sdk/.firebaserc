@@ -1,6 +1,7 @@
 {
   "projects": {
-    "default": "lightlist-dev"
+    "default": "lightlist-dev",
+    "prod": "lightlist-prod-b0269"
   },
   "targets": {},
   "etags": {}

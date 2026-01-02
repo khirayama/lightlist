@@ -108,6 +108,8 @@
     "taskCount_other": "{{count}} tasks",
     "editDetails": "Edit List",
     "selectColor": "Select Color",
+    "backgroundNone": "None (uses theme color)",
+    "backgroundNoneShort": "None",
     "deleteList": "Delete List",
     "share": "Share",
     "shareTitle": "Share List",

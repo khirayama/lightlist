@@ -35,10 +35,14 @@ import {
   CarouselItem,
 } from "@/components/ui/Carousel";
 import { DrawerPanel } from "./DrawerPanel";
+import type { ColorOption } from "./ColorPicker";
 import { TaskListCard } from "./TaskListCard";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
+
+const resolveTaskListBackground = (background: string | null): string =>
+  background ?? "var(--tasklist-theme-bg)";
 
 type OptimisticOrder = {
   ids: string[];
@@ -109,20 +113,26 @@ function AppHeader({
 export default function AppPage() {
   const router = useRouter();
   const { t } = useTranslation();
-  const colors = [
-    "#FF6B6B",
-    "#4ECDC4",
-    "#45B7D1",
-    "#FFA07A",
-    "#98D8C8",
-    "#6C5CE7",
-    "#A29BFE",
-    "#74B9FF",
-    "#81ECEC",
-    "#55EFC4",
-    "#FD79A8",
-    "#FDCB6E",
-    "#FFFFFF",
+  const colors: ColorOption[] = [
+    {
+      value: null,
+      label: t("taskList.backgroundNone"),
+      shortLabel: t("taskList.backgroundNoneShort"),
+      preview: "var(--tasklist-theme-bg)",
+    },
+    { value: "#FF6B6B" },
+    { value: "#4ECDC4" },
+    { value: "#45B7D1" },
+    { value: "#FFA07A" },
+    { value: "#98D8C8" },
+    { value: "#6C5CE7" },
+    { value: "#A29BFE" },
+    { value: "#74B9FF" },
+    { value: "#81ECEC" },
+    { value: "#55EFC4" },
+    { value: "#FD79A8" },
+    { value: "#FDCB6E" },
+    { value: "#FFFFFF" },
   ];
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
@@ -133,7 +143,7 @@ export default function AppPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [editListName, setEditListName] = useState("");
-  const [editListBackground, setEditListBackground] = useState(colors[0]);
+  const [editListBackground, setEditListBackground] = useState(colors[0].value);
   const [showEditListDialog, setShowEditListDialog] = useState(false);
   const [deletingList, setDeletingList] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -142,7 +152,9 @@ export default function AppPage() {
   const [removingShareCode, setRemovingShareCode] = useState(false);
   const [shareCopySuccess, setShareCopySuccess] = useState(false);
   const [createListInput, setCreateListInput] = useState("");
-  const [createListBackground, setCreateListBackground] = useState(colors[0]);
+  const [createListBackground, setCreateListBackground] = useState(
+    colors[0].value,
+  );
   const [showCreateListDialog, setShowCreateListDialog] = useState(false);
   const [taskListCarouselApi, setTaskListCarouselApi] =
     useState<CarouselApi | null>(null);
@@ -326,7 +338,7 @@ export default function AppPage() {
     try {
       await createTaskList(createListInput.trim(), createListBackground);
       setCreateListInput("");
-      setCreateListBackground(colors[0]);
+      setCreateListBackground(colors[0].value);
       setShowCreateListDialog(false);
     } catch (err) {
       setError(resolveErrorMessage(err, t, "app.error"));
@@ -337,16 +349,13 @@ export default function AppPage() {
     if (!selectedTaskListId || !selectedTaskList) return;
 
     const trimmedName = editListName.trim();
-    const updates: { name?: string; background?: string } = {};
+    const updates: { name?: string; background?: string | null } = {};
 
     if (trimmedName && trimmedName !== selectedTaskList.name) {
       updates.name = trimmedName;
     }
 
-    if (
-      editListBackground &&
-      editListBackground !== selectedTaskList.background
-    ) {
+    if (editListBackground !== selectedTaskList.background) {
       updates.background = editListBackground;
     }
 
@@ -575,7 +584,11 @@ export default function AppPage() {
                               "h-full w-full pt-4",
                               isWideLayout && "mx-auto max-w-3xl",
                             )}
-                            style={{ backgroundColor: taskList.background }}
+                            style={{
+                              backgroundColor: resolveTaskListBackground(
+                                taskList.background,
+                              ),
+                            }}
                           >
                             <TaskListCard
                               taskList={taskList}

@@ -6,12 +6,14 @@
   --dialog-bg: #ffffff;
   --dialog-fg: #111827;
   --dialog-muted: #4b5563;
+  --tasklist-theme-bg: #f9fafb;
 }
 
 .dark {
   --dialog-bg: #111827;
   --dialog-fg: #f9fafb;
   --dialog-muted: #d1d5db;
+  --tasklist-theme-bg: #030712;
 }
 
 html,

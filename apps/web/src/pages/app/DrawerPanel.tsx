@@ -24,7 +24,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/Dialog";
 import { AppIcon } from "@/components/ui/AppIcon";
-import { ColorPicker } from "./ColorPicker";
+import { ColorPicker, type ColorOption } from "./ColorPicker";
+
+const resolveTaskListBackground = (background: string | null): string =>
+  background ?? "var(--tasklist-theme-bg)";
 
 type DrawerPanelProps = {
   isWideLayout: boolean;
@@ -33,9 +36,9 @@ type DrawerPanelProps = {
   onCreateListDialogChange: (open: boolean) => void;
   createListInput: string;
   onCreateListInputChange: (value: string) => void;
-  createListBackground: string;
-  onCreateListBackgroundChange: (color: string) => void;
-  colors: string[];
+  createListBackground: string | null;
+  onCreateListBackgroundChange: (color: string | null) => void;
+  colors: ColorOption[];
   onCreateList: () => void | Promise<void>;
   hasTaskLists: boolean;
   taskLists: TaskList[];
@@ -106,7 +109,9 @@ function SortableTaskListItem({
       <span
         aria-hidden="true"
         className="h-3 w-3 rounded-full border border-gray-300 dark:border-gray-700"
-        style={{ backgroundColor: taskList.background }}
+        style={{
+          backgroundColor: resolveTaskListBackground(taskList.background),
+        }}
       />
 
       <button
@@ -249,7 +254,7 @@ export function DrawerPanel({
             onCreateListDialogChange(open);
             if (!open) {
               onCreateListInputChange("");
-              onCreateListBackgroundChange(colors[0]);
+              onCreateListBackgroundChange(colors[0].value);
             }
           }}
         >

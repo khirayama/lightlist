@@ -65,7 +65,7 @@ const [state, setState] = useState<AppState | null>(null);
 const [error, setError] = useState<string | null>(null);
 
 const [editListName, setEditListName] = useState("");
-const [editListBackground, setEditListBackground] = useState(colors[0]);
+const [editListBackground, setEditListBackground] = useState(colors[0].value);
 const [showEditListDialog, setShowEditListDialog] = useState(false);
 const [deletingList, setDeletingList] = useState(false);
 const [showShareDialog, setShowShareDialog] = useState(false);
@@ -74,7 +74,7 @@ const [generatingShareCode, setGeneratingShareCode] = useState(false);
 const [removingShareCode, setRemovingShareCode] = useState(false);
 const [shareCopySuccess, setShareCopySuccess] = useState(false);
 const [createListInput, setCreateListInput] = useState("");
-const [createListBackground, setCreateListBackground] = useState(colors[0]);
+const [createListBackground, setCreateListBackground] = useState(colors[0].value);
 const [showCreateListDialog, setShowCreateListDialog] = useState(false);
 const [taskListCarouselApi, setTaskListCarouselApi] =
   useState<CarouselApi | null>(null);
@@ -121,7 +121,7 @@ const state: AppState = {
 **パラメータ:**
 
 - `name`: タスクリスト名（必須）
-- `background`: 背景色（オプション、デフォルト: `"#ffffff"`）
+- `background`: 背景色（オプション、デフォルト: `null`。テーマカラーを使用）
 
 **戻り値:**
 
@@ -203,6 +203,8 @@ taskList:
   generateShare: 共有コード生成ボタン
   removeShare: 共有停止ボタン
   selectColor: 色選択ラベル
+  backgroundNone: 背景色「なし（テーマカラー）」のラベル
+  backgroundNoneShort: スウォッチ用の短縮ラベル
 ```
 
 詳細は `locales/ja.json` および `locales/en.json` を参照してください。
@@ -223,7 +225,7 @@ taskList:
 
 - **ヘッダー:** アプリタイトル、ドロワー開閉、共有コード、サインアウト操作を配置
 - **ドロワー:** 設定画面へのリンクとタスクリスト一覧をまとめ、選択時はドロワーを閉じてタスク操作に戻る。タスクリスト一覧は左端の drag_indicator アイコンで並び替えできる
-- **作成フォーム:** リスト名と背景色を入力して作成
+- **作成フォーム:** リスト名と背景色を入力して作成。背景色は「なし（テーマカラー）」が先頭かつデフォルト
 - **編集ダイアログ:** 編集ボタンから Dialog を開き、リスト名と背景色の更新・削除を行う
 - **タスク:** 入力欄で追加し、追加中も入力欄を無効化せず、追加後もフォーカスを維持する（追加ボタンやEnterでもキーボードを閉じない）。一覧で編集（テキスト/期限）に入るとテキスト入力へ自動フォーカスし、完了切り替え・ドラッグハンドルで並び替え・削除が可能。ヘッダー操作でソートと完了タスク削除を行う
 
@@ -233,7 +235,7 @@ taskList:
 
 - **背景（外枠アクセント）:** 選択中のタスクリストに設定された `background` をカード外枠のアクセントとして反映
 - **コンテンツ面:** 内側はライト/ダークで可読性が担保されるサーフェス（カード）として扱い、ヘッダー情報・操作ボタン・タスク一覧を同一カード内で構成する
-- **カラー表示:** タスクリストの背景色を示すスウォッチと、色コード（`background`）を併記する
+- **カラー表示:** 背景色スウォッチを表示し、`background` が `null` の場合は「なし」ラベルを示す
 - **操作要素:** ボタン/入力は Tailwind のユーティリティクラスで最低限の見た目と focus-visible を付与し、キーボード操作とダークテーマでの視認性を担保する
 
 ## 順序管理
@@ -469,7 +471,7 @@ const [state, setState] = useState<AppState | null>(null);
 const [error, setError] = useState<string | null>(null);
 
 const [editListName, setEditListName] = useState("");
-const [editListBackground, setEditListBackground] = useState(colors[0]);
+const [editListBackground, setEditListBackground] = useState(colors[0].value);
 const [showEditListDialog, setShowEditListDialog] = useState(false);
 const [deletingList, setDeletingList] = useState(false);
 const [showShareDialog, setShowShareDialog] = useState(false);
@@ -478,7 +480,7 @@ const [generatingShareCode, setGeneratingShareCode] = useState(false);
 const [removingShareCode, setRemovingShareCode] = useState(false);
 const [shareCopySuccess, setShareCopySuccess] = useState(false);
 const [createListInput, setCreateListInput] = useState("");
-const [createListBackground, setCreateListBackground] = useState(colors[0]);
+const [createListBackground, setCreateListBackground] = useState(colors[0].value);
 const [showCreateListDialog, setShowCreateListDialog] = useState(false);
 const [taskListCarouselApi, setTaskListCarouselApi] =
   useState<CarouselApi | null>(null);

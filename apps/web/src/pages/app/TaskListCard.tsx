@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/Dialog";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { resolveErrorMessage } from "@/utils/errors";
-import { ColorPicker } from "./ColorPicker";
+import { ColorPicker, type ColorOption } from "./ColorPicker";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
@@ -43,13 +43,13 @@ type TaskListCardProps = {
   taskInsertPosition: TaskInsertPosition;
   isActive: boolean;
   onActivate: (taskListId: string) => void;
-  colors: readonly string[];
+  colors: readonly ColorOption[];
   showEditListDialog: boolean;
   onEditDialogOpenChange: (taskList: TaskList, open: boolean) => void;
   editListName: string;
   onEditListNameChange: (value: string) => void;
-  editListBackground: string;
-  onEditListBackgroundChange: (color: string) => void;
+  editListBackground: string | null;
+  onEditListBackgroundChange: (color: string | null) => void;
   onSaveListDetails: () => void;
   deletingList: boolean;
   onDeleteList: () => void;

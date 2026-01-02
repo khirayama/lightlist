@@ -338,10 +338,14 @@ export default function AppPage() {
     setError(null);
 
     try {
-      await createTaskList(createListInput.trim(), createListBackground);
+      const newTaskListId = await createTaskList(
+        createListInput.trim(),
+        createListBackground,
+      );
       setCreateListInput("");
       setCreateListBackground(colors[0].value);
       setShowCreateListDialog(false);
+      setSelectedTaskListId(newTaskListId);
     } catch (err) {
       setError(resolveErrorMessage(err, t, "app.error"));
     }

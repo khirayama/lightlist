@@ -901,7 +901,7 @@ export const AppScreen = ({
                 style={[
                   styles.drawerListSwatch,
                   {
-                    backgroundColor: item.background,
+                    backgroundColor: item.background ?? theme.background,
                     borderColor: theme.border,
                   },
                 ]}

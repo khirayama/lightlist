@@ -49,7 +49,7 @@ export async function signUp(
     tasks: {},
     history: [],
     shareCode: null,
-    background: "#ffffff",
+    background: null,
     createdAt: now,
     updatedAt: now,
   };

@@ -122,7 +122,7 @@ export async function updateTaskListOrder(
 
 export async function createTaskList(
   name: string,
-  background: string = "#ffffff",
+  background: string | null = null,
 ) {
   const data = appStore.getData();
 

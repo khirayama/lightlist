@@ -63,7 +63,7 @@ const transform = (d: DataStore): AppState => {
         tasks: [],
         history: [],
         shareCode: null,
-        background: "#ffffff",
+        background: null,
         createdAt: 0,
         updatedAt: 0,
       };

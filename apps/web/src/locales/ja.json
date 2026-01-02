@@ -108,6 +108,8 @@
     "taskCount_other": "{{count}}個のタスク",
     "editDetails": "リストを編集",
     "selectColor": "色を選択",
+    "backgroundNone": "なし（実際はテーマカラーの色）",
+    "backgroundNoneShort": "なし",
     "deleteList": "リストを削除",
     "share": "共有",
     "shareTitle": "リストを共有",

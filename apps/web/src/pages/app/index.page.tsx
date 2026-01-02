@@ -571,15 +571,11 @@ export default function AppPage() {
                       return (
                         <CarouselItem key={taskList.id}>
                           <div
-                            className="h-4"
-                            style={{ background: taskList.background }}
-                          />
-
-                          <div
                             className={clsx(
-                              "h-full w-full",
+                              "h-full w-full pt-4",
                               isWideLayout && "mx-auto max-w-3xl",
                             )}
+                            style={{ backgroundColor: taskList.background }}
                           >
                             <TaskListCard
                               taskList={taskList}

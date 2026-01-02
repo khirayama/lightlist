@@ -505,7 +505,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
                 setSortPending(false);
               }
             }}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+            className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
           >
             <AppIcon
               name="sort"
@@ -542,7 +542,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
                 setDeleteCompletedPending(false);
               }
             }}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:outline-red-400"
+            className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium text-gray-900 hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:outline-red-400"
           >
             {deleteCompletedPending
               ? t("common.deleting")

@@ -280,7 +280,6 @@ export function TaskListCard({
         "h-full",
         isActive ? "pointer-events-auto" : "pointer-events-none",
       )}
-      style={{ backgroundColor: taskList.background }}
     >
       <div className="p-2 backdrop-blur dark:bg-gray-900/80">
         <div className="flex flex-wrap items-center justify-between gap-3">

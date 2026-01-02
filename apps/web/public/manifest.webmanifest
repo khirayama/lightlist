@@ -1,8 +1,8 @@
 {
-  "name": "LightList",
-  "short_name": "LightList",
+  "name": "Lightlist",
+  "short_name": "Lightlist",
   "description": "Task list app",
-  "start_url": "/",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",

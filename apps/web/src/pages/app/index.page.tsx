@@ -575,40 +575,49 @@ export default function AppPage() {
                             style={{ background: taskList.background }}
                           />
 
-                          <TaskListCard
-                            taskList={taskList}
-                            taskInsertPosition={
-                              state?.settings?.taskInsertPosition ?? "bottom"
-                            }
-                            isActive={isActive}
-                            onActivate={(taskListId) =>
-                              setSelectedTaskListId(taskListId)
-                            }
-                            colors={colors}
-                            showEditListDialog={showEditListDialog}
-                            onEditDialogOpenChange={handleEditDialogOpenChange}
-                            editListName={editListName}
-                            onEditListNameChange={setEditListName}
-                            editListBackground={editListBackground}
-                            onEditListBackgroundChange={setEditListBackground}
-                            onSaveListDetails={handleSaveListDetails}
-                            deletingList={deletingList}
-                            onDeleteList={handleDeleteList}
-                            showShareDialog={showShareDialog}
-                            onShareDialogOpenChange={
-                              handleShareDialogOpenChange
-                            }
-                            shareCode={shareCode}
-                            shareCopySuccess={shareCopySuccess}
-                            generatingShareCode={generatingShareCode}
-                            onGenerateShareCode={handleGenerateShareCode}
-                            removingShareCode={removingShareCode}
-                            onRemoveShareCode={handleRemoveShareCode}
-                            onCopyShareLink={handleCopyShareLink}
-                            sensorsList={sensorsList}
-                            onSortingChange={setIsTaskSorting}
-                            t={t}
-                          />
+                          <div
+                            className={clsx(
+                              "h-full w-full",
+                              isWideLayout && "mx-auto max-w-3xl",
+                            )}
+                          >
+                            <TaskListCard
+                              taskList={taskList}
+                              taskInsertPosition={
+                                state?.settings?.taskInsertPosition ?? "bottom"
+                              }
+                              isActive={isActive}
+                              onActivate={(taskListId) =>
+                                setSelectedTaskListId(taskListId)
+                              }
+                              colors={colors}
+                              showEditListDialog={showEditListDialog}
+                              onEditDialogOpenChange={
+                                handleEditDialogOpenChange
+                              }
+                              editListName={editListName}
+                              onEditListNameChange={setEditListName}
+                              editListBackground={editListBackground}
+                              onEditListBackgroundChange={setEditListBackground}
+                              onSaveListDetails={handleSaveListDetails}
+                              deletingList={deletingList}
+                              onDeleteList={handleDeleteList}
+                              showShareDialog={showShareDialog}
+                              onShareDialogOpenChange={
+                                handleShareDialogOpenChange
+                              }
+                              shareCode={shareCode}
+                              shareCopySuccess={shareCopySuccess}
+                              generatingShareCode={generatingShareCode}
+                              onGenerateShareCode={handleGenerateShareCode}
+                              removingShareCode={removingShareCode}
+                              onRemoveShareCode={handleRemoveShareCode}
+                              onCopyShareLink={handleCopyShareLink}
+                              sensorsList={sensorsList}
+                              onSortingChange={setIsTaskSorting}
+                              t={t}
+                            />
+                          </div>
                         </CarouselItem>
                       );
                     })}

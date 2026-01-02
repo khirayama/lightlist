@@ -111,6 +111,10 @@
     "backgroundNone": "None (uses theme color)",
     "backgroundNoneShort": "None",
     "deleteList": "Delete List",
+    "deleteListConfirm": {
+      "title": "Delete List",
+      "message": "Are you sure you want to delete this list? This action cannot be undone."
+    },
     "share": "Share",
     "shareTitle": "Share List",
     "shareCode": "Share Code",

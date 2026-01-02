@@ -111,6 +111,10 @@
     "backgroundNone": "なし（実際はテーマカラーの色）",
     "backgroundNoneShort": "なし",
     "deleteList": "リストを削除",
+    "deleteListConfirm": {
+      "title": "リストの削除",
+      "message": "このリストを削除してもよろしいですか？この操作は取り消せません。"
+    },
     "share": "共有",
     "shareTitle": "リストを共有",
     "shareCode": "共有コード",

@@ -27,6 +27,7 @@ import { resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/Drawer";
 import {
   Carousel,
@@ -145,6 +146,7 @@ export default function AppPage() {
   const [editListName, setEditListName] = useState("");
   const [editListBackground, setEditListBackground] = useState(colors[0].value);
   const [showEditListDialog, setShowEditListDialog] = useState(false);
+  const [showDeleteListConfirm, setShowDeleteListConfirm] = useState(false);
   const [deletingList, setDeletingList] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareCode, setShareCode] = useState<string | null>(null);
@@ -391,11 +393,16 @@ export default function AppPage() {
         setSelectedTaskListId(null);
       }
       setShowEditListDialog(false);
+      setShowDeleteListConfirm(false);
       setDeletingList(false);
     } catch (err) {
       setError(resolveErrorMessage(err, t, "common.error"));
       setDeletingList(false);
     }
+  };
+
+  const handleRequestDeleteList = () => {
+    setShowDeleteListConfirm(true);
   };
 
   const handleGenerateShareCode = async () => {
@@ -522,6 +529,18 @@ export default function AppPage() {
             </div>
           )}
 
+          <ConfirmDialog
+            isOpen={showDeleteListConfirm}
+            onClose={() => setShowDeleteListConfirm(false)}
+            onConfirm={handleDeleteList}
+            title={t("taskList.deleteListConfirm.title")}
+            message={t("taskList.deleteListConfirm.message")}
+            confirmText={t("auth.button.delete")}
+            cancelText={t("common.cancel")}
+            isDestructive
+            disabled={deletingList}
+          />
+
           <div className="flex-1 flex flex-col relative overflow-hidden">
             {showTaskListLocator && (
               <nav
@@ -610,7 +629,7 @@ export default function AppPage() {
                               onEditListBackgroundChange={setEditListBackground}
                               onSaveListDetails={handleSaveListDetails}
                               deletingList={deletingList}
-                              onDeleteList={handleDeleteList}
+                              onDeleteList={handleRequestDeleteList}
                               showShareDialog={showShareDialog}
                               onShareDialogOpenChange={
                                 handleShareDialogOpenChange

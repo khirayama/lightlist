@@ -52,7 +52,10 @@ const DialogOverlay = forwardRef<
     <DialogPrimitive.Overlay
       {...rest}
       ref={ref}
-      className={clsx("fixed inset-0 bg-black/40 backdrop-blur-sm", className)}
+      className={clsx(
+        "fixed inset-0 z-1200 bg-black/40 backdrop-blur-sm",
+        className,
+      )}
     />
   );
 });
@@ -77,7 +80,7 @@ const DialogContent = forwardRef<
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "fixed left-1/2 top-1/2 z-50 min-w-[320px] max-w-[min(640px,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--dialog-bg,#ffffff)] p-5 text-[var(--dialog-fg,#111111)] shadow-2xl",
+          "fixed left-1/2 top-1/2 z-1300 min-w-[320px] max-w-[min(640px,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--dialog-bg,#ffffff)] p-5 text-[var(--dialog-fg,#111111)] shadow-2xl",
           className,
         )}
       >

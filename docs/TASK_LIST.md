@@ -20,8 +20,8 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 ### UI 構成
 
 - **ヘッダー / ドロワー:** ページタイトルと Drawer トリガーを配置。幅 1024px 以上ではドロワー内容を左カラムに固定し、より狭い幅では shadcn Drawer（左スライド、オーバーレイ付き）でログインメールを表示し、設定画面へのリンクを提供する。左右ドロワーはタップ操作を優先するため `handleOnly` を有効化し、コンテンツ上でのドラッグ開始を抑止している。
-- **タスクリスト一覧（ドロワー内）:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力してフォーム送信（`Enter` / 作成ボタン）で `createTaskList` を実行。リストが空のときは `app.emptyState` を表示し、各行には背景色スウォッチとタスク数を併記する。
-- **タスク詳細カルーセル:** 各タスクリストを `Carousel` (Embla) で横スライド化し、ホイール左右操作や前後ボタン、スワイプで切り替える。AppHeader 直下にドット型の locator を表示し、現在位置を示しつつクリックでリストを切り替えられる。表示中スライドの `TaskList.background` を外枠アクセントとして適用し、内側を可読性の高いサーフェス（ライト/ダーク対応）として構成する。ワイドレイアウトではタスクリストの最大幅を制限し、読みやすさを維持する。`TaskListPanel` は共有ページと同じレイアウト（入力欄が上、一覧が下）で完了・日付設定・追加・編集を行う。
+- **タスクリスト一覧（ドロワー内）:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力してフォーム送信（`Enter` / 作成ボタン）で `createTaskList` を実行。作成ボタンの隣には「共有リストに参加」ボタンがあり、共有コードを入力する Dialog を開く。コードを入力して参加すると `fetchTaskListIdByShareCode` でリストを特定し、`addSharedTaskListToOrder` で自分のリストに追加する。リストが空のときは `app.emptyState` を表示し、各行には背景色スウォッチとタスク数を併記する。
+- **タスク詳細カルーセル:** 各タスクリストを `Carousel` (Embla) で横スライド化し、ホイール左右操作や前後ボタン、スワイプで切り替える。各スライド内のタスクリストは独立して縦スクロール可能であり、リストが長くなっても画面全体のスクロールは発生しない。AppHeader 直下にドット型の locator を表示し、現在位置を示しつつクリックでリストを切り替えられる。表示中スライドの `TaskList.background` を外枠アクセントとして適用し、内側を可読性の高いサーフェス（ライト/ダーク対応）として構成する。ワイドレイアウトではタスクリストの最大幅を制限し、読みやすさを維持する。`TaskListPanel` は共有ページと同じレイアウト（入力欄が上、一覧が下）で完了・日付設定・追加・編集を行う。
 - **色と共有:** タスクリストカード右上の編集（edit）/共有（share）アイコンボタンから Dialog を開き、編集Dialogでリスト名と背景色をまとめて変更する（保存はフォーム送信: `Enter` / 保存ボタン）。共有Dialogでコードの生成/停止とクリップボードコピーを行う。
 - **削除確認:** リスト編集Dialog内の削除ボタンから `deleteTaskList` を実行。
 
@@ -114,7 +114,7 @@ const state: AppState = {
 
 ## API インターフェース
 
-### createTaskList(name: string, background?: string): Promise<string>
+### createTaskList(name: string, background?: string | null): Promise<string>
 
 新しいタスクリストを作成します。
 
@@ -139,6 +139,25 @@ const state: AppState = {
 
 - Firebase Firestore のエラーをスロー
 - ユーザーログイン状態を確認し、ログインしていない場合はエラーをスロー
+
+### updateTaskList(taskListId: string, updates: Partial<TaskList>): Promise<void>
+
+タスクリストの詳細（名前、背景色）を更新します。
+
+**パラメータ:**
+
+- `taskListId`: 更新対象のタスクリスト ID
+- `updates`: 更新内容（`name`、`background`）
+
+**動作:**
+
+1. `updates` に含まれるフィールドを Firestore のドキュメントに反映
+2. `updatedAt` タイムスタンプを自動設定
+3. `background` に `null` を指定すると、背景色が解除されテーマカラー（デフォルト）に戻ります。
+
+**例外:**
+
+- Firebase Firestore のエラーをスロー
 
 ### updateTaskListOrder(draggedTaskListId: string, targetTaskListId: string): Promise<void>
 
@@ -194,6 +213,12 @@ app:
   openMenu: メニューを開く（menu アイコンのツールチップ/スクリーンリーダー用）
   drawerTitle: ドロワーのタイトル表示
   drawerNoEmail: メールが未設定の場合のラベル
+  joinList: リストに参加ボタンのテキスト
+  joinListTitle: 参加ダイアログのタイトル
+  joinListDescription: 参加ダイアログの説明
+  shareCodePlaceholder: 共有コード入力のプレースホルダー
+  join: 参加ボタンのテキスト
+  joining: 参加中ボタンのテキスト
 taskList:
   taskCount: タスク件数の表示（{{count}} 形式）
   editDetails: 編集ダイアログのタイトルとボタン文言
@@ -234,7 +259,7 @@ taskList:
 ### タスクリストカード
 
 - **背景（外枠アクセント）:** 選択中のタスクリストに設定された `background` をカード外枠のアクセントとして反映
-- **コンテンツ面:** 内側はライト/ダークで可読性が担保されるサーフェス（カード）として扱い、ヘッダー情報・操作ボタン・タスク一覧を同一カード内で構成する
+- **コンテンツ面:** 内側はライト/ダークで可読性が担保されるサーフェス（カード）として扱い、ヘッダー情報・操作ボタン・タスク一覧を同一カード内で構成する。コンテンツが領域を超えた場合はカード内でスクロールする。
 - **カラー表示:** 背景色スウォッチを表示し、`background` が `null` の場合は「なし」ラベルを示す
 - **操作要素:** ボタン/入力は Tailwind のユーティリティクラスで最低限の見た目と focus-visible を付与し、キーボード操作とダークテーマでの視認性を担保する
 

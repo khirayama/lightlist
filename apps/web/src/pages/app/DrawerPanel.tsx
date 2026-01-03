@@ -23,6 +23,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/Dialog";
+import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { ColorPicker, type ColorOption } from "./ColorPicker";
 
@@ -48,6 +49,13 @@ type DrawerPanelProps = {
   onSelectTaskList: (taskListId: string) => void;
   onCloseDrawer: () => void;
   onOpenSettings: () => void;
+  showJoinListDialog: boolean;
+  onJoinListDialogChange: (open: boolean) => void;
+  joinListInput: string;
+  onJoinListInputChange: (value: string) => void;
+  onJoinList: () => void | Promise<void>;
+  joinListError: string | null;
+  joiningList: boolean;
   t: TFunction;
 };
 
@@ -149,6 +157,13 @@ export function DrawerPanel({
   onSelectTaskList,
   onCloseDrawer,
   onOpenSettings,
+  showJoinListDialog,
+  onJoinListDialogChange,
+  joinListInput,
+  onJoinListInputChange,
+  onJoinList,
+  joinListError,
+  joiningList,
   t,
 }: DrawerPanelProps) {
   return (
@@ -248,75 +263,141 @@ export function DrawerPanel({
           </p>
         )}
 
-        <Dialog
-          open={Boolean(showCreateListDialog)}
-          onOpenChange={(open: boolean) => {
-            onCreateListDialogChange(open);
-            if (!open) {
-              onCreateListInputChange("");
-              onCreateListBackgroundChange(colors[0].value);
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
-            >
-              {t("app.createNew")}
-            </button>
-          </DialogTrigger>
-          <DialogContent
-            title={t("app.createTaskList")}
-            description={t("app.taskListName")}
+        <div className="grid grid-cols-2 gap-2">
+          <Dialog
+            open={Boolean(showCreateListDialog)}
+            onOpenChange={(open: boolean) => {
+              onCreateListDialogChange(open);
+              if (!open) {
+                onCreateListInputChange("");
+                onCreateListBackgroundChange(colors[0].value);
+              }
+            }}
           >
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void onCreateList();
-              }}
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+              >
+                {t("app.createNew")}
+              </button>
+            </DialogTrigger>
+            <DialogContent
+              title={t("app.createTaskList")}
+              description={t("app.taskListName")}
             >
-              <div className="mt-4 flex flex-col gap-3">
-                <label className="flex flex-col gap-1">
-                  <span>{t("app.taskListName")}</span>
-                  <input
-                    type="text"
-                    value={createListInput}
-                    onChange={(e) => onCreateListInputChange(e.target.value)}
-                    placeholder={t("app.taskListNamePlaceholder")}
-                    className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
-                  />
-                </label>
-                <div className="flex flex-col gap-2">
-                  <span>{t("taskList.selectColor")}</span>
-                  <ColorPicker
-                    colors={colors}
-                    selectedColor={createListBackground}
-                    onSelect={onCreateListBackgroundChange}
-                    ariaLabelPrefix={t("taskList.selectColor")}
-                  />
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void onCreateList();
+                }}
+              >
+                <div className="mt-4 flex flex-col gap-3">
+                  <label className="flex flex-col gap-1">
+                    <span>{t("app.taskListName")}</span>
+                    <input
+                      type="text"
+                      value={createListInput}
+                      onChange={(e) => onCreateListInputChange(e.target.value)}
+                      placeholder={t("app.taskListNamePlaceholder")}
+                      className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+                    />
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    <span>{t("taskList.selectColor")}</span>
+                    <ColorPicker
+                      colors={colors}
+                      selectedColor={createListBackground}
+                      onSelect={onCreateListBackgroundChange}
+                      ariaLabelPrefix={t("taskList.selectColor")}
+                    />
+                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+                    >
+                      {t("app.cancel")}
+                    </button>
+                  </DialogClose>
                   <button
-                    type="button"
-                    className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+                    type="submit"
+                    disabled={!createListInput.trim()}
+                    className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
                   >
-                    {t("app.cancel")}
+                    {t("app.create")}
                   </button>
-                </DialogClose>
-                <button
-                  type="submit"
-                  disabled={!createListInput.trim()}
-                  className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
-                >
-                  {t("app.create")}
-                </button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={Boolean(showJoinListDialog)}
+            onOpenChange={(open: boolean) => {
+              onJoinListDialogChange(open);
+              if (!open) {
+                onJoinListInputChange("");
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+              >
+                {t("app.joinList")}
+              </button>
+            </DialogTrigger>
+            <DialogContent
+              title={t("app.joinListTitle")}
+              description={t("app.joinListDescription")}
+            >
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void onJoinList();
+                }}
+              >
+                <div className="mt-4 flex flex-col gap-3">
+                  {joinListError && (
+                    <Alert variant="error">{joinListError}</Alert>
+                  )}
+                  <label className="flex flex-col gap-1">
+                    <span>{t("taskList.shareCode")}</span>
+                    <input
+                      type="text"
+                      value={joinListInput}
+                      onChange={(e) => onJoinListInputChange(e.target.value)}
+                      placeholder={t("app.shareCodePlaceholder")}
+                      className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+                    />
+                  </label>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <button
+                      type="button"
+                      disabled={joiningList}
+                      className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+                    >
+                      {t("app.cancel")}
+                    </button>
+                  </DialogClose>
+                  <button
+                    type="submit"
+                    disabled={!joinListInput.trim() || joiningList}
+                    className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+                  >
+                    {joiningList ? t("app.joining") : t("app.join")}
+                  </button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </div>
   );

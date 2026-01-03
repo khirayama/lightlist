@@ -100,7 +100,13 @@
     "taskListLocator": {
       "label": "Task list position",
       "goTo": "Go to task list {{index}} of {{total}}"
-    }
+    },
+    "joinList": "Join List",
+    "joinListTitle": "Join Shared List",
+    "joinListDescription": "Enter the share code to join a shared task list.",
+    "shareCodePlaceholder": "Enter share code",
+    "join": "Join",
+    "joining": "Joining..."
   },
   "taskList": {
     "taskCount": "{{count}} tasks",

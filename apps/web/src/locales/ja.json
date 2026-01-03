@@ -100,7 +100,13 @@
     "taskListLocator": {
       "label": "タスクリストの位置",
       "goTo": "タスクリスト{{index}}（全{{total}}）へ移動"
-    }
+    },
+    "joinList": "リストに参加",
+    "joinListTitle": "共有リストに参加",
+    "joinListDescription": "共有コードを入力してリストに参加します。",
+    "shareCodePlaceholder": "共有コードを入力",
+    "join": "参加",
+    "joining": "参加中..."
   },
   "taskList": {
     "taskCount": "{{count}}個のタスク",

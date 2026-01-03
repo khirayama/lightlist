@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
+import { MdArrowBack } from "react-icons/md";
 import {
   DragEndEvent,
   KeyboardSensor,
@@ -324,23 +325,55 @@ export default function ShareCodePage() {
     }
   };
 
-  if (loading) return <Spinner />;
+  if (loading)
+    return (
+      <div className="flex h-full items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <Spinner />
+      </div>
+    );
 
   if (error) {
     return (
-      <div>
-        <Alert variant="error">{error}</Alert>
+      <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-900">
+        <div className="bg-white p-4 shadow-sm dark:bg-gray-800">
+          <button
+            onClick={() => router.back()}
+            className="rounded-full p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+            aria-label={t("common.back")}
+          >
+            <MdArrowBack className="h-6 w-6" />
+          </button>
+        </div>
+        <div className="p-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       </div>
     );
   }
 
-  if (!loading && sharedTaskListId && !taskList) return <Spinner />;
+  if (!loading && sharedTaskListId && !taskList)
+    return (
+      <div className="flex h-full items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <Spinner />
+      </div>
+    );
 
   if (!taskList) {
     return (
-      <div>
-        <div>
-          <p>{t("pages.sharecode.notFound")}</p>
+      <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-900">
+        <div className="bg-white p-4 shadow-sm dark:bg-gray-800">
+          <button
+            onClick={() => router.back()}
+            className="rounded-full p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+            aria-label={t("common.back")}
+          >
+            <MdArrowBack className="h-6 w-6" />
+          </button>
+        </div>
+        <div className="p-4">
+          <p className="text-center text-gray-600 dark:text-gray-400">
+            {t("pages.sharecode.notFound")}
+          </p>
         </div>
       </div>
     );
@@ -362,45 +395,65 @@ export default function ShareCodePage() {
   ];
 
   return (
-    <div>
-      <div>
-        <button onClick={() => router.back()}>{t("common.back")}</button>
+    <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-900">
+      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-800">
+        <button
+          onClick={() => router.back()}
+          className="rounded-full p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+          aria-label={t("common.back")}
+        >
+          <MdArrowBack className="h-6 w-6" />
+        </button>
         {user && (
-          <button onClick={handleAddToOrder} disabled={addToOrderLoading}>
+          <button
+            onClick={handleAddToOrder}
+            disabled={addToOrderLoading}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
             {addToOrderLoading
               ? t("common.loading")
               : t("pages.sharecode.addToOrder")}
           </button>
         )}
-      </div>
+      </header>
 
-      {addToOrderError && <Alert variant="error">{addToOrderError}</Alert>}
+      <main className="flex-1 overflow-y-auto p-4">
+        <div className="mx-auto w-full max-w-3xl">
+          {addToOrderError && (
+            <div className="mb-4">
+              <Alert variant="error">{addToOrderError}</Alert>
+            </div>
+          )}
 
-      <h1>{taskList.name}</h1>
+          <h1 className="mb-6 truncate text-2xl font-bold text-gray-900 dark:text-white">
+            {taskList.name}
+          </h1>
 
-      <TaskListPanel
-        tasks={tasks}
-        sensors={sensors}
-        onSortTasks={handleSortTasks}
-        onDeleteCompletedTasks={handleDeleteCompletedTasks}
-        onDragEnd={handleDragEnd}
-        editingTaskId={editingTaskId}
-        editingText={editingText}
-        onEditingTextChange={setEditingText}
-        onEditStart={handleEditStart}
-        onEditEnd={handleEditEnd}
-        onToggle={handleToggleTask}
-        onDateChange={handleChangeTaskDate}
-        newTaskText={newTaskText}
-        onNewTaskTextChange={setNewTaskText}
-        onAddTask={handleAddTask}
-        addButtonLabel={t("common.add")}
-        addPlaceholder={t("pages.tasklist.addTaskPlaceholder")}
-        setDateLabel={t("pages.tasklist.setDate")}
-        dragHintLabel={t("pages.tasklist.dragHint")}
-        emptyLabel={t("pages.tasklist.noTasks")}
-        addError={addTaskError}
-      />
+          <TaskListPanel
+            tasks={tasks}
+            sensors={sensors}
+            onSortTasks={handleSortTasks}
+            onDeleteCompletedTasks={handleDeleteCompletedTasks}
+            onDragEnd={handleDragEnd}
+            editingTaskId={editingTaskId}
+            editingText={editingText}
+            onEditingTextChange={setEditingText}
+            onEditStart={handleEditStart}
+            onEditEnd={handleEditEnd}
+            onToggle={handleToggleTask}
+            onDateChange={handleChangeTaskDate}
+            newTaskText={newTaskText}
+            onNewTaskTextChange={setNewTaskText}
+            onAddTask={handleAddTask}
+            addButtonLabel={t("common.add")}
+            addPlaceholder={t("pages.tasklist.addTaskPlaceholder")}
+            setDateLabel={t("pages.tasklist.setDate")}
+            dragHintLabel={t("pages.tasklist.dragHint")}
+            emptyLabel={t("pages.tasklist.noTasks")}
+            addError={addTaskError}
+          />
+        </div>
+      </main>
     </div>
   );
 }

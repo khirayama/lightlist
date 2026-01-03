@@ -21,6 +21,8 @@ import {
   deleteTaskList,
   generateShareCode,
   removeShareCode,
+  fetchTaskListIdByShareCode,
+  addSharedTaskListToOrder,
 } from "@lightlist/sdk/mutations/app";
 import clsx from "clsx";
 import { resolveErrorMessage } from "@/utils/errors";
@@ -158,6 +160,10 @@ export default function AppPage() {
     colors[0].value,
   );
   const [showCreateListDialog, setShowCreateListDialog] = useState(false);
+  const [joinListInput, setJoinListInput] = useState("");
+  const [showJoinListDialog, setShowJoinListDialog] = useState(false);
+  const [joiningList, setJoiningList] = useState(false);
+  const [joinListError, setJoinListError] = useState<string | null>(null);
   const [taskListCarouselApi, setTaskListCarouselApi] =
     useState<CarouselApi | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -351,6 +357,42 @@ export default function AppPage() {
     }
   };
 
+  const handleJoinList = async () => {
+    if (!joinListInput.trim()) return;
+
+    setJoiningList(true);
+    setJoinListError(null);
+
+    try {
+      const taskListId = await fetchTaskListIdByShareCode(joinListInput.trim());
+      if (!taskListId) {
+        setJoinListError(t("pages.sharecode.notFound"));
+        setJoiningList(false);
+        return;
+      }
+
+      // Check if already added (optional optimization, but backend handles it too usually)
+      if (state?.taskLists.some((tl) => tl.id === taskListId)) {
+        // Already exists, just select it
+        setSelectedTaskListId(taskListId);
+        setShowJoinListDialog(false);
+        setJoinListInput("");
+        setJoiningList(false);
+        return;
+      }
+
+      await addSharedTaskListToOrder(taskListId);
+
+      setJoinListInput("");
+      setShowJoinListDialog(false);
+      setSelectedTaskListId(taskListId);
+    } catch (err) {
+      setJoinListError(resolveErrorMessage(err, t, "pages.sharecode.error"));
+    } finally {
+      setJoiningList(false);
+    }
+  };
+
   const handleSaveListDetails = async () => {
     if (!selectedTaskListId || !selectedTaskList) return;
 
@@ -365,7 +407,7 @@ export default function AppPage() {
       updates.background = editListBackground;
     }
 
-    if (!updates.name && !updates.background) {
+    if (Object.keys(updates).length === 0) {
       setShowEditListDialog(false);
       return;
     }
@@ -484,6 +526,16 @@ export default function AppPage() {
       onCreateListBackgroundChange={setCreateListBackground}
       colors={colors}
       onCreateList={handleCreateList}
+      showJoinListDialog={showJoinListDialog}
+      onJoinListDialogChange={(open) => {
+        setShowJoinListDialog(open);
+        if (!open) setJoinListError(null);
+      }}
+      joinListInput={joinListInput}
+      onJoinListInputChange={setJoinListInput}
+      onJoinList={handleJoinList}
+      joinListError={joinListError}
+      joiningList={joiningList}
       hasTaskLists={hasTaskLists}
       taskLists={taskListsForDrawer}
       sensorsList={sensorsList}
@@ -586,7 +638,7 @@ export default function AppPage() {
               </nav>
             )}
 
-            <div className="h-full overflow-y-scroll">
+            <div className="h-full overflow-hidden">
               {hasTaskLists ? (
                 <Carousel
                   className="h-full"
@@ -597,14 +649,14 @@ export default function AppPage() {
                     containScroll: "trimSnaps",
                   }}
                 >
-                  <CarouselContent>
+                  <CarouselContent className="h-full">
                     {taskLists.map((taskList) => {
                       const isActive = selectedTaskListId === taskList.id;
                       return (
                         <CarouselItem key={taskList.id}>
                           <div
                             className={clsx(
-                              "h-full w-full pt-4",
+                              "h-full w-full",
                               isWideLayout && "mx-auto max-w-3xl",
                             )}
                             style={{

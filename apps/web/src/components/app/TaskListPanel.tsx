@@ -109,7 +109,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
-    parseTaskDate(task.date)
+    parseTaskDate(task.date),
   );
 
   useEffect(() => {
@@ -376,7 +376,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
 
   const completedTaskCount = tasks.reduce(
     (count, task) => count + (task.completed ? 1 : 0),
-    0
+    0,
   );
 
   const handleSortingChange = (sorting: boolean) => {
@@ -500,7 +500,8 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
       <div
         className={clsx(
           "flex flex-col gap-4",
-          stickyHeader && "sticky top-0 z-30 -mx-2 -mt-6 px-2 pt-6 pb-4"
+          stickyHeader && "sticky top-0 z-30 -mx-2 -mt-6 px-2 pt-6 pb-4",
+          headerClassName,
         )}
         style={stickyHeader ? headerStyle : undefined}
       >
@@ -548,7 +549,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
                 const confirmed = window.confirm(
                   t("pages.tasklist.deleteCompletedConfirm", {
                     count: completedTaskCount,
-                  })
+                  }),
                 );
                 if (!confirmed) return;
 

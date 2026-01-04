@@ -115,7 +115,7 @@ export function TaskListCard({
     if (optimisticAddedTasks.length === 0) return;
     const existingIds = new Set(taskList.tasks.map((task) => task.id));
     const next = optimisticAddedTasks.filter(
-      (task) => !existingIds.has(task.id)
+      (task) => !existingIds.has(task.id),
     );
     if (next.length === optimisticAddedTasks.length) return;
     setOptimisticAddedTasks(next);
@@ -129,7 +129,7 @@ export function TaskListCard({
   const baseTasks = optimisticTasks ?? taskList.tasks;
   const baseTaskIds = new Set(baseTasks.map((task) => task.id));
   const pendingTasks = optimisticAddedTasks.filter(
-    (task) => !baseTaskIds.has(task.id)
+    (task) => !baseTaskIds.has(task.id),
   );
   const tasks = [
     ...(taskInsertPosition === "top" ? pendingTasks : baseTasks),
@@ -240,7 +240,7 @@ export function TaskListCard({
     setOptimisticAddedTasks((prev) =>
       taskInsertPosition === "top"
         ? [optimisticTask, ...prev]
-        : [...prev, optimisticTask]
+        : [...prev, optimisticTask],
     );
     setNewTaskText("");
 
@@ -249,16 +249,16 @@ export function TaskListCard({
         const createdTaskId = await addTask(taskList.id, trimmedText);
         setOptimisticAddedTasks((prev) =>
           prev.map((task) =>
-            task.id === tempTaskId ? { ...task, id: createdTaskId } : task
-          )
+            task.id === tempTaskId ? { ...task, id: createdTaskId } : task,
+          ),
         );
       } catch (err) {
         setOptimisticAddedTasks((prev) =>
-          prev.filter((task) => task.id !== tempTaskId)
+          prev.filter((task) => task.id !== tempTaskId),
         );
         setAddTaskError(resolveErrorMessage(err, t, "common.error"));
         setNewTaskText((current) =>
-          current.trim() === "" ? trimmedText : current
+          current.trim() === "" ? trimmedText : current,
         );
       }
     })();
@@ -278,7 +278,7 @@ export function TaskListCard({
     <section
       className={clsx(
         "h-full overflow-y-auto",
-        isActive ? "pointer-events-auto" : "pointer-events-none"
+        isActive ? "pointer-events-auto" : "pointer-events-none",
       )}
     >
       <div className="h-full p-2 pt-6">
@@ -311,7 +311,11 @@ export function TaskListCard({
             onSortingChange={onSortingChange}
             addError={addTaskError}
             stickyHeader={true}
-            headerClassName="bg-white/80 backdrop-blur-lg dark:bg-gray-900/80"
+            headerStyle={{
+              backgroundColor:
+                taskList.background ?? "var(--tasklist-theme-bg)",
+            }}
+            headerClassName="backdrop-blur-sm"
             header={
               <div className="flex flex-col gap-4">
                 {" "}

@@ -109,7 +109,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
-    parseTaskDate(task.date),
+    parseTaskDate(task.date)
   );
 
   useEffect(() => {
@@ -247,6 +247,7 @@ export interface TaskListPanelProps<T extends SortableTask = SortableTask> {
   inputDisabled?: boolean;
   addError?: string | null;
   header?: React.ReactNode;
+  headerClassName?: string;
   stickyHeader?: boolean;
   headerStyle?: React.CSSProperties;
 }
@@ -294,6 +295,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
   inputDisabled = false,
   addError = null,
   header,
+  headerClassName,
   stickyHeader = false,
   headerStyle,
 }: TaskListPanelProps<T>) {
@@ -374,7 +376,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
 
   const completedTaskCount = tasks.reduce(
     (count, task) => count + (task.completed ? 1 : 0),
-    0,
+    0
   );
 
   const handleSortingChange = (sorting: boolean) => {
@@ -498,7 +500,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
       <div
         className={clsx(
           "flex flex-col gap-4",
-          stickyHeader && "sticky top-0 z-30 -mx-2 -mt-6 px-2 pt-6 pb-4",
+          stickyHeader && "sticky top-0 z-30 -mx-2 -mt-6 px-2 pt-6 pb-4"
         )}
         style={stickyHeader ? headerStyle : undefined}
       >
@@ -520,7 +522,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
                   setSortPending(false);
                 }
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+              className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
             >
               <AppIcon
                 name="sort"
@@ -546,7 +548,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
                 const confirmed = window.confirm(
                   t("pages.tasklist.deleteCompletedConfirm", {
                     count: completedTaskCount,
-                  }),
+                  })
                 );
                 if (!confirmed) return;
 

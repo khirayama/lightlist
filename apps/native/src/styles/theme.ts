@@ -41,17 +41,10 @@ export const themes: Record<ThemeName, Theme> = {
 };
 
 export const listColors: string[] = [
-  "#FF6B6B",
-  "#4ECDC4",
-  "#45B7D1",
-  "#FFA07A",
-  "#98D8C8",
-  "#6C5CE7",
-  "#A29BFE",
-  "#74B9FF",
-  "#81ECEC",
-  "#55EFC4",
-  "#FD79A8",
-  "#FDCB6E",
-  "#FFFFFF",
+  "#F87171", // Coral
+  "#FBBF24", // Amber
+  "#34D399", // Emerald
+  "#38BDF8", // Sky
+  "#818CF8", // Indigo
+  "#A78BFA", // Violet
 ];

@@ -18,6 +18,7 @@ import {
   TaskListStoreTask,
 } from "../types";
 import { appStore } from "../store";
+import { parseDateFromText } from "../utils/dateParser";
 
 function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
   const getDateValue = (task: TaskListStoreTask): number => {
@@ -200,7 +201,12 @@ export async function addTask(
   date: string = "",
 ) {
   const data = appStore.getData();
-  const normalizedText = text.trim();
+  const { date: parsedDate, text: parsedTextRaw } = parseDateFromText(
+    text.trim(),
+  );
+  const normalizedText = parsedTextRaw.trim();
+  const finalDate = parsedDate || date;
+
   if (normalizedText === "") throw new Error("Task text is empty");
 
   const taskId = doc(collection(db, "taskLists")).id;
@@ -221,7 +227,7 @@ export async function addTask(
     id: taskId,
     text: normalizedText,
     completed: false,
-    date,
+    date: finalDate,
     order: 0,
   };
 
@@ -276,6 +282,20 @@ export async function updateTask(
   taskId: string,
   updates: Partial<Task>,
 ) {
+  if (updates.text) {
+    const { date: parsedDate, text: parsedTextRaw } = parseDateFromText(
+      updates.text.trim(),
+    );
+    if (parsedDate) {
+      updates.date = parsedDate;
+      updates.text = parsedTextRaw.trim();
+    }
+  }
+
+  if (updates.text !== undefined && updates.text === "") {
+    throw new Error("Task text is empty");
+  }
+
   const now = Date.now();
   const data = appStore.getData();
   const autoSortEnabled = Boolean(data.settings?.autoSort);

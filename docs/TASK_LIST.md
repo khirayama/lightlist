@@ -75,7 +75,9 @@ const [generatingShareCode, setGeneratingShareCode] = useState(false);
 const [removingShareCode, setRemovingShareCode] = useState(false);
 const [shareCopySuccess, setShareCopySuccess] = useState(false);
 const [createListInput, setCreateListInput] = useState("");
-const [createListBackground, setCreateListBackground] = useState(colors[0].value);
+const [createListBackground, setCreateListBackground] = useState(
+  colors[0].value,
+);
 const [showCreateListDialog, setShowCreateListDialog] = useState(false);
 const [taskListCarouselApi, setTaskListCarouselApi] =
   useState<CarouselApi | null>(null);
@@ -260,7 +262,7 @@ taskList:
 #### タスクリストカード
 
 - **背景:** ページ全体に `TaskList.background` を適用し、各カードは `bg-white/60 dark:bg-gray-900/60` と `backdrop-blur-md` を使用した半透明のサーフェスとして構成。
-- **ヘッダー:** スティッキーヘッダーには `bg-white/80 dark:bg-gray-900/80` と `backdrop-blur-lg` を適用し、スクロール時の視認性を確保。
+- **ヘッダー:** スティッキーヘッダーには `TaskList.background` またはテーマの背景色を適用し、スクロール時にタスクが重なって見えないように視認性を確保。
 - **コンテンツ面:** 内側はライト/ダークで可読性が担保されるサーフェス（カード）として扱い、ヘッダー情報・操作ボタン・タスク一覧を同一カード内で構成する。コンテンツが領域を超えた場合はカード内でスクロールする。
 - **カラー表示:** 背景色スウォッチを表示し、`background` が `null` の場合は「なし」ラベルを示す
 - **操作要素:** ボタン/入力は Tailwind のユーティリティクラスで最低限の見た目と focus-visible を付与し、キーボード操作とダークテーマでの視認性を担保する
@@ -507,7 +509,9 @@ const [generatingShareCode, setGeneratingShareCode] = useState(false);
 const [removingShareCode, setRemovingShareCode] = useState(false);
 const [shareCopySuccess, setShareCopySuccess] = useState(false);
 const [createListInput, setCreateListInput] = useState("");
-const [createListBackground, setCreateListBackground] = useState(colors[0].value);
+const [createListBackground, setCreateListBackground] = useState(
+  colors[0].value,
+);
 const [showCreateListDialog, setShowCreateListDialog] = useState(false);
 const [taskListCarouselApi, setTaskListCarouselApi] =
   useState<CarouselApi | null>(null);

@@ -101,7 +101,7 @@
     "taskCount": "{{count}}個のタスク",
     "taskCount_one": "{{count}}個のタスク",
     "taskCount_other": "{{count}}個のタスク",
-    "editDetails": "リストを編集",
+    "editDetails": "更新",
     "shareTitle": "リストを共有",
     "shareDescription": "共有コードを発行して、このリストを他の人が閲覧・編集できるようにします。",
     "shareCode": "共有コード",

@@ -384,18 +384,18 @@ export function TaskListCard({
                                 ariaLabelPrefix={t("taskList.selectColor")}
                               />
                             </div>
-                          </div>
-                          <DialogFooter>
                             <button
                               type="button"
                               onClick={onDeleteList}
                               disabled={deletingList}
-                              className={destructiveButtonClass}
+                              className={clsx(destructiveButtonClass, "mt-6 w-full")}
                             >
                               {deletingList
                                 ? t("common.deleting")
                                 : t("taskList.deleteList")}
                             </button>
+                          </div>
+                          <DialogFooter>
                             <DialogClose asChild>
                               <button
                                 type="button"

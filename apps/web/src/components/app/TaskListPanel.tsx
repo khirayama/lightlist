@@ -92,6 +92,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
   setDateLabel,
   dragHintLabel,
 }: TaskItemProps<T>) {
+  const { i18n } = useTranslation();
   const {
     attributes,
     listeners,
@@ -117,7 +118,15 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
   }, [task.date]);
 
   const dateValue = selectedDate ? formatTaskDate(selectedDate) : null;
-  const dateTitle = dateValue ? `${setDateLabel}: ${dateValue}` : setDateLabel;
+  const dateDisplayValue = selectedDate
+    ? new Intl.DateTimeFormat(i18n.language, {
+        month: "short",
+        day: "numeric",
+      }).format(selectedDate)
+    : null;
+  const dateTitle = dateDisplayValue
+    ? `${setDateLabel}: ${dateDisplayValue}`
+    : setDateLabel;
 
   return (
     <div
@@ -148,34 +157,41 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
         className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50"
       />
 
-      {isEditing ? (
-        <input
-          type="text"
-          value={editingText}
-          onChange={(e) => onEditingTextChange(e.target.value)}
-          onBlur={() => onEditEnd(task)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onEditEnd(task);
-            if (e.key === "Escape") {
-              onEditingTextChange(task.text);
+      <div className="flex min-w-0 flex-1 flex-col">
+        {dateDisplayValue ? (
+          <span className="mb-0.5 text-xs text-gray-500 dark:text-gray-400">
+            {dateDisplayValue}
+          </span>
+        ) : null}
+        {isEditing ? (
+          <input
+            type="text"
+            value={editingText}
+            onChange={(e) => onEditingTextChange(e.target.value)}
+            onBlur={() => onEditEnd(task)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onEditEnd(task);
+              if (e.key === "Escape") {
+                onEditingTextChange(task.text);
+              }
+            }}
+            autoFocus
+            className="min-w-0 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => onEditStart(task)}
+            className={
+              task.completed
+                ? "min-w-0 text-left text-sm font-medium text-gray-600 line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:focus-visible:outline-gray-500"
+                : "min-w-0 text-left text-sm font-medium text-gray-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
             }
-          }}
-          autoFocus
-          className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => onEditStart(task)}
-          className={
-            task.completed
-              ? "min-w-0 flex-1 text-left text-sm font-medium text-gray-600 line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:focus-visible:outline-gray-500"
-              : "min-w-0 flex-1 text-left text-sm font-medium text-gray-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
-          }
-        >
-          {task.text}
-        </button>
-      )}
+          >
+            {task.text}
+          </button>
+        )}
+      </div>
 
       <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
         <PopoverTrigger asChild>
@@ -183,20 +199,14 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             type="button"
             aria-label={setDateLabel}
             title={dateTitle}
-            className={`mt-0.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500 ${
-              dateValue ? "px-2 py-1 text-xs font-semibold tabular-nums" : "p-1"
-            }`}
+            className="mt-0.5 rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
           >
-            {dateValue ? (
-              <span aria-hidden="true">{dateValue}</span>
-            ) : (
-              <AppIcon
-                name="calendar-today"
-                className="h-5 w-5"
-                aria-hidden="true"
-                focusable="false"
-              />
-            )}
+            <AppIcon
+              name="calendar-today"
+              className="h-5 w-5"
+              aria-hidden="true"
+              focusable="false"
+            />
             <span className="sr-only">{setDateLabel}</span>
           </button>
         </PopoverTrigger>

@@ -112,7 +112,7 @@
     "taskCount": "{{count}}個のタスク",
     "taskCount_one": "{{count}}個のタスク",
     "taskCount_other": "{{count}}個のタスク",
-    "editDetails": "リストを編集",
+    "editDetails": "更新",
     "selectColor": "色を選択",
     "backgroundNone": "なし（実際はテーマカラーの色）",
     "backgroundNoneShort": "なし",

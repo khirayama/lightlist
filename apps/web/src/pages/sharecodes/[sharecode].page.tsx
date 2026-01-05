@@ -325,12 +325,7 @@ export default function ShareCodePage() {
     }
   };
 
-  if (loading)
-    return (
-      <div className="flex h-full items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Spinner />
-      </div>
-    );
+  if (loading) return <Spinner fullPage />;
 
   if (error) {
     return (
@@ -351,12 +346,7 @@ export default function ShareCodePage() {
     );
   }
 
-  if (!loading && sharedTaskListId && !taskList)
-    return (
-      <div className="flex h-full items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Spinner />
-      </div>
-    );
+  if (!loading && sharedTaskListId && !taskList) return <Spinner fullPage />;
 
   if (!taskList) {
     return (

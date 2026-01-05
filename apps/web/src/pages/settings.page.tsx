@@ -118,7 +118,7 @@ export default function SettingsPage() {
   };
 
   if (!state || !state.user || !state.settings) {
-    return <Spinner />;
+    return <Spinner fullPage />;
   }
 
   return (

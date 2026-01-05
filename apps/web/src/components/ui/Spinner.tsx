@@ -1,26 +1,34 @@
 import clsx from "clsx";
-import { useTranslation } from "react-i18next";
+import { AppIcon } from "./AppIcon";
 
 type SpinnerProps = {
-  label?: string;
   className?: string;
+  fullPage?: boolean;
 };
 
-export function Spinner({ label, className }: SpinnerProps) {
-  const { t } = useTranslation();
-  const text = label ?? t("common.loading");
-
-  return (
+export function Spinner({ className, fullPage }: SpinnerProps) {
+  const content = (
     <div
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className={clsx(
-        "inline-flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200",
-        className,
-      )}
+      className={clsx("flex items-center justify-center", className)}
     >
-      {text}
+      <AppIcon
+        name="logo"
+        className="h-12 w-12 animate-pulse text-gray-900 dark:text-gray-50"
+      />
+      <span className="sr-only">Loading...</span>
     </div>
   );
+
+  if (fullPage) {
+    return (
+      <div className="flex h-dvh w-full items-center justify-center bg-gray-50 dark:bg-gray-950">
+        {content}
+      </div>
+    );
+  }
+
+  return content;
 }

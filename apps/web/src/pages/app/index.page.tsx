@@ -74,7 +74,7 @@ function AppHeader({
     <header
       className={clsx(
         "flex flex-wrap items-center gap-3 py-2 px-3",
-        isWideLayout ? "justify-start" : "justify-between"
+        isWideLayout ? "justify-start" : "justify-between",
       )}
     >
       {!isWideLayout && (
@@ -131,7 +131,7 @@ export default function AppPage() {
   ];
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
-    null
+    null,
   );
 
   const [state, setState] = useState<AppState | null>(null);
@@ -149,7 +149,7 @@ export default function AppPage() {
   const [shareCopySuccess, setShareCopySuccess] = useState(false);
   const [createListInput, setCreateListInput] = useState("");
   const [createListBackground, setCreateListBackground] = useState(
-    colors[0].value
+    colors[0].value,
   );
   const [showCreateListDialog, setShowCreateListDialog] = useState(false);
   const [joinListInput, setJoinListInput] = useState("");
@@ -172,11 +172,11 @@ export default function AppPage() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const selectedTaskList = state?.taskLists?.find(
-    (tl) => tl.id === selectedTaskListId
+    (tl) => tl.id === selectedTaskListId,
   );
 
   useEffect(() => {
@@ -228,7 +228,7 @@ export default function AppPage() {
       const taskList = state.taskLists[index];
       if (taskList) {
         setSelectedTaskListId((prev) =>
-          prev === taskList.id ? prev : taskList.id
+          prev === taskList.id ? prev : taskList.id,
         );
       }
     };
@@ -244,7 +244,7 @@ export default function AppPage() {
   useEffect(() => {
     if (!taskListCarouselApi || !state?.taskLists) return;
     const index = state.taskLists.findIndex(
-      (taskList) => taskList.id === selectedTaskListId
+      (taskList) => taskList.id === selectedTaskListId,
     );
     if (index >= 0) {
       taskListCarouselApi.scrollTo(index);
@@ -293,13 +293,13 @@ export default function AppPage() {
   const taskListsForDrawer = optimisticTaskListOrder
     ? optimisticTaskListOrder.ids
         .map((taskListId) =>
-          taskLists.find((taskList) => taskList.id === taskListId)
+          taskLists.find((taskList) => taskList.id === taskListId),
         )
         .filter((taskList): taskList is TaskList => Boolean(taskList))
     : taskLists;
   const selectedTaskListIndex = Math.max(
     0,
-    taskLists.findIndex((taskList) => taskList.id === selectedTaskListId)
+    taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
   );
   const showTaskListLocator = hasTaskLists && taskLists.length > 1;
 
@@ -337,7 +337,7 @@ export default function AppPage() {
     try {
       const newTaskListId = await createTaskList(
         createListInput.trim(),
-        createListBackground
+        createListBackground,
       );
       setCreateListInput("");
       setCreateListBackground(colors[0].value);
@@ -422,7 +422,7 @@ export default function AppPage() {
       await deleteTaskList(selectedTaskListId);
 
       const remainingLists = state?.taskLists?.filter(
-        (tl) => tl.id !== selectedTaskListId
+        (tl) => tl.id !== selectedTaskListId,
       );
       if (remainingLists && remainingLists.length > 0) {
         setSelectedTaskListId(remainingLists[0].id);
@@ -543,11 +543,11 @@ export default function AppPage() {
   );
 
   const currentBackground = resolveTaskListBackground(
-    selectedTaskList?.background ?? null
+    selectedTaskList?.background ?? null,
   );
 
   if (isLoading) {
-    return <Spinner />;
+    return <Spinner fullPage />;
   }
 
   return (
@@ -558,7 +558,7 @@ export default function AppPage() {
       <div
         className={clsx(
           "flex h-full",
-          isWideLayout ? "flex-row items-start" : "flex-col"
+          isWideLayout ? "flex-row items-start" : "flex-col",
         )}
       >
         {isWideLayout && (
@@ -621,7 +621,7 @@ export default function AppPage() {
                           className={clsx(
                             "inline-flex h-4 w-4 items-center justify-center rounded-full",
                             "transition-colors",
-                            "hover:bg-gray-900/10 dark:hover:bg-gray-50/10"
+                            "hover:bg-gray-900/10 dark:hover:bg-gray-50/10",
                           )}
                         >
                           <span
@@ -629,7 +629,7 @@ export default function AppPage() {
                               "h-2 w-2 rounded-full transition-colors",
                               isSelected
                                 ? "bg-gray-900 dark:bg-gray-50"
-                                : "bg-gray-900/20 dark:bg-gray-50/20"
+                                : "bg-gray-900/20 dark:bg-gray-50/20",
                             )}
                           />
                         </button>
@@ -659,7 +659,7 @@ export default function AppPage() {
                           <div
                             className={clsx(
                               "h-full w-full",
-                              isWideLayout && "mx-auto max-w-3xl"
+                              isWideLayout && "mx-auto max-w-3xl",
                             )}
                           >
                             <TaskListCard

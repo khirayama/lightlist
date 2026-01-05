@@ -91,11 +91,7 @@ export default function PasswordResetPage() {
   };
 
   if (!router.isReady) {
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-gray-50 px-4 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
-        <Spinner />
-      </div>
-    );
+    return <Spinner fullPage />;
   }
 
   const content = (() => {

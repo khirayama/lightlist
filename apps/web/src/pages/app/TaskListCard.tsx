@@ -388,7 +388,10 @@ export function TaskListCard({
                               type="button"
                               onClick={onDeleteList}
                               disabled={deletingList}
-                              className={clsx(destructiveButtonClass, "mt-6 w-full")}
+                              className={clsx(
+                                destructiveButtonClass,
+                                "mt-6 w-full",
+                              )}
                             >
                               {deletingList
                                 ? t("common.deleting")

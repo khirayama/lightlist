@@ -240,39 +240,37 @@ export async function addTask(
         order: (index + 1) * 1.0,
       }));
 
-  await runTransaction(db, async (transaction) => {
-    const taskListRef = doc(db, "taskLists", taskListId);
-    const updateData: Record<string, unknown> = {
-      updatedAt: now,
-    };
+  const taskListRef = doc(db, "taskLists", taskListId);
+  const updateData: Record<string, unknown> = {
+    updatedAt: now,
+  };
 
-    normalizedTasks.forEach((task) => {
-      if (task.id === taskId) {
-        updateData[`tasks.${task.id}`] = task;
-      } else {
-        updateData[`tasks.${task.id}.order`] = task.order;
-      }
-    });
-
-    const history = (taskListData.history || [])
-      .map((item) => item.trim())
-      .filter((item) => item !== "");
-    const normalizedTextLower = normalizedText.toLowerCase();
-    const existingIndex = history.findIndex(
-      (item) => item.toLowerCase() === normalizedTextLower,
-    );
-    if (existingIndex >= 0) {
-      history.splice(existingIndex, 1);
+  normalizedTasks.forEach((task) => {
+    if (task.id === taskId) {
+      updateData[`tasks.${task.id}`] = task;
+    } else {
+      updateData[`tasks.${task.id}.order`] = task.order;
     }
-
-    history.unshift(normalizedText);
-    while (history.length > 300) {
-      history.pop();
-    }
-    updateData.history = history;
-
-    transaction.update(taskListRef, updateData);
   });
+
+  const history = (taskListData.history || [])
+    .map((item) => item.trim())
+    .filter((item) => item !== "");
+  const normalizedTextLower = normalizedText.toLowerCase();
+  const existingIndex = history.findIndex(
+    (item) => item.toLowerCase() === normalizedTextLower,
+  );
+  if (existingIndex >= 0) {
+    history.splice(existingIndex, 1);
+  }
+
+  history.unshift(normalizedText);
+  while (history.length > 300) {
+    history.pop();
+  }
+  updateData.history = history;
+
+  await updateDoc(taskListRef, updateData);
 
   return taskId;
 }
@@ -318,17 +316,15 @@ export async function updateTask(
   );
   const normalizedTasks = getAutoSortedTasks(updatedTasks);
 
-  await runTransaction(db, async (transaction) => {
-    const updateData: Record<string, unknown> = { updatedAt: now };
-    normalizedTasks.forEach((task) => {
-      if (task.id === taskId) {
-        updateData[`tasks.${task.id}`] = task;
-      } else {
-        updateData[`tasks.${task.id}.order`] = task.order;
-      }
-    });
-    transaction.update(taskListRef, updateData);
+  const updateData: Record<string, unknown> = { updatedAt: now };
+  normalizedTasks.forEach((task) => {
+    if (task.id === taskId) {
+      updateData[`tasks.${task.id}`] = task;
+    } else {
+      updateData[`tasks.${task.id}.order`] = task.order;
+    }
   });
+  await updateDoc(taskListRef, updateData);
 }
 
 export async function deleteTask(taskListId: string, taskId: string) {
@@ -353,18 +349,16 @@ export async function deleteTask(taskListId: string, taskId: string) {
   );
   const normalizedTasks = getAutoSortedTasks(remainingTasks);
 
-  await runTransaction(db, async (transaction) => {
-    const updateData: Record<string, unknown> = {
-      [`tasks.${taskId}`]: deleteField(),
-      updatedAt: now,
-    };
+  const updateData: Record<string, unknown> = {
+    [`tasks.${taskId}`]: deleteField(),
+    updatedAt: now,
+  };
 
-    normalizedTasks.forEach((task) => {
-      updateData[`tasks.${task.id}.order`] = task.order;
-    });
-
-    transaction.update(taskListRef, updateData);
+  normalizedTasks.forEach((task) => {
+    updateData[`tasks.${task.id}.order`] = task.order;
   });
+
+  await updateDoc(taskListRef, updateData);
 }
 
 /**
@@ -403,14 +397,12 @@ export async function updateTasksOrder(
 
   const now = Date.now();
 
-  await runTransaction(db, async (transaction) => {
-    const taskListRef = doc(db, "taskLists", taskListId);
-    const updateData: Record<string, unknown> = { updatedAt: now };
-    normalizedTasks.forEach((task) => {
-      updateData[`tasks.${task.id}.order`] = task.order;
-    });
-    transaction.update(taskListRef, updateData);
+  const taskListRef = doc(db, "taskLists", taskListId);
+  const updateData: Record<string, unknown> = { updatedAt: now };
+  normalizedTasks.forEach((task) => {
+    updateData[`tasks.${task.id}.order`] = task.order;
   });
+  await updateDoc(taskListRef, updateData);
 }
 
 export async function sortTasks(taskListId: string): Promise<void> {
@@ -421,14 +413,12 @@ export async function sortTasks(taskListId: string): Promise<void> {
   const normalizedTasks = getAutoSortedTasks(tasks);
   const now = Date.now();
 
-  await runTransaction(db, async (transaction) => {
-    const taskListRef = doc(db, "taskLists", taskListId);
-    const updateData: Record<string, unknown> = { updatedAt: now };
-    normalizedTasks.forEach((task) => {
-      updateData[`tasks.${task.id}.order`] = task.order;
-    });
-    transaction.update(taskListRef, updateData);
+  const taskListRef = doc(db, "taskLists", taskListId);
+  const updateData: Record<string, unknown> = { updatedAt: now };
+  normalizedTasks.forEach((task) => {
+    updateData[`tasks.${task.id}.order`] = task.order;
   });
+  await updateDoc(taskListRef, updateData);
 }
 
 export async function deleteCompletedTasks(
@@ -453,19 +443,17 @@ export async function deleteCompletedTasks(
         }));
 
   const now = Date.now();
-  await runTransaction(db, async (transaction) => {
-    const taskListRef = doc(db, "taskLists", taskListId);
-    const updateData: Record<string, unknown> = { updatedAt: now };
+  const taskListRef = doc(db, "taskLists", taskListId);
+  const updateData: Record<string, unknown> = { updatedAt: now };
 
-    completedTasks.forEach((task) => {
-      updateData[`tasks.${task.id}`] = deleteField();
-    });
-    normalizedRemainingTasks.forEach((task) => {
-      updateData[`tasks.${task.id}.order`] = task.order;
-    });
-
-    transaction.update(taskListRef, updateData);
+  completedTasks.forEach((task) => {
+    updateData[`tasks.${task.id}`] = deleteField();
   });
+  normalizedRemainingTasks.forEach((task) => {
+    updateData[`tasks.${task.id}.order`] = task.order;
+  });
+
+  await updateDoc(taskListRef, updateData);
 
   return completedTasks.length;
 }

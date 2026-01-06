@@ -372,7 +372,7 @@ taskList:
    ↓
 6. `updateTasksOrder(taskListId, draggedTaskId, targetTaskId)` を呼び出し
    ↓
-7. トランザクションで Firestore の `tasks[taskId].order` を一括更新
+7. Firestore の `tasks[taskId].order` を一括更新
    ↓
 8. ストアが更新され、自動的に画面に反映
 ```
@@ -566,7 +566,7 @@ const [optimisticTaskListOrder, setOptimisticTaskListOrder] = useState<{
 2. 新しいタスク ID を生成
 3. 既存タスクを order 昇順に並べ、挿入位置に新タスクを挿入
 4. `autoSort` が有効な場合は未完了・日付・現在の order 優先で再ソートしつつ order を再採番、無効な場合は挿入位置に基づいて 1.0 から連番で再採番
-5. トランザクション内で以下を実行：
+5. 以下を実行：
    - Firestore にタスクを保存
    - order の一括更新
    - history フィールドを更新（trim、大小文字を無視して重複扱い、最大300件保持）
@@ -594,7 +594,7 @@ const [optimisticTaskListOrder, setOptimisticTaskListOrder] = useState<{
 
 - テキスト更新時、日付キーワードが含まれる場合は日付も更新し、キーワードを除去したテキストを設定する
 - `autoSort` 無効時は指定フィールドのみ更新し、`updatedAt` を設定
-- `autoSort` 有効時は対象タスクの存在を検証し、更新内容を反映した配列を未完了・日付・現在の order 優先で並べ替えて order を再採番した上でトランザクション更新
+- `autoSort` 有効時は対象タスクの存在を検証し、更新内容を反映した配列を未完了・日付・現在の order 優先で並べ替えて order を再採番した上で更新
 - ストアに対象タスクリストがない場合は Firestore から取得して同じ検証と更新を行う
 
 #### deleteTask(taskListId: string, taskId: string): Promise<void>
@@ -611,7 +611,7 @@ const [optimisticTaskListOrder, setOptimisticTaskListOrder] = useState<{
 **動作:**
 
 - `autoSort` 無効時はタスクを削除し、`updatedAt` のみ更新
-- `autoSort` 有効時は対象タスクの存在を検証し、削除後のタスクを未完了・日付・現在の order 優先で並び替えて再採番し、トランザクションでまとめて反映
+- `autoSort` 有効時は対象タスクの存在を検証し、削除後のタスクを未完了・日付・現在の order 優先で並び替えて再採番し、まとめて反映
 - ストアに対象タスクリストがない場合は Firestore から取得して同じ検証と更新を行う
 
 #### updateTasksOrder(taskListId: string, draggedTaskId: string, targetTaskId: string): Promise<void>
@@ -636,7 +636,7 @@ await updateTasksOrder(taskListId, "task-1", "task-3");
 1. ストアに対象タスクリストが存在しない場合は Firestore から取得して最新データを使用
 2. 現在の order を昇順で取得し、ドラッグ対象を配列から除外
 3. 対象タスクの位置に挿入し（上方向は直前、下方向は直後）、全タスクを 1.0 から連番で再採番
-4. トランザクションを使用して Firestore の `tasks[taskId].order` を一括更新
+4. Firestore の `tasks[taskId].order` を一括更新
 5. `updatedAt` タイムスタンプを自動設定
 6. ストアの変更をリスナーに通知
 
@@ -644,7 +644,6 @@ await updateTasksOrder(taskListId, "task-1", "task-3");
 
 - **order フィールド:** 1.0 からの連番
 - **更新件数:** 並び替え後の全タスクに対して order を再採番
-- **トランザクション処理:** 並行更新時の安全性を確保
 
 #### sortTasks(taskListId: string): Promise<void>
 

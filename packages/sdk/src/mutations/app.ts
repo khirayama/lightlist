@@ -195,10 +195,15 @@ export async function deleteTaskList(taskListId: string) {
   await batch.commit();
 }
 
+export function generateTaskId(): string {
+  return doc(collection(db, "taskLists")).id;
+}
+
 export async function addTask(
   taskListId: string,
   text: string,
   date: string = "",
+  id?: string,
 ) {
   const data = appStore.getData();
   const { date: parsedDate, text: parsedTextRaw } = parseDateFromText(
@@ -209,7 +214,7 @@ export async function addTask(
 
   if (normalizedText === "") throw new Error("Task text is empty");
 
-  const taskId = doc(collection(db, "taskLists")).id;
+  const taskId = id || generateTaskId();
 
   const taskListData: TaskListStore = data.taskLists[taskListId];
   if (!taskListData) throw new Error("Task list not found");

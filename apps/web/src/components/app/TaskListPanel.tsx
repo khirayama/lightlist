@@ -313,7 +313,6 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
   const { t } = useTranslation();
   const reactId = useId();
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [sortPending, setSortPending] = useState(false);
   const [deleteCompletedPending, setDeleteCompletedPending] = useState(false);
   const newTaskInputRef = useRef<HTMLInputElement | null>(null);
   const restoreNewTaskFocusRef = useRef(false);
@@ -522,17 +521,10 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
           <div className="flex items-center">
             <button
               type="button"
-              disabled={
-                sortPending || inputDisabled || tasks.length < 2 || !onSortTasks
-              }
+              disabled={inputDisabled || tasks.length < 2 || !onSortTasks}
               onClick={async () => {
                 if (!onSortTasks) return;
-                setSortPending(true);
-                try {
-                  await onSortTasks();
-                } finally {
-                  setSortPending(false);
-                }
+                void onSortTasks();
               }}
               className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
             >

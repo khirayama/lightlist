@@ -45,6 +45,7 @@
 - 左右ドロワーは vaul のドラッグ判定でタップが奪われやすいので、必要に応じて `handleOnly` や `data-vaul-no-drag` でドラッグ開始を抑止して操作性を安定させる
 - Dialog は `--dialog-bg` / `--dialog-fg` / `--dialog-muted` を `:root` と `.dark` で定義し、テーマ切り替えに追従させる
 - Carousel は前後ボタンをデフォルトで視認性の高いコントロールとして表示する
+- スクロールバーは `apps/web/src/styles/globals.css` でグローバルに定義され、OS 標準のスクロールバーを非表示にする代わりに、ライト/ダーク各テーマに合わせた細身で角丸のモダンなスタイル（WebKit/Firefox 対応）を適用している
 
 ## 設定ページ
 

@@ -122,6 +122,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
     ? new Intl.DateTimeFormat(i18n.language, {
         month: "short",
         day: "numeric",
+        weekday: "short",
       }).format(selectedDate)
     : null;
   const dateTitle = dateDisplayValue

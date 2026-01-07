@@ -16,6 +16,7 @@ import {
   updateTasksOrder,
   sortTasks,
   deleteCompletedTasks,
+  generateTaskId,
 } from "@lightlist/sdk/mutations/app";
 import { TaskListPanel } from "@/components/app/TaskListPanel";
 import { Alert } from "@/components/ui/Alert";
@@ -225,11 +226,9 @@ export function TaskListCard({
     const trimmedText = newTaskText.trim();
     if (trimmedText === "") return;
 
-    const tempTaskId = `optimistic-${Date.now()}-${Math.random()
-      .toString(16)
-      .slice(2)}`;
+    const newTaskId = generateTaskId();
     const optimisticTask: Task = {
-      id: tempTaskId,
+      id: newTaskId,
       text: trimmedText,
       completed: false,
       date: "",
@@ -246,15 +245,10 @@ export function TaskListCard({
 
     void (async () => {
       try {
-        const createdTaskId = await addTask(taskList.id, trimmedText);
-        setOptimisticAddedTasks((prev) =>
-          prev.map((task) =>
-            task.id === tempTaskId ? { ...task, id: createdTaskId } : task,
-          ),
-        );
+        await addTask(taskList.id, trimmedText, "", newTaskId);
       } catch (err) {
         setOptimisticAddedTasks((prev) =>
-          prev.filter((task) => task.id !== tempTaskId),
+          prev.filter((task) => task.id !== newTaskId),
         );
         setAddTaskError(resolveErrorMessage(err, t, "common.error"));
         setNewTaskText((current) =>

@@ -21,6 +21,7 @@ import {
   sortTasks,
   deleteCompletedTasks,
   addSharedTaskListToOrder,
+  generateTaskId,
 } from "@lightlist/sdk/mutations/app";
 import { appStore } from "@lightlist/sdk/store";
 import { resolveErrorMessage } from "@/utils/errors";
@@ -168,11 +169,9 @@ export default function ShareCodePage() {
     const trimmedText = newTaskText.trim();
     if (trimmedText === "") return;
 
-    const tempTaskId = `optimistic-${Date.now()}-${Math.random()
-      .toString(16)
-      .slice(2)}`;
+    const newTaskId = generateTaskId();
     const optimisticTask: Task = {
-      id: tempTaskId,
+      id: newTaskId,
       text: trimmedText,
       completed: false,
       date: "",
@@ -188,15 +187,10 @@ export default function ShareCodePage() {
 
     void (async () => {
       try {
-        const createdTaskId = await addTask(taskList.id, trimmedText);
-        setOptimisticAddedTasks((prev) =>
-          prev.map((task) =>
-            task.id === tempTaskId ? { ...task, id: createdTaskId } : task,
-          ),
-        );
+        await addTask(taskList.id, trimmedText, "", newTaskId);
       } catch (err) {
         setOptimisticAddedTasks((prev) =>
-          prev.filter((task) => task.id !== tempTaskId),
+          prev.filter((task) => task.id !== newTaskId),
         );
         setAddTaskError(
           resolveErrorMessage(err, t, "pages.sharecode.addTaskError"),

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
-import { MdArrowBack } from "react-icons/md";
 import {
   DragEndEvent,
   KeyboardSensor,
@@ -28,6 +27,7 @@ import { resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { TaskListPanel } from "@/components/app/TaskListPanel";
+import { AppIcon } from "@/components/ui/AppIcon";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
@@ -336,7 +336,7 @@ export default function ShareCodePage() {
             className="rounded-full p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
             aria-label={t("common.back")}
           >
-            <MdArrowBack className="h-6 w-6" />
+            <AppIcon name="arrow-back" className="h-6 w-6" />
           </button>
         </div>
         <div className="p-4">
@@ -357,7 +357,7 @@ export default function ShareCodePage() {
             className="rounded-full p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
             aria-label={t("common.back")}
           >
-            <MdArrowBack className="h-6 w-6" />
+            <AppIcon name="arrow-back" className="h-6 w-6" />
           </button>
         </div>
         <div className="p-4">
@@ -392,7 +392,7 @@ export default function ShareCodePage() {
           className="rounded-full p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
           aria-label={t("common.back")}
         >
-          <MdArrowBack className="h-6 w-6" />
+          <AppIcon name="arrow-back" className="h-6 w-6" />
         </button>
         {user && (
           <button

@@ -2,6 +2,7 @@
   "app": {
     "name": "LightList",
     "emptyState": "タスクリストがありません",
+    "createNew": "新規作成",
     "createTaskList": "タスクリスト作成",
     "taskListName": "タスクリスト名",
     "taskListNamePlaceholder": "タスクリスト名を入力",
@@ -14,7 +15,16 @@
     "signOutConfirm": "この端末でログアウトしますか？",
     "moveUp": "上へ移動",
     "moveDown": "下へ移動",
-    "drawerTitle": "タスクリスト"
+    "drawerTitle": "タスクリスト",
+    "joinList": "リストに参加",
+    "joinListTitle": "共有リストに参加",
+    "joinListDescription": "共有コードを入力してリストに参加します。",
+    "join": "参加",
+    "joining": "参加中...",
+    "taskListLocator": {
+      "label": "タスクリストインジケーター",
+      "goTo": "{{total}}番目のうち{{index}}番目のタスクリストへ移動"
+    }
   },
   "common": {
     "back": "戻る",
@@ -109,6 +119,8 @@
     "removeShare": "共有を停止",
     "shareError": "共有設定の更新に失敗しました",
     "selectColor": "色を選択",
+    "backgroundNone": "なし (テーマカラーを使用)",
+    "backgroundNoneShort": "なし",
     "addTask": "追加",
     "addTaskPlaceholder": "タスクを入力...",
     "deleteList": "リストを削除",

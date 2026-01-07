@@ -15,10 +15,16 @@ export const styles = StyleSheet.create({
   appContent: {
     padding: 24,
     paddingBottom: 40,
+    maxWidth: 768,
+    width: "100%",
+    alignSelf: "center",
   },
   settingsContent: {
     padding: 24,
     paddingBottom: 40,
+    maxWidth: 768,
+    width: "100%",
+    alignSelf: "center",
   },
   settingsCentered: {
     flex: 1,
@@ -391,6 +397,7 @@ export const styles = StyleSheet.create({
   },
   error: {
     fontSize: 13,
+    marginTop: 4,
   },
   helpText: {
     fontSize: 13,
@@ -458,5 +465,24 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     marginTop: 20,
+  },
+  indicatorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  indicatorDot: {
+    width: 16,
+    height: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  indicatorDotInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });

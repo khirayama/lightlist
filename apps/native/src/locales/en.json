@@ -2,6 +2,7 @@
   "app": {
     "name": "LightList",
     "emptyState": "No task lists",
+    "createNew": "Create",
     "createTaskList": "Create Task List",
     "taskListName": "Task List Name",
     "taskListNamePlaceholder": "Enter task list name",
@@ -13,8 +14,17 @@
     "signOut": "Sign Out",
     "signOutConfirm": "Sign out from this device?",
     "moveUp": "Move up",
-    "moveDown": "Move down",
-    "drawerTitle": "Task Lists"
+    "moveDown": "Move Down",
+    "drawerTitle": "Lists",
+    "joinList": "Join List",
+    "joinListTitle": "Join Shared List",
+    "joinListDescription": "Enter the share code to join a shared task list.",
+    "join": "Join",
+    "joining": "Joining...",
+    "taskListLocator": {
+      "label": "Task List Indicator",
+      "goTo": "Go to task list {{index}} of {{total}}"
+    }
   },
   "common": {
     "back": "Back",
@@ -109,6 +119,8 @@
     "removeShare": "Stop Sharing",
     "shareError": "Failed to update share settings",
     "selectColor": "Select Color",
+    "backgroundNone": "None (uses theme color)",
+    "backgroundNoneShort": "None",
     "addTask": "Add",
     "addTaskPlaceholder": "Enter task...",
     "deleteList": "Delete List",

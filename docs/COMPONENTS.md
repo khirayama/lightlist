@@ -2,9 +2,9 @@
 
 ## 分類
 
-- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, Calendar, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel, Command, Popover, AppIcon）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。Dialog/Carousel も含め、ライト/ダークの可読性と操作性（focus-visible 等）を優先して必要なスタイルを持つ。Alert は variant 別に配色を切り替え、ConfirmDialog は Dialog を使って破壊的アクションのスタイルを切り替える。Spinner は `AppIcon` (logo) を使用し、アニメーション（pulse）を伴う。`fullPage` prop を指定することで、画面中央に配置される。Calendar は i18next の言語に合わせて locale を切り替える。AppIcon は Material Icons（react-icons/md）に加えてアプリロゴ（logo）を持つ
+- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, Calendar, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel, Command, Popover, AppIcon）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。Dialog/Carousel も含め、ライト/ダークの可読性と操作性（focus-visible 等）を優先して必要なスタイルを持つ。Alert は variant 別に配色を切り替え、ConfirmDialog は Dialog を使って破壊的アクションのスタイルを切り替える。Spinner は `AppIcon` (logo) を使用し、アニメーション（pulse）を伴う。`fullPage` prop を指定することで、画面中央に配置される。Calendar は i18next の言語に合わせて locale を切り替える。AppIcon は `@lightlist/sdk/icons` で定義された SVG パスデータを使用し、Web/Native で統一されたアイコン表示を実現する
 - `apps/web/src/components/app`: 設定や、タスク表示・並び替えなど、アプリ固有の共有コンポーネント。SDKへの依存が判断基準（TaskListPanel が単一タスクの描画も内包）
-- `apps/native/src/components/ui`: ネイティブ向けのプリミティブ（Dialog, Drawer, AppIcon）。Drawer は Root/Trigger/Portal/Overlay/Content/Header/Footer/Title/Description/Close を提供し、open/onOpenChange で制御する。AppIcon は MaterialIcons（@expo/vector-icons）を使う
+- `apps/native/src/components/ui`: ネイティブ向けのプリミティブ（Dialog, Drawer, AppIcon）。Drawer は Root/Trigger/Portal/Overlay/Content/Header/Footer/Title/Description/Close を提供し、open/onOpenChange で制御する。AppIcon は `@lightlist/sdk/icons` の SVG パスデータを `react-native-svg` で描画する
 - `apps/native/src/components/app`: ネイティブ固有のタスク操作UIなど、画面共通で再利用するコンポーネント（TaskListPanel はタスク追加/編集/並び替え/完了/完了削除の操作UIを集約し、ヘッダーやリスト選択は画面側で管理）
 
 ## 追加・変更ルール
@@ -13,7 +13,7 @@
 - SDKやタスクドメインに触れる場合は `tasks` など機能ベースのディレクトリにまとめる
 - ボタンや入力などのプリミティブは `ui` に集約し、スタイルの重複を避ける
 - テーマとi18nはプリミティブで吸収し、ページ側での個別対応を増やさない
-- アイコンは `apps/web/src/components/ui/icons.ts` と `apps/native/src/components/ui/icons.ts` の共通名を使い、Webは AppIcon（react-icons/md）、Nativeは AppIcon（MaterialIcons）で揃える
+- アイコンは `@lightlist/sdk/icons` に集約された共通名と SVG パスデータを使用し、Web（標準SVG）と Native（react-native-svg）の両プラットフォームで一貫したビジュアルを提供する。これにより、フォントファイルのロードや外部アイコンライブラリへの依存を排除している
 - モーダルは `ui/Dialog` を使用し、`titleId`/`descriptionId` を設定してアクセシビリティを担保する。Drawer は shadcn 構成要素（Overlay/Content/Header/Title/Description/Trigger/Close/Portal）を利用し、Title/Description は Drawer 配下のみで使う。常設サイドバー表示では通常の見出し/本文要素でタイトル/説明を補う
 
 ## Pages ルーティング

@@ -80,6 +80,7 @@ type TaskListPanelProps = {
   onDeleteCompletedTasks: () => void | Promise<void>;
   onReorderHandlePressIn?: () => void;
   onReorderHandlePressOut?: () => void;
+  header?: React.ReactNode;
 };
 
 export const TaskListPanel = ({
@@ -112,6 +113,7 @@ export const TaskListPanel = ({
   onDeleteCompletedTasks,
   onReorderHandlePressIn,
   onReorderHandlePressOut,
+  header,
 }: TaskListPanelProps) => {
   const canAddTask =
     !addDisabled && !isAddingTask && newTaskText.trim().length > 0;
@@ -258,7 +260,8 @@ export const TaskListPanel = ({
 
   const listHeader = (
     <View style={styles.section}>
-      <View style={styles.taskInputRow}>
+      {header}
+      <View style={[styles.taskInputRow, { marginBottom: 16 }]}>
         <TextInput
           style={[
             styles.input,

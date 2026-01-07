@@ -7,6 +7,7 @@ import {
   type RouteProp,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createDrawerNavigator } from "@react-navigation/drawer";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -16,6 +17,7 @@ import {
   Text,
   TextInput,
   useColorScheme,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -29,6 +31,7 @@ import { PasswordResetScreen } from "./screens/PasswordResetScreen";
 import { ShareCodeScreen } from "./screens/ShareCodeScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { AppScreen } from "./screens/AppScreen";
+import { AppDrawerContent } from "./components/app/AppDrawerContent";
 import {
   listColors,
   themes,
@@ -39,9 +42,11 @@ import { appStore } from "@lightlist/sdk/store";
 import { AppState, Settings, Task, TaskList } from "@lightlist/sdk/types";
 import {
   addTask,
+  addSharedTaskListToOrder,
   createTaskList,
   deleteCompletedTasks,
   deleteTaskList,
+  fetchTaskListIdByShareCode,
   generateShareCode,
   removeShareCode,
   sortTasks,
@@ -59,6 +64,7 @@ import {
   signOut,
 } from "@lightlist/sdk/mutations/auth";
 import { onAuthStateChange } from "@lightlist/sdk/auth";
+import type { AppScreenProps } from "./types/app";
 
 type AuthTab = "signin" | "signup" | "reset";
 type AuthFormState = {
@@ -76,6 +82,7 @@ type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Drawer = createDrawerNavigator();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const linking = {
   prefixes: ["lightlist://"],
@@ -87,7 +94,7 @@ const linking = {
 };
 
 export default function App() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [appState, setAppState] = useState<AppState>(appStore.getState());
   const [isAuthReady, setIsAuthReady] = useState(false);
   const systemScheme = useColorScheme();
@@ -134,13 +141,17 @@ export default function App() {
     null,
   );
   const [createListName, setCreateListName] = useState("");
-  const [createListBackground, setCreateListBackground] = useState(
+  const [createListBackground, setCreateListBackground] = useState<
+    string | null
+  >(listColors[0]);
+  const [editListName, setEditListName] = useState("");
+  const [editListBackground, setEditListBackground] = useState<string | null>(
     listColors[0],
   );
-  const [editListName, setEditListName] = useState("");
-  const [editListBackground, setEditListBackground] = useState(listColors[0]);
   const [newTaskText, setNewTaskText] = useState("");
+  const [joinListInput, setJoinListInput] = useState("");
   const [appErrorMessage, setAppErrorMessage] = useState<string | null>(null);
+  const [joinListError, setJoinListError] = useState<string | null>(null);
   const [shareErrorMessage, setShareErrorMessage] = useState<string | null>(
     null,
   );
@@ -152,6 +163,7 @@ export default function App() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isCreatingList, setIsCreatingList] = useState(false);
   const [isSavingList, setIsSavingList] = useState(false);
+  const [isJoiningList, setIsJoiningList] = useState(false);
   const [isDeletingList, setIsDeletingList] = useState(false);
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
@@ -218,9 +230,6 @@ export default function App() {
     }
   }, [appState.user]);
 
-  const selectedTaskList: TaskList | null =
-    appState.taskLists.find((list) => list.id === selectedTaskListId) ?? null;
-
   useEffect(() => {
     if (appState.taskLists.length === 0) {
       setSelectedTaskListId(null);
@@ -235,22 +244,27 @@ export default function App() {
   }, [appState.taskLists, selectedTaskListId]);
 
   useEffect(() => {
-    if (!selectedTaskList) {
+    if (!appState.taskLists.some((list) => list.id === selectedTaskListId)) {
       setEditListName("");
       setEditListBackground(listColors[0]);
       setNewTaskText("");
       return;
     }
-    setEditListName(selectedTaskList.name);
-    setEditListBackground(selectedTaskList.background || listColors[0]);
-    setNewTaskText("");
-  }, [selectedTaskList?.id]);
+    const selected = appState.taskLists.find(
+      (l) => l.id === selectedTaskListId,
+    );
+    if (selected) {
+      setEditListName(selected.name);
+      setEditListBackground(selected.background);
+      setNewTaskText("");
+    }
+  }, [selectedTaskListId]);
 
   useEffect(() => {
     setShareErrorMessage(null);
     setIsGeneratingShareCode(false);
     setIsRemovingShareCode(false);
-  }, [selectedTaskList?.id]);
+  }, [selectedTaskListId]);
 
   useEffect(() => {
     if (!navigationReady) {
@@ -271,6 +285,9 @@ export default function App() {
       routes: [{ name: targetRoute }],
     });
   }, [appState.user, navigationReady]);
+
+  const selectedTaskList: TaskList | null =
+    appState.taskLists.find((list) => list.id === selectedTaskListId) ?? null;
 
   const resetFormState = () => {
     setForm((prev) => ({ ...prev, password: "", confirmPassword: "" }));
@@ -525,6 +542,36 @@ export default function App() {
       }
     } finally {
       setIsSavingList(false);
+    }
+  };
+
+  const handleJoinList = async (): Promise<boolean> => {
+    const trimmedCode = joinListInput.trim().toUpperCase();
+    if (!trimmedCode) {
+      setJoinListError(t("pages.sharecode.enterCode"));
+      return false;
+    }
+    setIsJoiningList(true);
+    setJoinListError(null);
+    try {
+      const taskListId = await fetchTaskListIdByShareCode(trimmedCode);
+      if (!taskListId) {
+        setJoinListError(t("pages.sharecode.notFound"));
+        return false;
+      }
+      await addSharedTaskListToOrder(taskListId);
+      setJoinListInput("");
+      setSelectedTaskListId(taskListId);
+      return true;
+    } catch (error) {
+      if (error instanceof Error) {
+        setJoinListError(error.message);
+      } else {
+        setJoinListError(t("pages.sharecode.error"));
+      }
+      return false;
+    } finally {
+      setIsJoiningList(false);
     }
   };
 
@@ -792,6 +839,8 @@ export default function App() {
     navigationRef.navigate(appState.user ? "TaskList" : "Auth");
   };
 
+  const { width } = useWindowDimensions();
+  const isWideLayout = width >= 1024;
   const userEmail = appState.user?.email ?? "";
   const tasks = selectedTaskList?.tasks ?? [];
   const screenMode: "auth" | "task" = appState.user ? "task" : "auth";
@@ -815,56 +864,87 @@ export default function App() {
       onOpenShareCode={handleOpenShareCode}
     />
   );
+
+  const appScreenProps: AppScreenProps = {
+    t,
+    theme,
+    userEmail,
+    taskLists: appState.taskLists,
+    selectedTaskList,
+    selectedTaskListId,
+    tasks,
+    appErrorMessage,
+    createListName,
+    createListBackground,
+    editListName,
+    editListBackground,
+    newTaskText,
+    joinListInput,
+    joinListError,
+    isCreatingList,
+    isSavingList,
+    isDeletingList,
+    isAddingTask,
+    isJoiningList,
+    shareCode: selectedTaskList?.shareCode ?? null,
+    shareErrorMessage,
+    isGeneratingShareCode,
+    isRemovingShareCode,
+    onOpenSettings: handleOpenSettings,
+    onOpenShareCode: handleOpenShareCode,
+    onSelectTaskList: setSelectedTaskListId,
+    onChangeCreateListName: setCreateListName,
+    onChangeCreateListBackground: setCreateListBackground,
+    onChangeEditListName: setEditListName,
+    onChangeEditListBackground: setEditListBackground,
+    onChangeNewTaskText: setNewTaskText,
+    onChangeJoinListInput: (value: string) => {
+      setJoinListInput(value);
+      setJoinListError(null);
+    },
+    onClearJoinListError: () => setJoinListError(null),
+    onCreateList: handleCreateList,
+    onSaveList: handleSaveList,
+    onJoinList: handleJoinList,
+    onConfirmDeleteList: confirmDeleteList,
+    onAddTask: handleAddTask,
+    onUpdateTask: handleUpdateTask,
+    onToggleTask: handleToggleTask,
+    onReorderTask: handleReorderTask,
+    onSortTasks: handleSortTasks,
+    onDeleteCompletedTasks: handleDeleteCompletedTasks,
+    onConfirmSignOut: confirmSignOut,
+    onReorderTaskList: handleReorderTaskList,
+    onGenerateShareCode: handleGenerateShareCode,
+    onRemoveShareCode: handleRemoveShareCode,
+    isUpdatingTask,
+    isReorderingTasks,
+    isSortingTasks,
+    isDeletingCompletedTasks,
+    isReorderingTaskLists,
+  };
+
   const renderAppScreen = () => (
-    <AppScreen
-      t={t}
-      theme={theme}
-      taskLists={appState.taskLists}
-      selectedTaskList={selectedTaskList}
-      selectedTaskListId={selectedTaskListId}
-      tasks={tasks}
-      appErrorMessage={appErrorMessage}
-      createListName={createListName}
-      createListBackground={createListBackground}
-      editListName={editListName}
-      editListBackground={editListBackground}
-      newTaskText={newTaskText}
-      isCreatingList={isCreatingList}
-      isSavingList={isSavingList}
-      isDeletingList={isDeletingList}
-      isAddingTask={isAddingTask}
-      shareCode={selectedTaskList?.shareCode ?? null}
-      shareErrorMessage={shareErrorMessage}
-      isGeneratingShareCode={isGeneratingShareCode}
-      isRemovingShareCode={isRemovingShareCode}
-      onOpenSettings={handleOpenSettings}
-      onOpenShareCode={handleOpenShareCode}
-      onSelectTaskList={setSelectedTaskListId}
-      onChangeCreateListName={setCreateListName}
-      onChangeCreateListBackground={setCreateListBackground}
-      onChangeEditListName={setEditListName}
-      onChangeEditListBackground={setEditListBackground}
-      onChangeNewTaskText={setNewTaskText}
-      onCreateList={handleCreateList}
-      onSaveList={handleSaveList}
-      onConfirmDeleteList={confirmDeleteList}
-      onAddTask={handleAddTask}
-      onUpdateTask={handleUpdateTask}
-      onToggleTask={handleToggleTask}
-      onReorderTask={handleReorderTask}
-      onSortTasks={handleSortTasks}
-      onDeleteCompletedTasks={handleDeleteCompletedTasks}
-      onConfirmSignOut={confirmSignOut}
-      onReorderTaskList={handleReorderTaskList}
-      onGenerateShareCode={handleGenerateShareCode}
-      onRemoveShareCode={handleRemoveShareCode}
-      isUpdatingTask={isUpdatingTask}
-      isReorderingTasks={isReorderingTasks}
-      isSortingTasks={isSortingTasks}
-      isDeletingCompletedTasks={isDeletingCompletedTasks}
-      isReorderingTaskLists={isReorderingTaskLists}
-    />
+    <Drawer.Navigator
+      drawerContent={(props) => (
+        <AppDrawerContent {...appScreenProps} {...props} />
+      )}
+      screenOptions={{
+        headerShown: false,
+        drawerType: isWideLayout ? "permanent" : "front",
+        drawerStyle: {
+          width: isWideLayout ? 360 : Math.min(width, 420),
+          borderRightWidth: isWideLayout ? 1 : 0,
+          borderRightColor: theme.border,
+        },
+      }}
+    >
+      <Drawer.Screen name="Main">
+        {() => <AppScreen {...appScreenProps} />}
+      </Drawer.Screen>
+    </Drawer.Navigator>
   );
+
   const renderSettingsScreen = () => (
     <SettingsScreen
       t={t}
@@ -881,6 +961,7 @@ export default function App() {
       onBack={handleBackFromSettings}
     />
   );
+
   const renderShareCodeScreen = ({
     route,
   }: {
@@ -894,6 +975,7 @@ export default function App() {
       onOpenTaskList={handleOpenTaskListFromShareCode}
     />
   );
+
   const renderPasswordResetScreen = ({
     route,
   }: {
@@ -906,6 +988,7 @@ export default function App() {
       onBack={handleBackFromPasswordReset}
     />
   );
+
   const renderLoadingScreen = () => (
     <View style={styles.loadingContainer}>
       <ActivityIndicator

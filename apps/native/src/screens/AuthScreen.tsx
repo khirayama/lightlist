@@ -486,24 +486,6 @@ export const AuthScreen = ({
             </Pressable>
           </View>
         )}
-        <View style={styles.form}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("pages.sharecode.open")}
-            onPress={onOpenShareCode}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              {
-                borderColor: theme.border,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
-          >
-            <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
-              {t("pages.sharecode.open")}
-            </Text>
-          </Pressable>
-        </View>
       </View>
     </ScrollView>
   );

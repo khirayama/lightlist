@@ -171,6 +171,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             onChange={(e) => onEditingTextChange(e.target.value)}
             onBlur={() => onEditEnd(task)}
             onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter") onEditEnd(task);
               if (e.key === "Escape") {
                 onEditingTextChange(task.text);
@@ -448,6 +449,7 @@ export function TaskListPanel<T extends SortableTask = SortableTask>({
               onFocus={() => setHistoryOpen(true)}
               onBlur={() => setHistoryOpen(false)}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") {
                   if (isAddDisabled) return;
                   e.preventDefault();

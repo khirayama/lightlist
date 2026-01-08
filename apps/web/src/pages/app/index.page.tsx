@@ -80,7 +80,6 @@ function AppHeader({
       {!isWideLayout && (
         <Drawer
           direction="left"
-          handleOnly
           open={isDrawerOpen}
           onOpenChange={onDrawerOpenChange}
         >
@@ -560,7 +559,11 @@ export default function AppPage() {
       onSelectTaskList={(taskListId) => setSelectedTaskListId(taskListId)}
       onCloseDrawer={handleCloseDrawer}
       onOpenSettings={() => {
-        handleCloseDrawer();
+        setIsDrawerOpen(false);
+        const currentState = window.history.state;
+        if (currentState?.drawer === "drawer-open") {
+          window.history.replaceState({ ...currentState, drawer: null }, "");
+        }
         router.push("/settings");
       }}
       t={t}
@@ -603,7 +606,7 @@ export default function AppPage() {
                 onDrawerOpenChange={(open) => {
                   if (open) {
                     setIsDrawerOpen(true);
-                  } else {
+                  } else if (isDrawerOpen) {
                     handleCloseDrawer();
                   }
                 }}

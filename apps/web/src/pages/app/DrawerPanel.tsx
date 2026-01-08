@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/Dialog";
 import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
-import { ColorPicker, type ColorOption } from "./ColorPicker";
+import { ColorPicker, type ColorOption } from "@/components/ui/ColorPicker";
 
 const resolveTaskListBackground = (background: string | null): string =>
   background ?? "var(--tasklist-theme-bg)";

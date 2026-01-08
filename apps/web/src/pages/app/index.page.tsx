@@ -38,7 +38,7 @@ import {
   CarouselItem,
 } from "@/components/ui/Carousel";
 import { DrawerPanel } from "./DrawerPanel";
-import type { ColorOption } from "./ColorPicker";
+import type { ColorOption } from "@/components/ui/ColorPicker";
 import { TaskListCard } from "./TaskListCard";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
@@ -113,7 +113,15 @@ function AppHeader({
 }
 
 export default function AppPage() {
+  const renderStartTime = performance.now();
   const router = useRouter();
+
+  // ... (rest of component code)
+
+  useEffect(() => {
+    const duration = performance.now() - renderStartTime;
+    console.log(`[Web AppPage] Render duration: ${duration.toFixed(2)}ms`);
+  });
   const { t } = useTranslation();
   const colors: ColorOption[] = [
     {
@@ -271,20 +279,27 @@ export default function AppPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isWideLayout || !isDrawerOpen) {
-      router.beforePopState(() => true);
-      return;
+    if (isWideLayout) return;
+    if (!isDrawerOpen) return;
+
+    const drawerStateKey = "drawer-open";
+    const currentState = window.history.state;
+    const hasDrawerState = currentState?.drawer === drawerStateKey;
+
+    if (!hasDrawerState) {
+      window.history.pushState({ ...currentState, drawer: drawerStateKey }, "");
     }
 
-    router.beforePopState(() => {
+    const handlePopState = () => {
       setIsDrawerOpen(false);
-      return false;
-    });
+    };
+
+    window.addEventListener("popstate", handlePopState);
 
     return () => {
-      router.beforePopState(() => true);
+      window.removeEventListener("popstate", handlePopState);
     };
-  }, [isDrawerOpen, isWideLayout, router]);
+  }, [isDrawerOpen, isWideLayout]);
 
   const isLoading = !state || !state.user;
   const hasTaskLists = Boolean(state?.taskLists?.length);
@@ -487,6 +502,16 @@ export default function AppPage() {
     }
   };
 
+  const handleCloseDrawer = () => {
+    const drawerStateKey = "drawer-open";
+    const currentState = window.history.state;
+    if (currentState?.drawer === drawerStateKey) {
+      window.history.back();
+    } else {
+      setIsDrawerOpen(false);
+    }
+  };
+
   const handleEditDialogOpenChange = (taskList: TaskList, open: boolean) => {
     setSelectedTaskListId(taskList.id);
     setShowEditListDialog(open);
@@ -533,9 +558,9 @@ export default function AppPage() {
       onDragEndTaskList={handleDragEndTaskList}
       selectedTaskListId={selectedTaskListId}
       onSelectTaskList={(taskListId) => setSelectedTaskListId(taskListId)}
-      onCloseDrawer={() => setIsDrawerOpen(false)}
+      onCloseDrawer={handleCloseDrawer}
       onOpenSettings={() => {
-        setIsDrawerOpen(false);
+        handleCloseDrawer();
         router.push("/settings");
       }}
       t={t}
@@ -575,7 +600,13 @@ export default function AppPage() {
               <AppHeader
                 isWideLayout={isWideLayout}
                 isDrawerOpen={isDrawerOpen}
-                onDrawerOpenChange={setIsDrawerOpen}
+                onDrawerOpenChange={(open) => {
+                  if (open) {
+                    setIsDrawerOpen(true);
+                  } else {
+                    handleCloseDrawer();
+                  }
+                }}
                 drawerPanel={drawerPanel}
                 openMenuLabel={t("app.openMenu")}
               />
@@ -665,12 +696,16 @@ export default function AppPage() {
                             <TaskListCard
                               taskList={taskList}
                               taskInsertPosition={
-                                state?.settings?.taskInsertPosition ?? "bottom"
+                                state?.settings?.taskInsertPosition ?? "top"
                               }
                               isActive={isActive}
                               onActivate={(taskListId) =>
                                 setSelectedTaskListId(taskListId)
                               }
+                              sensorsList={sensorsList}
+                              onSortingChange={setIsTaskSorting}
+                              t={t}
+                              enableEditDialog
                               colors={colors}
                               showEditListDialog={showEditListDialog}
                               onEditDialogOpenChange={
@@ -683,6 +718,7 @@ export default function AppPage() {
                               onSaveListDetails={handleSaveListDetails}
                               deletingList={deletingList}
                               onDeleteList={handleRequestDeleteList}
+                              enableShareDialog
                               showShareDialog={showShareDialog}
                               onShareDialogOpenChange={
                                 handleShareDialogOpenChange
@@ -694,9 +730,6 @@ export default function AppPage() {
                               removingShareCode={removingShareCode}
                               onRemoveShareCode={handleRemoveShareCode}
                               onCopyShareLink={handleCopyShareLink}
-                              sensorsList={sensorsList}
-                              onSortingChange={setIsTaskSorting}
-                              t={t}
                             />
                           </div>
                         </CarouselItem>

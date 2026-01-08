@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   Text,
@@ -32,31 +32,21 @@ export const AppScreen = ({
   taskLists,
   selectedTaskList,
   selectedTaskListId,
-  tasks,
   appErrorMessage,
   editListName,
   editListBackground,
   newTaskText,
-  joinListInput,
-  joinListError,
   isSavingList,
   isDeletingList,
-  isAddingTask,
-  isJoiningList,
   shareCode,
   shareErrorMessage,
   isGeneratingShareCode,
   isRemovingShareCode,
-  onOpenSettings,
-  onOpenShareCode,
   onSelectTaskList,
   onChangeEditListName,
   onChangeEditListBackground,
   onChangeNewTaskText,
-  onChangeJoinListInput,
-  onClearJoinListError,
   onSaveList,
-  onJoinList,
   onConfirmDeleteList,
   onAddTask,
   onToggleTask,
@@ -66,10 +56,6 @@ export const AppScreen = ({
   onDeleteCompletedTasks,
   onGenerateShareCode,
   onRemoveShareCode,
-  isUpdatingTask,
-  isReorderingTasks,
-  isSortingTasks,
-  isDeletingCompletedTasks,
 }: AppScreenProps) => {
   const navigation = useNavigation();
   const canSaveList =
@@ -83,98 +69,96 @@ export const AppScreen = ({
   const isWideLayout = width >= 1024;
   const [taskListCarouselApi, setTaskListCarouselApi] =
     useState<CarouselApi | null>(null);
+  const isScrollingRef = useRef(false);
+  const pendingIndexRef = useRef<number | null>(null);
   const [isReorderHandleActive, setIsReorderHandleActive] = useState(false);
-  const [orderedTasksByListId, setOrderedTasksByListId] = useState<
-    Record<string, Task[]>
-  >({});
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskDate, setEditingTaskDate] = useState("");
   const stableTaskLists = taskLists.length > 0 ? taskLists : EMPTY_TASK_LISTS;
-  const stableTasks = tasks.length > 0 ? tasks : EMPTY_TASKS;
-
-  useEffect(() => {
-    const next: Record<string, Task[]> = {};
-    stableTaskLists.forEach((taskList) => {
-      next[taskList.id] = taskList.tasks;
-    });
-    setOrderedTasksByListId(next);
-  }, [stableTaskLists]);
 
   useEffect(() => {
     setEditingTaskId(null);
     setEditingTaskText("");
     setEditingTaskDate("");
-  }, [selectedTaskListId]);
-
-  useEffect(() => {
     setIsReorderHandleActive(false);
   }, [selectedTaskListId]);
 
   useEffect(() => {
     if (!editingTaskId) return;
-    const exists = stableTasks.some((task) => task.id === editingTaskId);
+    const currentTasks = selectedTaskList?.tasks ?? EMPTY_TASKS;
+    const exists = currentTasks.some((task) => task.id === editingTaskId);
     if (exists) return;
     setEditingTaskId(null);
     setEditingTaskText("");
     setEditingTaskDate("");
-  }, [editingTaskId, stableTasks]);
+  }, [editingTaskId, selectedTaskList?.tasks]);
 
-  const handleEditListDialogChange = (open: boolean) => {
-    setIsEditListDialogOpen(open);
-    if (open) return;
-    if (!selectedTaskList) {
-      onChangeEditListName("");
-      onChangeEditListBackground(listColors[0]);
-      return;
-    }
-    onChangeEditListName(selectedTaskList.name);
-    onChangeEditListBackground(selectedTaskList.background || listColors[0]);
-  };
+  const handleEditListDialogChange = useCallback(
+    (open: boolean) => {
+      setIsEditListDialogOpen(open);
+      if (open) return;
+      if (!selectedTaskList) {
+        onChangeEditListName("");
+        onChangeEditListBackground(listColors[0]);
+        return;
+      }
+      onChangeEditListName(selectedTaskList.name);
+      onChangeEditListBackground(selectedTaskList.background || listColors[0]);
+    },
+    [selectedTaskList, onChangeEditListName, onChangeEditListBackground],
+  );
 
-  const handleShareDialogChange = (open: boolean) => {
+  const handleShareDialogChange = useCallback((open: boolean) => {
     setIsShareDialogOpen(open);
-  };
+  }, []);
 
-  const handleEditStart = (task: Task) => {
+  const handleEditStart = useCallback((task: Task) => {
     setEditingTaskId(task.id);
     setEditingTaskText(task.text);
     setEditingTaskDate(task.date ?? "");
-  };
+  }, []);
 
-  const handleEditEnd = async (task: Task) => {
-    if (!editingTaskId || editingTaskId !== task.id) return;
-    const trimmedText = editingTaskText.trim();
-    if (!trimmedText) {
+  const handleEditEnd = useCallback(
+    async (task: Task) => {
+      if (!editingTaskId || editingTaskId !== task.id) return;
+
+      const trimmedText = editingTaskText.trim();
+      if (!trimmedText) {
+        setEditingTaskId(null);
+        setEditingTaskText("");
+        setEditingTaskDate("");
+        return;
+      }
+      const normalizedDate = editingTaskDate.trim();
+      if (trimmedText === task.text && normalizedDate === (task.date ?? "")) {
+        setEditingTaskId(null);
+        setEditingTaskText("");
+        setEditingTaskDate("");
+        return;
+      }
+      await onUpdateTask(task.id, {
+        text: trimmedText,
+        date: normalizedDate,
+      });
       setEditingTaskId(null);
       setEditingTaskText("");
       setEditingTaskDate("");
-      return;
-    }
-    const normalizedDate = editingTaskDate.trim();
-    if (trimmedText === task.text && normalizedDate === (task.date ?? "")) {
-      setEditingTaskId(null);
-      setEditingTaskText("");
-      setEditingTaskDate("");
-      return;
-    }
-    await onUpdateTask(task.id, {
-      text: trimmedText,
-      date: normalizedDate,
-    });
-    setEditingTaskId(null);
-    setEditingTaskText("");
-    setEditingTaskDate("");
-  };
+    },
+    [editingTaskId, editingTaskText, editingTaskDate, onUpdateTask],
+  );
 
-  const handleDateChange = async (task: Task, nextDate: string) => {
-    const normalizedDate = nextDate.trim();
-    if (editingTaskId === task.id) {
-      setEditingTaskDate(normalizedDate);
-    }
-    if (normalizedDate === (task.date ?? "")) return;
-    await onUpdateTask(task.id, { date: normalizedDate });
-  };
+  const handleDateChange = useCallback(
+    async (task: Task, nextDate: string) => {
+      const normalizedDate = nextDate.trim();
+      if (editingTaskId === task.id) {
+        setEditingTaskDate(normalizedDate);
+      }
+      if (normalizedDate === (task.date ?? "")) return;
+      await onUpdateTask(task.id, { date: normalizedDate });
+    },
+    [editingTaskId, onUpdateTask],
+  );
 
   useEffect(() => {
     if (!taskListCarouselApi || stableTaskLists.length === 0) return;
@@ -182,15 +166,23 @@ export const AppScreen = ({
       (taskList) => taskList.id === selectedTaskListId,
     );
     if (index >= 0) {
+      if (taskListCarouselApi.getCurrentIndex() === index) return;
       taskListCarouselApi.scrollTo(index);
     }
   }, [selectedTaskListId, taskListCarouselApi, stableTaskLists]);
 
-  const handleCarouselSelect = (api: CarouselApi) => {
-    const taskList = stableTaskLists[api.selectedIndex];
-    if (!taskList || taskList.id === selectedTaskListId) return;
-    onSelectTaskList(taskList.id);
-  };
+  const handleCarouselSelect = useCallback(
+    (api: CarouselApi) => {
+      if (isScrollingRef.current) {
+        pendingIndexRef.current = api.selectedIndex;
+        return;
+      }
+      const taskList = stableTaskLists[api.selectedIndex];
+      if (!taskList || taskList.id === selectedTaskListId) return;
+      onSelectTaskList(taskList.id);
+    },
+    [stableTaskLists, selectedTaskListId, onSelectTaskList],
+  );
 
   const taskListHeader = (
     <View>
@@ -509,6 +501,111 @@ export const AppScreen = ({
     </View>
   ) : null;
 
+  const carouselItems = useMemo(() => {
+    return stableTaskLists.map((taskList) => {
+      const isActive = taskList.id === selectedTaskListId;
+      const listTasks = taskList.tasks;
+      const activeEditingTaskId = isActive ? editingTaskId : null;
+      const activeEditingTaskText = isActive ? editingTaskText : "";
+      const activeEditingTaskDate = isActive ? editingTaskDate : "";
+      const activeNewTaskText = isActive ? newTaskText : "";
+
+      const header = (
+        <View style={[styles.taskHeaderRow, { marginBottom: 16 }]}>
+          <Text
+            style={[styles.settingsTitle, { color: theme.text }]}
+            numberOfLines={1}
+          >
+            {taskList.name}
+          </Text>
+          <View style={styles.headerActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("taskList.editDetails")}
+              onPress={() => handleEditListDialogChange(true)}
+              style={({ pressed }) => [
+                styles.headerIconButton,
+                {
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <AppIcon name="edit" size={18} color={theme.text} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("taskList.shareTitle")}
+              onPress={() => handleShareDialogChange(true)}
+              style={({ pressed }) => [
+                styles.headerIconButton,
+                {
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <AppIcon name="share" size={18} color={theme.text} />
+            </Pressable>
+          </View>
+        </View>
+      );
+
+      return (
+        <CarouselItem key={taskList.id}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: taskList.background ?? theme.background,
+            }}
+          >
+            <TaskListPanel
+              header={header}
+              t={t}
+              theme={theme}
+              tasks={listTasks}
+              newTaskText={activeNewTaskText}
+              addDisabled={!isActive}
+              emptyLabel={t("pages.tasklist.noTasks")}
+              editingTaskId={activeEditingTaskId}
+              editingTaskText={activeEditingTaskText}
+              editingTaskDate={activeEditingTaskDate}
+              onEditingTaskTextChange={setEditingTaskText}
+              onEditingTaskDateChange={setEditingTaskDate}
+              onEditStart={handleEditStart}
+              onEditEnd={handleEditEnd}
+              onDateChange={handleDateChange}
+              onChangeNewTaskText={onChangeNewTaskText}
+              onAddTask={onAddTask}
+              onToggleTask={onToggleTask}
+              onReorderTask={onReorderTask}
+              onSortTasks={onSortTasks}
+              onDeleteCompletedTasks={onDeleteCompletedTasks}
+            />
+          </View>
+        </CarouselItem>
+      );
+    });
+  }, [
+    stableTaskLists,
+    selectedTaskListId,
+    editingTaskId,
+    editingTaskText,
+    editingTaskDate,
+    newTaskText,
+    t,
+    theme,
+    handleEditListDialogChange,
+    handleShareDialogChange,
+    handleEditStart,
+    handleEditEnd,
+    handleDateChange,
+    onAddTask,
+    onToggleTask,
+    onReorderTask,
+    onSortTasks,
+    onDeleteCompletedTasks,
+    onChangeNewTaskText,
+  ]);
+
   const taskListContent =
     stableTaskLists.length > 0 ? (
       <Carousel
@@ -516,154 +613,29 @@ export const AppScreen = ({
         setApi={setTaskListCarouselApi}
         onSelect={handleCarouselSelect}
         opts={{
-          enabled: !isReorderingTasks && !isReorderHandleActive,
+          enabled: !isReorderHandleActive,
           loop: false,
+          minScrollDistancePerSwipe: 10,
+          onScrollStart: () => {
+            isScrollingRef.current = true;
+          },
+          onScrollEnd: () => {
+            isScrollingRef.current = false;
+            if (pendingIndexRef.current !== null) {
+              const taskList = stableTaskLists[pendingIndexRef.current];
+              pendingIndexRef.current = null;
+              if (taskList && taskList.id !== selectedTaskListId) {
+                onSelectTaskList(taskList.id);
+              }
+            }
+          },
           onConfigurePanGesture: (gesture) => {
             "worklet";
-            gesture.activeOffsetX([-12, 12]).failOffsetY([-6, 6]);
+            gesture.activeOffsetX([-8, 8]).failOffsetY([-6, 6]);
           },
         }}
       >
-        <CarouselContent style={{ flex: 1 }}>
-          {stableTaskLists.map((taskList) => {
-            const isActive = taskList.id === selectedTaskListId;
-            const listTasks =
-              orderedTasksByListId[taskList.id] ?? taskList.tasks;
-            const activeEditingTaskId = isActive ? editingTaskId : null;
-            const activeEditingTaskText = isActive ? editingTaskText : "";
-            const activeEditingTaskDate = isActive ? editingTaskDate : "";
-            const activeNewTaskText = isActive ? newTaskText : "";
-
-            const header = (
-              <View style={[styles.taskHeaderRow, { marginBottom: 16 }]}>
-                <Text
-                  style={[styles.settingsTitle, { color: theme.text }]}
-                  numberOfLines={1}
-                >
-                  {taskList.name}
-                </Text>
-                <View style={styles.headerActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("taskList.editDetails")}
-                    onPress={() => handleEditListDialogChange(true)}
-                    style={({ pressed }) => [
-                      styles.headerIconButton,
-                      {
-                        opacity: pressed ? 0.9 : 1,
-                      },
-                    ]}
-                  >
-                    <AppIcon name="edit" size={18} color={theme.text} />
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("taskList.shareTitle")}
-                    onPress={() => handleShareDialogChange(true)}
-                    style={({ pressed }) => [
-                      styles.headerIconButton,
-                      {
-                        opacity: pressed ? 0.9 : 1,
-                      },
-                    ]}
-                  >
-                    <AppIcon name="share" size={18} color={theme.text} />
-                  </Pressable>
-                </View>
-              </View>
-            );
-
-            return (
-              <CarouselItem key={taskList.id}>
-                <View
-                  style={{
-                    flex: 1,
-                    backgroundColor: taskList.background ?? theme.background,
-                  }}
-                >
-                  <TaskListPanel
-                    header={header}
-                    t={t}
-                    theme={theme}
-                    tasks={listTasks}
-                    newTaskText={activeNewTaskText}
-                    isAddingTask={isActive ? isAddingTask : false}
-                    isUpdatingTask={isActive ? isUpdatingTask : false}
-                    isReorderingTasks={!isActive || isReorderingTasks}
-                    isSortingTasks={isActive ? isSortingTasks : false}
-                    isDeletingCompletedTasks={
-                      isActive ? isDeletingCompletedTasks : false
-                    }
-                    addDisabled={!isActive}
-                    emptyLabel={t("pages.tasklist.noTasks")}
-                    editingTaskId={activeEditingTaskId}
-                    editingTaskText={activeEditingTaskText}
-                    editingTaskDate={activeEditingTaskDate}
-                    onEditingTaskTextChange={(value) => {
-                      if (!isActive) return;
-                      setEditingTaskText(value);
-                    }}
-                    onEditingTaskDateChange={(value) => {
-                      if (!isActive) return;
-                      setEditingTaskDate(value);
-                    }}
-                    onEditStart={(task) => {
-                      if (!isActive) return;
-                      handleEditStart(task);
-                    }}
-                    onEditEnd={(task) => {
-                      if (!isActive) return;
-                      void handleEditEnd(task);
-                    }}
-                    onDateChange={(task, nextDate) => {
-                      if (!isActive) return;
-                      return handleDateChange(task, nextDate);
-                    }}
-                    onChangeNewTaskText={(value) => {
-                      if (!isActive) return;
-                      onChangeNewTaskText(value);
-                    }}
-                    onAddTask={() => {
-                      if (!isActive) return;
-                      return onAddTask();
-                    }}
-                    onToggleTask={(task) => {
-                      if (!isActive) return;
-                      return onToggleTask(task);
-                    }}
-                    onReorderTask={(draggedTaskId, targetTaskId) => {
-                      if (!isActive) return;
-                      return onReorderTask(draggedTaskId, targetTaskId);
-                    }}
-                    onReorderPreview={(nextTasks) => {
-                      if (!isActive) return;
-                      setOrderedTasksByListId((prev) => ({
-                        ...prev,
-                        [taskList.id]: nextTasks,
-                      }));
-                    }}
-                    onReorderHandlePressIn={() => {
-                      if (!isActive) return;
-                      setIsReorderHandleActive(true);
-                    }}
-                    onReorderHandlePressOut={() => {
-                      if (!isActive) return;
-                      setIsReorderHandleActive(false);
-                    }}
-                    onSortTasks={() => {
-                      if (!isActive) return;
-                      return onSortTasks();
-                    }}
-                    onDeleteCompletedTasks={() => {
-                      if (!isActive) return;
-                      return onDeleteCompletedTasks();
-                    }}
-                  />
-                </View>
-              </CarouselItem>
-            );
-          })}
-        </CarouselContent>
+        <CarouselContent style={{ flex: 1 }}>{carouselItems}</CarouselContent>
       </Carousel>
     ) : (
       <TaskListPanel
@@ -671,11 +643,6 @@ export const AppScreen = ({
         theme={theme}
         tasks={EMPTY_TASKS}
         newTaskText=""
-        isAddingTask={false}
-        isUpdatingTask={false}
-        isReorderingTasks
-        isSortingTasks={false}
-        isDeletingCompletedTasks={false}
         addDisabled
         emptyLabel=""
         editingTaskId={null}

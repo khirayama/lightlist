@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -57,13 +57,6 @@ export const ShareCodeScreen = ({
   const [addToOrderError, setAddToOrderError] = useState<string | null>(null);
   const [newTaskText, setNewTaskText] = useState("");
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
-  const [isAddingTask, setIsAddingTask] = useState(false);
-  const [isUpdatingTask, setIsUpdatingTask] = useState(false);
-  const [isReorderingTasks, setIsReorderingTasks] = useState(false);
-  const [isSortingTasks, setIsSortingTasks] = useState(false);
-  const [isDeletingCompletedTasks, setIsDeletingCompletedTasks] =
-    useState(false);
-  const [orderedTasks, setOrderedTasks] = useState<Task[]>([]);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskDate, setEditingTaskDate] = useState("");
@@ -108,7 +101,7 @@ export const ShareCodeScreen = ({
         setSharedTaskListId(taskListId);
         sharedTaskListUnsubscribeRef.current =
           appStore.subscribeToSharedTaskList(taskListId);
-      } catch (err) {
+      } catch {
         setError(t("pages.sharecode.error"));
         setSharedTaskListId(null);
         sharedTaskListUnsubscribeRef.current?.();
@@ -144,10 +137,6 @@ export const ShareCodeScreen = ({
   const taskListTasks = taskList?.tasks ?? EMPTY_TASKS;
 
   useEffect(() => {
-    setOrderedTasks(taskListTasks);
-  }, [taskListTasks]);
-
-  useEffect(() => {
     setEditingTaskId(null);
     setEditingTaskText("");
     setEditingTaskDate("");
@@ -173,69 +162,64 @@ export const ShareCodeScreen = ({
   };
 
   const canLoadShareCode = !loading && shareCodeInput.trim().length > 0;
-  const handleAddTask = async () => {
+
+  const handleAddTask = useCallback(async () => {
     if (!taskList) return;
     const trimmedText = newTaskText.trim();
     if (trimmedText.length === 0) return;
 
-    setIsAddingTask(true);
     setAddTaskError(null);
+    setNewTaskText("");
     try {
       await addTask(taskList.id, trimmedText);
-      setNewTaskText("");
     } catch (err) {
+      setNewTaskText(trimmedText);
       if (err instanceof Error && err.message) {
         setAddTaskError(err.message);
       } else {
         setAddTaskError(t("pages.sharecode.addTaskError"));
       }
-    } finally {
-      setIsAddingTask(false);
     }
-  };
+  }, [taskList, newTaskText, t]);
 
-  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
-    if (!taskList) return;
-    setIsUpdatingTask(true);
-    setError(null);
-    try {
-      await updateTask(taskList.id, taskId, updates);
-    } catch (err) {
-      if (err instanceof Error && err.message) {
-        setError(err.message);
-      } else {
-        setError(t("pages.sharecode.updateError"));
+  const handleUpdateTask = useCallback(
+    async (taskId: string, updates: Partial<Task>) => {
+      if (!taskList) return;
+      setError(null);
+      try {
+        await updateTask(taskList.id, taskId, updates);
+      } catch (err) {
+        if (err instanceof Error && err.message) {
+          setError(err.message);
+        } else {
+          setError(t("pages.sharecode.updateError"));
+        }
       }
-    } finally {
-      setIsUpdatingTask(false);
-    }
-  };
+    },
+    [taskList, t],
+  );
 
-  const handleReorderTask = async (
-    draggedTaskId: string,
-    targetTaskId: string,
-  ) => {
-    if (!taskList) return;
-    if (!draggedTaskId || !targetTaskId) return;
-    if (draggedTaskId === targetTaskId) return;
-    setIsReorderingTasks(true);
-    setError(null);
-    try {
-      await updateTasksOrder(taskList.id, draggedTaskId, targetTaskId);
-    } catch (err) {
-      if (err instanceof Error && err.message) {
-        setError(err.message);
-      } else {
-        setError(t("pages.sharecode.updateError"));
+  const handleReorderTask = useCallback(
+    async (draggedTaskId: string, targetTaskId: string) => {
+      if (!taskList) return;
+      if (!draggedTaskId || !targetTaskId) return;
+      if (draggedTaskId === targetTaskId) return;
+      setError(null);
+      try {
+        await updateTasksOrder(taskList.id, draggedTaskId, targetTaskId);
+      } catch (err) {
+        if (err instanceof Error && err.message) {
+          setError(err.message);
+        } else {
+          setError(t("pages.sharecode.updateError"));
+        }
       }
-    } finally {
-      setIsReorderingTasks(false);
-    }
-  };
+    },
+    [taskList, t],
+  );
 
-  const handleSortTasks = async () => {
+  const handleSortTasks = useCallback(async () => {
     if (!taskList) return;
-    setIsSortingTasks(true);
     setError(null);
     try {
       await sortTasks(taskList.id);
@@ -245,14 +229,11 @@ export const ShareCodeScreen = ({
       } else {
         setError(t("pages.sharecode.updateError"));
       }
-    } finally {
-      setIsSortingTasks(false);
     }
-  };
+  }, [taskList, t]);
 
-  const handleDeleteCompletedTasks = async () => {
+  const handleDeleteCompletedTasks = useCallback(async () => {
     if (!taskList) return;
-    setIsDeletingCompletedTasks(true);
     setError(null);
     try {
       await deleteCompletedTasks(taskList.id);
@@ -262,63 +243,70 @@ export const ShareCodeScreen = ({
       } else {
         setError(t("pages.sharecode.updateError"));
       }
-    } finally {
-      setIsDeletingCompletedTasks(false);
     }
-  };
+  }, [taskList, t]);
 
-  const handleToggleTask = async (task: Task) => {
-    if (!taskList) return;
-    try {
-      await updateTask(taskList.id, task.id, { completed: !task.completed });
-    } catch (err) {
-      if (err instanceof Error && err.message) {
-        setError(err.message);
-      } else {
-        setError(t("pages.sharecode.updateError"));
+  const handleToggleTask = useCallback(
+    async (task: Task) => {
+      if (!taskList) return;
+      try {
+        await updateTask(taskList.id, task.id, { completed: !task.completed });
+      } catch (err) {
+        if (err instanceof Error && err.message) {
+          setError(err.message);
+        } else {
+          setError(t("pages.sharecode.updateError"));
+        }
       }
-    }
-  };
+    },
+    [taskList, t],
+  );
 
-  const handleEditStart = (task: Task) => {
+  const handleEditStart = useCallback((task: Task) => {
     setEditingTaskId(task.id);
     setEditingTaskText(task.text);
     setEditingTaskDate(task.date ?? "");
-  };
+  }, []);
 
-  const handleEditEnd = async (task: Task) => {
-    if (!editingTaskId || editingTaskId !== task.id) return;
-    const trimmedText = editingTaskText.trim();
-    if (!trimmedText) {
+  const handleEditEnd = useCallback(
+    async (task: Task) => {
+      if (!editingTaskId || editingTaskId !== task.id) return;
+      const trimmedText = editingTaskText.trim();
+      if (!trimmedText) {
+        setEditingTaskId(null);
+        setEditingTaskText("");
+        setEditingTaskDate("");
+        return;
+      }
+      const normalizedDate = editingTaskDate.trim();
+      if (trimmedText === task.text && normalizedDate === (task.date ?? "")) {
+        setEditingTaskId(null);
+        setEditingTaskText("");
+        setEditingTaskDate("");
+        return;
+      }
+      await handleUpdateTask(task.id, {
+        text: trimmedText,
+        date: normalizedDate,
+      });
       setEditingTaskId(null);
       setEditingTaskText("");
       setEditingTaskDate("");
-      return;
-    }
-    const normalizedDate = editingTaskDate.trim();
-    if (trimmedText === task.text && normalizedDate === (task.date ?? "")) {
-      setEditingTaskId(null);
-      setEditingTaskText("");
-      setEditingTaskDate("");
-      return;
-    }
-    await handleUpdateTask(task.id, {
-      text: trimmedText,
-      date: normalizedDate,
-    });
-    setEditingTaskId(null);
-    setEditingTaskText("");
-    setEditingTaskDate("");
-  };
+    },
+    [editingTaskId, editingTaskText, editingTaskDate, handleUpdateTask],
+  );
 
-  const handleDateChange = async (task: Task, nextDate: string) => {
-    const normalizedDate = nextDate.trim();
-    if (editingTaskId === task.id) {
-      setEditingTaskDate(normalizedDate);
-    }
-    if (normalizedDate === (task.date ?? "")) return;
-    await handleUpdateTask(task.id, { date: normalizedDate });
-  };
+  const handleDateChange = useCallback(
+    async (task: Task, nextDate: string) => {
+      const normalizedDate = nextDate.trim();
+      if (editingTaskId === task.id) {
+        setEditingTaskDate(normalizedDate);
+      }
+      if (normalizedDate === (task.date ?? "")) return;
+      await handleUpdateTask(task.id, { date: normalizedDate });
+    },
+    [editingTaskId, handleUpdateTask],
+  );
 
   const handleAddToOrder = async () => {
     if (!taskList || !user) return;
@@ -461,14 +449,9 @@ export const ShareCodeScreen = ({
       <TaskListPanel
         t={t}
         theme={theme}
-        tasks={orderedTasks}
+        tasks={taskListTasks}
         newTaskText={newTaskText}
         taskListError={addTaskError}
-        isAddingTask={isAddingTask}
-        isUpdatingTask={isUpdatingTask}
-        isReorderingTasks={isReorderingTasks}
-        isSortingTasks={isSortingTasks}
-        isDeletingCompletedTasks={isDeletingCompletedTasks}
         addDisabled={!taskList}
         emptyLabel={taskList ? t("pages.tasklist.noTasks") : ""}
         editingTaskId={editingTaskId}
@@ -486,7 +469,6 @@ export const ShareCodeScreen = ({
         onAddTask={handleAddTask}
         onToggleTask={handleToggleTask}
         onReorderTask={handleReorderTask}
-        onReorderPreview={setOrderedTasks}
         onSortTasks={handleSortTasks}
         onDeleteCompletedTasks={handleDeleteCompletedTasks}
       />

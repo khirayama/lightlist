@@ -22,6 +22,7 @@ type CarouselApi = {
   scrollNext: () => void;
   scrollTo: (index: number) => void;
   selectedIndex: number;
+  getCurrentIndex: () => number;
 };
 
 type CarouselOptions = Partial<
@@ -111,14 +112,19 @@ export const Carousel = ({
     carouselRef.current?.scrollTo({ count: 1, animated: true });
   }, []);
 
+  const getCurrentIndex = useCallback(() => {
+    return carouselRef.current?.getCurrentIndex() ?? 0;
+  }, []);
+
   const api = useMemo(
     () => ({
       scrollPrev,
       scrollNext,
       scrollTo,
       selectedIndex,
+      getCurrentIndex,
     }),
-    [scrollPrev, scrollNext, scrollTo, selectedIndex],
+    [scrollPrev, scrollNext, scrollTo, selectedIndex, getCurrentIndex],
   );
 
   useEffect(() => {

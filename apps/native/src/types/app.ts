@@ -9,7 +9,6 @@ export type AppScreenProps = {
   taskLists: TaskList[];
   selectedTaskList: TaskList | null;
   selectedTaskListId: string | null;
-  tasks: Task[];
   appErrorMessage: string | null;
   createListName: string;
   createListBackground: string | null;
@@ -21,7 +20,6 @@ export type AppScreenProps = {
   isCreatingList: boolean;
   isSavingList: boolean;
   isDeletingList: boolean;
-  isAddingTask: boolean;
   isJoiningList: boolean;
   shareCode: string | null;
   shareErrorMessage: string | null;
@@ -60,9 +58,4 @@ export type AppScreenProps = {
   ) => void | Promise<void>;
   onGenerateShareCode: () => void | Promise<void>;
   onRemoveShareCode: () => void | Promise<void>;
-  isUpdatingTask: boolean;
-  isReorderingTasks: boolean;
-  isSortingTasks: boolean;
-  isDeletingCompletedTasks: boolean;
-  isReorderingTaskLists: boolean;
 };

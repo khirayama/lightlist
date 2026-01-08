@@ -440,7 +440,8 @@ document.documentElement.classList.toggle("dark", isDark);
 
 #### 4. タスク追加位置
 
-- **末尾に追加** (`bottom`) と **先頭に追加** (`top`) をラジオボタンで切り替え
+- **先頭に追加** (`top`) と **末尾に追加** (`bottom`) をラジオボタンで切り替え
+- デフォルトは「先頭に追加」 (`top`)
 - `updateSettings({ taskInsertPosition })` で Firestore に保存
 - SDK 内でタスク追加時の挿入位置に利用する
 

@@ -2,10 +2,10 @@
 
 ## 分類
 
-- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, Calendar, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel, Command, Popover, AppIcon）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。Dialog/Carousel も含め、ライト/ダークの可読性と操作性（focus-visible 等）を優先して必要なスタイルを持つ。Alert は variant 別に配色を切り替え、ConfirmDialog は Dialog を使って破壊的アクションのスタイルを切り替える。Spinner は `AppIcon` (logo) を使用し、アニメーション（pulse）を伴う。`fullPage` prop を指定することで、画面中央に配置される。Calendar は i18next の言語に合わせて locale を切り替える。AppIcon は `@lightlist/sdk/icons` で定義された SVG パスデータを使用し、Web/Native で統一されたアイコン表示を実現する
+- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, Calendar, ColorPicker, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel, Command, Popover, AppIcon）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。Dialog/Carousel も含め、ライト/ダークの可読性と操作性（focus-visible 等）を優先して必要なスタイルを持つ。Alert は variant 別に配色を切り替え、ConfirmDialog は Dialog を使って破壊的アクションのスタイルを切り替える。Spinner は `AppIcon` (logo) を使用し、アニメーション（pulse）を伴う。`fullPage` prop を指定することで、画面中央に配置される。Calendar は i18next の言語に合わせて locale を切り替える。AppIcon は `@lightlist/sdk/icons` で定義された SVG パスデータを使用し、Web/Native で統一されたアイコン表示を実現する。ColorPicker はタスクリストの背景色選択などで利用する再利用可能なカラー選択コンポーネント
 - `apps/web/src/components/app`: 設定や、タスク表示・並び替えなど、アプリ固有の共有コンポーネント。SDKへの依存が判断基準（TaskListPanel が単一タスクの描画も内包）
-- `apps/native/src/components/ui`: ネイティブ向けのプリミティブ（Dialog, Drawer, AppIcon）。Drawer は Root/Trigger/Portal/Overlay/Content/Header/Footer/Title/Description/Close を提供し、open/onOpenChange で制御する。AppIcon は `@lightlist/sdk/icons` の SVG パスデータを `react-native-svg` で描画する
-- `apps/native/src/components/app`: ネイティブ固有のタスク操作UIなど、画面共通で再利用するコンポーネント（TaskListPanel はタスク追加/編集/並び替え/完了/完了削除の操作UIを集約し、ヘッダーやリスト選択は画面側で管理）
+- `apps/native/src/components/ui`: ネイティブ向けのプリミティブ（Dialog, Drawer, AppIcon, Carousel）。Drawer は Root/Trigger/Portal/Overlay/Content/Header/Footer/Title/Description/Close を提供し、open/onOpenChange で制御する。AppIcon は `@lightlist/sdk/icons` の SVG パスデータを `react-native-svg` で描画する
+- `apps/native/src/components/app`: ネイティブ固有のタスク操作UIなど、画面共通で再利用するコンポーネント（TaskListPanel はタスク追加/編集/並び替え/完了/完了削除の操作UIを集約し、ヘッダーやリスト選択は画面側で管理）。AppDrawerContent はタスクリスト一覧とリスト作成・参加ダイアログを集約
 
 ## 追加・変更ルール
 
@@ -19,7 +19,8 @@
 ## Pages ルーティング
 
 - `apps/web` は `pageExtensions` を使い、`src/pages` 配下の `.page.tsx` / `.page.ts` のみをルーティング対象とする
-- ページに密結合の補助コンポーネントは、同じディレクトリに `.tsx` として同居させる（例: `src/pages/app/DrawerPanel.tsx`）
+- ページに密結合の補助コンポーネントは、同じディレクトリに `.tsx` として同居させる（例: `src/pages/app/DrawerPanel.tsx`, `src/pages/app/TaskListCard.tsx`）
+- TaskListCard はタスクリストの表示・操作（タスク追加/編集/並び替え/完了/削除）を内包し、`enableEditDialog`/`enableShareDialog` フラグでリスト編集・共有ダイアログの表示を制御できる。AppPage と ShareCodePage の両方から再利用可能
 
 ## モノレポ内SDKの取り込み
 
@@ -41,6 +42,7 @@
 - Drawer はオーバーレイやスライド方向、背景/文字色を Tailwind で定義し、ライト/ダークの可読性を担保する
 - z-index は通常レイヤーを 10 刻み（10〜100）、ダイアログ系は 100 刻み（1000〜1500）で管理し、Drawer はオーバーレイ 1000/コンテンツ 1100、Dialog はオーバーレイ 1200/コンテンツ 1300 を基本とする
 - モバイルの Drawer ではヘッダーに閉じる（×）ボタンを配置し、`aria-label`/`title` は i18next の `common.close` を使用する
+- モバイルの Drawer は開く際に History API で状態を追加し、ブラウザの戻るボタンや Android/iOS のスワイプジェスチャーで閉じられる。閉じる時は `history.back()` を呼び、`popstate` イベントで状態を同期する
 - Drawer のヘッダーではログインメールと設定導線を同一行に並べ、設定はアイコンボタンとして配置する。`aria-label`/`title` は i18next の `settings.title` を使用し、必要に応じて `data-vaul-no-drag` でタップ操作を阻害しないようにする
 - 左右ドロワーは vaul のドラッグ判定でタップが奪われやすいので、必要に応じて `handleOnly` や `data-vaul-no-drag` でドラッグ開始を抑止して操作性を安定させる
 - Dialog は `--dialog-bg` / `--dialog-fg` / `--dialog-muted` を `:root` と `.dark` で定義し、テーマ切り替えに追従させる

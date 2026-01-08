@@ -28,7 +28,7 @@
 - テーマ定義: `apps/native/src/styles/theme.ts` に集約
 - 画面: `apps/native/src/screens` に `AuthScreen` / `AppScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置
 - UIコンポーネント: `apps/native/src/components/ui/Dialog.tsx` に作成/編集用ダイアログの共通UIを集約
-- appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` を `AppScreen` / `ShareCodeScreen` で共通利用し、タスク追加/編集/並び替え/完了/完了削除の操作UIを集約（ヘッダーやリスト選択は画面側で管理）
+- appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` を `AppScreen` / `ShareCodeScreen` で共通利用し、タスク追加/編集/並び替え/完了/完了削除の操作UIを集約（ヘッダーやリスト選択は画面側で管理）。`apps/native/src/components/app/AppDrawerContent.tsx` はタスクリスト一覧と作成・参加ダイアログを集約
 - バリデーション/エラーハンドリング: `apps/native/src/utils/validation.ts` / `apps/native/src/utils/errors.ts` に集約
 - スタイル: `apps/native/src/styles/appStyles.ts` で画面共通のスタイルを管理
 
@@ -46,7 +46,7 @@
 - 画面幅が広い場合はドロワーの内容を常時表示（`permanent`）し、左にタスクリスト一覧、右にタスクリスト詳細の2カラムで操作する。ドロワー幅は Web と揃えて 360px（モバイルは最大 420px）を基準とし、メインコンテンツの最大幅を 768px に制限することで、ワイド画面での視認性を向上させている。
 - タスクリストの選択、作成（ドロワー内のダイアログで名前＋色）、編集（ダイアログ内で名前＋色）、削除、ドロワー内の drag_indicator アイコンボタン（枠線なし、パディング調整）で順序変更に対応。色の選択肢には「なし（テーマカラー）」を含み、背景色が設定されている場合は画面全体およびカルーセル内の各リストの背景に反映される
 - タスクリストの編集/共有はヘッダー右の edit/share アイコンボタン（枠線なし、パディング調整）からダイアログを開き、名前・色の更新と共有コードの発行/停止を行う。編集ダイアログの色選択でも「なし」を指定して背景色をリセットできる
-- タスクリスト詳細はカルーセルで横スワイプ切り替えでき、スワイプ位置と選択中のリストIDを同期する。並び替えハンドルのタッチ中のみ横スワイプを停止し、それ以外は横スワイプ優先で操作する。タスクリストのドラッグ操作は `activationDistance` を設定し、横スワイプ時にリストのジェスチャが先に反応しないよう調整する。上部にインジケーター（ドット）を表示し、現在のリスト位置を可視化・タップで切り替え可能
+- タスクリスト詳細はカルーセルで横スワイプ切り替えでき、スワイプ位置と選択中のリストIDを同期する。判定を緩く（`minScrollDistancePerSwipe: 10`, `activeOffsetX: [-8, 8]`）設定し、軽いスワイプでも隣のリストへ遷移しやすく調整している。並び替えハンドルのタッチ中のみ横スワイプを停止し、それ以外は横スワイプ優先で操作する。タスクリストのドラッグ操作は `activationDistance` を設定し、横スワイプ時にリストのジェスチャが先に反応しないよう調整する。上部にインジケーター（ドット）を表示し、現在のリスト位置を可視化・タップで切り替え可能
 - タスク追加フォームは上部に配置し、入力欄と send アイコンボタンで追加する。右側の calendar_today アイコンボタン（枠線なし、パディング調整）からDate Pickerで日付設定、完了切り替え、左端の drag_indicator アイコンボタン（枠線なし、パディング調整）による並び替え、ソート（sort アイコン付き、左寄せ、枠線なし、パディング調整）、完了タスク削除（delete アイコン付き、右寄せ、枠線なし、パディング調整）に対応
 - 設定画面でテーマ/言語/追加位置/自動並び替えを更新し、アカウント削除にも対応
 - サインアウトはドロワーと設定画面から実行
@@ -84,6 +84,7 @@
 - `apps/native/src/components/ui/Dialog.tsx`: タスクリスト作成などに使うダイアログの共通UI
 - `apps/native/src/components/ui/Carousel.tsx`: タスクリスト表示のカルーセルUI
 - `apps/native/src/components/app/TaskListPanel.tsx`: タスク操作の共通パネル
+- `apps/native/src/components/app/AppDrawerContent.tsx`: タスクリスト一覧と作成・参加ダイアログを集約
 - `apps/native/src/styles/appStyles.ts`: 共有スタイル
 - `apps/native/src/utils/i18n.ts`: i18next のリソースと初期化
 - `apps/native/src/utils/validation.ts`: 入力バリデーション

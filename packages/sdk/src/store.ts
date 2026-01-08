@@ -23,21 +23,16 @@ type DataStore = {
 type StoreListener = (state: AppState) => void;
 
 const transform = (d: DataStore): AppState => {
-  const mapStoreTaskListToAppTaskList = (
-    listId: string,
-    listData: TaskListStore,
-  ) => {
-    return {
-      id: listId,
-      name: listData.name,
-      tasks: Object.values(listData.tasks).sort((a, b) => a.order - b.order),
-      history: listData.history,
-      shareCode: listData.shareCode,
-      background: listData.background,
-      createdAt: listData.createdAt,
-      updatedAt: listData.updatedAt,
-    };
-  };
+  const mapTaskList = (listId: string, listData: TaskListStore): TaskList => ({
+    id: listId,
+    name: listData.name,
+    tasks: Object.values(listData.tasks).sort((a, b) => a.order - b.order),
+    history: listData.history,
+    shareCode: listData.shareCode,
+    background: listData.background,
+    createdAt: listData.createdAt,
+    updatedAt: listData.updatedAt,
+  });
 
   const taskListOrderEntries = d.taskListOrder
     ? Object.entries(d.taskListOrder)
@@ -49,9 +44,7 @@ const transform = (d: DataStore): AppState => {
         .sort((a, b) => a.order - b.order)
     : [];
 
-  const orderedTaskListIds = taskListOrderEntries.map(
-    (entry) => entry.taskListId,
-  );
+  const orderedTaskListIds = taskListOrderEntries.map((e) => e.taskListId);
   const orderedIdSet = new Set(orderedTaskListIds);
 
   const taskLists = orderedTaskListIds.map((listId) => {
@@ -66,18 +59,15 @@ const transform = (d: DataStore): AppState => {
         background: null,
         createdAt: 0,
         updatedAt: 0,
-      };
+      } as TaskList;
     }
-    return mapStoreTaskListToAppTaskList(listId, listData);
+    return mapTaskList(listId, listData);
   });
 
   const sharedTaskListsById: Record<string, TaskList> = {};
   Object.entries(d.taskLists).forEach(([listId, listData]) => {
     if (orderedIdSet.has(listId)) return;
-    sharedTaskListsById[listId] = mapStoreTaskListToAppTaskList(
-      listId,
-      listData,
-    );
+    sharedTaskListsById[listId] = mapTaskList(listId, listData);
   });
 
   return {
@@ -92,6 +82,62 @@ const transform = (d: DataStore): AppState => {
       : null,
     taskLists,
     taskListOrderUpdatedAt: d.taskListOrder?.updatedAt ?? null,
+    sharedTaskListsById,
+  };
+};
+
+const reuseUnchanged = (prev: AppState | null, next: AppState): AppState => {
+  if (!prev) return next;
+
+  const reuseTaskList = (p: TaskList, n: TaskList): TaskList =>
+    p.updatedAt === n.updatedAt ? p : n;
+
+  const taskLists =
+    prev.taskLists.length === next.taskLists.length &&
+    prev.taskLists.every((p, i) => p.updatedAt === next.taskLists[i].updatedAt)
+      ? prev.taskLists
+      : next.taskLists.map((n) => {
+          const p = prev.taskLists.find((t) => t.id === n.id);
+          return p ? reuseTaskList(p, n) : n;
+        });
+
+  const sharedTaskListsById = (() => {
+    const prevKeys = Object.keys(prev.sharedTaskListsById);
+    const nextKeys = Object.keys(next.sharedTaskListsById);
+    if (
+      prevKeys.length === nextKeys.length &&
+      prevKeys.every(
+        (k) =>
+          prev.sharedTaskListsById[k].updatedAt ===
+          next.sharedTaskListsById[k]?.updatedAt,
+      )
+    ) {
+      return prev.sharedTaskListsById;
+    }
+    const result: Record<string, TaskList> = {};
+    nextKeys.forEach((k) => {
+      const p = prev.sharedTaskListsById[k];
+      const n = next.sharedTaskListsById[k];
+      result[k] = p ? reuseTaskList(p, n) : n;
+    });
+    return result;
+  })();
+
+  const settings =
+    prev.settings &&
+    next.settings &&
+    prev.settings.theme === next.settings.theme &&
+    prev.settings.language === next.settings.language &&
+    prev.settings.taskInsertPosition === next.settings.taskInsertPosition &&
+    prev.settings.autoSort === next.settings.autoSort
+      ? prev.settings
+      : next.settings;
+
+  return {
+    user: next.user,
+    settings,
+    taskLists,
+    taskListOrderUpdatedAt: next.taskListOrderUpdatedAt,
     sharedTaskListsById,
   };
 };
@@ -119,8 +165,11 @@ function createStore() {
   };
 
   const commit = () => {
-    const nextState = transform(data);
+    const rawNextState = transform(data);
+    const nextState = reuseUnchanged(prevState, rawNextState);
+
     const nextStateKey = JSON.stringify(nextState);
+
     if (!prevStateKey || prevStateKey !== nextStateKey) {
       prevState = nextState;
       prevStateKey = nextStateKey;
@@ -204,7 +253,11 @@ function createStore() {
     chunks.forEach((chunk) => {
       const taskListsUnsub = onSnapshot(
         query(collection(db, "taskLists"), where("__name__", "in", chunk)),
+        { includeMetadataChanges: true },
         (snapshot) => {
+          if (snapshot.metadata.hasPendingWrites) {
+            return;
+          }
           const lists: { [taskListId: string]: TaskListStore } = {};
           snapshot.docs.forEach((doc) => {
             lists[doc.id] = doc.data() as TaskListStore;

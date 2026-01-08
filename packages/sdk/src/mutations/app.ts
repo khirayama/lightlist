@@ -224,7 +224,7 @@ export async function addTask(
     (a, b) => a.order - b.order,
   );
   const insertPosition =
-    data.settings?.taskInsertPosition === "top" ? "top" : "bottom";
+    data.settings?.taskInsertPosition === "bottom" ? "bottom" : "top";
   const insertIndex = insertPosition === "top" ? 0 : tasks.length;
 
   const now = Date.now();

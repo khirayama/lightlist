@@ -37,7 +37,7 @@ export async function signUp(
   const settingsData: SettingsStore = {
     theme: "system",
     language,
-    taskInsertPosition: "bottom",
+    taskInsertPosition: "top",
     autoSort: false,
     createdAt: now,
     updatedAt: now,

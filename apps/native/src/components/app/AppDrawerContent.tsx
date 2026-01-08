@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Pressable,
   Text,
@@ -6,10 +6,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import {
-  DrawerContentScrollView,
-  type DrawerContentComponentProps,
-} from "@react-navigation/drawer";
+import { type DrawerContentComponentProps } from "@react-navigation/drawer";
 import DraggableFlatList, {
   type RenderItemParams,
 } from "react-native-draggable-flatlist";
@@ -22,8 +19,6 @@ import type { TaskList } from "@lightlist/sdk/types";
 
 type Props = DrawerContentComponentProps & AppScreenProps;
 
-const EMPTY_TASK_LISTS: TaskList[] = [];
-
 export const AppDrawerContent = (props: Props) => {
   const {
     t,
@@ -35,11 +30,8 @@ export const AppDrawerContent = (props: Props) => {
     createListBackground,
     isCreatingList,
     isJoiningList,
-    isReorderingTaskLists,
     onSelectTaskList,
     onOpenSettings,
-    onOpenShareCode,
-    onConfirmSignOut,
     onChangeCreateListName,
     onChangeCreateListBackground,
     onChangeJoinListInput,
@@ -54,18 +46,12 @@ export const AppDrawerContent = (props: Props) => {
 
   const [isCreateListDialogOpen, setIsCreateListDialogOpen] = useState(false);
   const [isJoinListDialogOpen, setIsJoinListDialogOpen] = useState(false);
-  const [orderedTaskLists, setOrderedTaskLists] =
-    useState<TaskList[]>(taskLists);
-  const stableTaskLists = taskLists.length > 0 ? taskLists : EMPTY_TASK_LISTS;
   const { width } = useWindowDimensions();
   const isWideLayout = width >= 1024;
 
   const canCreateList = !isCreatingList && createListName.trim().length > 0;
   const canJoinList = !isJoiningList && joinListInput.trim().length > 0;
-
-  useEffect(() => {
-    setOrderedTaskLists(stableTaskLists);
-  }, [stableTaskLists]);
+  const canDragList = taskLists.length > 1;
 
   const handleCreateListDialogChange = (open: boolean) => {
     setIsCreateListDialogOpen(open);
@@ -108,11 +94,6 @@ export const AppDrawerContent = (props: Props) => {
   const handleOpenSettings = () => {
     navigation.closeDrawer();
     onOpenSettings();
-  };
-
-  const handleOpenShareCode = () => {
-    navigation.closeDrawer();
-    onOpenShareCode();
   };
 
   return (
@@ -163,16 +144,11 @@ export const AppDrawerContent = (props: Props) => {
       </View>
 
       <DraggableFlatList
-        data={orderedTaskLists}
+        data={taskLists}
         keyExtractor={(item) => item.id}
-        onDragEnd={({ data, from, to }) => {
-          if (isReorderingTaskLists) {
-            setOrderedTaskLists(data);
-            return;
-          }
-          const draggedList = orderedTaskLists[from];
-          const targetList = orderedTaskLists[to];
-          setOrderedTaskLists(data);
+        onDragEnd={({ from, to }) => {
+          const draggedList = taskLists[from];
+          const targetList = taskLists[to];
           if (!draggedList || !targetList || from === to) return;
           void onReorderTaskList(draggedList.id, targetList.id);
         }}
@@ -471,15 +447,12 @@ export const AppDrawerContent = (props: Props) => {
         }: RenderItemParams<TaskList>) => {
           const isSelected = item.id === selectedTaskListId;
           const currentIndex =
-            getIndex() ??
-            orderedTaskLists.findIndex((list) => list.id === item.id);
-          const canDragList =
-            !isReorderingTaskLists && orderedTaskLists.length > 1;
+            getIndex() ?? taskLists.findIndex((list) => list.id === item.id);
           const canMoveListUp = canDragList && currentIndex > 0;
           const canMoveListDown =
             canDragList &&
             currentIndex >= 0 &&
-            currentIndex < orderedTaskLists.length - 1;
+            currentIndex < taskLists.length - 1;
           const accessibilityActions: { name: string; label: string }[] = [];
 
           if (canMoveListUp) {
@@ -497,7 +470,7 @@ export const AppDrawerContent = (props: Props) => {
 
           const handleMoveListByOffset = (offset: number) => {
             if (!canDragList || currentIndex < 0) return;
-            const targetList = orderedTaskLists[currentIndex + offset];
+            const targetList = taskLists[currentIndex + offset];
             if (!targetList) return;
             void onReorderTaskList(item.id, targetList.id);
           };

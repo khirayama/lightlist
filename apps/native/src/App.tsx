@@ -48,6 +48,7 @@ import {
   deleteTaskList,
   fetchTaskListIdByShareCode,
   generateShareCode,
+  generateTaskId,
   removeShareCode,
   sortTasks,
   updateSettings,
@@ -165,13 +166,7 @@ export default function App() {
   const [isSavingList, setIsSavingList] = useState(false);
   const [isJoiningList, setIsJoiningList] = useState(false);
   const [isDeletingList, setIsDeletingList] = useState(false);
-  const [isAddingTask, setIsAddingTask] = useState(false);
-  const [isUpdatingTask, setIsUpdatingTask] = useState(false);
-  const [isReorderingTasks, setIsReorderingTasks] = useState(false);
-  const [isReorderingTaskLists, setIsReorderingTaskLists] = useState(false);
-  const [isSortingTasks, setIsSortingTasks] = useState(false);
-  const [isDeletingCompletedTasks, setIsDeletingCompletedTasks] =
-    useState(false);
+
   const [isGeneratingShareCode, setIsGeneratingShareCode] = useState(false);
   const [isRemovingShareCode, setIsRemovingShareCode] = useState(false);
   const [navigationReady, setNavigationReady] = useState(false);
@@ -180,7 +175,6 @@ export default function App() {
     const unsubscribe = appStore.subscribe((nextState) => {
       setAppState(nextState);
     });
-    setAppState(appStore.getState());
     return () => {
       unsubscribe();
     };
@@ -222,11 +216,6 @@ export default function App() {
       setIsDeletingAccount(false);
       setIsGeneratingShareCode(false);
       setIsRemovingShareCode(false);
-      setIsUpdatingTask(false);
-      setIsReorderingTasks(false);
-      setIsReorderingTaskLists(false);
-      setIsSortingTasks(false);
-      setIsDeletingCompletedTasks(false);
     }
   }, [appState.user]);
 
@@ -611,7 +600,6 @@ export default function App() {
   ) => {
     if (!draggedTaskListId || !targetTaskListId) return;
     if (draggedTaskListId === targetTaskListId) return;
-    setIsReorderingTaskLists(true);
     setAppErrorMessage(null);
     try {
       await updateTaskListOrder(draggedTaskListId, targetTaskListId);
@@ -621,8 +609,6 @@ export default function App() {
       } else {
         setAppErrorMessage(t("app.error"));
       }
-    } finally {
-      setIsReorderingTaskLists(false);
     }
   };
 
@@ -633,19 +619,17 @@ export default function App() {
       setAppErrorMessage(t("form.required"));
       return;
     }
-    setIsAddingTask(true);
     setAppErrorMessage(null);
+    setNewTaskText("");
     try {
       await addTask(selectedTaskList.id, trimmedText);
-      setNewTaskText("");
     } catch (error) {
+      setNewTaskText(trimmedText);
       if (error instanceof Error) {
         setAppErrorMessage(error.message);
       } else {
         setAppErrorMessage(t("app.error"));
       }
-    } finally {
-      setIsAddingTask(false);
     }
   };
 
@@ -655,7 +639,6 @@ export default function App() {
       setAppErrorMessage(t("form.required"));
       return;
     }
-    setIsUpdatingTask(true);
     setAppErrorMessage(null);
     try {
       await updateTask(selectedTaskList.id, taskId, updates);
@@ -665,8 +648,6 @@ export default function App() {
       } else {
         setAppErrorMessage(t("app.error"));
       }
-    } finally {
-      setIsUpdatingTask(false);
     }
   };
 
@@ -677,7 +658,6 @@ export default function App() {
     if (!selectedTaskList) return;
     if (!draggedTaskId || !targetTaskId) return;
     if (draggedTaskId === targetTaskId) return;
-    setIsReorderingTasks(true);
     setAppErrorMessage(null);
     try {
       await updateTasksOrder(selectedTaskList.id, draggedTaskId, targetTaskId);
@@ -687,14 +667,11 @@ export default function App() {
       } else {
         setAppErrorMessage(t("app.error"));
       }
-    } finally {
-      setIsReorderingTasks(false);
     }
   };
 
   const handleSortTasks = async () => {
     if (!selectedTaskList) return;
-    setIsSortingTasks(true);
     setAppErrorMessage(null);
     try {
       await sortTasks(selectedTaskList.id);
@@ -704,14 +681,11 @@ export default function App() {
       } else {
         setAppErrorMessage(t("app.error"));
       }
-    } finally {
-      setIsSortingTasks(false);
     }
   };
 
   const handleDeleteCompletedTasks = async () => {
     if (!selectedTaskList) return;
-    setIsDeletingCompletedTasks(true);
     setAppErrorMessage(null);
     try {
       await deleteCompletedTasks(selectedTaskList.id);
@@ -721,8 +695,6 @@ export default function App() {
       } else {
         setAppErrorMessage(t("app.error"));
       }
-    } finally {
-      setIsDeletingCompletedTasks(false);
     }
   };
 
@@ -842,7 +814,7 @@ export default function App() {
   const { width } = useWindowDimensions();
   const isWideLayout = width >= 1024;
   const userEmail = appState.user?.email ?? "";
-  const tasks = selectedTaskList?.tasks ?? [];
+
   const screenMode: "auth" | "task" = appState.user ? "task" : "auth";
   const renderAuthScreen = () => (
     <AuthScreen
@@ -872,7 +844,6 @@ export default function App() {
     taskLists: appState.taskLists,
     selectedTaskList,
     selectedTaskListId,
-    tasks,
     appErrorMessage,
     createListName,
     createListBackground,
@@ -884,7 +855,6 @@ export default function App() {
     isCreatingList,
     isSavingList,
     isDeletingList,
-    isAddingTask,
     isJoiningList,
     shareCode: selectedTaskList?.shareCode ?? null,
     shareErrorMessage,
@@ -917,11 +887,6 @@ export default function App() {
     onReorderTaskList: handleReorderTaskList,
     onGenerateShareCode: handleGenerateShareCode,
     onRemoveShareCode: handleRemoveShareCode,
-    isUpdatingTask,
-    isReorderingTasks,
-    isSortingTasks,
-    isDeletingCompletedTasks,
-    isReorderingTaskLists,
   };
 
   const renderAppScreen = () => (

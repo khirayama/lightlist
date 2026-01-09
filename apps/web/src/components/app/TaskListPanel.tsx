@@ -132,7 +132,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-start gap-2 rounded-xl px-2 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+      className="flex gap-2 rounded-xl py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50"
     >
       <button
         {...attributes}
@@ -140,7 +140,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
         title={dragHintLabel}
         aria-label={dragHintLabel}
         type="button"
-        className="mt-0.5 touch-none rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+        className="flex h-7 items-center touch-none rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
       >
         <AppIcon
           name="drag-indicator"
@@ -154,12 +154,12 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
         type="checkbox"
         checked={task.completed}
         onChange={() => onToggle(task)}
-        className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50"
+        className="mt-1.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50"
       />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         {dateDisplayValue ? (
-          <span className="mb-0.5 text-xs text-gray-500 dark:text-gray-400">
+          <span className="absolute -top-2 left-0 text-xs leading-none text-gray-500 dark:text-gray-400">
             {dateDisplayValue}
           </span>
         ) : null}
@@ -180,17 +180,24 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             className="min-w-0 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
           />
         ) : (
-          <button
-            type="button"
+          <span
+            role="button"
+            tabIndex={0}
             onClick={() => onEditStart(task)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onEditStart(task);
+              }
+            }}
             className={
               task.completed
-                ? "min-w-0 text-left text-sm font-medium text-gray-600 line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:focus-visible:outline-gray-500"
-                : "min-w-0 text-left text-sm font-medium text-gray-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+                ? "min-w-0 cursor-pointer text-left text-sm font-medium leading-7 text-gray-600 line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:focus-visible:outline-gray-500"
+                : "min-w-0 cursor-pointer text-left text-sm font-medium leading-7 text-gray-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
             }
           >
             {task.text}
-          </button>
+          </span>
         )}
       </div>
 
@@ -200,7 +207,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             type="button"
             aria-label={setDateLabel}
             title={dateTitle}
-            className="mt-0.5 rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+            className="flex h-7 items-center rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
           >
             <AppIcon
               name="calendar-today"

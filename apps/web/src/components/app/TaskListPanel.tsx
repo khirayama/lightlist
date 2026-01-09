@@ -117,7 +117,6 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
     setSelectedDate(parseTaskDate(task.date));
   }, [task.date]);
 
-  const dateValue = selectedDate ? formatTaskDate(selectedDate) : null;
   const dateDisplayValue = selectedDate
     ? new Intl.DateTimeFormat(i18n.language, {
         month: "short",

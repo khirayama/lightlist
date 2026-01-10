@@ -1,5 +1,7 @@
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, collection, query, where, onSnapshot } from "firebase/firestore";
+import memoizeOne from "memoize-one";
+import isEqual from "fast-deep-equal";
 
 import { auth, db } from "./firebase";
 import {
@@ -94,6 +96,8 @@ function createStore() {
     taskLists: {},
   };
 
+  const memoizedIdentity = memoizeOne((state: AppState) => state, isEqual);
+
   const listeners = new Set<StoreListener>();
   const unsubscribers: (() => void)[] = [];
   const sharedTaskListUnsubscribers = new Map<string, () => void>();
@@ -106,8 +110,10 @@ function createStore() {
     unsubscribes.forEach((unsubscribe) => unsubscribe());
   };
 
+  const getState = (): AppState => memoizedIdentity(transform(data));
+
   const commit = () => {
-    const nextState = transform(data);
+    const nextState = getState();
     listeners.forEach((listener) => listener(nextState));
   };
 
@@ -246,7 +252,7 @@ function createStore() {
   });
 
   const store = {
-    getState: (): AppState => transform(data),
+    getState,
     getData: (): DataStore => data,
     commit,
     subscribe: (listener: StoreListener) => {

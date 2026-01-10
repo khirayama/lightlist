@@ -9,11 +9,11 @@ import {
   DragEndEvent,
   UniqueIdentifier,
 } from "@dnd-kit/core";
-import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
-import { AppState, TaskList } from "@lightlist/sdk/types";
+import type { AppState, TaskList } from "@lightlist/sdk/types";
 import {
   createTaskList,
   updateTaskListOrder,
@@ -46,10 +46,6 @@ const getStringId = (id: UniqueIdentifier): string | null =>
 
 const resolveTaskListBackground = (background: string | null): string =>
   background ?? "var(--tasklist-theme-bg)";
-
-type OptimisticOrder = {
-  ids: string[];
-};
 
 type DrawerPanelContent = ComponentPropsWithoutRef<
   typeof DrawerContent
@@ -168,8 +164,6 @@ export default function AppPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isWideLayout, setIsWideLayout] = useState(false);
   const [isTaskSorting, setIsTaskSorting] = useState(false);
-  const [optimisticTaskListOrder, setOptimisticTaskListOrder] =
-    useState<OptimisticOrder | null>(null);
 
   const sensorsList = useSensors(
     useSensor(PointerSensor, {
@@ -210,14 +204,6 @@ export default function AppPage() {
       setSelectedTaskListId(state.taskLists[0].id);
     }
   }, [state?.taskLists, selectedTaskListId]);
-
-  useEffect(() => {
-    if (!optimisticTaskListOrder) return;
-    if (!state?.taskListOrderUpdatedAt) return;
-    // We don't have startedAt anymore, so we rely on the state update to clear it.
-    // In a real scenario, we might want to keep it until a successful update.
-    setOptimisticTaskListOrder(null);
-  }, [state?.taskListOrderUpdatedAt]);
 
   useEffect(() => {
     if (selectedTaskList) {
@@ -304,13 +290,6 @@ export default function AppPage() {
   const hasTaskLists = Boolean(state?.taskLists?.length);
   const userEmail = state?.user?.email || t("app.drawerNoEmail");
   const taskLists = state?.taskLists ?? [];
-  const taskListsForDrawer = optimisticTaskListOrder
-    ? optimisticTaskListOrder.ids
-        .map((taskListId) =>
-          taskLists.find((taskList) => taskList.id === taskListId),
-        )
-        .filter((taskList): taskList is TaskList => Boolean(taskList))
-    : taskLists;
   const selectedTaskListIndex = Math.max(
     0,
     taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
@@ -325,20 +304,10 @@ export default function AppPage() {
     const targetTaskListId = getStringId(over.id);
     if (!draggedTaskListId || !targetTaskListId) return;
 
-    const currentIds = taskListsForDrawer.map((taskList) => taskList.id);
-    const oldIndex = currentIds.indexOf(draggedTaskListId);
-    const newIndex = currentIds.indexOf(targetTaskListId);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    setOptimisticTaskListOrder({
-      ids: arrayMove(currentIds, oldIndex, newIndex),
-    });
-
     setError(null);
     try {
       await updateTaskListOrder(draggedTaskListId, targetTaskListId);
     } catch (err) {
-      setOptimisticTaskListOrder(null);
       setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
@@ -552,7 +521,7 @@ export default function AppPage() {
       joinListError={joinListError}
       joiningList={joiningList}
       hasTaskLists={hasTaskLists}
-      taskLists={taskListsForDrawer}
+      taskLists={taskLists}
       sensorsList={sensorsList}
       onDragEndTaskList={handleDragEndTaskList}
       selectedTaskListId={selectedTaskListId}

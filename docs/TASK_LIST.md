@@ -12,7 +12,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 - Shadcn Drawer で左側にタスクリスト一覧と作成フローをまとめ、右側にタスク詳細カルーセルを置く 2 カラム構成。幅 1024px 以上ではドロワー内容を左カラムとして常時表示し、狭い幅ではトリガー付きのオーバーレイ表示に切り替える。
 - レイアウトは AppShell の画面100%（`h-dvh`）を基準とし、ページ最上位は `min-h-full w-full` を前提に組み立てる。
-- タスクリストとタスクの並び替えはすべて `@dnd-kit` のドラッグハンドルで行う。UI はドロップ直後にローカルで順序を即時反映（optimistic）し、Firestore への反映は非同期で追従する。`appStore` の購読更新で順序が確定し、他ユーザー更新が入った場合も最新状態に追従する。
+- タスクリストとタスクの並び替えはすべて `@dnd-kit` のドラッグハンドルで行う。Firestore への反映は非同期で行い、`appStore` の購読更新で順序が確定し、他ユーザー更新が入った場合も最新状態に追従する。
 - モバイルではドラッグ開始時のスクロール競合を避けるため、ドラッグハンドルに `touch-action: none`（Tailwind: `touch-none`）を付与している。
 - 並び替えのドラッグは縦方向のみに制限し、`DndContext` の `modifiers` に `restrictToVerticalAxis` を設定している。
 - Firebase 認証の状態を監視し、未ログインの場合は `/` にリダイレクト。
@@ -37,13 +37,13 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 - **タスクリスト:** `updateTaskListOrder(draggedTaskListId, targetTaskListId)` で全リストの order を再採番。
 - **タスク:** `updateTasksOrder(taskListId, draggedTaskId, targetTaskId)` でタスク順を更新。`autoSort` が有効な場合、`updateTask` 内でも完了状態と日付に基づき order を再計算する。
-- **UI の順序確定:** タスクリストの並び替えは `taskListOrderUpdatedAt`、タスクの並び替えは各 `TaskListCard` が監視する `TaskList.updatedAt` を基準に、`appStore` の更新で optimistic 表示を確定・解除する。
+- **UI の順序確定:** タスクリストの並び替えは `taskListOrderUpdatedAt`、タスクの並び替えは各 `TaskListCard` が監視する `TaskList.updatedAt` を基準に、`appStore` の更新で反映される。
 
 ### 入力とエラー
 
 - 追加ボタンは入力が空白のときに無効化。
 - 新規作成/編集/追加の確定はフォーム送信（`Enter` / 送信ボタン）に統一し、キー操作とクリック操作で同じ処理を実行する。
-- タスク追加は送信中表示を出さず、入力欄はフォーカスを維持したまま次の入力を受け付ける。リスト側は新規タスクを楽観的に即時追加し、失敗時は取り消してエラーを表示する。
+- タスク追加は送信中表示を出さず、入力欄はフォーカスを維持したまま次の入力を受け付ける。失敗時はエラーを表示する。
 - Firebase 由来のエラーコードは `AppError` を渡して `resolveErrorMessage` で i18n キーに変換し、`Alert` で表示する。
 
 ### アクセシビリティ
@@ -84,10 +84,6 @@ const [taskListCarouselApi, setTaskListCarouselApi] =
 const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 const [isWideLayout, setIsWideLayout] = useState(false);
 const [isTaskSorting, setIsTaskSorting] = useState(false);
-const [optimisticTaskListOrder, setOptimisticTaskListOrder] = useState<{
-  ids: string[];
-  startedAt: number;
-} | null>(null);
 ```
 
 **ドロワー状態の詳細:**
@@ -97,7 +93,7 @@ const [optimisticTaskListOrder, setOptimisticTaskListOrder] = useState<{
 - 狭い幅で Drawer を開いている間は `router.beforePopState` で「戻る」操作をフックし、ページ遷移ではなく Drawer を閉じる。履歴にダミーエントリを積まないため、設定画面などへの遷移と競合しない。
 - `selectedTaskListId`: 現在選択中のタスクリスト ID。マウント時に最初のリストを選択し、Drawer 内の選択やカルーセルスクロールに合わせて同期する。
 - `isTaskSorting`: `TaskListPanel` の DnD 並び替え中フラグ。`Carousel` のホイールジェスチャーを抑止して誤操作を防ぐ。
-- タスクの追加/編集入力（`newTaskText` / `editingTaskId` / `editingTaskText` など）とタスク並び替えの optimistic 表示は、各 `TaskListCard` に閉じ込めて管理する（リスト間でフォーム状態を共有しない）。
+- タスクの追加/編集入力（`newTaskText` / `editingTaskId` / `editingTaskText` など）は、各 `TaskListCard` に閉じ込めて管理する（リスト間でフォーム状態を共有しない）。
 
 ### アプリケーション状態（Store）
 
@@ -503,7 +499,7 @@ taskList:
 
 ### 状態管理
 
-`apps/web/src/pages/app/index.page.tsx` は、タスクリスト選択・Drawer/Carousel・各 Dialog（リスト編集/共有/作成）などページ横断の状態を管理する。タスク追加/編集入力やタスク並び替えの optimistic 表示、タスク操作のエラーは各 `TaskListCard` に閉じ込める。
+`apps/web/src/pages/app/index.page.tsx` は、タスクリスト選択・Drawer/Carousel・各 Dialog（リスト編集/共有/作成）などページ横断の状態を管理する。タスク追加/編集入力やタスク操作のエラーは各 `TaskListCard` に閉じ込める。
 
 ```typescript
 const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
@@ -531,17 +527,12 @@ const [taskListCarouselApi, setTaskListCarouselApi] =
 const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 const [isWideLayout, setIsWideLayout] = useState(false);
 const [isTaskSorting, setIsTaskSorting] = useState(false);
-const [optimisticTaskListOrder, setOptimisticTaskListOrder] = useState<{
-  ids: string[];
-  startedAt: number;
-} | null>(null);
 ```
 
 - `selectedTaskListId`: 表示対象のタスクリスト ID。初回ロード時に最初のリストを自動選択し、Embla の select イベントでカルーセルと Drawer 選択を片方向同期する。
 - `state`: `appStore` から購読した `AppState`。ユーザー、設定、タスクリストを保持。
 - `error`: ページ上部に表示するページレベルのエラーメッセージ（リスト作成/編集/削除/共有など）。
 - `isTaskSorting`: `TaskListPanel` からの sorting 状態を受け取り、カルーセルのホイールジェスチャーを抑止する。
-- `optimisticTaskListOrder`: タスクリスト並び替えの optimistic 表示。
 - タスク操作（追加/編集/完了/日付設定/並び替え）の状態とエラーは `TaskListCard` が担当し、リストごとに独立して保持する。
 
 ### API インターフェース
@@ -830,10 +821,6 @@ const [error, setError] = useState<string | null>(null);
 const [user, setUser] = useState<typeof auth.currentUser>(null);
 const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 // ... その他のタスク編集状態
-const [optimisticTaskOrder, setOptimisticTaskOrder] = useState<{
-  ids: string[];
-  startedAt: number;
-} | null>(null);
 ```
 
 **データ同期:**

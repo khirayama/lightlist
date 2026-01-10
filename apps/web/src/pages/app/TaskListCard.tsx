@@ -1,12 +1,11 @@
 import type { TFunction } from "i18next";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type {
   DragEndEvent,
   SensorDescriptor,
   SensorOptions,
   UniqueIdentifier,
 } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 import type { Task, TaskInsertPosition, TaskList } from "@lightlist/sdk/types";
 import clsx from "clsx";
 
@@ -16,7 +15,6 @@ import {
   updateTasksOrder,
   sortTasks,
   deleteCompletedTasks,
-  generateTaskId,
 } from "@lightlist/sdk/mutations/app";
 import { TaskListPanel } from "@/components/app/TaskListPanel";
 import { Alert } from "@/components/ui/Alert";
@@ -33,11 +31,6 @@ import { ColorPicker, type ColorOption } from "@/components/ui/ColorPicker";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
-
-type OptimisticOrder = {
-  ids: string[];
-  startedAt: number;
-};
 
 type TaskListCardProps = {
   taskList: TaskList;
@@ -100,46 +93,13 @@ export function TaskListCard({
   onRemoveShareCode,
   onCopyShareLink,
 }: TaskListCardProps) {
-  const [optimisticTaskOrder, setOptimisticTaskOrder] =
-    useState<OptimisticOrder | null>(null);
-  const [optimisticAddedTasks, setOptimisticAddedTasks] = useState<Task[]>([]);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!optimisticTaskOrder) return;
-    if (taskList.updatedAt >= optimisticTaskOrder.startedAt) {
-      setOptimisticTaskOrder(null);
-    }
-  }, [optimisticTaskOrder, taskList.updatedAt]);
-
-  useEffect(() => {
-    if (optimisticAddedTasks.length === 0) return;
-    const existingIds = new Set(taskList.tasks.map((task) => task.id));
-    const next = optimisticAddedTasks.filter(
-      (task) => !existingIds.has(task.id),
-    );
-    if (next.length === optimisticAddedTasks.length) return;
-    setOptimisticAddedTasks(next);
-  }, [optimisticAddedTasks, taskList.tasks]);
-
-  const optimisticTasks = optimisticTaskOrder
-    ? optimisticTaskOrder.ids
-        .map((taskId) => taskList.tasks.find((task) => task.id === taskId))
-        .filter((task): task is Task => Boolean(task))
-    : null;
-  const baseTasks = optimisticTasks ?? taskList.tasks;
-  const baseTaskIds = new Set(baseTasks.map((task) => task.id));
-  const pendingTasks = optimisticAddedTasks.filter(
-    (task) => !baseTaskIds.has(task.id),
-  );
-  const tasks = [
-    ...(taskInsertPosition === "top" ? pendingTasks : baseTasks),
-    ...(taskInsertPosition === "top" ? baseTasks : pendingTasks),
-  ];
+  const tasks = taskList.tasks;
 
   const handleDragEndTask = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -148,23 +108,10 @@ export function TaskListCard({
     const targetTaskId = getStringId(over.id);
     if (!draggedTaskId || !targetTaskId) return;
 
-    const baseTaskIds = optimisticTaskOrder
-      ? optimisticTaskOrder.ids
-      : taskList.tasks.map((task) => task.id);
-    const oldIndex = baseTaskIds.indexOf(draggedTaskId);
-    const newIndex = baseTaskIds.indexOf(targetTaskId);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    setOptimisticTaskOrder({
-      ids: arrayMove(baseTaskIds, oldIndex, newIndex),
-      startedAt: Date.now(),
-    });
-
     setTaskError(null);
     try {
       await updateTasksOrder(taskList.id, draggedTaskId, targetTaskId);
     } catch (err) {
-      setOptimisticTaskOrder(null);
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }
   };
@@ -234,40 +181,22 @@ export function TaskListCard({
     }
   };
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     const trimmedText = newTaskText.trim();
     if (trimmedText === "") return;
 
-    const newTaskId = generateTaskId();
-    const optimisticTask: Task = {
-      id: newTaskId,
-      text: trimmedText,
-      completed: false,
-      date: "",
-    };
-
     setTaskError(null);
     setAddTaskError(null);
-    setOptimisticAddedTasks((prev) =>
-      taskInsertPosition === "top"
-        ? [optimisticTask, ...prev]
-        : [...prev, optimisticTask],
-    );
     setNewTaskText("");
 
-    void (async () => {
-      try {
-        await addTask(taskList.id, trimmedText, "", newTaskId);
-      } catch (err) {
-        setOptimisticAddedTasks((prev) =>
-          prev.filter((task) => task.id !== newTaskId),
-        );
-        setAddTaskError(resolveErrorMessage(err, t, "common.error"));
-        setNewTaskText((current) =>
-          current.trim() === "" ? trimmedText : current,
-        );
-      }
-    })();
+    try {
+      await addTask(taskList.id, trimmedText);
+    } catch (err) {
+      setAddTaskError(resolveErrorMessage(err, t, "common.error"));
+      setNewTaskText((current) =>
+        current.trim() === "" ? trimmedText : current,
+      );
+    }
   };
 
   const inputClass =

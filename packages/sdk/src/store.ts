@@ -86,62 +86,6 @@ const transform = (d: DataStore): AppState => {
   };
 };
 
-const reuseUnchanged = (prev: AppState | null, next: AppState): AppState => {
-  if (!prev) return next;
-
-  const reuseTaskList = (p: TaskList, n: TaskList): TaskList =>
-    p.updatedAt === n.updatedAt ? p : n;
-
-  const taskLists =
-    prev.taskLists.length === next.taskLists.length &&
-    prev.taskLists.every((p, i) => p.updatedAt === next.taskLists[i].updatedAt)
-      ? prev.taskLists
-      : next.taskLists.map((n) => {
-          const p = prev.taskLists.find((t) => t.id === n.id);
-          return p ? reuseTaskList(p, n) : n;
-        });
-
-  const sharedTaskListsById = (() => {
-    const prevKeys = Object.keys(prev.sharedTaskListsById);
-    const nextKeys = Object.keys(next.sharedTaskListsById);
-    if (
-      prevKeys.length === nextKeys.length &&
-      prevKeys.every(
-        (k) =>
-          prev.sharedTaskListsById[k].updatedAt ===
-          next.sharedTaskListsById[k]?.updatedAt,
-      )
-    ) {
-      return prev.sharedTaskListsById;
-    }
-    const result: Record<string, TaskList> = {};
-    nextKeys.forEach((k) => {
-      const p = prev.sharedTaskListsById[k];
-      const n = next.sharedTaskListsById[k];
-      result[k] = p ? reuseTaskList(p, n) : n;
-    });
-    return result;
-  })();
-
-  const settings =
-    prev.settings &&
-    next.settings &&
-    prev.settings.theme === next.settings.theme &&
-    prev.settings.language === next.settings.language &&
-    prev.settings.taskInsertPosition === next.settings.taskInsertPosition &&
-    prev.settings.autoSort === next.settings.autoSort
-      ? prev.settings
-      : next.settings;
-
-  return {
-    user: next.user,
-    settings,
-    taskLists,
-    taskListOrderUpdatedAt: next.taskListOrderUpdatedAt,
-    sharedTaskListsById,
-  };
-};
-
 function createStore() {
   const data: DataStore = {
     user: null,
@@ -154,8 +98,6 @@ function createStore() {
   const unsubscribers: (() => void)[] = [];
   const sharedTaskListUnsubscribers = new Map<string, () => void>();
 
-  let prevState: AppState | null = null;
-  let prevStateKey: string | null = null;
   let taskListIdsKey: string | null = null;
 
   const unsubscribeSharedTaskLists = () => {
@@ -165,16 +107,8 @@ function createStore() {
   };
 
   const commit = () => {
-    const rawNextState = transform(data);
-    const nextState = reuseUnchanged(prevState, rawNextState);
-
-    const nextStateKey = JSON.stringify(nextState);
-
-    if (!prevStateKey || prevStateKey !== nextStateKey) {
-      prevState = nextState;
-      prevStateKey = nextStateKey;
-      listeners.forEach((listener) => listener(nextState));
-    }
+    const nextState = transform(data);
+    listeners.forEach((listener) => listener(nextState));
   };
 
   const subscribeToUserData = (uid: string) => {

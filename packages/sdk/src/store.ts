@@ -103,6 +103,7 @@ function createStore() {
   const sharedTaskListUnsubscribers = new Map<string, () => void>();
 
   let taskListIdsKey: string | null = null;
+  let lastState: AppState | null = null;
 
   const unsubscribeSharedTaskLists = () => {
     const unsubscribes = Array.from(sharedTaskListUnsubscribers.values());
@@ -114,6 +115,8 @@ function createStore() {
 
   const commit = () => {
     const nextState = getState();
+    if (nextState === lastState) return;
+    lastState = nextState;
     listeners.forEach((listener) => listener(nextState));
   };
 

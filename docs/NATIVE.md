@@ -38,7 +38,7 @@
 - `expo-splash-screen` を使用し、認証状態の確定が完了するまでスプラッシュスクリーンを表示し続けることで、起動時の画面のちらつきを防止。アイコンは SVG 化（`react-native-svg`）されており、フォントのロード待ちを排除している
 - 共有コード画面 `ShareCodeScreen` を追加し、共有コード入力で共有リストの閲覧・追加・編集（テキスト/期限、日付設定ボタンのDate Picker経由）・完了切り替え・並び替え・完了タスク削除・自分のリスト追加に対応
 - `ShareCodeScreen` は共有リスト未取得時のタスク配列参照を固定し、状態同期の無限再レンダーを回避
-- `AppScreen` はタスクリスト未取得時の配列参照を固定し、依存関係の無限再実行を防止
+- `AppScreen` はタスクリスト未取得時の配列参照を固定し、依存関係の無限再実行を防止。また、`Carousel` コンポーネントの `api` オブジェクトを `useMemo` でメモ化し、`setApi` 経由での無限再レンダーを解消
 - `password-reset?oobCode=...` のディープリンクを `PasswordResetScreen` にマッピングし、パスワード再設定を実行
 - 認証状態の変化時にナビゲーションをリセットし、ログイン時は `AppScreen` に遷移
 - `NavigationContainer` + `NativeStack` で画面を構成

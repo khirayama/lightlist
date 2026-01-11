@@ -1,4 +1,3 @@
-import type { TFunction } from "i18next";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -8,28 +7,27 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import {
   confirmPasswordReset,
   verifyPasswordResetCode,
 } from "@lightlist/sdk/mutations/auth";
 import { styles } from "../styles/appStyles";
-import type { Theme } from "../styles/theme";
+import { useTheme } from "../styles/theme";
 import { resolvePasswordResetErrorMessage } from "../utils/errors";
 import { validatePasswordResetForm } from "../utils/validation";
 
 type PasswordResetScreenProps = {
-  t: TFunction;
-  theme: Theme;
   oobCode: string | null;
   onBack: () => void;
 };
 
 export const PasswordResetScreen = ({
-  t,
-  theme,
   oobCode,
   onBack,
 }: PasswordResetScreenProps) => {
+  const { t } = useTranslation();
+  const theme = useTheme();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);

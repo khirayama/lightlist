@@ -1,4 +1,3 @@
-import type { TFunction } from "i18next";
 import {
   useCallback,
   useEffect,
@@ -6,13 +5,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-
-const arrayMove = <T,>(array: T[], from: number, to: number): T[] => {
-  const result = array.slice();
-  const [removed] = result.splice(from, 1);
-  result.splice(to, 0, removed);
-  return result;
-};
 import {
   ActivityIndicator,
   Pressable,
@@ -20,8 +12,9 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import { appStore } from "@lightlist/sdk/store";
-import type { AppState, Task, TaskList } from "@lightlist/sdk/types";
+import type { Task, TaskList } from "@lightlist/sdk/types";
 import {
   addSharedTaskListToOrder,
   addTask,
@@ -33,11 +26,16 @@ import {
 } from "@lightlist/sdk/mutations/app";
 import { TaskListPanel } from "../components/app/TaskListPanel";
 import { styles } from "../styles/appStyles";
-import type { Theme } from "../styles/theme";
+import { useTheme } from "../styles/theme";
+
+const arrayMove = <T,>(array: T[], from: number, to: number): T[] => {
+  const result = array.slice();
+  const [removed] = result.splice(from, 1);
+  result.splice(to, 0, removed);
+  return result;
+};
 
 type ShareCodeScreenProps = {
-  t: TFunction;
-  theme: Theme;
   initialShareCode: string | null;
   onBack: () => void;
   onOpenTaskList: () => void;
@@ -46,12 +44,12 @@ type ShareCodeScreenProps = {
 const EMPTY_TASKS: Task[] = [];
 
 export const ShareCodeScreen = ({
-  t,
-  theme,
   initialShareCode,
   onBack,
   onOpenTaskList,
 }: ShareCodeScreenProps) => {
+  const { t } = useTranslation();
+  const theme = useTheme();
   const storeState = useSyncExternalStore(
     appStore.subscribe,
     appStore.getState,

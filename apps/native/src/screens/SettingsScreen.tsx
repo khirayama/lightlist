@@ -1,50 +1,42 @@
-import type { TFunction } from "i18next";
+import { useState, useSyncExternalStore } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   Switch,
   Text,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import type {
   Language,
   Settings,
   TaskInsertPosition,
   Theme as ThemeMode,
 } from "@lightlist/sdk/types";
-import type { Theme } from "../styles/theme";
+import { appStore } from "@lightlist/sdk/store";
+import { updateSettings } from "@lightlist/sdk/mutations/app";
+import { signOut, deleteAccount } from "@lightlist/sdk/mutations/auth";
+import { useTheme } from "../styles/theme";
 import { styles } from "../styles/appStyles";
 
 type SettingsScreenProps = {
-  t: TFunction;
-  theme: Theme;
-  settings: Settings | null;
-  userEmail: string;
-  errorMessage: string | null;
-  isUpdating: boolean;
-  isSigningOut: boolean;
-  isDeletingAccount: boolean;
-  onUpdateSettings: (next: Partial<Settings>) => void;
-  onConfirmSignOut: () => void;
-  onConfirmDeleteAccount: () => void;
   onBack: () => void;
 };
 
-export const SettingsScreen = ({
-  t,
-  theme,
-  settings,
-  userEmail,
-  errorMessage,
-  isUpdating,
-  isSigningOut,
-  isDeletingAccount,
-  onUpdateSettings,
-  onConfirmSignOut,
-  onConfirmDeleteAccount,
-  onBack,
-}: SettingsScreenProps) => {
+export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
+  const settings = appState.settings;
+  const userEmail = appState.user?.email ?? "";
+
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
   if (!settings) {
     return (
       <View
@@ -54,6 +46,87 @@ export const SettingsScreen = ({
       </View>
     );
   }
+
+  const handleUpdateSettings = async (next: Partial<Settings>) => {
+    if (isUpdating) return;
+    setErrorMessage(null);
+    setIsUpdating(true);
+    try {
+      await updateSettings(next);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(t("app.error"));
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setErrorMessage(null);
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(t("app.error"));
+      }
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (isDeletingAccount) return;
+    setErrorMessage(null);
+    setIsDeletingAccount(true);
+    try {
+      await deleteAccount();
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(t("app.error"));
+      }
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  const confirmSignOut = () => {
+    Alert.alert(t("app.signOut"), t("app.signOutConfirm"), [
+      { text: t("app.cancel"), style: "cancel" },
+      {
+        text: t("app.signOut"),
+        style: "destructive",
+        onPress: () => {
+          void handleSignOut();
+        },
+      },
+    ]);
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      t("settings.deleteAccount"),
+      t("settings.deleteAccountConfirm"),
+      [
+        { text: t("app.cancel"), style: "cancel" },
+        {
+          text: t("settings.deleteAccount"),
+          style: "destructive",
+          onPress: () => {
+            void handleDeleteAccount();
+          },
+        },
+      ],
+    );
+  };
 
   const themeOptions: { value: ThemeMode; label: string }[] = [
     { value: "system", label: t("settings.theme.system") },
@@ -146,7 +219,7 @@ export const SettingsScreen = ({
                 accessibilityRole="radio"
                 accessibilityState={{ selected, disabled: isUpdating }}
                 disabled={isUpdating}
-                onPress={() => onUpdateSettings({ language: option.value })}
+                onPress={() => handleUpdateSettings({ language: option.value })}
                 style={({ pressed }) => [
                   styles.optionButton,
                   {
@@ -191,7 +264,7 @@ export const SettingsScreen = ({
                 accessibilityRole="radio"
                 accessibilityState={{ selected, disabled: isUpdating }}
                 disabled={isUpdating}
-                onPress={() => onUpdateSettings({ theme: option.value })}
+                onPress={() => handleUpdateSettings({ theme: option.value })}
                 style={({ pressed }) => [
                   styles.optionButton,
                   {
@@ -237,7 +310,7 @@ export const SettingsScreen = ({
                 accessibilityState={{ selected, disabled: isUpdating }}
                 disabled={isUpdating}
                 onPress={() =>
-                  onUpdateSettings({ taskInsertPosition: option.value })
+                  handleUpdateSettings({ taskInsertPosition: option.value })
                 }
                 style={({ pressed }) => [
                   styles.optionButton,
@@ -277,7 +350,7 @@ export const SettingsScreen = ({
           </Text>
           <Switch
             value={settings.autoSort}
-            onValueChange={(value) => onUpdateSettings({ autoSort: value })}
+            onValueChange={(value) => handleUpdateSettings({ autoSort: value })}
             disabled={isUpdating}
             accessibilityLabel={t("settings.autoSort.title")}
             trackColor={{ false: theme.border, true: theme.primary }}
@@ -303,7 +376,7 @@ export const SettingsScreen = ({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("app.signOut")}
-            onPress={onConfirmSignOut}
+            onPress={confirmSignOut}
             disabled={actionsDisabled}
             style={({ pressed }) => [
               styles.secondaryButton,
@@ -320,7 +393,7 @@ export const SettingsScreen = ({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("settings.deleteAccount")}
-            onPress={onConfirmDeleteAccount}
+            onPress={confirmDeleteAccount}
             disabled={actionsDisabled}
             style={({ pressed }) => [
               styles.secondaryButton,

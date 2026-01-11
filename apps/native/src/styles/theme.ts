@@ -48,3 +48,26 @@ export const listColors: string[] = [
   "#818CF8", // Indigo
   "#A78BFA", // Violet
 ];
+
+import { useSyncExternalStore } from "react";
+import { useColorScheme } from "react-native";
+import { appStore } from "@lightlist/sdk/store";
+
+export function useTheme(): Theme {
+  const systemScheme = useColorScheme();
+  const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
+  const storedTheme = appState.settings?.theme;
+  const themeMode: ThemeMode =
+    storedTheme === "system" ||
+    storedTheme === "light" ||
+    storedTheme === "dark"
+      ? storedTheme
+      : "system";
+  const resolvedTheme: ThemeName =
+    themeMode === "system"
+      ? systemScheme === "dark"
+        ? "dark"
+        : "light"
+      : themeMode;
+  return themes[resolvedTheme];
+}

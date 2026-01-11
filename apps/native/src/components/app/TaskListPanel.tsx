@@ -392,6 +392,7 @@ export const TaskListPanel = memo(
         <DraggableFlatList
           data={tasks}
           keyExtractor={(item) => item.id}
+          animationConfig={{ duration: 0 }}
           activationDistance={8}
           onDragEnd={({ from, to }) => {
             const draggedTask = tasks[from];

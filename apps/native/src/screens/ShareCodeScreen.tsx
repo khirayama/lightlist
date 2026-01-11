@@ -6,6 +6,13 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+
+const arrayMove = <T,>(array: T[], from: number, to: number): T[] => {
+  const result = array.slice();
+  const [removed] = result.splice(from, 1);
+  result.splice(to, 0, removed);
+  return result;
+};
 import {
   ActivityIndicator,
   Pressable,
@@ -131,7 +138,13 @@ export const ShareCodeScreen = ({
       : (storeState.taskLists.find((list) => list.id === sharedTaskListId) ??
         storeState.sharedTaskListsById[sharedTaskListId] ??
         null);
-  const taskListTasks = taskList?.tasks ?? EMPTY_TASKS;
+  const [localTasks, setLocalTasks] = useState<Task[]>(EMPTY_TASKS);
+
+  useEffect(() => {
+    setLocalTasks(taskList?.tasks ?? EMPTY_TASKS);
+  }, [taskList?.tasks]);
+
+  const taskListTasks = localTasks;
 
   useEffect(() => {
     setEditingTaskId(null);
@@ -201,10 +214,19 @@ export const ShareCodeScreen = ({
       if (!taskList) return;
       if (!draggedTaskId || !targetTaskId) return;
       if (draggedTaskId === targetTaskId) return;
+
+      const oldIndex = localTasks.findIndex((t) => t.id === draggedTaskId);
+      const newIndex = localTasks.findIndex((t) => t.id === targetTaskId);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setLocalTasks((prev) => arrayMove(prev, oldIndex, newIndex));
+      }
+
       setError(null);
       try {
         await updateTasksOrder(taskList.id, draggedTaskId, targetTaskId);
       } catch (err) {
+        setLocalTasks(taskList.tasks);
         if (err instanceof Error && err.message) {
           setError(err.message);
         } else {
@@ -212,7 +234,7 @@ export const ShareCodeScreen = ({
         }
       }
     },
-    [taskList, t],
+    [taskList, localTasks, t],
   );
 
   const handleSortTasks = useCallback(async () => {

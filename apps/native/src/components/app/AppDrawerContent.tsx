@@ -146,6 +146,7 @@ export const AppDrawerContent = (props: Props) => {
       <DraggableFlatList
         data={taskLists}
         keyExtractor={(item) => item.id}
+        animationConfig={{ duration: 0 }}
         onDragEnd={({ from, to }) => {
           const draggedList = taskLists[from];
           const targetList = taskLists[to];

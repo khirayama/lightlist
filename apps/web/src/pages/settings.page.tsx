@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 
@@ -20,7 +20,11 @@ import { Alert } from "@/components/ui/Alert";
 export default function SettingsPage() {
   const router = useRouter();
   const { t } = useTranslation();
-  const [state, setState] = useState<AppState | null>(null);
+  const state = useSyncExternalStore(
+    appStore.subscribe,
+    appStore.getState,
+    appStore.getServerSnapshot,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -61,15 +65,8 @@ export default function SettingsPage() {
       }
     });
 
-    const unsubscribeStore = appStore.subscribe((newState) => {
-      setState(newState);
-    });
-
-    setState(appStore.getState());
-
     return () => {
       unsubscribeAuth();
-      unsubscribeStore();
     };
   }, [router]);
 
@@ -117,7 +114,7 @@ export default function SettingsPage() {
     }
   };
 
-  if (!state || !state.user || !state.settings) {
+  if (!state.user || !state.settings) {
     return <Spinner fullPage />;
   }
 

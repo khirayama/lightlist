@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   NavigationContainer,
   DefaultTheme,
@@ -96,7 +96,7 @@ const linking = {
 
 export default function App() {
   const { t } = useTranslation();
-  const [appState, setAppState] = useState<AppState>(appStore.getState());
+  const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const systemScheme = useColorScheme();
   const storedTheme = appState.settings?.theme;
@@ -170,15 +170,6 @@ export default function App() {
   const [isGeneratingShareCode, setIsGeneratingShareCode] = useState(false);
   const [isRemovingShareCode, setIsRemovingShareCode] = useState(false);
   const [navigationReady, setNavigationReady] = useState(false);
-
-  useEffect(() => {
-    const unsubscribe = appStore.subscribe((nextState) => {
-      setAppState(nextState);
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChange(() => {

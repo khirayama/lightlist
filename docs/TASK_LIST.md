@@ -62,7 +62,11 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
   null,
 );
-const [state, setState] = useState<AppState | null>(null);
+const state = useSyncExternalStore(
+  appStore.subscribe,
+  appStore.getState,
+  appStore.getServerSnapshot
+);
 const [error, setError] = useState<string | null>(null);
 
 const [editListName, setEditListName] = useState("");
@@ -812,8 +816,10 @@ shareCodeを使用して、認証なしでタスクリストを閲覧・編集�
 **ページレベルの状態:**
 
 ```typescript
-const [storeState, setStoreState] = useState<AppState>(() =>
-  appStore.getState(),
+const storeState = useSyncExternalStore(
+  appStore.subscribe,
+  appStore.getState,
+  appStore.getServerSnapshot
 );
 const [sharedTaskListId, setSharedTaskListId] = useState<string | null>(null);
 const [loading, setLoading] = useState(true);

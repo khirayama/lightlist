@@ -1,5 +1,11 @@
 import type { TFunction } from "i18next";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -39,8 +45,9 @@ export const ShareCodeScreen = ({
   onBack,
   onOpenTaskList,
 }: ShareCodeScreenProps) => {
-  const [storeState, setStoreState] = useState<AppState>(() =>
-    appStore.getState(),
+  const storeState = useSyncExternalStore(
+    appStore.subscribe,
+    appStore.getState,
   );
   const normalizedInitialShareCode =
     initialShareCode?.trim().toUpperCase() ?? "";
@@ -61,16 +68,6 @@ export const ShareCodeScreen = ({
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskDate, setEditingTaskDate] = useState("");
   const sharedTaskListUnsubscribeRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = appStore.subscribe((nextState) => {
-      setStoreState(nextState);
-    });
-    setStoreState(appStore.getState());
-    return () => {
-      unsubscribe();
-    };
-  }, []);
 
   useEffect(() => {
     const normalized = initialShareCode?.trim().toUpperCase() ?? "";

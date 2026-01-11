@@ -89,12 +89,16 @@ const transform = (d: DataStore): AppState => {
 };
 
 function createStore() {
-  const data: DataStore = {
+  const initialData: DataStore = {
     user: null,
     settings: null,
     taskListOrder: null,
     taskLists: {},
   };
+
+  const data: DataStore = { ...initialData };
+
+  const initialAppState = transform(initialData);
 
   const memoizedIdentity = memoizeOne((state: AppState) => state, isEqual);
 
@@ -112,6 +116,7 @@ function createStore() {
   };
 
   const getState = (): AppState => memoizedIdentity(transform(data));
+  const getServerSnapshot = (): AppState => initialAppState;
 
   const commit = () => {
     const nextState = getState();
@@ -256,6 +261,7 @@ function createStore() {
 
   const store = {
     getState,
+    getServerSnapshot,
     getData: (): DataStore => data,
     commit,
     subscribe: (listener: StoreListener) => {

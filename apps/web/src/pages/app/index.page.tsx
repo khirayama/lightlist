@@ -1,4 +1,9 @@
-import { ComponentPropsWithoutRef, useEffect, useState } from "react";
+import {
+  ComponentPropsWithoutRef,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
@@ -137,7 +142,11 @@ export default function AppPage() {
     null,
   );
 
-  const [state, setState] = useState<AppState | null>(null);
+  const state = useSyncExternalStore(
+    appStore.subscribe,
+    appStore.getState,
+    appStore.getServerSnapshot,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const [editListName, setEditListName] = useState("");
@@ -187,15 +196,8 @@ export default function AppPage() {
       }
     });
 
-    const unsubscribeStore = appStore.subscribe((newState) => {
-      setState(newState);
-    });
-
-    setState(appStore.getState());
-
     return () => {
       unsubscribeAuth();
-      unsubscribeStore();
     };
   }, [router]);
 
@@ -286,10 +288,10 @@ export default function AppPage() {
     };
   }, [isDrawerOpen, isWideLayout]);
 
-  const isLoading = !state || !state.user;
-  const hasTaskLists = Boolean(state?.taskLists?.length);
-  const userEmail = state?.user?.email || t("app.drawerNoEmail");
-  const taskLists = state?.taskLists ?? [];
+  const isLoading = !state.user;
+  const hasTaskLists = Boolean(state.taskLists.length);
+  const userEmail = state.user?.email || t("app.drawerNoEmail");
+  const taskLists = state.taskLists;
   const selectedTaskListIndex = Math.max(
     0,
     taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),

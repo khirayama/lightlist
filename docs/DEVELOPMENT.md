@@ -47,3 +47,9 @@
 ## Firestore 購読
 
 - `taskListOrder` は `includeMetadataChanges` を使い、`hasPendingWrites` が false のときのみ `taskLists` の購読を更新する
+
+## 状態管理の最適化 (SDK)
+
+- `appStore.commit()` は、`AppState` が前回と実質的に変更されていない場合（`fast-deep-equal` による比較）、リスナーへの通知をスキップします。
+- `getState()` は `memoize-one` を使用しており、データが等価であれば常に同じオブジェクト参照を返します。
+- これにより、Firestore のメタデータのみの変更や、実質的なデータ変更を伴わないスナップショット更新による不要な再レンダリングを抑制しています。

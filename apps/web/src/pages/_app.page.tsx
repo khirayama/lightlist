@@ -1,6 +1,6 @@
 import type { AppProps } from "next/app";
 import Head from "next/head";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 
 import i18n from "@/utils/i18n";
@@ -14,6 +14,11 @@ export default function App({ Component, pageProps }: AppProps) {
   const prevLanguageRef = useRef<string | null>(null);
   const { t } = useTranslation();
   const appTitle = t("title");
+  const appState = useSyncExternalStore(
+    appStore.subscribe,
+    appStore.getState,
+    appStore.getServerSnapshot,
+  );
 
   const pwaHead = (
     <Head>
@@ -49,6 +54,44 @@ export default function App({ Component, pageProps }: AppProps) {
   );
 
   useEffect(() => {
+    const isSecureOrLocalhost =
+      window.location.protocol === "https:" ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    if (isSecureOrLocalhost && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+
+    setMounted(true);
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const applyTheme = (theme: Theme) => {
+      const isDark =
+        theme === "dark" ||
+        (theme === "system" &&
+          typeof window !== "undefined" &&
+          mediaQuery.matches);
+
+      if (typeof document !== "undefined") {
+        document.documentElement.classList.toggle("dark", isDark);
+      }
+    };
+
+    const handleMediaChange = () => {
+      const state = appStore.getState();
+      if (state.settings?.theme === "system") {
+        applyTheme("system");
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleMediaChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleMediaChange);
+    };
+  }, []);
+
+  useEffect(() => {
     const applyTheme = (theme: Theme) => {
       const isDark =
         theme === "dark" ||
@@ -61,48 +104,14 @@ export default function App({ Component, pageProps }: AppProps) {
       }
     };
 
-    const initialState: AppState = appStore.getState();
-    if (initialState.settings) {
-      applyTheme(initialState.settings.theme);
-      prevLanguageRef.current = initialState.settings.language;
-      i18n.changeLanguage(initialState.settings.language);
-    }
-
-    const isSecureOrLocalhost =
-      window.location.protocol === "https:" ||
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-    if (isSecureOrLocalhost && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
-
-    setMounted(true);
-
-    const unsubscribe = appStore.subscribe((state: AppState) => {
-      if (state.settings) {
-        applyTheme(state.settings.theme);
-        if (prevLanguageRef.current !== state.settings.language) {
-          prevLanguageRef.current = state.settings.language;
-          i18n.changeLanguage(state.settings.language);
-        }
+    if (appState.settings) {
+      applyTheme(appState.settings.theme);
+      if (prevLanguageRef.current !== appState.settings.language) {
+        prevLanguageRef.current = appState.settings.language;
+        i18n.changeLanguage(appState.settings.language);
       }
-    });
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleMediaChange = () => {
-      const state = appStore.getState();
-      if (state.settings?.theme === "system") {
-        applyTheme("system");
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleMediaChange);
-
-    return () => {
-      unsubscribe();
-      mediaQuery.removeEventListener("change", handleMediaChange);
-    };
-  }, []);
+    }
+  }, [appState.settings]);
 
   if (!mounted) {
     return (

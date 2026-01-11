@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
@@ -27,8 +27,10 @@ export default function ShareCodePage() {
   const { t } = useTranslation();
   const { sharecode } = router.query;
 
-  const [storeState, setStoreState] = useState<AppState>(() =>
-    appStore.getState(),
+  const storeState = useSyncExternalStore(
+    appStore.subscribe,
+    appStore.getState,
+    appStore.getServerSnapshot,
   );
   const [sharedTaskListId, setSharedTaskListId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,16 +56,6 @@ export default function ShareCodePage() {
       setUser(currentUser);
     });
     return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = appStore.subscribe((newState) => {
-      setStoreState(newState);
-    });
-    setStoreState(appStore.getState());
-    return () => {
-      unsubscribe();
-    };
   }, []);
 
   useEffect(() => {

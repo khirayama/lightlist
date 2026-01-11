@@ -27,7 +27,7 @@
 - 翻訳リソース: `apps/native/src/locales/ja.json` / `apps/native/src/locales/en.json`
 - テーマ定義: `apps/native/src/styles/theme.ts` に集約（`useTheme` フックも提供）
 - 画面: `apps/native/src/screens` に `AuthScreen` / `AppScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置。各画面は自己完結型で、状態管理・ビジネスロジック・SDK呼び出しを内包する
-- UIコンポーネント: `apps/native/src/components/ui/Dialog.tsx` に作成/編集用ダイアログの共通UIを集約
+- UIコンポーネント: `apps/native/src/components/ui` に `Dialog.tsx`（作成/編集用ダイアログ）、`Carousel.tsx`（リスト表示）、`AppIcon.tsx`（SVGアイコン）を集約
 - appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` を `AppScreen` / `ShareCodeScreen` で共通利用し、タスク追加/編集/並び替え/完了/完了削除の操作UIを集約（ヘッダーやリスト選択は画面側で管理）。`apps/native/src/components/app/AppDrawerContent.tsx` はタスクリスト一覧と作成・参加ダイアログを集約
 - バリデーション/エラーハンドリング: `apps/native/src/utils/validation.ts` / `apps/native/src/utils/errors.ts` に集約
 - スタイル: `apps/native/src/styles/appStyles.ts` で画面共通のスタイルを管理

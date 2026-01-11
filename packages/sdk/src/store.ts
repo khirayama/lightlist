@@ -1,7 +1,5 @@
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, collection, query, where, onSnapshot } from "firebase/firestore";
-import memoizeOne from "memoize-one";
-import isEqual from "fast-deep-equal";
 
 import { auth, db } from "./firebase";
 import {
@@ -88,6 +86,55 @@ const transform = (d: DataStore): AppState => {
   };
 };
 
+function memoized(prev: any, current: any): any {
+  if (prev === current) return prev;
+
+  if (
+    typeof prev !== "object" ||
+    prev === null ||
+    typeof current !== "object" ||
+    current === null
+  ) {
+    return current;
+  }
+
+  if (Array.isArray(prev) && Array.isArray(current)) {
+    if (prev.length !== current.length) {
+      return current.map((item, i) => memoized(prev[i], item));
+    }
+    let changed = false;
+    const result = new Array(current.length);
+    for (let i = 0; i < current.length; i++) {
+      result[i] = memoized(prev[i], current[i]);
+      if (result[i] !== prev[i]) changed = true;
+    }
+    return changed ? result : prev;
+  }
+
+  if (Array.isArray(prev) || Array.isArray(current)) {
+    return current;
+  }
+
+  const keys = Object.keys(current);
+  if (keys.length !== Object.keys(prev).length) {
+    const result: any = {};
+    for (const key of keys) {
+      result[key] = memoized(prev[key], current[key]);
+    }
+    return result;
+  }
+
+  let changed = false;
+  const result: any = {};
+  for (const key of keys) {
+    const m = memoized(prev[key], current[key]);
+    result[key] = m;
+    if (m !== prev[key] || !(key in prev)) changed = true;
+  }
+
+  return changed ? result : prev;
+}
+
 function createStore() {
   const initialData: DataStore = {
     user: null,
@@ -99,8 +146,6 @@ function createStore() {
   const data: DataStore = { ...initialData };
 
   const initialAppState = transform(initialData);
-
-  const memoizedIdentity = memoizeOne((state: AppState) => state, isEqual);
 
   const listeners = new Set<StoreListener>();
   const unsubscribers: (() => void)[] = [];
@@ -115,7 +160,11 @@ function createStore() {
     unsubscribes.forEach((unsubscribe) => unsubscribe());
   };
 
-  const getState = (): AppState => memoizedIdentity(transform(data));
+  const getState = (): AppState => {
+    const nextState = transform(data);
+    const stabilizedState = memoized(lastState || initialAppState, nextState);
+    return stabilizedState;
+  };
   const getServerSnapshot = (): AppState => initialAppState;
 
   const commit = () => {
@@ -149,17 +198,13 @@ function createStore() {
           data.taskListOrder = null;
         }
         commit();
-        subscribeToTaskLists(
-          data.taskListOrder,
-        );
+        subscribeToTaskLists(data.taskListOrder);
       },
     );
     unsubscribers.push(taskListOrderUnsub);
   };
 
-  const subscribeToTaskLists = (
-    taskListOrder: TaskListOrderStore | null,
-  ) => {
+  const subscribeToTaskLists = (taskListOrder: TaskListOrderStore | null) => {
     const nextTaskListIds = taskListOrder
       ? Object.entries(taskListOrder)
           .filter(([key]) => key !== "createdAt" && key !== "updatedAt")

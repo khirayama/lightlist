@@ -1,56 +1,41 @@
-import type { TFunction } from "i18next";
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import { useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import {
+  signIn,
+  signUp,
+  sendPasswordResetEmail,
+} from "@lightlist/sdk/mutations/auth";
 import { styles } from "../styles/appStyles";
-import type { Theme } from "../styles/theme";
+import { useTheme } from "../styles/theme";
+import { resolveAuthErrorMessage } from "../utils/errors";
+import { isValidEmail } from "../utils/validation";
 
 type AuthTab = "signin" | "signup" | "reset";
-type AuthFormState = {
-  email: string;
-  password: string;
-  confirmPassword: string;
-};
 
 type AuthScreenProps = {
-  t: TFunction;
-  theme: Theme;
-  activeTab: AuthTab;
-  onTabChange: (nextTab: AuthTab) => void;
-  form: AuthFormState;
-  setForm: Dispatch<SetStateAction<AuthFormState>>;
-  authErrorMessage: string | null;
-  isSubmitting: boolean;
-  resetLoading: boolean;
-  resetSent: boolean;
-  onSignIn: () => void | Promise<void>;
-  onSignUp: () => void | Promise<void>;
-  onPasswordReset: () => void | Promise<void>;
-  passwordInputRef: RefObject<TextInput | null>;
-  confirmPasswordInputRef: RefObject<TextInput | null>;
   onOpenShareCode: () => void;
 };
 
-export const AuthScreen = ({
-  t,
-  theme,
-  activeTab,
-  onTabChange,
-  form,
-  setForm,
-  authErrorMessage,
-  isSubmitting,
-  resetLoading,
-  resetSent,
-  onSignIn,
-  onSignUp,
-  onPasswordReset,
-  passwordInputRef,
-  confirmPasswordInputRef,
-  onOpenShareCode,
-}: AuthScreenProps) => {
+export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
+  const { t, i18n } = useTranslation();
+  const theme = useTheme();
+  const passwordInputRef = useRef<TextInput | null>(null);
+  const confirmPasswordInputRef = useRef<TextInput | null>(null);
+
+  const [activeTab, setActiveTab] = useState<AuthTab>("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
   const isSignUp = activeTab === "signup";
   const isReset = activeTab === "reset";
   const isSignIn = activeTab === "signin";
+
   const titleKey = isSignUp
     ? "login.signUpTitle"
     : isReset
@@ -61,14 +46,138 @@ export const AuthScreen = ({
     : isReset
       ? "login.resetSubtitle"
       : "login.subtitle";
+
   const canSubmitSignIn =
-    !isSubmitting && form.email.trim().length > 0 && form.password.length > 0;
+    !isSubmitting && email.trim().length > 0 && password.length > 0;
   const canSubmitSignUp =
     !isSubmitting &&
-    form.email.trim().length > 0 &&
-    form.password.length > 0 &&
-    form.confirmPassword.length > 0;
-  const canSendReset = !resetLoading && form.email.trim().length > 0;
+    email.trim().length > 0 &&
+    password.length > 0 &&
+    confirmPassword.length > 0;
+  const canSendReset = !resetLoading && email.trim().length > 0;
+
+  const resetForm = () => {
+    setPassword("");
+    setConfirmPassword("");
+    setErrorMessage(null);
+    setResetSent(false);
+    setIsSubmitting(false);
+    setResetLoading(false);
+  };
+
+  const handleTabChange = (nextTab: AuthTab) => {
+    setActiveTab(nextTab);
+    resetForm();
+  };
+
+  const validateSignIn = () => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      return t("form.required");
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      return t("form.invalidEmail");
+    }
+    return null;
+  };
+
+  const validateSignUp = () => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password || !confirmPassword) {
+      return t("form.required");
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      return t("form.invalidEmail");
+    }
+    if (password.length < 6) {
+      return t("form.passwordTooShort");
+    }
+    if (password !== confirmPassword) {
+      return t("form.passwordMismatch");
+    }
+    return null;
+  };
+
+  const validateReset = () => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      return t("form.required");
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      return t("form.invalidEmail");
+    }
+    return null;
+  };
+
+  const handleSignIn = async () => {
+    const validationError = validateSignIn();
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+    const trimmedEmail = email.trim();
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    try {
+      await signIn(trimmedEmail, password);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(resolveAuthErrorMessage(error, t));
+      } else {
+        setErrorMessage(t("errors.generic"));
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    const validationError = validateSignUp();
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+    const trimmedEmail = email.trim();
+    const resolvedLanguage = i18n.language.toLowerCase().startsWith("ja")
+      ? "ja"
+      : "en";
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    try {
+      await signUp(trimmedEmail, password, resolvedLanguage);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(resolveAuthErrorMessage(error, t));
+      } else {
+        setErrorMessage(t("errors.generic"));
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const validationError = validateReset();
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+    const trimmedEmail = email.trim();
+    setResetLoading(true);
+    setErrorMessage(null);
+    try {
+      await sendPasswordResetEmail(trimmedEmail);
+      setResetSent(true);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(resolveAuthErrorMessage(error, t));
+      } else {
+        setErrorMessage(t("errors.generic"));
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   return (
     <ScrollView
@@ -99,7 +208,7 @@ export const AuthScreen = ({
           <Pressable
             accessibilityRole="tab"
             accessibilityState={{ selected: isSignIn }}
-            onPress={() => onTabChange("signin")}
+            onPress={() => handleTabChange("signin")}
             disabled={isSubmitting || resetLoading}
             style={({ pressed }) => [
               styles.tabButton,
@@ -122,7 +231,7 @@ export const AuthScreen = ({
           <Pressable
             accessibilityRole="tab"
             accessibilityState={{ selected: isSignUp }}
-            onPress={() => onTabChange("signup")}
+            onPress={() => handleTabChange("signup")}
             disabled={isSubmitting || resetLoading}
             style={({ pressed }) => [
               styles.tabButton,
@@ -158,10 +267,8 @@ export const AuthScreen = ({
                     backgroundColor: theme.inputBackground,
                   },
                 ]}
-                value={form.email}
-                onChangeText={(value) =>
-                  setForm((prev) => ({ ...prev, email: value }))
-                }
+                value={email}
+                onChangeText={setEmail}
                 placeholder={t("login.emailPlaceholder")}
                 placeholderTextColor={theme.placeholder}
                 autoCapitalize="none"
@@ -189,33 +296,31 @@ export const AuthScreen = ({
                     backgroundColor: theme.inputBackground,
                   },
                 ]}
-                value={form.password}
-                onChangeText={(value) =>
-                  setForm((prev) => ({ ...prev, password: value }))
-                }
+                value={password}
+                onChangeText={setPassword}
                 placeholder={t("login.passwordPlaceholder")}
                 placeholderTextColor={theme.placeholder}
                 secureTextEntry
                 textContentType="password"
                 autoComplete="password"
                 returnKeyType="done"
-                onSubmitEditing={onSignIn}
+                onSubmitEditing={handleSignIn}
                 editable={!isSubmitting}
                 accessibilityLabel={t("login.passwordLabel")}
               />
             </View>
-            {authErrorMessage ? (
+            {errorMessage ? (
               <Text
                 accessibilityRole="alert"
                 style={[styles.error, { color: theme.error }]}
               >
-                {authErrorMessage}
+                {errorMessage}
               </Text>
             ) : null}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("login.submit")}
-              onPress={onSignIn}
+              onPress={handleSignIn}
               disabled={!canSubmitSignIn}
               style={({ pressed }) => [
                 styles.button,
@@ -241,7 +346,7 @@ export const AuthScreen = ({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("login.forgotPassword")}
-              onPress={() => onTabChange("reset")}
+              onPress={() => handleTabChange("reset")}
               disabled={isSubmitting}
               style={({ pressed }) => [
                 styles.secondaryButton,
@@ -272,10 +377,8 @@ export const AuthScreen = ({
                     backgroundColor: theme.inputBackground,
                   },
                 ]}
-                value={form.email}
-                onChangeText={(value) =>
-                  setForm((prev) => ({ ...prev, email: value }))
-                }
+                value={email}
+                onChangeText={setEmail}
                 placeholder={t("login.emailPlaceholder")}
                 placeholderTextColor={theme.placeholder}
                 autoCapitalize="none"
@@ -303,10 +406,8 @@ export const AuthScreen = ({
                     backgroundColor: theme.inputBackground,
                   },
                 ]}
-                value={form.password}
-                onChangeText={(value) =>
-                  setForm((prev) => ({ ...prev, password: value }))
-                }
+                value={password}
+                onChangeText={setPassword}
                 placeholder={t("login.passwordPlaceholder")}
                 placeholderTextColor={theme.placeholder}
                 secureTextEntry
@@ -332,36 +433,31 @@ export const AuthScreen = ({
                     backgroundColor: theme.inputBackground,
                   },
                 ]}
-                value={form.confirmPassword}
-                onChangeText={(value) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    confirmPassword: value,
-                  }))
-                }
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
                 placeholder={t("login.confirmPasswordPlaceholder")}
                 placeholderTextColor={theme.placeholder}
                 secureTextEntry
                 textContentType="newPassword"
                 autoComplete="new-password"
                 returnKeyType="done"
-                onSubmitEditing={onSignUp}
+                onSubmitEditing={handleSignUp}
                 editable={!isSubmitting}
                 accessibilityLabel={t("login.confirmPasswordLabel")}
               />
             </View>
-            {authErrorMessage ? (
+            {errorMessage ? (
               <Text
                 accessibilityRole="alert"
                 style={[styles.error, { color: theme.error }]}
               >
-                {authErrorMessage}
+                {errorMessage}
               </Text>
             ) : null}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("login.signUpSubmit")}
-              onPress={onSignUp}
+              onPress={handleSignUp}
               disabled={!canSubmitSignUp}
               style={({ pressed }) => [
                 styles.button,
@@ -412,10 +508,8 @@ export const AuthScreen = ({
                         backgroundColor: theme.inputBackground,
                       },
                     ]}
-                    value={form.email}
-                    onChangeText={(value) =>
-                      setForm((prev) => ({ ...prev, email: value }))
-                    }
+                    value={email}
+                    onChangeText={setEmail}
                     placeholder={t("login.emailPlaceholder")}
                     placeholderTextColor={theme.placeholder}
                     autoCapitalize="none"
@@ -424,23 +518,23 @@ export const AuthScreen = ({
                     textContentType="emailAddress"
                     autoComplete="email"
                     returnKeyType="done"
-                    onSubmitEditing={onPasswordReset}
+                    onSubmitEditing={handlePasswordReset}
                     editable={!resetLoading}
                     accessibilityLabel={t("login.emailLabel")}
                   />
                 </View>
-                {authErrorMessage ? (
+                {errorMessage ? (
                   <Text
                     accessibilityRole="alert"
                     style={[styles.error, { color: theme.error }]}
                   >
-                    {authErrorMessage}
+                    {errorMessage}
                   </Text>
                 ) : null}
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("login.resetSubmit")}
-                  onPress={onPasswordReset}
+                  onPress={handlePasswordReset}
                   disabled={!canSendReset}
                   style={({ pressed }) => [
                     styles.button,
@@ -470,7 +564,7 @@ export const AuthScreen = ({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("login.backToSignIn")}
-              onPress={() => onTabChange("signin")}
+              onPress={() => handleTabChange("signin")}
               disabled={resetLoading}
               style={({ pressed }) => [
                 styles.secondaryButton,

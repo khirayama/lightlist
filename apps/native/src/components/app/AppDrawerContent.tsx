@@ -7,22 +7,42 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { type DrawerContentComponentProps } from "@react-navigation/drawer";
+import { useTranslation } from "react-i18next";
 import DraggableFlatList, {
   type RenderItemParams,
 } from "react-native-draggable-flatlist";
 import { AppIcon } from "../ui/AppIcon";
 import { Dialog } from "../ui/Dialog";
 import { styles } from "../../styles/appStyles";
-import { listColors } from "../../styles/theme";
-import type { AppScreenProps } from "../../types/app";
+import { useTheme, listColors, type Theme } from "../../styles/theme";
 import type { TaskList } from "@lightlist/sdk/types";
 
-type Props = DrawerContentComponentProps & AppScreenProps;
+type AppDrawerContentProps = DrawerContentComponentProps & {
+  userEmail: string;
+  taskLists: TaskList[];
+  selectedTaskListId: string | null;
+  createListName: string;
+  createListBackground: string | null;
+  isCreatingList: boolean;
+  isJoiningList: boolean;
+  joinListInput: string;
+  joinListError: string | null;
+  onSelectTaskList: (taskListId: string) => void;
+  onOpenSettings: () => void;
+  onChangeCreateListName: (value: string) => void;
+  onChangeCreateListBackground: (color: string | null) => void;
+  onChangeJoinListInput: (value: string) => void;
+  onClearJoinListError: () => void;
+  onCreateList: () => Promise<boolean>;
+  onJoinList: () => Promise<boolean>;
+  onReorderTaskList: (
+    draggedTaskListId: string,
+    targetTaskListId: string,
+  ) => void | Promise<void>;
+};
 
-export const AppDrawerContent = (props: Props) => {
+export const AppDrawerContent = (props: AppDrawerContentProps) => {
   const {
-    t,
-    theme,
     userEmail,
     taskLists,
     selectedTaskListId,
@@ -44,6 +64,8 @@ export const AppDrawerContent = (props: Props) => {
     joinListError,
   } = props;
 
+  const { t } = useTranslation();
+  const theme = useTheme();
   const [isCreateListDialogOpen, setIsCreateListDialogOpen] = useState(false);
   const [isJoinListDialogOpen, setIsJoinListDialogOpen] = useState(false);
   const { width } = useWindowDimensions();

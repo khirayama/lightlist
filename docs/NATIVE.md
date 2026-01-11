@@ -9,7 +9,7 @@
 
 - `apps/native`: Expo + React Native（TypeScript）
 - `i18next` / `react-i18next`: 文字列はすべて i18next で管理
-- `@react-navigation/native` / `@react-navigation/native-stack`: 認証/タスクリスト/設定画面のルーティング
+- `@react-navigation/native` / `@react-navigation/native-stack` / `@react-navigation/drawer`: 認証/タスクリスト/設定画面のルーティング
 - `react-native-gesture-handler`: ドラッグ操作を含むジェスチャの基盤
 - `react-native-reanimated` / `react-native-worklets`: ドラッグ操作のアニメーション基盤
 - `react-native-draggable-flatlist`: タスクのドラッグ並び替え
@@ -21,20 +21,40 @@
 - 依存解決: ルート `package.json` の `overrides` で Expo Go と整合するバージョンに固定
 - `@lightlist/sdk`: Firebase 認証の呼び出しは SDK 経由
 - React: モノレポ全体で 19.1.0 に統一し、Expo Go の renderer と整合させる
-- テーマ: `useColorScheme` によるライト/ダーク切替
+- テーマ: `useColorScheme` によるライト/ダーク切替、`useTheme` フックで画面から直接アクセス
 - セーフエリア: `react-native-safe-area-context` による Safe Area 対応
 - i18n 初期化: `apps/native/src/utils/i18n.ts` に集約
 - 翻訳リソース: `apps/native/src/locales/ja.json` / `apps/native/src/locales/en.json`
-- テーマ定義: `apps/native/src/styles/theme.ts` に集約
-- 画面: `apps/native/src/screens` に `AuthScreen` / `AppScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置
+- テーマ定義: `apps/native/src/styles/theme.ts` に集約（`useTheme` フックも提供）
+- 画面: `apps/native/src/screens` に `AuthScreen` / `AppScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置。各画面は自己完結型で、状態管理・ビジネスロジック・SDK呼び出しを内包する
 - UIコンポーネント: `apps/native/src/components/ui/Dialog.tsx` に作成/編集用ダイアログの共通UIを集約
 - appコンポーネント: `apps/native/src/components/app/TaskListPanel.tsx` を `AppScreen` / `ShareCodeScreen` で共通利用し、タスク追加/編集/並び替え/完了/完了削除の操作UIを集約（ヘッダーやリスト選択は画面側で管理）。`apps/native/src/components/app/AppDrawerContent.tsx` はタスクリスト一覧と作成・参加ダイアログを集約
 - バリデーション/エラーハンドリング: `apps/native/src/utils/validation.ts` / `apps/native/src/utils/errors.ts` に集約
 - スタイル: `apps/native/src/styles/appStyles.ts` で画面共通のスタイルを管理
 
+## アーキテクチャ
+
+### 責務分離
+
+`apps/web` のページ構成に合わせ、各画面が自己完結型となっている:
+
+- **App.tsx**: ナビゲーション設定と認証状態の監視のみを担当。画面固有のビジネスロジックは持たない
+- **各Screen**: フォーム状態、バリデーション、SDK呼び出し、エラーハンドリングを自身で管理
+
+これにより:
+- 画面間の依存関係が最小化され、各画面を独立して理解・修正できる
+- Web版（`apps/web/src/pages`）と同様の責務分離パターンを採用
+
+### テーマアクセス
+
+`useTheme` フック（`apps/native/src/styles/theme.ts`）を使用し、各画面からテーマに直接アクセスする:
+- `useSyncExternalStore` で `appStore` の設定を購読
+- `useColorScheme` でシステムテーマを取得
+- propsドリリングなしでテーマを解決
+
 ## Appページ
 
-- `apps/native/src/App.tsx` で認証状態に応じて `AuthScreen` / `AppScreen` を切り替え、ログイン時は `SettingsScreen` もスタックに追加
+- `apps/native/src/App.tsx` はナビゲーション設定と認証状態の監視のみを担当し、認証状態に応じて `AuthScreen` / `AppScreen` を切り替える
 - `expo-splash-screen` を使用し、認証状態の確定が完了するまでスプラッシュスクリーンを表示し続けることで、起動時の画面のちらつきを防止。アイコンは SVG 化（`react-native-svg`）されており、フォントのロード待ちを排除している
 - 共有コード画面 `ShareCodeScreen` を追加し、共有コード入力で共有リストの閲覧・追加・編集（テキスト/期限、日付設定ボタンのDate Picker経由）・完了切り替え・並び替え・完了タスク削除・自分のリスト追加に対応
 - `ShareCodeScreen` は共有リスト未取得時のタスク配列参照を固定し、状態同期の無限再レンダーを回避
@@ -74,7 +94,7 @@
 
 ## 主な変更点
 
-- `apps/native/src/App.tsx`: アプリ状態と画面切替、SDK 経由の認証/データ操作
+- `apps/native/src/App.tsx`: ナビゲーション設定と認証状態の監視（画面固有のロジックは各Screenに移譲）
 - `apps/native/src/index.ts`: Gesture Handler 初期化
 - `apps/native/babel.config.js`: Worklets プラグイン設定
 - `apps/native/src/screens/AuthScreen.tsx`: 認証画面の UI

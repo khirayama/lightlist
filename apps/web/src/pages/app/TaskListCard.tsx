@@ -1,11 +1,12 @@
 import type { TFunction } from "i18next";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   DragEndEvent,
   SensorDescriptor,
   SensorOptions,
   UniqueIdentifier,
 } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
 import type { Task, TaskInsertPosition, TaskList } from "@lightlist/sdk/types";
 import clsx from "clsx";
 
@@ -94,12 +95,17 @@ export function TaskListCard({
   onCopyShareLink,
 }: TaskListCardProps) {
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [localTasks, setLocalTasks] = useState<Task[]>([]);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
 
-  const tasks = taskList.tasks;
+  useEffect(() => {
+    setLocalTasks(taskList.tasks);
+  }, [taskList.tasks]);
+
+  const tasks = localTasks;
 
   const handleDragEndTask = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -108,10 +114,18 @@ export function TaskListCard({
     const targetTaskId = getStringId(over.id);
     if (!draggedTaskId || !targetTaskId) return;
 
+    const oldIndex = localTasks.findIndex((t) => t.id === draggedTaskId);
+    const newIndex = localTasks.findIndex((t) => t.id === targetTaskId);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      setLocalTasks((prev) => arrayMove(prev, oldIndex, newIndex));
+    }
+
     setTaskError(null);
     try {
       await updateTasksOrder(taskList.id, draggedTaskId, targetTaskId);
     } catch (err) {
+      setLocalTasks(taskList.tasks); // Rollback
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }
   };

@@ -142,7 +142,6 @@ function createStore() {
 
     const taskListOrderUnsub = onSnapshot(
       doc(db, "taskListOrder", uid),
-      { includeMetadataChanges: true },
       (snapshot) => {
         if (snapshot.exists()) {
           data.taskListOrder = snapshot.data() as TaskListOrderStore;
@@ -152,7 +151,6 @@ function createStore() {
         commit();
         subscribeToTaskLists(
           data.taskListOrder,
-          snapshot.metadata.hasPendingWrites,
         );
       },
     );
@@ -161,7 +159,6 @@ function createStore() {
 
   const subscribeToTaskLists = (
     taskListOrder: TaskListOrderStore | null,
-    hasPendingWrites: boolean,
   ) => {
     const nextTaskListIds = taskListOrder
       ? Object.entries(taskListOrder)
@@ -174,7 +171,7 @@ function createStore() {
         : [];
     const nextTaskListIdsSet = new Set(nextTaskListIds);
     const effectiveTaskListIds =
-      hasPendingWrites && taskListIdsKey !== null
+      taskListIdsKey !== null
         ? currentTaskListIds.filter((id) => nextTaskListIdsSet.has(id))
         : nextTaskListIds;
     const nextTaskListIdsKey =
@@ -201,11 +198,7 @@ function createStore() {
     chunks.forEach((chunk) => {
       const taskListsUnsub = onSnapshot(
         query(collection(db, "taskLists"), where("__name__", "in", chunk)),
-        { includeMetadataChanges: true },
         (snapshot) => {
-          if (snapshot.metadata.hasPendingWrites) {
-            return;
-          }
           const lists: { [taskListId: string]: TaskListStore } = {};
           snapshot.docs.forEach((doc) => {
             lists[doc.id] = doc.data() as TaskListStore;

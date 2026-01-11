@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -115,13 +116,16 @@ export const Carousel = ({
     return carouselRef.current?.getCurrentIndex() ?? 0;
   }, []);
 
-  const api = {
-    scrollPrev,
-    scrollNext,
-    scrollTo,
-    selectedIndex,
-    getCurrentIndex,
-  };
+  const api = useMemo(
+    () => ({
+      scrollPrev,
+      scrollNext,
+      scrollTo,
+      selectedIndex,
+      getCurrentIndex,
+    }),
+    [scrollPrev, scrollNext, scrollTo, selectedIndex, getCurrentIndex],
+  );
 
   useEffect(() => {
     setApi?.(api);

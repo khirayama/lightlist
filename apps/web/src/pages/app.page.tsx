@@ -42,9 +42,9 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/Carousel";
-import { DrawerPanel } from "./DrawerPanel";
+import { DrawerPanel } from "@/components/app/DrawerPanel";
 import type { ColorOption } from "@/components/ui/ColorPicker";
-import { TaskListCard } from "./TaskListCard";
+import { TaskListCard } from "@/components/app/TaskListCard";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
@@ -115,8 +115,6 @@ function AppHeader({
 export default function AppPage() {
   const renderStartTime = performance.now();
   const router = useRouter();
-
-  // ... (rest of component code)
 
   useEffect(() => {
     const duration = performance.now() - renderStartTime;

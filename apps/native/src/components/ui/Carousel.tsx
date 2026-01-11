@@ -6,7 +6,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -116,16 +115,13 @@ export const Carousel = ({
     return carouselRef.current?.getCurrentIndex() ?? 0;
   }, []);
 
-  const api = useMemo(
-    () => ({
-      scrollPrev,
-      scrollNext,
-      scrollTo,
-      selectedIndex,
-      getCurrentIndex,
-    }),
-    [scrollPrev, scrollNext, scrollTo, selectedIndex, getCurrentIndex],
-  );
+  const api = {
+    scrollPrev,
+    scrollNext,
+    scrollTo,
+    selectedIndex,
+    getCurrentIndex,
+  };
 
   useEffect(() => {
     setApi?.(api);
@@ -176,7 +172,7 @@ export const CarouselContent = ({
     onSelect,
     api,
   } = useCarousel();
-  const items = useMemo(() => Children.toArray(children), [children]);
+  const items = Children.toArray(children);
 
   if (width <= 0 || height <= 0) {
     return <View {...props} />;

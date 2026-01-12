@@ -595,6 +595,7 @@ export const TaskListCard = ({
         ) : null}
       </Dialog>
       <DraggableFlatList
+        style={{ backgroundColor: taskList.background ?? undefined }}
         data={tasks}
         keyExtractor={(item) => item.id}
         animationConfig={{ duration: 0 }}

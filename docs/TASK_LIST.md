@@ -21,7 +21,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 - **ヘッダー / ドロワー:** ページタイトルと Drawer トリガーを配置。幅 1024px 以上ではドロワー内容を左カラムに固定し、より狭い幅では shadcn Drawer（左スライド、オーバーレイ付き）でログインメールを表示し、設定画面へのリンクを提供する。左右ドロワーはタップ操作を優先するため `handleOnly` を有効化し、コンテンツ上でのドラッグ開始を抑止している。
 - **タスクリスト一覧（ドロワー内）:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力してフォーム送信（`Enter` / 作成ボタン）で `createTaskList` を実行。作成ボタンの隣には「共有リストに参加」ボタンがあり、共有コードを入力する Dialog を開く。コードを入力して参加すると `fetchTaskListIdByShareCode` でリストを特定し、`addSharedTaskListToOrder` で自分のリストに追加する。リストが空のときは `app.emptyState` を表示し、各行には背景色スウォッチとタスク数を併記する。
-- **タスク詳細カルーセル:** 各タスクリストを `Carousel` (Embla) で横スライド化し、ホイール左右操作や前後ボタン、スワイプで切り替える。各スライド内のタスクリストは独立して縦スクロール可能であり、リストが長くなっても画面全体のスクロールは発生しない。AppHeader 直下にドット型の locator を表示し、現在位置を示しつつクリックでリストを切り替えられる。ページ全体に表示中スライドの `TaskList.background` を適用し、内側を可読性の高い半透明のサーフェス（`bg-white/60 dark:bg-gray-900/60` + `backdrop-blur-md`）として構成する。ワイドレイアウトではタスクリストの最大幅を制限し、読みやすさを維持する。`TaskListPanel` は共有ページと同じレイアウト（入力欄が上、一覧が下）で完了・日付設定・追加・編集を行う。
+- **タスク詳細カルーセル:** 各タスクリストを `Carousel` (Embla) で横スライド化し、ホイール左右操作や前後ボタン、スワイプで切り替える。各スライド内のタスクリストは独立して縦スクロール可能であり、リストが長くなっても画面全体のスクロールは発生しない。AppHeader 直下にドット型の locator を表示し、現在位置を示しつつクリックでリストを切り替えられる。ページ全体に表示中スライドの `TaskList.background` を適用し、内側を可読性の高い半透明のサーフェス（`bg-white/60 dark:bg-gray-900/60` + `backdrop-blur-md`）として構成する。ワイドレイアウトではタスクリストの最大幅を制限し、読みやすさを維持する。`TaskListCard` は共有ページと同じレイアウト（入力欄が上、一覧が下）で完了・日付設定・追加・編集を行う。
 - **色と共有:** タスクリストカード右上の編集（edit）/共有（share）アイコンボタンから Dialog を開き、編集Dialogでリスト名と背景色をまとめて変更する（保存はフォーム送信: `Enter` / 保存ボタン）。共有Dialogでコードの生成/停止とクリップボードコピーを行う。
 - **削除確認:** リスト編集Dialog内の更新ボタン上部に配置された削除ボタンから `deleteTaskList` を実行。
 
@@ -29,7 +29,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 - `embla-carousel-wheel-gestures` を有効化し、ホイールで左右にスクロールするとスライドが切り替わり、`selectedTaskListId` を同期する。
 - ページ全体の背景色は `selectedTaskListId` の変更に合わせて 300ms のトランジションで滑らかに切り替わる。
-- タスク並び替え中は `TaskListPanel` からの sorting 状態を受け取り、カルーセルのホイール操作とドラッグを無効化して横スクロールを抑制する。
+- タスク並び替え中は `TaskListCard` からの sorting 状態を受け取り、カルーセルのホイール操作とドラッグを無効化して横スクロールを抑制する。
 - リスト一覧での選択や Dialog オープン時は対象リストを事前に選択し、カルーセル位置とフォーム入力を一致させる。
 - locator（ドット）をクリックして `selectedTaskListId` を切り替え、カルーセル位置を同期する。locator は背景に `bg-white/40 dark:bg-black/40` と `backdrop-blur-md` を備えたカプセル状のバーに配置され、常に高い視認性を保つ。
 
@@ -96,7 +96,7 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 - `isWideLayout`: 画面幅 1024px 以上で左カラムを常時表示するかどうかを判定する。真の場合、Drawer は閉じたままオーバーレイを使用しない。
 - 狭い幅で Drawer を開いている間は `router.beforePopState` で「戻る」操作をフックし、ページ遷移ではなく Drawer を閉じる。履歴にダミーエントリを積まないため、設定画面などへの遷移と競合しない。
 - `selectedTaskListId`: 現在選択中のタスクリスト ID。マウント時に最初のリストを選択し、Drawer 内の選択やカルーセルスクロールに合わせて同期する。
-- `isTaskSorting`: `TaskListPanel` の DnD 並び替え中フラグ。`Carousel` のホイールジェスチャーを抑止して誤操作を防ぐ。
+- `isTaskSorting`: `TaskListCard` の DnD 並び替え中フラグ。`Carousel` のホイールジェスチャーを抑止して誤操作を防ぐ。
 - タスクの追加/編集入力（`newTaskText` / `editingTaskId` / `editingTaskText` など）は、各 `TaskListCard` に閉じ込めて管理する（リスト間でフォーム状態を共有しない）。
 
 ### アプリケーション状態（Store）
@@ -458,7 +458,7 @@ taskList:
 **リスト名の編集:**
 
 1. リスト名をクリック
-2. 編集モードに切り替わる
+2. 編集モードに切り替わり、入力フィールドが表示される
 3. テキストを編集
 4. `Enter` キーで保存、`Escape` キーでキャンセル
 
@@ -536,7 +536,7 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 - `selectedTaskListId`: 表示対象のタスクリスト ID。初回ロード時に最初のリストを自動選択し、Embla の select イベントでカルーセルと Drawer 選択を片方向同期する。
 - `state`: `appStore` から購読した `AppState`。ユーザー、設定、タスクリストを保持。
 - `error`: ページ上部に表示するページレベルのエラーメッセージ（リスト作成/編集/削除/共有など）。
-- `isTaskSorting`: `TaskListPanel` からの sorting 状態を受け取り、カルーセルのホイールジェスチャーを抑止する。
+- `isTaskSorting`: `TaskListCard` からの sorting 状態を受け取り、カルーセルのホイールジェスチャーを抑止する。
 - タスク操作（追加/編集/完了/日付設定/並び替え）の状態とエラーは `TaskListCard` が担当し、リストごとに独立して保持する。
 
 ### API インターフェース

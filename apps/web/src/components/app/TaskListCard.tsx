@@ -1,14 +1,25 @@
 import type { TFunction } from "i18next";
-import { useEffect, useState } from "react";
-import type {
+import { useEffect, useState, useId, useRef, type MouseEvent } from "react";
+import {
+  DndContext,
   DragEndEvent,
+  DragStartEvent,
   SensorDescriptor,
   SensorOptions,
   UniqueIdentifier,
+  closestCenter,
 } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { CSS } from "@dnd-kit/utilities";
 import type { Task, TaskInsertPosition, TaskList } from "@lightlist/sdk/types";
 import clsx from "clsx";
+import { useTranslation } from "react-i18next";
 
 import {
   addTask,
@@ -17,7 +28,6 @@ import {
   sortTasks,
   deleteCompletedTasks,
 } from "@lightlist/sdk/mutations/app";
-import { TaskListPanel } from "@/components/app/TaskListPanel";
 import { Alert } from "@/components/ui/Alert";
 import {
   Dialog,
@@ -29,9 +39,233 @@ import {
 import { AppIcon } from "@/components/ui/AppIcon";
 import { resolveErrorMessage } from "@/utils/errors";
 import { ColorPicker, type ColorOption } from "@/components/ui/ColorPicker";
+import { Calendar } from "@/components/ui/Calendar";
+import { Command, CommandItem, CommandList } from "@/components/ui/Command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/Popover";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
+
+export interface TaskForSortable {
+  id: string;
+  text: string;
+  completed: boolean;
+  date?: string;
+  order?: number;
+}
+
+interface TaskItemProps<T extends TaskForSortable = TaskForSortable> {
+  task: T;
+  isEditing: boolean;
+  editingText: string;
+  onEditingTextChange: (text: string) => void;
+  onEditStart: (task: T) => void;
+  onEditEnd: (task: T) => void;
+  onToggle: (task: T) => void;
+  onDateChange?: (taskId: string, date: string) => void;
+  setDateLabel: string;
+  dragHintLabel: string;
+}
+
+const parseTaskDate = (value: string | undefined): Date | undefined => {
+  if (!value) return undefined;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (
+      !Number.isFinite(year) ||
+      !Number.isFinite(month) ||
+      !Number.isFinite(day)
+    )
+      return undefined;
+    return new Date(year, month - 1, day);
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed;
+};
+
+const formatTaskDate = (value: Date): string => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+function TaskItem<T extends TaskForSortable = TaskForSortable>({
+  task,
+  isEditing,
+  editingText,
+  onEditingTextChange,
+  onEditStart,
+  onEditEnd,
+  onToggle,
+  onDateChange,
+  setDateLabel,
+  dragHintLabel,
+}: TaskItemProps<T>) {
+  const { i18n } = useTranslation();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
+    parseTaskDate(task.date),
+  );
+
+  useEffect(() => {
+    setSelectedDate(parseTaskDate(task.date));
+  }, [task.date]);
+
+  const dateDisplayValue = selectedDate
+    ? new Intl.DateTimeFormat(i18n.language, {
+        month: "short",
+        day: "numeric",
+        weekday: "short",
+      }).format(selectedDate)
+    : null;
+  const dateTitle = dateDisplayValue
+    ? `${setDateLabel}: ${dateDisplayValue}`
+    : setDateLabel;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex gap-2 rounded-xl py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        title={dragHintLabel}
+        aria-label={dragHintLabel}
+        type="button"
+        className="flex h-7 items-center touch-none rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+      >
+        <AppIcon
+          name="drag-indicator"
+          className="h-5 w-5"
+          aria-hidden="true"
+          focusable="false"
+        />
+      </button>
+
+      <input
+        type="checkbox"
+        checked={task.completed}
+        onChange={() => onToggle(task)}
+        className="mt-1.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50"
+      />
+
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        {dateDisplayValue ? (
+          <span className="absolute -top-2 left-0 text-xs leading-none text-gray-500 dark:text-gray-400">
+            {dateDisplayValue}
+          </span>
+        ) : null}
+        {isEditing ? (
+          <input
+            type="text"
+            value={editingText}
+            onChange={(e) => onEditingTextChange(e.target.value)}
+            onBlur={() => onEditEnd(task)}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Enter") onEditEnd(task);
+              if (e.key === "Escape") {
+                onEditingTextChange(task.text);
+              }
+            }}
+            autoFocus
+            className="min-w-0 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+          />
+        ) : (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={() => onEditStart(task)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onEditStart(task);
+              }
+            }}
+            className={
+              task.completed
+                ? "min-w-0 cursor-pointer text-left text-sm font-medium leading-7 text-gray-600 line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:focus-visible:outline-gray-500"
+                : "min-w-0 cursor-pointer text-left text-sm font-medium leading-7 text-gray-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+            }
+          >
+            {task.text}
+          </span>
+        )}
+      </div>
+
+      <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={setDateLabel}
+            title={dateTitle}
+            className="flex h-7 items-center rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+          >
+            <AppIcon
+              name="calendar-today"
+              className="h-5 w-5"
+              aria-hidden="true"
+              focusable="false"
+            />
+            <span className="sr-only">{setDateLabel}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="p-0">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(next) => {
+              setSelectedDate(next);
+              onDateChange?.(task.id, next ? formatTaskDate(next) : "");
+              setDatePickerOpen(false);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+type SortableData = {
+  sortable: {
+    containerId: UniqueIdentifier;
+    items: UniqueIdentifier[];
+    index: number;
+  };
+};
+
+const hasSortableData = (data: unknown): data is SortableData => {
+  if (!data || typeof data !== "object") return false;
+  const sortable = (data as { sortable?: unknown }).sortable;
+  return Boolean(sortable && typeof sortable === "object");
+};
 
 type TaskListCardProps = {
   taskList: TaskList;
@@ -66,7 +300,6 @@ type TaskListCardProps = {
 
 export function TaskListCard({
   taskList,
-  taskInsertPosition,
   isActive,
   onActivate,
   sensorsList,
@@ -94,6 +327,7 @@ export function TaskListCard({
   onRemoveShareCode,
   onCopyShareLink,
 }: TaskListCardProps) {
+  const reactId = useId();
   const [taskError, setTaskError] = useState<string | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -101,13 +335,30 @@ export function TaskListCard({
   const [newTaskText, setNewTaskText] = useState("");
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
 
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [deleteCompletedPending, setDeleteCompletedPending] = useState(false);
+  const newTaskInputRef = useRef<HTMLInputElement | null>(null);
+  const restoreNewTaskFocusRef = useRef(false);
+
   useEffect(() => {
     setLocalTasks(taskList.tasks);
   }, [taskList.tasks]);
 
   const tasks = localTasks;
 
+  const handleSortingChange = (sorting: boolean) => {
+    onSortingChange?.(sorting);
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const data = event.active.data.current;
+    if (hasSortableData(data)) {
+      handleSortingChange(true);
+    }
+  };
+
   const handleDragEndTask = async (event: DragEndEvent) => {
+    handleSortingChange(false);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const draggedTaskId = getStringId(active.id);
@@ -128,6 +379,10 @@ export function TaskListCard({
       setLocalTasks(taskList.tasks); // Rollback
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }
+  };
+
+  const handleDragCancel = () => {
+    handleSortingChange(false);
   };
 
   const handleSortTasks = async () => {
@@ -213,6 +468,45 @@ export function TaskListCard({
     }
   };
 
+  const historySuggestions = taskList.history;
+  const historyOptions = (() => {
+    const input = newTaskText.trim();
+    if (!historySuggestions || historySuggestions.length === 0) return [];
+    if (input.length < 2) return [];
+
+    const inputLower = input.toLowerCase();
+    const seen = new Set<string>();
+    const options: string[] = [];
+
+    for (const candidate of historySuggestions) {
+      const option = candidate.trim();
+      if (option === "") continue;
+
+      const optionLower = option.toLowerCase();
+      if (optionLower === inputLower) continue;
+      if (!optionLower.includes(inputLower)) continue;
+      if (seen.has(optionLower)) continue;
+
+      seen.add(optionLower);
+      options.push(option);
+      if (options.length >= 20) break;
+    }
+
+    return options;
+  })();
+  const historyListId = `task-history-${reactId.replace(/:/g, "")}`;
+
+  useEffect(() => {
+    if (historyOptions.length === 0) {
+      setHistoryOpen(false);
+    }
+  }, [historyOptions.length]);
+
+  const completedTaskCount = tasks.reduce(
+    (count, task) => count + (task.completed ? 1 : 0),
+    0,
+  );
+
   const inputClass =
     "rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800";
   const primaryButtonClass =
@@ -223,6 +517,129 @@ export function TaskListCard({
     "inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:bg-red-300 dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:outline-red-700 dark:disabled:bg-red-800";
   const iconButtonClass = clsx(secondaryButtonClass, "px-2");
 
+  const listContent =
+    tasks.length === 0 ? (
+      <p className="text-sm text-gray-600 dark:text-gray-300">
+        {t("pages.tasklist.noTasks")}
+      </p>
+    ) : (
+      <div className="flex flex-col gap-1">
+        {tasks.map((task) => (
+          <TaskItem
+            key={task.id}
+            task={task}
+            isEditing={editingTaskId === task.id}
+            editingText={editingTaskText}
+            onEditingTextChange={setEditingTaskText}
+            onEditStart={handleEditStartTask}
+            onEditEnd={handleEditEndTask}
+            onToggle={handleToggleTask}
+            onDateChange={handleChangeTaskDate}
+            setDateLabel={t("pages.tasklist.setDate")}
+            dragHintLabel={t("pages.tasklist.dragHint")}
+          />
+        ))}
+      </div>
+    );
+
+  const inputSection = (
+    <>
+      <form
+        className="flex items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (newTaskText.trim() === "") return;
+          restoreNewTaskFocusRef.current = true;
+          newTaskInputRef.current?.focus();
+          requestAnimationFrame(() => {
+            const input = newTaskInputRef.current;
+            if (!input) return;
+            if (!input.disabled) {
+              restoreNewTaskFocusRef.current = false;
+            }
+          });
+          void handleAddTask();
+        }}
+      >
+        <div className="relative min-w-0 flex-1">
+          <Command shouldFilter={false} className="bg-transparent">
+            <input
+              ref={newTaskInputRef}
+              type="text"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              aria-controls={
+                historyOptions.length > 0 ? historyListId : undefined
+              }
+              aria-expanded={historyOpen && historyOptions.length > 0}
+              value={newTaskText}
+              onChange={(e) => {
+                setNewTaskText(e.target.value);
+                setAddTaskError(null);
+                setHistoryOpen(true);
+              }}
+              onFocus={() => setHistoryOpen(true)}
+              onBlur={() => setHistoryOpen(false)}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
+                if (e.key === "Enter") {
+                  if (newTaskText.trim() === "") return;
+                  e.preventDefault();
+                  e.currentTarget.form?.requestSubmit();
+                }
+                if (e.key === "Escape") {
+                  setHistoryOpen(false);
+                }
+              }}
+              placeholder={t("pages.tasklist.addTaskPlaceholder")}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+            />
+            {historyOpen && historyOptions.length > 0 ? (
+              <CommandList
+                id={historyListId}
+                className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-800 dark:bg-gray-900"
+              >
+                {historyOptions.map((text) => (
+                  <CommandItem
+                    key={text}
+                    value={text}
+                    onMouseDown={(event: MouseEvent<HTMLDivElement>) =>
+                      event.preventDefault()
+                    }
+                    onSelect={(value: string) => {
+                      setNewTaskText(value);
+                      setAddTaskError(null);
+                      setHistoryOpen(false);
+                    }}
+                  >
+                    {text}
+                  </CommandItem>
+                ))}
+              </CommandList>
+            ) : null}
+          </Command>
+        </div>
+        <button
+          type="submit"
+          disabled={newTaskText.trim() === ""}
+          aria-label={t("common.add")}
+          title={t("common.add")}
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+        >
+          <span className="sr-only">{t("common.add")}</span>
+          <AppIcon
+            name="send"
+            className="h-5 w-5"
+            aria-hidden="true"
+            focusable="false"
+          />
+        </button>
+      </form>
+      {addTaskError ? <Alert variant="error">{addTaskError}</Alert> : null}
+    </>
+  );
+
   return (
     <section
       className={clsx(
@@ -232,40 +649,8 @@ export function TaskListCard({
     >
       <div className="h-full p-2 pt-6">
         <div className="min-h-full p-4">
-          <TaskListPanel
-            tasks={tasks}
-            sensors={sensorsList}
-            onSortTasks={handleSortTasks}
-            onDeleteCompletedTasks={handleDeleteCompletedTasks}
-            onDragEnd={handleDragEndTask}
-            editingTaskId={editingTaskId}
-            editingText={editingTaskText}
-            onEditingTextChange={setEditingTaskText}
-            onEditStart={handleEditStartTask}
-            onEditEnd={handleEditEndTask}
-            onToggle={handleToggleTask}
-            onDateChange={handleChangeTaskDate}
-            newTaskText={newTaskText}
-            onNewTaskTextChange={(value) => {
-              setNewTaskText(value);
-              setAddTaskError(null);
-            }}
-            onAddTask={handleAddTask}
-            addButtonLabel={t("common.add")}
-            addPlaceholder={t("pages.tasklist.addTaskPlaceholder")}
-            setDateLabel={t("pages.tasklist.setDate")}
-            dragHintLabel={t("pages.tasklist.dragHint")}
-            emptyLabel={t("pages.tasklist.noTasks")}
-            historySuggestions={taskList.history}
-            onSortingChange={onSortingChange}
-            addError={addTaskError}
-            stickyHeader={true}
-            headerStyle={{
-              backgroundColor:
-                taskList.background ?? "var(--tasklist-theme-bg)",
-            }}
-            headerClassName="backdrop-blur-sm"
-            header={
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-col gap-1.5">
@@ -475,8 +860,80 @@ export function TaskListCard({
                 </div>
                 {taskError ? <Alert variant="error">{taskError}</Alert> : null}
               </div>
-            }
-          />
+              {inputSection}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    disabled={tasks.length < 2}
+                    onClick={async () => {
+                      void handleSortTasks();
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+                  >
+                    <AppIcon
+                      name="sort"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                      focusable="false"
+                    />
+                    {t("pages.tasklist.sort")}
+                  </button>
+                </div>
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    disabled={
+                      deleteCompletedPending || completedTaskCount === 0
+                    }
+                    onClick={async () => {
+                      if (completedTaskCount === 0) return;
+                      const confirmed = window.confirm(
+                        t("pages.tasklist.deleteCompletedConfirm", {
+                          count: completedTaskCount,
+                        }),
+                      );
+                      if (!confirmed) return;
+
+                      setDeleteCompletedPending(true);
+                      try {
+                        await handleDeleteCompletedTasks();
+                      } finally {
+                        setDeleteCompletedPending(false);
+                      }
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:outline-red-400 dark:text-gray-50"
+                  >
+                    {deleteCompletedPending
+                      ? t("common.deleting")
+                      : t("pages.tasklist.deleteCompleted")}
+                    <AppIcon
+                      name="delete"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                      focusable="false"
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <DndContext
+              sensors={sensorsList}
+              collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis]}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEndTask}
+              onDragCancel={handleDragCancel}
+            >
+              <SortableContext
+                items={tasks.map((task) => task.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {listContent}
+              </SortableContext>
+            </DndContext>
+          </div>
         </div>
       </div>
     </section>

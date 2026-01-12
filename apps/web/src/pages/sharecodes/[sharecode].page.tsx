@@ -20,7 +20,7 @@ import { resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
-import { TaskListCard } from "@/pages/app/TaskListCard";
+import { TaskListCard } from "@/components/app/TaskListCard";
 
 export default function ShareCodePage() {
   const router = useRouter();

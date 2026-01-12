@@ -148,11 +148,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
     : setDateLabel;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex gap-2 rounded-xl py-3"
-    >
+    <div ref={setNodeRef} style={style} className="flex gap-2 rounded-xl py-3">
       <button
         {...attributes}
         {...listeners}

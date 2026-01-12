@@ -151,7 +151,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex gap-2 rounded-xl py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+      className="flex gap-2 rounded-xl py-3"
     >
       <button
         {...attributes}
@@ -643,9 +643,10 @@ export function TaskListCard({
   return (
     <section
       className={clsx(
-        "h-full overflow-y-auto",
+        "h-full overflow-y-auto transition-colors duration-200",
         isActive ? "pointer-events-auto" : "pointer-events-none",
       )}
+      style={{ backgroundColor: taskList.background ?? undefined }}
     >
       <div className="h-full p-2 pt-6">
         <div className="min-h-full p-4">

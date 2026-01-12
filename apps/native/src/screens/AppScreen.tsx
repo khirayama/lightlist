@@ -18,23 +18,17 @@ import { useNavigation } from "@react-navigation/native";
 import { DrawerActions } from "@react-navigation/native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { appStore } from "@lightlist/sdk/store";
-import type { Task, TaskList } from "@lightlist/sdk/types";
+import type { TaskList } from "@lightlist/sdk/types";
 import {
-  addTask,
   addSharedTaskListToOrder,
   createTaskList,
-  deleteCompletedTasks,
   deleteTaskList,
   fetchTaskListIdByShareCode,
   generateShareCode,
   removeShareCode,
-  sortTasks,
-  updateTask,
   updateTaskListOrder,
   updateTaskList,
-  updateTasksOrder,
 } from "@lightlist/sdk/mutations/app";
-import { signOut } from "@lightlist/sdk/mutations/auth";
 import { AppIcon } from "../components/ui/AppIcon";
 import {
   Carousel,
@@ -43,19 +37,11 @@ import {
   type CarouselApi,
 } from "../components/ui/Carousel";
 import { Dialog } from "../components/ui/Dialog";
-import { TaskListPanel } from "../components/app/TaskListPanel";
-import { AppDrawerContent } from "../components/app/AppDrawerContent";
+import { TaskListCard } from "../components/app/TaskListCard";
+import { DrawerPanel } from "../components/app/DrawerPanel";
 import { styles } from "../styles/appStyles";
 import { useTheme, listColors } from "../styles/theme";
 
-const arrayMove = <T,>(array: T[], from: number, to: number): T[] => {
-  const result = array.slice();
-  const [removed] = result.splice(from, 1);
-  result.splice(to, 0, removed);
-  return result;
-};
-
-const EMPTY_TASKS: Task[] = [];
 const EMPTY_TASK_LISTS: TaskList[] = [];
 
 const Drawer = createDrawerNavigator();
@@ -77,57 +63,37 @@ const AppScreenContent = ({
 
   const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
   const taskLists = appState.taskLists;
-  const userEmail = appState.user?.email ?? "";
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
     null,
   );
   const [appErrorMessage, setAppErrorMessage] = useState<string | null>(null);
-  const [createListName, setCreateListName] = useState("");
-  const [createListBackground, setCreateListBackground] = useState<
-    string | null
-  >(listColors[0]);
+
+  // List Edit State
   const [editListName, setEditListName] = useState("");
   const [editListBackground, setEditListBackground] = useState<string | null>(
     listColors[0],
   );
-  const [newTaskText, setNewTaskText] = useState("");
-  const [joinListInput, setJoinListInput] = useState("");
-  const [joinListError, setJoinListError] = useState<string | null>(null);
+  const [isSavingList, setIsSavingList] = useState(false);
+  const [isDeletingList, setIsDeletingList] = useState(false);
+  const [isEditListDialogOpen, setIsEditListDialogOpen] = useState(false);
+
+  // Share State
   const [shareErrorMessage, setShareErrorMessage] = useState<string | null>(
     null,
   );
-  const [isCreatingList, setIsCreatingList] = useState(false);
-  const [isSavingList, setIsSavingList] = useState(false);
-  const [isJoiningList, setIsJoiningList] = useState(false);
-  const [isDeletingList, setIsDeletingList] = useState(false);
   const [isGeneratingShareCode, setIsGeneratingShareCode] = useState(false);
   const [isRemovingShareCode, setIsRemovingShareCode] = useState(false);
-  const [isEditListDialogOpen, setIsEditListDialogOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+
   const [taskListCarouselApi, setTaskListCarouselApi] =
     useState<CarouselApi | null>(null);
   const isScrollingRef = useRef(false);
   const pendingIndexRef = useRef<number | null>(null);
-  const [isReorderHandleActive, setIsReorderHandleActive] = useState(false);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingTaskText, setEditingTaskText] = useState("");
-  const [editingTaskDate, setEditingTaskDate] = useState("");
-  const [localTasksMap, setLocalTasksMap] = useState<Record<string, Task[]>>(
-    {},
-  );
 
   const stableTaskLists = taskLists.length > 0 ? taskLists : EMPTY_TASK_LISTS;
   const selectedTaskList: TaskList | null =
     taskLists.find((list) => list.id === selectedTaskListId) ?? null;
-
-  useEffect(() => {
-    const newMap: Record<string, Task[]> = {};
-    for (const tl of taskLists) {
-      newMap[tl.id] = tl.tasks;
-    }
-    setLocalTasksMap(newMap);
-  }, [taskLists]);
 
   useEffect(() => {
     if (taskLists.length === 0) {
@@ -142,43 +108,22 @@ const AppScreenContent = ({
     }
   }, [taskLists, selectedTaskListId]);
 
+  // Sync edit form with selected list
   useEffect(() => {
-    if (!taskLists.some((list) => list.id === selectedTaskListId)) {
+    if (!selectedTaskList) {
       setEditListName("");
       setEditListBackground(listColors[0]);
-      setNewTaskText("");
       return;
     }
-    const selected = taskLists.find((l) => l.id === selectedTaskListId);
-    if (selected) {
-      setEditListName(selected.name);
-      setEditListBackground(selected.background);
-      setNewTaskText("");
-    }
-  }, [selectedTaskListId, taskLists]);
+    setEditListName(selectedTaskList.name);
+    setEditListBackground(selectedTaskList.background);
+  }, [selectedTaskList]);
 
   useEffect(() => {
     setShareErrorMessage(null);
     setIsGeneratingShareCode(false);
     setIsRemovingShareCode(false);
   }, [selectedTaskListId]);
-
-  useEffect(() => {
-    setEditingTaskId(null);
-    setEditingTaskText("");
-    setEditingTaskDate("");
-    setIsReorderHandleActive(false);
-  }, [selectedTaskListId]);
-
-  useEffect(() => {
-    if (!editingTaskId) return;
-    const currentTasks = selectedTaskList?.tasks ?? EMPTY_TASKS;
-    const exists = currentTasks.some((task) => task.id === editingTaskId);
-    if (exists) return;
-    setEditingTaskId(null);
-    setEditingTaskText("");
-    setEditingTaskDate("");
-  }, [editingTaskId, selectedTaskList?.tasks]);
 
   useEffect(() => {
     if (!taskListCarouselApi || stableTaskLists.length === 0) return;
@@ -191,47 +136,13 @@ const AppScreenContent = ({
     }
   }, [selectedTaskListId, taskListCarouselApi, stableTaskLists]);
 
-  const handleReorderTaskWithOptimisticUpdate = useCallback(
-    async (taskListId: string, draggedTaskId: string, targetTaskId: string) => {
-      const currentTasks = localTasksMap[taskListId];
-      if (!currentTasks) return;
-
-      const oldIndex = currentTasks.findIndex((t) => t.id === draggedTaskId);
-      const newIndex = currentTasks.findIndex((t) => t.id === targetTaskId);
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setLocalTasksMap((prev) => ({
-          ...prev,
-          [taskListId]: arrayMove(prev[taskListId] ?? [], oldIndex, newIndex),
-        }));
-      }
-
-      try {
-        await updateTasksOrder(taskListId, draggedTaskId, targetTaskId);
-      } catch {
-        const originalList = taskLists.find((tl) => tl.id === taskListId);
-        if (originalList) {
-          setLocalTasksMap((prev) => ({
-            ...prev,
-            [taskListId]: originalList.tasks,
-          }));
-        }
-      }
-    },
-    [localTasksMap, taskLists],
-  );
-
   const handleEditListDialogChange = useCallback(
     (open: boolean) => {
       setIsEditListDialogOpen(open);
-      if (open) return;
-      if (!selectedTaskList) {
-        setEditListName("");
-        setEditListBackground(listColors[0]);
-        return;
+      if (open && selectedTaskList) {
+        setEditListName(selectedTaskList.name);
+        setEditListBackground(selectedTaskList.background || listColors[0]);
       }
-      setEditListName(selectedTaskList.name);
-      setEditListBackground(selectedTaskList.background || listColors[0]);
     },
     [selectedTaskList],
   );
@@ -239,53 +150,6 @@ const AppScreenContent = ({
   const handleShareDialogChange = useCallback((open: boolean) => {
     setIsShareDialogOpen(open);
   }, []);
-
-  const handleEditStart = useCallback((task: Task) => {
-    setEditingTaskId(task.id);
-    setEditingTaskText(task.text);
-    setEditingTaskDate(task.date ?? "");
-  }, []);
-
-  const handleEditEnd = useCallback(
-    async (task: Task) => {
-      if (!editingTaskId || editingTaskId !== task.id) return;
-
-      const trimmedText = editingTaskText.trim();
-      if (!trimmedText) {
-        setEditingTaskId(null);
-        setEditingTaskText("");
-        setEditingTaskDate("");
-        return;
-      }
-      const normalizedDate = editingTaskDate.trim();
-      if (trimmedText === task.text && normalizedDate === (task.date ?? "")) {
-        setEditingTaskId(null);
-        setEditingTaskText("");
-        setEditingTaskDate("");
-        return;
-      }
-      await handleUpdateTask(task.id, {
-        text: trimmedText,
-        date: normalizedDate,
-      });
-      setEditingTaskId(null);
-      setEditingTaskText("");
-      setEditingTaskDate("");
-    },
-    [editingTaskId, editingTaskText, editingTaskDate],
-  );
-
-  const handleDateChange = useCallback(
-    async (task: Task, nextDate: string) => {
-      const normalizedDate = nextDate.trim();
-      if (editingTaskId === task.id) {
-        setEditingTaskDate(normalizedDate);
-      }
-      if (normalizedDate === (task.date ?? "")) return;
-      await handleUpdateTask(task.id, { date: normalizedDate });
-    },
-    [editingTaskId],
-  );
 
   const handleCarouselSelect = useCallback(
     (api: CarouselApi) => {
@@ -299,32 +163,6 @@ const AppScreenContent = ({
     },
     [stableTaskLists, selectedTaskListId],
   );
-
-  const handleCreateList = async (): Promise<boolean> => {
-    const trimmedName = createListName.trim();
-    if (!trimmedName) {
-      setAppErrorMessage(t("form.required"));
-      return false;
-    }
-    setIsCreatingList(true);
-    setAppErrorMessage(null);
-    try {
-      const newListId = await createTaskList(trimmedName, createListBackground);
-      setCreateListName("");
-      setCreateListBackground(listColors[0]);
-      setSelectedTaskListId(newListId);
-      return true;
-    } catch (error) {
-      if (error instanceof Error) {
-        setAppErrorMessage(error.message);
-      } else {
-        setAppErrorMessage(t("app.error"));
-      }
-      return false;
-    } finally {
-      setIsCreatingList(false);
-    }
-  };
 
   const handleSaveList = async () => {
     if (!selectedTaskList) return;
@@ -340,6 +178,7 @@ const AppScreenContent = ({
         name: trimmedName,
         background: editListBackground,
       });
+      setIsEditListDialogOpen(false);
     } catch (error) {
       if (error instanceof Error) {
         setAppErrorMessage(error.message);
@@ -351,41 +190,12 @@ const AppScreenContent = ({
     }
   };
 
-  const handleJoinList = async (): Promise<boolean> => {
-    const trimmedCode = joinListInput.trim().toUpperCase();
-    if (!trimmedCode) {
-      setJoinListError(t("pages.sharecode.enterCode"));
-      return false;
-    }
-    setIsJoiningList(true);
-    setJoinListError(null);
-    try {
-      const taskListId = await fetchTaskListIdByShareCode(trimmedCode);
-      if (!taskListId) {
-        setJoinListError(t("pages.sharecode.notFound"));
-        return false;
-      }
-      await addSharedTaskListToOrder(taskListId);
-      setJoinListInput("");
-      setSelectedTaskListId(taskListId);
-      return true;
-    } catch (error) {
-      if (error instanceof Error) {
-        setJoinListError(error.message);
-      } else {
-        setJoinListError(t("pages.sharecode.error"));
-      }
-      return false;
-    } finally {
-      setIsJoiningList(false);
-    }
-  };
-
   const handleDeleteList = async (taskListId: string) => {
     setIsDeletingList(true);
     setAppErrorMessage(null);
     try {
       await deleteTaskList(taskListId);
+      setIsEditListDialogOpen(false);
     } catch (error) {
       if (error instanceof Error) {
         setAppErrorMessage(error.message);
@@ -409,110 +219,6 @@ const AppScreenContent = ({
         },
       },
     ]);
-  };
-
-  const handleReorderTaskList = async (
-    draggedTaskListId: string,
-    targetTaskListId: string,
-  ) => {
-    if (!draggedTaskListId || !targetTaskListId) return;
-    if (draggedTaskListId === targetTaskListId) return;
-    setAppErrorMessage(null);
-    try {
-      await updateTaskListOrder(draggedTaskListId, targetTaskListId);
-    } catch (error) {
-      if (error instanceof Error) {
-        setAppErrorMessage(error.message);
-      } else {
-        setAppErrorMessage(t("app.error"));
-      }
-    }
-  };
-
-  const handleAddTask = async () => {
-    if (!selectedTaskList) return;
-    const trimmedText = newTaskText.trim();
-    if (!trimmedText) {
-      setAppErrorMessage(t("form.required"));
-      return;
-    }
-    setAppErrorMessage(null);
-    setNewTaskText("");
-    try {
-      await addTask(selectedTaskList.id, trimmedText);
-    } catch (error) {
-      setNewTaskText(trimmedText);
-      if (error instanceof Error) {
-        setAppErrorMessage(error.message);
-      } else {
-        setAppErrorMessage(t("app.error"));
-      }
-    }
-  };
-
-  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
-    if (!selectedTaskList) return;
-    if (typeof updates.text === "string" && updates.text.trim().length === 0) {
-      setAppErrorMessage(t("form.required"));
-      return;
-    }
-    setAppErrorMessage(null);
-    try {
-      await updateTask(selectedTaskList.id, taskId, updates);
-    } catch (error) {
-      if (error instanceof Error) {
-        setAppErrorMessage(error.message);
-      } else {
-        setAppErrorMessage(t("app.error"));
-      }
-    }
-  };
-
-  const handleReorderTask = async (
-    draggedTaskId: string,
-    targetTaskId: string,
-  ) => {
-    if (!selectedTaskList) return;
-    if (!draggedTaskId || !targetTaskId) return;
-    if (draggedTaskId === targetTaskId) return;
-    setAppErrorMessage(null);
-    try {
-      await updateTasksOrder(selectedTaskList.id, draggedTaskId, targetTaskId);
-    } catch (error) {
-      if (error instanceof Error) {
-        setAppErrorMessage(error.message);
-      } else {
-        setAppErrorMessage(t("app.error"));
-      }
-    }
-  };
-
-  const handleSortTasks = async () => {
-    if (!selectedTaskList) return;
-    setAppErrorMessage(null);
-    try {
-      await sortTasks(selectedTaskList.id);
-    } catch (error) {
-      if (error instanceof Error) {
-        setAppErrorMessage(error.message);
-      } else {
-        setAppErrorMessage(t("app.error"));
-      }
-    }
-  };
-
-  const handleDeleteCompletedTasks = async () => {
-    if (!selectedTaskList) return;
-    setAppErrorMessage(null);
-    try {
-      await deleteCompletedTasks(selectedTaskList.id);
-    } catch (error) {
-      if (error instanceof Error) {
-        setAppErrorMessage(error.message);
-      } else {
-        setAppErrorMessage(t("app.error"));
-      }
-    }
   };
 
   const handleGenerateShareCode = async () => {
@@ -547,41 +253,6 @@ const AppScreenContent = ({
     } finally {
       setIsRemovingShareCode(false);
     }
-  };
-
-  const handleToggleTask = async (task: Task) => {
-    if (!selectedTaskList) return;
-    setAppErrorMessage(null);
-    try {
-      await updateTask(selectedTaskList.id, task.id, {
-        completed: !task.completed,
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        setAppErrorMessage(error.message);
-      } else {
-        setAppErrorMessage(t("app.error"));
-      }
-    }
-  };
-
-  const confirmSignOut = () => {
-    Alert.alert(t("app.signOut"), t("app.signOutConfirm"), [
-      { text: t("app.cancel"), style: "cancel" },
-      {
-        text: t("app.signOut"),
-        style: "destructive",
-        onPress: () => {
-          void signOut().catch((error: unknown) => {
-            if (error instanceof Error) {
-              setAppErrorMessage(error.message);
-            } else {
-              setAppErrorMessage(t("app.error"));
-            }
-          });
-        },
-      },
-    ]);
   };
 
   const canSaveList =
@@ -897,46 +568,6 @@ const AppScreenContent = ({
 
   const carouselItems = stableTaskLists.map((taskList) => {
     const isActive = taskList.id === selectedTaskListId;
-    const listTasks = localTasksMap[taskList.id] ?? taskList.tasks;
-    const activeEditingTaskId = isActive ? editingTaskId : null;
-    const activeEditingTaskText = isActive ? editingTaskText : "";
-    const activeEditingTaskDate = isActive ? editingTaskDate : "";
-    const activeNewTaskText = isActive ? newTaskText : "";
-
-    const header = (
-      <View style={[styles.taskHeaderRow, { marginBottom: 16 }]}>
-        <Text
-          style={[styles.settingsTitle, { color: theme.text }]}
-          numberOfLines={1}
-        >
-          {taskList.name}
-        </Text>
-        <View style={styles.headerActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("taskList.editDetails")}
-            onPress={() => handleEditListDialogChange(true)}
-            style={({ pressed }) => [
-              styles.headerIconButton,
-              { opacity: pressed ? 0.9 : 1 },
-            ]}
-          >
-            <AppIcon name="edit" size={18} color={theme.text} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("taskList.shareTitle")}
-            onPress={() => handleShareDialogChange(true)}
-            style={({ pressed }) => [
-              styles.headerIconButton,
-              { opacity: pressed ? 0.9 : 1 },
-            ]}
-          >
-            <AppIcon name="share" size={18} color={theme.text} />
-          </Pressable>
-        </View>
-      </View>
-    );
 
     return (
       <CarouselItem key={taskList.id}>
@@ -946,34 +577,28 @@ const AppScreenContent = ({
             backgroundColor: taskList.background ?? theme.background,
           }}
         >
-          <TaskListPanel
-            header={header}
+          <TaskListCard
+            taskList={taskList}
+            isActive={isActive}
+            onActivate={setSelectedTaskListId}
             t={t}
-            theme={theme}
-            tasks={listTasks}
-            newTaskText={activeNewTaskText}
-            addDisabled={!isActive}
-            emptyLabel={t("pages.tasklist.noTasks")}
-            editingTaskId={activeEditingTaskId}
-            editingTaskText={activeEditingTaskText}
-            editingTaskDate={activeEditingTaskDate}
-            onEditingTaskTextChange={setEditingTaskText}
-            onEditingTaskDateChange={setEditingTaskDate}
-            onEditStart={handleEditStart}
-            onEditEnd={handleEditEnd}
-            onDateChange={handleDateChange}
-            onChangeNewTaskText={setNewTaskText}
-            onAddTask={handleAddTask}
-            onToggleTask={handleToggleTask}
-            onReorderTask={(draggedTaskId, targetTaskId) =>
-              handleReorderTaskWithOptimisticUpdate(
-                taskList.id,
-                draggedTaskId,
-                targetTaskId,
-              )
-            }
-            onSortTasks={handleSortTasks}
-            onDeleteCompletedTasks={handleDeleteCompletedTasks}
+            enableEditDialog
+            showEditListDialog={isEditListDialogOpen}
+            onEditDialogOpenChange={(tl, open) => {
+              // Switch to the list we want to edit if different
+              if (tl.id !== selectedTaskListId) {
+                setSelectedTaskListId(tl.id);
+              }
+              handleEditListDialogChange(open);
+            }}
+            enableShareDialog
+            showShareDialog={isShareDialogOpen}
+            onShareDialogOpenChange={(tl, open) => {
+              if (tl.id !== selectedTaskListId) {
+                setSelectedTaskListId(tl.id);
+              }
+              handleShareDialogChange(open);
+            }}
           />
         </View>
       </CarouselItem>
@@ -987,7 +612,6 @@ const AppScreenContent = ({
         setApi={setTaskListCarouselApi}
         onSelect={handleCarouselSelect}
         opts={{
-          enabled: !isReorderHandleActive,
           loop: false,
           minScrollDistancePerSwipe: 10,
           onScrollStart: () => {
@@ -1012,57 +636,14 @@ const AppScreenContent = ({
         <CarouselContent style={{ flex: 1 }}>{carouselItems}</CarouselContent>
       </Carousel>
     ) : (
-      <TaskListPanel
-        t={t}
-        theme={theme}
-        tasks={EMPTY_TASKS}
-        newTaskText=""
-        addDisabled
-        emptyLabel=""
-        editingTaskId={null}
-        editingTaskText=""
-        editingTaskDate=""
-        onEditingTaskTextChange={() => {}}
-        onEditingTaskDateChange={() => {}}
-        onEditStart={() => {}}
-        onEditEnd={() => {}}
-        onDateChange={() => {}}
-        onChangeNewTaskText={() => {}}
-        onAddTask={() => {}}
-        onToggleTask={() => {}}
-        onReorderTask={() => {}}
-        onSortTasks={() => {}}
-        onDeleteCompletedTasks={() => {}}
-      />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text style={[styles.emptyText, { color: theme.muted }]}>
+          {t("pages.tasklist.noTasks")}
+        </Text>
+      </View>
     );
 
   const currentBackground = selectedTaskList?.background ?? theme.background;
-
-  const drawerContentProps = {
-    t,
-    theme,
-    userEmail,
-    taskLists,
-    selectedTaskListId,
-    createListName,
-    createListBackground,
-    isCreatingList,
-    isJoiningList,
-    joinListInput,
-    joinListError,
-    onSelectTaskList: setSelectedTaskListId,
-    onOpenSettings,
-    onChangeCreateListName: setCreateListName,
-    onChangeCreateListBackground: setCreateListBackground,
-    onChangeJoinListInput: (value: string) => {
-      setJoinListInput(value);
-      setJoinListError(null);
-    },
-    onClearJoinListError: () => setJoinListError(null),
-    onCreateList: handleCreateList,
-    onJoinList: handleJoinList,
-    onReorderTaskList: handleReorderTaskList,
-  };
 
   return (
     <View style={[styles.drawerRoot, { backgroundColor: currentBackground }]}>
@@ -1104,6 +685,9 @@ export const AppScreen = ({
   const [joinListInput, setJoinListInput] = useState("");
   const [joinListError, setJoinListError] = useState<string | null>(null);
 
+  const [isCreateListDialogOpen, setIsCreateListDialogOpen] = useState(false);
+  const [isJoinListDialogOpen, setIsJoinListDialogOpen] = useState(false);
+
   useEffect(() => {
     if (taskLists.length === 0) {
       setSelectedTaskListId(null);
@@ -1117,28 +701,28 @@ export const AppScreen = ({
     }
   }, [taskLists, selectedTaskListId]);
 
-  const handleCreateList = async (): Promise<boolean> => {
+  const handleCreateList = async () => {
     const trimmedName = createListName.trim();
-    if (!trimmedName) return false;
+    if (!trimmedName) return;
     setIsCreatingList(true);
     try {
       const newListId = await createTaskList(trimmedName, createListBackground);
       setCreateListName("");
       setCreateListBackground(listColors[0]);
       setSelectedTaskListId(newListId);
-      return true;
+      setIsCreateListDialogOpen(false);
     } catch {
-      return false;
+      // Error handling
     } finally {
       setIsCreatingList(false);
     }
   };
 
-  const handleJoinList = async (): Promise<boolean> => {
+  const handleJoinList = async () => {
     const trimmedCode = joinListInput.trim().toUpperCase();
     if (!trimmedCode) {
       setJoinListError(t("pages.sharecode.enterCode"));
-      return false;
+      return;
     }
     setIsJoiningList(true);
     setJoinListError(null);
@@ -1146,19 +730,18 @@ export const AppScreen = ({
       const taskListId = await fetchTaskListIdByShareCode(trimmedCode);
       if (!taskListId) {
         setJoinListError(t("pages.sharecode.notFound"));
-        return false;
+        return;
       }
       await addSharedTaskListToOrder(taskListId);
       setJoinListInput("");
       setSelectedTaskListId(taskListId);
-      return true;
+      setIsJoinListDialogOpen(false);
     } catch (error) {
       if (error instanceof Error) {
         setJoinListError(error.message);
       } else {
         setJoinListError(t("pages.sharecode.error"));
       }
-      return false;
     } finally {
       setIsJoiningList(false);
     }
@@ -1175,36 +758,55 @@ export const AppScreen = ({
     } catch {}
   };
 
-  const drawerContentProps = {
-    t,
-    theme,
-    userEmail,
-    taskLists,
-    selectedTaskListId,
-    createListName,
-    createListBackground,
-    isCreatingList,
-    isJoiningList,
-    joinListInput,
-    joinListError,
-    onSelectTaskList: setSelectedTaskListId,
-    onOpenSettings,
-    onChangeCreateListName: setCreateListName,
-    onChangeCreateListBackground: setCreateListBackground,
-    onChangeJoinListInput: (value: string) => {
-      setJoinListInput(value);
+  const handleCreateListDialogChange = (open: boolean) => {
+    setIsCreateListDialogOpen(open);
+    if (!open) {
+      setCreateListName("");
+      setCreateListBackground(listColors[0]);
+    }
+  };
+
+  const handleJoinListDialogChange = (open: boolean) => {
+    setIsJoinListDialogOpen(open);
+    if (!open) {
+      setJoinListInput("");
       setJoinListError(null);
-    },
-    onClearJoinListError: () => setJoinListError(null),
-    onCreateList: handleCreateList,
-    onJoinList: handleJoinList,
-    onReorderTaskList: handleReorderTaskList,
+    }
   };
 
   return (
     <Drawer.Navigator
       drawerContent={(props) => (
-        <AppDrawerContent {...drawerContentProps} {...props} />
+        <DrawerPanel
+          isWideLayout={isWideLayout}
+          userEmail={userEmail}
+          showCreateListDialog={isCreateListDialogOpen}
+          onCreateListDialogChange={handleCreateListDialogChange}
+          createListInput={createListName}
+          onCreateListInputChange={setCreateListName}
+          createListBackground={createListBackground}
+          onCreateListBackgroundChange={setCreateListBackground}
+          colors={listColors}
+          onCreateList={handleCreateList}
+          hasTaskLists={taskLists.length > 0}
+          taskLists={taskLists}
+          onReorderTaskList={handleReorderTaskList}
+          selectedTaskListId={selectedTaskListId}
+          onSelectTaskList={setSelectedTaskListId}
+          onCloseDrawer={() => props.navigation.closeDrawer()}
+          onOpenSettings={onOpenSettings}
+          showJoinListDialog={isJoinListDialogOpen}
+          onJoinListDialogChange={handleJoinListDialogChange}
+          joinListInput={joinListInput}
+          onJoinListInputChange={(value) => {
+            setJoinListInput(value);
+            setJoinListError(null);
+          }}
+          onJoinList={handleJoinList}
+          joinListError={joinListError}
+          joiningList={isJoiningList}
+          creatingList={isCreatingList}
+        />
       )}
       screenOptions={{
         headerShown: false,

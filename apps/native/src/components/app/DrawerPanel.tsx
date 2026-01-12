@@ -1,12 +1,4 @@
-import { useState } from "react";
-import {
-  Pressable,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions,
-} from "react-native";
-import { type DrawerContentComponentProps } from "@react-navigation/drawer";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import DraggableFlatList, {
   type RenderItemParams,
@@ -14,107 +6,98 @@ import DraggableFlatList, {
 import { AppIcon } from "../ui/AppIcon";
 import { Dialog } from "../ui/Dialog";
 import { styles } from "../../styles/appStyles";
-import { useTheme, listColors, type Theme } from "../../styles/theme";
+import { useTheme, type Theme } from "../../styles/theme";
 import type { TaskList } from "@lightlist/sdk/types";
 
-type AppDrawerContentProps = DrawerContentComponentProps & {
+// WebのDrawerPanelPropsに合わせて定義
+type DrawerPanelProps = {
+  isWideLayout: boolean;
   userEmail: string;
-  taskLists: TaskList[];
-  selectedTaskListId: string | null;
-  createListName: string;
+  showCreateListDialog: boolean;
+  onCreateListDialogChange: (open: boolean) => void;
+  createListInput: string;
+  onCreateListInputChange: (value: string) => void;
   createListBackground: string | null;
-  isCreatingList: boolean;
-  isJoiningList: boolean;
-  joinListInput: string;
-  joinListError: string | null;
-  onSelectTaskList: (taskListId: string) => void;
-  onOpenSettings: () => void;
-  onChangeCreateListName: (value: string) => void;
-  onChangeCreateListBackground: (color: string | null) => void;
-  onChangeJoinListInput: (value: string) => void;
-  onClearJoinListError: () => void;
-  onCreateList: () => Promise<boolean>;
-  onJoinList: () => Promise<boolean>;
+  onCreateListBackgroundChange: (color: string | null) => void;
+  colors: readonly string[]; // WebはColorOption[]だがNativeはstring[] (listColors)
+  onCreateList: () => void | Promise<void>;
+  hasTaskLists: boolean;
+  taskLists: TaskList[];
+  // onDragEndTaskList: Web用なので除外。Native用のハンドラを定義
   onReorderTaskList: (
     draggedTaskListId: string,
     targetTaskListId: string,
   ) => void | Promise<void>;
+  selectedTaskListId: string | null;
+  onSelectTaskList: (taskListId: string) => void;
+  onCloseDrawer: () => void;
+  onOpenSettings: () => void;
+  showJoinListDialog: boolean;
+  onJoinListDialogChange: (open: boolean) => void;
+  joinListInput: string;
+  onJoinListInputChange: (value: string) => void;
+  onJoinList: () => void | Promise<void>;
+  joinListError: string | null;
+  joiningList: boolean;
+  creatingList: boolean;
 };
 
-export const AppDrawerContent = (props: AppDrawerContentProps) => {
+export const DrawerPanel = (props: DrawerPanelProps) => {
   const {
+    isWideLayout,
     userEmail,
-    taskLists,
-    selectedTaskListId,
-    createListName,
+    showCreateListDialog,
+    onCreateListDialogChange,
+    createListInput,
+    onCreateListInputChange,
     createListBackground,
-    isCreatingList,
-    isJoiningList,
-    onSelectTaskList,
-    onOpenSettings,
-    onChangeCreateListName,
-    onChangeCreateListBackground,
-    onChangeJoinListInput,
-    onClearJoinListError,
+    onCreateListBackgroundChange,
+    colors,
     onCreateList,
-    onJoinList,
+    hasTaskLists,
+    taskLists,
     onReorderTaskList,
-    navigation,
+    selectedTaskListId,
+    onSelectTaskList,
+    onCloseDrawer,
+    onOpenSettings,
+    showJoinListDialog,
+    onJoinListDialogChange,
     joinListInput,
+    onJoinListInputChange,
+    onJoinList,
     joinListError,
+    joiningList,
+    creatingList,
   } = props;
 
   const { t } = useTranslation();
   const theme = useTheme();
-  const [isCreateListDialogOpen, setIsCreateListDialogOpen] = useState(false);
-  const [isJoinListDialogOpen, setIsJoinListDialogOpen] = useState(false);
-  const { width } = useWindowDimensions();
-  const isWideLayout = width >= 1024;
 
-  const canCreateList = !isCreatingList && createListName.trim().length > 0;
-  const canJoinList = !isJoiningList && joinListInput.trim().length > 0;
-  const canDragList = taskLists.length > 1;
-
-  const handleCreateListDialogChange = (open: boolean) => {
-    setIsCreateListDialogOpen(open);
-    if (!open) {
-      onChangeCreateListName("");
-      onChangeCreateListBackground(listColors[0]);
-    }
-  };
-
-  const handleJoinListDialogChange = (open: boolean) => {
-    setIsJoinListDialogOpen(open);
-    if (!open) {
-      onChangeJoinListInput("");
-      onClearJoinListError();
-    }
-  };
+  const canCreateList = !creatingList && createListInput.trim().length > 0;
+  const canJoinList = !joiningList && joinListInput.trim().length > 0;
+  const canDragList = hasTaskLists && taskLists.length > 1;
 
   const handleCreateListSubmit = async () => {
     if (!canCreateList) return;
-    const created = await onCreateList();
-    if (created) {
-      handleCreateListDialogChange(false);
-    }
+    await onCreateList();
+    // 成功時のダイアログクローズは親が行う想定だが、Webの実装を見ると
+    // Webはコンポーネント内で `void onCreateList()` しているだけ。
+    // 親側で成功したらダイアログを閉じるロジックが必要。
   };
 
   const handleJoinListSubmit = async () => {
     if (!canJoinList) return;
-    const joined = await onJoinList();
-    if (joined) {
-      handleJoinListDialogChange(false);
-      navigation.closeDrawer();
-    }
+    await onJoinList();
   };
 
   const handleSelectTaskList = (taskListId: string) => {
     onSelectTaskList(taskListId);
-    navigation.closeDrawer();
+    onCloseDrawer();
   };
 
   const handleOpenSettings = () => {
-    navigation.closeDrawer();
+    onCloseDrawer();
     onOpenSettings();
   };
 
@@ -153,7 +136,7 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("common.close")}
-              onPress={() => navigation.closeDrawer()}
+              onPress={onCloseDrawer}
               style={({ pressed }) => [
                 styles.headerIconButton,
                 { opacity: pressed ? 0.9 : 1 },
@@ -183,7 +166,7 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("app.createNew")}
-                onPress={() => handleCreateListDialogChange(true)}
+                onPress={() => onCreateListDialogChange(true)}
                 style={({ pressed }) => [
                   styles.button,
                   {
@@ -205,7 +188,7 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("app.joinList")}
-                onPress={() => handleJoinListDialogChange(true)}
+                onPress={() => onJoinListDialogChange(true)}
                 style={({ pressed }) => [
                   styles.button,
                   {
@@ -228,8 +211,8 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
               </Pressable>
             </View>
             <Dialog
-              open={isJoinListDialogOpen}
-              onOpenChange={handleJoinListDialogChange}
+              open={showJoinListDialog}
+              onOpenChange={onJoinListDialogChange}
               title={t("app.joinListTitle")}
               description={t("app.joinListDescription")}
               theme={theme}
@@ -238,7 +221,7 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={t("app.cancel")}
-                    onPress={() => handleJoinListDialogChange(false)}
+                    onPress={() => onJoinListDialogChange(false)}
                     style={({ pressed }) => [
                       styles.secondaryButton,
                       {
@@ -281,7 +264,7 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
                         },
                       ]}
                     >
-                      {isJoiningList ? t("app.joining") : t("app.join")}
+                      {joiningList ? t("app.joining") : t("app.join")}
                     </Text>
                   </Pressable>
                 </>
@@ -302,14 +285,14 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
                       },
                     ]}
                     value={joinListInput}
-                    onChangeText={onChangeJoinListInput}
+                    onChangeText={onJoinListInputChange}
                     placeholder={t("pages.sharecode.codePlaceholder")}
                     placeholderTextColor={theme.placeholder}
                     autoCapitalize="characters"
                     autoCorrect={false}
                     returnKeyType="go"
                     onSubmitEditing={handleJoinListSubmit}
-                    editable={!isJoiningList}
+                    editable={!joiningList}
                     accessibilityLabel={t("pages.sharecode.codeLabel")}
                     autoFocus
                   />
@@ -322,8 +305,8 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
               </View>
             </Dialog>
             <Dialog
-              open={isCreateListDialogOpen}
-              onOpenChange={handleCreateListDialogChange}
+              open={showCreateListDialog}
+              onOpenChange={onCreateListDialogChange}
               title={t("app.createTaskList")}
               description={t("app.taskListName")}
               theme={theme}
@@ -332,7 +315,7 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={t("app.cancel")}
-                    onPress={() => handleCreateListDialogChange(false)}
+                    onPress={() => onCreateListDialogChange(false)}
                     style={({ pressed }) => [
                       styles.secondaryButton,
                       {
@@ -377,7 +360,7 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
                         },
                       ]}
                     >
-                      {isCreatingList ? t("app.creating") : t("app.create")}
+                      {creatingList ? t("app.creating") : t("app.create")}
                     </Text>
                   </Pressable>
                 </>
@@ -397,13 +380,13 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
                         backgroundColor: theme.inputBackground,
                       },
                     ]}
-                    value={createListName}
-                    onChangeText={onChangeCreateListName}
+                    value={createListInput}
+                    onChangeText={onCreateListInputChange}
                     placeholder={t("app.taskListNamePlaceholder")}
                     placeholderTextColor={theme.placeholder}
                     returnKeyType="done"
                     onSubmitEditing={handleCreateListSubmit}
-                    editable={!isCreatingList}
+                    editable={!creatingList}
                     accessibilityLabel={t("app.taskListName")}
                     autoFocus
                   />
@@ -413,44 +396,42 @@ export const AppDrawerContent = (props: AppDrawerContentProps) => {
                     {t("taskList.selectColor")}
                   </Text>
                   <View style={styles.colorRow}>
-                    {([null, ...listColors] as (string | null)[]).map(
-                      (color) => {
-                        const isSelected = color === createListBackground;
-                        return (
-                          <Pressable
-                            key={`create-${color ?? "none"}`}
-                            accessibilityRole="button"
-                            accessibilityLabel={
-                              color
-                                ? t("taskList.selectColor")
-                                : t("taskList.backgroundNone")
-                            }
-                            accessibilityState={{ selected: isSelected }}
-                            onPress={() => onChangeCreateListBackground(color)}
-                            style={[
-                              styles.colorSwatch,
-                              {
-                                backgroundColor: color || theme.background,
-                                borderColor: isSelected
-                                  ? theme.primary
-                                  : theme.border,
-                                borderWidth: isSelected ? 2 : 1,
-                                justifyContent: "center",
-                                alignItems: "center",
-                              },
-                            ]}
-                          >
-                            {!color && (
-                              <AppIcon
-                                name="close"
-                                size={16}
-                                color={isSelected ? theme.primary : theme.muted}
-                              />
-                            )}
-                          </Pressable>
-                        );
-                      },
-                    )}
+                    {([null, ...colors] as (string | null)[]).map((color) => {
+                      const isSelected = color === createListBackground;
+                      return (
+                        <Pressable
+                          key={`create-${color ?? "none"}`}
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            color
+                              ? t("taskList.selectColor")
+                              : t("taskList.backgroundNone")
+                          }
+                          accessibilityState={{ selected: isSelected }}
+                          onPress={() => onCreateListBackgroundChange(color)}
+                          style={[
+                            styles.colorSwatch,
+                            {
+                              backgroundColor: color || theme.background,
+                              borderColor: isSelected
+                                ? theme.primary
+                                : theme.border,
+                              borderWidth: isSelected ? 2 : 1,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            },
+                          ]}
+                        >
+                          {!color && (
+                            <AppIcon
+                              name="close"
+                              size={16}
+                              color={isSelected ? theme.primary : theme.muted}
+                            />
+                          )}
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 </View>
               </View>

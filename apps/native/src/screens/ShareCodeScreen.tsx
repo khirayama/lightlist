@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -14,34 +8,20 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { appStore } from "@lightlist/sdk/store";
-import type { Task, TaskList } from "@lightlist/sdk/types";
+import type { TaskList } from "@lightlist/sdk/types";
 import {
   addSharedTaskListToOrder,
-  addTask,
-  deleteCompletedTasks,
   fetchTaskListIdByShareCode,
-  sortTasks,
-  updateTask,
-  updateTasksOrder,
 } from "@lightlist/sdk/mutations/app";
-import { TaskListPanel } from "../components/app/TaskListPanel";
+import { TaskListCard } from "../components/app/TaskListCard";
 import { styles } from "../styles/appStyles";
 import { useTheme } from "../styles/theme";
-
-const arrayMove = <T,>(array: T[], from: number, to: number): T[] => {
-  const result = array.slice();
-  const [removed] = result.splice(from, 1);
-  result.splice(to, 0, removed);
-  return result;
-};
 
 type ShareCodeScreenProps = {
   initialShareCode: string | null;
   onBack: () => void;
   onOpenTaskList: () => void;
 };
-
-const EMPTY_TASKS: Task[] = [];
 
 export const ShareCodeScreen = ({
   initialShareCode,
@@ -67,11 +47,6 @@ export const ShareCodeScreen = ({
   const [error, setError] = useState<string | null>(null);
   const [addToOrderLoading, setAddToOrderLoading] = useState(false);
   const [addToOrderError, setAddToOrderError] = useState<string | null>(null);
-  const [newTaskText, setNewTaskText] = useState("");
-  const [addTaskError, setAddTaskError] = useState<string | null>(null);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingTaskText, setEditingTaskText] = useState("");
-  const [editingTaskDate, setEditingTaskDate] = useState("");
   const sharedTaskListUnsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -136,28 +111,6 @@ export const ShareCodeScreen = ({
       : (storeState.taskLists.find((list) => list.id === sharedTaskListId) ??
         storeState.sharedTaskListsById[sharedTaskListId] ??
         null);
-  const [localTasks, setLocalTasks] = useState<Task[]>(EMPTY_TASKS);
-
-  useEffect(() => {
-    setLocalTasks(taskList?.tasks ?? EMPTY_TASKS);
-  }, [taskList?.tasks]);
-
-  const taskListTasks = localTasks;
-
-  useEffect(() => {
-    setEditingTaskId(null);
-    setEditingTaskText("");
-    setEditingTaskDate("");
-  }, [sharedTaskListId]);
-
-  useEffect(() => {
-    if (!editingTaskId) return;
-    const exists = taskListTasks.some((task) => task.id === editingTaskId);
-    if (exists) return;
-    setEditingTaskId(null);
-    setEditingTaskText("");
-    setEditingTaskDate("");
-  }, [editingTaskId, taskListTasks]);
 
   const handleShareCodeSubmit = () => {
     const normalized = shareCodeInput.trim().toUpperCase();
@@ -170,160 +123,6 @@ export const ShareCodeScreen = ({
   };
 
   const canLoadShareCode = !loading && shareCodeInput.trim().length > 0;
-
-  const handleAddTask = useCallback(async () => {
-    if (!taskList) return;
-    const trimmedText = newTaskText.trim();
-    if (trimmedText.length === 0) return;
-
-    setAddTaskError(null);
-    setNewTaskText("");
-    try {
-      await addTask(taskList.id, trimmedText);
-    } catch (err) {
-      setNewTaskText(trimmedText);
-      if (err instanceof Error && err.message) {
-        setAddTaskError(err.message);
-      } else {
-        setAddTaskError(t("pages.sharecode.addTaskError"));
-      }
-    }
-  }, [taskList, newTaskText, t]);
-
-  const handleUpdateTask = useCallback(
-    async (taskId: string, updates: Partial<Task>) => {
-      if (!taskList) return;
-      setError(null);
-      try {
-        await updateTask(taskList.id, taskId, updates);
-      } catch (err) {
-        if (err instanceof Error && err.message) {
-          setError(err.message);
-        } else {
-          setError(t("pages.sharecode.updateError"));
-        }
-      }
-    },
-    [taskList, t],
-  );
-
-  const handleReorderTask = useCallback(
-    async (draggedTaskId: string, targetTaskId: string) => {
-      if (!taskList) return;
-      if (!draggedTaskId || !targetTaskId) return;
-      if (draggedTaskId === targetTaskId) return;
-
-      const oldIndex = localTasks.findIndex((t) => t.id === draggedTaskId);
-      const newIndex = localTasks.findIndex((t) => t.id === targetTaskId);
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setLocalTasks((prev) => arrayMove(prev, oldIndex, newIndex));
-      }
-
-      setError(null);
-      try {
-        await updateTasksOrder(taskList.id, draggedTaskId, targetTaskId);
-      } catch (err) {
-        setLocalTasks(taskList.tasks);
-        if (err instanceof Error && err.message) {
-          setError(err.message);
-        } else {
-          setError(t("pages.sharecode.updateError"));
-        }
-      }
-    },
-    [taskList, localTasks, t],
-  );
-
-  const handleSortTasks = useCallback(async () => {
-    if (!taskList) return;
-    setError(null);
-    try {
-      await sortTasks(taskList.id);
-    } catch (err) {
-      if (err instanceof Error && err.message) {
-        setError(err.message);
-      } else {
-        setError(t("pages.sharecode.updateError"));
-      }
-    }
-  }, [taskList, t]);
-
-  const handleDeleteCompletedTasks = useCallback(async () => {
-    if (!taskList) return;
-    setError(null);
-    try {
-      await deleteCompletedTasks(taskList.id);
-    } catch (err) {
-      if (err instanceof Error && err.message) {
-        setError(err.message);
-      } else {
-        setError(t("pages.sharecode.updateError"));
-      }
-    }
-  }, [taskList, t]);
-
-  const handleToggleTask = useCallback(
-    async (task: Task) => {
-      if (!taskList) return;
-      try {
-        await updateTask(taskList.id, task.id, { completed: !task.completed });
-      } catch (err) {
-        if (err instanceof Error && err.message) {
-          setError(err.message);
-        } else {
-          setError(t("pages.sharecode.updateError"));
-        }
-      }
-    },
-    [taskList, t],
-  );
-
-  const handleEditStart = useCallback((task: Task) => {
-    setEditingTaskId(task.id);
-    setEditingTaskText(task.text);
-    setEditingTaskDate(task.date ?? "");
-  }, []);
-
-  const handleEditEnd = useCallback(
-    async (task: Task) => {
-      if (!editingTaskId || editingTaskId !== task.id) return;
-      const trimmedText = editingTaskText.trim();
-      if (!trimmedText) {
-        setEditingTaskId(null);
-        setEditingTaskText("");
-        setEditingTaskDate("");
-        return;
-      }
-      const normalizedDate = editingTaskDate.trim();
-      if (trimmedText === task.text && normalizedDate === (task.date ?? "")) {
-        setEditingTaskId(null);
-        setEditingTaskText("");
-        setEditingTaskDate("");
-        return;
-      }
-      await handleUpdateTask(task.id, {
-        text: trimmedText,
-        date: normalizedDate,
-      });
-      setEditingTaskId(null);
-      setEditingTaskText("");
-      setEditingTaskDate("");
-    },
-    [editingTaskId, editingTaskText, editingTaskDate, handleUpdateTask],
-  );
-
-  const handleDateChange = useCallback(
-    async (task: Task, nextDate: string) => {
-      const normalizedDate = nextDate.trim();
-      if (editingTaskId === task.id) {
-        setEditingTaskDate(normalizedDate);
-      }
-      if (normalizedDate === (task.date ?? "")) return;
-      await handleUpdateTask(task.id, { date: normalizedDate });
-    },
-    [editingTaskId, handleUpdateTask],
-  );
 
   const handleAddToOrder = async () => {
     if (!taskList || !user) return;
@@ -463,32 +262,31 @@ export const ShareCodeScreen = ({
       <View style={[styles.appContent, { paddingBottom: 0 }]}>
         {taskListHeader}
       </View>
-      <TaskListPanel
-        t={t}
-        theme={theme}
-        tasks={taskListTasks}
-        newTaskText={newTaskText}
-        taskListError={addTaskError}
-        addDisabled={!taskList}
-        emptyLabel={taskList ? t("pages.tasklist.noTasks") : ""}
-        editingTaskId={editingTaskId}
-        editingTaskText={editingTaskText}
-        editingTaskDate={editingTaskDate}
-        onEditingTaskTextChange={setEditingTaskText}
-        onEditingTaskDateChange={setEditingTaskDate}
-        onEditStart={handleEditStart}
-        onEditEnd={handleEditEnd}
-        onDateChange={handleDateChange}
-        onChangeNewTaskText={(value) => {
-          setNewTaskText(value);
-          setAddTaskError(null);
-        }}
-        onAddTask={handleAddTask}
-        onToggleTask={handleToggleTask}
-        onReorderTask={handleReorderTask}
-        onSortTasks={handleSortTasks}
-        onDeleteCompletedTasks={handleDeleteCompletedTasks}
-      />
+      {taskList ? (
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: taskList.background ?? theme.background,
+          }}
+        >
+          <TaskListCard
+            taskList={taskList}
+            isActive={true}
+            t={t}
+            // 共有画面ではリスト自体の編集は不可
+            enableEditDialog={false}
+            enableShareDialog={false}
+          />
+        </View>
+      ) : (
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <Text style={[styles.emptyText, { color: theme.muted }]}>
+            {t("pages.tasklist.noTasks")}
+          </Text>
+        </View>
+      )}
     </View>
   );
 };

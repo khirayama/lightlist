@@ -9,7 +9,7 @@ type AppIconProps = SVGProps<SVGSVGElement> & {
 
 export const AppIcon = ({
   name,
-  size = "1em",
+  size = 24,
   color = "currentColor",
   ...props
 }: AppIconProps) => {

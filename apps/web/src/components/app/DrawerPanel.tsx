@@ -113,12 +113,7 @@ function SortableTaskListItem({
         type="button"
         className="flex touch-none items-center rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
       >
-        <AppIcon
-          name="drag-indicator"
-          className="h-5 w-5"
-          aria-hidden="true"
-          focusable="false"
-        />
+        <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
       </button>
 
       <span
@@ -222,12 +217,7 @@ export function DrawerPanel({
               data-vaul-no-drag
               className="inline-flex items-center justify-center rounded-xl p-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
             >
-              <AppIcon
-                name="settings"
-                className="h-5 w-5"
-                aria-hidden="true"
-                focusable="false"
-              />
+              <AppIcon name="settings" aria-hidden="true" focusable="false" />
             </button>
           </div>
           {!isWideLayout && (
@@ -239,12 +229,7 @@ export function DrawerPanel({
               data-vaul-no-drag
               className="inline-flex items-center justify-center rounded-xl p-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
             >
-              <AppIcon
-                name="close"
-                className="h-5 w-5"
-                aria-hidden="true"
-                focusable="false"
-              />
+              <AppIcon name="close" aria-hidden="true" focusable="false" />
             </button>
           )}
         </div>

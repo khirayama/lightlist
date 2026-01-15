@@ -24,6 +24,7 @@ import {
   updateTask,
   updateTasksOrder,
 } from "@lightlist/sdk/mutations/app";
+import { useOptimisticReorder } from "@lightlist/sdk/hooks/useOptimisticReorder";
 
 import { styles } from "../../styles/appStyles";
 import type { Theme } from "../../styles/theme";
@@ -53,13 +54,6 @@ const parseDateValue = (value: string) => {
     return null;
   }
   return date;
-};
-
-const arrayMove = <T,>(array: T[], from: number, to: number): T[] => {
-  const result = array.slice();
-  const [removed] = result.splice(from, 1);
-  result.splice(to, 0, removed);
-  return result;
 };
 
 type TaskListCardProps = {
@@ -105,17 +99,15 @@ export const TaskListCard = ({
 }: TaskListCardProps) => {
   const theme = useTheme();
   // Local state for optimistic updates
-  const [localTasks, setLocalTasks] = useState<Task[]>(taskList.tasks);
+  const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
+    taskList.tasks,
+    (draggedId, targetId) => updateTasksOrder(taskList.id, draggedId, targetId),
+  );
   const [newTaskText, setNewTaskText] = useState("");
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskDate, setEditingTaskDate] = useState("");
   const [taskListError, setTaskListError] = useState<string | null>(null);
-
-  // Sync local tasks with props
-  useEffect(() => {
-    setLocalTasks(taskList.tasks);
-  }, [taskList.tasks]);
 
   // Reset editing state when not active
   useEffect(() => {
@@ -128,7 +120,6 @@ export const TaskListCard = ({
     }
   }, [isActive]);
 
-  const tasks = localTasks;
   const completedTasksCount = tasks.filter((task) => task.completed).length;
   const canSortTasks = tasks.length > 1;
   const canDeleteCompletedTasks = completedTasksCount > 0;
@@ -363,21 +354,10 @@ export const TaskListCard = ({
     draggedTaskId: string,
     targetTaskId: string,
   ) => {
-    if (!draggedTaskId || !targetTaskId) return;
-    if (draggedTaskId === targetTaskId) return;
-
-    // Optimistic update
-    const oldIndex = localTasks.findIndex((t) => t.id === draggedTaskId);
-    const newIndex = localTasks.findIndex((t) => t.id === targetTaskId);
-    if (oldIndex !== -1 && newIndex !== -1) {
-      setLocalTasks((prev) => arrayMove(prev, oldIndex, newIndex));
-    }
-
     setTaskListError(null);
     try {
-      await updateTasksOrder(taskList.id, draggedTaskId, targetTaskId);
+      await reorderTask(draggedTaskId, targetTaskId);
     } catch (error) {
-      setLocalTasks(taskList.tasks); // Rollback
       if (error instanceof Error) {
         setTaskListError(error.message);
       } else {

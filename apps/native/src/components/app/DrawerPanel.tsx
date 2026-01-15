@@ -6,8 +6,16 @@ import DraggableFlatList, {
 import { AppIcon } from "../ui/AppIcon";
 import { Dialog } from "../ui/Dialog";
 import { styles } from "../../styles/appStyles";
-import { useTheme, type Theme } from "../../styles/theme";
+import { useTheme } from "../../styles/theme";
 import type { TaskList } from "@lightlist/sdk/types";
+
+// Webに合わせて定義
+export type ColorOption = {
+  value: string | null;
+  label?: string;
+  shortLabel?: string;
+  preview?: string;
+};
 
 // WebのDrawerPanelPropsに合わせて定義
 type DrawerPanelProps = {
@@ -19,7 +27,7 @@ type DrawerPanelProps = {
   onCreateListInputChange: (value: string) => void;
   createListBackground: string | null;
   onCreateListBackgroundChange: (color: string | null) => void;
-  colors: readonly string[]; // WebはColorOption[]だがNativeはstring[] (listColors)
+  colors: readonly ColorOption[];
   onCreateList: () => void | Promise<void>;
   hasTaskLists: boolean;
   taskLists: TaskList[];
@@ -39,7 +47,7 @@ type DrawerPanelProps = {
   onJoinList: () => void | Promise<void>;
   joinListError: string | null;
   joiningList: boolean;
-  creatingList: boolean;
+  creatingList: boolean; // WebにはないがNativeにある状態管理
 };
 
 export const DrawerPanel = (props: DrawerPanelProps) => {
@@ -109,16 +117,8 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
             style={[styles.drawerTitle, { color: theme.text }]}
             numberOfLines={1}
           >
-            {isWideLayout ? userEmail : t("app.drawerTitle")}
+            {userEmail}
           </Text>
-          {!isWideLayout && (
-            <Text
-              style={[styles.drawerSubtitle, { color: theme.muted }]}
-              numberOfLines={1}
-            >
-              {userEmail}
-            </Text>
-          )}
         </View>
         <View style={styles.drawerHeaderActions}>
           <Pressable
@@ -396,23 +396,30 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                     {t("taskList.selectColor")}
                   </Text>
                   <View style={styles.colorRow}>
-                    {([null, ...colors] as (string | null)[]).map((color) => {
-                      const isSelected = color === createListBackground;
+                    {colors.map((option) => {
+                      const isSelected = option.value === createListBackground;
+                      const previewColor =
+                        option.preview ?? option.value ?? theme.background;
+                      const label =
+                        option.label ??
+                        option.shortLabel ??
+                        (option.value
+                          ? t("taskList.selectColor")
+                          : t("taskList.backgroundNone"));
+
                       return (
                         <Pressable
-                          key={`create-${color ?? "none"}`}
+                          key={`create-${option.value ?? "none"}`}
                           accessibilityRole="button"
-                          accessibilityLabel={
-                            color
-                              ? t("taskList.selectColor")
-                              : t("taskList.backgroundNone")
-                          }
+                          accessibilityLabel={label}
                           accessibilityState={{ selected: isSelected }}
-                          onPress={() => onCreateListBackgroundChange(color)}
+                          onPress={() =>
+                            onCreateListBackgroundChange(option.value)
+                          }
                           style={[
                             styles.colorSwatch,
                             {
-                              backgroundColor: color || theme.background,
+                              backgroundColor: previewColor,
                               borderColor: isSelected
                                 ? theme.primary
                                 : theme.border,
@@ -422,7 +429,18 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                             },
                           ]}
                         >
-                          {!color && (
+                          {option.shortLabel ? (
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontWeight: "600",
+                                color: theme.text,
+                              }}
+                            >
+                              {option.shortLabel}
+                            </Text>
+                          ) : null}
+                          {!option.value && !option.shortLabel && (
                             <AppIcon
                               name="close"
                               size={16}
@@ -488,11 +506,15 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
               style={({ pressed }) => [
                 styles.drawerListItem,
                 {
-                  borderColor: isSelected ? theme.primary : theme.border,
+                  borderColor: "transparent", // Webはボーダーなし (bg-gray-100などで表現)
                   backgroundColor: isSelected
-                    ? theme.inputBackground
-                    : theme.surface,
-                  opacity: pressed ? 0.9 : isActive ? 0.7 : 1,
+                    ? theme.inputBackground // Web: bg-gray-100 dark:bg-gray-800
+                    : "transparent",
+                  opacity: pressed ? 0.9 : isActive ? 0.5 : 1, // Web: isDragging ? 0.5 : 1
+                  borderRadius: 10, // Web: rounded-[10px]
+                  padding: 8, // Web: p-2
+                  flexDirection: "row",
+                  alignItems: "center",
                 },
               ]}
             >
@@ -517,12 +539,14 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                   styles.taskActionButton,
                   {
                     opacity: pressed ? 0.8 : 1,
+                    // Web: p-1
+                    padding: 4,
                   },
                 ]}
               >
                 <AppIcon
                   name="drag-indicator"
-                  size={18}
+                  size={20} // Web: h-5 w-5 (20px)
                   color={canDragList ? theme.text : theme.muted}
                 />
               </Pressable>
@@ -530,14 +554,36 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                 style={[
                   styles.drawerListSwatch,
                   {
+                    backgroundColor:
+                      item.background ?? "var(--tasklist-theme-bg)", // Webのロジック: resolveTaskListBackground
+                    // Webでは "var(--tasklist-theme-bg)" だが、Nativeでは theme.background と解釈するしかなさそう
+                    // ただし item.background が null の場合は transparent ではなくデフォルト色
+                    // Web: background ?? "var(--tasklist-theme-bg)"
+                    // NativeでCSS変数は使えないので、theme.surface などをフォールバックにするか
+                    // ここでは一旦 item.background があれば使い、なければ theme.background (あるいは theme.card) を使う
+                  },
+                  {
                     backgroundColor: item.background ?? theme.background,
                     borderColor: theme.border,
+                    // Webに合わせて丸くする
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    borderWidth: 1,
+                    marginRight: 8, // gap-2 相当
                   },
                 ]}
               />
               <View style={styles.drawerListItemText}>
                 <Text
-                  style={[styles.drawerListItemName, { color: theme.text }]}
+                  style={[
+                    styles.drawerListItemName,
+                    {
+                      color: theme.text,
+                      // Web: isActive ? "font-bold" : "font-medium"
+                      fontWeight: isSelected ? "700" : "500",
+                    },
+                  ]}
                   numberOfLines={1}
                 >
                   {item.name || t("app.taskListName")}

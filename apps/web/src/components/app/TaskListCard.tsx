@@ -155,14 +155,9 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
         title={dragHintLabel}
         aria-label={dragHintLabel}
         type="button"
-        className="flex h-7 items-center touch-none rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+        className="flex h-8 items-center touch-none rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
       >
-        <AppIcon
-          name="drag-indicator"
-          className="h-5 w-5"
-          aria-hidden="true"
-          focusable="false"
-        />
+        <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
       </button>
 
       <input
@@ -222,11 +217,10 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             type="button"
             aria-label={setDateLabel}
             title={dateTitle}
-            className="flex h-7 items-center rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+            className="flex h-8 items-center rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
           >
             <AppIcon
               name="calendar-today"
-              className="h-5 w-5"
               aria-hidden="true"
               focusable="false"
             />
@@ -613,12 +607,7 @@ export function TaskListCard({
           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
         >
           <span className="sr-only">{t("common.add")}</span>
-          <AppIcon
-            name="send"
-            className="h-5 w-5"
-            aria-hidden="true"
-            focusable="false"
-          />
+          <AppIcon name="send" aria-hidden="true" focusable="false" />
         </button>
       </form>
       {addTaskError ? <Alert variant="error">{addTaskError}</Alert> : null}
@@ -628,7 +617,7 @@ export function TaskListCard({
   return (
     <section
       className={clsx(
-        "h-full overflow-y-auto transition-colors duration-200",
+        "h-full overflow-y-auto",
         isActive ? "pointer-events-auto" : "pointer-events-none",
       )}
       style={{ backgroundColor: taskList.background ?? undefined }}
@@ -669,7 +658,6 @@ export function TaskListCard({
                               >
                                 <AppIcon
                                   name="edit"
-                                  className="h-5 w-5"
                                   aria-hidden="true"
                                   focusable="false"
                                 />
@@ -768,7 +756,6 @@ export function TaskListCard({
                             >
                               <AppIcon
                                 name="share"
-                                className="h-5 w-5"
                                 aria-hidden="true"
                                 focusable="false"
                               />
@@ -857,12 +844,7 @@ export function TaskListCard({
                     }}
                     className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
                   >
-                    <AppIcon
-                      name="sort"
-                      className="h-4 w-4"
-                      aria-hidden="true"
-                      focusable="false"
-                    />
+                    <AppIcon name="sort" aria-hidden="true" focusable="false" />
                     {t("pages.tasklist.sort")}
                   </button>
                 </div>
@@ -895,7 +877,6 @@ export function TaskListCard({
                       : t("pages.tasklist.deleteCompleted")}
                     <AppIcon
                       name="delete"
-                      className="h-4 w-4"
                       aria-hidden="true"
                       focusable="false"
                     />

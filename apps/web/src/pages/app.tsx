@@ -11,14 +11,12 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
-  UniqueIdentifier,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
-import type { AppState, TaskList } from "@lightlist/sdk/types";
+import type { TaskList } from "@lightlist/sdk/types";
 import {
   createTaskList,
   updateTaskList,
@@ -72,7 +70,7 @@ function AppHeader({
   return (
     <header
       className={clsx(
-        "flex flex-wrap items-center gap-3 py-2 px-3",
+        "flex flex-wrap items-center gap-3 p-1",
         isWideLayout ? "justify-start" : "justify-between",
       )}
     >
@@ -87,14 +85,9 @@ function AppHeader({
               type="button"
               aria-label={openMenuLabel}
               title={openMenuLabel}
-              className="inline-flex items-center justify-center rounded p-2 text-gray-900 backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+              className="inline-flex items-center justify-center rounded p-2 text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
             >
-              <AppIcon
-                name="menu"
-                className="h-5 w-5"
-                aria-hidden="true"
-                focusable="false"
-              />
+              <AppIcon name="menu" aria-hidden="true" focusable="false" />
               <span className="sr-only">{openMenuLabel}</span>
             </button>
           </DrawerTrigger>
@@ -151,7 +144,6 @@ export default function AppPage() {
   );
 
   const [editListName, setEditListName] = useState("");
-  const [editListBackground, setEditListBackground] = useState(colors[0].value);
   const [showEditListDialog, setShowEditListDialog] = useState(false);
   const [showDeleteListConfirm, setShowDeleteListConfirm] = useState(false);
   const [deletingList, setDeletingList] = useState(false);
@@ -211,7 +203,6 @@ export default function AppPage() {
   useEffect(() => {
     if (selectedTaskList) {
       setEditListName(selectedTaskList.name);
-      setEditListBackground(selectedTaskList.background);
       setShareCode(selectedTaskList.shareCode || null);
     }
   }, [selectedTaskList]);
@@ -297,7 +288,6 @@ export default function AppPage() {
     0,
     taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
   );
-  const showTaskListLocator = hasTaskLists && taskLists.length > 1;
 
   const handleReorderTaskList = async (
     draggedTaskListId: string,
@@ -374,10 +364,6 @@ export default function AppPage() {
 
     if (trimmedName && trimmedName !== selectedTaskList.name) {
       updates.name = trimmedName;
-    }
-
-    if (editListBackground !== selectedTaskList.background) {
-      updates.background = editListBackground;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -484,7 +470,6 @@ export default function AppPage() {
     setShowEditListDialog(open);
     if (open) {
       setEditListName(taskList.name);
-      setEditListBackground(taskList.background);
     }
   };
 
@@ -538,19 +523,12 @@ export default function AppPage() {
     />
   );
 
-  const currentBackground = resolveTaskListBackground(
-    selectedTaskList?.background ?? null,
-  );
-
   if (isLoading) {
     return <Spinner fullPage />;
   }
 
   return (
-    <div
-      className="h-full min-h-full w-full text-gray-900 transition-colors duration-300 dark:text-gray-50 overflow-hidden"
-      style={{ backgroundColor: currentBackground }}
-    >
+    <div className="h-full min-h-full w-full text-gray-900 dark:text-gray-50 overflow-hidden">
       <div
         className={clsx(
           "flex h-full",
@@ -567,7 +545,7 @@ export default function AppPage() {
 
         <div className="flex min-w-0 flex-1 flex-col w-full h-full min-h-0">
           {!isWideLayout && (
-            <div className="sticky top-0 z-20 w-full">
+            <div className="absolute z-20 w-full">
               <AppHeader
                 isWideLayout={isWideLayout}
                 isDrawerOpen={isDrawerOpen}
@@ -586,26 +564,9 @@ export default function AppPage() {
                   <Alert variant="error">{error}</Alert>
                 </div>
               )}
-            </div>
-          )}
-
-          <ConfirmDialog
-            isOpen={showDeleteListConfirm}
-            onClose={() => setShowDeleteListConfirm(false)}
-            onConfirm={handleDeleteList}
-            title={t("taskList.deleteListConfirm.title")}
-            message={t("taskList.deleteListConfirm.message")}
-            confirmText={t("auth.button.delete")}
-            cancelText={t("common.cancel")}
-            isDestructive
-            disabled={deletingList}
-          />
-
-          <div className="flex-1 flex flex-col relative overflow-hidden">
-            {showTaskListLocator && (
               <nav
                 aria-label={t("app.taskListLocator.label")}
-                className="flex justify-center absolute top-2 z-20 w-full"
+                className="flex justify-center w-full"
               >
                 <ul className="flex items-center gap-1 px-3 py-1.5">
                   {taskLists.map((taskList, index) => {
@@ -622,13 +583,12 @@ export default function AppPage() {
                           onClick={() => setSelectedTaskListId(taskList.id)}
                           className={clsx(
                             "inline-flex h-4 w-4 items-center justify-center rounded-full",
-                            "transition-colors",
                             "hover:bg-gray-900/10 dark:hover:bg-gray-50/10",
                           )}
                         >
                           <span
                             className={clsx(
-                              "h-2 w-2 rounded-full transition-colors",
+                              "h-2 w-2 rounded-full",
                               isSelected
                                 ? "bg-gray-900 dark:bg-gray-50"
                                 : "bg-gray-900/20 dark:bg-gray-50/20",
@@ -640,82 +600,95 @@ export default function AppPage() {
                   })}
                 </ul>
               </nav>
-            )}
-
-            <div className="h-full overflow-hidden">
-              {hasTaskLists ? (
-                <Carousel
-                  className="h-full"
-                  wheelGestures={!isTaskSorting}
-                  setApi={setTaskListCarouselApi}
-                  opts={{
-                    align: "start",
-                    containScroll: "trimSnaps",
-                  }}
-                >
-                  <CarouselContent className="h-full">
-                    {taskLists.map((taskList) => {
-                      const isActive = selectedTaskListId === taskList.id;
-                      return (
-                        <CarouselItem key={taskList.id}>
-                          <div
-                            className={clsx(
-                              "h-full w-full",
-                              isWideLayout && "mx-auto max-w-3xl",
-                            )}
-                          >
-                            <TaskListCard
-                              taskList={taskList}
-                              taskInsertPosition={
-                                state?.settings?.taskInsertPosition ?? "top"
-                              }
-                              isActive={isActive}
-                              onActivate={(taskListId) =>
-                                setSelectedTaskListId(taskListId)
-                              }
-                              sensorsList={sensorsList}
-                              onSortingChange={setIsTaskSorting}
-                              t={t}
-                              enableEditDialog
-                              colors={colors}
-                              showEditListDialog={showEditListDialog}
-                              onEditDialogOpenChange={
-                                handleEditDialogOpenChange
-                              }
-                              editListName={editListName}
-                              onEditListNameChange={setEditListName}
-                              editListBackground={editListBackground}
-                              onEditListBackgroundChange={setEditListBackground}
-                              onSaveListDetails={handleSaveListDetails}
-                              deletingList={deletingList}
-                              onDeleteList={handleRequestDeleteList}
-                              enableShareDialog
-                              showShareDialog={showShareDialog}
-                              onShareDialogOpenChange={
-                                handleShareDialogOpenChange
-                              }
-                              shareCode={shareCode}
-                              shareCopySuccess={shareCopySuccess}
-                              generatingShareCode={generatingShareCode}
-                              onGenerateShareCode={handleGenerateShareCode}
-                              removingShareCode={removingShareCode}
-                              onRemoveShareCode={handleRemoveShareCode}
-                              onCopyShareLink={handleCopyShareLink}
-                            />
-                          </div>
-                        </CarouselItem>
-                      );
-                    })}
-                  </CarouselContent>
-                </Carousel>
-              ) : (
-                <div className="flex h-full items-center justify-center p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    {t("app.emptyState")}
-                  </p>
-                </div>
-              )}
             </div>
+          )}
+
+          <ConfirmDialog
+            isOpen={showDeleteListConfirm}
+            onClose={() => setShowDeleteListConfirm(false)}
+            onConfirm={handleDeleteList}
+            title={t("taskList.deleteListConfirm.title")}
+            message={t("taskList.deleteListConfirm.message")}
+            confirmText={t("auth.button.delete")}
+            cancelText={t("common.cancel")}
+            isDestructive
+            disabled={deletingList}
+          />
+
+          <div className="h-full overflow-hidden">
+            {hasTaskLists ? (
+              <Carousel
+                className="h-full"
+                wheelGestures={!isTaskSorting}
+                setApi={setTaskListCarouselApi}
+                opts={{
+                  align: "start",
+                  containScroll: "trimSnaps",
+                }}
+              >
+                <CarouselContent className="h-full">
+                  {taskLists.map((taskList) => {
+                    const isActive = selectedTaskListId === taskList.id;
+                    return (
+                      <CarouselItem key={taskList.id}>
+                        <div
+                          className={clsx(
+                            "h-full w-full pt-[84px]",
+                            isWideLayout && "mx-auto max-w-3xl",
+                          )}
+                          style={{
+                            backgroundColor: resolveTaskListBackground(
+                              taskList.background,
+                            ),
+                          }}
+                        >
+                          <TaskListCard
+                            taskList={taskList}
+                            taskInsertPosition={
+                              state?.settings?.taskInsertPosition ?? "top"
+                            }
+                            isActive={isActive}
+                            onActivate={(taskListId) =>
+                              setSelectedTaskListId(taskListId)
+                            }
+                            sensorsList={sensorsList}
+                            onSortingChange={setIsTaskSorting}
+                            t={t}
+                            enableEditDialog
+                            colors={colors}
+                            showEditListDialog={showEditListDialog}
+                            onEditDialogOpenChange={handleEditDialogOpenChange}
+                            editListName={editListName}
+                            onEditListNameChange={setEditListName}
+                            onSaveListDetails={handleSaveListDetails}
+                            deletingList={deletingList}
+                            onDeleteList={handleRequestDeleteList}
+                            enableShareDialog
+                            showShareDialog={showShareDialog}
+                            onShareDialogOpenChange={
+                              handleShareDialogOpenChange
+                            }
+                            shareCode={shareCode}
+                            shareCopySuccess={shareCopySuccess}
+                            generatingShareCode={generatingShareCode}
+                            onGenerateShareCode={handleGenerateShareCode}
+                            removingShareCode={removingShareCode}
+                            onRemoveShareCode={handleRemoveShareCode}
+                            onCopyShareLink={handleCopyShareLink}
+                          />
+                        </div>
+                      </CarouselItem>
+                    );
+                  })}
+                </CarouselContent>
+              </Carousel>
+            ) : (
+              <div className="flex h-full items-center justify-center p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {t("app.emptyState")}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

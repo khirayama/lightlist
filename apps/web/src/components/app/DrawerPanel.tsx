@@ -3,6 +3,7 @@ import type {
   DragEndEvent,
   SensorDescriptor,
   SensorOptions,
+  UniqueIdentifier,
 } from "@dnd-kit/core";
 import type { TaskList } from "@lightlist/sdk/types";
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -27,6 +28,9 @@ import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { ColorPicker, type ColorOption } from "@/components/ui/ColorPicker";
 
+const getStringId = (id: UniqueIdentifier): string | null =>
+  typeof id === "string" ? id : null;
+
 const resolveTaskListBackground = (background: string | null): string =>
   background ?? "var(--tasklist-theme-bg)";
 
@@ -44,7 +48,10 @@ type DrawerPanelProps = {
   hasTaskLists: boolean;
   taskLists: TaskList[];
   sensorsList: SensorDescriptor<SensorOptions>[];
-  onDragEndTaskList: (event: DragEndEvent) => void | Promise<void>;
+  onReorderTaskList: (
+    draggedId: string,
+    targetId: string,
+  ) => void | Promise<void>;
   selectedTaskListId: string | null;
   onSelectTaskList: (taskListId: string) => void;
   onCloseDrawer: () => void;
@@ -152,7 +159,7 @@ export function DrawerPanel({
   hasTaskLists,
   taskLists,
   sensorsList,
-  onDragEndTaskList,
+  onReorderTaskList,
   selectedTaskListId,
   onSelectTaskList,
   onCloseDrawer,
@@ -166,6 +173,18 @@ export function DrawerPanel({
   joiningList,
   t,
 }: DrawerPanelProps) {
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const draggedId = getStringId(active.id);
+    const targetId = getStringId(over.id);
+
+    if (draggedId && targetId) {
+      await onReorderTaskList(draggedId, targetId);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col gap-4">
       <DrawerHeader>
@@ -237,7 +256,7 @@ export function DrawerPanel({
             sensors={sensorsList}
             collisionDetection={closestCenter}
             modifiers={[restrictToVerticalAxis]}
-            onDragEnd={onDragEndTaskList}
+            onDragEnd={handleDragEnd}
           >
             <SortableContext items={taskLists.map((t) => t.id)}>
               {taskLists.map((taskList) => (

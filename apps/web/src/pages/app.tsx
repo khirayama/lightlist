@@ -14,15 +14,15 @@ import {
   DragEndEvent,
   UniqueIdentifier,
 } from "@dnd-kit/core";
-import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
 import type { AppState, TaskList } from "@lightlist/sdk/types";
 import {
   createTaskList,
-  updateTaskListOrder,
   updateTaskList,
+  updateTaskListOrder,
   deleteTaskList,
   generateShareCode,
   removeShareCode,
@@ -45,9 +45,7 @@ import {
 import { DrawerPanel } from "@/components/app/DrawerPanel";
 import type { ColorOption } from "@/components/ui/ColorPicker";
 import { TaskListCard } from "@/components/app/TaskListCard";
-
-const getStringId = (id: UniqueIdentifier): string | null =>
-  typeof id === "string" ? id : null;
+import { useOptimisticReorder } from "@lightlist/sdk/hooks/useOptimisticReorder";
 
 const resolveTaskListBackground = (background: string | null): string =>
   background ?? "var(--tasklist-theme-bg)";
@@ -145,12 +143,12 @@ export default function AppPage() {
     appStore.getState,
     appStore.getServerSnapshot,
   );
-  const [localTaskLists, setLocalTaskLists] = useState<TaskList[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setLocalTaskLists(state.taskLists);
-  }, [state.taskLists]);
+  const { items: taskLists, reorder: reorderTaskList } = useOptimisticReorder(
+    state.taskLists,
+    updateTaskListOrder,
+  );
 
   const [editListName, setEditListName] = useState("");
   const [editListBackground, setEditListBackground] = useState(colors[0].value);
@@ -292,37 +290,23 @@ export default function AppPage() {
   }, [isDrawerOpen, isWideLayout]);
 
   const isLoading = !state.user;
-  const hasTaskLists = Boolean(state.user && localTaskLists.length > 0);
+  const hasTaskLists = Boolean(state.user && taskLists.length > 0);
   const userEmail = state.user?.email || t("app.drawerNoEmail");
-  const taskLists = localTaskLists;
+  // taskLists is now from the hook
   const selectedTaskListIndex = Math.max(
     0,
     taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
   );
   const showTaskListLocator = hasTaskLists && taskLists.length > 1;
 
-  const handleDragEndTaskList = async (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) return;
-    const draggedTaskListId = getStringId(active.id);
-    const targetTaskListId = getStringId(over.id);
-    if (!draggedTaskListId || !targetTaskListId) return;
-
-    const oldIndex = localTaskLists.findIndex(
-      (t) => t.id === draggedTaskListId,
-    );
-    const newIndex = localTaskLists.findIndex((t) => t.id === targetTaskListId);
-
-    if (oldIndex !== -1 && newIndex !== -1) {
-      setLocalTaskLists((prev) => arrayMove(prev, oldIndex, newIndex));
-    }
-
+  const handleReorderTaskList = async (
+    draggedTaskListId: string,
+    targetTaskListId: string,
+  ) => {
     setError(null);
     try {
-      await updateTaskListOrder(draggedTaskListId, targetTaskListId);
+      await reorderTaskList(draggedTaskListId, targetTaskListId);
     } catch (err) {
-      setLocalTaskLists(state.taskLists); // Rollback
       setError(resolveErrorMessage(err, t, "common.error"));
     }
   };
@@ -538,7 +522,7 @@ export default function AppPage() {
       hasTaskLists={hasTaskLists}
       taskLists={taskLists}
       sensorsList={sensorsList}
-      onDragEndTaskList={handleDragEndTaskList}
+      onReorderTaskList={handleReorderTaskList}
       selectedTaskListId={selectedTaskListId}
       onSelectTaskList={(taskListId) => setSelectedTaskListId(taskListId)}
       onCloseDrawer={handleCloseDrawer}

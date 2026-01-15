@@ -10,7 +10,6 @@ import {
   closestCenter,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
@@ -20,13 +19,14 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Task, TaskInsertPosition, TaskList } from "@lightlist/sdk/types";
 import clsx from "clsx";
 import { useTranslation } from "react-i18next";
+import { useOptimisticReorder } from "@lightlist/sdk/hooks/useOptimisticReorder";
 
 import {
   addTask,
   updateTask,
-  updateTasksOrder,
   sortTasks,
   deleteCompletedTasks,
+  updateTasksOrder,
 } from "@lightlist/sdk/mutations/app";
 import { Alert } from "@/components/ui/Alert";
 import {
@@ -325,7 +325,10 @@ export function TaskListCard({
 }: TaskListCardProps) {
   const reactId = useId();
   const [taskError, setTaskError] = useState<string | null>(null);
-  const [localTasks, setLocalTasks] = useState<Task[]>([]);
+  const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
+    taskList.tasks,
+    (draggedId, targetId) => updateTasksOrder(taskList.id, draggedId, targetId),
+  );
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
@@ -335,12 +338,6 @@ export function TaskListCard({
   const [deleteCompletedPending, setDeleteCompletedPending] = useState(false);
   const newTaskInputRef = useRef<HTMLInputElement | null>(null);
   const restoreNewTaskFocusRef = useRef(false);
-
-  useEffect(() => {
-    setLocalTasks(taskList.tasks);
-  }, [taskList.tasks]);
-
-  const tasks = localTasks;
 
   const handleSortingChange = (sorting: boolean) => {
     onSortingChange?.(sorting);
@@ -361,18 +358,10 @@ export function TaskListCard({
     const targetTaskId = getStringId(over.id);
     if (!draggedTaskId || !targetTaskId) return;
 
-    const oldIndex = localTasks.findIndex((t) => t.id === draggedTaskId);
-    const newIndex = localTasks.findIndex((t) => t.id === targetTaskId);
-
-    if (oldIndex !== -1 && newIndex !== -1) {
-      setLocalTasks((prev) => arrayMove(prev, oldIndex, newIndex));
-    }
-
     setTaskError(null);
     try {
-      await updateTasksOrder(taskList.id, draggedTaskId, targetTaskId);
+      await reorderTask(draggedTaskId, targetTaskId);
     } catch (err) {
-      setLocalTasks(taskList.tasks); // Rollback
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }
   };

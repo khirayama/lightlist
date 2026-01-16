@@ -144,6 +144,9 @@ export default function AppPage() {
   );
 
   const [editListName, setEditListName] = useState("");
+  const [editListBackground, setEditListBackground] = useState<string | null>(
+    null,
+  );
   const [showEditListDialog, setShowEditListDialog] = useState(false);
   const [showDeleteListConfirm, setShowDeleteListConfirm] = useState(false);
   const [deletingList, setDeletingList] = useState(false);
@@ -366,6 +369,10 @@ export default function AppPage() {
       updates.name = trimmedName;
     }
 
+    if (editListBackground !== selectedTaskList.background) {
+      updates.background = editListBackground;
+    }
+
     if (Object.keys(updates).length === 0) {
       setShowEditListDialog(false);
       return;
@@ -470,6 +477,7 @@ export default function AppPage() {
     setShowEditListDialog(open);
     if (open) {
       setEditListName(taskList.name);
+      setEditListBackground(taskList.background);
     }
   };
 
@@ -660,6 +668,8 @@ export default function AppPage() {
                             onEditDialogOpenChange={handleEditDialogOpenChange}
                             editListName={editListName}
                             onEditListNameChange={setEditListName}
+                            editListBackground={editListBackground}
+                            onEditListBackgroundChange={setEditListBackground}
                             onSaveListDetails={handleSaveListDetails}
                             deletingList={deletingList}
                             onDeleteList={handleRequestDeleteList}

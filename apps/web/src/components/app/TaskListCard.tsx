@@ -633,6 +633,7 @@ export function TaskListCard({
                       {taskList.name}
                     </h2>
                   </div>
+
                   {(enableEditDialog || enableShareDialog) && (
                     <div className="flex flex-wrap justify-end gap-2">
                       {enableEditDialog &&

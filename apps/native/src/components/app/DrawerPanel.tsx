@@ -130,7 +130,7 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
               { opacity: pressed ? 0.9 : 1 },
             ]}
           >
-            <AppIcon name="settings" size={20} color={theme.text} />
+            <AppIcon name="settings" color={theme.text} />
           </Pressable>
           {!isWideLayout ? (
             <Pressable
@@ -142,7 +142,7 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                 { opacity: pressed ? 0.9 : 1 },
               ]}
             >
-              <AppIcon name="close" size={20} color={theme.text} />
+              <AppIcon name="close" color={theme.text} />
             </Pressable>
           ) : null}
         </View>
@@ -443,7 +443,6 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                           {!option.value && !option.shortLabel && (
                             <AppIcon
                               name="close"
-                              size={16}
                               color={isSelected ? theme.primary : theme.muted}
                             />
                           )}
@@ -546,7 +545,6 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
               >
                 <AppIcon
                   name="drag-indicator"
-                  size={20} // Web: h-5 w-5 (20px)
                   color={canDragList ? theme.text : theme.muted}
                 />
               </Pressable>

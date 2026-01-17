@@ -415,7 +415,7 @@ export const TaskListCard = ({
               { opacity: pressed ? 0.9 : 1 },
             ]}
           >
-            <AppIcon name="edit" size={18} color={theme.text} />
+            <AppIcon name="edit" color={theme.text} />
           </Pressable>
         )}
         {enableShareDialog && onShareDialogOpenChange && (
@@ -428,7 +428,7 @@ export const TaskListCard = ({
               { opacity: pressed ? 0.9 : 1 },
             ]}
           >
-            <AppIcon name="share" size={18} color={theme.text} />
+            <AppIcon name="share" color={theme.text} />
           </Pressable>
         )}
       </View>
@@ -475,7 +475,6 @@ export const TaskListCard = ({
         >
           <AppIcon
             name="send"
-            size={20}
             color={canAddTask ? theme.primaryText : theme.muted}
           />
         </Pressable>
@@ -499,7 +498,6 @@ export const TaskListCard = ({
           <View style={styles.taskActionButtonContent}>
             <AppIcon
               name="sort"
-              size={18}
               color={canSortTasks ? theme.text : theme.muted}
             />
             <Text
@@ -540,7 +538,6 @@ export const TaskListCard = ({
             </Text>
             <AppIcon
               name="delete"
-              size={18}
               color={canDeleteCompletedTasks ? theme.error : theme.muted}
             />
           </View>
@@ -667,7 +664,6 @@ export const TaskListCard = ({
                 >
                   <AppIcon
                     name="drag-indicator"
-                    size={18}
                     color={canDragTask && !isEditing ? theme.text : theme.muted}
                   />
                 </Pressable>
@@ -752,11 +748,7 @@ export const TaskListCard = ({
                       {dateValue}
                     </Text>
                   ) : (
-                    <AppIcon
-                      name="calendar-today"
-                      size={18}
-                      color={theme.muted}
-                    />
+                    <AppIcon name="calendar-today" color={theme.muted} />
                   )}
                 </Pressable>
               </View>

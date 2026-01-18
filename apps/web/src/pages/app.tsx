@@ -70,7 +70,7 @@ function AppHeader({
   return (
     <header
       className={clsx(
-        "flex flex-wrap items-center gap-3 p-1",
+        "flex flex-wrap items-center py-1.5 px-3",
         isWideLayout ? "justify-start" : "justify-between",
       )}
     >
@@ -85,9 +85,14 @@ function AppHeader({
               type="button"
               aria-label={openMenuLabel}
               title={openMenuLabel}
-              className="inline-flex items-center justify-center rounded p-2 text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+              className="inline-flex items-center justify-center rounded p-3 text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
             >
-              <AppIcon name="menu" aria-hidden="true" focusable="false" />
+              <AppIcon
+                className="h-6 w-6"
+                name="menu"
+                aria-hidden="true"
+                focusable="false"
+              />
               <span className="sr-only">{openMenuLabel}</span>
             </button>
           </DrawerTrigger>
@@ -576,11 +581,11 @@ export default function AppPage() {
                 aria-label={t("app.taskListLocator.label")}
                 className="flex justify-center w-full"
               >
-                <ul className="flex items-center gap-1 px-3 py-1.5">
+                <ul className="flex items-center gap-1">
                   {taskLists.map((taskList, index) => {
                     const isSelected = index === selectedTaskListIndex;
                     return (
-                      <li key={taskList.id}>
+                      <li key={taskList.id} className="h-4 w-4 relative">
                         <button
                           type="button"
                           aria-label={t("app.taskListLocator.goTo", {
@@ -590,7 +595,7 @@ export default function AppPage() {
                           aria-current={isSelected ? "page" : undefined}
                           onClick={() => setSelectedTaskListId(taskList.id)}
                           className={clsx(
-                            "inline-flex h-4 w-4 items-center justify-center rounded-full",
+                            "inline-flex h-4 w-4 items-center justify-center rounded-full absolute top-0",
                             "hover:bg-gray-900/10 dark:hover:bg-gray-50/10",
                           )}
                         >
@@ -694,7 +699,7 @@ export default function AppPage() {
               </Carousel>
             ) : (
               <div className="flex h-full items-center justify-center p-4">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <p className="text-gray-600 dark:text-gray-300">
                   {t("app.emptyState")}
                 </p>
               </div>

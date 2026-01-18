@@ -1,3 +1,4 @@
+import { Inter } from "next/font/google";
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -7,7 +8,12 @@ import i18n from "@/utils/i18n";
 import { appStore } from "@lightlist/sdk/store";
 import { AppState, Theme } from "@lightlist/sdk/types";
 
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import "@/styles/globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+});
 
 export default function App({ Component, pageProps }: AppProps) {
   const [mounted, setMounted] = useState(false);
@@ -115,21 +121,35 @@ export default function App({ Component, pageProps }: AppProps) {
 
   if (!mounted) {
     return (
-      <>
+      <ErrorBoundary>
         {pwaHead}
+
+        <style jsx global>{`
+          :root {
+            --font-inter: ${inter.style.fontFamily};
+          }
+        `}</style>
+
         <div className="h-dvh w-full overflow-hidden" />
-      </>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <>
+    <ErrorBoundary>
       {pwaHead}
+
+      <style jsx global>{`
+        :root {
+          --font-inter: ${inter.style.fontFamily};
+        }
+      `}</style>
+
       <div className="h-dvh w-full overflow-hidden">
         <div className="h-full w-full overflow-y-auto">
           <Component {...pageProps} />
         </div>
       </div>
-    </>
+    </ErrorBoundary>
   );
 }

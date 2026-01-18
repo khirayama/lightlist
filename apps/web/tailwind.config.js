@@ -21,7 +21,18 @@ export default {
       1400: "1400",
       1500: "1500",
     },
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: [
+          "var(--font-inter)",
+          "Noto Sans JP",
+          "Yu Gothic",
+          "YuGothic",
+          "system-ui",
+          "sans-serif",
+        ],
+      },
+    },
   },
   plugins: [],
 };

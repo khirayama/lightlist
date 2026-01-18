@@ -53,3 +53,14 @@
 - `appStore.commit()` は、`AppState` が前回と実質的に変更されていない場合（`fast-deep-equal` による比較）、リスナーへの通知をスキップします。
 - `getState()` は `memoize-one` を使用しており、データが等価であれば常に同じオブジェクト参照を返します。
 - これにより、Firestore のメタデータのみの変更や、実質的なデータ変更を伴わないスナップショット更新による不要な再レンダリングを抑制しています。
+
+## エラーハンドリングとロギング
+
+- SDK (`packages/sdk/src/store.ts`) 内の Firestore リスナー (`onSnapshot`) には、必ずエラーコールバックを設定する。
+- エラーコールバックでは、`logSnapshotError` ヘルパーなどを使用して、以下の情報を構造化ログとして出力する：
+  - エラー発生箇所（コンテキスト）
+  - エラーコード (`code`)
+  - エラーメッセージ (`message`)
+  - 発生時のユーザー情報（UID, Email）
+- これにより、長時間放置後のトークン期限切れやネットワーク切断による権限エラー (`permission-denied` 等) を特定しやすくする。
+- Webアプリ (`apps/web`) では `ErrorBoundary` コンポーネントを使用し、予期せぬエラーによる画面のホワイトアウト（White Screen of Death）を防ぐ。

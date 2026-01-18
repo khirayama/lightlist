@@ -11,6 +11,7 @@ export const APP_ICON_NAMES = [
   "sort",
   "delete",
   "arrow-back",
+  "alert-circle",
 ] as const;
 
 export type AppIconName = (typeof APP_ICON_NAMES)[number];
@@ -37,4 +38,6 @@ export const ICON_PATHS: Record<AppIconName, string | string[]> = {
   delete:
     "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
   "arrow-back": "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z",
+  "alert-circle":
+    "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z",
 };

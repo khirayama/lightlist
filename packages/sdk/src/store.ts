@@ -125,19 +125,34 @@ function createStore() {
     }
   };
 
+  const logSnapshotError = (context: string, error: any) => {
+    const user = auth.currentUser;
+    console.error(`[Store] Snapshot error in ${context}:`, {
+      code: error?.code,
+      message: error?.message,
+      userUid: user?.uid,
+      userEmail: user?.email,
+      timestamp: new Date().toISOString(),
+    });
+  };
+
   const subscribeToUserData = (uid: string) => {
     unsubscribers.forEach((unsub) => unsub());
     unsubscribers.length = 0;
     taskListIdsKey = null;
 
-    const settingsUnsub = onSnapshot(doc(db, "settings", uid), (snapshot) => {
-      if (snapshot.exists()) {
-        data.settings = snapshot.data() as SettingsStore;
-      } else {
-        data.settings = null;
-      }
-      commit();
-    });
+    const settingsUnsub = onSnapshot(
+      doc(db, "settings", uid),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          data.settings = snapshot.data() as SettingsStore;
+        } else {
+          data.settings = null;
+        }
+        commit();
+      },
+      (error) => logSnapshotError("settings", error),
+    );
     unsubscribers.push(settingsUnsub);
 
     const taskListOrderUnsub = onSnapshot(
@@ -151,6 +166,7 @@ function createStore() {
         commit();
         subscribeToTaskLists(data.taskListOrder);
       },
+      (error) => logSnapshotError("taskListOrder", error),
     );
     unsubscribers.push(taskListOrderUnsub);
   };
@@ -202,6 +218,7 @@ function createStore() {
           data.taskLists = { ...data.taskLists, ...lists };
           commit();
         },
+        (error) => logSnapshotError("taskLists (chunk)", error),
       );
       unsubscribers.push(taskListsUnsub);
     });
@@ -221,6 +238,7 @@ function createStore() {
         }
         commit();
       },
+      (error) => logSnapshotError(`sharedTaskList (${taskListId})`, error),
     );
 
     const wrappedUnsubscribe = () => {

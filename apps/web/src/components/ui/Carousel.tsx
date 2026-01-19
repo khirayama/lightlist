@@ -1,218 +1,208 @@
-import {
-  EmblaCarouselType,
-  EmblaOptionsType,
-  EmblaPluginType,
-} from "embla-carousel";
-import useEmblaCarousel from "embla-carousel-react";
-import {
-  WheelGesturesPlugin,
-  WheelGesturesPluginOptions,
-} from "embla-carousel-wheel-gestures";
-import {
-  ComponentProps,
-  ReactNode,
-  createContext,
-  forwardRef,
-  useCallback,
-  useContext,
+import React, {
+  useRef,
   useEffect,
-  useMemo,
   useState,
+  useCallback,
+  ReactNode,
+  Children,
 } from "react";
 import clsx from "clsx";
 
-type CarouselApi = EmblaCarouselType;
-
-type CarouselRootProps = Omit<ComponentProps<"div">, "onSelect">;
-
-interface CarouselProps extends CarouselRootProps {
-  opts?: EmblaOptionsType;
-  plugins?: EmblaPluginType[];
-  wheelGestures?: boolean | WheelGesturesPluginOptions;
-  setApi?: (api: CarouselApi) => void;
-  onSelect?: (api: CarouselApi) => void;
-}
-
-interface CarouselContextValue {
-  emblaApi: CarouselApi | undefined;
-  viewportRef: (element: HTMLDivElement | null) => void;
-  scrollPrev: () => void;
-  scrollNext: () => void;
-  scrollTo: (index: number) => void;
-  selectedIndex: number;
-}
-
-const CarouselContext = createContext<CarouselContextValue | null>(null);
-
-function useCarousel() {
-  const context = useContext(CarouselContext);
-  if (!context) {
-    throw new Error("Carousel components must be used within <Carousel>");
-  }
-  return context;
-}
-
-export function Carousel({
-  opts,
-  plugins,
-  wheelGestures = false,
-  setApi,
-  onSelect,
-  className,
-  children,
-  ...props
-}: CarouselProps) {
-  const wheelPlugin = useMemo(() => {
-    if (!wheelGestures) return null;
-    if (typeof wheelGestures === "boolean") return WheelGesturesPlugin();
-    return WheelGesturesPlugin(wheelGestures);
-  }, [wheelGestures]);
-
-  const mergedPlugins = useMemo(() => {
-    if (wheelPlugin) return [...(plugins ?? []), wheelPlugin];
-    return plugins ?? [];
-  }, [plugins, wheelPlugin]);
-
-  const [viewportRef, emblaApi] = useEmblaCarousel(opts, mergedPlugins);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-
-  const scrollPrev = useCallback(() => {
-    emblaApi?.scrollPrev();
-  }, [emblaApi]);
-
-  const scrollNext = useCallback(() => {
-    emblaApi?.scrollNext();
-  }, [emblaApi]);
-
-  const scrollTo = useCallback(
-    (index: number) => {
-      emblaApi?.scrollTo(index);
-    },
-    [emblaApi],
-  );
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    setApi?.(emblaApi);
-
-    const handleSelect = () => {
-      setSelectedIndex(emblaApi.selectedScrollSnap());
-      onSelect?.(emblaApi);
-    };
-
-    emblaApi.on("select", handleSelect);
-    handleSelect();
-
-    return () => {
-      emblaApi.off("select", handleSelect);
-    };
-  }, [emblaApi, onSelect, setApi]);
-
-  return (
-    <CarouselContext.Provider
-      value={{
-        emblaApi,
-        viewportRef,
-        scrollPrev,
-        scrollNext,
-        scrollTo,
-        selectedIndex,
-      }}
-    >
-      <div className={clsx("relative w-full", className)} {...props}>
-        {children}
-      </div>
-    </CarouselContext.Provider>
-  );
-}
-
-type CarouselContentProps = ComponentProps<"div">;
-
-export const CarouselContent = forwardRef<HTMLDivElement, CarouselContentProps>(
-  ({ className, children, ...props }, ref) => {
-    const { viewportRef } = useCarousel();
-
-    return (
-      <div ref={viewportRef} className="overflow-hidden h-full">
-        <div
-          ref={ref}
-          className={clsx("flex items-stretch gap-0", className)}
-          {...props}
-        >
-          {children}
-        </div>
-      </div>
-    );
-  },
-);
-
-CarouselContent.displayName = "CarouselContent";
-
-interface CarouselItemProps extends ComponentProps<"div"> {
+// Propsの型定義
+export interface CarouselProps {
+  /**
+   * カルーセルに表示するスライド要素のリスト
+   */
   children: ReactNode;
+  /**
+   * 現在のインデックス (Optional: 指定するとControlledモードになる)
+   */
+  index?: number;
+  /**
+   * インデックスが変更された時のコールバック
+   * スクロール停止後、またはインジケータークリック時に発火
+   */
+  onIndexChange?: (index: number) => void;
+  /**
+   * コンテナの追加クラス名
+   */
+  className?: string;
+  /**
+   * インジケーターを表示するかどうか
+   * @default true
+   */
+  showIndicators?: boolean;
+  /**
+   * インジケーターの表示位置
+   * @default "bottom"
+   */
+  indicatorPosition?: "top" | "bottom";
+  /**
+   * インジケーターのARIAラベル (全体のナビゲーション用)
+   */
+  ariaLabel?: string;
+  /**
+   * 各インジケーターボタンのラベル生成関数
+   */
+  getIndicatorLabel?: (index: number, total: number) => string;
 }
 
-export const CarouselItem = forwardRef<HTMLDivElement, CarouselItemProps>(
-  ({ className, children, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={clsx("min-w-0 shrink-0 basis-full", className)}
-      {...props}
-    >
-      {children}
-    </div>
-  ),
-);
+/**
+ * Web用カルーセルコンポーネント
+ */
+export function Carousel({
+  children,
+  index: externalIndex,
+  onIndexChange,
+  className,
+  showIndicators = true,
+  indicatorPosition = "bottom",
+  ariaLabel,
+  getIndicatorLabel,
+}: CarouselProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-CarouselItem.displayName = "CarouselItem";
+  // 内部状態としてのindex (Uncontrolledモード用)
+  const [internalIndex, setInternalIndex] = useState(0);
 
-type CarouselControlProps = ComponentProps<"button">;
+  // External index があればそれを優先 (Semi-controlled)
+  const isControlled = externalIndex !== undefined;
+  const currentIndex = isControlled ? externalIndex : internalIndex;
 
-export const CarouselPrevious = forwardRef<
-  HTMLButtonElement,
-  CarouselControlProps
->(({ className, ...props }, ref) => {
-  const { scrollPrev } = useCarousel();
+  const count = Children.count(children);
+
+  // items.length が減って currentIndex が範囲外になった場合の補正
+  useEffect(() => {
+    if (currentIndex >= count && count > 0) {
+      const newIndex = count - 1;
+      // 内部状態も更新しておく
+      if (!isControlled) {
+        setInternalIndex(newIndex);
+      }
+      // 親に通知
+      onIndexChange?.(newIndex);
+    }
+  }, [count, currentIndex, isControlled, onIndexChange]);
+
+  // 外部から index が変わった場合は、スクロール位置を同期する
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || count === 0) return;
+
+    // コンテナの幅に基づいてターゲット位置を計算
+    const targetScrollLeft = currentIndex * container.clientWidth;
+
+    // スクロール中以外で、かつ位置が大きくズレている場合のみ移動させる
+    if (!isScrollingRef.current) {
+      if (Math.abs(container.scrollLeft - targetScrollLeft) > 2) {
+        container.scrollTo({
+          left: targetScrollLeft,
+          behavior: "smooth",
+        });
+      }
+    }
+  }, [currentIndex, count]);
+
+  // スクロールイベントハンドラ
+  const handleScroll = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // スクロール中はフラグを立てる (State更新を抑制するため)
+    isScrollingRef.current = true;
+
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    // デバウンス処理: スクロール停止を検知
+    scrollTimeoutRef.current = setTimeout(() => {
+      isScrollingRef.current = false;
+
+      // 現在のスクロール位置から最も近いスライドのインデックスを計算
+      const newIndex = Math.round(container.scrollLeft / container.clientWidth);
+
+      // 範囲外へのアクセス防止
+      const clampedIndex = Math.max(0, Math.min(newIndex, count - 1));
+
+      // インデックスが変わっていたら通知
+      if (clampedIndex !== currentIndex) {
+        if (!isControlled) {
+          setInternalIndex(clampedIndex);
+        }
+        onIndexChange?.(clampedIndex);
+      }
+    }, 150); // 150ms静止でスクロール終了とみなす
+  }, [count, currentIndex, isControlled, onIndexChange]);
+
+  // インジケータークリック時の処理
+  const handleIndicatorClick = (idx: number) => {
+    if (!isControlled) {
+      setInternalIndex(idx);
+    }
+    onIndexChange?.(idx);
+  };
 
   return (
-    <button
-      type="button"
-      ref={ref}
-      onClick={scrollPrev}
-      className={clsx(
-        "absolute left-2 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-300 bg-white/80 text-lg font-semibold text-gray-900 shadow-sm backdrop-blur hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900/70 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500",
-        className,
-      )}
-      {...props}
-    >
-      ‹
-    </button>
-  );
-});
-
-CarouselPrevious.displayName = "CarouselPrevious";
-
-export const CarouselNext = forwardRef<HTMLButtonElement, CarouselControlProps>(
-  ({ className, ...props }, ref) => {
-    const { scrollNext } = useCarousel();
-
-    return (
-      <button
-        type="button"
-        ref={ref}
-        onClick={scrollNext}
-        className={clsx(
-          "absolute right-2 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-300 bg-white/80 text-lg font-semibold text-gray-900 shadow-sm backdrop-blur hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900/70 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500",
-          className,
-        )}
-        {...props}
+    <div className={clsx("relative w-full overflow-hidden", className)}>
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar"
+        style={{
+          // スクロールバーを隠すスタイル
+          scrollbarWidth: "none", // Firefox
+          msOverflowStyle: "none", // IE/Edge
+        }}
       >
-        ›
-      </button>
-    );
-  },
-);
+        {Children.map(children, (child, idx) => (
+          // 各スライド: コンテナ幅いっぱい、縮小なし、スナップ位置は開始位置
+          <div
+            key={idx}
+            className="w-full h-full flex-shrink-0 snap-start snap-always"
+          >
+            {child}
+          </div>
+        ))}
+      </div>
 
-CarouselNext.displayName = "CarouselNext";
-
-export type { CarouselApi };
+      {/* インジケーター (Locator) */}
+      {showIndicators && count > 0 && (
+        <nav
+          aria-label={ariaLabel}
+          className={clsx(
+            "absolute left-0 right-0 flex justify-center gap-1.5 pointer-events-none z-30",
+            indicatorPosition === "top" ? "top-14" : "bottom-4",
+          )}
+        >
+          {Array.from({ length: count }).map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleIndicatorClick(idx)}
+              className={clsx(
+                "inline-flex items-center justify-center p-2 rounded-full transition-all pointer-events-auto",
+                "hover:bg-gray-900/10 dark:hover:bg-gray-50/10",
+              )}
+              aria-label={
+                getIndicatorLabel?.(idx, count) ?? `Go to slide ${idx + 1}`
+              }
+              aria-current={idx === currentIndex ? "true" : undefined}
+            >
+              <span
+                className={clsx(
+                  "h-2 w-2 rounded-full transition-all",
+                  idx === currentIndex
+                    ? "bg-gray-900 dark:bg-gray-50 scale-110"
+                    : "bg-gray-900/20 dark:bg-gray-50/20",
+                )}
+              />
+            </button>
+          ))}
+        </nav>
+      )}
+    </div>
+  );
+}

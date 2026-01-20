@@ -34,12 +34,7 @@ import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/Drawer";
-import {
-  Carousel,
-  CarouselApi,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/Carousel";
+import { Carousel } from "@/components/ui/Carousel";
 import { DrawerPanel } from "@/components/app/DrawerPanel";
 import type { ColorOption } from "@/components/ui/ColorPicker";
 import { TaskListCard } from "@/components/app/TaskListCard";
@@ -70,7 +65,7 @@ function AppHeader({
   return (
     <header
       className={clsx(
-        "flex flex-wrap items-center gap-3 p-1",
+        "flex flex-wrap items-center py-1.5 px-3",
         isWideLayout ? "justify-start" : "justify-between",
       )}
     >
@@ -85,9 +80,14 @@ function AppHeader({
               type="button"
               aria-label={openMenuLabel}
               title={openMenuLabel}
-              className="inline-flex items-center justify-center rounded p-2 text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+              className="inline-flex items-center justify-center rounded p-3 text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
             >
-              <AppIcon name="menu" aria-hidden="true" focusable="false" />
+              <AppIcon
+                className="h-6 w-6"
+                name="menu"
+                aria-hidden="true"
+                focusable="false"
+              />
               <span className="sr-only">{openMenuLabel}</span>
             </button>
           </DrawerTrigger>
@@ -164,8 +164,8 @@ export default function AppPage() {
   const [showJoinListDialog, setShowJoinListDialog] = useState(false);
   const [joiningList, setJoiningList] = useState(false);
   const [joinListError, setJoinListError] = useState<string | null>(null);
-  const [taskListCarouselApi, setTaskListCarouselApi] =
-    useState<CarouselApi | null>(null);
+
+  // Embla関連のstate削除
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isWideLayout, setIsWideLayout] = useState(false);
   const [isTaskSorting, setIsTaskSorting] = useState(false);
@@ -210,36 +210,7 @@ export default function AppPage() {
     }
   }, [selectedTaskList]);
 
-  useEffect(() => {
-    if (!taskListCarouselApi || !state?.taskLists) return;
-
-    const handleSelect = () => {
-      const index = taskListCarouselApi.selectedScrollSnap();
-      const taskList = state.taskLists[index];
-      if (taskList) {
-        setSelectedTaskListId((prev) =>
-          prev === taskList.id ? prev : taskList.id,
-        );
-      }
-    };
-
-    taskListCarouselApi.on("select", handleSelect);
-    handleSelect();
-
-    return () => {
-      taskListCarouselApi.off("select", handleSelect);
-    };
-  }, [state?.taskLists, taskListCarouselApi]);
-
-  useEffect(() => {
-    if (!taskListCarouselApi || !state?.taskLists) return;
-    const index = state.taskLists.findIndex(
-      (taskList) => taskList.id === selectedTaskListId,
-    );
-    if (index >= 0) {
-      taskListCarouselApi.scrollTo(index);
-    }
-  }, [selectedTaskListId, state?.taskLists, taskListCarouselApi]);
+  // Embla関連のuseEffect削除
 
   useEffect(() => {
     const updateLayout = () => {
@@ -286,7 +257,6 @@ export default function AppPage() {
   const isLoading = !state.user;
   const hasTaskLists = Boolean(state.user && taskLists.length > 0);
   const userEmail = state.user?.email || t("app.drawerNoEmail");
-  // taskLists is now from the hook
   const selectedTaskListIndex = Math.max(
     0,
     taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
@@ -337,9 +307,7 @@ export default function AppPage() {
         return;
       }
 
-      // Check if already added (optional optimization, but backend handles it too usually)
       if (state?.taskLists.some((tl) => tl.id === taskListId)) {
-        // Already exists, just select it
         setSelectedTaskListId(taskListId);
         setShowJoinListDialog(false);
         setJoinListInput("");
@@ -572,42 +540,6 @@ export default function AppPage() {
                   <Alert variant="error">{error}</Alert>
                 </div>
               )}
-              <nav
-                aria-label={t("app.taskListLocator.label")}
-                className="flex justify-center w-full"
-              >
-                <ul className="flex items-center gap-1 px-3 py-1.5">
-                  {taskLists.map((taskList, index) => {
-                    const isSelected = index === selectedTaskListIndex;
-                    return (
-                      <li key={taskList.id}>
-                        <button
-                          type="button"
-                          aria-label={t("app.taskListLocator.goTo", {
-                            index: index + 1,
-                            total: taskLists.length,
-                          })}
-                          aria-current={isSelected ? "page" : undefined}
-                          onClick={() => setSelectedTaskListId(taskList.id)}
-                          className={clsx(
-                            "inline-flex h-4 w-4 items-center justify-center rounded-full",
-                            "hover:bg-gray-900/10 dark:hover:bg-gray-50/10",
-                          )}
-                        >
-                          <span
-                            className={clsx(
-                              "h-2 w-2 rounded-full",
-                              isSelected
-                                ? "bg-gray-900 dark:bg-gray-50"
-                                : "bg-gray-900/20 dark:bg-gray-50/20",
-                            )}
-                          />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </nav>
             </div>
           )}
 
@@ -627,74 +559,79 @@ export default function AppPage() {
             {hasTaskLists ? (
               <Carousel
                 className="h-full"
-                wheelGestures={!isTaskSorting}
-                setApi={setTaskListCarouselApi}
-                opts={{
-                  align: "start",
-                  containScroll: "trimSnaps",
+                index={selectedTaskListIndex}
+                onIndexChange={(index) => {
+                  const taskList = taskLists[index];
+                  if (taskList) {
+                    setSelectedTaskListId(taskList.id);
+                  }
                 }}
+                showIndicators={true}
+                indicatorPosition="top"
+                ariaLabel={t("app.taskListLocator.label")}
+                getIndicatorLabel={(index, total) =>
+                  t("app.taskListLocator.goTo", {
+                    index: index + 1,
+                    total,
+                  })
+                }
               >
-                <CarouselContent className="h-full">
-                  {taskLists.map((taskList) => {
-                    const isActive = selectedTaskListId === taskList.id;
-                    return (
-                      <CarouselItem key={taskList.id}>
-                        <div
-                          className={clsx(
-                            "h-full w-full pt-[84px]",
-                            isWideLayout && "mx-auto max-w-3xl",
-                          )}
-                          style={{
-                            backgroundColor: resolveTaskListBackground(
-                              taskList.background,
-                            ),
-                          }}
-                        >
-                          <TaskListCard
-                            taskList={taskList}
-                            taskInsertPosition={
-                              state?.settings?.taskInsertPosition ?? "top"
-                            }
-                            isActive={isActive}
-                            onActivate={(taskListId) =>
-                              setSelectedTaskListId(taskListId)
-                            }
-                            sensorsList={sensorsList}
-                            onSortingChange={setIsTaskSorting}
-                            t={t}
-                            enableEditDialog
-                            colors={colors}
-                            showEditListDialog={showEditListDialog}
-                            onEditDialogOpenChange={handleEditDialogOpenChange}
-                            editListName={editListName}
-                            onEditListNameChange={setEditListName}
-                            editListBackground={editListBackground}
-                            onEditListBackgroundChange={setEditListBackground}
-                            onSaveListDetails={handleSaveListDetails}
-                            deletingList={deletingList}
-                            onDeleteList={handleRequestDeleteList}
-                            enableShareDialog
-                            showShareDialog={showShareDialog}
-                            onShareDialogOpenChange={
-                              handleShareDialogOpenChange
-                            }
-                            shareCode={shareCode}
-                            shareCopySuccess={shareCopySuccess}
-                            generatingShareCode={generatingShareCode}
-                            onGenerateShareCode={handleGenerateShareCode}
-                            removingShareCode={removingShareCode}
-                            onRemoveShareCode={handleRemoveShareCode}
-                            onCopyShareLink={handleCopyShareLink}
-                          />
-                        </div>
-                      </CarouselItem>
-                    );
-                  })}
-                </CarouselContent>
+                {taskLists.map((taskList) => {
+                  const isActive = selectedTaskListId === taskList.id;
+                  return (
+                    <div
+                      key={taskList.id}
+                      className={clsx(
+                        "h-full w-full pt-[84px]",
+                        isWideLayout && "mx-auto max-w-3xl",
+                      )}
+                      style={{
+                        backgroundColor: resolveTaskListBackground(
+                          taskList.background,
+                        ),
+                      }}
+                    >
+                      <TaskListCard
+                        taskList={taskList}
+                        taskInsertPosition={
+                          state?.settings?.taskInsertPosition ?? "top"
+                        }
+                        isActive={isActive}
+                        onActivate={(taskListId) =>
+                          setSelectedTaskListId(taskListId)
+                        }
+                        sensorsList={sensorsList}
+                        onSortingChange={setIsTaskSorting}
+                        t={t}
+                        enableEditDialog
+                        colors={colors}
+                        showEditListDialog={showEditListDialog}
+                        onEditDialogOpenChange={handleEditDialogOpenChange}
+                        editListName={editListName}
+                        onEditListNameChange={setEditListName}
+                        editListBackground={editListBackground}
+                        onEditListBackgroundChange={setEditListBackground}
+                        onSaveListDetails={handleSaveListDetails}
+                        deletingList={deletingList}
+                        onDeleteList={handleRequestDeleteList}
+                        enableShareDialog
+                        showShareDialog={showShareDialog}
+                        onShareDialogOpenChange={handleShareDialogOpenChange}
+                        shareCode={shareCode}
+                        shareCopySuccess={shareCopySuccess}
+                        generatingShareCode={generatingShareCode}
+                        onGenerateShareCode={handleGenerateShareCode}
+                        removingShareCode={removingShareCode}
+                        onRemoveShareCode={handleRemoveShareCode}
+                        onCopyShareLink={handleCopyShareLink}
+                      />
+                    </div>
+                  );
+                })}
               </Carousel>
             ) : (
               <div className="flex h-full items-center justify-center p-4">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <p className="text-gray-600 dark:text-gray-300">
                   {t("app.emptyState")}
                 </p>
               </div>

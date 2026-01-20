@@ -64,7 +64,7 @@ interface TaskItemProps<T extends TaskForSortable = TaskForSortable> {
   editingText: string;
   onEditingTextChange: (text: string) => void;
   onEditStart: (task: T) => void;
-  onEditEnd: (task: T) => void;
+  onEditEnd: (task: T, text?: string) => void;
   onToggle: (task: T) => void;
   onDateChange?: (taskId: string, date: string) => void;
   setDateLabel: string;
@@ -148,28 +148,46 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
     : setDateLabel;
 
   return (
-    <div ref={setNodeRef} style={style} className="flex gap-2 rounded-xl py-3">
+    <div ref={setNodeRef} style={style} className="flex gap-2 py-2">
       <button
         {...attributes}
         {...listeners}
         title={dragHintLabel}
         aria-label={dragHintLabel}
         type="button"
-        className="flex h-8 items-center touch-none rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+        className="flex items-center touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 text-gray-400"
       >
-        <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
+        <span className="relative right-[5px]">
+          <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
+        </span>
       </button>
 
-      <input
-        type="checkbox"
-        checked={task.completed}
-        onChange={() => onToggle(task)}
-        className="mt-1.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50"
-      />
-
+      <div className="relative flex items-center justify-center">
+        <input
+          type="checkbox"
+          checked={task.completed}
+          onChange={() => onToggle(task)}
+          className="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+        />
+        <div className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-gray-400 peer-checked:border-transparent peer-checked:bg-gray-200 dark:border-gray-300 dark:bg-gray-900 dark:peer-checked:bg-gray-800">
+          <svg
+            className="h-3.5 w-3.5 text-white opacity-0 transition-opacity peer-checked:opacity-100 dark:text-gray-900"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={3}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4.5 12.75l6 6 9-13.5"
+            />
+          </svg>
+        </div>
+      </div>
       <div className="relative flex min-w-0 flex-1 flex-col">
         {dateDisplayValue ? (
-          <span className="absolute -top-2 left-0 text-xs leading-none text-gray-500 dark:text-gray-400">
+          <span className="absolute -top-2 left-0 text-xs leading-none text-gray-600 dark:text-gray-300">
             {dateDisplayValue}
           </span>
         ) : null}
@@ -183,11 +201,16 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
               if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter") onEditEnd(task);
               if (e.key === "Escape") {
-                onEditingTextChange(task.text);
+                onEditEnd(task, task.text);
               }
             }}
             autoFocus
-            className="min-w-0 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+            className={clsx(
+              "min-w-0 w-full bg-transparent p-0 font-medium leading-7 focus:outline-none",
+              task.completed
+                ? "text-gray-600 line-through dark:text-gray-400"
+                : "text-gray-900 dark:text-gray-50",
+            )}
           />
         ) : (
           <span
@@ -202,8 +225,8 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             }}
             className={
               task.completed
-                ? "min-w-0 cursor-pointer text-left text-sm font-medium leading-7 text-gray-600 line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:focus-visible:outline-gray-500"
-                : "min-w-0 cursor-pointer text-left text-sm font-medium leading-7 text-gray-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+                ? "min-w-0 cursor-pointer text-left font-medium leading-7 text-gray-600 line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:focus-visible:outline-gray-500"
+                : "min-w-0 cursor-pointer text-left font-medium leading-7 text-gray-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
             }
           >
             {task.text}
@@ -217,7 +240,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             type="button"
             aria-label={setDateLabel}
             title={dateTitle}
-            className="flex h-8 items-center rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+            className="flex items-center rounded-lg p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:focus-visible:outline-gray-500 text-gray-400"
           >
             <AppIcon
               name="calendar-today"
@@ -325,6 +348,9 @@ export function TaskListCard({
   );
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
+  const editingTaskIdRef = useRef<string | null>(null);
+  editingTaskIdRef.current = editingTaskId;
+
   const [newTaskText, setNewTaskText] = useState("");
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
 
@@ -387,8 +413,11 @@ export function TaskListCard({
     setEditingTaskText(task.text);
   };
 
-  const handleEditEndTask = async (task: Task) => {
-    const trimmedText = editingTaskText.trim();
+  const handleEditEndTask = async (task: Task, text?: string) => {
+    if (editingTaskIdRef.current !== task.id) return;
+
+    const currentText = text ?? editingTaskText;
+    const trimmedText = currentText.trim();
     if (trimmedText === "" || trimmedText === task.text) {
       setEditingTaskId(null);
       return;
@@ -487,18 +516,18 @@ export function TaskListCard({
   );
 
   const inputClass =
-    "rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800";
+    "rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800";
   const primaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200";
+    "inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 font-semibold text-white hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200";
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl border-gray-300 px-3 py-2 text-sm font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500";
+    "inline-flex items-center justify-center rounded-xl border-gray-300 h-12 w-12 font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500";
   const destructiveButtonClass =
-    "inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:bg-red-300 dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:outline-red-700 dark:disabled:bg-red-800";
+    "inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:bg-red-300 dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:outline-red-700 dark:disabled:bg-red-800";
   const iconButtonClass = clsx(secondaryButtonClass, "px-2");
 
   const listContent =
     tasks.length === 0 ? (
-      <p className="text-sm text-gray-600 dark:text-gray-300">
+      <p className="text-gray-600 dark:text-gray-300">
         {t("pages.tasklist.noTasks")}
       </p>
     ) : (
@@ -572,7 +601,7 @@ export function TaskListCard({
                 }
               }}
               placeholder={t("pages.tasklist.addTaskPlaceholder")}
-              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
             />
             {historyOpen && historyOptions.length > 0 ? (
               <CommandList
@@ -604,10 +633,12 @@ export function TaskListCard({
           disabled={newTaskText.trim() === ""}
           aria-label={t("common.add")}
           title={t("common.add")}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+          className="inline-flex h-10 w-8 shrink-0 items-center justify-center rounded-xl text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed dark:text-gray-900 dark:focus-visible:outline-gray-500 dark:disabled:text-gray-200"
         >
           <span className="sr-only">{t("common.add")}</span>
-          <AppIcon name="send" aria-hidden="true" focusable="false" />
+          <span className="relative left-[1px]">
+            <AppIcon name="send" aria-hidden="true" focusable="false" />
+          </span>
         </button>
       </form>
       {addTaskError ? <Alert variant="error">{addTaskError}</Alert> : null}
@@ -622,129 +653,28 @@ export function TaskListCard({
       )}
       style={{ backgroundColor: taskList.background ?? undefined }}
     >
-      <div className="h-full p-2 pt-6">
-        <div className="min-h-full p-4">
+      <div className="min-h-full px-6">
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <h2 className="m-0 text-xl font-semibold">
-                      {taskList.name}
-                    </h2>
-                  </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <h2 className="m-0 text-xl font-semibold">{taskList.name}</h2>
+                </div>
 
-                  {(enableEditDialog || enableShareDialog) && (
-                    <div className="flex flex-wrap justify-end gap-2">
-                      {enableEditDialog &&
-                        colors &&
-                        onEditDialogOpenChange &&
-                        onEditListNameChange &&
-                        onEditListBackgroundChange &&
-                        onSaveListDetails &&
-                        onDeleteList && (
-                          <Dialog
-                            open={isActive && (showEditListDialog ?? false)}
-                            onOpenChange={(open: boolean) => {
-                              onEditDialogOpenChange(taskList, open);
-                            }}
-                          >
-                            <DialogTrigger asChild>
-                              <button
-                                type="button"
-                                onClick={() => onActivate?.(taskList.id)}
-                                className={iconButtonClass}
-                                aria-label={t("taskList.editDetails")}
-                                title={t("taskList.editDetails")}
-                              >
-                                <AppIcon
-                                  name="edit"
-                                  aria-hidden="true"
-                                  focusable="false"
-                                />
-                                <span className="sr-only">
-                                  {t("taskList.editDetails")}
-                                </span>
-                              </button>
-                            </DialogTrigger>
-                            <DialogContent
-                              title={t("taskList.editDetails")}
-                              description={t("app.taskListName")}
-                            >
-                              <form
-                                onSubmit={(e) => {
-                                  e.preventDefault();
-                                  if (!(editListName ?? "").trim()) return;
-                                  void onSaveListDetails();
-                                }}
-                              >
-                                <div className="mt-4 flex flex-col gap-3">
-                                  <label className="flex flex-col gap-1">
-                                    <span>{t("app.taskListName")}</span>
-                                    <input
-                                      type="text"
-                                      value={editListName ?? ""}
-                                      onChange={(e) =>
-                                        onEditListNameChange(e.target.value)
-                                      }
-                                      placeholder={t(
-                                        "app.taskListNamePlaceholder",
-                                      )}
-                                      className={inputClass}
-                                    />
-                                  </label>
-                                  <div className="flex flex-col gap-2">
-                                    <span>{t("taskList.selectColor")}</span>
-                                    <ColorPicker
-                                      colors={colors}
-                                      selectedColor={editListBackground ?? null}
-                                      onSelect={onEditListBackgroundChange}
-                                      ariaLabelPrefix={t(
-                                        "taskList.selectColor",
-                                      )}
-                                    />
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={onDeleteList}
-                                    disabled={deletingList}
-                                    className={clsx(
-                                      destructiveButtonClass,
-                                      "mt-6 w-full",
-                                    )}
-                                  >
-                                    {deletingList
-                                      ? t("common.deleting")
-                                      : t("taskList.deleteList")}
-                                  </button>
-                                </div>
-                                <DialogFooter>
-                                  <DialogClose asChild>
-                                    <button
-                                      type="button"
-                                      className={secondaryButtonClass}
-                                    >
-                                      {t("common.cancel")}
-                                    </button>
-                                  </DialogClose>
-                                  <button
-                                    type="submit"
-                                    disabled={!(editListName ?? "").trim()}
-                                    className={primaryButtonClass}
-                                  >
-                                    {t("taskList.editDetails")}
-                                  </button>
-                                </DialogFooter>
-                              </form>
-                            </DialogContent>
-                          </Dialog>
-                        )}
-
-                      {enableShareDialog && onShareDialogOpenChange && (
+                {(enableEditDialog || enableShareDialog) && (
+                  <div className="flex flex-wrap justify-end relative left-2">
+                    {enableEditDialog &&
+                      colors &&
+                      onEditDialogOpenChange &&
+                      onEditListNameChange &&
+                      onEditListBackgroundChange &&
+                      onSaveListDetails &&
+                      onDeleteList && (
                         <Dialog
-                          open={isActive && (showShareDialog ?? false)}
+                          open={isActive && (showEditListDialog ?? false)}
                           onOpenChange={(open: boolean) => {
-                            onShareDialogOpenChange(taskList, open);
+                            onEditDialogOpenChange(taskList, open);
                           }}
                         >
                           <DialogTrigger asChild>
@@ -752,156 +682,251 @@ export function TaskListCard({
                               type="button"
                               onClick={() => onActivate?.(taskList.id)}
                               className={iconButtonClass}
-                              aria-label={t("taskList.share")}
-                              title={t("taskList.share")}
+                              aria-label={t("taskList.editDetails")}
+                              title={t("taskList.editDetails")}
                             >
                               <AppIcon
-                                name="share"
+                                name="edit"
                                 aria-hidden="true"
                                 focusable="false"
                               />
                               <span className="sr-only">
-                                {t("taskList.share")}
+                                {t("taskList.editDetails")}
                               </span>
                             </button>
                           </DialogTrigger>
                           <DialogContent
-                            title={t("taskList.shareTitle")}
-                            description={t("taskList.shareDescription")}
+                            title={t("taskList.editDetails")}
+                            description={t("app.taskListName")}
                           >
-                            {shareCode ? (
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                if (!(editListName ?? "").trim()) return;
+                                void onSaveListDetails();
+                              }}
+                            >
                               <div className="mt-4 flex flex-col gap-3">
-                                <label className="flex flex-col gap-1.5">
-                                  <span>{t("taskList.shareCode")}</span>
-                                  <div className="flex flex-wrap gap-2">
-                                    <input
-                                      type="text"
-                                      value={shareCode}
-                                      readOnly
-                                      className={clsx(inputClass, "font-mono")}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={onCopyShareLink}
-                                      className={secondaryButtonClass}
-                                    >
-                                      {shareCopySuccess
-                                        ? t("common.copied")
-                                        : t("common.copy")}
-                                    </button>
-                                  </div>
+                                <label className="flex flex-col gap-1">
+                                  <span>{t("app.taskListName")}</span>
+                                  <input
+                                    type="text"
+                                    value={editListName ?? ""}
+                                    onChange={(e) =>
+                                      onEditListNameChange(e.target.value)
+                                    }
+                                    placeholder={t(
+                                      "app.taskListNamePlaceholder",
+                                    )}
+                                    className={inputClass}
+                                  />
                                 </label>
+                                <div className="flex flex-col gap-2">
+                                  <span>{t("taskList.selectColor")}</span>
+                                  <ColorPicker
+                                    colors={colors}
+                                    selectedColor={editListBackground ?? null}
+                                    onSelect={onEditListBackgroundChange}
+                                    ariaLabelPrefix={t("taskList.selectColor")}
+                                  />
+                                </div>
                                 <button
                                   type="button"
-                                  onClick={onRemoveShareCode}
-                                  disabled={removingShareCode}
-                                  className={destructiveButtonClass}
+                                  onClick={onDeleteList}
+                                  disabled={deletingList}
+                                  className={clsx(
+                                    destructiveButtonClass,
+                                    "mt-6 w-full",
+                                  )}
                                 >
-                                  {removingShareCode
+                                  {deletingList
                                     ? t("common.deleting")
-                                    : t("taskList.removeShare")}
+                                    : t("taskList.deleteList")}
                                 </button>
                               </div>
-                            ) : (
-                              <div className="mt-4 flex flex-col gap-3">
+                              <DialogFooter>
+                                <DialogClose asChild>
+                                  <button
+                                    type="button"
+                                    className={secondaryButtonClass}
+                                  >
+                                    {t("common.cancel")}
+                                  </button>
+                                </DialogClose>
                                 <button
-                                  type="button"
-                                  onClick={onGenerateShareCode}
-                                  disabled={generatingShareCode}
+                                  type="submit"
+                                  disabled={!(editListName ?? "").trim()}
                                   className={primaryButtonClass}
                                 >
-                                  {generatingShareCode
-                                    ? t("common.loading")
-                                    : t("taskList.generateShare")}
+                                  {t("taskList.editDetails")}
                                 </button>
-                              </div>
-                            )}
-                            <DialogFooter>
-                              <DialogClose asChild>
-                                <button
-                                  type="button"
-                                  className={secondaryButtonClass}
-                                >
-                                  {t("common.close")}
-                                </button>
-                              </DialogClose>
-                            </DialogFooter>
+                              </DialogFooter>
+                            </form>
                           </DialogContent>
                         </Dialog>
                       )}
-                    </div>
-                  )}
-                </div>
-                {taskError ? <Alert variant="error">{taskError}</Alert> : null}
-              </div>
-              {inputSection}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center">
-                  <button
-                    type="button"
-                    disabled={tasks.length < 2}
-                    onClick={async () => {
-                      void handleSortTasks();
-                    }}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
-                  >
-                    <AppIcon name="sort" aria-hidden="true" focusable="false" />
-                    {t("pages.tasklist.sort")}
-                  </button>
-                </div>
-                <div className="flex items-center justify-end">
-                  <button
-                    type="button"
-                    disabled={
-                      deleteCompletedPending || completedTaskCount === 0
-                    }
-                    onClick={async () => {
-                      if (completedTaskCount === 0) return;
-                      const confirmed = window.confirm(
-                        t("pages.tasklist.deleteCompletedConfirm", {
-                          count: completedTaskCount,
-                        }),
-                      );
-                      if (!confirmed) return;
 
-                      setDeleteCompletedPending(true);
-                      try {
-                        await handleDeleteCompletedTasks();
-                      } finally {
-                        setDeleteCompletedPending(false);
-                      }
-                    }}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:outline-red-400 dark:text-gray-50"
-                  >
-                    {deleteCompletedPending
-                      ? t("common.deleting")
-                      : t("pages.tasklist.deleteCompleted")}
+                    {enableShareDialog && onShareDialogOpenChange && (
+                      <Dialog
+                        open={isActive && (showShareDialog ?? false)}
+                        onOpenChange={(open: boolean) => {
+                          onShareDialogOpenChange(taskList, open);
+                        }}
+                      >
+                        <DialogTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => onActivate?.(taskList.id)}
+                            className={iconButtonClass}
+                            aria-label={t("taskList.share")}
+                            title={t("taskList.share")}
+                          >
+                            <AppIcon
+                              name="share"
+                              aria-hidden="true"
+                              focusable="false"
+                            />
+                            <span className="sr-only">
+                              {t("taskList.share")}
+                            </span>
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent
+                          title={t("taskList.shareTitle")}
+                          description={t("taskList.shareDescription")}
+                        >
+                          {shareCode ? (
+                            <div className="mt-4 flex flex-col gap-3">
+                              <label className="flex flex-col gap-1.5">
+                                <span>{t("taskList.shareCode")}</span>
+                                <div className="flex flex-wrap gap-2">
+                                  <input
+                                    type="text"
+                                    value={shareCode}
+                                    readOnly
+                                    className={clsx(inputClass, "font-mono")}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={onCopyShareLink}
+                                    className={secondaryButtonClass}
+                                  >
+                                    {shareCopySuccess
+                                      ? t("common.copied")
+                                      : t("common.copy")}
+                                  </button>
+                                </div>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={onRemoveShareCode}
+                                disabled={removingShareCode}
+                                className={destructiveButtonClass}
+                              >
+                                {removingShareCode
+                                  ? t("common.deleting")
+                                  : t("taskList.removeShare")}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="mt-4 flex flex-col gap-3">
+                              <button
+                                type="button"
+                                onClick={onGenerateShareCode}
+                                disabled={generatingShareCode}
+                                className={primaryButtonClass}
+                              >
+                                {generatingShareCode
+                                  ? t("common.loading")
+                                  : t("taskList.generateShare")}
+                              </button>
+                            </div>
+                          )}
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <button
+                                type="button"
+                                className={secondaryButtonClass}
+                              >
+                                {t("common.close")}
+                              </button>
+                            </DialogClose>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
+                )}
+              </div>
+              {taskError ? <Alert variant="error">{taskError}</Alert> : null}
+            </div>
+            {inputSection}
+            <div className="flex items-center justify-between gap-2 pb-6">
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  disabled={tasks.length < 2}
+                  onClick={async () => {
+                    void handleSortTasks();
+                  }}
+                  className="inline-flex items-center justify-center rounded-xl font-medium text-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+                >
+                  <AppIcon name="sort" aria-hidden="true" focusable="false" />
+                  {t("pages.tasklist.sort")}
+                </button>
+              </div>
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  disabled={deleteCompletedPending || completedTaskCount === 0}
+                  onClick={async () => {
+                    if (completedTaskCount === 0) return;
+                    const confirmed = window.confirm(
+                      t("pages.tasklist.deleteCompletedConfirm", {
+                        count: completedTaskCount,
+                      }),
+                    );
+                    if (!confirmed) return;
+
+                    setDeleteCompletedPending(true);
+                    try {
+                      await handleDeleteCompletedTasks();
+                    } finally {
+                      setDeleteCompletedPending(false);
+                    }
+                  }}
+                  className="inline-flex items-center justify-center rounded-xl font-medium text-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:outline-red-400 dark:text-gray-50"
+                >
+                  {deleteCompletedPending
+                    ? t("common.deleting")
+                    : t("pages.tasklist.deleteCompleted")}
+                  <span className="pr-1">
                     <AppIcon
                       name="delete"
                       aria-hidden="true"
                       focusable="false"
                     />
-                  </button>
-                </div>
+                  </span>
+                </button>
               </div>
             </div>
-
-            <DndContext
-              sensors={sensorsList}
-              collisionDetection={closestCenter}
-              modifiers={[restrictToVerticalAxis]}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEndTask}
-              onDragCancel={handleDragCancel}
-            >
-              <SortableContext
-                items={tasks.map((task) => task.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {listContent}
-              </SortableContext>
-            </DndContext>
           </div>
+
+          <DndContext
+            sensors={sensorsList}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis]}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEndTask}
+            onDragCancel={handleDragCancel}
+          >
+            <SortableContext
+              items={tasks.map((task) => task.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {listContent}
+            </SortableContext>
+          </DndContext>
         </div>
       </div>
     </section>

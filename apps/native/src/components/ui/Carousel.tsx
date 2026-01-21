@@ -1,221 +1,322 @@
-import type { ReactNode } from "react";
-import {
-  Children,
-  createContext,
-  forwardRef,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
+import React, {
   useRef,
+  useEffect,
   useState,
+  useCallback,
+  ReactNode,
+  Children,
 } from "react";
-import type { LayoutChangeEvent, ViewProps } from "react-native";
-import { View } from "react-native";
-import CarouselBase, {
-  type ICarouselInstance,
-  type TCarouselProps,
-} from "react-native-reanimated-carousel";
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  LayoutChangeEvent,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  TouchableOpacity,
+  ViewProps,
+} from "react-native";
+import { useTheme } from "../../styles/theme";
 
-type CarouselApi = {
-  scrollPrev: () => void;
-  scrollNext: () => void;
-  scrollTo: (index: number) => void;
-  selectedIndex: number;
-  getCurrentIndex: () => number;
-};
-
-type CarouselOptions = Partial<
-  Pick<
-    TCarouselProps<ReactNode>,
-    | "autoFillData"
-    | "autoPlay"
-    | "autoPlayInterval"
-    | "autoPlayReverse"
-    | "containerStyle"
-    | "customAnimation"
-    | "customConfig"
-    | "enableSnap"
-    | "enabled"
-    | "fixedDirection"
-    | "loop"
-    | "maxScrollDistancePerSwipe"
-    | "minScrollDistancePerSwipe"
-    | "onConfigurePanGesture"
-    | "onProgressChange"
-    | "onScrollEnd"
-    | "onScrollStart"
-    | "overscrollEnabled"
-    | "pagingEnabled"
-    | "scrollAnimationDuration"
-    | "snapEnabled"
-    | "style"
-    | "testID"
-    | "windowSize"
-    | "withAnimation"
-  >
->;
-
-type CarouselRootProps = ViewProps;
-
-interface CarouselProps extends CarouselRootProps {
-  opts?: CarouselOptions;
-  setApi?: (api: CarouselApi) => void;
-  onSelect?: (api: CarouselApi) => void;
+// Web版のProps定義に準拠しつつ、Native用に調整
+export interface CarouselProps extends ViewProps {
+  /**
+   * カルーセルに表示するスライド要素のリスト
+   */
+  children: ReactNode;
+  /**
+   * 現在のインデックス (Optional: 指定するとControlledモードになる)
+   */
+  index?: number;
+  /**
+   * インデックスが変更された時のコールバック
+   * スクロール停止後、またはインジケータータップ時に発火
+   */
+  onIndexChange?: (index: number) => void;
+  /**
+   * インジケーターを表示するかどうか
+   * @default true
+   */
+  showIndicators?: boolean;
+  /**
+   * インジケーターの表示位置
+   * @default "bottom"
+   */
+  indicatorPosition?: "top" | "bottom";
+  /**
+   * 各インジケーターボタンのアクセシビリティラベル生成関数
+   */
+  getIndicatorLabel?: (index: number, total: number) => string;
 }
 
-interface CarouselContextValue {
-  width: number;
-  height: number;
-  opts?: CarouselOptions;
-  setCarouselRef: (instance: ICarouselInstance | null) => void;
-  selectedIndex: number;
-  setSelectedIndex: (index: number) => void;
-  onSelect?: (api: CarouselApi) => void;
-  api: CarouselApi;
-}
-
-const CarouselContext = createContext<CarouselContextValue | null>(null);
-
-const useCarousel = () => {
-  const context = useContext(CarouselContext);
-  if (!context) {
-    throw new Error("Carousel components must be used within <Carousel>");
-  }
-  return context;
-};
-
-export const Carousel = ({
-  opts,
-  setApi,
-  onSelect,
-  style,
+/**
+ * Native用カルーセルコンポーネント
+ * Web版 (apps/web/src/components/ui/Carousel.tsx) と挙動・APIを一致させています。
+ *
+ * 設計意図:
+ * - FlatList + pagingEnabled を使用して、ネイティブの1スライドごとのスナップ動作を実現。
+ * - index管理はSemi-controlledパターンを採用 (props.index優先、内部stateフォールバック)。
+ * - onMomentumScrollEnd でのみindexを確定させ、スクロール中の過剰な更新を防ぐ。
+ * - 連続スワイプ時の競合（巻き戻り）を防ぐため、スクロール中の外部index同期を抑制する。
+ */
+export function Carousel({
   children,
+  index: externalIndex,
+  onIndexChange,
+  style,
+  showIndicators = true,
+  indicatorPosition = "bottom",
+  getIndicatorLabel,
   ...props
-}: CarouselProps) => {
-  const [layout, setLayout] = useState({ width: 0, height: 0 });
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const carouselRef = useRef<ICarouselInstance | null>(null);
-  const setCarouselRef = useCallback((instance: ICarouselInstance | null) => {
-    carouselRef.current = instance;
-  }, []);
+}: CarouselProps) {
+  const theme = useTheme();
+  const flatListRef = useRef<FlatList>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
 
-  const scrollTo = useCallback((index: number) => {
-    carouselRef.current?.scrollTo({ index, animated: true });
-  }, []);
+  // 内部状態としてのindex (Uncontrolledモード用)
+  const [internalIndex, setInternalIndex] = useState(0);
 
-  const scrollPrev = useCallback(() => {
-    carouselRef.current?.scrollTo({ count: -1, animated: true });
-  }, []);
+  // スクロール中かどうかを判定するフラグ (Refで管理して再レンダリングを防ぐ)
+  const isScrollingRef = useRef(false);
 
-  const scrollNext = useCallback(() => {
-    carouselRef.current?.scrollTo({ count: 1, animated: true });
-  }, []);
+  // 現在のスクロール位置を追跡 (Refで管理)
+  const currentScrollX = useRef(0);
 
-  const getCurrentIndex = useCallback(() => {
-    return carouselRef.current?.getCurrentIndex() ?? 0;
-  }, []);
+  // External index があればそれを優先 (Semi-controlled)
+  const isControlled = externalIndex !== undefined;
+  const currentIndex = isControlled ? externalIndex : internalIndex;
 
-  const api = useMemo(
-    () => ({
-      scrollPrev,
-      scrollNext,
-      scrollTo,
-      selectedIndex,
-      getCurrentIndex,
-    }),
-    [scrollPrev, scrollNext, scrollTo, selectedIndex, getCurrentIndex],
+  const childrenArray = Children.toArray(children);
+  const count = childrenArray.length;
+
+  // items.length が減って currentIndex が範囲外になった場合の補正
+  useEffect(() => {
+    if (currentIndex >= count && count > 0) {
+      const newIndex = count - 1;
+      // 内部状態も更新しておく
+      if (!isControlled) {
+        setInternalIndex(newIndex);
+      }
+      // 親に通知
+      onIndexChange?.(newIndex);
+    }
+  }, [count, currentIndex, isControlled, onIndexChange]);
+
+  // 外部から index が変わった場合は、スクロール位置を同期する
+  useEffect(() => {
+    // コンテナ幅が決まっていない、または要素がない場合はスキップ
+    if (containerWidth === 0 || count === 0) return;
+
+    // ユーザーがスワイプ操作中、または慣性スクロール中の場合は
+    // 外部からのindex変更（onIndexChangeの結果として戻ってきたものを含む）による
+    // 強制的なスクロール位置の書き戻しを防ぐ。
+    if (isScrollingRef.current) return;
+
+    // 範囲外チェック
+    const targetIndex = Math.max(0, Math.min(currentIndex, count - 1));
+    const targetOffset = targetIndex * containerWidth;
+
+    // すでにターゲット位置（またはその近傍）にいる場合はスクロールしない
+    // これにより、onMomentumScrollEnd 直後の不要な scrollToIndex を防ぐ
+    if (Math.abs(currentScrollX.current - targetOffset) < 1) return;
+
+    // index変更時に必ずスクロールさせる
+    try {
+      flatListRef.current?.scrollToIndex({
+        index: targetIndex,
+        animated: true,
+      });
+    } catch (e) {
+      console.warn("Carousel scrollToIndex failed", e);
+    }
+  }, [currentIndex, containerWidth, count]);
+
+  const onLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const width = e.nativeEvent.layout.width;
+      // 幅が変わった場合のみ更新
+      if (Math.abs(containerWidth - width) > 1) {
+        setContainerWidth(width);
+      }
+    },
+    [containerWidth],
   );
 
-  useEffect(() => {
-    setApi?.(api);
-  }, [api, setApi]);
+  // スクロール位置の追跡
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    currentScrollX.current = e.nativeEvent.contentOffset.x;
+  }, []);
 
-  const handleLayout = (event: LayoutChangeEvent) => {
-    const { width, height } = event.nativeEvent.layout;
-    setLayout((prev) => {
-      if (prev.width === width && prev.height === height) {
-        return prev;
+  // スクロール開始 (手動スワイプ)
+  const onScrollBeginDrag = useCallback(() => {
+    isScrollingRef.current = true;
+  }, []);
+
+  // 慣性スクロール開始
+  const onMomentumScrollBegin = useCallback(() => {
+    isScrollingRef.current = true;
+  }, []);
+
+  // スクロール完了 (慣性スクロール終了) -> ここでindex確定
+  const onMomentumScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      isScrollingRef.current = false;
+
+      if (containerWidth === 0) return;
+
+      const offsetX = e.nativeEvent.contentOffset.x;
+      // 現在のページ計算
+      const newIndex = Math.round(offsetX / containerWidth);
+      const clampedIndex = Math.max(0, Math.min(newIndex, count - 1));
+
+      // インデックスが変わっていたら通知
+      if (clampedIndex !== currentIndex) {
+        if (!isControlled) {
+          setInternalIndex(clampedIndex);
+        }
+        onIndexChange?.(clampedIndex);
       }
-      return { width, height };
-    });
+    },
+    [containerWidth, count, currentIndex, isControlled, onIndexChange],
+  );
+
+  // インジケータータップ時の処理
+  const handleIndicatorPress = (idx: number) => {
+    if (!isControlled) {
+      setInternalIndex(idx);
+    }
+    onIndexChange?.(idx);
   };
 
-  return (
-    <CarouselContext.Provider
-      value={{
-        width: layout.width,
-        height: layout.height,
-        opts,
-        setCarouselRef,
-        selectedIndex,
-        setSelectedIndex,
-        onSelect,
-        api,
-      }}
-    >
-      <View style={style} onLayout={handleLayout} {...props}>
-        {children}
-      </View>
-    </CarouselContext.Provider>
+  // FlatListの最適化設定
+  const getItemLayout = useCallback(
+    (_: any, index: number) => ({
+      length: containerWidth,
+      offset: containerWidth * index,
+      index,
+    }),
+    [containerWidth],
   );
-};
 
-type CarouselContentProps = ViewProps;
-
-export const CarouselContent = ({
-  children,
-  ...props
-}: CarouselContentProps) => {
-  const {
-    width,
-    height,
-    opts,
-    setCarouselRef,
-    setSelectedIndex,
-    onSelect,
-    api,
-  } = useCarousel();
-  const items = Children.toArray(children);
-
-  if (width <= 0 || height <= 0) {
-    return <View {...props} />;
-  }
-
+  // レンダリング
   return (
-    <View {...props}>
-      <CarouselBase
-        ref={setCarouselRef}
-        width={width}
-        height={height}
-        data={items}
-        renderItem={({ item }) => <View style={{ width, height }}>{item}</View>}
-        onSnapToItem={(index) => {
-          setSelectedIndex(index);
-          onSelect?.({ ...api, selectedIndex: index });
-        }}
-        {...opts}
-      />
+    <View style={[styles.container, style]} onLayout={onLayout} {...props}>
+      {/* コンテナ幅が確定してからリストを表示しないと、初期位置がずれる可能性がある */}
+      {containerWidth > 0 && count > 0 ? (
+        <FlatList
+          ref={flatListRef}
+          data={childrenArray}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          bounces={true} // 端でのバウンスを許可
+          keyExtractor={(_, idx) => idx.toString()}
+          renderItem={({ item }) => (
+            <View style={{ width: containerWidth, height: "100%" }}>
+              {item}
+            </View>
+          )}
+          getItemLayout={getItemLayout}
+          onScroll={onScroll}
+          scrollEventThrottle={16} // onScrollの頻度設定 (16ms = 60fps)
+          onScrollBeginDrag={onScrollBeginDrag}
+          onMomentumScrollBegin={onMomentumScrollBegin}
+          onMomentumScrollEnd={onMomentumScrollEnd}
+          // Androidでのスナップ挙動を安定させる
+          decelerationRate="fast"
+          snapToInterval={containerWidth}
+          disableIntervalMomentum={true}
+          // 初期位置設定 (マウント時)
+          initialScrollIndex={currentIndex < count ? currentIndex : 0}
+          onScrollToIndexFailed={(info) => {
+            // レイアウト計算遅延等で失敗した場合のリトライ
+            // ユーザー操作中はリトライしない
+            if (isScrollingRef.current) return;
+
+            setTimeout(() => {
+              if (isScrollingRef.current) return;
+              flatListRef.current?.scrollToIndex({
+                index: info.index,
+                animated: false,
+              });
+            }, 100);
+          }}
+        />
+      ) : (
+        <View style={{ flex: 1 }} />
+      )}
+
+      {/* インジケーター */}
+      {showIndicators && count > 0 && (
+        <View
+          style={[
+            styles.indicatorContainer,
+            indicatorPosition === "top"
+              ? styles.indicatorTop
+              : styles.indicatorBottom,
+          ]}
+          pointerEvents="box-none" // コンテナ自体はタッチ透過
+        >
+          {Array.from({ length: count }).map((_, idx) => {
+            const isActive = idx === currentIndex;
+            return (
+              <TouchableOpacity
+                key={idx}
+                onPress={() => handleIndicatorPress(idx)}
+                style={styles.indicatorButton}
+                accessibilityLabel={
+                  getIndicatorLabel?.(idx, count) ?? `Go to slide ${idx + 1}`
+                }
+                accessibilityState={{ selected: isActive }}
+              >
+                <View
+                  style={[
+                    styles.indicatorDot,
+                    {
+                      backgroundColor: theme.text,
+                      opacity: isActive ? 1 : 0.2,
+                      transform: [{ scale: isActive ? 1.2 : 1 }],
+                    },
+                  ]}
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
-};
+}
 
-type CarouselItemProps = ViewProps & {
-  children: ReactNode;
-};
-
-export const CarouselItem = forwardRef<View, CarouselItemProps>(
-  ({ children, style, ...props }, ref) => (
-    <View
-      ref={ref}
-      style={[{ width: "100%", height: "100%" }, style]}
-      {...props}
-    >
-      {children}
-    </View>
-  ),
-);
-
-CarouselItem.displayName = "CarouselItem";
-
-export type { CarouselApi };
+const styles = StyleSheet.create({
+  container: {
+    flex: 1, // 親コンテナのサイズに合わせる
+    overflow: "hidden",
+    position: "relative",
+  },
+  indicatorContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+    paddingHorizontal: 16,
+    gap: 6,
+  },
+  indicatorTop: {
+    top: 16,
+  },
+  indicatorBottom: {
+    bottom: 16,
+  },
+  indicatorButton: {
+    padding: 8, // タップ領域確保
+  },
+  indicatorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+});

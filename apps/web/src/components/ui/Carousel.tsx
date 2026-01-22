@@ -45,6 +45,11 @@ export interface CarouselProps {
    * 各インジケーターボタンのラベル生成関数
    */
   getIndicatorLabel?: (index: number, total: number) => string;
+  /**
+   * スクロール操作を許可するかどうか
+   * @default true
+   */
+  scrollEnabled?: boolean;
 }
 
 /**
@@ -59,6 +64,7 @@ export function Carousel({
   indicatorPosition = "bottom",
   ariaLabel,
   getIndicatorLabel,
+  scrollEnabled = true,
 }: CarouselProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef(false);
@@ -149,8 +155,11 @@ export function Carousel({
     <div className={clsx("relative w-full overflow-hidden", className)}>
       <div
         ref={containerRef}
-        onScroll={handleScroll}
-        className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar"
+        onScroll={scrollEnabled ? handleScroll : undefined}
+        className={clsx(
+          "flex w-full h-full snap-x snap-mandatory no-scrollbar",
+          scrollEnabled ? "overflow-x-auto" : "overflow-hidden",
+        )}
         style={{
           // スクロールバーを隠すスタイル
           scrollbarWidth: "none", // Firefox

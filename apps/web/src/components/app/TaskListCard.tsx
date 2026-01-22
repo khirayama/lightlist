@@ -352,6 +352,7 @@ export function TaskListCard({
   editingTaskIdRef.current = editingTaskId;
 
   const [newTaskText, setNewTaskText] = useState("");
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
 
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -553,7 +554,7 @@ export function TaskListCard({
   const inputSection = (
     <>
       <form
-        className="flex items-center gap-2"
+        className="flex items-center"
         onSubmit={(e) => {
           e.preventDefault();
           if (newTaskText.trim() === "") return;
@@ -587,8 +588,14 @@ export function TaskListCard({
                 setAddTaskError(null);
                 setHistoryOpen(true);
               }}
-              onFocus={() => setHistoryOpen(true)}
-              onBlur={() => setHistoryOpen(false)}
+              onFocus={() => {
+                setHistoryOpen(true);
+                setIsInputFocused(true);
+              }}
+              onBlur={() => {
+                setHistoryOpen(false);
+                setIsInputFocused(false);
+              }}
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") {
@@ -630,10 +637,16 @@ export function TaskListCard({
         </div>
         <button
           type="submit"
+          onMouseDown={(e) => e.preventDefault()}
           disabled={newTaskText.trim() === ""}
           aria-label={t("common.add")}
           title={t("common.add")}
-          className="inline-flex h-10 w-8 shrink-0 items-center justify-center rounded-xl text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed dark:text-gray-900 dark:focus-visible:outline-gray-500 dark:disabled:text-gray-200"
+          className={clsx(
+            "inline-flex h-10 shrink-0 items-center justify-center rounded-xl text-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed dark:text-gray-50 dark:focus-visible:outline-gray-500 dark:disabled:text-gray-200 transition-all duration-300 ease-in-out overflow-hidden",
+            isInputFocused
+              ? "w-8 opacity-100 ml-2 pointer-events-auto"
+              : "w-0 opacity-0 ml-0 pointer-events-none",
+          )}
         >
           <span className="sr-only">{t("common.add")}</span>
           <span className="relative left-[1px]">

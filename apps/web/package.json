@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "next",
+    "dev": "next dev --turbo",
     "format": "prettier --write .",
     "build": "next build",
     "build:prod": "node -e \"const fs = require('fs'); fs.copyFileSync('.env.prod', '.env.production');\" && next build",

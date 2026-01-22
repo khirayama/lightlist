@@ -9,6 +9,7 @@ import { appStore } from "@lightlist/sdk/store";
 import { AppState, Theme } from "@lightlist/sdk/types";
 
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { Spinner } from "@/components/ui/Spinner";
 import "@/styles/globals.css";
 
 const inter = Inter({
@@ -130,7 +131,7 @@ export default function App({ Component, pageProps }: AppProps) {
           }
         `}</style>
 
-        <div className="h-dvh w-full overflow-hidden" />
+        <Spinner fullPage />
       </ErrorBoundary>
     );
   }

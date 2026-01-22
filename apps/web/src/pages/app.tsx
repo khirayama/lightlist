@@ -254,7 +254,8 @@ export default function AppPage() {
     };
   }, [isDrawerOpen, isWideLayout]);
 
-  const isLoading = !state.user;
+  const isLoading =
+    !state.user || !state.settings || state.taskListOrderUpdatedAt === null;
   const hasTaskLists = Boolean(state.user && taskLists.length > 0);
   const userEmail = state.user?.email || t("app.drawerNoEmail");
   const selectedTaskListIndex = Math.max(
@@ -560,6 +561,7 @@ export default function AppPage() {
               <Carousel
                 className="h-full"
                 index={selectedTaskListIndex}
+                scrollEnabled={!isTaskSorting}
                 onIndexChange={(index) => {
                   const taskList = taskLists[index];
                   if (taskList) {

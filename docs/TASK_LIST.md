@@ -50,7 +50,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 - DnD ハンドルには `title` と `aria-label` を付与し、`Spinner` は `aria-busy` を持つ。
 - 編集/共有は Material Icons（edit/share）のアイコンボタンだが、`aria-label` と `sr-only` を付与してスクリーンリーダーでも操作できる。
-- タスク追加は送信（send）アイコンボタンだが、`aria-label` と `sr-only` を付与してスクリーンリーダーでも操作できる。
+- タスク追加は送信（send）アイコンボタンだが、`aria-label` と `sr-only` を付与してスクリーンリーダーでも操作できる。入力欄がフォーカスされている時のみ表示される。
 - メニュー（menu）アイコンは `app.openMenu` を `aria-label` / `title` に設定する。
 - Drawer は shadcn コンポーネントを利用し、`DrawerTitle`/`DrawerDescription` と `aria-labelledby`/`aria-describedby` を関連付ける。
 
@@ -397,7 +397,7 @@ taskList:
 **フォーム:**
 
 - タスク入力フィールド：テキスト入力、履歴補完対応
-- send アイコンボタン：タスクを追加
+- send アイコンボタン：タスクを追加（フォーカス時のみ表示）
 
 **自然言語による日付設定:**
 

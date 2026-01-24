@@ -16,6 +16,18 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
+import {
+  NotoSansJP_400Regular,
+  NotoSansJP_500Medium,
+  NotoSansJP_700Bold,
+} from "@expo-google-fonts/noto-sans-jp";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { styles } from "./styles/appStyles";
@@ -50,6 +62,15 @@ const linking = {
 
 export default function App() {
   const { t } = useTranslation();
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    NotoSansJP_400Regular,
+    NotoSansJP_500Medium,
+    NotoSansJP_700Bold,
+  });
   const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [navigationReady, setNavigationReady] = useState(false);
@@ -223,7 +244,7 @@ export default function App() {
             style={styles.keyboard}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
-            {isAuthReady ? (
+            {isAuthReady && fontsLoaded ? (
               <NavigationContainer
                 ref={navigationRef}
                 theme={navigationTheme}

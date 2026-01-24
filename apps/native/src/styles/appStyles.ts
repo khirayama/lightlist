@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { fonts } from "./theme";
 
 export const styles = StyleSheet.create({
   container: {
@@ -41,6 +42,7 @@ export const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   appHeader: {
@@ -74,6 +76,7 @@ export const styles = StyleSheet.create({
   },
   headerButtonText: {
     fontSize: 13,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   drawerRoot: {
@@ -125,10 +128,12 @@ export const styles = StyleSheet.create({
   },
   drawerTitle: {
     fontSize: 18,
+    fontFamily: fonts.bold,
     fontWeight: "700",
   },
   drawerSubtitle: {
     fontSize: 12,
+    fontFamily: fonts.regular,
   },
   drawerNavButton: {
     borderRadius: 12,
@@ -139,6 +144,7 @@ export const styles = StyleSheet.create({
   },
   drawerNavText: {
     fontSize: 14,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   drawerList: {
@@ -165,17 +171,21 @@ export const styles = StyleSheet.create({
   },
   drawerListItemName: {
     fontSize: 14,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   drawerListItemCount: {
     fontSize: 12,
+    fontFamily: fonts.regular,
   },
   appSubtitle: {
     fontSize: 13,
+    fontFamily: fonts.regular,
     marginTop: 4,
   },
   appError: {
     fontSize: 13,
+    fontFamily: fonts.regular,
     marginBottom: 12,
   },
   settingsHeader: {
@@ -186,6 +196,7 @@ export const styles = StyleSheet.create({
   },
   settingsTitle: {
     fontSize: 22,
+    fontFamily: fonts.bold,
     fontWeight: "700",
     flex: 1,
   },
@@ -196,6 +207,7 @@ export const styles = StyleSheet.create({
   },
   settingsValue: {
     fontSize: 16,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   section: {
@@ -203,6 +215,7 @@ export const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
     marginBottom: 10,
   },
@@ -226,6 +239,7 @@ export const styles = StyleSheet.create({
   },
   optionButtonText: {
     fontSize: 13,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   colorSwatch: {
@@ -251,6 +265,7 @@ export const styles = StyleSheet.create({
   },
   taskCount: {
     fontSize: 12,
+    fontFamily: fonts.regular,
   },
   taskInputRow: {
     flexDirection: "row",
@@ -259,6 +274,7 @@ export const styles = StyleSheet.create({
   },
   taskInput: {
     flex: 1,
+    fontFamily: fonts.regular,
   },
   taskItem: {
     gap: 12,
@@ -278,6 +294,7 @@ export const styles = StyleSheet.create({
   },
   taskMetaText: {
     fontSize: 12,
+    fontFamily: fonts.regular,
   },
   taskActionButton: {
     borderRadius: 10,
@@ -287,6 +304,7 @@ export const styles = StyleSheet.create({
   },
   taskActionText: {
     fontSize: 12,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   taskActionRow: {
@@ -311,6 +329,7 @@ export const styles = StyleSheet.create({
   },
   taskText: {
     fontSize: 15,
+    fontFamily: fonts.regular,
     flex: 1,
   },
   taskTextCompleted: {
@@ -318,6 +337,7 @@ export const styles = StyleSheet.create({
   },
   taskEditInput: {
     paddingVertical: 10,
+    fontFamily: fonts.regular,
   },
   taskDeleteButton: {
     paddingHorizontal: 6,
@@ -325,6 +345,7 @@ export const styles = StyleSheet.create({
   },
   taskDeleteText: {
     fontSize: 12,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   taskSeparator: {
@@ -332,6 +353,7 @@ export const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
+    fontFamily: fonts.regular,
   },
   card: {
     borderRadius: 24,
@@ -357,25 +379,30 @@ export const styles = StyleSheet.create({
   },
   tabButtonText: {
     fontSize: 14,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   appName: {
     fontSize: 12,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
     letterSpacing: 2,
     textTransform: "uppercase",
   },
   title: {
     fontSize: 28,
+    fontFamily: fonts.bold,
     fontWeight: "700",
     marginTop: 10,
   },
   subtitle: {
     fontSize: 14,
+    fontFamily: fonts.regular,
     marginTop: 8,
   },
   status: {
     fontSize: 13,
+    fontFamily: fonts.regular,
     marginTop: 12,
   },
   form: {
@@ -386,6 +413,7 @@ export const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   input: {
@@ -394,17 +422,21 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
+    fontFamily: fonts.regular,
   },
   error: {
     fontSize: 13,
+    fontFamily: fonts.regular,
     marginTop: 4,
   },
   helpText: {
     fontSize: 13,
+    fontFamily: fonts.regular,
     lineHeight: 18,
   },
   notice: {
     fontSize: 13,
+    fontFamily: fonts.regular,
     lineHeight: 18,
   },
   button: {
@@ -414,6 +446,7 @@ export const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 16,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   secondaryButton: {
@@ -424,6 +457,7 @@ export const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     fontSize: 15,
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
   },
   dialogOverlay: {
@@ -453,10 +487,12 @@ export const styles = StyleSheet.create({
   },
   dialogTitle: {
     fontSize: 18,
+    fontFamily: fonts.bold,
     fontWeight: "700",
   },
   dialogDescription: {
     fontSize: 13,
+    fontFamily: fonts.regular,
   },
   dialogBody: {
     gap: 16,

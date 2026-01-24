@@ -40,6 +40,16 @@ export const themes: Record<ThemeName, Theme> = {
   },
 };
 
+export const fonts = {
+  regular: "Inter_400Regular",
+  medium: "Inter_500Medium",
+  semiBold: "Inter_600SemiBold",
+  bold: "Inter_700Bold",
+  jpRegular: "NotoSansJP_400Regular",
+  jpMedium: "NotoSansJP_500Medium",
+  jpBold: "NotoSansJP_700Bold",
+};
+
 export const listColors: string[] = [
   "#F87171", // Coral
   "#FBBF24", // Amber

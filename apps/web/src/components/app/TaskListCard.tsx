@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
-import type { Task, TaskInsertPosition, TaskList } from "@lightlist/sdk/types";
+import type { Task, TaskList } from "@lightlist/sdk/types";
 import clsx from "clsx";
 import { useTranslation } from "react-i18next";
 import { useOptimisticReorder } from "@lightlist/sdk/hooks/useOptimisticReorder";
@@ -128,14 +128,7 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
   };
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
-    parseTaskDate(task.date),
-  );
-
-  useEffect(() => {
-    setSelectedDate(parseTaskDate(task.date));
-  }, [task.date]);
-
+  const selectedDate = parseTaskDate(task.date);
   const dateDisplayValue = selectedDate
     ? new Intl.DateTimeFormat(i18n.language, {
         month: "short",
@@ -255,7 +248,6 @@ function TaskItem<T extends TaskForSortable = TaskForSortable>({
             mode="single"
             selected={selectedDate}
             onSelect={(next) => {
-              setSelectedDate(next);
               onDateChange?.(task.id, next ? formatTaskDate(next) : "");
               setDatePickerOpen(false);
             }}
@@ -282,7 +274,6 @@ const hasSortableData = (data: unknown): data is SortableData => {
 
 type TaskListCardProps = {
   taskList: TaskList;
-  taskInsertPosition: TaskInsertPosition;
   isActive: boolean;
   onActivate?: (taskListId: string) => void;
   sensorsList: SensorDescriptor<SensorOptions>[];

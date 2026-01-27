@@ -583,50 +583,52 @@ export default function AppPage() {
                   return (
                     <div
                       key={taskList.id}
-                      className={clsx(
-                        "h-full w-full pt-[84px]",
-                        isWideLayout && "mx-auto max-w-3xl",
-                      )}
+                      className={clsx("h-full w-full flex flex-col")}
                       style={{
                         backgroundColor: resolveTaskListBackground(
                           taskList.background,
                         ),
                       }}
                     >
-                      <TaskListCard
-                        taskList={taskList}
-                        taskInsertPosition={
-                          state?.settings?.taskInsertPosition ?? "top"
-                        }
-                        isActive={isActive}
-                        onActivate={(taskListId) =>
-                          setSelectedTaskListId(taskListId)
-                        }
-                        sensorsList={sensorsList}
-                        onSortingChange={setIsTaskSorting}
-                        t={t}
-                        enableEditDialog
-                        colors={colors}
-                        showEditListDialog={showEditListDialog}
-                        onEditDialogOpenChange={handleEditDialogOpenChange}
-                        editListName={editListName}
-                        onEditListNameChange={setEditListName}
-                        editListBackground={editListBackground}
-                        onEditListBackgroundChange={setEditListBackground}
-                        onSaveListDetails={handleSaveListDetails}
-                        deletingList={deletingList}
-                        onDeleteList={handleRequestDeleteList}
-                        enableShareDialog
-                        showShareDialog={showShareDialog}
-                        onShareDialogOpenChange={handleShareDialogOpenChange}
-                        shareCode={shareCode}
-                        shareCopySuccess={shareCopySuccess}
-                        generatingShareCode={generatingShareCode}
-                        onGenerateShareCode={handleGenerateShareCode}
-                        removingShareCode={removingShareCode}
-                        onRemoveShareCode={handleRemoveShareCode}
-                        onCopyShareLink={handleCopyShareLink}
-                      />
+                      <div className="h-[88px]" />
+                      <div
+                        className={clsx(
+                          "h-full overflow-y-auto",
+                          isWideLayout && "mx-auto max-w-3xl",
+                        )}
+                      >
+                        <TaskListCard
+                          taskList={taskList}
+                          isActive={isActive}
+                          onActivate={(taskListId) =>
+                            setSelectedTaskListId(taskListId)
+                          }
+                          sensorsList={sensorsList}
+                          onSortingChange={setIsTaskSorting}
+                          t={t}
+                          enableEditDialog
+                          colors={colors}
+                          showEditListDialog={showEditListDialog}
+                          onEditDialogOpenChange={handleEditDialogOpenChange}
+                          editListName={editListName}
+                          onEditListNameChange={setEditListName}
+                          editListBackground={editListBackground}
+                          onEditListBackgroundChange={setEditListBackground}
+                          onSaveListDetails={handleSaveListDetails}
+                          deletingList={deletingList}
+                          onDeleteList={handleRequestDeleteList}
+                          enableShareDialog
+                          showShareDialog={showShareDialog}
+                          onShareDialogOpenChange={handleShareDialogOpenChange}
+                          shareCode={shareCode}
+                          shareCopySuccess={shareCopySuccess}
+                          generatingShareCode={generatingShareCode}
+                          onGenerateShareCode={handleGenerateShareCode}
+                          removingShareCode={removingShareCode}
+                          onRemoveShareCode={handleRemoveShareCode}
+                          onCopyShareLink={handleCopyShareLink}
+                        />
+                      </div>
                     </div>
                   );
                 })}

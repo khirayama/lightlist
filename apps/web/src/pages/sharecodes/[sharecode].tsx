@@ -111,8 +111,6 @@ export default function ShareCodePage() {
       : (storeState.taskLists.find((tl) => tl.id === sharedTaskListId) ??
         storeState.sharedTaskListsById[sharedTaskListId] ??
         null);
-  const taskInsertPosition =
-    storeState.settings?.taskInsertPosition === "bottom" ? "bottom" : "top";
 
   const handleAddToOrder = async () => {
     if (!taskList || !user) return;
@@ -208,7 +206,6 @@ export default function ShareCodePage() {
         <div className="h-full mx-auto w-full max-w-3xl">
           <TaskListCard
             taskList={taskList}
-            taskInsertPosition={taskInsertPosition}
             isActive={true}
             sensorsList={sensors}
             t={t}

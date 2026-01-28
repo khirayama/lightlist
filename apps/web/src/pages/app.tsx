@@ -594,7 +594,7 @@ export default function AppPage() {
                       <div
                         className={clsx(
                           "h-full overflow-y-auto",
-                          isWideLayout && "mx-auto max-w-3xl",
+                          isWideLayout && "mx-auto max-w-3xl min-w-[480px]",
                         )}
                       >
                         <TaskListCard

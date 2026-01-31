@@ -64,9 +64,7 @@ export const TaskItem = memo(
     const rawDateValue = isEditing ? editingDate : (item.date ?? "");
     const dateValue = rawDateValue.trim();
     const hasDate = dateValue.length > 0;
-    const dateButtonLabel = hasDate
-      ? `${dateLabel}: ${dateValue}`
-      : dateLabel;
+    const dateButtonLabel = hasDate ? `${dateLabel}: ${dateValue}` : dateLabel;
 
     const accessibilityActions = [];
     if (canMoveUp) {
@@ -201,7 +199,7 @@ export const TaskItem = memo(
         </View>
       </View>
     );
-  }
+  },
 );
 
 TaskItem.displayName = "TaskItem";

@@ -45,3 +45,19 @@ export const resolvePasswordResetErrorMessage = (
       return t("errors.generic");
   }
 };
+
+export const resolveErrorMessage = (
+  error: unknown,
+  t: TFunction,
+  fallbackKey: string,
+): string => {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return t(fallbackKey as any);
+};

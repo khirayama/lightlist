@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
   Alert,
   Pressable,
@@ -31,12 +25,7 @@ import {
 } from "@lightlist/sdk/mutations/app";
 import { useOptimisticReorder } from "@lightlist/sdk/hooks/useOptimisticReorder";
 import { AppIcon } from "../components/ui/AppIcon";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  type CarouselApi,
-} from "../components/ui/Carousel";
+import { Carousel } from "../components/ui/Carousel";
 import { Dialog } from "../components/ui/Dialog";
 import { TaskListCard } from "../components/app/TaskListCard";
 import { DrawerPanel, type ColorOption } from "../components/app/DrawerPanel";
@@ -92,11 +81,6 @@ const AppScreenContent = ({
   const [isRemovingShareCode, setIsRemovingShareCode] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
-  const [taskListCarouselApi, setTaskListCarouselApi] =
-    useState<CarouselApi | null>(null);
-  const isScrollingRef = useRef(false);
-  const pendingIndexRef = useRef<number | null>(null);
-
   const stableTaskLists = taskLists.length > 0 ? taskLists : EMPTY_TASK_LISTS;
   const selectedTaskList: TaskList | null =
     taskLists.find((list) => list.id === selectedTaskListId) ?? null;
@@ -118,17 +102,6 @@ const AppScreenContent = ({
     setIsRemovingShareCode(false);
   }, [selectedTaskListId]);
 
-  useEffect(() => {
-    if (!taskListCarouselApi || stableTaskLists.length === 0) return;
-    const index = stableTaskLists.findIndex(
-      (taskList) => taskList.id === selectedTaskListId,
-    );
-    if (index >= 0) {
-      if (taskListCarouselApi.getCurrentIndex() === index) return;
-      taskListCarouselApi.scrollTo(index);
-    }
-  }, [selectedTaskListId, taskListCarouselApi, stableTaskLists]);
-
   const handleEditListDialogChange = useCallback(
     (open: boolean) => {
       setIsEditListDialogOpen(open);
@@ -144,15 +117,12 @@ const AppScreenContent = ({
     setIsShareDialogOpen(open);
   }, []);
 
-  const handleCarouselSelect = useCallback(
-    (api: CarouselApi) => {
-      if (isScrollingRef.current) {
-        pendingIndexRef.current = api.selectedIndex;
-        return;
+  const handleCarouselIndexChange = useCallback(
+    (index: number) => {
+      const taskList = stableTaskLists[index];
+      if (taskList && taskList.id !== selectedTaskListId) {
+        onSelectTaskList(taskList.id);
       }
-      const taskList = stableTaskLists[api.selectedIndex];
-      if (!taskList || taskList.id === selectedTaskListId) return;
-      onSelectTaskList(taskList.id);
     },
     [stableTaskLists, selectedTaskListId, onSelectTaskList],
   );
@@ -541,7 +511,7 @@ const AppScreenContent = ({
               total: stableTaskLists.length,
             })}
             accessibilityState={{ selected: isSelected }}
-            onPress={() => taskListCarouselApi?.scrollTo(index)}
+            onPress={() => onSelectTaskList(taskList.id)}
             style={({ pressed }) => [
               styles.indicatorDot,
               { opacity: pressed ? 0.7 : 1 },
@@ -559,74 +529,51 @@ const AppScreenContent = ({
     </View>
   ) : null;
 
-  const carouselItems = stableTaskLists.map((taskList) => {
-    const isActive = taskList.id === selectedTaskListId;
-
-    return (
-      <CarouselItem key={taskList.id}>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: taskList.background ?? theme.background,
-          }}
-        >
-          <TaskListCard
-            taskList={taskList}
-            isActive={isActive}
-            onActivate={onSelectTaskList}
-            t={t}
-            enableEditDialog
-            showEditListDialog={isEditListDialogOpen}
-            onEditDialogOpenChange={(tl, open) => {
-              // Switch to the list we want to edit if different
-              if (tl.id !== selectedTaskListId) {
-                onSelectTaskList(tl.id);
-              }
-              handleEditListDialogChange(open);
-            }}
-            enableShareDialog
-            showShareDialog={isShareDialogOpen}
-            onShareDialogOpenChange={(tl, open) => {
-              if (tl.id !== selectedTaskListId) {
-                onSelectTaskList(tl.id);
-              }
-              handleShareDialogChange(open);
-            }}
-          />
-        </View>
-      </CarouselItem>
-    );
-  });
-
   const taskListContent =
     stableTaskLists.length > 0 ? (
       <Carousel
         style={{ flex: 1 }}
-        setApi={setTaskListCarouselApi}
-        onSelect={handleCarouselSelect}
-        opts={{
-          loop: false,
-          minScrollDistancePerSwipe: 10,
-          onScrollStart: () => {
-            isScrollingRef.current = true;
-          },
-          onScrollEnd: () => {
-            isScrollingRef.current = false;
-            if (pendingIndexRef.current !== null) {
-              const taskList = stableTaskLists[pendingIndexRef.current];
-              pendingIndexRef.current = null;
-              if (taskList && taskList.id !== selectedTaskListId) {
-                onSelectTaskList(taskList.id);
-              }
-            }
-          },
-          onConfigurePanGesture: (gesture) => {
-            "worklet";
-            gesture.activeOffsetX([-8, 8]).failOffsetY([-6, 6]);
-          },
-        }}
+        index={selectedTaskListIndex}
+        onIndexChange={handleCarouselIndexChange}
+        showIndicators={false}
       >
-        <CarouselContent style={{ flex: 1 }}>{carouselItems}</CarouselContent>
+        {stableTaskLists.map((taskList) => {
+          const isActive = taskList.id === selectedTaskListId;
+
+          return (
+            <View
+              key={taskList.id}
+              style={{
+                flex: 1,
+                backgroundColor: taskList.background ?? theme.background,
+              }}
+            >
+              <TaskListCard
+                taskList={taskList}
+                isActive={isActive}
+                onActivate={onSelectTaskList}
+                t={t}
+                enableEditDialog
+                showEditListDialog={isEditListDialogOpen}
+                onEditDialogOpenChange={(tl, open) => {
+                  // Switch to the list we want to edit if different
+                  if (tl.id !== selectedTaskListId) {
+                    onSelectTaskList(tl.id);
+                  }
+                  handleEditListDialogChange(open);
+                }}
+                enableShareDialog
+                showShareDialog={isShareDialogOpen}
+                onShareDialogOpenChange={(tl, open) => {
+                  if (tl.id !== selectedTaskListId) {
+                    onSelectTaskList(tl.id);
+                  }
+                  handleShareDialogChange(open);
+                }}
+              />
+            </View>
+          );
+        })}
       </Carousel>
     ) : (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>

@@ -45,9 +45,6 @@ export const fonts = {
   medium: "Inter_500Medium",
   semiBold: "Inter_600SemiBold",
   bold: "Inter_700Bold",
-  jpRegular: "NotoSansJP_400Regular",
-  jpMedium: "NotoSansJP_500Medium",
-  jpBold: "NotoSansJP_700Bold",
 };
 
 export const listColors: string[] = [

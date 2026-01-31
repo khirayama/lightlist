@@ -8,30 +8,11 @@ import {
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
-import {
-  useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from "@expo-google-fonts/inter";
-import {
-  NotoSansJP_400Regular,
-  NotoSansJP_500Medium,
-  NotoSansJP_700Bold,
-} from "@expo-google-fonts/noto-sans-jp";
+import { KeyboardAvoidingView, Platform, useColorScheme } from "react-native";
+import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { styles } from "./styles/appStyles";
-import i18n from "./utils/i18n";
 import { AuthScreen } from "./screens/AuthScreen";
 import { PasswordResetScreen } from "./screens/PasswordResetScreen";
 import { ShareCodeScreen } from "./screens/ShareCodeScreen";
@@ -39,7 +20,10 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 import { AppScreen } from "./screens/AppScreen";
 import { themes, type ThemeMode, type ThemeName } from "./styles/theme";
 import { appStore } from "@lightlist/sdk/store";
-import { onAuthStateChange } from "@lightlist/sdk/auth";
+import { useAppInitialization } from "./hooks/useAppInitialization";
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
 type RootStackParamList = {
   Auth: undefined;
@@ -62,17 +46,10 @@ const linking = {
 
 export default function App() {
   const { t } = useTranslation();
-  const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-    NotoSansJP_400Regular,
-    NotoSansJP_500Medium,
-    NotoSansJP_700Bold,
-  });
   const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
-  const [isAuthReady, setIsAuthReady] = useState(false);
+
+  const { isReady } = useAppInitialization(appState.settings?.language);
+
   const [navigationReady, setNavigationReady] = useState(false);
 
   const systemScheme = useColorScheme();
@@ -106,26 +83,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChange(() => {
-      setIsAuthReady(true);
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    const storedLanguage = appState.settings?.language;
-    const language =
-      storedLanguage === "ja" || storedLanguage === "en"
-        ? storedLanguage
-        : "ja";
-    if (i18n.language !== language) {
-      void i18n.changeLanguage(language);
-    }
-  }, [appState.settings?.language]);
-
-  useEffect(() => {
     if (!navigationReady) return;
     const targetRoute: keyof RootStackParamList = appState.user
       ? "TaskList"
@@ -138,6 +95,10 @@ export default function App() {
       routes: [{ name: targetRoute }],
     });
   }, [appState.user, navigationReady]);
+
+  if (!isReady) {
+    return null;
+  }
 
   const handleOpenSettings = () => {
     if (!navigationReady) return;
@@ -183,6 +144,7 @@ export default function App() {
 
   const screenMode: "auth" | "task" = appState.user ? "task" : "auth";
 
+  // Render functions
   const renderAuthScreen = () => (
     <AuthScreen onOpenShareCode={handleOpenShareCode} />
   );
@@ -221,19 +183,6 @@ export default function App() {
     />
   );
 
-  const renderLoadingScreen = () => (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator
-        size="large"
-        color={theme.primary}
-        accessibilityLabel={t("common.loading")}
-      />
-      <Text style={[styles.loadingText, { color: theme.text }]}>
-        {t("common.loading")}
-      </Text>
-    </View>
-  );
-
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
@@ -244,41 +193,37 @@ export default function App() {
             style={styles.keyboard}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
-            {isAuthReady && fontsLoaded ? (
-              <NavigationContainer
-                ref={navigationRef}
-                theme={navigationTheme}
-                linking={linking}
-                onReady={() => setNavigationReady(true)}
+            <NavigationContainer
+              ref={navigationRef}
+              theme={navigationTheme}
+              linking={linking}
+              onReady={() => setNavigationReady(true)}
+            >
+              <Stack.Navigator
+                key={screenMode}
+                initialRouteName={screenMode === "task" ? "TaskList" : "Auth"}
+                screenOptions={{ headerShown: false }}
               >
-                <Stack.Navigator
-                  key={screenMode}
-                  initialRouteName={screenMode === "task" ? "TaskList" : "Auth"}
-                  screenOptions={{ headerShown: false }}
-                >
-                  {screenMode === "task" ? (
-                    <>
-                      <Stack.Screen name="TaskList">
-                        {renderAppScreen}
-                      </Stack.Screen>
-                      <Stack.Screen name="Settings">
-                        {renderSettingsScreen}
-                      </Stack.Screen>
-                    </>
-                  ) : (
-                    <Stack.Screen name="Auth">{renderAuthScreen}</Stack.Screen>
-                  )}
-                  <Stack.Screen name="PasswordReset">
-                    {renderPasswordResetScreen}
-                  </Stack.Screen>
-                  <Stack.Screen name="ShareCode">
-                    {renderShareCodeScreen}
-                  </Stack.Screen>
-                </Stack.Navigator>
-              </NavigationContainer>
-            ) : (
-              renderLoadingScreen()
-            )}
+                {screenMode === "task" ? (
+                  <>
+                    <Stack.Screen name="TaskList">
+                      {renderAppScreen}
+                    </Stack.Screen>
+                    <Stack.Screen name="Settings">
+                      {renderSettingsScreen}
+                    </Stack.Screen>
+                  </>
+                ) : (
+                  <Stack.Screen name="Auth">{renderAuthScreen}</Stack.Screen>
+                )}
+                <Stack.Screen name="PasswordReset">
+                  {renderPasswordResetScreen}
+                </Stack.Screen>
+                <Stack.Screen name="ShareCode">
+                  {renderShareCodeScreen}
+                </Stack.Screen>
+              </Stack.Navigator>
+            </NavigationContainer>
           </KeyboardAvoidingView>
         </SafeAreaView>
       </SafeAreaProvider>

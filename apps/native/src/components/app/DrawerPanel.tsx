@@ -110,7 +110,7 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.surface, padding: 20 }}>
+    <View style={{ flex: 1, backgroundColor: theme.surface, padding: 16 }}>
       <View style={styles.drawerHeader}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text
@@ -505,15 +505,11 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
               style={({ pressed }) => [
                 styles.drawerListItem,
                 {
-                  borderColor: "transparent", // Webはボーダーなし (bg-gray-100などで表現)
+                  borderColor: "transparent",
                   backgroundColor: isSelected
-                    ? theme.inputBackground // Web: bg-gray-100 dark:bg-gray-800
+                    ? theme.inputBackground
                     : "transparent",
-                  opacity: pressed ? 0.9 : isActive ? 0.5 : 1, // Web: isDragging ? 0.5 : 1
-                  borderRadius: 10, // Web: rounded-[10px]
-                  padding: 8, // Web: p-2
-                  flexDirection: "row",
-                  alignItems: "center",
+                  opacity: pressed ? 0.9 : isActive ? 0.5 : 1,
                 },
               ]}
             >
@@ -538,8 +534,6 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                   styles.taskActionButton,
                   {
                     opacity: pressed ? 0.8 : 1,
-                    // Web: p-1
-                    padding: 4,
                   },
                 ]}
               >
@@ -552,23 +546,9 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                 style={[
                   styles.drawerListSwatch,
                   {
-                    backgroundColor:
-                      item.background ?? "var(--tasklist-theme-bg)", // Webのロジック: resolveTaskListBackground
-                    // Webでは "var(--tasklist-theme-bg)" だが、Nativeでは theme.background と解釈するしかなさそう
-                    // ただし item.background が null の場合は transparent ではなくデフォルト色
-                    // Web: background ?? "var(--tasklist-theme-bg)"
-                    // NativeでCSS変数は使えないので、theme.surface などをフォールバックにするか
-                    // ここでは一旦 item.background があれば使い、なければ theme.background (あるいは theme.card) を使う
-                  },
-                  {
                     backgroundColor: item.background ?? theme.background,
                     borderColor: theme.border,
-                    // Webに合わせて丸くする
-                    width: 12,
-                    height: 12,
-                    borderRadius: 6,
-                    borderWidth: 1,
-                    marginRight: 8, // gap-2 相当
+                    marginRight: 0, // Gap is handled by styles.drawerListItem
                   },
                 ]}
               />
@@ -578,7 +558,6 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                     styles.drawerListItemName,
                     {
                       color: theme.text,
-                      // Web: isActive ? "font-bold" : "font-medium"
                       fontWeight: isSelected ? "700" : "500",
                     },
                   ]}

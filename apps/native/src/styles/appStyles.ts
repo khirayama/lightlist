@@ -93,7 +93,7 @@ export const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     bottom: 0,
-    padding: 20,
+    padding: 16,
     gap: 16,
   },
   splitRoot: {
@@ -108,7 +108,7 @@ export const styles = StyleSheet.create({
   },
   splitSidebarContent: {
     flex: 1,
-    padding: 20,
+    padding: 16,
     gap: 16,
   },
   splitMain: {
@@ -119,7 +119,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 8,
   },
   drawerHeaderActions: {
     flexDirection: "row",
@@ -148,26 +148,26 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
   },
   drawerList: {
-    gap: 12,
+    gap: 8,
     paddingBottom: 20,
   },
   drawerListItem: {
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1,
-    padding: 12,
+    padding: 8,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   drawerListSwatch: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     borderWidth: 1,
   },
   drawerListItemText: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   drawerListItemName: {
     fontSize: 14,
@@ -270,20 +270,20 @@ export const styles = StyleSheet.create({
   taskInputRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   taskInput: {
     flex: 1,
     fontFamily: fonts.regular,
   },
   taskItem: {
-    gap: 12,
-    paddingVertical: 10,
+    gap: 8,
+    paddingVertical: 8,
   },
   taskRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   taskContent: {
     flex: 1,
@@ -298,9 +298,9 @@ export const styles = StyleSheet.create({
   },
   taskActionButton: {
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    padding: 4,
     alignItems: "center",
+    justifyContent: "center",
   },
   taskActionText: {
     fontSize: 12,
@@ -322,15 +322,16 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   taskCheck: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   taskText: {
     fontSize: 15,
     fontFamily: fonts.regular,
     flex: 1,
+    lineHeight: 24,
   },
   taskTextCompleted: {
     textDecorationLine: "line-through",

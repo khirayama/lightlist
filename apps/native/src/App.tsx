@@ -20,7 +20,15 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 import { AppScreen } from "./screens/AppScreen";
 import { themes, type ThemeMode, type ThemeName } from "./styles/theme";
 import { appStore } from "@lightlist/sdk/store";
-import { useAppInitialization } from "./hooks/useAppInitialization";
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
+import { onAuthStateChange } from "@lightlist/sdk/auth";
+import i18n from "./utils/i18n";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -48,7 +56,39 @@ export default function App() {
   const { t } = useTranslation();
   const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
 
-  const { isReady } = useAppInitialization(appState.settings?.language);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChange(() => {
+      setIsAuthReady(true);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const language = appState.settings?.language;
+    const targetLanguage =
+      language === "ja" || language === "en" ? language : "ja";
+    if (i18n.language !== targetLanguage) {
+      void i18n.changeLanguage(targetLanguage);
+    }
+  }, [appState.settings?.language]);
+
+  useEffect(() => {
+    if (fontsLoaded && isAuthReady) {
+      void SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, isAuthReady]);
+
+  const isReady = fontsLoaded && isAuthReady;
 
   const [navigationReady, setNavigationReady] = useState(false);
 

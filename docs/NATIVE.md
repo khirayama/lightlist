@@ -4,6 +4,7 @@
 
 - Expo を使って最小構成の React Native 環境を用意し、実機での確認をすぐに行える状態にする
 - テーマ（ライト/ダーク）と i18next による多言語対応の土台を持つ
+- **注意**: React Native Web による Web 対応は対象外（`apps/web` で別途実装）
 
 ## 構成
 
@@ -25,12 +26,12 @@
 - セーフエリア: `react-native-safe-area-context` による Safe Area 対応
 - i18n 初期化: `apps/native/src/utils/i18n.ts` に集約
 - 翻訳リソース: `apps/native/src/locales/ja.json` / `apps/native/src/locales/en.json`
-- テーマ定義: `apps/native/src/styles/theme.ts` に集約（`useTheme` フックも提供）
+- テーマ定義: `apps/native/src/styles/theme.ts` に定数と型定義を集約
+- スタイリング: NativeWind (Tailwind CSS) を使用し、JSX 内で宣言的にスタイルを記述。`dark:` プレフィックスによるダークモード対応
 - 画面: `apps/native/src/screens` に `AuthScreen` / `AppScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置。各画面は自己完結型で、状態管理・ビジネスロジック・SDK呼び出しを内包する
 - UIコンポーネント: `apps/native/src/components/ui` に `Dialog.tsx`（作成/編集用ダイアログ）、`Carousel.tsx`（リスト表示）、`AppIcon.tsx`（SVGアイコン）を集約
 - appコンポーネント: `apps/native/src/components/app/TaskListCard.tsx` を `AppScreen` / `ShareCodeScreen` で共通利用し、タスク追加/編集/並び替え/完了/完了削除の操作UIを集約。Web版に合わせ、タスクの日付をテキスト上部に表示し、エラー表示用変数名などの内部ロジックも共通化している（ヘッダーやリスト選択は画面側で管理）。`apps/native/src/components/app/DrawerPanel.tsx` はタスクリスト一覧と作成・参加ダイアログを集約
 - バリデーション/エラーハンドリング: `apps/native/src/utils/validation.ts` / `apps/native/src/utils/errors.ts` に集約。Web版と共通の `resolveErrorMessage` ユーティリティにより一貫したエラー表示を実現
-- スタイル: `apps/native/src/styles/appStyles.ts` で画面共通のスタイルを管理
 
 ## アーキテクチャ
 
@@ -38,19 +39,19 @@
 
 `apps/web` のページ構成に合わせ、各画面が自己完結型となっている:
 
-- **App.tsx**: ナビゲーション設定と認証状態の監視のみを担当。画面固有のビジネスロジックは持たない
+- **App.tsx**: ナビゲーション設定と認証状態の監視、NativeWind のテーマ同期を担当
 - **各Screen**: フォーム状態、バリデーション、SDK呼び出し、エラーハンドリングを自身で管理
 
 これにより:
 - 画面間の依存関係が最小化され、各画面を独立して理解・修正できる
 - Web版（`apps/web/src/pages`）と同様の責務分離パターンを採用
 
-### テーマアクセス
+### スタイリングとテーマ
 
-`useTheme` フック（`apps/native/src/styles/theme.ts`）を使用し、各画面からテーマに直接アクセスする:
-- `useSyncExternalStore` で `appStore` の設定を購読
-- `useColorScheme` でシステムテーマを取得
-- propsドリリングなしでテーマを解決
+NativeWind を使用して、Tailwind CSS のユーティリティクラスでスタイリングを行う:
+- `apps/native/tailwind.config.js` でカラーパレットとフォントを定義
+- `dark:` クラスを使用して、ライト/ダークモードのスタイルを宣言的に記述
+- `App.tsx` で `nativewind` の `setColorScheme` を呼び出し、アプリ設定と NativeWind のテーマを同期
 
 ## Appページ
 
@@ -106,7 +107,6 @@
 - `apps/native/src/components/ui/Carousel.tsx`: タスクリスト表示のカルーセルUI
 - `apps/native/src/components/app/TaskListCard.tsx`: タスク操作の共通パネル
 - `apps/native/src/components/app/DrawerPanel.tsx`: タスクリスト一覧と作成・参加ダイアログを集約
-- `apps/native/src/styles/appStyles.ts`: 共有スタイル
 - `apps/native/src/utils/i18n.ts`: i18next のリソースと初期化
 - `apps/native/src/utils/validation.ts`: 入力バリデーション
 - `apps/native/src/utils/errors.ts`: 認証/リセットのエラーメッセージ解決
@@ -115,4 +115,4 @@
 - `apps/native/src/styles/theme.ts`: テーマ定義とリストカラー
 - `apps/native/app.json`: `userInterfaceStyle` を `automatic` に変更し、テーマ切替に追従。`scheme` を追加してディープリンクに対応。`orientation` を `default` にして回転に対応
 - `apps/native/package.json`: `react-native-screens` を Expo Go に合わせて固定
-- `package.json`: `react` / `react-dom` / `@types/react` / `@types/react-dom` / `react-native-screens` を Expo Go 互換で固定
+- `package.json`: `react` / `@types/react` / `react-native-screens` を Expo Go 互換で固定

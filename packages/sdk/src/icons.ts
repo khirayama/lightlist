@@ -12,6 +12,7 @@ export const APP_ICON_NAMES = [
   "delete",
   "arrow-back",
   "alert-circle",
+  "check",
 ] as const;
 
 export type AppIconName = (typeof APP_ICON_NAMES)[number];
@@ -40,4 +41,5 @@ export const ICON_PATHS: Record<AppIconName, string | string[]> = {
   "arrow-back": "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z",
   "alert-circle":
     "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z",
+  check: "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z",
 };

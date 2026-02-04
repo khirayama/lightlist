@@ -27,7 +27,7 @@
 - i18n 初期化: `apps/native/src/utils/i18n.ts` に集約
 - 翻訳リソース: `apps/native/src/locales/ja.json` / `apps/native/src/locales/en.json`
 - テーマ定義: `apps/native/src/styles/theme.ts` に定数と型定義を集約
-- スタイリング: NativeWind (Tailwind CSS) を使用し、JSX 内で宣言的にスタイルを記述。`dark:` プレフィックスによるダークモード対応
+- スタイリング: NativeWind v4 (Tailwind CSS) を使用。`apps/native/global.css` を定義し、`apps/native/src/index.ts` でインポートして適用。`babel.config.js` で `{ jsxImportSource: "nativewind" }` を設定。
 - 画面: `apps/native/src/screens` に `AuthScreen` / `AppScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置。各画面は自己完結型で、状態管理・ビジネスロジック・SDK呼び出しを内包する
 - UIコンポーネント: `apps/native/src/components/ui` に `Dialog.tsx`（作成/編集用ダイアログ）、`Carousel.tsx`（リスト表示）、`AppIcon.tsx`（SVGアイコン）を集約
 - appコンポーネント: `apps/native/src/components/app/TaskListCard.tsx` を `AppScreen` / `ShareCodeScreen` で共通利用し、タスク追加/編集/並び替え/完了/完了削除の操作UIを集約。Web版に合わせ、タスクの日付をテキスト上部に表示し、エラー表示用変数名などの内部ロジックも共通化している（ヘッダーやリスト選択は画面側で管理）。`apps/native/src/components/app/DrawerPanel.tsx` はタスクリスト一覧と作成・参加ダイアログを集約
@@ -48,9 +48,13 @@
 
 ### スタイリングとテーマ
 
-NativeWind を使用して、Tailwind CSS のユーティリティクラスでスタイリングを行う:
-- `apps/native/tailwind.config.js` でカラーパレットとフォントを定義
+NativeWind v4 を使用して、Tailwind CSS のユーティリティクラスでスタイリングを行う:
+- `apps/native/tailwind.config.js` で `nativewind/preset` を使用し、カラーパレットとフォントを定義
+- `apps/native/babel.config.js` で `nativewind/babel` プラグインと `{ jsxImportSource: "nativewind" }` オプションを設定
+- `apps/native/global.css` を作成し、Tailwind のディレクティブを記述
+- `apps/native/src/index.ts` で `global.css` をインポートしてスタイルを適用
 - `dark:` クラスを使用して、ライト/ダークモードのスタイルを宣言的に記述
+- 以前の `appStyles.ts` は廃止され、完全に Tailwind CSS クラスによるスタイリングに移行
 - `App.tsx` で `nativewind` の `setColorScheme` を呼び出し、アプリ設定と NativeWind のテーマを同期
 
 ## Appページ
@@ -96,8 +100,11 @@ NativeWind を使用して、Tailwind CSS のユーティリティクラスで�
 ## 主な変更点
 
 - `apps/native/src/App.tsx`: ナビゲーション設定と認証状態の監視（画面固有のロジックは各Screenに移譲）
-- `apps/native/src/index.ts`: Gesture Handler 初期化
-- `apps/native/babel.config.js`: Worklets プラグイン設定
+- `apps/native/src/index.ts`: Gesture Handler 初期化および `global.css` のインポート
+- `apps/native/babel.config.js`: NativeWind v4 設定 (`jsxImportSource`) および Worklets プラグイン設定
+- `apps/native/tailwind.config.js`: NativeWind v4 プリセット (`nativewind/preset`) の設定
+- `apps/native/global.css`: NativeWind 用グローバルスタイル定義
+- `apps/native/nativewind-env.d.ts`: NativeWind 型定義
 - `apps/native/src/screens/AuthScreen.tsx`: 認証画面の UI
 - `apps/native/src/screens/AppScreen.tsx`: タスクリスト画面の UI
 - `apps/native/src/screens/SettingsScreen.tsx`: 設定画面の UI

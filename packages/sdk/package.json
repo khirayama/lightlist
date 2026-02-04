@@ -10,7 +10,8 @@
     "./icons": "./src/icons.ts",
     "./mutations/auth": "./src/mutations/auth.ts",
     "./mutations/app": "./src/mutations/app.ts",
-    "./hooks/useOptimisticReorder": "./src/hooks/useOptimisticReorder.ts"
+    "./hooks/useOptimisticReorder": "./src/hooks/useOptimisticReorder.ts",
+    "./utils/dateParser": "./src/utils/dateParser.ts"
   },
   "scripts": {
     "deploy": "firebase deploy --only firestore:rules,firestore:indexes",

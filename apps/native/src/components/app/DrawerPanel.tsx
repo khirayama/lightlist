@@ -5,8 +5,6 @@ import DraggableFlatList, {
 } from "react-native-draggable-flatlist";
 import { AppIcon } from "../ui/AppIcon";
 import { Dialog } from "../ui/Dialog";
-import { styles } from "../../styles/appStyles";
-import { useTheme } from "../../styles/theme";
 import type { TaskList } from "@lightlist/sdk/types";
 
 // Webに合わせて定義
@@ -80,7 +78,6 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
   } = props;
 
   const { t } = useTranslation();
-  const theme = useTheme();
 
   const canCreateList = !creatingList && createListInput.trim().length > 0;
   const canJoinList = !joiningList && joinListInput.trim().length > 0;
@@ -89,9 +86,6 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
   const handleCreateListSubmit = async () => {
     if (!canCreateList) return;
     await onCreateList();
-    // 成功時のダイアログクローズは親が行う想定だが、Webの実装を見ると
-    // Webはコンポーネント内で `void onCreateList()` しているだけ。
-    // 親側で成功したらダイアログを閉じるロジックが必要。
   };
 
   const handleJoinListSubmit = async () => {
@@ -110,39 +104,36 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.surface, padding: 20 }}>
-      <View style={styles.drawerHeader}>
-        <View style={{ flex: 1, minWidth: 0 }}>
+    <View className="flex-1 bg-surface dark:bg-surface-dark p-4">
+      <View className="flex-row items-center justify-between gap-2 mb-4">
+        <View className="flex-1 min-w-0">
           <Text
-            style={[styles.drawerTitle, { color: theme.text }]}
+            className="text-[18px] font-inter-bold text-text dark:text-text-dark"
             numberOfLines={1}
           >
             {userEmail}
           </Text>
         </View>
-        <View style={styles.drawerHeaderActions}>
+        <View className="flex-row items-center gap-2">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("settings.title")}
             onPress={handleOpenSettings}
-            style={({ pressed }) => [
-              styles.headerIconButton,
-              { opacity: pressed ? 0.9 : 1 },
-            ]}
+            className="rounded-[12px] p-2.5 items-center justify-center active:opacity-90"
           >
-            <AppIcon name="settings" color={theme.text} />
+            <AppIcon
+              name="settings"
+              className="fill-text dark:fill-text-dark"
+            />
           </Pressable>
           {!isWideLayout ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("common.close")}
               onPress={onCloseDrawer}
-              style={({ pressed }) => [
-                styles.headerIconButton,
-                { opacity: pressed ? 0.9 : 1 },
-              ]}
+              className="rounded-[12px] p-2.5 items-center justify-center active:opacity-90"
             >
-              <AppIcon name="close" color={theme.text} />
+              <AppIcon name="close" className="fill-text dark:fill-text-dark" />
             </Pressable>
           ) : null}
         </View>
@@ -159,29 +150,17 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
           void onReorderTaskList(draggedList.id, targetList.id);
         }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.drawerList}
+        contentContainerStyle={{ gap: 8, paddingBottom: 20 }}
         ListFooterComponent={
-          <View style={styles.section}>
-            <View style={{ flexDirection: "row", gap: 8 }}>
+          <View className="mb-6">
+            <View className="flex-row gap-2 mt-4">
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("app.createNew")}
                 onPress={() => onCreateListDialogChange(true)}
-                style={({ pressed }) => [
-                  styles.button,
-                  {
-                    flex: 1,
-                    backgroundColor: theme.primary,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
+                className="flex-1 rounded-[12px] py-3.5 items-center bg-primary dark:bg-primary-dark active:opacity-90"
               >
-                <Text
-                  style={[
-                    styles.buttonText,
-                    { color: theme.primaryText, fontSize: 14 },
-                  ]}
-                >
+                <Text className="text-[14px] font-inter-semibold text-primary-text dark:text-primary-text-dark">
                   {t("app.createNew")}
                 </Text>
               </Pressable>
@@ -189,23 +168,9 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                 accessibilityRole="button"
                 accessibilityLabel={t("app.joinList")}
                 onPress={() => onJoinListDialogChange(true)}
-                style={({ pressed }) => [
-                  styles.button,
-                  {
-                    flex: 1,
-                    backgroundColor: theme.surface,
-                    borderColor: theme.border,
-                    borderWidth: 1,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
+                className="flex-1 rounded-[12px] border border-border dark:border-border-dark py-3.5 items-center bg-surface dark:bg-surface-dark active:opacity-90"
               >
-                <Text
-                  style={[
-                    styles.buttonText,
-                    { color: theme.text, fontSize: 14 },
-                  ]}
-                >
+                <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                   {t("app.joinList")}
                 </Text>
               </Pressable>
@@ -215,28 +180,15 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
               onOpenChange={onJoinListDialogChange}
               title={t("app.joinListTitle")}
               description={t("app.joinListDescription")}
-              theme={theme}
               footer={
                 <>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={t("app.cancel")}
                     onPress={() => onJoinListDialogChange(false)}
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      {
-                        flex: 1,
-                        borderColor: theme.border,
-                        opacity: pressed ? 0.9 : 1,
-                      },
-                    ]}
+                    className="flex-1 rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
                   >
-                    <Text
-                      style={[
-                        styles.secondaryButtonText,
-                        { color: theme.text },
-                      ]}
-                    >
+                    <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
                       {t("app.cancel")}
                     </Text>
                   </Pressable>
@@ -245,24 +197,18 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                     accessibilityLabel={t("app.join")}
                     onPress={handleJoinListSubmit}
                     disabled={!canJoinList}
-                    style={({ pressed }) => [
-                      styles.button,
-                      {
-                        flex: 1,
-                        backgroundColor: canJoinList
-                          ? theme.primary
-                          : theme.border,
-                        opacity: pressed ? 0.9 : 1,
-                      },
-                    ]}
+                    className={`flex-1 rounded-[12px] py-3.5 items-center active:opacity-90 ${
+                      canJoinList
+                        ? "bg-primary dark:bg-primary-dark"
+                        : "bg-border dark:bg-border-dark"
+                    }`}
                   >
                     <Text
-                      style={[
-                        styles.buttonText,
-                        {
-                          color: canJoinList ? theme.primaryText : theme.muted,
-                        },
-                      ]}
+                      className={`text-[16px] font-inter-semibold ${
+                        canJoinList
+                          ? "text-primary-text dark:text-primary-text-dark"
+                          : "text-muted dark:text-muted-dark"
+                      }`}
                     >
                       {joiningList ? t("app.joining") : t("app.join")}
                     </Text>
@@ -270,24 +216,17 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                 </>
               }
             >
-              <View style={styles.form}>
-                <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.text }]}>
+              <View className="gap-4">
+                <View className="gap-1.5">
+                  <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                     {t("pages.sharecode.codeLabel")}
                   </Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: theme.text,
-                        borderColor: theme.border,
-                        backgroundColor: theme.inputBackground,
-                      },
-                    ]}
+                    className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                     value={joinListInput}
                     onChangeText={onJoinListInputChange}
                     placeholder={t("pages.sharecode.codePlaceholder")}
-                    placeholderTextColor={theme.placeholder}
+                    placeholderClassName="text-placeholder dark:text-placeholder-dark"
                     autoCapitalize="characters"
                     autoCorrect={false}
                     returnKeyType="go"
@@ -297,7 +236,7 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                     autoFocus
                   />
                   {joinListError ? (
-                    <Text style={[styles.error, { color: theme.error }]}>
+                    <Text className="text-[13px] font-inter text-error dark:text-error-dark mt-1">
                       {joinListError}
                     </Text>
                   ) : null}
@@ -309,28 +248,15 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
               onOpenChange={onCreateListDialogChange}
               title={t("app.createTaskList")}
               description={t("app.taskListName")}
-              theme={theme}
               footer={
                 <>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={t("app.cancel")}
                     onPress={() => onCreateListDialogChange(false)}
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      {
-                        flex: 1,
-                        borderColor: theme.border,
-                        opacity: pressed ? 0.9 : 1,
-                      },
-                    ]}
+                    className="flex-1 rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
                   >
-                    <Text
-                      style={[
-                        styles.secondaryButtonText,
-                        { color: theme.text },
-                      ]}
-                    >
+                    <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
                       {t("app.cancel")}
                     </Text>
                   </Pressable>
@@ -339,26 +265,18 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                     accessibilityLabel={t("app.create")}
                     onPress={handleCreateListSubmit}
                     disabled={!canCreateList}
-                    style={({ pressed }) => [
-                      styles.button,
-                      {
-                        flex: 1,
-                        backgroundColor: canCreateList
-                          ? theme.primary
-                          : theme.border,
-                        opacity: pressed ? 0.9 : 1,
-                      },
-                    ]}
+                    className={`flex-1 rounded-[12px] py-3.5 items-center active:opacity-90 ${
+                      canCreateList
+                        ? "bg-primary dark:bg-primary-dark"
+                        : "bg-border dark:bg-border-dark"
+                    }`}
                   >
                     <Text
-                      style={[
-                        styles.buttonText,
-                        {
-                          color: canCreateList
-                            ? theme.primaryText
-                            : theme.muted,
-                        },
-                      ]}
+                      className={`text-[16px] font-inter-semibold ${
+                        canCreateList
+                          ? "text-primary-text dark:text-primary-text-dark"
+                          : "text-muted dark:text-muted-dark"
+                      }`}
                     >
                       {creatingList ? t("app.creating") : t("app.create")}
                     </Text>
@@ -366,24 +284,17 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                 </>
               }
             >
-              <View style={styles.form}>
-                <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.text }]}>
+              <View className="gap-4">
+                <View className="gap-1.5">
+                  <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                     {t("app.taskListName")}
                   </Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: theme.text,
-                        borderColor: theme.border,
-                        backgroundColor: theme.inputBackground,
-                      },
-                    ]}
+                    className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                     value={createListInput}
                     onChangeText={onCreateListInputChange}
                     placeholder={t("app.taskListNamePlaceholder")}
-                    placeholderTextColor={theme.placeholder}
+                    placeholderClassName="text-placeholder dark:text-placeholder-dark"
                     returnKeyType="done"
                     onSubmitEditing={handleCreateListSubmit}
                     editable={!creatingList}
@@ -391,15 +302,14 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                     autoFocus
                   />
                 </View>
-                <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.text }]}>
+                <View className="gap-1.5">
+                  <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                     {t("taskList.selectColor")}
                   </Text>
-                  <View style={styles.colorRow}>
+                  <View className="flex-row flex-wrap gap-2">
                     {colors.map((option) => {
                       const isSelected = option.value === createListBackground;
-                      const previewColor =
-                        option.preview ?? option.value ?? theme.background;
+                      const previewColor = option.preview ?? option.value;
                       const label =
                         option.label ??
                         option.shortLabel ??
@@ -416,34 +326,30 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                           onPress={() =>
                             onCreateListBackgroundChange(option.value)
                           }
-                          style={[
-                            styles.colorSwatch,
-                            {
-                              backgroundColor: previewColor,
-                              borderColor: isSelected
-                                ? theme.primary
-                                : theme.border,
-                              borderWidth: isSelected ? 2 : 1,
-                              justifyContent: "center",
-                              alignItems: "center",
-                            },
-                          ]}
+                          style={
+                            previewColor
+                              ? { backgroundColor: previewColor }
+                              : undefined
+                          }
+                          className={`w-[30px] h-[30px] rounded-full justify-center items-center border ${
+                            isSelected
+                              ? "border-primary dark:border-primary-dark border-2"
+                              : "border-border dark:border-border-dark"
+                          } ${!previewColor ? "bg-background dark:bg-background-dark" : ""}`}
                         >
                           {option.shortLabel ? (
-                            <Text
-                              style={{
-                                fontSize: 10,
-                                fontWeight: "600",
-                                color: theme.text,
-                              }}
-                            >
+                            <Text className="text-[10px] font-inter-semibold text-text dark:text-text-dark">
                               {option.shortLabel}
                             </Text>
                           ) : null}
                           {!option.value && !option.shortLabel && (
                             <AppIcon
                               name="close"
-                              color={isSelected ? theme.primary : theme.muted}
+                              className={
+                                isSelected
+                                  ? "fill-primary dark:fill-primary-dark"
+                                  : "fill-muted dark:fill-muted-dark"
+                              }
                             />
                           )}
                         </Pressable>
@@ -456,7 +362,7 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
           </View>
         }
         ListEmptyComponent={
-          <Text style={[styles.emptyText, { color: theme.muted }]}>
+          <Text className="text-[13px] font-inter text-muted dark:text-muted-dark">
             {t("app.emptyState")}
           </Text>
         }
@@ -502,20 +408,11 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
               accessibilityState={{ selected: isSelected }}
               accessibilityLabel={item.name || t("app.taskListName")}
               onPress={() => handleSelectTaskList(item.id)}
-              style={({ pressed }) => [
-                styles.drawerListItem,
-                {
-                  borderColor: "transparent", // Webはボーダーなし (bg-gray-100などで表現)
-                  backgroundColor: isSelected
-                    ? theme.inputBackground // Web: bg-gray-100 dark:bg-gray-800
-                    : "transparent",
-                  opacity: pressed ? 0.9 : isActive ? 0.5 : 1, // Web: isDragging ? 0.5 : 1
-                  borderRadius: 10, // Web: rounded-[10px]
-                  padding: 8, // Web: p-2
-                  flexDirection: "row",
-                  alignItems: "center",
-                },
-              ]}
+              className={`rounded-[10px] border border-transparent p-2 flex-row items-center gap-2 active:opacity-90 ${
+                isSelected
+                  ? "bg-input-background dark:bg-input-background-dark"
+                  : "bg-transparent"
+              } ${isActive ? "opacity-50" : ""}`}
             >
               <Pressable
                 accessibilityRole="button"
@@ -534,61 +431,39 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                 delayLongPress={150}
                 onPress={() => {}}
                 disabled={!canDragList}
-                style={({ pressed }) => [
-                  styles.taskActionButton,
-                  {
-                    opacity: pressed ? 0.8 : 1,
-                    // Web: p-1
-                    padding: 4,
-                  },
-                ]}
+                className="rounded-[10px] p-1 items-center justify-center active:opacity-80"
               >
                 <AppIcon
                   name="drag-indicator"
-                  color={canDragList ? theme.text : theme.muted}
+                  className={
+                    canDragList
+                      ? "fill-text dark:fill-text-dark"
+                      : "fill-muted dark:fill-muted-dark"
+                  }
                 />
               </Pressable>
               <View
-                style={[
-                  styles.drawerListSwatch,
-                  {
-                    backgroundColor:
-                      item.background ?? "var(--tasklist-theme-bg)", // Webのロジック: resolveTaskListBackground
-                    // Webでは "var(--tasklist-theme-bg)" だが、Nativeでは theme.background と解釈するしかなさそう
-                    // ただし item.background が null の場合は transparent ではなくデフォルト色
-                    // Web: background ?? "var(--tasklist-theme-bg)"
-                    // NativeでCSS変数は使えないので、theme.surface などをフォールバックにするか
-                    // ここでは一旦 item.background があれば使い、なければ theme.background (あるいは theme.card) を使う
-                  },
-                  {
-                    backgroundColor: item.background ?? theme.background,
-                    borderColor: theme.border,
-                    // Webに合わせて丸くする
-                    width: 12,
-                    height: 12,
-                    borderRadius: 6,
-                    borderWidth: 1,
-                    marginRight: 8, // gap-2 相当
-                  },
-                ]}
+                style={
+                  item.background
+                    ? { backgroundColor: item.background }
+                    : undefined
+                }
+                className={`w-3 h-3 rounded-full border border-border dark:border-border-dark ${
+                  !item.background
+                    ? "bg-background dark:bg-background-dark"
+                    : ""
+                }`}
               />
-              <View style={styles.drawerListItemText}>
+              <View className="flex-1 gap-0.5">
                 <Text
-                  style={[
-                    styles.drawerListItemName,
-                    {
-                      color: theme.text,
-                      // Web: isActive ? "font-bold" : "font-medium"
-                      fontWeight: isSelected ? "700" : "500",
-                    },
-                  ]}
+                  className={`text-[14px] font-inter-semibold text-text dark:text-text-dark ${
+                    isSelected ? "font-inter-bold" : ""
+                  }`}
                   numberOfLines={1}
                 >
                   {item.name || t("app.taskListName")}
                 </Text>
-                <Text
-                  style={[styles.drawerListItemCount, { color: theme.muted }]}
-                >
+                <Text className="text-[12px] font-inter text-muted dark:text-muted-dark">
                   {t("taskList.taskCount", {
                     count: item.tasks.length,
                   })}

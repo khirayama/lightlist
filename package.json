@@ -16,11 +16,9 @@
     "deploy:firestore:prod": "cd packages/sdk && firebase deploy --only firestore:rules,firestore:indexes --project prod"
   },
   "devDependencies": {
-    "firebase-tools": "^13.0.0",
+    "firebase-tools": "^15.5.1",
     "prettier": "^3.6.2",
     "turbo": "^2.0.0"
-  },
-  "dependencies": {
   },
   "overrides": {
     "@types/react": "19.1.10",

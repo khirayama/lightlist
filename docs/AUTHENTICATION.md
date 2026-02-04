@@ -22,8 +22,8 @@ src/
 │   ├── validation.ts          - フォームバリデーション関数
 │   └── errors.ts              - エラーメッセージハンドリング関数
 └── pages/
-    ├── index.page.tsx         - サインイン/サインアップ/パスワードリセット依頼ページ
-    └── password_reset.page.tsx - パスワードリセット実行ページ
+    ├── index.tsx              - サインイン/サインアップ/パスワードリセット依頼ページ
+    └── password_reset.tsx     - パスワードリセット実行ページ
 ```
 
 **アプリケーション側（apps/native）:**
@@ -81,7 +81,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 - `ConfirmDialog`: `Dialog` で構成した確認モーダル。破壊的操作用の `isDestructive` をサポート。
 - `Spinner`: i18next の `common.loading` をデフォルト文言にしたローディング表示（必要に応じて文言を上書き可）。
 
-### 認証ページUI（index.page.tsx）
+### 認証ページUI（index.tsx）
 
 - Appページと同じトーンの背景（`bg-gray-50` / `dark:bg-gray-950`）とテキストカラーで統一。
 - 中央寄せのカードレイアウト（`bg-white` / `dark:bg-gray-900`）を採用し、フォームの視認性を確保。
@@ -89,7 +89,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 - 主要アクションは濃色のプライマリボタン、補助アクションはアウトラインボタンで視覚的に区別。
 - パスワードリセットは同一カード内で表示し、インライン説明文と成功/失敗の通知を配置。
 
-### 認証ページUI（password_reset.page.tsx）
+### 認証ページUI（password_reset.tsx）
 
 - indexページと同じ背景とカードレイアウトを適用し、認証体験のトーンを統一。
 - 主要操作はプライマリボタン、戻る操作はアウトラインボタンで役割を区別。
@@ -130,7 +130,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 
 ### 1. サインアップ (Sign Up)
 
-**ページ:** `src/pages/index.page.tsx` (signup タブ)
+**ページ:** `src/pages/index.tsx` (signup タブ)
 **ネイティブ:** `apps/native/src/App.tsx` (signup タブ)
 
 **処理フロー:**
@@ -157,7 +157,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 
 ### 2. ログイン (Sign In)
 
-**ページ:** `src/pages/index.page.tsx` (signin タブ)
+**ページ:** `src/pages/index.tsx` (signin タブ)
 **ネイティブ:** `apps/native/src/App.tsx` (signin タブ)
 
 **処理フロー:**
@@ -181,7 +181,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 
 #### ステップ1: リセットメール送信
 
-**ページ:** `src/pages/index.page.tsx` (reset タブ)
+**ページ:** `src/pages/index.tsx` (reset タブ)
 **ネイティブ:** `apps/native/src/App.tsx` (reset タブ)
 
 **処理フロー:**
@@ -212,7 +212,7 @@ https://[PROJECT].firebaseapp.com/password-reset?oobCode=[CODE]&mode=resetPasswo
 
 #### ステップ2: パスワード再設定
 
-**ページ:** `src/pages/password_reset.page.tsx`
+**ページ:** `src/pages/password_reset.tsx`
 **ネイティブ:** `apps/native/src/screens/PasswordResetScreen.tsx`
 
 **処理フロー:**
@@ -389,7 +389,7 @@ Firebase 認証エラーをスロー
 
 ## 設定機能（Settings）
 
-設定ページは `src/pages/settings.page.tsx` に実装されています。
+設定ページは `src/pages/settings.tsx` に実装されています。
 
 ### 設定ページの機能
 
@@ -410,13 +410,13 @@ Firebase 認証エラーをスロー
 
 - テーマ選択はラジオボタンで実装
 - 選択後、`updateSettings({ theme })` で Firestore に保存
-- `_app.page.tsx` でテーマを監視し、HTML の `dark` クラスを切り替え
+- `_app.tsx` でテーマを監視し、HTML の `dark` クラスを切り替え
 - Tailwind CSS の `dark:` プレフィックスでダークモード対応
 
 **テーマ適用ロジック:**
 
 ```typescript
-// _app.page.tsx の applyTheme 関数
+// _app.tsx の applyTheme 関数
 const isDark =
   theme === "dark" ||
   (theme === "system" &&
@@ -435,7 +435,7 @@ document.documentElement.classList.toggle("dark", isDark);
 
 - 言語選択はラジオボタンで実装
 - `updateSettings({ language })`で Firestore に保存
-- `appStore` の言語設定変更を `_app.page.tsx` が監視し、UI の言語を即座に切り替え
+- `appStore` の言語設定変更を `_app.tsx` が監視し、UI の言語を即座に切り替え
 - 言語変更後、自動的に UI テキストが更新される
 
 #### 4. タスク追加位置
@@ -573,7 +573,7 @@ auth:
 
 ## ページコンポーネント実装
 
-### index.page.tsx（認証ページ）
+### index.tsx（認証ページ）
 
 3つのタブを備えた統一された認証ページです。
 
@@ -594,7 +594,7 @@ auth:
 - validateAuthForm: フォームバリデーション
 - resolveErrorMessage: エラーメッセージ変換
 
-### password_reset.page.tsx（パスワードリセット実行ページ）
+### password_reset.tsx（パスワードリセット実行ページ）
 
 メール内のリセットリンクから遷移し、新しいパスワード設定を行うページです。
 

@@ -19,7 +19,7 @@
 
 ### 既存ファイルの変更
 
-- `apps/web/src/pages/_app.page.tsx`
+- `apps/web/src/pages/_app.tsx`
   - `next/head` で `manifest` と `theme-color`、アイコンなどの共通メタデータを追加
   - `mounted` 前でも `Head` を出し、初回HTMLにも manifest が含まれるようにする
   - `navigator.serviceWorker.register(\"/sw.js\")` で SW を登録する

@@ -6,7 +6,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 ## タスク管理ページ
 
-**ページ:** `apps/web/src/pages/app/index.page.tsx`
+**ページ:** `apps/web/src/pages/app.tsx`
 
 ### 概要
 
@@ -21,15 +21,15 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 - **ヘッダー / ドロワー:** ページタイトルと Drawer トリガーを配置。幅 1024px 以上ではドロワー内容を左カラムに固定し、より狭い幅では shadcn Drawer（左スライド、オーバーレイ付き）でログインメールを表示し、設定画面へのリンクを提供する。左右ドロワーはタップ操作を優先するため `handleOnly` を有効化し、コンテンツ上でのドラッグ開始を抑止している。
 - **タスクリスト一覧（ドロワー内）:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力してフォーム送信（`Enter` / 作成ボタン）で `createTaskList` を実行。作成ボタンの隣には「共有リストに参加」ボタンがあり、共有コードを入力する Dialog を開く。コードを入力して参加すると `fetchTaskListIdByShareCode` でリストを特定し、`addSharedTaskListToOrder` で自分のリストに追加する。リストが空のときは `app.emptyState` を表示し、各行には背景色スウォッチとタスク数を併記する。
-- **タスク詳細カルーセル:** 各タスクリストを `Carousel` (Embla) で横スライド化し、ホイール左右操作や前後ボタン、スワイプで切り替える。各スライド内のタスクリストは独立して縦スクロール可能であり、リストが長くなっても画面全体のスクロールは発生しない。AppHeader 直下にドット型の locator を表示し、現在位置を示しつつクリックでリストを切り替えられる。ページ全体に表示中スライドの `TaskList.background` を適用し、内側を可読性の高い半透明のサーフェス（`bg-white/60 dark:bg-gray-900/60` + `backdrop-blur-md`）として構成する。ワイドレイアウトではタスクリストの最大幅を制限し、読みやすさを維持する。`TaskListCard` は共有ページと同じレイアウト（入力欄が上、一覧が下）で完了・日付設定・追加・編集を行う。
+- **タスク詳細カルーセル:** 各タスクリストを `Carousel` で横スライド化し、ホイール左右操作や前後ボタン、スワイプで切り替える。各スライド内のタスクリストは独立して縦スクロール可能であり、リストが長くなっても画面全体のスクロールは発生しない。AppHeader 直下にドット型の locator を表示し、現在位置を示しつつクリックでリストを切り替えられる。ページ全体に表示中スライドの `TaskList.background` を適用し、内側を可読性の高い半透明のサーフェス（`bg-white/60 dark:bg-gray-900/60` + `backdrop-blur-md`）として構成する。ワイドレイアウトではタスクリストの最大幅を制限し、読みやすさを維持する。`TaskListCard` は共有ページと同じレイアウト（入力欄が上、一覧が下）で完了・日付設定・追加・編集を行う。
 - **色と共有:** タスクリストカード右上の編集（edit）/共有（share）アイコンボタンから Dialog を開き、編集Dialogでリスト名と背景色をまとめて変更する（保存はフォーム送信: `Enter` / 保存ボタン）。共有Dialogでコードの生成/停止とクリップボードコピーを行う。
 - **削除確認:** リスト編集Dialog内の更新ボタン上部に配置された削除ボタンから `deleteTaskList` を実行。
 
 ### カルーセル操作
 
-- `embla-carousel-wheel-gestures` を有効化し、ホイールで左右にスクロールするとスライドが切り替わり、`selectedTaskListId` を同期する。
+- ブラウザのネイティブスクロールと CSS Snap Points を活用し、ホイールやスワイプでスムーズにスライドが切り替わり、`selectedTaskListId` を同期する。
 - ページ全体の背景色は `selectedTaskListId` の変更に合わせて即座に切り替わる。
-- タスク並び替え中は `TaskListCard` からの sorting 状態を受け取り、カルーセルのホイール操作とドラッグを無効化して横スクロールを抑制する。
+- タスク並び替え中は `TaskListCard` からの sorting 状態を受け取り、カルーセルのスクロール操作を無効化して横スクロールを抑制する。
 - リスト一覧での選択や Dialog オープン時は対象リストを事前に選択し、カルーセル位置とフォーム入力を一致させる。
 - locator（ドット）をクリックして `selectedTaskListId` を切り替え、カルーセル位置を同期する。locator は背景に `bg-white/40 dark:bg-black/40` と `backdrop-blur-md` を備えたカプセル状のバーに配置され、常に高い視認性を保つ。
 
@@ -59,6 +59,8 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 ### ページレベルの状態
 
+`apps/web/src/pages/app.tsx` で管理される状態：
+
 ```typescript
 const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
   null,
@@ -84,8 +86,6 @@ const [createListBackground, setCreateListBackground] = useState(
   colors[0].value,
 );
 const [showCreateListDialog, setShowCreateListDialog] = useState(false);
-const [taskListCarouselApi, setTaskListCarouselApi] =
-  useState<CarouselApi | null>(null);
 const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 const [isWideLayout, setIsWideLayout] = useState(false);
 const [isTaskSorting, setIsTaskSorting] = useState(false);
@@ -133,16 +133,17 @@ const state: AppState = {
 
 **動作:**
 
-1. ローカルストアを楽観的に更新
-2. Firestore に新規リストドキュメントを作成
-3. `taskListOrder` に新規リストの順序情報を追加
-4. `updatedAt` タイムスタンプを自動設定
-5. ストアの変更をリスナーに通知
+1. ローカルストアの `taskListOrder` を参照し、現在の最大 `order` 値を取得。
+2. `newOrder = maxOrder + 1.0` として新しい順序値を算出（リストが空の場合は `1.0`）。
+3. Firestore でバッチ書き込みを実行：
+   - `taskLists/{newId}` ドキュメントを作成。
+   - `taskListOrder/{uid}` ドキュメントに `{ [newId]: { order: newOrder } }` を追加更新。
+4. `updatedAt` タイムスタンプを自動設定。
 
 **例外:**
 
-- Firebase Firestore のエラーをスロー
-- ユーザーログイン状態を確認し、ログインしていない場合はエラーをスロー
+- Firebase Firestore のエラーをスロー。
+- ユーザーログイン状態を確認し、ログインしていない場合はエラーをスロー。
 
 ### updateTaskList(taskListId: string, updates: Partial<TaskList>): Promise<void>
 
@@ -155,13 +156,13 @@ const state: AppState = {
 
 **動作:**
 
-1. `updates` に含まれるフィールドを Firestore のドキュメントに反映
-2. `updatedAt` タイムスタンプを自動設定
+1. `updates` に含まれるフィールドを Firestore のドキュメントに反映。
+2. `updatedAt` タイムスタンプを自動設定。
 3. `background` に `null` を指定すると、背景色が解除されテーマカラー（デフォルト）に戻ります。
 
 **例外:**
 
-- Firebase Firestore のエラーをスロー
+- Firebase Firestore のエラーをスロー。
 
 ### updateTaskListOrder(draggedTaskListId: string, targetTaskListId: string): Promise<void>
 
@@ -172,25 +173,16 @@ const state: AppState = {
 - `draggedTaskListId`: ドラッグされたタスクリスト ID
 - `targetTaskListId`: ドロップ先のタスクリスト ID（この位置に移動）
 
-**例:**
-
-```typescript
-await updateTaskListOrder("list-id-1", "list-id-3");
-// list-id-1 が list-id-3 の位置に移動（list-id-3 より下へ移動する場合は直後に配置）
-```
-
 **動作:**
 
-1. 現在の order を昇順で取得し、ドラッグ対象を配列から一度除外
-2. 対象リストの位置にドラッグ対象を挿入し（上方向は直前、下方向は直後）、1 からの連番で再採番
-3. Firestore の `taskListOrder` ドキュメントをまとめて更新し、`updatedAt` を設定
-4. ストアの変更をリスナーに通知
+1. 現在の order を昇順で取得し、ドラッグ対象を配列から一度除外。
+2. 対象リストの位置にドラッグ対象を挿入し（上方向は直前、下方向は直後）、`1.0` からの連番で再採番（Re-indexing）。
+3. Firestore の `taskListOrder` ドキュメントをまとめて更新し、`updatedAt` を設定。
 
 **技術仕様：**
 
-- **order フィールド:** 1.0 からの連番
-- **更新範囲:** 並び替え後の全リストに対して order を再採番
-- **更新方法:** Firestore の単一アップデートで一括反映
+- **更新範囲:** 並び替え発生時、全リストに対して `1.0` からの連番で order を再設定します。これにより浮動小数点の桁あふれ等を防ぎます。
+- **更新方法:** Firestore の単一アップデートで一括反映。
 
 **例外:**
 
@@ -502,7 +494,7 @@ taskList:
 
 ### 状態管理
 
-`apps/web/src/pages/app/index.page.tsx` は、タスクリスト選択・Drawer/Carousel・各 Dialog（リスト編集/共有/作成）などページ横断の状態を管理する。タスク追加/編集入力やタスク操作のエラーは各 `TaskListCard` に閉じ込める。
+`apps/web/src/pages/app.tsx` は、タスクリスト選択・Drawer/Carousel・各 Dialog（リスト編集/共有/作成）などページ横断の状態を管理する。タスク追加/編集入力やタスク操作のエラーは各 `TaskListCard` に閉じ込める。
 
 ```typescript
 const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
@@ -525,8 +517,6 @@ const [createListBackground, setCreateListBackground] = useState(
   colors[0].value,
 );
 const [showCreateListDialog, setShowCreateListDialog] = useState(false);
-const [taskListCarouselApi, setTaskListCarouselApi] =
-  useState<CarouselApi | null>(null);
 const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 const [isWideLayout, setIsWideLayout] = useState(false);
 const [isTaskSorting, setIsTaskSorting] = useState(false);
@@ -542,7 +532,7 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 
 #### addTask(taskListId: string, text: string, date?: string): Promise<string>
 
-タスクを追加します。
+タスクを追加します。自然言語による日付解析と入力履歴の更新を自動的に行います。
 
 **パラメータ:**
 
@@ -556,23 +546,29 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 
 **動作:**
 
-1. テキスト入力から日付キーワード（「今日」「明日」「月曜」など）を解析し、日付が検出された場合はその日付を設定し、キーワードを除去したテキストをタスク名とする
-2. 新しいタスク ID を生成
-3. 既存タスクを order 昇順に並べ、挿入位置に新タスクを挿入
-4. `autoSort` が有効な場合は未完了・日付・現在の order 優先で再ソートしつつ order を再採番、無効な場合は挿入位置に基づいて 1.0 から連番で再採番
-5. 以下を実行：
-   - Firestore にタスクを保存
-   - order の一括更新
-   - history フィールドを更新（trim、大小文字を無視して重複扱い、最大300件保持）
-6. `updatedAt` タイムスタンプを設定
+1. **日付解析と正規化**:
+   - `parseDateFromText(text)` を実行し、テキスト内の日付キーワード（例：「明日」「来週月曜」）を抽出。
+   - 日付が検出された場合、その日付を優先して設定し、キーワードを除去したテキストをタスク名とします。
+   - `text` が空文字の場合はエラーをスローします。
 
-**history 管理:**
+2. **挿入位置の決定**:
+   - `settings.taskInsertPosition` を参照し、「先頭 (`top`)」または「末尾 (`bottom`)」を決定します。
 
-- タスク作成時に `text` を trim し、空文字の場合はエラー
-- history は各要素を trim し、空要素は除外
-- 大文字小文字を無視して既存要素を検索し、存在する場合は削除して先頭に挿入（新しい順）
-- history の件数が300を超えた場合、最古のテキストを削除
-- 重複なし：同じテキスト（trim後・大小文字無視）は複数回登録されない
+3. **タスクオブジェクト作成**:
+   - 新しいタスク ID を生成。
+   - `completed: false`, `order: 0` で初期化。
+
+4. **ソートと Order 計算**:
+   - **`autoSort` 有効時**: 全タスクを「未完了 > 日付（昇順） > Order」の優先順位で並び替え、`1.0` からの連番で `order` を再設定します。
+   - **`autoSort` 無効時**: 指定された挿入位置にタスクを追加し、全タスクを `1.0` からの連番で `order` を再設定します。
+
+5. **入力履歴 (`history`) の更新**:
+   - 入力されたテキストを履歴に追加します。
+   - **重複排除**: 既存の履歴に同じテキスト（大文字小文字無視、trim済み）がある場合、古いものを削除して先頭に追加します。
+   - **件数制限**: 最大 300 件まで保持し、超過分は末尾から削除されます。
+
+6. **Firestore 更新**:
+   - `tasks` マップへのタスク追加、再計算された `order` の更新、`history` の更新を一度の `updateDoc` で実行します。
 
 #### updateTask(taskListId: string, taskId: string, updates: Partial<Task>): Promise<void>
 
@@ -586,16 +582,22 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 
 **動作:**
 
-- テキスト更新時、日付キーワードが含まれる場合は日付も更新し、キーワードを除去したテキストを設定する
-- `autoSort` 無効時は指定フィールドのみ更新し、`updatedAt` を設定
-- `autoSort` 有効時は対象タスクの存在を検証し、更新内容を反映した配列を未完了・日付・現在の order 優先で並べ替えて order を再採番した上で更新
-- ストアに対象タスクリストがない場合は Firestore から取得して同じ検証と更新を行う
+1. **テキスト更新時の日付再解析**:
+   - `updates.text` が含まれる場合、再度 `parseDateFromText` を実行します。
+   - 新たに日付が検出された場合、`date` フィールドも同時に更新し、テキストからキーワードを除去します。
+
+2. **ソートと更新**:
+   - **`autoSort` 無効時**: 対象タスクのフィールドのみを更新します。
+   - **`autoSort` 有効時**: 更新内容を反映した上で、全タスクを再ソート（未完了 > 日付 > Order）し、全タスクの `order` を再採番して一括更新します。
+
+**例外:**
+
+- テキストが空文字になる更新はエラーをスローします。
+- タスクが存在しない場合はエラーをスローします。
 
 #### deleteTask(taskListId: string, taskId: string): Promise<void>
 
 タスクを削除します。
-
-現行の Web UI ではタスク削除操作は提供していません。
 
 **パラメータ:**
 
@@ -604,9 +606,9 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 
 **動作:**
 
-- `autoSort` 無効時はタスクを削除し、`updatedAt` のみ更新
-- `autoSort` 有効時は対象タスクの存在を検証し、削除後のタスクを未完了・日付・現在の order 優先で並び替えて再採番し、まとめて反映
-- ストアに対象タスクリストがない場合は Firestore から取得して同じ検証と更新を行う
+1. **削除と再構成**:
+   - **`autoSort` 無効時**: 対象フィールドを `deleteField()` で削除します。
+   - **`autoSort` 有効時**: 対象タスクを除外した後、残りのタスクを再ソート（未完了 > 日付 > Order）し、`order` を再採番して一括更新します。
 
 #### updateTasksOrder(taskListId: string, draggedTaskId: string, targetTaskId: string): Promise<void>
 
@@ -762,7 +764,7 @@ pages:
 
 ## 共有ページ
 
-**ページ:** `src/pages/sharecodes/[sharecode].page.tsx`
+**ページ:** `src/pages/sharecodes/[sharecode].tsx`
 **画面:** `apps/native/src/screens/ShareCodeScreen.tsx`
 
 ### 概要

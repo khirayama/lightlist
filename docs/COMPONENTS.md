@@ -3,7 +3,7 @@
 ## 分類
 
 - `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, Calendar, ColorPicker, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel, Command, Popover, AppIcon, ErrorBoundary）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。Dialog/Carousel も含め、ライト/ダークの可読性と操作性（focus-visible 等）を優先して必要なスタイルを持つ。Alert は variant 別に配色を切り替え、ConfirmDialog は Dialog を使って破壊的アクションのスタイルを切り替える。Spinner は `AppIcon` (logo) を使用し、アニメーション（pulse）を伴う。`fullPage` prop を指定することで、画面中央に配置される。Calendar は i18next の言語に合わせて locale を切り替える。AppIcon は `@lightlist/sdk/icons` で定義された SVG パスデータを使用し、Web/Native で統一されたアイコン表示を実現する。ColorPicker はタスクリストの背景色選択などで利用する再利用可能なカラー選択コンポーネント。ErrorBoundary はアプリ全体のクラッシュを捕捉し、リロードボタン付きのフォールバック画面を表示する。`AppIcon` (alert-circle) を使用し、シンプルでユーザーフレンドリーなエラー表示を提供する
-- `apps/web/src/components/app`: 設定や、タスク表示・並び替えなど、アプリ固有の共有コンポーネント。SDKへの依存が判断基準（TaskListCard が単一タスクの描画も内包）
+- `apps/web/src/components/app`: 設定や、タスク表示・並び替えなど、アプリ固有の共有コンポーネント。SDKへの依存が判断基準。TaskListCard はタスクリストの操作（追加/編集/並び替え）を集約し、TaskItem は個々のタスク表示（ドラッグハンドル/チェックボックス/テキスト/日付）を担当する。DrawerPanel はタスクリスト一覧と作成・参加フローを提供するドロワー内コンテンツ
 - `apps/native/src/components/ui`: ネイティブ向けのプリミティブ（Dialog, AppIcon, Carousel）。AppIcon は `@lightlist/sdk/icons` の SVG パスデータを `react-native-svg` で描画する
 - `apps/native/src/components/app`: ネイティブ固有のタスク操作UIなど、画面共通で再利用するコンポーネント（TaskListCard はタスク追加/編集/並び替え/完了/完了削除の操作UIを集約し、ヘッダーやリスト選択は画面側で管理）。DrawerPanel はタスクリスト一覧とリスト作成・参加ダイアログを集約。各画面は `useTheme` フックでテーマに直接アクセスする
 
@@ -18,8 +18,8 @@
 
 ## Pages ルーティング
 
-- `apps/web` は `pageExtensions` を使い、`src/pages` 配下の `.page.tsx` / `.page.ts` のみをルーティング対象とする
-- ページに密結合の補助コンポーネントは、同じディレクトリに `.tsx` として同居させる（例: `src/pages/app/DrawerPanel.tsx`, `src/pages/app/TaskListCard.tsx`）
+- `apps/web` は `src/pages` 配下の `.tsx` をルーティング対象とする（Next.js 標準）
+- ページに密結合の補助コンポーネントは、`src/components` に配置することを基本とするが、ページ固有の構成要素として分割する場合は適切なディレクトリ構造を検討する
 - TaskListCard はタスクリストの表示・操作（タスク追加/編集/並び替え/完了/削除）を内包し、`enableEditDialog`/`enableShareDialog` フラグでリスト編集・共有ダイアログの表示を制御できる。AppPage と ShareCodePage の両方から再利用可能
 
 ## モノレポ内SDKの取り込み
@@ -29,9 +29,9 @@
 ## レイアウト基盤（画面100%基準）
 
 - `apps/web/src/styles/globals.css` で `html` / `body` / `#__next` を `width: 100%` / `height: 100%` にし、`h-full` を成立させる
-- `apps/web/src/pages/_app.page.tsx` は AppShell を持ち、`h-dvh` を高さの基準（画面100%）として扱う
+- `apps/web/src/pages/_app.tsx` は AppShell を持ち、`h-dvh` を高さの基準（画面100%）として扱う
 - 画面スクロールは AppShell（`overflow-y-auto`）を基本とし、ページ側は `min-h-full w-full` を基準にレイアウトする
-- PWA の manifest と共通メタデータは `apps/web/public/manifest.webmanifest` と `apps/web/src/pages/_app.page.tsx` の `Head` で管理する
+- PWA の manifest と共通メタデータは `apps/web/public/manifest.webmanifest` と `apps/web/src/pages/_app.tsx` の `Head` で管理する
 
 ## app 配下のコンポーネント
 

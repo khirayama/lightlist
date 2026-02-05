@@ -1,7 +1,9 @@
 name: Preview Build
 
 on:
-  pull_request:
+  push:
+    branches:
+      - main
     paths:
       - 'apps/native/**'
       - 'packages/sdk/**'

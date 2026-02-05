@@ -48,9 +48,9 @@
    起動後は `npx expo start --dev-client` で開発サーバーを立ち上げます。
 
 2. **検証用ビルドの自動生成 (Preview Build)**
-   - GitHub で `apps/native` または `packages/sdk` に変更を含む PR を作成します。
+   - `main` ブランチに push（または PR がマージ）されると、自動的にビルドが開始されます。
    - GitHub Actions (`.github/workflows/preview.yml`) が起動し、`eas build --profile preview` を実行します。
-   - ビルド完了後、Expo Dashboard または PR のコメント（設定時）から QR コードを取得し、実機にインストールして確認します。
+   - ビルド完了後、Expo Dashboard から QR コードを取得し、実機にインストールして確認します。
 
 3. **手動での検証ビルド作成**
    ```bash

@@ -92,14 +92,22 @@
     "signingOut": "Signing out...",
     "deletingAccount": "Deleting account..."
   },
-  "errors": {
-    "invalidCredential": "Email or password is incorrect.",
-    "userNotFound": "Account not found.",
-    "emailAlreadyInUse": "This email address is already in use.",
-    "weakPassword": "Password must be at least 6 characters.",
-    "tooManyRequests": "Too many attempts. Try again later.",
-    "invalidEmail": "Email address is invalid.",
-    "generic": "Authentication failed. Please try again."
+  "auth": {
+    "error": {
+      "invalidCredential": "Email or password is incorrect.",
+      "userNotFound": "Account not found.",
+      "emailAlreadyInUse": "This email address is already in use.",
+      "weakPassword": "Password must be at least 6 characters.",
+      "tooManyRequests": "Too many attempts. Try again later.",
+      "invalidEmail": "Email address is invalid.",
+      "operationNotAllowed": "Operation not allowed.",
+      "general": "Authentication failed. Please try again."
+    },
+    "passwordReset": {
+      "expiredCode": "This reset link has expired.",
+      "invalidCode": "This reset link is invalid.",
+      "resetSuccess": "Password updated successfully."
+    }
   },
   "form": {
     "required": "Please fill in all fields.",

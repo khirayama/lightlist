@@ -1,4 +1,3 @@
-import { Inter } from "next/font/google";
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -11,10 +10,6 @@ import { AppState, Theme } from "@lightlist/sdk/types";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { Spinner } from "@/components/ui/Spinner";
 import "@/styles/globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-});
 
 export default function App({ Component, pageProps }: AppProps) {
   const [mounted, setMounted] = useState(false);
@@ -125,12 +120,6 @@ export default function App({ Component, pageProps }: AppProps) {
       <ErrorBoundary>
         {pwaHead}
 
-        <style jsx global>{`
-          :root {
-            --font-inter: ${inter.style.fontFamily};
-          }
-        `}</style>
-
         <Spinner fullPage />
       </ErrorBoundary>
     );
@@ -139,12 +128,6 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <ErrorBoundary>
       {pwaHead}
-
-      <style jsx global>{`
-        :root {
-          --font-inter: ${inter.style.fontFamily};
-        }
-      `}</style>
 
       <div className="h-dvh w-full overflow-hidden">
         <div className="h-full w-full overflow-y-auto">

@@ -122,4 +122,4 @@ NativeWind v4 を使用して、Tailwind CSS のユーティリティクラス�
 - `apps/native/src/styles/theme.ts`: テーマ定義とリストカラー
 - `apps/native/app.json`: `userInterfaceStyle` を `automatic` に変更し、テーマ切替に追従。`scheme` を追加してディープリンクに対応。`orientation` を `default` にして回転に対応
 - `apps/native/package.json`: `react-native-screens` を Expo Go に合わせて固定
-- `package.json`: `react` / `@types/react` / `react-native-screens` を Expo Go 互換で固定
+- `package.json`: `react` / `@types/react` を React 19.1.0 と整合する最新の型定義に固定し、`react-native-screens` は Expo Go 互換で固定

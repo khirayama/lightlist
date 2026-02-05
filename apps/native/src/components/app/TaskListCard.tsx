@@ -26,12 +26,10 @@ import {
   updateTasksOrder,
 } from "@lightlist/sdk/mutations/app";
 import { useOptimisticReorder } from "@lightlist/sdk/hooks/useOptimisticReorder";
+import { formatDate, parseISODate } from "@lightlist/sdk/utils/dateParser";
 
-import { styles } from "../../styles/appStyles";
 import { Dialog } from "../ui/Dialog";
-import { useTheme } from "../../styles/theme";
 import { resolveErrorMessage } from "../../utils/errors";
-import { formatDateValue, parseDateValue } from "../../utils/date";
 import { TaskItem } from "./TaskItem";
 
 type TaskListCardProps = {
@@ -75,7 +73,6 @@ export const TaskListCard = ({
   showShareDialog,
   onShareDialogOpenChange,
 }: TaskListCardProps) => {
-  const theme = useTheme();
   // Local state for optimistic updates
   const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
     taskList.tasks,
@@ -154,7 +151,7 @@ export const TaskListCard = ({
     (task: Task) => {
       const sourceDate =
         editingTaskId === task.id ? editingTaskDate : (task.date ?? "");
-      const parsedDate = parseDateValue(sourceDate) ?? new Date();
+      const parsedDate = parseISODate(sourceDate) ?? new Date();
       if (!isIos) {
         const canClear = sourceDate.trim().length > 0;
         DateTimePickerAndroid.open({
@@ -167,7 +164,7 @@ export const TaskListCard = ({
             }
             if (event.type === "dismissed") return;
             if (!selectedDate) return;
-            applyDateChange(task, formatDateValue(selectedDate));
+            applyDateChange(task, formatDate(selectedDate));
           },
           ...(canClear ? { neutralButtonLabel: clearDateLabel } : {}),
         });
@@ -195,7 +192,7 @@ export const TaskListCard = ({
     }
     if (!selectedDate) return;
     setDatePickerValue(selectedDate);
-    applyDateChange(datePickerTask, formatDateValue(selectedDate));
+    applyDateChange(datePickerTask, formatDate(selectedDate));
   };
 
   const handleClearDate = () => {
@@ -411,12 +408,9 @@ export const TaskListCard = ({
           accessibilityRole="button"
           accessibilityLabel={clearDateLabel}
           onPress={handleClearDate}
-          style={[
-            styles.secondaryButton,
-            { flex: 1, borderColor: theme.border },
-          ]}
+          className="flex-1 rounded-[12px] border border-border dark:border-border-dark py-3 items-center"
         >
-          <Text style={[styles.secondaryButtonText, { color: theme.muted }]}>
+          <Text className="text-[15px] font-inter-semibold text-muted dark:text-muted-dark">
             {clearDateLabel}
           </Text>
         </Pressable>
@@ -425,9 +419,9 @@ export const TaskListCard = ({
         accessibilityRole="button"
         accessibilityLabel={closeLabel}
         onPress={closeDatePicker}
-        style={[styles.secondaryButton, { flex: 1, borderColor: theme.border }]}
+        className="flex-1 rounded-[12px] border border-border dark:border-border-dark py-3 items-center"
       >
-        <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
+        <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
           {closeLabel}
         </Text>
       </Pressable>
@@ -435,25 +429,22 @@ export const TaskListCard = ({
   );
 
   const header = (
-    <View style={[styles.taskHeaderRow, { marginBottom: 16 }]}>
+    <View className="flex-row items-center justify-between gap-3 mb-4">
       <Text
-        style={[styles.settingsTitle, { color: theme.text }]}
+        className="text-[22px] font-inter-bold text-text dark:text-text-dark flex-1"
         numberOfLines={1}
       >
         {taskList.name}
       </Text>
-      <View style={styles.headerActions}>
+      <View className="flex-row items-center justify-end flex-wrap gap-2">
         {enableEditDialog && onEditDialogOpenChange && (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("taskList.editDetails")}
             onPress={() => onEditDialogOpenChange(taskList, true)}
-            style={({ pressed }) => [
-              styles.headerIconButton,
-              { opacity: pressed ? 0.9 : 1 },
-            ]}
+            className="rounded-[12px] p-2.5 items-center justify-center active:opacity-90"
           >
-            <AppIcon name="edit" color={theme.text} />
+            <AppIcon name="edit" className="fill-text dark:fill-text-dark" />
           </Pressable>
         )}
         {enableShareDialog && onShareDialogOpenChange && (
@@ -461,12 +452,9 @@ export const TaskListCard = ({
             accessibilityRole="button"
             accessibilityLabel={t("taskList.shareTitle")}
             onPress={() => onShareDialogOpenChange(taskList, true)}
-            style={({ pressed }) => [
-              styles.headerIconButton,
-              { opacity: pressed ? 0.9 : 1 },
-            ]}
+            className="rounded-[12px] p-2.5 items-center justify-center active:opacity-90"
           >
-            <AppIcon name="share" color={theme.text} />
+            <AppIcon name="share" className="fill-text dark:fill-text-dark" />
           </Pressable>
         )}
       </View>
@@ -474,23 +462,15 @@ export const TaskListCard = ({
   );
 
   const listHeader = (
-    <View style={styles.section}>
+    <View className="mb-6">
       {header}
-      <View style={[styles.taskInputRow, { marginBottom: 16 }]}>
+      <View className="flex-row items-center gap-2 mb-4">
         <TextInput
-          style={[
-            styles.input,
-            styles.taskInput,
-            {
-              color: theme.text,
-              borderColor: theme.border,
-              backgroundColor: theme.inputBackground,
-            },
-          ]}
+          className="flex-1 rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
           value={newTaskText}
           onChangeText={setNewTaskText}
           placeholder={t("taskList.addTaskPlaceholder")}
-          placeholderTextColor={theme.placeholder}
+          placeholderClassName="text-placeholder dark:text-placeholder-dark"
           returnKeyType="done"
           blurOnSubmit={false}
           onSubmitEditing={handleAddTask}
@@ -502,92 +482,83 @@ export const TaskListCard = ({
           accessibilityLabel={t("taskList.addTask")}
           onPress={handleAddTask}
           disabled={!canAddTask}
-          style={({ pressed }) => [
-            styles.button,
-            styles.taskSendButton,
-            {
-              backgroundColor: canAddTask ? theme.primary : theme.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
+          className={`rounded-[12px] py-3.5 px-3.5 items-center active:opacity-90 ${
+            canAddTask
+              ? "bg-primary dark:bg-primary-dark"
+              : "bg-border dark:bg-border-dark"
+          }`}
         >
           <AppIcon
             name="send"
-            color={canAddTask ? theme.primaryText : theme.muted}
+            className={
+              canAddTask
+                ? "fill-primary-text dark:fill-primary-text-dark"
+                : "fill-muted dark:fill-muted-dark"
+            }
           />
         </Pressable>
       </View>
       {addTaskError ? (
-        <Text style={[styles.error, { color: theme.error }]}>
+        <Text className="text-[13px] font-inter text-error dark:text-error-dark mt-1">
           {addTaskError}
         </Text>
       ) : null}
-      <View style={styles.taskActionRow}>
+      <View className="flex-row items-center justify-between mb-3">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("pages.tasklist.sort")}
           onPress={handleSortTasks}
           disabled={!canSortTasks}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            {
-              borderWidth: 0,
-              paddingHorizontal: 14,
-              paddingVertical: 10,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
+          className="flex-row items-center gap-1.5 px-3.5 py-2.5 active:opacity-90"
         >
-          <View style={styles.taskActionButtonContent}>
-            <AppIcon
-              name="sort"
-              color={canSortTasks ? theme.text : theme.muted}
-            />
-            <Text
-              style={[
-                styles.secondaryButtonText,
-                { color: canSortTasks ? theme.text : theme.muted },
-              ]}
-            >
-              {t("pages.tasklist.sort")}
-            </Text>
-          </View>
+          <AppIcon
+            name="sort"
+            className={
+              canSortTasks
+                ? "fill-text dark:fill-text-dark"
+                : "fill-muted dark:fill-muted-dark"
+            }
+          />
+          <Text
+            className={`text-[15px] font-inter-semibold ${
+              canSortTasks
+                ? "text-text dark:text-text-dark"
+                : "text-muted dark:text-muted-dark"
+            }`}
+          >
+            {t("pages.tasklist.sort")}
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("pages.tasklist.deleteCompleted")}
           onPress={confirmDeleteCompletedTasks}
           disabled={!canDeleteCompletedTasks}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            {
-              borderWidth: 0,
-              paddingHorizontal: 14,
-              paddingVertical: 10,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
+          className="flex-row items-center gap-1.5 px-3.5 py-2.5 active:opacity-90"
         >
-          <View style={styles.taskActionButtonContent}>
-            <Text
-              style={[
-                styles.secondaryButtonText,
-                {
-                  color: canDeleteCompletedTasks ? theme.error : theme.muted,
-                },
-              ]}
-            >
-              {t("pages.tasklist.deleteCompleted")}
-            </Text>
-            <AppIcon
-              name="delete"
-              color={canDeleteCompletedTasks ? theme.error : theme.muted}
-            />
-          </View>
+          <Text
+            className={`text-[15px] font-inter-semibold ${
+              canDeleteCompletedTasks
+                ? "text-error dark:text-error-dark"
+                : "text-muted dark:text-muted-dark"
+            }`}
+          >
+            {t("pages.tasklist.deleteCompleted")}
+          </Text>
+          <AppIcon
+            name="delete"
+            className={
+              canDeleteCompletedTasks
+                ? "fill-error dark:fill-error-dark"
+                : "fill-muted dark:fill-muted-dark"
+            }
+          />
         </Pressable>
       </View>
       {taskError ? (
-        <Text style={[styles.error, { color: theme.error }]}>{taskError}</Text>
+        <Text className="text-[13px] font-inter text-error dark:text-error-dark mt-1">
+          {taskError}
+        </Text>
       ) : null}
     </View>
   );
@@ -600,7 +571,6 @@ export const TaskListCard = ({
           if (!open) closeDatePicker();
         }}
         title={dateLabel}
-        theme={theme}
         footer={datePickerFooter}
       >
         {datePickerOpen ? (
@@ -625,15 +595,16 @@ export const TaskListCard = ({
           void handleReorderTask(draggedTask.id, targetTask.id);
         }}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.appContent}
-        ItemSeparatorComponent={() => (
-          <View
-            style={[styles.taskSeparator, { backgroundColor: theme.border }]}
-          />
-        )}
+        contentContainerStyle={{
+          padding: 24,
+          paddingBottom: 40,
+          maxWidth: 768,
+          width: "100%",
+          alignSelf: "center",
+        }}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
-          <Text style={[styles.emptyText, { color: theme.muted }]}>
+          <Text className="text-[15px] font-inter text-muted dark:text-muted-dark">
             {t("pages.tasklist.noTasks")}
           </Text>
         }

@@ -29,8 +29,7 @@ import { Carousel } from "../components/ui/Carousel";
 import { Dialog } from "../components/ui/Dialog";
 import { TaskListCard } from "../components/app/TaskListCard";
 import { DrawerPanel, type ColorOption } from "../components/app/DrawerPanel";
-import { styles } from "../styles/appStyles";
-import { useTheme, listColors } from "../styles/theme";
+import { listColors } from "../styles/theme";
 
 const EMPTY_TASK_LISTS: TaskList[] = [];
 
@@ -50,7 +49,6 @@ const AppScreenContent = ({
   onSelectTaskList,
 }: AppScreenContentProps) => {
   const { t } = useTranslation();
-  const theme = useTheme();
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const isWideLayout = width >= 1024;
@@ -67,7 +65,7 @@ const AppScreenContent = ({
   // List Edit State
   const [editListName, setEditListName] = useState("");
   const [editListBackground, setEditListBackground] = useState<string | null>(
-    listColors[0],
+    null,
   );
   const [isSavingList, setIsSavingList] = useState(false);
   const [isDeletingList, setIsDeletingList] = useState(false);
@@ -89,7 +87,7 @@ const AppScreenContent = ({
   useEffect(() => {
     if (!selectedTaskList) {
       setEditListName("");
-      setEditListBackground(listColors[0]);
+      setEditListBackground(null);
       return;
     }
     setEditListName(selectedTaskList.name);
@@ -107,7 +105,7 @@ const AppScreenContent = ({
       setIsEditListDialogOpen(open);
       if (open && selectedTaskList) {
         setEditListName(selectedTaskList.name);
-        setEditListBackground(selectedTaskList.background || listColors[0]);
+        setEditListBackground(selectedTaskList.background || null);
       }
     },
     [selectedTaskList],
@@ -227,28 +225,29 @@ const AppScreenContent = ({
 
   const taskListHeader = (
     <View>
-      <View style={styles.appHeader}>
-        <View style={styles.appTitleRow}>
+      <View className="mb-4">
+        <View className="flex-row items-center justify-between gap-3">
           {!isWideLayout ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("app.drawerTitle")}
               onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-              style={({ pressed }) => [
-                styles.headerIconButton,
-                { opacity: pressed ? 0.9 : 1 },
-              ]}
+              className="rounded-[12px] p-2.5 items-center justify-center active:opacity-90"
             >
-              <AppIcon name="menu" size={20} color={theme.text} />
+              <AppIcon
+                name="menu"
+                size={24}
+                className="fill-text dark:fill-text-dark"
+              />
             </Pressable>
           ) : null}
-          <View style={styles.headerActions} />
+          <View className="flex-row items-center justify-end flex-wrap gap-2" />
         </View>
       </View>
       {appErrorMessage ? (
         <Text
           accessibilityRole="alert"
-          style={[styles.appError, { color: theme.error }]}
+          className="text-[13px] font-inter text-error dark:text-error-dark mb-3"
         >
           {appErrorMessage}
         </Text>
@@ -259,25 +258,15 @@ const AppScreenContent = ({
             open={isEditListDialogOpen}
             onOpenChange={handleEditListDialogChange}
             title={t("taskList.editDetails")}
-            theme={theme}
             footer={
               <>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("app.cancel")}
                   onPress={() => handleEditListDialogChange(false)}
-                  style={({ pressed }) => [
-                    styles.secondaryButton,
-                    {
-                      flex: 1,
-                      borderColor: theme.border,
-                      opacity: pressed ? 0.9 : 1,
-                    },
-                  ]}
+                  className="flex-1 rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
                 >
-                  <Text
-                    style={[styles.secondaryButtonText, { color: theme.text }]}
-                  >
+                  <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
                     {t("app.cancel")}
                   </Text>
                 </Pressable>
@@ -286,22 +275,18 @@ const AppScreenContent = ({
                   accessibilityLabel={t("app.save")}
                   onPress={handleSaveList}
                   disabled={!canSaveList}
-                  style={({ pressed }) => [
-                    styles.button,
-                    {
-                      flex: 1,
-                      backgroundColor: canSaveList
-                        ? theme.primary
-                        : theme.border,
-                      opacity: pressed ? 0.9 : 1,
-                    },
-                  ]}
+                  className={`flex-1 rounded-[12px] py-3.5 items-center active:opacity-90 ${
+                    canSaveList
+                      ? "bg-primary dark:bg-primary-dark"
+                      : "bg-border dark:bg-border-dark"
+                  }`}
                 >
                   <Text
-                    style={[
-                      styles.buttonText,
-                      { color: canSaveList ? theme.primaryText : theme.muted },
-                    ]}
+                    className={`text-[16px] font-inter-semibold ${
+                      canSaveList
+                        ? "text-primary-text dark:text-primary-text-dark"
+                        : "text-muted dark:text-muted-dark"
+                    }`}
                   >
                     {t("app.save")}
                   </Text>
@@ -309,35 +294,28 @@ const AppScreenContent = ({
               </>
             }
           >
-            <View style={styles.form}>
-              <View style={styles.field}>
-                <Text style={[styles.label, { color: theme.text }]}>
+            <View className="gap-4">
+              <View className="gap-1.5">
+                <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                   {t("app.taskListName")}
                 </Text>
                 <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: theme.text,
-                      borderColor: theme.border,
-                      backgroundColor: theme.inputBackground,
-                    },
-                  ]}
+                  className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                   value={editListName}
                   onChangeText={setEditListName}
                   placeholder={t("app.taskListNamePlaceholder")}
-                  placeholderTextColor={theme.placeholder}
+                  placeholderClassName="text-placeholder dark:text-placeholder-dark"
                   returnKeyType="done"
                   onSubmitEditing={handleSaveList}
                   editable={!isSavingList}
                   accessibilityLabel={t("app.taskListName")}
                 />
               </View>
-              <View style={styles.field}>
-                <Text style={[styles.label, { color: theme.text }]}>
+              <View className="gap-1.5">
+                <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                   {t("taskList.selectColor")}
                 </Text>
-                <View style={styles.colorRow}>
+                <View className="flex-row flex-wrap gap-2">
                   {([null, ...listColors] as (string | null)[]).map((color) => {
                     const isSelected = color === editListBackground;
                     return (
@@ -351,24 +329,22 @@ const AppScreenContent = ({
                         }
                         accessibilityState={{ selected: isSelected }}
                         onPress={() => setEditListBackground(color)}
-                        style={[
-                          styles.colorSwatch,
-                          {
-                            backgroundColor: color || theme.background,
-                            borderColor: isSelected
-                              ? theme.primary
-                              : theme.border,
-                            borderWidth: isSelected ? 2 : 1,
-                            justifyContent: "center",
-                            alignItems: "center",
-                          },
-                        ]}
+                        style={color ? { backgroundColor: color } : undefined}
+                        className={`w-[30px] h-[30px] rounded-full justify-center items-center border ${
+                          isSelected
+                            ? "border-primary dark:border-primary-dark border-2"
+                            : "border-border dark:border-border-dark"
+                        } ${!color ? "bg-background dark:bg-background-dark" : ""}`}
                       >
                         {!color && (
                           <AppIcon
                             name="close"
                             size={16}
-                            color={isSelected ? theme.primary : theme.muted}
+                            className={
+                              isSelected
+                                ? "fill-primary dark:fill-primary-dark"
+                                : "fill-muted dark:fill-muted-dark"
+                            }
                           />
                         )}
                       </Pressable>
@@ -381,14 +357,9 @@ const AppScreenContent = ({
                 accessibilityLabel={t("taskList.deleteList")}
                 onPress={confirmDeleteList}
                 disabled={!canDeleteList}
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  { borderColor: theme.error, opacity: pressed ? 0.9 : 1 },
-                ]}
+                className="rounded-[12px] border border-error dark:border-error-dark py-3 items-center active:opacity-90 mt-2"
               >
-                <Text
-                  style={[styles.secondaryButtonText, { color: theme.error }]}
-                >
+                <Text className="text-[15px] font-inter-semibold text-error dark:text-error-dark">
                   {t("taskList.deleteList")}
                 </Text>
               </Pressable>
@@ -399,25 +370,19 @@ const AppScreenContent = ({
             onOpenChange={handleShareDialogChange}
             title={t("taskList.shareTitle")}
             description={t("taskList.shareDescription")}
-            theme={theme}
           >
-            <View style={styles.form}>
+            <View className="gap-4">
               {shareCode ? (
                 <>
-                  <View style={styles.field}>
-                    <Text style={[styles.label, { color: theme.text }]}>
+                  <View className="gap-1.5">
+                    <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                       {t("taskList.shareCode")}
                     </Text>
-                    <View
-                      style={[
-                        styles.input,
-                        {
-                          borderColor: theme.border,
-                          backgroundColor: theme.inputBackground,
-                        },
-                      ]}
-                    >
-                      <Text selectable style={{ color: theme.text }}>
+                    <View className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 bg-input-background dark:bg-input-background-dark">
+                      <Text
+                        selectable
+                        className="text-[16px] font-inter text-text dark:text-text-dark"
+                      >
                         {shareCode}
                       </Text>
                     </View>
@@ -427,17 +392,9 @@ const AppScreenContent = ({
                     accessibilityLabel={t("taskList.removeShare")}
                     onPress={handleRemoveShareCode}
                     disabled={isRemovingShareCode}
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      { borderColor: theme.error, opacity: pressed ? 0.9 : 1 },
-                    ]}
+                    className="rounded-[12px] border border-error dark:border-error-dark py-3 items-center active:opacity-90"
                   >
-                    <Text
-                      style={[
-                        styles.secondaryButtonText,
-                        { color: theme.error },
-                      ]}
-                    >
+                    <Text className="text-[15px] font-inter-semibold text-error dark:text-error-dark">
                       {isRemovingShareCode
                         ? t("common.loading")
                         : t("taskList.removeShare")}
@@ -450,25 +407,18 @@ const AppScreenContent = ({
                   accessibilityLabel={t("taskList.generateShare")}
                   onPress={handleGenerateShareCode}
                   disabled={isGeneratingShareCode}
-                  style={({ pressed }) => [
-                    styles.button,
-                    {
-                      backgroundColor: isGeneratingShareCode
-                        ? theme.border
-                        : theme.primary,
-                      opacity: pressed ? 0.9 : 1,
-                    },
-                  ]}
+                  className={`rounded-[12px] py-3.5 items-center active:opacity-90 ${
+                    isGeneratingShareCode
+                      ? "bg-border dark:bg-border-dark"
+                      : "bg-primary dark:bg-primary-dark"
+                  }`}
                 >
                   <Text
-                    style={[
-                      styles.buttonText,
-                      {
-                        color: isGeneratingShareCode
-                          ? theme.muted
-                          : theme.primaryText,
-                      },
-                    ]}
+                    className={`text-[16px] font-inter-semibold ${
+                      isGeneratingShareCode
+                        ? "text-muted dark:text-muted-dark"
+                        : "text-primary-text dark:text-primary-text-dark"
+                    }`}
                   >
                     {isGeneratingShareCode
                       ? t("common.loading")
@@ -477,7 +427,7 @@ const AppScreenContent = ({
                 </Pressable>
               )}
               {shareErrorMessage ? (
-                <Text style={[styles.appError, { color: theme.error }]}>
+                <Text className="text-[13px] font-inter text-error dark:text-error-dark mt-1">
                   {shareErrorMessage}
                 </Text>
               ) : null}
@@ -498,7 +448,7 @@ const AppScreenContent = ({
     <View
       accessibilityRole="tablist"
       accessibilityLabel={t("app.taskListLocator.label")}
-      style={styles.indicatorContainer}
+      className="flex-row items-center justify-center gap-1.5 py-1 mb-2"
     >
       {stableTaskLists.map((taskList, index) => {
         const isSelected = index === selectedTaskListIndex;
@@ -512,16 +462,12 @@ const AppScreenContent = ({
             })}
             accessibilityState={{ selected: isSelected }}
             onPress={() => onSelectTaskList(taskList.id)}
-            style={({ pressed }) => [
-              styles.indicatorDot,
-              { opacity: pressed ? 0.7 : 1 },
-            ]}
+            className="w-4 h-4 justify-center items-center active:opacity-70"
           >
             <View
-              style={[
-                styles.indicatorDotInner,
-                { backgroundColor: theme.text, opacity: isSelected ? 1 : 0.2 },
-              ]}
+              className={`w-2 h-2 rounded-full bg-text dark:bg-text-dark ${
+                isSelected ? "opacity-100" : "opacity-20"
+              }`}
             />
           </Pressable>
         );
@@ -543,10 +489,12 @@ const AppScreenContent = ({
           return (
             <View
               key={taskList.id}
-              style={{
-                flex: 1,
-                backgroundColor: taskList.background ?? theme.background,
-              }}
+              style={
+                taskList.background
+                  ? { backgroundColor: taskList.background }
+                  : undefined
+              }
+              className={`flex-1 ${!taskList.background ? "bg-background dark:bg-background-dark" : ""}`}
             >
               <TaskListCard
                 taskList={taskList}
@@ -576,18 +524,23 @@ const AppScreenContent = ({
         })}
       </Carousel>
     ) : (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text style={[styles.emptyText, { color: theme.muted }]}>
+      <View className="flex-1 justify-center items-center">
+        <Text className="text-[13px] font-inter text-muted dark:text-muted-dark">
           {t("pages.tasklist.noTasks")}
         </Text>
       </View>
     );
 
-  const currentBackground = selectedTaskList?.background ?? theme.background;
+  const currentBackground = selectedTaskList?.background;
 
   return (
-    <View style={[styles.drawerRoot, { backgroundColor: currentBackground }]}>
-      <View style={[styles.appContent, { paddingBottom: 0 }]}>
+    <View
+      style={
+        currentBackground ? { backgroundColor: currentBackground } : undefined
+      }
+      className={`flex-1 ${!currentBackground ? "bg-background dark:bg-background-dark" : ""}`}
+    >
+      <View className="px-6 pb-0 max-w-[768px] w-full self-center">
         {taskListHeader}
         {indicator}
       </View>
@@ -606,7 +559,6 @@ export const AppScreen = ({
   onOpenShareCode,
 }: AppScreenProps) => {
   const { t } = useTranslation();
-  const theme = useTheme();
   const { width } = useWindowDimensions();
   const isWideLayout = width >= 1024;
   const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
@@ -623,7 +575,7 @@ export const AppScreen = ({
   const [createListName, setCreateListName] = useState("");
   const [createListBackground, setCreateListBackground] = useState<
     string | null
-  >(listColors[0]);
+  >(null);
   const [isCreatingList, setIsCreatingList] = useState(false);
   const [isJoiningList, setIsJoiningList] = useState(false);
   const [joinListInput, setJoinListInput] = useState("");
@@ -656,7 +608,7 @@ export const AppScreen = ({
     try {
       const newListId = await createTaskList(trimmedName, createListBackground);
       setCreateListName("");
-      setCreateListBackground(listColors[0]);
+      setCreateListBackground(null);
       setSelectedTaskListId(newListId);
       setIsCreateListDialogOpen(false);
     } catch {
@@ -710,7 +662,7 @@ export const AppScreen = ({
     setIsCreateListDialogOpen(open);
     if (!open) {
       setCreateListName("");
-      setCreateListBackground(listColors[0]);
+      setCreateListBackground(null);
     }
   };
 
@@ -762,7 +714,6 @@ export const AppScreen = ({
         drawerStyle: {
           width: isWideLayout ? 360 : Math.min(width, 420),
           borderRightWidth: isWideLayout ? 1 : 0,
-          borderRightColor: theme.border,
         },
       }}
     >

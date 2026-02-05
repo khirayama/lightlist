@@ -8,11 +8,11 @@ import {
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform, useColorScheme } from "react-native";
+import { KeyboardAvoidingView, Platform } from "react-native";
+import { useColorScheme as useNWColorScheme } from "nativewind";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { styles } from "./styles/appStyles";
 import { AuthScreen } from "./screens/AuthScreen";
 import { PasswordResetScreen } from "./screens/PasswordResetScreen";
 import { ShareCodeScreen } from "./screens/ShareCodeScreen";
@@ -92,21 +92,22 @@ export default function App() {
 
   const [navigationReady, setNavigationReady] = useState(false);
 
-  const systemScheme = useColorScheme();
-  const storedTheme = appState.settings?.theme;
-  const themeMode: ThemeMode =
-    storedTheme === "system" ||
-    storedTheme === "light" ||
-    storedTheme === "dark"
-      ? storedTheme
-      : "system";
-  const resolvedTheme: ThemeName =
-    themeMode === "system"
-      ? systemScheme === "dark"
-        ? "dark"
-        : "light"
-      : themeMode;
+  const { colorScheme, setColorScheme } = useNWColorScheme();
+  const resolvedTheme = colorScheme === "dark" ? "dark" : "light";
   const theme = themes[resolvedTheme];
+
+  useEffect(() => {
+    const storedTheme = appState.settings?.theme;
+    if (
+      storedTheme === "light" ||
+      storedTheme === "dark" ||
+      storedTheme === "system"
+    ) {
+      setColorScheme(storedTheme);
+    } else {
+      setColorScheme("system");
+    }
+  }, [appState.settings?.theme, setColorScheme]);
 
   const navigationTheme: NavigationTheme = {
     ...DefaultTheme,
@@ -224,13 +225,14 @@ export default function App() {
   );
 
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <GestureHandlerRootView className="flex-1">
       <SafeAreaProvider>
         <SafeAreaView
-          style={[styles.container, { backgroundColor: theme.background }]}
+          style={{ backgroundColor: theme.background }}
+          className="flex-1"
         >
           <KeyboardAvoidingView
-            style={styles.keyboard}
+            className="flex-1"
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
             <NavigationContainer

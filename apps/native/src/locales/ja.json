@@ -92,14 +92,22 @@
     "signingOut": "ログアウト中...",
     "deletingAccount": "削除中..."
   },
-  "errors": {
-    "invalidCredential": "メールアドレスまたはパスワードが正しくありません。",
-    "userNotFound": "アカウントが見つかりません。",
-    "emailAlreadyInUse": "このメールアドレスは既に登録されています。",
-    "weakPassword": "パスワードは6文字以上である必要があります。",
-    "tooManyRequests": "試行回数が多すぎます。しばらくしてからお試しください。",
-    "invalidEmail": "メールアドレスの形式が正しくありません。",
-    "generic": "認証に失敗しました。再度お試しください。"
+  "auth": {
+    "error": {
+      "invalidCredential": "メールアドレスまたはパスワードが正しくありません。",
+      "userNotFound": "アカウントが見つかりません。",
+      "emailAlreadyInUse": "このメールアドレスは既に登録されています。",
+      "weakPassword": "パスワードは6文字以上である必要があります。",
+      "tooManyRequests": "試行回数が多すぎます。しばらくしてからお試しください。",
+      "invalidEmail": "メールアドレスの形式が正しくありません。",
+      "operationNotAllowed": "許可されていない操作です。",
+      "general": "認証に失敗しました。再度お試しください。"
+    },
+    "passwordReset": {
+      "expiredCode": "パスワードリセットリンクの有効期限が切れています。",
+      "invalidCode": "パスワードリセットリンクが無効です。",
+      "resetSuccess": "パスワードを正常に更新しました。"
+    }
   },
   "form": {
     "required": "入力内容を確認してください。",

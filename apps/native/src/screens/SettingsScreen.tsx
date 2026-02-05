@@ -18,8 +18,6 @@ import type {
 import { appStore } from "@lightlist/sdk/store";
 import { updateSettings } from "@lightlist/sdk/mutations/app";
 import { signOut, deleteAccount } from "@lightlist/sdk/mutations/auth";
-import { useTheme } from "../styles/theme";
-import { styles } from "../styles/appStyles";
 
 type SettingsScreenProps = {
   onBack: () => void;
@@ -27,7 +25,6 @@ type SettingsScreenProps = {
 
 export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
   const { t } = useTranslation();
-  const theme = useTheme();
   const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
   const settings = appState.settings;
   const userEmail = appState.user?.email ?? "";
@@ -39,10 +36,8 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
 
   if (!settings) {
     return (
-      <View
-        style={[styles.settingsCentered, { backgroundColor: theme.background }]}
-      >
-        <ActivityIndicator color={theme.primary} />
+      <View className="flex-1 items-center justify-center p-6 bg-background dark:bg-background-dark">
+        <ActivityIndicator className="text-primary dark:text-primary-dark" />
       </View>
     );
   }
@@ -156,61 +151,46 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
   const actionsDisabled = isSigningOut || isDeletingAccount;
 
   return (
-    <ScrollView contentContainerStyle={styles.settingsContent}>
-      <View style={styles.settingsHeader}>
+    <ScrollView contentContainerClassName="p-6 pb-10 max-w-[768px] w-full self-center">
+      <View className="flex-row items-center gap-3 mb-4">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("common.back")}
           onPress={onBack}
-          style={({ pressed }) => [
-            styles.headerButton,
-            {
-              borderColor: theme.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
+          className="rounded-[12px] border border-border dark:border-border-dark px-3 py-1.5 items-center active:opacity-90"
         >
-          <Text style={[styles.headerButtonText, { color: theme.text }]}>
+          <Text className="text-[13px] font-inter-semibold text-text dark:text-text-dark">
             {t("common.back")}
           </Text>
         </Pressable>
-        <Text style={[styles.settingsTitle, { color: theme.text }]}>
+        <Text className="text-[22px] font-inter-bold text-text dark:text-text-dark flex-1">
           {t("settings.title")}
         </Text>
       </View>
 
       {errorMessage ? (
-        <Text style={[styles.appError, { color: theme.error }]}>
+        <Text className="text-[13px] font-inter text-error dark:text-error-dark mb-3">
           {errorMessage}
         </Text>
       ) : null}
 
-      <View
-        style={[
-          styles.section,
-          styles.settingsCard,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+      <View className="mb-6 rounded-[16px] border p-4 bg-surface dark:bg-surface-dark border-border dark:border-border-dark">
+        <Text className="text-[16px] font-inter-semibold text-text dark:text-text-dark mb-2.5">
           {t("settings.userInfo.title")}
         </Text>
-        <Text style={[styles.settingsValue, { color: theme.text }]}>
+        <Text className="text-[16px] font-inter-semibold text-text dark:text-text-dark">
           {userEmail}
         </Text>
       </View>
 
-      <View
-        style={[
-          styles.section,
-          styles.settingsCard,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+      <View className="mb-6 rounded-[16px] border p-4 bg-surface dark:bg-surface-dark border-border dark:border-border-dark">
+        <Text className="text-[16px] font-inter-semibold text-text dark:text-text-dark mb-2.5">
           {t("settings.language.title")}
         </Text>
-        <View style={styles.optionGrid} accessibilityRole="radiogroup">
+        <View
+          className="flex-row flex-wrap gap-2.5"
+          accessibilityRole="radiogroup"
+        >
           {languageOptions.map((option) => {
             const selected = settings.language === option.value;
             return (
@@ -220,22 +200,18 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
                 accessibilityState={{ selected, disabled: isUpdating }}
                 disabled={isUpdating}
                 onPress={() => handleUpdateSettings({ language: option.value })}
-                style={({ pressed }) => [
-                  styles.optionButton,
-                  {
-                    borderColor: selected ? theme.primary : theme.border,
-                    backgroundColor: selected
-                      ? theme.inputBackground
-                      : theme.surface,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
+                className={`rounded-[12px] border px-3 py-2.5 min-w-[110px] items-center active:opacity-90 ${
+                  selected
+                    ? "border-primary dark:border-primary-dark bg-input-background dark:bg-input-background-dark"
+                    : "border-border dark:border-border-dark bg-surface dark:bg-surface-dark"
+                }`}
               >
                 <Text
-                  style={[
-                    styles.optionButtonText,
-                    { color: selected ? theme.text : theme.muted },
-                  ]}
+                  className={`text-[13px] font-inter-semibold ${
+                    selected
+                      ? "text-text dark:text-text-dark"
+                      : "text-muted dark:text-muted-dark"
+                  }`}
                 >
                   {option.label}
                 </Text>
@@ -245,17 +221,14 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
         </View>
       </View>
 
-      <View
-        style={[
-          styles.section,
-          styles.settingsCard,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+      <View className="mb-6 rounded-[16px] border p-4 bg-surface dark:bg-surface-dark border-border dark:border-border-dark">
+        <Text className="text-[16px] font-inter-semibold text-text dark:text-text-dark mb-2.5">
           {t("settings.theme.title")}
         </Text>
-        <View style={styles.optionGrid} accessibilityRole="radiogroup">
+        <View
+          className="flex-row flex-wrap gap-2.5"
+          accessibilityRole="radiogroup"
+        >
           {themeOptions.map((option) => {
             const selected = settings.theme === option.value;
             return (
@@ -265,22 +238,18 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
                 accessibilityState={{ selected, disabled: isUpdating }}
                 disabled={isUpdating}
                 onPress={() => handleUpdateSettings({ theme: option.value })}
-                style={({ pressed }) => [
-                  styles.optionButton,
-                  {
-                    borderColor: selected ? theme.primary : theme.border,
-                    backgroundColor: selected
-                      ? theme.inputBackground
-                      : theme.surface,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
+                className={`rounded-[12px] border px-3 py-2.5 min-w-[110px] items-center active:opacity-90 ${
+                  selected
+                    ? "border-primary dark:border-primary-dark bg-input-background dark:bg-input-background-dark"
+                    : "border-border dark:border-border-dark bg-surface dark:bg-surface-dark"
+                }`}
               >
                 <Text
-                  style={[
-                    styles.optionButtonText,
-                    { color: selected ? theme.text : theme.muted },
-                  ]}
+                  className={`text-[13px] font-inter-semibold ${
+                    selected
+                      ? "text-text dark:text-text-dark"
+                      : "text-muted dark:text-muted-dark"
+                  }`}
                 >
                   {option.label}
                 </Text>
@@ -290,17 +259,14 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
         </View>
       </View>
 
-      <View
-        style={[
-          styles.section,
-          styles.settingsCard,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+      <View className="mb-6 rounded-[16px] border p-4 bg-surface dark:bg-surface-dark border-border dark:border-border-dark">
+        <Text className="text-[16px] font-inter-semibold text-text dark:text-text-dark mb-2.5">
           {t("settings.taskInsertPosition.title")}
         </Text>
-        <View style={styles.optionGrid} accessibilityRole="radiogroup">
+        <View
+          className="flex-row flex-wrap gap-2.5"
+          accessibilityRole="radiogroup"
+        >
           {insertPositionOptions.map((option) => {
             const selected = settings.taskInsertPosition === option.value;
             return (
@@ -312,22 +278,18 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
                 onPress={() =>
                   handleUpdateSettings({ taskInsertPosition: option.value })
                 }
-                style={({ pressed }) => [
-                  styles.optionButton,
-                  {
-                    borderColor: selected ? theme.primary : theme.border,
-                    backgroundColor: selected
-                      ? theme.inputBackground
-                      : theme.surface,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
+                className={`rounded-[12px] border px-3 py-2.5 min-w-[110px] items-center active:opacity-90 ${
+                  selected
+                    ? "border-primary dark:border-primary-dark bg-input-background dark:bg-input-background-dark"
+                    : "border-border dark:border-border-dark bg-surface dark:bg-surface-dark"
+                }`}
               >
                 <Text
-                  style={[
-                    styles.optionButtonText,
-                    { color: selected ? theme.text : theme.muted },
-                  ]}
+                  className={`text-[13px] font-inter-semibold ${
+                    selected
+                      ? "text-text dark:text-text-dark"
+                      : "text-muted dark:text-muted-dark"
+                  }`}
                 >
                   {option.label}
                 </Text>
@@ -337,15 +299,9 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
         </View>
       </View>
 
-      <View
-        style={[
-          styles.section,
-          styles.settingsCard,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
-        <View style={styles.toggleRow}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+      <View className="mb-6 rounded-[16px] border p-4 bg-surface dark:bg-surface-dark border-border dark:border-border-dark">
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="text-[16px] font-inter-semibold text-text dark:text-text-dark">
             {t("settings.autoSort.title")}
           </Text>
           <Switch
@@ -353,40 +309,23 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
             onValueChange={(value) => handleUpdateSettings({ autoSort: value })}
             disabled={isUpdating}
             accessibilityLabel={t("settings.autoSort.title")}
-            trackColor={{ false: theme.border, true: theme.primary }}
-            thumbColor={
-              settings.autoSort ? theme.primaryText : theme.inputBackground
-            }
-            ios_backgroundColor={theme.border}
           />
         </View>
       </View>
 
-      <View
-        style={[
-          styles.section,
-          styles.settingsCard,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+      <View className="mb-6 rounded-[16px] border p-4 bg-surface dark:bg-surface-dark border-border dark:border-border-dark">
+        <Text className="text-[16px] font-inter-semibold text-text dark:text-text-dark mb-2.5">
           {t("settings.actions.title")}
         </Text>
-        <View style={styles.form}>
+        <View className="gap-4">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("app.signOut")}
             onPress={confirmSignOut}
             disabled={actionsDisabled}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              {
-                borderColor: theme.border,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
+            className="rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
           >
-            <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
+            <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
               {signOutLabel}
             </Text>
           </Pressable>
@@ -395,15 +334,9 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
             accessibilityLabel={t("settings.deleteAccount")}
             onPress={confirmDeleteAccount}
             disabled={actionsDisabled}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              {
-                borderColor: theme.error,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
+            className="rounded-[12px] border border-error dark:border-error-dark py-3 items-center active:opacity-90"
           >
-            <Text style={[styles.secondaryButtonText, { color: theme.error }]}>
+            <Text className="text-[15px] font-inter-semibold text-error dark:text-error-dark">
               {deleteAccountLabel}
             </Text>
           </Pressable>

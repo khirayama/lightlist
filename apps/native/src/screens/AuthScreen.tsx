@@ -6,9 +6,7 @@ import {
   signUp,
   sendPasswordResetEmail,
 } from "@lightlist/sdk/mutations/auth";
-import { styles } from "../styles/appStyles";
-import { useTheme } from "../styles/theme";
-import { resolveAuthErrorMessage } from "../utils/errors";
+import { resolveErrorMessage } from "../utils/errors";
 import { isValidEmail } from "../utils/validation";
 
 type AuthTab = "signin" | "signup" | "reset";
@@ -19,7 +17,6 @@ type AuthScreenProps = {
 
 export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
   const { t, i18n } = useTranslation();
-  const theme = useTheme();
   const passwordInputRef = useRef<TextInput | null>(null);
   const confirmPasswordInputRef = useRef<TextInput | null>(null);
 
@@ -121,11 +118,7 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
     try {
       await signIn(trimmedEmail, password);
     } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(resolveAuthErrorMessage(error, t));
-      } else {
-        setErrorMessage(t("errors.generic"));
-      }
+      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
     } finally {
       setIsSubmitting(false);
     }
@@ -146,11 +139,7 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
     try {
       await signUp(trimmedEmail, password, resolvedLanguage);
     } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(resolveAuthErrorMessage(error, t));
-      } else {
-        setErrorMessage(t("errors.generic"));
-      }
+      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
     } finally {
       setIsSubmitting(false);
     }
@@ -169,11 +158,7 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
       await sendPasswordResetEmail(trimmedEmail);
       setResetSent(true);
     } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(resolveAuthErrorMessage(error, t));
-      } else {
-        setErrorMessage(t("errors.generic"));
-      }
+      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
     } finally {
       setResetLoading(false);
     }
@@ -181,28 +166,23 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.scrollContent}
+      contentContainerClassName="flex-grow justify-center p-6"
       keyboardShouldPersistTaps="handled"
     >
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
-        <View style={styles.header}>
-          <Text style={[styles.appName, { color: theme.muted }]}>
+      <View className="rounded-[16px] border p-6 bg-surface dark:bg-surface-dark border-border dark:border-border-dark">
+        <View className="mb-5">
+          <Text className="text-[12px] font-inter-semibold tracking-[2px] uppercase text-muted dark:text-muted-dark">
             {t("app.name")}
           </Text>
-          <Text style={[styles.title, { color: theme.text }]}>
+          <Text className="text-[28px] font-inter-bold text-text dark:text-text-dark mt-2.5">
             {t(titleKey)}
           </Text>
-          <Text style={[styles.subtitle, { color: theme.muted }]}>
+          <Text className="text-[14px] font-inter text-muted dark:text-muted-dark mt-2">
             {t(subtitleKey)}
           </Text>
         </View>
         <View
-          style={[styles.tabs, { backgroundColor: theme.inputBackground }]}
+          className="flex-row rounded-[16px] p-1 gap-1 mb-5 bg-input-background dark:bg-input-background-dark"
           accessibilityRole="tablist"
         >
           <Pressable
@@ -210,20 +190,18 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
             accessibilityState={{ selected: isSignIn }}
             onPress={() => handleTabChange("signin")}
             disabled={isSubmitting || resetLoading}
-            style={({ pressed }) => [
-              styles.tabButton,
-              {
-                backgroundColor: isSignIn ? theme.surface : "transparent",
-                borderColor: theme.border,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
+            className={`flex-1 rounded-[12px] py-2.5 items-center border border-transparent active:opacity-90 ${
+              isSignIn
+                ? "bg-surface dark:bg-surface-dark border-border dark:border-border-dark"
+                : "bg-transparent"
+            }`}
           >
             <Text
-              style={[
-                styles.tabButtonText,
-                { color: isSignIn ? theme.text : theme.muted },
-              ]}
+              className={`text-[14px] font-inter-semibold ${
+                isSignIn
+                  ? "text-text dark:text-text-dark"
+                  : "text-muted dark:text-muted-dark"
+              }`}
             >
               {t("login.tabs.signIn")}
             </Text>
@@ -233,44 +211,35 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
             accessibilityState={{ selected: isSignUp }}
             onPress={() => handleTabChange("signup")}
             disabled={isSubmitting || resetLoading}
-            style={({ pressed }) => [
-              styles.tabButton,
-              {
-                backgroundColor: isSignUp ? theme.surface : "transparent",
-                borderColor: theme.border,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
+            className={`flex-1 rounded-[12px] py-2.5 items-center border border-transparent active:opacity-90 ${
+              isSignUp
+                ? "bg-surface dark:bg-surface-dark border-border dark:border-border-dark"
+                : "bg-transparent"
+            }`}
           >
             <Text
-              style={[
-                styles.tabButtonText,
-                { color: isSignUp ? theme.text : theme.muted },
-              ]}
+              className={`text-[14px] font-inter-semibold ${
+                isSignUp
+                  ? "text-text dark:text-text-dark"
+                  : "text-muted dark:text-muted-dark"
+              }`}
             >
               {t("login.tabs.signUp")}
             </Text>
           </Pressable>
         </View>
         {isSignIn && (
-          <View style={styles.form}>
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: theme.text }]}>
+          <View className="gap-4">
+            <View className="gap-1.5">
+              <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                 {t("login.emailLabel")}
               </Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    color: theme.text,
-                    borderColor: theme.border,
-                    backgroundColor: theme.inputBackground,
-                  },
-                ]}
+                className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                 value={email}
                 onChangeText={setEmail}
                 placeholder={t("login.emailPlaceholder")}
-                placeholderTextColor={theme.placeholder}
+                placeholderClassName="text-placeholder dark:text-placeholder-dark"
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
@@ -282,24 +251,17 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                 accessibilityLabel={t("login.emailLabel")}
               />
             </View>
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: theme.text }]}>
+            <View className="gap-1.5">
+              <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                 {t("login.passwordLabel")}
               </Text>
               <TextInput
                 ref={passwordInputRef}
-                style={[
-                  styles.input,
-                  {
-                    color: theme.text,
-                    borderColor: theme.border,
-                    backgroundColor: theme.inputBackground,
-                  },
-                ]}
+                className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                 value={password}
                 onChangeText={setPassword}
                 placeholder={t("login.passwordPlaceholder")}
-                placeholderTextColor={theme.placeholder}
+                placeholderClassName="text-placeholder dark:text-placeholder-dark"
                 secureTextEntry
                 textContentType="password"
                 autoComplete="password"
@@ -312,7 +274,7 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
             {errorMessage ? (
               <Text
                 accessibilityRole="alert"
-                style={[styles.error, { color: theme.error }]}
+                className="text-[13px] font-inter text-error dark:text-error-dark"
               >
                 {errorMessage}
               </Text>
@@ -322,23 +284,18 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
               accessibilityLabel={t("login.submit")}
               onPress={handleSignIn}
               disabled={!canSubmitSignIn}
-              style={({ pressed }) => [
-                styles.button,
-                {
-                  backgroundColor: canSubmitSignIn
-                    ? theme.primary
-                    : theme.border,
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}
+              className={`rounded-[12px] py-3.5 items-center active:opacity-90 ${
+                canSubmitSignIn
+                  ? "bg-primary dark:bg-primary-dark"
+                  : "bg-border dark:bg-border-dark"
+              }`}
             >
               <Text
-                style={[
-                  styles.buttonText,
-                  {
-                    color: canSubmitSignIn ? theme.primaryText : theme.muted,
-                  },
-                ]}
+                className={`text-[16px] font-inter-semibold ${
+                  canSubmitSignIn
+                    ? "text-primary-text dark:text-primary-text-dark"
+                    : "text-muted dark:text-muted-dark"
+                }`}
               >
                 {isSubmitting ? t("login.loading") : t("login.submit")}
               </Text>
@@ -348,39 +305,26 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
               accessibilityLabel={t("login.forgotPassword")}
               onPress={() => handleTabChange("reset")}
               disabled={isSubmitting}
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                {
-                  borderColor: theme.border,
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}
+              className="rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
             >
-              <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
+              <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
                 {t("login.forgotPassword")}
               </Text>
             </Pressable>
           </View>
         )}
         {isSignUp && (
-          <View style={styles.form}>
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: theme.text }]}>
+          <View className="gap-4">
+            <View className="gap-1.5">
+              <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                 {t("login.emailLabel")}
               </Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    color: theme.text,
-                    borderColor: theme.border,
-                    backgroundColor: theme.inputBackground,
-                  },
-                ]}
+                className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                 value={email}
                 onChangeText={setEmail}
                 placeholder={t("login.emailPlaceholder")}
-                placeholderTextColor={theme.placeholder}
+                placeholderClassName="text-placeholder dark:text-placeholder-dark"
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
@@ -392,24 +336,17 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                 accessibilityLabel={t("login.emailLabel")}
               />
             </View>
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: theme.text }]}>
+            <View className="gap-1.5">
+              <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                 {t("login.passwordLabel")}
               </Text>
               <TextInput
                 ref={passwordInputRef}
-                style={[
-                  styles.input,
-                  {
-                    color: theme.text,
-                    borderColor: theme.border,
-                    backgroundColor: theme.inputBackground,
-                  },
-                ]}
+                className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                 value={password}
                 onChangeText={setPassword}
                 placeholder={t("login.passwordPlaceholder")}
-                placeholderTextColor={theme.placeholder}
+                placeholderClassName="text-placeholder dark:text-placeholder-dark"
                 secureTextEntry
                 textContentType="newPassword"
                 autoComplete="new-password"
@@ -419,24 +356,17 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                 accessibilityLabel={t("login.passwordLabel")}
               />
             </View>
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: theme.text }]}>
+            <View className="gap-1.5">
+              <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                 {t("login.confirmPasswordLabel")}
               </Text>
               <TextInput
                 ref={confirmPasswordInputRef}
-                style={[
-                  styles.input,
-                  {
-                    color: theme.text,
-                    borderColor: theme.border,
-                    backgroundColor: theme.inputBackground,
-                  },
-                ]}
+                className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder={t("login.confirmPasswordPlaceholder")}
-                placeholderTextColor={theme.placeholder}
+                placeholderClassName="text-placeholder dark:text-placeholder-dark"
                 secureTextEntry
                 textContentType="newPassword"
                 autoComplete="new-password"
@@ -449,7 +379,7 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
             {errorMessage ? (
               <Text
                 accessibilityRole="alert"
-                style={[styles.error, { color: theme.error }]}
+                className="text-[13px] font-inter text-error dark:text-error-dark"
               >
                 {errorMessage}
               </Text>
@@ -459,23 +389,18 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
               accessibilityLabel={t("login.signUpSubmit")}
               onPress={handleSignUp}
               disabled={!canSubmitSignUp}
-              style={({ pressed }) => [
-                styles.button,
-                {
-                  backgroundColor: canSubmitSignUp
-                    ? theme.primary
-                    : theme.border,
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}
+              className={`rounded-[12px] py-3.5 items-center active:opacity-90 ${
+                canSubmitSignUp
+                  ? "bg-primary dark:bg-primary-dark"
+                  : "bg-border dark:bg-border-dark"
+              }`}
             >
               <Text
-                style={[
-                  styles.buttonText,
-                  {
-                    color: canSubmitSignUp ? theme.primaryText : theme.muted,
-                  },
-                ]}
+                className={`text-[16px] font-inter-semibold ${
+                  canSubmitSignUp
+                    ? "text-primary-text dark:text-primary-text-dark"
+                    : "text-muted dark:text-muted-dark"
+                }`}
               >
                 {isSubmitting
                   ? t("login.signUpLoading")
@@ -485,33 +410,26 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
           </View>
         )}
         {isReset && (
-          <View style={styles.form}>
+          <View className="gap-4">
             {resetSent ? (
-              <Text style={[styles.notice, { color: theme.primary }]}>
+              <Text className="text-[13px] font-inter text-success dark:text-success-dark">
                 {t("login.resetSuccess")}
               </Text>
             ) : (
               <>
-                <Text style={[styles.helpText, { color: theme.muted }]}>
+                <Text className="text-[13px] font-inter text-muted dark:text-muted-dark leading-[18px]">
                   {t("login.resetInstruction")}
                 </Text>
-                <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.text }]}>
+                <View className="gap-1.5">
+                  <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
                     {t("login.emailLabel")}
                   </Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: theme.text,
-                        borderColor: theme.border,
-                        backgroundColor: theme.inputBackground,
-                      },
-                    ]}
+                    className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                     value={email}
                     onChangeText={setEmail}
                     placeholder={t("login.emailPlaceholder")}
-                    placeholderTextColor={theme.placeholder}
+                    placeholderClassName="text-placeholder dark:text-placeholder-dark"
                     autoCapitalize="none"
                     autoCorrect={false}
                     keyboardType="email-address"
@@ -526,7 +444,7 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                 {errorMessage ? (
                   <Text
                     accessibilityRole="alert"
-                    style={[styles.error, { color: theme.error }]}
+                    className="text-[13px] font-inter text-error dark:text-error-dark"
                   >
                     {errorMessage}
                   </Text>
@@ -536,23 +454,18 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                   accessibilityLabel={t("login.resetSubmit")}
                   onPress={handlePasswordReset}
                   disabled={!canSendReset}
-                  style={({ pressed }) => [
-                    styles.button,
-                    {
-                      backgroundColor: canSendReset
-                        ? theme.primary
-                        : theme.border,
-                      opacity: pressed ? 0.9 : 1,
-                    },
-                  ]}
+                  className={`rounded-[12px] py-3.5 items-center active:opacity-90 ${
+                    canSendReset
+                      ? "bg-primary dark:bg-primary-dark"
+                      : "bg-border dark:bg-border-dark"
+                  }`}
                 >
                   <Text
-                    style={[
-                      styles.buttonText,
-                      {
-                        color: canSendReset ? theme.primaryText : theme.muted,
-                      },
-                    ]}
+                    className={`text-[16px] font-inter-semibold ${
+                      canSendReset
+                        ? "text-primary-text dark:text-primary-text-dark"
+                        : "text-muted dark:text-muted-dark"
+                    }`}
                   >
                     {resetLoading
                       ? t("login.resetLoading")
@@ -566,15 +479,9 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
               accessibilityLabel={t("login.backToSignIn")}
               onPress={() => handleTabChange("signin")}
               disabled={resetLoading}
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                {
-                  borderColor: theme.border,
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}
+              className="rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
             >
-              <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
+              <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
                 {t("login.backToSignIn")}
               </Text>
             </Pressable>

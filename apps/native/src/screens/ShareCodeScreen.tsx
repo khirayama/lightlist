@@ -14,8 +14,6 @@ import {
   fetchTaskListIdByShareCode,
 } from "@lightlist/sdk/mutations/app";
 import { TaskListCard } from "../components/app/TaskListCard";
-import { styles } from "../styles/appStyles";
-import { useTheme } from "../styles/theme";
 
 type ShareCodeScreenProps = {
   initialShareCode: string | null;
@@ -29,7 +27,6 @@ export const ShareCodeScreen = ({
   onOpenTaskList,
 }: ShareCodeScreenProps) => {
   const { t } = useTranslation();
-  const theme = useTheme();
   const storeState = useSyncExternalStore(
     appStore.subscribe,
     appStore.getState,
@@ -145,24 +142,18 @@ export const ShareCodeScreen = ({
 
   const taskListHeader = (
     <View>
-      <View style={styles.settingsHeader}>
+      <View className="flex-row items-center gap-3 mb-4">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("common.back")}
           onPress={onBack}
-          style={({ pressed }) => [
-            styles.headerButton,
-            {
-              borderColor: theme.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
+          className="rounded-[12px] border border-border dark:border-border-dark px-3 py-1.5 items-center active:opacity-90"
         >
-          <Text style={[styles.headerButtonText, { color: theme.text }]}>
+          <Text className="text-[13px] font-inter-semibold text-text dark:text-text-dark">
             {t("common.back")}
           </Text>
         </Pressable>
-        <Text style={[styles.settingsTitle, { color: theme.text }]}>
+        <Text className="text-[22px] font-inter-bold text-text dark:text-text-dark flex-1">
           {t("pages.sharecode.title")}
         </Text>
         {user ? (
@@ -171,15 +162,9 @@ export const ShareCodeScreen = ({
             accessibilityLabel={t("pages.sharecode.addToOrder")}
             onPress={handleAddToOrder}
             disabled={!taskList || addToOrderLoading}
-            style={({ pressed }) => [
-              styles.headerButton,
-              {
-                borderColor: theme.border,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
+            className="rounded-[12px] border border-border dark:border-border-dark px-3 py-1.5 items-center active:opacity-90"
           >
-            <Text style={[styles.headerButtonText, { color: theme.text }]}>
+            <Text className="text-[13px] font-inter-semibold text-text dark:text-text-dark">
               {addToOrderLoading
                 ? t("pages.sharecode.addToOrderLoading")
                 : t("pages.sharecode.addToOrder")}
@@ -188,30 +173,23 @@ export const ShareCodeScreen = ({
         ) : null}
       </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.helpText, { color: theme.muted }]}>
+      <View className="mb-6">
+        <Text className="text-[13px] font-inter text-muted dark:text-muted-dark leading-[18px] mb-4">
           {t("pages.sharecode.description")}
         </Text>
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.text }]}>
+        <View className="gap-1.5 mb-4">
+          <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
             {t("pages.sharecode.codeLabel")}
           </Text>
           <TextInput
-            style={[
-              styles.input,
-              {
-                color: theme.text,
-                borderColor: theme.border,
-                backgroundColor: theme.inputBackground,
-              },
-            ]}
+            className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
             value={shareCodeInput}
             onChangeText={(value) => {
               setShareCodeInput(value);
               setError(null);
             }}
             placeholder={t("pages.sharecode.codePlaceholder")}
-            placeholderTextColor={theme.placeholder}
+            placeholderClassName="text-placeholder dark:text-placeholder-dark"
             autoCapitalize="characters"
             autoCorrect={false}
             returnKeyType="go"
@@ -225,31 +203,30 @@ export const ShareCodeScreen = ({
           accessibilityLabel={t("pages.sharecode.load")}
           onPress={handleShareCodeSubmit}
           disabled={!canLoadShareCode}
-          style={({ pressed }) => [
-            styles.button,
-            {
-              backgroundColor: canLoadShareCode ? theme.primary : theme.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
+          className={`rounded-[12px] py-3.5 items-center active:opacity-90 ${
+            canLoadShareCode
+              ? "bg-primary dark:bg-primary-dark"
+              : "bg-border dark:bg-border-dark"
+          }`}
         >
           <Text
-            style={[
-              styles.buttonText,
-              {
-                color: canLoadShareCode ? theme.primaryText : theme.muted,
-              },
-            ]}
+            className={`text-[16px] font-inter-semibold ${
+              canLoadShareCode
+                ? "text-primary-text dark:text-primary-text-dark"
+                : "text-muted dark:text-muted-dark"
+            }`}
           >
             {loading ? t("common.loading") : t("pages.sharecode.load")}
           </Text>
         </Pressable>
-        {loading ? <ActivityIndicator color={theme.primary} /> : null}
+        {loading ? <ActivityIndicator className="mt-4" /> : null}
         {error ? (
-          <Text style={[styles.error, { color: theme.error }]}>{error}</Text>
+          <Text className="text-[13px] font-inter text-error dark:text-error-dark mt-4">
+            {error}
+          </Text>
         ) : null}
         {addToOrderError ? (
-          <Text style={[styles.error, { color: theme.error }]}>
+          <Text className="text-[13px] font-inter text-error dark:text-error-dark mt-4">
             {addToOrderError}
           </Text>
         ) : null}
@@ -258,16 +235,18 @@ export const ShareCodeScreen = ({
   );
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.appContent, { paddingBottom: 0 }]}>
+    <View className="flex-1">
+      <View className="px-6 pb-0 max-w-[768px] w-full self-center">
         {taskListHeader}
       </View>
       {taskList ? (
         <View
-          style={{
-            flex: 1,
-            backgroundColor: taskList.background ?? theme.background,
-          }}
+          style={
+            taskList.background
+              ? { backgroundColor: taskList.background }
+              : undefined
+          }
+          className={`flex-1 ${!taskList.background ? "bg-background dark:bg-background-dark" : ""}`}
         >
           <TaskListCard
             taskList={taskList}
@@ -279,10 +258,8 @@ export const ShareCodeScreen = ({
           />
         </View>
       ) : (
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
-          <Text style={[styles.emptyText, { color: theme.muted }]}>
+        <View className="flex-1 justify-center items-center">
+          <Text className="text-[15px] font-inter text-muted dark:text-muted-dark">
             {t("pages.tasklist.noTasks")}
           </Text>
         </View>

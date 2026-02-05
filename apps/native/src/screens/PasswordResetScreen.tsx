@@ -12,9 +12,7 @@ import {
   confirmPasswordReset,
   verifyPasswordResetCode,
 } from "@lightlist/sdk/mutations/auth";
-import { styles } from "../styles/appStyles";
-import { useTheme } from "../styles/theme";
-import { resolvePasswordResetErrorMessage } from "../utils/errors";
+import { resolveErrorMessage } from "../utils/errors";
 import { validatePasswordResetForm } from "../utils/validation";
 
 type PasswordResetScreenProps = {
@@ -27,7 +25,6 @@ export const PasswordResetScreen = ({
   onBack,
 }: PasswordResetScreenProps) => {
   const { t } = useTranslation();
-  const theme = useTheme();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,11 +56,7 @@ export const PasswordResetScreen = ({
         }
       } catch (error) {
         if (cancelled) return;
-        if (error instanceof Error) {
-          setErrorMessage(resolvePasswordResetErrorMessage(error, t));
-        } else {
-          setErrorMessage(t("errors.generic"));
-        }
+        setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
         setCodeValid(false);
       }
     };
@@ -106,11 +99,7 @@ export const PasswordResetScreen = ({
       await confirmPasswordReset(normalizedCode, password);
       setResetSuccess(true);
     } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(resolvePasswordResetErrorMessage(error, t));
-      } else {
-        setErrorMessage(t("errors.generic"));
-      }
+      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
     } finally {
       setLoading(false);
     }
@@ -122,18 +111,18 @@ export const PasswordResetScreen = ({
   const content = (() => {
     if (codeValid === null) {
       return (
-        <View style={styles.form}>
-          <ActivityIndicator color={theme.primary} />
+        <View className="gap-4">
+          <ActivityIndicator className="text-primary dark:text-primary-dark" />
         </View>
       );
     }
 
     if (codeValid === false) {
       return (
-        <View style={styles.form}>
+        <View className="gap-4">
           <Text
             accessibilityRole="alert"
-            style={[styles.error, { color: theme.error }]}
+            className="text-[13px] font-inter text-error dark:text-error-dark"
           >
             {errorMessage ?? t("pages.passwordReset.invalidCode")}
           </Text>
@@ -141,15 +130,9 @@ export const PasswordResetScreen = ({
             accessibilityRole="button"
             accessibilityLabel={t("login.backToSignIn")}
             onPress={onBack}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              {
-                borderColor: theme.border,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
+            className="rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
           >
-            <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
+            <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
               {t("login.backToSignIn")}
             </Text>
           </Pressable>
@@ -159,44 +142,37 @@ export const PasswordResetScreen = ({
 
     if (resetSuccess) {
       return (
-        <View style={styles.form}>
-          <Text style={[styles.notice, { color: theme.primary }]}>
+        <View className="gap-4">
+          <Text className="text-[13px] font-inter text-success dark:text-success-dark">
             {t("pages.passwordReset.success")}
           </Text>
-          <View style={{ alignItems: "center" }}>
-            <ActivityIndicator color={theme.primary} />
+          <View className="items-center">
+            <ActivityIndicator className="text-primary dark:text-primary-dark" />
           </View>
         </View>
       );
     }
 
     return (
-      <View style={styles.form}>
+      <View className="gap-4">
         {errorMessage ? (
           <Text
             accessibilityRole="alert"
-            style={[styles.error, { color: theme.error }]}
+            className="text-[13px] font-inter text-error dark:text-error-dark"
           >
             {errorMessage}
           </Text>
         ) : null}
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.text }]}>
+        <View className="gap-1.5">
+          <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
             {t("pages.passwordReset.newPassword")}
           </Text>
           <TextInput
-            style={[
-              styles.input,
-              {
-                color: theme.text,
-                borderColor: theme.border,
-                backgroundColor: theme.inputBackground,
-              },
-            ]}
+            className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
             value={password}
             onChangeText={setPassword}
             placeholder={t("login.passwordPlaceholder")}
-            placeholderTextColor={theme.placeholder}
+            placeholderClassName="text-placeholder dark:text-placeholder-dark"
             secureTextEntry
             textContentType="newPassword"
             autoComplete="new-password"
@@ -206,24 +182,17 @@ export const PasswordResetScreen = ({
             accessibilityLabel={t("pages.passwordReset.newPassword")}
           />
         </View>
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.text }]}>
+        <View className="gap-1.5">
+          <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
             {t("pages.passwordReset.confirmPassword")}
           </Text>
           <TextInput
             ref={confirmPasswordInputRef}
-            style={[
-              styles.input,
-              {
-                color: theme.text,
-                borderColor: theme.border,
-                backgroundColor: theme.inputBackground,
-              },
-            ]}
+            className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             placeholder={t("login.confirmPasswordPlaceholder")}
-            placeholderTextColor={theme.placeholder}
+            placeholderClassName="text-placeholder dark:text-placeholder-dark"
             secureTextEntry
             textContentType="newPassword"
             autoComplete="new-password"
@@ -238,21 +207,18 @@ export const PasswordResetScreen = ({
           accessibilityLabel={t("pages.passwordReset.submit")}
           onPress={handleSubmit}
           disabled={!canSubmit}
-          style={({ pressed }) => [
-            styles.button,
-            {
-              backgroundColor: canSubmit ? theme.primary : theme.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
+          className={`rounded-[12px] py-3.5 items-center active:opacity-90 ${
+            canSubmit
+              ? "bg-primary dark:bg-primary-dark"
+              : "bg-border dark:bg-border-dark"
+          }`}
         >
           <Text
-            style={[
-              styles.buttonText,
-              {
-                color: canSubmit ? theme.primaryText : theme.muted,
-              },
-            ]}
+            className={`text-[16px] font-inter-semibold ${
+              canSubmit
+                ? "text-primary-text dark:text-primary-text-dark"
+                : "text-muted dark:text-muted-dark"
+            }`}
           >
             {loading
               ? t("pages.passwordReset.submitting")
@@ -264,15 +230,9 @@ export const PasswordResetScreen = ({
           accessibilityLabel={t("login.backToSignIn")}
           onPress={onBack}
           disabled={loading}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            {
-              borderColor: theme.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
+          className="rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
         >
-          <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
+          <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
             {t("login.backToSignIn")}
           </Text>
         </Pressable>
@@ -282,23 +242,18 @@ export const PasswordResetScreen = ({
 
   return (
     <ScrollView
-      contentContainerStyle={styles.scrollContent}
+      contentContainerClassName="flex-grow justify-center p-6"
       keyboardShouldPersistTaps="handled"
     >
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
-        <View style={styles.header}>
-          <Text style={[styles.appName, { color: theme.muted }]}>
+      <View className="rounded-[16px] border p-6 bg-surface dark:bg-surface-dark border-border dark:border-border-dark">
+        <View className="mb-5">
+          <Text className="text-[12px] font-inter-semibold tracking-[2px] uppercase text-muted dark:text-muted-dark">
             {t("app.name")}
           </Text>
-          <Text style={[styles.title, { color: theme.text }]}>
+          <Text className="text-[28px] font-inter-bold text-text dark:text-text-dark mt-2.5">
             {t("pages.passwordReset.title")}
           </Text>
-          <Text style={[styles.subtitle, { color: theme.muted }]}>
+          <Text className="text-[14px] font-inter text-muted dark:text-muted-dark mt-2">
             {t("pages.passwordReset.subtitle")}
           </Text>
         </View>

@@ -7,15 +7,12 @@ import {
   Text,
   View,
 } from "react-native";
-import { styles } from "../../styles/appStyles";
-import type { Theme } from "../../styles/theme";
 
 type DialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
-  theme: Theme;
   children: ReactNode;
   footer?: ReactNode;
 };
@@ -25,7 +22,6 @@ export const Dialog = ({
   onOpenChange,
   title,
   description,
-  theme,
   children,
   footer,
 }: DialogProps) => {
@@ -36,38 +32,35 @@ export const Dialog = ({
       animationType="fade"
       onRequestClose={() => onOpenChange(false)}
     >
-      <View style={styles.dialogOverlay}>
+      <View className="flex-1 justify-center items-center p-6">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={title}
           onPress={() => onOpenChange(false)}
-          style={styles.dialogBackdrop}
+          className="absolute inset-0 bg-black/45"
         />
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={styles.dialogKeyboard}
+          className="w-full items-center"
         >
           <View
             accessibilityViewIsModal
-            style={[
-              styles.dialogCard,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
+            className="w-full max-w-[460px] rounded-[20px] border p-5 bg-surface dark:bg-surface-dark border-border dark:border-border-dark"
           >
-            <View style={styles.dialogHeader}>
-              <Text style={[styles.dialogTitle, { color: theme.text }]}>
+            <View className="gap-1.5 mb-3">
+              <Text className="text-lg font-inter-bold text-text dark:text-text-dark">
                 {title}
               </Text>
               {description ? (
-                <Text
-                  style={[styles.dialogDescription, { color: theme.muted }]}
-                >
+                <Text className="text-[13px] font-inter text-muted dark:text-muted-dark">
                   {description}
                 </Text>
               ) : null}
             </View>
-            <View style={styles.dialogBody}>{children}</View>
-            {footer ? <View style={styles.dialogFooter}>{footer}</View> : null}
+            <View className="gap-4">{children}</View>
+            {footer ? (
+              <View className="flex-row gap-3 mt-5">{footer}</View>
+            ) : null}
           </View>
         </KeyboardAvoidingView>
       </View>

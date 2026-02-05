@@ -1,29 +1,23 @@
 import React, {
   useCallback,
   useEffect,
-  useRef,
   useState,
   Children,
   ReactNode,
 } from "react";
 import {
   View,
-  StyleSheet,
   LayoutChangeEvent,
   TouchableOpacity,
   ViewProps,
-  Platform,
 } from "react-native";
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
   useAnimatedStyle,
   runOnJS,
-  scrollTo,
-  useDerivedValue,
   useAnimatedRef,
 } from "react-native-reanimated";
-import { useTheme } from "../../styles/theme";
 
 export interface CarouselProps extends ViewProps {
   children: ReactNode;
@@ -44,7 +38,6 @@ export function Carousel({
   getIndicatorLabel,
   ...props
 }: CarouselProps) {
-  const theme = useTheme();
   const animatedRef = useAnimatedRef<Animated.FlatList<any>>();
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const scrollX = useSharedValue(0);
@@ -73,18 +66,13 @@ export function Carousel({
     const targetIndex = Math.max(0, Math.min(currentIndex, count - 1));
     const targetOffset = targetIndex * containerWidth;
 
-    // Use scrollTo from reanimated if possible, or standard scrollToOffset
-    // Since we are not inside a worklet, we use the standard method via ref?
-    // Actually reanimated scrollTo needs to be called from UI thread or we can use ref.current.scrollToOffset
-    // But we should be careful about interfering with user interaction.
-    // Here we use a simple ref call.
     if (animatedRef.current) {
       animatedRef.current.scrollToOffset({
         offset: targetOffset,
         animated: true,
       });
     }
-  }, [currentIndex, containerWidth, count, isControlled]); // Added animatedRef to deps if needed, but it's a ref.
+  }, [currentIndex, containerWidth, count, isControlled]);
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -120,22 +108,22 @@ export function Carousel({
     const animatedStyle = useAnimatedStyle(() => {
       if (containerWidth === 0) return {};
       const page = scrollX.value / containerWidth;
-      const isActive = Math.abs(page - index) < 0.5; // Simple threshold
-      // Or interpolate for smooth transition
-      // Let's keep it simple: opacity and scale
-      // But since we want to animate based on scroll position:
       const distanceFromIndex = Math.abs(page - index);
       const opacity = distanceFromIndex < 1 ? 1 - distanceFromIndex * 0.8 : 0.2;
       const scale = distanceFromIndex < 1 ? 1.2 - distanceFromIndex * 0.2 : 1;
 
       return {
-        opacity: opacity, // interpolate can be used but this is fine
+        opacity: opacity,
         transform: [{ scale }],
-        backgroundColor: theme.text,
       };
     });
 
-    return <Animated.View style={[styles.indicatorDot, animatedStyle]} />;
+    return (
+      <Animated.View
+        className="w-2 h-2 rounded-full bg-text dark:bg-text-dark"
+        style={animatedStyle}
+      />
+    );
   };
 
   const handleIndicatorPress = (idx: number) => {
@@ -152,7 +140,12 @@ export function Carousel({
   };
 
   return (
-    <View style={[styles.container, style]} onLayout={onLayout} {...props}>
+    <View
+      className="flex-1 overflow-hidden relative"
+      style={style}
+      onLayout={onLayout}
+      {...props}
+    >
       {containerWidth > 0 && count > 0 ? (
         <Animated.FlatList
           ref={animatedRef}
@@ -174,27 +167,24 @@ export function Carousel({
           snapToInterval={containerWidth}
           disableIntervalMomentum={true}
           initialScrollIndex={currentIndex < count ? currentIndex : 0}
-          onScrollToIndexFailed={() => {}} // Silent fail or retry
+          onScrollToIndexFailed={() => {}}
         />
       ) : (
-        <View style={{ flex: 1 }} />
+        <View className="flex-1" />
       )}
 
       {showIndicators && count > 0 && (
         <View
-          style={[
-            styles.indicatorContainer,
-            indicatorPosition === "top"
-              ? styles.indicatorTop
-              : styles.indicatorBottom,
-          ]}
+          className={`absolute left-0 right-0 flex-row justify-center items-center z-10 px-4 gap-1.5 ${
+            indicatorPosition === "top" ? "top-4" : "bottom-4"
+          }`}
           pointerEvents="box-none"
         >
           {Array.from({ length: count }).map((_, idx) => (
             <TouchableOpacity
               key={idx}
               onPress={() => handleIndicatorPress(idx)}
-              style={styles.indicatorButton}
+              className="p-2"
               accessibilityLabel={
                 getIndicatorLabel?.(idx, count) ?? `Go to slide ${idx + 1}`
               }
@@ -207,36 +197,3 @@ export function Carousel({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    overflow: "hidden",
-    position: "relative",
-  },
-  indicatorContainer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 10,
-    paddingHorizontal: 16,
-    gap: 6,
-  },
-  indicatorTop: {
-    top: 16,
-  },
-  indicatorBottom: {
-    bottom: 16,
-  },
-  indicatorButton: {
-    padding: 8,
-  },
-  indicatorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-});

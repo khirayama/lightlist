@@ -14,30 +14,36 @@
 ### 2. セットアップ手順 (初回のみ)
 
 1. **EAS CLI のインストール**
+
    ```bash
    npm install -g eas-cli
    ```
 
 2. **Expo アカウントへのログイン**
+
    ```bash
    eas login
    ```
 
 3. **プロジェクトの初期化 (projectId の取得)**
+
    ```bash
    cd apps/native
    eas init
    ```
-   ※ `app.config.ts` の `projectId` が自動更新されます。
+
+   ※ 取得した projectId は `EXPO_PROJECT_ID` として環境変数に設定します。
 
 4. **GitHub Secrets の設定**
    GitHub リポジトリの Settings > Secrets and variables > Actions に以下を追加してください。
    - `EXPO_TOKEN`: Expo の管理画面から発行したアクセストークン。
+   - `EXPO_PROJECT_ID`: Expo プロジェクトの projectId。
 
 ### 3. 開発フロー
 
 1. **ローカル開発 (Dev Client)**
    ネイティブコードに変更があった場合や、初回はビルドが必要です。
+
    ```bash
    cd apps/native
    # iOS (macOSのみ)
@@ -45,6 +51,7 @@
    # Android
    npx expo run:android
    ```
+
    起動後は `npx expo start --dev-client` で開発サーバーを立ち上げます。
 
 2. **検証用ビルドの自動生成 (Preview Build)**

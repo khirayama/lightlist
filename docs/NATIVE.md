@@ -43,12 +43,14 @@
 - **各Screen**: フォーム状態、バリデーション、SDK呼び出し、エラーハンドリングを自身で管理
 
 これにより:
+
 - 画面間の依存関係が最小化され、各画面を独立して理解・修正できる
 - Web版（`apps/web/src/pages`）と同様の責務分離パターンを採用
 
 ### スタイリングとテーマ
 
 NativeWind v4 を使用して、Tailwind CSS のユーティリティクラスでスタイリングを行う:
+
 - `apps/native/tailwind.config.js` で `nativewind/preset` を使用し、カラーパレットとフォントを定義
 - `apps/native/babel.config.js` で `nativewind/babel` プラグインと `{ jsxImportSource: "nativewind" }` オプションを設定
 - `apps/native/global.css` を作成し、Tailwind のディレクティブを記述
@@ -89,6 +91,11 @@ NativeWind v4 を使用して、Tailwind CSS のユーティリティクラス�
   - `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
   - `EXPO_PUBLIC_FIREBASE_APP_ID`
 - Auth 永続化は `@react-native-async-storage/async-storage` を使用する
+
+## EAS Build
+
+- Expo の projectId を `EXPO_PROJECT_ID` として設定する
+- GitHub Actions で `EXPO_PROJECT_ID` を Secrets に登録し、Preview Build で参照する
 
 ## 実機での確認
 

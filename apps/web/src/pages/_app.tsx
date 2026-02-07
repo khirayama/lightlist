@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import i18n from "@/utils/i18n";
 import { appStore } from "@lightlist/sdk/store";
-import { AppState, Theme } from "@lightlist/sdk/types";
+import { Theme } from "@lightlist/sdk/types";
 
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { Spinner } from "@/components/ui/Spinner";
@@ -119,7 +119,6 @@ export default function App({ Component, pageProps }: AppProps) {
     return (
       <ErrorBoundary>
         {pwaHead}
-
         <Spinner fullPage />
       </ErrorBoundary>
     );
@@ -128,7 +127,6 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <ErrorBoundary>
       {pwaHead}
-
       <div className="h-dvh w-full overflow-hidden">
         <div className="h-full w-full overflow-y-auto">
           <Component {...pageProps} />

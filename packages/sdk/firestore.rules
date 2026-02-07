@@ -23,7 +23,8 @@ service cloud.firestore {
         return order != null && taskListId in order;
       }
 
-      allow read: if true;
+      // read ではなく get にすることで、一括取得(list)を禁止
+      allow get: if true;
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(['taskListId', 'createdAt'])
         && request.resource.data.taskListId is string
@@ -47,14 +48,14 @@ service cloud.firestore {
         return request.auth != null && taskListId in getTaskListOrder();
       }
 
-      // ヘルパー関数: shareCodeが設定されているか確認
-      function hasMatchingShareCode() {
+      // ヘルパー関数: 有効な共有コード紐付けがあるか確認
+      function isValidShareCode() {
         return resource.data.shareCode != null
-          && resource.data.shareCode is string;
+          && get(/databases/$(database)/documents/shareCodes/$(resource.data.shareCode)).data.taskListId == taskListId;
       }
 
-      // 読み取り権限: taskListOrderに含まれている、またはshareCodeが存在する
-      allow read: if isInTaskListOrder() || hasMatchingShareCode();
+      // 読み取り権限: taskListOrderに含まれている、または有効な共有コードが存在する
+      allow read: if isInTaskListOrder() || isValidShareCode();
 
       // 作成権限: 認証済みユーザーであれば誰でも作成可能
       allow create: if request.auth != null
@@ -63,8 +64,8 @@ service cloud.firestore {
         && request.resource.data.createdAt is int
         && request.resource.data.updatedAt is int;
 
-      // 更新権限: taskListOrderに含まれている、またはshareCodeが存在する場合
-      allow update: if (isInTaskListOrder() || hasMatchingShareCode())
+      // 更新権限: taskListOrderに含まれている、または有効な共有コードが存在する場合
+      allow update: if (isInTaskListOrder() || isValidShareCode())
         && request.resource.data.id == resource.data.id
         && request.resource.data.createdAt == resource.data.createdAt;
 

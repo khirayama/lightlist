@@ -24,7 +24,7 @@ export default {
     extend: {
       fontFamily: {
         sans: [
-          "var(--font-inter)",
+          "Inter",
           "Noto Sans JP",
           "Yu Gothic",
           "YuGothic",

@@ -1,11 +1,12 @@
 {
-  "name": "lightlist-web-poc",
+  "name": "@lightlist/web",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "dev": "next dev --turbo",
     "format": "prettier --write .",
+    "lint": "echo 'No lint script defined for web'",
     "build": "next build",
     "build:prod": "node -e \"const fs = require('fs'); fs.copyFileSync('.env.prod', '.env.production');\" && next build",
     "start": "next start",

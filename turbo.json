@@ -12,6 +12,16 @@
     "format": {
       "cache": false
     },
+    "lint": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "deploy:firestore": {
+      "cache": false
+    },
+    "deploy:firestore:prod": {
+      "cache": false
+    },
     "typecheck": {
       "dependsOn": ["^typecheck"],
       "outputs": []

@@ -1,5 +1,5 @@
 {
-  "name": "native",
+  "name": "@lightlist/native",
   "version": "1.0.0",
   "main": "src/index.ts",
   "scripts": {
@@ -8,6 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "format": "prettier --write .",
+    "lint": "echo 'No lint script defined for native'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

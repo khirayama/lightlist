@@ -14,9 +14,10 @@
     "./utils/dateParser": "./src/utils/dateParser.ts"
   },
   "scripts": {
-    "deploy": "firebase deploy --only firestore:rules,firestore:indexes",
-    "deploy:prod": "firebase deploy --only firestore:rules,firestore:indexes --project prod",
+    "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes",
+    "deploy:firestore:prod": "firebase deploy --only firestore:rules,firestore:indexes --project prod",
     "format": "prettier --write .",
+    "lint": "echo 'No lint script defined for sdk'",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {

@@ -11,9 +11,10 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "format": "turbo run format",
+    "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "deploy:firestore": "cd packages/sdk && firebase deploy --only firestore:rules,firestore:indexes",
-    "deploy:firestore:prod": "cd packages/sdk && firebase deploy --only firestore:rules,firestore:indexes --project prod"
+    "deploy:firestore": "turbo run deploy:firestore",
+    "deploy:firestore:prod": "turbo run deploy:firestore:prod"
   },
   "devDependencies": {
     "firebase-tools": "^15.5.1",

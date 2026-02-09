@@ -431,7 +431,7 @@ export const TaskListCard = ({
   const header = (
     <View className="flex-row items-center justify-between gap-3 mb-4">
       <Text
-        className="text-[22px] font-inter-bold text-text dark:text-text-dark flex-1"
+        className="text-xl font-inter-semibold text-text dark:text-text-dark flex-1"
         numberOfLines={1}
       >
         {taskList.name}

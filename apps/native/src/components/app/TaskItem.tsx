@@ -116,7 +116,7 @@ export const TaskItem = memo(
                 name="drag-indicator"
                 className={
                   canDrag && !isEditing
-                    ? "fill-text dark:fill-text-dark"
+                    ? "fill-placeholder dark:fill-placeholder-dark"
                     : "fill-muted dark:fill-muted-dark"
                 }
               />
@@ -151,7 +151,7 @@ export const TaskItem = memo(
             ) : null}
             {isEditing ? (
               <TextInput
-                className={`text-[15px] font-inter py-0 my-0 ${
+                className={`text-[16px] font-inter-medium py-0 my-0 leading-7 ${
                   item.completed
                     ? "text-muted dark:text-muted-dark line-through"
                     : "text-text dark:text-text-dark"
@@ -177,7 +177,7 @@ export const TaskItem = memo(
                 className="flex-1 active:opacity-80"
               >
                 <Text
-                  className={`text-[15px] font-inter leading-6 text-text dark:text-text-dark ${
+                  className={`text-[16px] font-inter-medium leading-7 text-text dark:text-text-dark ${
                     item.completed ? "line-through" : ""
                   }`}
                 >

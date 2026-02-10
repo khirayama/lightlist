@@ -44,7 +44,7 @@ type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const linking = {
-  prefixes: ["lightlist://"],
+  prefixes: ["lightlist://", "expo://"],
   config: {
     screens: {
       PasswordReset: "password-reset",

@@ -160,6 +160,11 @@
     }
   },
   "pages": {
+    "index": {
+      "getStarted": "Get started",
+      "description1": "Lightlist is a simple task list service.",
+      "description2": "It can be used as a ToDo list for task management or a shopping list. You can share lists with people who are not registered."
+    },
     "sharecode": {
       "notFound": "This task list not found",
       "error": "Failed to load task list",

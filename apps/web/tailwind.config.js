@@ -22,6 +22,9 @@ export default {
       1500: "1500",
     },
     extend: {
+      colors: {
+        primary: "#ffffff",
+      },
       fontFamily: {
         sans: [
           "Inter",

@@ -160,6 +160,11 @@
     }
   },
   "pages": {
+    "index": {
+      "getStarted": "今すぐはじめる",
+      "description1": "Lightlistはシンプルなタスクリストサービスです。",
+      "description2": "タスク管理のToDoリストや買い物リストとして使えます。未登録の人ともリストを共有できます。"
+    },
     "sharecode": {
       "notFound": "タスクリストが見つかりません",
       "error": "タスクリストの読み込みに失敗しました",

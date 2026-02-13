@@ -92,16 +92,12 @@ NativeWind v4 を使用して、Tailwind CSS のユーティリティクラス�
   - `EXPO_PUBLIC_FIREBASE_APP_ID`
 - Auth 永続化は `@react-native-async-storage/async-storage` を使用する
 
-## EAS Build
-
-- Expo の projectId を `EXPO_PROJECT_ID` として設定する
-- GitHub Actions で `EXPO_PROJECT_ID` を Secrets に登録し、Preview Build で参照する
-
 ## 実機での確認
 
 - `cd apps/native`
 - `npm run dev`
 - Expo Go を実機にインストールして QR を読み取り、表示を確認する
+- Expo Go 前提のため `EXPO_PROJECT_ID` は不要
 - Android 端末は同一ネットワーク上で Expo Go を使用する（USB 接続での確認も可）
 
 ## 主な変更点

@@ -15,8 +15,6 @@ const getBundleId = () => {
   return `${baseId}.dev`;
 };
 
-const easProjectId = process.env.EXPO_PROJECT_ID;
-
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: getAppName(),
@@ -48,6 +46,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: ["expo-font"],
   extra: {
     APP_ENV,
-    ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
   },
 });

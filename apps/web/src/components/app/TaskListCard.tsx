@@ -63,7 +63,7 @@ const hasSortableData = (data: unknown): data is SortableData => {
   return Boolean(sortable && typeof sortable === "object");
 };
 
-type TaskListCardProps = {
+export type TaskListCardProps = {
   taskList: TaskList;
   isActive: boolean;
   onActivate?: (taskListId: string) => void;
@@ -208,11 +208,7 @@ export function TaskListCard({
 
     setTaskError(null);
     try {
-      const startTime = performance.now();
       await updateTask(taskList.id, task.id, { text: trimmedText });
-      console.log(
-        `[Web TaskListCard] handleEditEndTask: ${(performance.now() - startTime).toFixed(2)}ms`,
-      );
       setEditingTaskId(null);
     } catch (err) {
       setTaskError(resolveErrorMessage(err, t, "common.error"));
@@ -222,11 +218,7 @@ export function TaskListCard({
   const handleToggleTask = async (task: Task) => {
     setTaskError(null);
     try {
-      const startTime = performance.now();
       await updateTask(taskList.id, task.id, { completed: !task.completed });
-      console.log(
-        `[Web TaskListCard] handleToggleTask: ${(performance.now() - startTime).toFixed(2)}ms`,
-      );
     } catch (err) {
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }

@@ -7,19 +7,34 @@ import { useRouter } from "next/router";
 import i18n from "@/utils/i18n";
 import { AppIcon } from "@/components/ui/AppIcon";
 
-export default function IndexPage({ lang }: { lang: string }) {
+const isSupportedLanguage = (value: string): value is "ja" | "en" =>
+  value === "ja" || value === "en";
+
+export default function IndexPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
   useEffect(() => {
-    if (lang) {
-      i18n.changeLanguage(lang);
+    if (!router.isReady) return;
+    const queryLang = router.query.lang;
+    if (typeof queryLang !== "string" || !isSupportedLanguage(queryLang))
+      return;
+    if (i18n.language !== queryLang) {
+      void i18n.changeLanguage(queryLang);
     }
-  }, [lang]);
+  }, [router.isReady, router.query.lang]);
 
-  const handleLangChange = (newLang: string) => {
-    i18n.changeLanguage(newLang);
-    router.push(`/?lang=${newLang}`, undefined, { shallow: true });
+  const handleLangChange = (newLang: "ja" | "en") => {
+    if (i18n.language !== newLang) {
+      void i18n.changeLanguage(newLang);
+    }
+    void router.replace(
+      { pathname: "/", query: { lang: newLang } },
+      undefined,
+      {
+        shallow: true,
+      },
+    );
   };
 
   return (
@@ -41,7 +56,7 @@ export default function IndexPage({ lang }: { lang: string }) {
           日本語
         </button>
       </header>
-      
+
       <main className="pb-12">
         <div className="pt-24 pb-8 text-center">
           <div className="flex justify-center py-4">
@@ -51,7 +66,7 @@ export default function IndexPage({ lang }: { lang: string }) {
             {t("title")}
           </h1>
         </div>
-        
+
         <div className="p-4 text-center">
           <Link
             href="/login"
@@ -60,7 +75,7 @@ export default function IndexPage({ lang }: { lang: string }) {
             {t("pages.index.getStarted")}
           </Link>
         </div>
-        
+
         <div className="m-auto max-w-lg p-8 text-center sm:text-justify">
           <p className="my-4 text-lg text-gray-600 dark:text-gray-400">
             {t("pages.index.description1")}
@@ -73,21 +88,9 @@ export default function IndexPage({ lang }: { lang: string }) {
 
       <div className="bg-gray-100 py-16 dark:bg-gray-900">
         <div className="relative mx-auto aspect-video max-w-3xl overflow-hidden rounded-xl bg-gray-200 shadow-inner dark:bg-gray-800">
-          {/* Placeholder for screenshots */}
           <div className="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-600 italic">
             App Screenshots Placeholder
           </div>
-          {/* 
-            These are the original styles for screenshots:
-            <img
-              className="absolute bottom-[-100px] left-[32px] w-[80%] min-w-[320px] shadow-2xl"
-              src={`/screenshot_${lang}_desktop.png`}
-            />
-            <img
-              className="absolute right-[32px] bottom-[-60px] w-[24%] min-w-[105px] rotate-6 shadow-2xl"
-              src={`/screenshot_${lang}_mobile.png`}
-            />
-          */}
         </div>
       </div>
 
@@ -107,9 +110,3 @@ export default function IndexPage({ lang }: { lang: string }) {
     </div>
   );
 }
-
-export const getServerSideProps = async ({ query }: { query: { lang?: string } }) => {
-  return {
-    props: { lang: query.lang || "en" },
-  };
-};

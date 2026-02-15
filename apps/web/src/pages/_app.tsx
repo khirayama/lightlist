@@ -1,5 +1,6 @@
 import type { AppProps } from "next/app";
 import Head from "next/head";
+import { Inter, Noto_Sans_JP } from "next/font/google";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -10,6 +11,19 @@ import { Theme } from "@lightlist/sdk/types";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { Spinner } from "@/components/ui/Spinner";
 import "@/styles/globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const notoSansJp = Noto_Sans_JP({
+  variable: "--font-noto-sans-jp",
+  weight: ["400", "500", "700"],
+  display: "swap",
+  preload: false,
+});
 
 export default function App({ Component, pageProps }: AppProps) {
   const [mounted, setMounted] = useState(false);
@@ -119,7 +133,11 @@ export default function App({ Component, pageProps }: AppProps) {
     return (
       <ErrorBoundary>
         {pwaHead}
-        <Spinner fullPage />
+        <div
+          className={`${inter.variable} ${notoSansJp.variable} h-dvh w-full overflow-hidden font-sans`}
+        >
+          <Spinner fullPage />
+        </div>
       </ErrorBoundary>
     );
   }
@@ -127,7 +145,9 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <ErrorBoundary>
       {pwaHead}
-      <div className="h-dvh w-full overflow-hidden">
+      <div
+        className={`${inter.variable} ${notoSansJp.variable} h-dvh w-full overflow-hidden font-sans`}
+      >
         <div className="h-full w-full overflow-y-auto">
           <Component {...pageProps} />
         </div>

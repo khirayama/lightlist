@@ -12,6 +12,7 @@ type DrawerContentProps = ComponentPropsWithoutRef<
   typeof DrawerPrimitive.Content
 > & {
   className?: string;
+  overlayClassName?: string;
 };
 
 type DrawerHeaderProps = HTMLAttributes<HTMLDivElement>;
@@ -45,10 +46,13 @@ const DrawerOverlay = forwardRef<
 const DrawerContent = forwardRef<
   ElementRef<typeof DrawerPrimitive.Content>,
   DrawerContentProps
->(function DrawerContent({ className, children, ...props }, ref) {
+>(function DrawerContent(
+  { className, children, overlayClassName, ...props },
+  ref,
+) {
   return (
     <DrawerPortal>
-      <DrawerOverlay />
+      <DrawerOverlay className={overlayClassName} />
       <DrawerPrimitive.Content
         ref={ref}
         className={cn(

@@ -5,16 +5,20 @@ import type {
   SensorOptions,
   UniqueIdentifier,
 } from "@dnd-kit/core";
-import type { TaskList } from "@lightlist/sdk/types";
+import type { Task, TaskList } from "@lightlist/sdk/types";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import clsx from "clsx";
+import { useMemo, useRef, useState } from "react";
 
 import {
+  Drawer,
+  DrawerContent,
   DrawerDescription,
   DrawerHeader,
+  DrawerTrigger,
   DrawerTitle,
 } from "@/components/ui/Drawer";
 import {
@@ -27,14 +31,51 @@ import {
 import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { ColorPicker, type ColorOption } from "@/components/ui/ColorPicker";
+import { CalendarSheet } from "./CalendarSheet";
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
 
-const resolveTaskListBackground = (background: string | null): string =>
+export const resolveTaskListBackground = (background: string | null): string =>
   background ?? "var(--tasklist-theme-bg)";
 
-type DrawerPanelProps = {
+export type DatedTask = {
+  taskListId: string;
+  taskListName: string;
+  taskListBackground: string;
+  task: Task;
+  dateValue: Date;
+  dateKey: string;
+};
+
+export const getDatedTaskId = (task: DatedTask): string =>
+  `${task.taskListId}:${task.task.id}`;
+
+export const parseTaskDate = (
+  dateStr: string | null | undefined,
+): Date | null => {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+export const formatTaskDate = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+export const createDateFromKey = (dateKey: string): Date | null => {
+  const parts = dateKey.split("-");
+  if (parts.length !== 3) return null;
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const d = parseInt(parts[2], 10);
+  return new Date(y, m, d);
+};
+
+export type DrawerPanelProps = {
   isWideLayout: boolean;
   userEmail: string;
   showCreateListDialog: boolean;
@@ -140,6 +181,61 @@ function SortableTaskListItem({
   );
 }
 
+type CalendarTaskItemProps = {
+  task: DatedTask;
+  onOpenTaskList: (taskListId: string) => void;
+  itemRef: (element: HTMLDivElement | null) => void;
+  isHighlighted: boolean;
+};
+
+export function CalendarTaskItem({
+  task,
+  onOpenTaskList,
+  itemRef,
+  isHighlighted,
+}: CalendarTaskItemProps) {
+  const dateDisplayValue = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    weekday: "short",
+  }).format(task.dateValue);
+
+  return (
+    <div
+      ref={itemRef}
+      className={clsx(
+        "flex items-start gap-2 border-b border-gray-200 px-3 py-2 last:border-b-0 dark:border-gray-800",
+        isHighlighted && "bg-gray-100 dark:bg-gray-800",
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onOpenTaskList(task.taskListId)}
+        className="flex min-w-0 flex-1 flex-col gap-1 text-left rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:focus-visible:outline-gray-500"
+      >
+        <span className="flex min-w-0 items-center justify-between gap-2">
+          <span className="shrink-0 text-xs text-gray-600 dark:text-gray-300">
+            {dateDisplayValue}
+          </span>
+          <span className="flex min-w-0 items-center justify-end gap-2">
+            <span
+              aria-hidden="true"
+              className="h-4 w-4 shrink-0 rounded-full border border-gray-300 dark:border-gray-700"
+              style={{ backgroundColor: task.taskListBackground }}
+            />
+            <span className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+              {task.taskListName}
+            </span>
+          </span>
+        </span>
+        <span className="truncate font-medium leading-6 text-gray-900 dark:text-gray-50">
+          {task.task.text}
+        </span>
+      </button>
+    </div>
+  );
+}
+
 export function DrawerPanel({
   isWideLayout,
   userEmail,
@@ -234,6 +330,14 @@ export function DrawerPanel({
           )}
         </div>
       </DrawerHeader>
+
+      <CalendarSheet
+        isWideLayout={isWideLayout}
+        taskLists={taskLists}
+        onSelectTaskList={onSelectTaskList}
+        onCloseDrawer={onCloseDrawer}
+        t={t}
+      />
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
         {hasTaskLists ? (

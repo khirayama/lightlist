@@ -73,7 +73,9 @@ const DialogContent = forwardRef<
 
   return (
     <DialogPrimitive.Portal>
-      <DialogOverlay />
+      <DialogPrimitive.Close asChild>
+        <DialogOverlay />
+      </DialogPrimitive.Close>
       <DialogPrimitive.Content
         {...props}
         ref={ref}

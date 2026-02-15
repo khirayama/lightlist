@@ -106,7 +106,13 @@
     "joinListDescription": "Enter the share code to join a shared task list.",
     "shareCodePlaceholder": "Enter share code",
     "join": "Join",
-    "joining": "Joining..."
+    "joining": "Joining...",
+    "calendarCheckButton": "View in Calendar",
+    "calendarSheetTitle": "Tasks with Dates",
+    "calendarSheetDescription": "Select a date to scroll to matching tasks",
+    "calendarAllDates": "All dates",
+    "calendarNoDatedTasks": "No tasks have a date",
+    "calendarNoTasksOnSelectedDate": "No tasks on the selected date"
   },
   "taskList": {
     "taskCount": "{{count}} tasks",

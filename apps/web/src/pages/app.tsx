@@ -4,6 +4,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
@@ -32,12 +33,12 @@ import { resolveErrorMessage } from "@/utils/errors";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import type { ConfirmDialogProps } from "@/components/ui/ConfirmDialog";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/Drawer";
-import { Carousel } from "@/components/ui/Carousel";
-import { DrawerPanel } from "@/components/app/DrawerPanel";
+import type { CarouselProps } from "@/components/ui/Carousel";
+import type { DrawerPanelProps } from "@/components/app/DrawerPanel";
 import type { ColorOption } from "@/components/ui/ColorPicker";
-import { TaskListCard } from "@/components/app/TaskListCard";
+import type { TaskListCardProps } from "@/components/app/TaskListCard";
 import { useOptimisticReorder } from "@lightlist/sdk/hooks/useOptimisticReorder";
 
 const resolveTaskListBackground = (background: string | null): string =>
@@ -46,6 +47,39 @@ const resolveTaskListBackground = (background: string | null): string =>
 type DrawerPanelContent = ComponentPropsWithoutRef<
   typeof DrawerContent
 >["children"];
+
+const ConfirmDialog = dynamic<ConfirmDialogProps>(
+  () =>
+    import("@/components/ui/ConfirmDialog").then(
+      (module) => module.ConfirmDialog,
+    ),
+  { loading: () => null },
+);
+
+const Carousel = dynamic<CarouselProps>(
+  () => import("@/components/ui/Carousel").then((module) => module.Carousel),
+  {
+    loading: () => <div className="h-full w-full" />,
+  },
+);
+
+const DrawerPanel = dynamic<DrawerPanelProps>(
+  () =>
+    import("@/components/app/DrawerPanel").then((module) => module.DrawerPanel),
+  {
+    loading: () => <div className="min-h-20 w-full" />,
+  },
+);
+
+const TaskListCard = dynamic<TaskListCardProps>(
+  () =>
+    import("@/components/app/TaskListCard").then(
+      (module) => module.TaskListCard,
+    ),
+  {
+    loading: () => <div className="h-full w-full" />,
+  },
+);
 
 type AppHeaderProps = {
   isWideLayout: boolean;
@@ -104,13 +138,7 @@ function AppHeader({
 }
 
 export default function AppPage() {
-  const renderStartTime = performance.now();
   const router = useRouter();
-
-  useEffect(() => {
-    const duration = performance.now() - renderStartTime;
-    console.log(`[Web AppPage] Render duration: ${duration.toFixed(2)}ms`);
-  });
   const { t } = useTranslation();
   const colors: ColorOption[] = [
     {
@@ -165,7 +193,6 @@ export default function AppPage() {
   const [joiningList, setJoiningList] = useState(false);
   const [joinListError, setJoinListError] = useState<string | null>(null);
 
-  // Embla関連のstate削除
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isWideLayout, setIsWideLayout] = useState(false);
   const [isTaskSorting, setIsTaskSorting] = useState(false);
@@ -210,8 +237,6 @@ export default function AppPage() {
     }
   }, [selectedTaskList]);
 
-  // Embla関連のuseEffect削除
-
   useEffect(() => {
     const updateLayout = () => {
       setIsWideLayout(window.innerWidth >= 1024);
@@ -243,7 +268,8 @@ export default function AppPage() {
       window.history.pushState({ ...currentState, drawer: drawerStateKey }, "");
     }
 
-    const handlePopState = () => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state?.drawer === drawerStateKey) return;
       setIsDrawerOpen(false);
     };
 
@@ -254,9 +280,9 @@ export default function AppPage() {
     };
   }, [isDrawerOpen, isWideLayout]);
 
-  const isLoading =
-    !state.user || !state.settings || state.taskListOrderUpdatedAt === null;
-  const hasTaskLists = Boolean(state.user && taskLists.length > 0);
+  const isAuthLoading = !state.user;
+  const isTaskListsHydrating = state.taskListOrderUpdatedAt === null;
+  const hasTaskLists = taskLists.length > 0;
   const userEmail = state.user?.email || t("app.drawerNoEmail");
   const selectedTaskListIndex = Math.max(
     0,
@@ -481,7 +507,7 @@ export default function AppPage() {
       onJoinList={handleJoinList}
       joinListError={joinListError}
       joiningList={joiningList}
-      hasTaskLists={hasTaskLists}
+      hasTaskLists={!isTaskListsHydrating && hasTaskLists}
       taskLists={taskLists}
       sensorsList={sensorsList}
       onReorderTaskList={handleReorderTaskList}
@@ -500,7 +526,7 @@ export default function AppPage() {
     />
   );
 
-  if (isLoading) {
+  if (isAuthLoading) {
     return <Spinner fullPage />;
   }
 
@@ -557,7 +583,11 @@ export default function AppPage() {
           />
 
           <div className="h-full overflow-hidden">
-            {hasTaskLists ? (
+            {isTaskListsHydrating ? (
+              <div className="flex h-full items-center justify-center p-4">
+                <Spinner />
+              </div>
+            ) : hasTaskLists ? (
               <Carousel
                 className="h-full"
                 index={selectedTaskListIndex}

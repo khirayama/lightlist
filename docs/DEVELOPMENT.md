@@ -64,3 +64,10 @@
   - 発生時のユーザー情報（UID, Email）
 - これにより、長時間放置後のトークン期限切れやネットワーク切断による権限エラー (`permission-denied` 等) を特定しやすくする。
 - Webアプリ (`apps/web`) では `ErrorBoundary` コンポーネントを使用し、予期せぬエラーによる画面のホワイトアウト（White Screen of Death）を防ぐ。
+
+## 起動性能の実装方針（web）
+
+- `/app` は `taskListOrderUpdatedAt` を待って全画面スピナーを維持しない。認証確認後はシェルを先に表示し、タスクリスト同期中はコンテンツ領域のみローディングを表示する。
+- `TaskListCard` / `DrawerPanel` / `Carousel` / `ConfirmDialog` は `next/dynamic` で遅延ロードし、初期バンドル評価を分散する。
+- ランディングページ (`/`) は `getServerSideProps` を使わず静的配信し、言語切り替えはクエリ (`?lang=`) をクライアント側で同期する。
+- フォントは `_document.tsx` の外部 CSS 読み込みを廃止し、`_app.tsx` の `next/font/google` に統一する。

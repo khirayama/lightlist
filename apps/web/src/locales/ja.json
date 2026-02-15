@@ -106,7 +106,13 @@
     "joinListDescription": "共有コードを入力してリストに参加します。",
     "shareCodePlaceholder": "共有コードを入力",
     "join": "参加",
-    "joining": "参加中..."
+    "joining": "参加中...",
+    "calendarCheckButton": "カレンダーで確認",
+    "calendarSheetTitle": "日付付きタスク",
+    "calendarSheetDescription": "日付を選択すると該当タスクまでスクロールします",
+    "calendarAllDates": "すべての日付",
+    "calendarNoDatedTasks": "日付が設定されたタスクはありません",
+    "calendarNoTasksOnSelectedDate": "選択した日付のタスクはありません"
   },
   "taskList": {
     "taskCount": "{{count}}個のタスク",

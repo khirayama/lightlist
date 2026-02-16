@@ -5,7 +5,7 @@
 - `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, Calendar, ColorPicker, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel, Command, Popover, AppIcon, ErrorBoundary）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。Dialog/Carousel も含め、ライト/ダークの可読性と操作性（focus-visible 等）を優先して必要なスタイルを持つ。Alert は variant 別に配色を切り替え、ConfirmDialog は Dialog を使って破壊的アクションのスタイルを切り替える。Spinner は `AppIcon` (logo) を使用し、アニメーション（pulse）を伴う。`fullPage` prop を指定することで、画面中央に配置される。Calendar は i18next の言語に合わせて locale を切り替え、選択日の背景色・文字色は `day_button` の `aria-selected` スタイルでライト/ダーク両方に統一する。AppIcon は `@lightlist/sdk/icons` で定義された SVG パスデータを使用し、Web/Native で統一されたアイコン表示を実現する。ColorPicker はタスクリストの背景色選択などで利用する再利用可能なカラー選択コンポーネント。ErrorBoundary はアプリ全体のクラッシュを捕捉し、リロードボタン付きのフォールバック画面を表示する。`AppIcon` (alert-circle) を使用し、シンプルでユーザーフレンドリーなエラー表示を提供する
 - `apps/web/src/components/app`: 設定や、タスク表示・並び替えなど、アプリ固有の共有コンポーネント。SDKへの依存が判断基準。TaskListCard はタスクリストの操作（追加/編集/並び替え）を集約し、TaskItem は個々のタスク表示（ドラッグハンドル/チェックボックス/テキスト/日付）を担当する。DrawerPanel はタスクリスト一覧と作成・参加フローに加え、ヘッダー直下ボタンから開く下部シートで日付付きタスクの確認・日付変更を提供する
 - `apps/native/src/components/ui`: ネイティブ向けのプリミティブ（Dialog, AppIcon, Carousel）。AppIcon は `@lightlist/sdk/icons` の SVG パスデータを `react-native-svg` で描画する
-- `apps/native/src/components/app`: ネイティブ固有のタスク操作UIなど、画面共通で再利用するコンポーネント（TaskListCard はタスク追加/編集/並び替え/完了/完了削除の操作UIを集約し、ヘッダーやリスト選択は画面側で管理）。DrawerPanel はタスクリスト一覧とリスト作成・参加ダイアログを集約。各画面は `useTheme` フックでテーマに直接アクセスする
+- `apps/native/src/components/app`: ネイティブ固有のタスク操作UIなど、画面共通で再利用するコンポーネント（TaskListCard はタスク追加/編集/並び替え/完了/完了削除の操作UIを集約し、タスク追加の send ボタンは入力フォーカス時のみアニメーション表示する。ヘッダーやリスト選択は画面側で管理）。DrawerPanel はタスクリスト一覧とリスト作成・参加ダイアログを集約。各画面は `useTheme` フックでテーマに直接アクセスする
 
 ## 追加・変更ルール
 
@@ -39,7 +39,7 @@
 
 ## ビジュアルスタイル
 
-- アプリケーション全体のフォントは、Web では `next/font/google`（`Inter` / `Noto Sans JP`）を `_app.tsx` で読み込み、Tailwind の `font-sans` から CSS 変数経由で適用する
+- アプリケーション全体のフォントは、Web では `next/font/google`（`Inter` / `Noto Sans JP`）を `_app.tsx` で読み込み、Tailwind の `font-sans` から CSS 変数経由で適用する。Portal 配下にも反映されるよう、`body` に同じフォント変数クラスを付与する
 - Web の Drawer はオーバーレイやスライド方向、背景/文字色を Tailwind で定義し、ライト/ダークの可読性を担保する
 - z-index は通常レイヤーを 10 刻み（10〜100）、ダイアログ系は 10 刻み（1000〜1500）で管理し、Web の Drawer はオーバーレイ 1000/コンテンツ 1100、Dialog はオーバーレイ 1200/コンテンツ 1300 を基本とする
 - Web (Mobile) の Drawer ではヘッダーに閉じる（×）ボタンを配置し、`aria-label`/`title` は i18next の `common.close` を使用する

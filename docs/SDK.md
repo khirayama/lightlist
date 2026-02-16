@@ -52,6 +52,7 @@
 
 4.  **変更検知と通知**:
     - `fast-deep-equal` を使用して、変換後の `AppState` が前回と実質的に異なる場合のみリスナーに通知を行い、React コンポーネントの不要な再レンダリングを防ぎます。
+    - 変換後に `settings` / `taskLists` / `sharedTaskListsById` が前回と等価な場合は参照を再利用し、`useSyncExternalStore` の selector 購読で無関係な再レンダーを抑制します。
 
 ### ミューテーション (Mutations)
 

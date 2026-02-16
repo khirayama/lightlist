@@ -70,4 +70,4 @@
 - `/app` は `taskListOrderUpdatedAt` を待って全画面スピナーを維持しない。認証確認後はシェルを先に表示し、タスクリスト同期中はコンテンツ領域のみローディングを表示する。
 - `TaskListCard` / `DrawerPanel` / `Carousel` / `ConfirmDialog` は `next/dynamic` で遅延ロードし、初期バンドル評価を分散する。
 - ランディングページ (`/`) は `getServerSideProps` を使わず静的配信し、言語切り替えはクエリ (`?lang=`) をクライアント側で同期する。
-- フォントは `_document.tsx` の外部 CSS 読み込みを廃止し、`_app.tsx` の `next/font/google` に統一する。
+- フォントは `_document.tsx` の外部 CSS 読み込みを廃止し、`_app.tsx` の `next/font/google` に統一する。Portal 配下の UI も `font-sans` が同じ変数を参照できるよう、`body` にフォント変数クラスを付与する。

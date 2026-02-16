@@ -80,6 +80,10 @@ export default function App({ Component, pageProps }: AppProps) {
 
     setMounted(true);
 
+    if (typeof document !== "undefined") {
+      document.body.classList.add(inter.variable, notoSansJp.variable);
+    }
+
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const applyTheme = (theme: Theme) => {
       const isDark =
@@ -104,6 +108,9 @@ export default function App({ Component, pageProps }: AppProps) {
 
     return () => {
       mediaQuery.removeEventListener("change", handleMediaChange);
+      if (typeof document !== "undefined") {
+        document.body.classList.remove(inter.variable, notoSansJp.variable);
+      }
     };
   }, []);
 

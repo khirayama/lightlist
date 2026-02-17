@@ -119,6 +119,20 @@ function createStore() {
 
   const commit = () => {
     const nextAppState = transform(data);
+    if (isEqual(currentAppState.settings, nextAppState.settings)) {
+      nextAppState.settings = currentAppState.settings;
+    }
+    if (isEqual(currentAppState.taskLists, nextAppState.taskLists)) {
+      nextAppState.taskLists = currentAppState.taskLists;
+    }
+    if (
+      isEqual(
+        currentAppState.sharedTaskListsById,
+        nextAppState.sharedTaskListsById,
+      )
+    ) {
+      nextAppState.sharedTaskListsById = currentAppState.sharedTaskListsById;
+    }
     if (!isEqual(currentAppState, nextAppState)) {
       currentAppState = nextAppState;
       listeners.forEach((listener) => listener(currentAppState));

@@ -184,6 +184,7 @@ function SortableTaskListItem({
 type CalendarTaskItemProps = {
   task: DatedTask;
   onOpenTaskList: (taskListId: string) => void;
+  onSelectDate: (date: Date) => void;
   itemRef: (element: HTMLDivElement | null) => void;
   isHighlighted: boolean;
 };
@@ -191,6 +192,7 @@ type CalendarTaskItemProps = {
 export function CalendarTaskItem({
   task,
   onOpenTaskList,
+  onSelectDate,
   itemRef,
   isHighlighted,
 }: CalendarTaskItemProps) {
@@ -208,16 +210,20 @@ export function CalendarTaskItem({
         isHighlighted && "bg-gray-100 dark:bg-gray-800",
       )}
     >
-      <button
-        type="button"
-        onClick={() => onOpenTaskList(task.taskListId)}
-        className="flex min-w-0 flex-1 flex-col gap-1 text-left rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:focus-visible:outline-gray-500"
-      >
-        <span className="flex min-w-0 items-center justify-between gap-2">
-          <span className="shrink-0 text-xs text-gray-600 dark:text-gray-300">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => onSelectDate(task.dateValue)}
+            className="shrink-0 rounded-md text-xs text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-300 dark:focus-visible:outline-gray-500"
+          >
             {dateDisplayValue}
-          </span>
-          <span className="flex min-w-0 items-center justify-end gap-2">
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenTaskList(task.taskListId)}
+            className="inline-flex min-w-0 items-center justify-end gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:focus-visible:outline-gray-500"
+          >
             <span
               aria-hidden="true"
               className="h-4 w-4 shrink-0 rounded-full border border-gray-300 dark:border-gray-700"
@@ -226,12 +232,16 @@ export function CalendarTaskItem({
             <span className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
               {task.taskListName}
             </span>
-          </span>
-        </span>
-        <span className="truncate font-medium leading-6 text-gray-900 dark:text-gray-50">
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => onSelectDate(task.dateValue)}
+          className="truncate rounded-md text-left font-medium leading-6 text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+        >
           {task.task.text}
-        </span>
-      </button>
+        </button>
+      </div>
     </div>
   );
 }

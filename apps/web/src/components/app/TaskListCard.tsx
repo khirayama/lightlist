@@ -441,7 +441,7 @@ export function TaskListCard({
       )}
       style={{ backgroundColor: taskList.background ?? undefined }}
     >
-      <div className="min-h-full px-6">
+      <div className="min-h-full px-4">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4">

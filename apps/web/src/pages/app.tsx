@@ -99,7 +99,7 @@ function AppHeader({
   return (
     <header
       className={clsx(
-        "flex flex-wrap items-center py-1.5 px-3",
+        "flex flex-wrap items-center py-1.5 px-1",
         isWideLayout ? "justify-start" : "justify-between",
       )}
     >
@@ -563,7 +563,7 @@ export default function AppPage() {
                 openMenuLabel={t("app.openMenu")}
               />
               {error && (
-                <div className="px-3">
+                <div className="px-1">
                   <Alert variant="error">{error}</Alert>
                 </div>
               )}

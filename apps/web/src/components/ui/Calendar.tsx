@@ -41,11 +41,9 @@ export function Calendar({
         cell: "h-9 w-9 text-center text-sm p-0 relative",
         day: "h-9 w-9 text-center text-sm p-0 relative",
         day_button:
-          "h-9 w-9 rounded-lg p-0 font-medium text-gray-900 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 aria-selected:bg-gray-900 aria-selected:text-white aria-selected:hover:bg-gray-900 aria-selected:hover:text-white dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500 dark:aria-selected:bg-gray-50 dark:aria-selected:text-gray-900 dark:aria-selected:hover:bg-gray-50 dark:aria-selected:hover:text-gray-900",
+          "h-9 w-9 rounded-lg p-0 font-medium text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 aria-selected:bg-gray-900 aria-selected:text-white dark:text-gray-50 dark:focus-visible:outline-gray-500 dark:aria-selected:bg-gray-50 dark:aria-selected:text-gray-900",
         selected:
-          "bg-gray-900 text-white hover:bg-gray-900 hover:text-white dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50 dark:hover:text-gray-900",
-        day_selected:
-          "bg-gray-900 text-white hover:bg-gray-900 hover:text-white dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50 dark:hover:text-gray-900",
+          "bg-gray-200 rounded-lg text-white dark:bg-gray-600 dark:text-gray-900",
         today: "border border-gray-300 dark:border-gray-700",
         day_today: "border border-gray-300 dark:border-gray-700",
         outside: "text-gray-400 opacity-50 dark:text-gray-500",

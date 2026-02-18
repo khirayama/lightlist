@@ -50,6 +50,11 @@ export interface CarouselProps {
    * @default true
    */
   scrollEnabled?: boolean;
+  /**
+   * インジケーターを通常レイアウトフローで表示するかどうか
+   * @default false
+   */
+  indicatorInFlow?: boolean;
 }
 
 /**
@@ -65,10 +70,13 @@ export function Carousel({
   ariaLabel,
   getIndicatorLabel,
   scrollEnabled = true,
+  indicatorInFlow = false,
 }: CarouselProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currentIndexRef = useRef(0);
+  const skipSmoothSyncRef = useRef(false);
 
   // 内部状態としてのindex (Uncontrolledモード用)
   const [internalIndex, setInternalIndex] = useState(0);
@@ -76,6 +84,7 @@ export function Carousel({
   // External index があればそれを優先 (Semi-controlled)
   const isControlled = externalIndex !== undefined;
   const currentIndex = isControlled ? externalIndex : internalIndex;
+  currentIndexRef.current = currentIndex;
 
   const count = Children.count(children);
 
@@ -105,11 +114,20 @@ export function Carousel({
       if (Math.abs(container.scrollLeft - targetScrollLeft) > 2) {
         container.scrollTo({
           left: targetScrollLeft,
-          behavior: "smooth",
+          behavior: skipSmoothSyncRef.current ? "auto" : "smooth",
         });
       }
+      skipSmoothSyncRef.current = false;
     }
   }, [currentIndex, count]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // スクロールイベントハンドラ
   const handleScroll = useCallback(() => {
@@ -126,6 +144,7 @@ export function Carousel({
     // デバウンス処理: スクロール停止を検知
     scrollTimeoutRef.current = setTimeout(() => {
       isScrollingRef.current = false;
+      if (container.clientWidth === 0 || count === 0) return;
 
       // 現在のスクロール位置から最も近いスライドのインデックスを計算
       const newIndex = Math.round(container.scrollLeft / container.clientWidth);
@@ -134,25 +153,77 @@ export function Carousel({
       const clampedIndex = Math.max(0, Math.min(newIndex, count - 1));
 
       // インデックスが変わっていたら通知
-      if (clampedIndex !== currentIndex) {
+      if (clampedIndex !== currentIndexRef.current) {
+        skipSmoothSyncRef.current = true;
         if (!isControlled) {
           setInternalIndex(clampedIndex);
         }
         onIndexChange?.(clampedIndex);
       }
     }, 150); // 150ms静止でスクロール終了とみなす
-  }, [count, currentIndex, isControlled, onIndexChange]);
+  }, [count, isControlled, onIndexChange]);
 
   // インジケータークリック時の処理
   const handleIndicatorClick = (idx: number) => {
+    if (idx === currentIndexRef.current) return;
+    skipSmoothSyncRef.current = false;
     if (!isControlled) {
       setInternalIndex(idx);
     }
     onIndexChange?.(idx);
   };
 
+  const indicatorNav = (
+    <nav
+      aria-label={ariaLabel}
+      className={clsx(
+        indicatorInFlow
+          ? "flex justify-center gap-1"
+          : "absolute left-0 right-0 flex justify-center gap-1 pointer-events-none z-30",
+        indicatorInFlow
+          ? indicatorPosition === "top"
+            ? "mb-2"
+            : "mt-2"
+          : indicatorPosition === "top"
+            ? "top-14"
+            : "bottom-4",
+      )}
+    >
+      {Array.from({ length: count }).map((_, idx) => (
+        <button
+          key={idx}
+          type="button"
+          onClick={() => handleIndicatorClick(idx)}
+          className={clsx(
+            "inline-flex items-center justify-center p-2 rounded-full transition-all",
+            !indicatorInFlow && "pointer-events-auto",
+            "hover:bg-gray-900/10 dark:hover:bg-gray-50/10",
+          )}
+          aria-label={
+            getIndicatorLabel?.(idx, count) ?? `Go to slide ${idx + 1}`
+          }
+          aria-current={idx === currentIndex ? "true" : undefined}
+        >
+          <span
+            className={clsx(
+              "h-2 w-2 rounded-full transition-all",
+              idx === currentIndex
+                ? "bg-gray-900 dark:bg-gray-50 scale-110"
+                : "bg-gray-900/20 dark:bg-gray-50/20",
+            )}
+          />
+        </button>
+      ))}
+    </nav>
+  );
+
   return (
     <div className={clsx("relative w-full overflow-hidden", className)}>
+      {showIndicators &&
+        count > 0 &&
+        indicatorInFlow &&
+        indicatorPosition === "top" &&
+        indicatorNav}
       <div
         ref={containerRef}
         onScroll={scrollEnabled ? handleScroll : undefined}
@@ -177,41 +248,10 @@ export function Carousel({
         ))}
       </div>
 
-      {/* インジケーター (Locator) */}
-      {showIndicators && count > 0 && (
-        <nav
-          aria-label={ariaLabel}
-          className={clsx(
-            "absolute left-0 right-0 flex justify-center gap-1.5 pointer-events-none z-30",
-            indicatorPosition === "top" ? "top-14" : "bottom-4",
-          )}
-        >
-          {Array.from({ length: count }).map((_, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleIndicatorClick(idx)}
-              className={clsx(
-                "inline-flex items-center justify-center p-2 rounded-full transition-all pointer-events-auto",
-                "hover:bg-gray-900/10 dark:hover:bg-gray-50/10",
-              )}
-              aria-label={
-                getIndicatorLabel?.(idx, count) ?? `Go to slide ${idx + 1}`
-              }
-              aria-current={idx === currentIndex ? "true" : undefined}
-            >
-              <span
-                className={clsx(
-                  "h-2 w-2 rounded-full transition-all",
-                  idx === currentIndex
-                    ? "bg-gray-900 dark:bg-gray-50 scale-110"
-                    : "bg-gray-900/20 dark:bg-gray-50/20",
-                )}
-              />
-            </button>
-          ))}
-        </nav>
-      )}
+      {showIndicators &&
+        count > 0 &&
+        (!indicatorInFlow || indicatorPosition !== "top") &&
+        indicatorNav}
     </div>
   );
 }

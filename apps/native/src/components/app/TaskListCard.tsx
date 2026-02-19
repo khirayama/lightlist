@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { TFunction } from "i18next";
 import i18n from "../../utils/i18n";
 import {
   Alert,
+  Animated,
+  Easing,
   Platform,
   Pressable,
   Text,
@@ -84,6 +86,8 @@ export const TaskListCard = ({
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskDate, setEditingTaskDate] = useState("");
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [isAddInputFocused, setIsAddInputFocused] = useState(false);
+  const addButtonVisibility = useRef(new Animated.Value(0)).current;
 
   // Reset editing state when not active
   useEffect(() => {
@@ -94,8 +98,18 @@ export const TaskListCard = ({
       setNewTaskText("");
       setTaskError(null);
       setAddTaskError(null);
+      setIsAddInputFocused(false);
     }
   }, [isActive]);
+
+  useEffect(() => {
+    Animated.timing(addButtonVisibility, {
+      toValue: isAddInputFocused ? 1 : 0,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [addButtonVisibility, isAddInputFocused]);
 
   const completedTaskCount = tasks.filter((task) => task.completed).length;
   const canSortTasks = tasks.length > 1;
@@ -461,10 +475,30 @@ export const TaskListCard = ({
     </View>
   );
 
+  const addButtonAnimatedStyle = {
+    opacity: addButtonVisibility,
+    width: addButtonVisibility.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 48],
+    }),
+    marginLeft: addButtonVisibility.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 8],
+    }),
+    transform: [
+      {
+        translateX: addButtonVisibility.interpolate({
+          inputRange: [0, 1],
+          outputRange: [8, 0],
+        }),
+      },
+    ],
+  };
+
   const listHeader = (
     <View className="mb-6">
       {header}
-      <View className="flex-row items-center gap-2 mb-4">
+      <View className="flex-row items-center mb-4">
         <TextInput
           className="flex-1 rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
           value={newTaskText}
@@ -474,29 +508,33 @@ export const TaskListCard = ({
           returnKeyType="done"
           blurOnSubmit={false}
           onSubmitEditing={handleAddTask}
+          onFocus={() => setIsAddInputFocused(true)}
+          onBlur={() => setIsAddInputFocused(false)}
           editable={isActive}
           accessibilityLabel={t("taskList.addTaskPlaceholder")}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("taskList.addTask")}
-          onPress={handleAddTask}
-          disabled={!canAddTask}
-          className={`rounded-[12px] py-3.5 px-3.5 items-center active:opacity-90 ${
-            canAddTask
-              ? "bg-primary dark:bg-primary-dark"
-              : "bg-border dark:bg-border-dark"
-          }`}
-        >
-          <AppIcon
-            name="send"
-            className={
+        <Animated.View style={[addButtonAnimatedStyle, { overflow: "hidden" }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("taskList.addTask")}
+            onPress={handleAddTask}
+            disabled={!canAddTask || !isAddInputFocused}
+            className={`rounded-[12px] py-3.5 px-3.5 items-center active:opacity-90 ${
               canAddTask
-                ? "fill-primary-text dark:fill-primary-text-dark"
-                : "fill-muted dark:fill-muted-dark"
-            }
-          />
-        </Pressable>
+                ? "bg-primary dark:bg-primary-dark"
+                : "bg-border dark:bg-border-dark"
+            }`}
+          >
+            <AppIcon
+              name="send"
+              className={
+                canAddTask
+                  ? "fill-primary-text dark:fill-primary-text-dark"
+                  : "fill-muted dark:fill-muted-dark"
+              }
+            />
+          </Pressable>
+        </Animated.View>
       </View>
       {addTaskError ? (
         <Text className="text-[13px] font-inter text-error dark:text-error-dark mt-1">
@@ -596,8 +634,8 @@ export const TaskListCard = ({
         }}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          padding: 24,
-          paddingBottom: 40,
+          padding: 16,
+          paddingBottom: 24,
           maxWidth: 768,
           width: "100%",
           alignSelf: "center",

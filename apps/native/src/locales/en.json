@@ -21,6 +21,10 @@
     "joinListDescription": "Enter the share code to join a shared task list.",
     "join": "Join",
     "joining": "Joining...",
+    "calendarCheckButton": "View in Calendar",
+    "calendarSheetTitle": "Tasks with Dates",
+    "calendarSheetDescription": "Select a date to scroll to matching tasks",
+    "calendarNoDatedTasks": "No tasks have a date",
     "taskListLocator": {
       "label": "Task List Indicator",
       "goTo": "Go to task list {{index}} of {{total}}"
@@ -28,6 +32,7 @@
   },
   "common": {
     "back": "Back",
+    "next": "Next",
     "loading": "Loading...",
     "delete": "Delete",
     "close": "Close"

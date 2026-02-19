@@ -21,6 +21,10 @@
     "joinListDescription": "共有コードを入力してリストに参加します。",
     "join": "参加",
     "joining": "参加中...",
+    "calendarCheckButton": "カレンダーで確認",
+    "calendarSheetTitle": "日付付きタスク",
+    "calendarSheetDescription": "日付を選択すると該当タスクまでスクロールします",
+    "calendarNoDatedTasks": "日付が設定されたタスクはありません",
     "taskListLocator": {
       "label": "タスクリストインジケーター",
       "goTo": "{{total}}番目のうち{{index}}番目のタスクリストへ移動"
@@ -28,6 +32,7 @@
   },
   "common": {
     "back": "戻る",
+    "next": "次へ",
     "loading": "読み込み中...",
     "delete": "削除",
     "close": "閉じる"

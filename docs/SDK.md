@@ -45,14 +45,14 @@
 
 2.  **チャンク分割読み込み**:
     - Firestore の `in` クエリには「最大10個まで」等の制約（またはパフォーマンス上の推奨）があるため、タスクリストIDのリストを10個ずつのチャンクに分割します。
-    - 各チャンクごとにクエリを発行し、結果をマージします。これにより、大量のタスクリストを持つユーザーでも正常に動作します。
+    - 各チャンクごとにクエリを発行し、`snapshot.docChanges()` で差分適用します。これにより、大量のタスクリストを持つユーザーでも不要な再マージを抑えます。
 
 3.  **共有リストの独立購読**:
     - 自分のリストに含まれない（共有コード経由でアクセスした）リストは、`subscribeToSharedTaskList` メソッドを通じて個別に購読されます。これにより、メインのリスト同期ロジックとは独立して管理されます。
 
 4.  **変更検知と通知**:
-    - `fast-deep-equal` を使用して、変換後の `AppState` が前回と実質的に異なる場合のみリスナーに通知を行い、React コンポーネントの不要な再レンダリングを防ぎます。
-    - 変換後に `settings` / `taskLists` / `sharedTaskListsById` が前回と等価な場合は参照を再利用し、`useSyncExternalStore` の selector 購読で無関係な再レンダーを抑制します。
+    - `commit` は `user` / `taskListOrderUpdatedAt` / `settings` / `taskLists` / `sharedTaskListsById` を段階的に比較し、変更がない場合のみ通知をスキップします。
+    - `transform` は `taskListOrder`・`settings`・各 `taskList` の変換結果をキャッシュし、同一入力参照に対して再計算せず参照を再利用します。
 
 ### ミューテーション (Mutations)
 
@@ -64,8 +64,19 @@
 #### 主要なロジック
 
 - **楽観的更新**: ストア自体はサーバーデータを正としますが、各ミューテーション関数内では、書き込み完了を待たずにUIへの反映（または完了後の速やかな反映）を意識した設計となっています。
+- **並び替え同期の最適化**: `useOptimisticReorder` は通常時に `initialItems` を直接参照し、並び替え中のみローカルの optimistic state を保持することで、非並び替え更新時の不要な再レンダーを抑制します。
+- **ドラッグ中同期の抑制**: `useOptimisticReorder` は `suspendExternalSync` オプションで外部同期の取り込みを一時停止でき、ドラッグ中の snapshot 差し替えによる表示競合を防ぎます。
+- **タスク並び替え書き込みの最小化**: `updateTasksOrder` は通常ドラッグ対象 1 件の `order` のみを書き込み、前後ギャップが不足する場合だけ全体を再採番します。
 - **自動ソート (Auto Sort)**: `settings.autoSort` が有効な場合、タスクの更新時に「未完了 > 日付 > オーダー」の優先順位で自動的に並び替えが行われます。
 - **オーダー管理**: タスクおよびリストの並び順は `order` (number) フィールドで管理され、浮動小数点数を利用して挿入時の再採番コストを低減、または必要に応じてリバランス（連番の再割り当て）を行います。
+- **性能計測トレース**: `mutations/app.ts` の主要更新 API は `traceId?: string` を受け取り、`registerPendingPerformanceTrace` で store 側へ引き継いだうえで `mutation.start` / `mutation.before_write` / `mutation.after_write` を出力します。
+
+#### パフォーマンス計測ログ
+
+- `src/store.ts` は `scopeKey` 単位で pending trace をキュー管理し、対応する `onSnapshot` 受信時に `consumePendingPerformanceTrace` で取り出します。
+- `commit(trace, context)` は `store.commit.start` / `store.listeners.notified` / `store.commit.end` を出力し、`traceId` 付きで遅延区間を可視化します。
+- `taskListOrder` / `taskLists`（chunk/shared）で `snapshot.received` を出力し、mutation の書き込み完了後にどの時点で購読反映されたかを確認できます。
+- ログ形式は JSON 文字列で統一し、最低限 `scope` / `phase` / `traceId` / `op` / `elapsedMs` / `ts` を含みます。
 
 ## モジュール構成
 

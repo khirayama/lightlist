@@ -131,7 +131,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 ### 1. サインアップ (Sign Up)
 
 **ページ:** `src/pages/index.tsx` (signup タブ)
-**ネイティブ:** `apps/native/src/App.tsx` (signup タブ)
+**ネイティブ:** `apps/native/src/screens/AuthScreen.tsx` (signup タブ)
 
 **処理フロー:**
 
@@ -158,7 +158,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 ### 2. ログイン (Sign In)
 
 **ページ:** `src/pages/index.tsx` (signin タブ)
-**ネイティブ:** `apps/native/src/App.tsx` (signin タブ)
+**ネイティブ:** `apps/native/src/screens/AuthScreen.tsx` (signin タブ)
 
 **処理フロー:**
 
@@ -182,7 +182,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 #### ステップ1: リセットメール送信
 
 **ページ:** `src/pages/index.tsx` (reset タブ)
-**ネイティブ:** `apps/native/src/App.tsx` (reset タブ)
+**ネイティブ:** `apps/native/src/screens/AuthScreen.tsx` (reset タブ)
 
 **処理フロー:**
 
@@ -246,12 +246,12 @@ https://[PROJECT].firebaseapp.com/password-reset?oobCode=[CODE]&mode=resetPasswo
 
 ### 4. ネイティブログイン (apps/native)
 
-**画面:** `apps/native/src/App.tsx`
+**画面:** `apps/native/src/screens/AuthScreen.tsx`
 
 **処理フロー:**
 
 1. ユーザーがメールアドレスとパスワードを入力
-2. 入力チェック（未入力時はエラーメッセージを表示）
+2. `validateAuthForm` で入力チェック（Web と同一のバリデーションルール）
 3. `signIn(email, password)` を呼び出し
 4. Firebase Authentication でログイン
 5. `onAuthStateChange` でログイン状態を反映
@@ -263,7 +263,7 @@ https://[PROJECT].firebaseapp.com/password-reset?oobCode=[CODE]&mode=resetPasswo
 - `auth/user-not-found`: アカウントが見つからない
 - `auth/too-many-requests`: ログイン試行回数が多すぎる
 - `auth/invalid-email`: メールアドレス形式が無効
-- その他のエラーは多言語対応で表示
+- その他のエラーは `resolveErrorMessage` で多言語対応表示
 
 ## SDK インターフェース
 

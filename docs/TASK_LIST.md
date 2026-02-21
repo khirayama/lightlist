@@ -22,7 +22,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 - **ヘッダー / ドロワー:** ページタイトルと Drawer トリガーを配置。幅 1024px 以上ではドロワー内容を左カラムに固定し、より狭い幅では shadcn Drawer（左スライド、オーバーレイ付き）でログインメールを表示し、設定画面へのリンクを提供する。左右ドロワーはタップ操作を優先するため `handleOnly` を有効化し、コンテンツ上でのドラッグ開始を抑止している。
 - **タスクリスト一覧（ドロワー内）:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力してフォーム送信（`Enter` / 作成ボタン）で `createTaskList` を実行。作成ボタンの隣には「共有リストに参加」ボタンがあり、共有コードを入力する Dialog を開く。コードを入力して参加すると `fetchTaskListIdByShareCode` でリストを特定し、`addSharedTaskListToOrder` で自分のリストに追加する。ヘッダー直下の「カレンダーで確認」ボタンから下部シートを開き、日付付きタスクのカレンダーと一覧を表示する。シートは Drawer より高い z-index で重なり、mobile/desktop ともにより上端まで展開する。カレンダーは `w-full` 前提で表示し、wide layout では左にカレンダー・右にタスクリストを配置する。カレンダー領域はカルーセル表示で、未完了の日付付きタスクが存在する最初の月の前月から最後の月の翌月までを横スクロールで移動できる。初期表示は今月を優先し、必要に応じて今月のスライドを追加する。インジケーターは上部に表示し、カレンダー自体の前月・翌月ボタンは表示しない。各スライドで日付クリックすると該当日付の先頭タスクへスクロールし、同日付のタスク行をハイライトする。タスクがある日付には表示中の月の未完了タスクに限ってタスクリスト色のドットを表示し、一覧も表示中の月の未完了タスクのみを対象とする。一覧は日付順・タスク名順で表示し、1段目は左に日付・右にカラーとタスクリスト名、2段目にタスク名を表示する。タスク行クリックで日付を選択し、タスクリスト名クリックで対象タスクリストへ移動する。リストが長い場合はカレンダーを sticky に保ち、一覧側のみスクロールする。mobile では一覧領域を `flex-1` で確保し、一覧スクロール領域には下端余白と `data-vaul-no-drag` を適用して、最下部タスクの見切れとシートのドラッグ挙動との干渉を抑制する。リストが空のときは `app.emptyState` を表示し、各行には背景色スウォッチとタスク数を併記する。
 - **ネイティブ版カレンダー導線:** `apps/native` でも同じ導線を採用し、DrawerPanel の「カレンダーで確認」ボタンからモーダルシートを開く。`react-native-calendars` で月表示と日付ドットを描画し、日付タップで月内タスクリストを該当位置へスクロールしつつ同日タスクをハイライトし、タスクリスト名タップで対象リストへ遷移する。
-- **タスク詳細カルーセル:** 各タスクリストを `Carousel` で横スライド化し、ホイール左右操作や前後ボタン、スワイプで切り替える。各スライド内のタスクリストは独立して縦スクロール可能であり、リストが長くなっても画面全体のスクロールは発生しない。AppHeader 直下にドット型の locator を表示し、現在位置を示しつつクリックでリストを切り替えられる。ページ全体に表示中スライドの `TaskList.background` を適用し、内側を可読性の高い半透明のサーフェス（`bg-white/60 dark:bg-gray-900/60` + `backdrop-blur-md`）として構成する。ワイドレイアウトではタスクリストの最大幅を制限し、読みやすさを維持する。`TaskListCard` は共有ページと同じレイアウト（入力欄が上、一覧が下）で完了・日付設定・追加・編集を行う。
+- **タスク詳細カルーセル:** 各タスクリストを `Carousel` で横スライド化し、Web ではホイール左右操作や前後ボタン、モバイルではスワイプで切り替える。各スライド内のタスクリストは独立して縦スクロール可能であり、リストが長くなっても画面全体のスクロールは発生しない。AppHeader 直下にドット型の locator を表示し、現在位置を示しつつクリックでリストを切り替えられる。ページ全体に表示中スライドの `TaskList.background` を適用し、内側を可読性の高い半透明のサーフェス（`bg-white/60 dark:bg-gray-900/60` + `backdrop-blur-md`）として構成する。ワイドレイアウトではタスクリストの最大幅を制限し、読みやすさを維持する。`TaskListCard` は共有ページと同じレイアウト（入力欄が上、一覧が下）で完了・日付設定・追加・編集を行う。
 - **色と共有:** タスクリストカード右上の編集（edit）/共有（share）アイコンボタンから Dialog を開き、編集Dialogでリスト名と背景色をまとめて変更する（保存はフォーム送信: `Enter` / 保存ボタン）。共有Dialogでコードの生成/停止とクリップボードコピーを行う。
 - **削除確認:** リスト編集Dialog内の更新ボタン上部に配置された削除ボタンから `deleteTaskList` を実行。
 
@@ -32,13 +32,15 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 - モバイルのスワイプでインデックスが更新された場合は同期スクロールを即時適用し、不要な再アニメーションを避ける。
 - ページ全体の背景色は `selectedTaskListId` の変更に合わせて即座に切り替わる。
 - タスク並び替え中は `TaskListCard` からの sorting 状態を受け取り、カルーセルのスクロール操作を無効化して横スクロールを抑制する。
+- ネイティブでは `Carousel`（`Animated.FlatList` ベース）の `scrollEnabled` を並び替え状態と連動させ、通常時は横スワイプを優先し、タスクアイテムの drag_indicator ハンドルからドラッグを開始した場合のみ横スワイプを無効化する。ハンドル起点のドラッグは長押し不要で開始できる。
 - リスト一覧での選択や Dialog オープン時は対象リストを事前に選択し、カルーセル位置とフォーム入力を一致させる。
 - locator（ドット）をクリックして `selectedTaskListId` を切り替え、カルーセル位置を同期する。locator は背景に `bg-white/40 dark:bg-black/40` と `backdrop-blur-md` を備えたカプセル状のバーに配置され、常に高い視認性を保つ。
 
 ### 並び替え
 
-- **タスクリスト:** `updateTaskListOrder(draggedTaskListId, targetTaskListId)` で全リストの order を再採番。
-- **タスク:** `updateTasksOrder(taskListId, draggedTaskId, targetTaskId)` でタスク順を更新。`autoSort` が有効な場合、`updateTask` 内でも完了状態と日付に基づき order を再計算する。
+- **タスクリスト:** `updateTaskListOrder(draggedTaskListId, targetTaskListId, traceId?)` で全リストの order を再採番。
+- **タスク:** `updateTasksOrder(taskListId, draggedTaskId, targetTaskId)` でタスク順を更新。通常はドラッグ対象 1 件の `order` のみ更新し、前後ギャップが不足した場合のみ全体を再採番する。`autoSort` が有効な場合、`updateTask` 内でも完了状態と日付に基づき order を再計算する。
+- **ネイティブのドラッグ終了処理:** タスクのドラッグでは `onDragStart` / `onDragEnd` で並び替え中フラグを管理し、順序更新は `onReorder` の単一経路で実行する。タスクリストも同様に `onReorderTaskList` の単一経路で `updateTaskListOrder` を実行する。いずれもハンドルは `onPressIn` 起点で長押し不要とし、`panGesture` の `activeOffsetY: [-12, 12]` / `failOffsetX: [-24, 24]` で感度を緩和する。
 - **UI の順序確定:** タスクリストの並び替えは `taskListOrderUpdatedAt`、タスクの並び替えは各 `TaskListCard` が監視する `TaskList.updatedAt` を基準に、`appStore` の更新で反映される。
 
 ### 入力とエラー
@@ -99,7 +101,7 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 - `isWideLayout`: 画面幅 1024px 以上で左カラムを常時表示するかどうかを判定する。真の場合、Drawer は閉じたままオーバーレイを使用しない。
 - 狭い幅で Drawer を開いている間は `window.history.pushState` と `popstate` で「戻る」操作をフックし、ページ遷移ではなく Drawer を閉じる。カレンダーシートも同じ仕組みで履歴と連携し、戻る操作・ジェスチャーでシートを閉じる。
 - `selectedTaskListId`: 現在選択中のタスクリスト ID。マウント時に最初のリストを選択し、Drawer 内の選択やカルーセルスクロールに合わせて同期する。
-- `isTaskSorting`: `TaskListCard` の DnD 並び替え中フラグ。`Carousel` のホイールジェスチャーを抑止して誤操作を防ぐ。
+- `isTaskSorting`: `TaskListCard` の DnD 並び替え中フラグ。`Carousel` の横スワイプとホイールジェスチャーを抑止して誤操作を防ぐ。
 - タスクの追加/編集入力（`newTaskText` / `editingTaskId` / `editingTaskText` など）は、各 `TaskListCard` に閉じ込めて管理する（リスト間でフォーム状態を共有しない）。
 
 ### アプリケーション状態（Store）
@@ -166,7 +168,7 @@ const state: AppState = {
 
 - Firebase Firestore のエラーをスロー。
 
-### updateTaskListOrder(draggedTaskListId: string, targetTaskListId: string): Promise<void>
+### updateTaskListOrder(draggedTaskListId: string, targetTaskListId: string, traceId?: string): Promise<void>
 
 タスクリストの順序を更新します（ドラッグ&ドロップ時）。
 
@@ -254,6 +256,7 @@ taskList:
 - **作成フォーム:** リスト名と背景色を入力して作成。背景色は「なし（テーマカラー）」が先頭かつデフォルト
 - **編集ダイアログ:** 編集ボタンから Dialog を開き、リスト名と背景色の更新・削除を行う
 - **タスク:** 入力欄で追加し、追加中も入力欄を無効化せず、追加後もフォーカスを維持する（追加ボタンやEnterでもキーボードを閉じない）。一覧で編集（テキスト/期限）に入るとテキスト入力へ自動フォーカスし、完了切り替え・ドラッグハンドルで並び替え・削除が可能。ヘッダー操作でソートと完了タスク削除を行う
+- **ジェスチャ競合対策:** 通常のスワイプ操作はカルーセル遷移を優先し、タスクアイテムの drag_indicator ハンドルから開始したときのみ並び替えを優先する。`TaskListCard` から親へ sorting 状態を通知し、`AppScreen` 側でドラッグ中のみカルーセルの横スワイプを停止する。`ReorderableList` の `panGesture` は縦方向でのみアクティブ化し、横方向移動は失敗扱いにしてカルーセルへ譲る。
 
 ### デザイン仕様
 
@@ -265,8 +268,9 @@ taskList:
 
 ## 順序管理
 
-- タスクリスト・タスクともに並び替え後は 1.0 からの連番で order を再採番します。
-- 並び替えは昇順に並べ替えた配列を再構成し、Firestore へまとめて反映します。
+- タスクリスト並び替えは 1.0 からの連番で order を再採番します。
+- タスク並び替えは原則ドラッグ対象 1 件の `order` のみ更新し、前後ギャップが不足した場合のみ再採番します。
+- 並び替えは昇順配列を再構成して挿入位置を確定し、Firestore へ反映します。
 - 追加時も挿入位置を確定してから全体を再採番するため、挿入位置がずれません。
 
 ## パフォーマンス考慮事項
@@ -274,10 +278,11 @@ taskList:
 ### 最適化
 
 1. **グリッドレスポンシブ:** Tailwind CSS ブレークポイントで効率的に実装
-2. **リスト表示:** React の `map` で効率的にレンダリング
+2. **リスト表示:** `TaskListCard` は ID ベースの参照マップを事前計算し、`DrawerPanel` は `renderItem` の `index` を直接利用して効率的にレンダリング
 3. **状態更新:** 必要な状態変更のみトリガーし、`AppScreen` / `AppScreenContent` のストア二重購読を避けて再レンダー範囲を抑制
-4. **order 更新:** 浮動小数により、並び替え時の更新件数を最小化
-5. **ネイティブのカルーセル描画:** 選択中リストと隣接リストのみ `TaskListCard` を描画し、非表示リストのレンダー負荷を抑える
+4. **描画関数の安定化:** `FlatList` / `ReorderableList` の `keyExtractor` / `renderItem` / `onReorder` を安定化し、不要な再生成を抑制
+5. **order 更新:** 浮動小数により、並び替え時の更新件数を最小化
+6. **ネイティブのカルーセル描画:** 選択中リストと隣接リストのみ `TaskListCard` を描画し、非表示リストのレンダー負荷を抑える
 
 ### 注意点
 
@@ -346,9 +351,9 @@ taskList:
 
 **ユーザー操作:**
 
-1. ドラッグハンドルをマウスで押下（ポインタ感度: 8px）
-2. マウスを上下に移動してタスクの順序を変更
-3. マウスボタンを放すと新しい順序が保存される
+1. ドラッグハンドルを押下してドラッグを開始（Web はポインタ移動距離 8px、Native は `onPressIn` で即時開始）
+2. ポインタまたは指を上下に移動してタスクの順序を変更
+3. ポインタまたは指を離すと新しい順序が保存される
 
 **キーボード操作:**
 
@@ -365,11 +370,11 @@ taskList:
    ↓
 4. 配列からドラッグ対象を一度除外し、対象タスク位置に挿入
    ↓
-5. 1 からの連番で order を再採番
+5. 前後タスクの order からドラッグ対象の新しい order を計算（通常は 1 件更新、必要時のみ再採番）
    ↓
 6. `updateTasksOrder(taskListId, draggedTaskId, targetTaskId)` を呼び出し
    ↓
-7. Firestore の `tasks[taskId].order` を一括更新
+7. Firestore の `tasks[draggedTaskId].order` を更新（ギャップ不足時は一括更新）
    ↓
 8. ストアが更新され、自動的に画面に反映
 ```
@@ -531,12 +536,12 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 - `selectedTaskListId`: 表示対象のタスクリスト ID。初回ロード時に最初のリストを自動選択し、Embla の select イベントでカルーセルと Drawer 選択を片方向同期する。
 - `state`: `appStore` から購読した `AppState`。ユーザー、設定、タスクリストを保持。
 - `error`: ページ上部に表示するページレベルのエラーメッセージ（リスト作成/編集/削除/共有など）。
-- `isTaskSorting`: `TaskListCard` からの sorting 状態を受け取り、カルーセルのホイールジェスチャーを抑止する。
+- `isTaskSorting`: `TaskListCard` からの sorting 状態を受け取り、カルーセルの横スワイプとホイールジェスチャーを抑止する。
 - タスク操作（追加/編集/完了/日付設定/並び替え）の状態とエラーは `TaskListCard` が担当し、リストごとに独立して保持する。
 
 ### API インターフェース
 
-#### addTask(taskListId: string, text: string, date?: string): Promise<string>
+#### addTask(taskListId: string, text: string, date?: string, id?: string, traceId?: string): Promise<string>
 
 タスクを追加します。自然言語による日付解析と入力履歴の更新を自動的に行います。
 
@@ -576,7 +581,7 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 6. **Firestore 更新**:
    - `tasks` マップへのタスク追加、再計算された `order` の更新、`history` の更新を一度の `updateDoc` で実行します。
 
-#### updateTask(taskListId: string, taskId: string, updates: Partial<Task>): Promise<void>
+#### updateTask(taskListId: string, taskId: string, updates: Partial<Task>, traceId?: string): Promise<void>
 
 タスクを更新します。
 
@@ -616,7 +621,7 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
    - **`autoSort` 無効時**: 対象フィールドを `deleteField()` で削除します。
    - **`autoSort` 有効時**: 対象タスクを除外した後、残りのタスクを再ソート（未完了 > 日付 > Order）し、`order` を再採番して一括更新します。
 
-#### updateTasksOrder(taskListId: string, draggedTaskId: string, targetTaskId: string): Promise<void>
+#### updateTasksOrder(taskListId: string, draggedTaskId: string, targetTaskId: string, traceId?: string): Promise<void>
 
 タスクの順序を更新します（ドラッグ&ドロップ時）。
 
@@ -637,17 +642,18 @@ await updateTasksOrder(taskListId, "task-1", "task-3");
 
 1. ストアに対象タスクリストが存在しない場合は Firestore から取得して最新データを使用
 2. 現在の order を昇順で取得し、ドラッグ対象を配列から除外
-3. 対象タスクの位置に挿入し（上方向は直前、下方向は直後）、全タスクを 1.0 から連番で再採番
-4. Firestore の `tasks[taskId].order` を一括更新
-5. `updatedAt` タイムスタンプを自動設定
-6. ストアの変更をリスナーに通知
+3. 対象タスクの位置に挿入したときの前後タスクを特定し、ドラッグ対象の `order` を計算
+4. 前後ギャップが確保できる場合は `tasks[draggedTaskId].order` のみ更新
+5. 前後ギャップが不足する場合のみ、全タスクを 1.0 から連番で再採番して一括更新
+6. `updatedAt` タイムスタンプを自動設定
+7. ストアの変更をリスナーに通知
 
 **技術仕様：**
 
-- **order フィールド:** 1.0 からの連番
-- **更新件数:** 並び替え後の全タスクに対して order を再採番
+- **order フィールド:** 浮動小数の order を維持
+- **更新件数:** 通常はドラッグ対象 1 件のみ更新、ギャップ不足時のみ全件再採番
 
-#### sortTasks(taskListId: string): Promise<void>
+#### sortTasks(taskListId: string, traceId?: string): Promise<void>
 
 タスクを「未完了 → 日付 → 現在の order」優先で整列し、order を再採番して保存します。
 
@@ -661,7 +667,7 @@ await updateTasksOrder(taskListId, "task-1", "task-3");
 - 未完了を優先し、日付（未設定は後ろ）→ 現在の order の順で整列
 - order を 1.0 から連番で再採番し、`tasks[taskId].order` をまとめて更新
 
-#### deleteCompletedTasks(taskListId: string): Promise<number>
+#### deleteCompletedTasks(taskListId: string, traceId?: string): Promise<number>
 
 完了済みタスクを一括削除し、残りタスクの order を再採番して保存します。
 
@@ -678,6 +684,23 @@ await updateTasksOrder(taskListId, "task-1", "task-3");
 - 完了タスクが 0 件の場合は何もしない（0 を返す）
 - 完了タスクを削除し、残りタスクの order を再採番してまとめて更新
 - `autoSort` が有効な場合は「未完了 → 日付 → 現在の order」優先で整列したうえで再採番する
+
+#### 計測ログ（task.completed 起点）
+
+- `apps/native/src/components/app/TaskItem.tsx` のチェックボックス押下で `pressedAt` を取得し、`TaskListCard` に渡します。
+- `apps/native/src/components/app/TaskListCard.tsx` で `traceId` を生成し、`updateTask` / `updateTasksOrder` / `sortTasks` / `deleteCompletedTasks` / `addTask` に引き渡します。
+- `packages/sdk/src/mutations/app.ts` は `traceId` を受け取り、`mutation.start` / `mutation.before_write` / `mutation.after_write` を出力します。
+- `packages/sdk/src/store.ts` は pending trace を `scopeKey` 単位で保持し、対応する `onSnapshot` 受信時に `snapshot.received` を出力して `commit` と関連付けます。
+- `apps/native/src/components/app/TaskListCard.tsx` はタスク状態またはリスト順序の変化を検知して `ui.render.settled` を出力します。
+- `apps/native/src/components/app/TaskListCard.tsx` は `toggle_task` 計測中のみ `Profiler` で TaskItem の `actualDuration` を集計し、`ui.render.summary` に集約して出力します。
+- `apps/native/src/components/app/TaskListCard.tsx` は `ui.render.start` / `ui.render.end` で描画関数実行時間を計測し、`ui.paint.raf2`（2フレーム通過）と `ui.eventloop.drift`（`setTimeout(0)` ドリフト）を併記します。
+- ログはすべて `traceId` で連結でき、以下の区間を追跡できます。
+  - `ui.press` → `mutation.before_write`
+  - `mutation.before_write` → `mutation.after_write`
+  - `mutation.after_write` → `snapshot.received`
+  - `snapshot.received` → `store.commit.end`
+  - `store.commit.end` → `ui.render.settled`
+  - `ui.render.settled` → `ui.paint.raf2`
 
 ### 翻訳キー
 

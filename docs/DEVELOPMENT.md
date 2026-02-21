@@ -23,7 +23,12 @@
 ## apps/native
 
 - `cd apps/native`
-- `npm run dev`
+- `npm run dev`（Expo Go / Tunnel）
+- `npm run dev:lan`（Expo Go / LAN）
+- `npm run dev:local`（Expo Go / Localhost）
+- `npm run start`（Expo Go / Tunnel）
+- `npm run start:lan`（Expo Go / LAN）
+- `npm run start:local`（Expo Go / Localhost）
 - `npm run android`
 - `npm run ios`
 - `npm run format`
@@ -46,13 +51,13 @@
 
 ## Firestore 購読
 
-- `taskListOrder` は `includeMetadataChanges` を使い、`hasPendingWrites` が false のときのみ `taskLists` の購読を更新する
+- `taskListOrder` のスナップショット更新時に、購読対象の `taskLists` を再計算して購読を更新する
 
 ## 状態管理の最適化 (SDK)
 
-- `appStore.commit()` は、`AppState` が前回と実質的に変更されていない場合（`fast-deep-equal` による比較）、リスナーへの通知をスキップします。
-- `getState()` は `memoize-one` を使用しており、データが等価であれば常に同じオブジェクト参照を返します。
-- これにより、Firestore のメタデータのみの変更や、実質的なデータ変更を伴わないスナップショット更新による不要な再レンダリングを抑制しています。
+- `appStore.commit()` は `user` / `taskListOrderUpdatedAt` / `settings` / `taskLists` / `sharedTaskListsById` を段階的に比較し、変更がない場合はリスナー通知をスキップします。
+- `transform` は `taskListOrder`・`settings`・各 `taskList` の変換結果をキャッシュし、入力参照が同一のときは再計算と参照再生成を避けます。
+- `taskLists` の Firestore 同期は `snapshot.docChanges()` を使って差分適用し、削除されたドキュメントもストアから除去します。
 
 ## エラーハンドリングとロギング
 

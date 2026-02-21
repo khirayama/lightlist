@@ -11,12 +11,29 @@ export const arrayMove = <T>(array: T[], from: number, to: number): T[] => {
 export const useOptimisticReorder = <T extends { id: string }>(
   initialItems: T[],
   onReorder: (draggedId: string, targetId: string) => Promise<void>,
+  options?: {
+    suspendExternalSync?: boolean;
+  },
 ) => {
-  const [items, setItems] = useState<T[]>(initialItems);
+  const [optimisticItems, setOptimisticItems] = useState<T[] | null>(null);
+  const items = optimisticItems ?? initialItems;
+  const suspendExternalSync = options?.suspendExternalSync ?? false;
+
+  const setItems = useCallback((nextItems: T[]) => {
+    setOptimisticItems(nextItems);
+  }, []);
 
   useEffect(() => {
-    setItems(initialItems);
-  }, [initialItems]);
+    if (suspendExternalSync) return;
+    if (!optimisticItems) return;
+    if (optimisticItems.length !== initialItems.length) return;
+    const isSameOrder = optimisticItems.every(
+      (item, index) => item.id === initialItems[index]?.id,
+    );
+    if (isSameOrder) {
+      setOptimisticItems(null);
+    }
+  }, [initialItems, optimisticItems, suspendExternalSync]);
 
   const reorder = useCallback(
     async (draggedId: string, targetId: string) => {
@@ -24,22 +41,20 @@ export const useOptimisticReorder = <T extends { id: string }>(
         return;
       }
 
-      setItems((currentItems) => {
-        const oldIndex = currentItems.findIndex(
-          (item) => item.id === draggedId,
-        );
-        const newIndex = currentItems.findIndex((item) => item.id === targetId);
+      setOptimisticItems((currentItems) => {
+        const sourceItems = currentItems ?? initialItems;
+        const oldIndex = sourceItems.findIndex((item) => item.id === draggedId);
+        const newIndex = sourceItems.findIndex((item) => item.id === targetId);
 
-        if (oldIndex === -1 || newIndex === -1) return currentItems;
+        if (oldIndex === -1 || newIndex === -1) return sourceItems;
 
-        return arrayMove(currentItems, oldIndex, newIndex);
+        return arrayMove(sourceItems, oldIndex, newIndex);
       });
 
       try {
         await onReorder(draggedId, targetId);
       } catch (error) {
-        // Rollback
-        setItems(initialItems);
+        setOptimisticItems(null);
         throw error;
       }
     },

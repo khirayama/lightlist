@@ -14,7 +14,7 @@
 - `react-native-gesture-handler`: ドラッグ操作を含むジェスチャの基盤
 - `react-native-reanimated` / `react-native-worklets`: ドラッグ操作のアニメーション基盤
 - `react-native-reorderable-list`: タスクのドラッグ並び替え
-- `apps/native/src/components/ui/Carousel.tsx`（`Animated.FlatList` ベース）: タスクリストの横スワイプ切り替え
+- `react-native-pager-view`: ネイティブページャーによる横スワイプ切り替え
 - `@react-native-community/datetimepicker`: タスクの日付設定用Date Picker
 - `react-native-svg`: SVGアイコンの描画
 - `expo-splash-screen`: 認証状態の確定までのスプラッシュスクリーン制御
@@ -71,22 +71,20 @@ NativeWind v4 を使用して、Tailwind CSS のユーティリティクラス�
 - `useOptimisticReorder` は並び替え中のみ optimistic state を保持し、`task.completed` など通常更新では `initialItems` を直接参照して再レンダーの二重化を抑制している
 - `AppScreen` は `appStore` の snapshot 取得関数を安定化し、`Drawer.Screen` のメイン描画関数を固定してドロワー入力中の不要再描画を抑制している
 - `TaskListCard` はタスクIDごとの参照マップを事前計算し、`renderItem` の `index` を直接利用してドラッグ・編集時のレンダー負荷を軽減している
-- `TaskItem` のチェックボックス押下時に `performance.now()` を取得し、`TaskListCard` に渡して `ui.press` を記録する
-- `TaskListCard` は `traceId` を操作単位で発行し、`updateTask` / `updateTasksOrder` / `sortTasks` / `deleteCompletedTasks` / `addTask` へ渡して `ui.handler.start/end/error` を記録する
-- `TaskListCard` はタスク内容・完了状態・日付またはリスト順序の変化を監視し、`ui.render.settled` を記録する
-- `TaskListCard` は `toggle_task` 計測中に `ui.render.start` / `ui.render.end`、`ui.render.summary`、`ui.paint.raf2`、`ui.eventloop.drift` を追加で記録し、描画遅延と判定遅延を切り分ける
+- `TaskItem` / `TaskListCard` の主要 props 契約は Web と同名で揃え、`onToggle(task)` / `onDateChange(taskId, date)` を共通シグネチャとして扱う
+- `TaskListCard` のミューテーションは `resolveErrorMessage` に統一し、`traceId` や UI 側の計測ログは持たないシンプルな経路に整理している
 - `DrawerPanel` はカレンダー表示データ（日付ラベル・色）を事前計算し、`FlatList` / `ReorderableList` の `keyExtractor` / `renderItem` を安定化して描画の再作成を抑制している
 - `ShareCodeScreen` / `PasswordResetScreen` のデータ取得系 `useEffect` は言語切替で再フェッチしない依存関係に調整している
 - `AppScreen` のカルーセルは、選択中リストと隣接リストのみ `TaskListCard` を描画し、非表示側リストの重い描画を抑制して操作レスポンスを改善している
-- `AppScreen` のタスクリスト並び替えでは `reorder_task_list` の `traceId` を生成し、`updateTaskListOrder` に渡して `ui.handler.start/end/error` と `ui.render.settled` を記録する
+- `AppScreen` のタスクリスト並び替えは `useOptimisticReorder` と `updateTaskListOrder` の単一経路で処理する
 - `password-reset?oobCode=...` のディープリンクを `PasswordResetScreen` にマッピングし、パスワード再設定を実行
 - 認証状態の変化時にナビゲーションをリセットし、ログイン時は `AppScreen` に遷移
 - `NavigationContainer` + `NativeStack` で画面を構成
 - `AppScreen` はドロワーに設定/サインアウト/タスクリスト一覧/タスクリスト作成/リストに参加を集約し、ヘッダー左の menu アイコンボタン（枠線なし、パディング調整）で開閉する。ドロワーヘッダーにはユーザーのメールアドレスを表示し、右には settings / close のアイコンボタンを並べ、設定はドロワー内、閉じるはドロワー表示時のみ操作できる。「リストに参加」は Dialog で共有コードを入力して実行する。
-- ドロワー内ヘッダー直下に「カレンダーで確認」ボタンを配置し、モーダルシートで未完了かつ日付付きタスクを月ごとに確認できる。カレンダーは `react-native-calendars` を利用し、月移動・日付選択・日付ドット（タスクリスト色最大3件）・同日タスクへのスクロール・タスクリスト遷移に対応する。
+- ドロワー内ヘッダー直下に「カレンダーで確認」ボタンを配置し、モーダルシートで未完了かつ日付付きタスクを月ごとに確認できる。カレンダー領域は `Carousel` で月単位に横スライドし、上部インジケーター操作とスワイプで移動する。`react-native-calendars` は Web 側と同じトーンになるよう日セル（36px角・選択時反転配色・today枠線）と日付ドット（最大3件）をカスタマイズし、日付選択で同日タスクへスクロール、タスクリスト名タップで対象リストへ遷移できる。表示中の月はインデックスではなく `YYYY-MM` の月キーで保持し、再計算時の月ジャンプを防ぐ。共通 `Carousel` は `react-native-pager-view` ベースで index を管理し、`onPageSelected` で確定する。ページ選択時はローカル index と通知先 index を同期し、外部からの index 変更時はページャーへ直接反映して連続スワイプ時の逆戻りを防ぐ。
 - 画面幅が広い場合はドロワーの内容を常時表示（`permanent`）し、左にタスクリスト一覧、右にタスクリスト詳細の2カラムで操作する。ドロワー幅は Web と揃えて 360px（モバイルは最大 420px）を基準とし、メインコンテンツの最大幅を 768px に制限することで、ワイド画面での視認性を向上させている。
 - Web との見た目整合のため、主要画面の横余白は `px-4`（16px）を基準に統一し、認証系画面は `max-w-[576px]`、タスクリスト/設定/共有コード画面は `max-w-[768px]` で中央寄せにしている。タスクリスト本文の内側余白も 16px を基準値として揃えている。
-- タスクリストの選択、作成（ドロワー内のダイアログで名前＋色）、編集（ダイアログ内で名前＋色）、削除、ドロワー内の drag_indicator アイコンボタン（枠線なし、パディング調整）で順序変更に対応。タスクリスト並び替えのハンドルは `onPressIn` 起点で長押し不要とし、`panGesture` のしきい値（`activeOffsetY: [-12, 12]` / `failOffsetX: [-24, 24]`）で誤操作を抑制する。色の選択肢には「なし（テーマカラー）」を含み、背景色が設定されている場合は画面全体およびカルーセル内の各リストの背景に反映される
+- タスクリストの選択、作成（ドロワー内のダイアログで名前＋色）、編集（ダイアログ内で名前＋色）、削除、ドロワー内の drag_indicator アイコンボタン（枠線なし、パディング調整）で順序変更に対応。タスクリスト並び替えのハンドルは `onPressIn` 起点で長押し不要とし、`panGesture` のしきい値（`activeOffsetY: [-12, 12]` / `failOffsetX: [-24, 24]`）で誤操作を抑制する。色の選択肢には「なし（テーマカラー）」を含み、`TaskList.background` はカルーセル内の各リスト領域にのみ反映し、背景未設定（`null`）時はテーマ背景色（light: `#F9FAFB` / dark: `#030712`）を使用する
 - タスクリストの編集/共有はヘッダー右の edit/share アイコンボタン（枠線なし、パディング調整）からダイアログを開き、名前・色の更新と共有コードの発行/停止を行う。編集ダイアログの色選択でも「なし」を指定して背景色をリセットできる
 - タスクリスト詳細はカルーセルで横スワイプ切り替えでき、スワイプ位置と選択中のリストIDを同期する。通常のスワイプ操作はカルーセルを優先し、`Carousel` の `scrollEnabled` は `TaskListCard` から受け取る `onSortingChange` と連動して、タスク並び替え中のみ横スワイプを無効化する。上部インジケーター（ドット）のタップでも切り替え可能
 - タスク追加フォームは上部に配置し、入力欄にフォーカスしたときだけ send アイコンボタンをアニメーション表示して追加操作を行う。右側の calendar_today アイコンボタン（枠線なし、パディング調整）からDate Pickerで日付設定、完了切り替え、左端の drag_indicator アイコンボタン（枠線なし、パディング調整）による並び替え、ソート（sort アイコン付き、左寄せ、枠線なし、パディング調整）、完了タスク削除（delete アイコン付き、右寄せ、枠線なし、パディング調整）に対応。タスク並び替えは drag_indicator ハンドル起点のみで開始し、長押しは不要

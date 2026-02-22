@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreIssues": {
+    "apps/native/app.config.ts": ["unlisted"],
+    "apps/native/app.json": ["unlisted"]
+  },
+  "workspaces": {
+    "apps/web": {
+      "entry": ["public/sw.js"]
+    },
+    "apps/native": {
+      "entry": ["app.json", "babel.config.js", "metro.config.js"],
+      "ignoreDependencies": ["@expo/ngrok", "expo-status-bar"]
+    },
+    "packages/sdk": {
+      "entry": ["src/firebase/index.native.ts"]
+    }
+  }
+}

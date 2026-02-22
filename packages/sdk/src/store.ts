@@ -21,9 +21,13 @@ import {
 
 type DataStore = {
   user: User | null;
+  authStatus: AppState["authStatus"];
   settings: SettingsStore | null;
+  settingsStatus: AppState["settingsStatus"];
   taskListOrder: TaskListOrderStore | null;
+  taskListOrderStatus: AppState["taskListOrderStatus"];
   taskLists: Record<string, TaskListStore>;
+  startupError: string | null;
 };
 
 type StoreListener = (state: AppState) => void;
@@ -118,9 +122,13 @@ function createStore() {
 
   const initialData: DataStore = {
     user: null,
+    authStatus: "loading",
     settings: null,
+    settingsStatus: "idle",
     taskListOrder: null,
+    taskListOrderStatus: "idle",
     taskLists: {},
+    startupError: null,
   };
 
   const data: DataStore = { ...initialData };
@@ -284,10 +292,14 @@ function createStore() {
 
     return {
       user: d.user,
+      authStatus: d.authStatus,
       settings: getSettings(d.settings),
+      settingsStatus: d.settingsStatus,
       taskLists,
+      taskListOrderStatus: d.taskListOrderStatus,
       taskListOrderUpdatedAt: d.taskListOrder?.updatedAt ?? null,
       sharedTaskListsById,
+      startupError: d.startupError,
     };
   };
 
@@ -350,9 +362,17 @@ function createStore() {
     const nextAppState = transform(data);
     const transformMs = roundMs(performance.now() - transformStartedAt);
     const sameUser = currentAppState.user === nextAppState.user;
+    const sameAuthStatus =
+      currentAppState.authStatus === nextAppState.authStatus;
+    const sameSettingsStatus =
+      currentAppState.settingsStatus === nextAppState.settingsStatus;
+    const sameTaskListOrderStatus =
+      currentAppState.taskListOrderStatus === nextAppState.taskListOrderStatus;
     const sameTaskListOrderUpdatedAt =
       currentAppState.taskListOrderUpdatedAt ===
       nextAppState.taskListOrderUpdatedAt;
+    const sameStartupError =
+      currentAppState.startupError === nextAppState.startupError;
 
     const sameSettings =
       currentAppState.settings === nextAppState.settings ||
@@ -381,7 +401,11 @@ function createStore() {
 
     if (
       sameUser &&
+      sameAuthStatus &&
+      sameSettingsStatus &&
+      sameTaskListOrderStatus &&
       sameTaskListOrderUpdatedAt &&
+      sameStartupError &&
       sameSettings &&
       sameTaskLists &&
       sameSharedTaskListsById
@@ -421,10 +445,17 @@ function createStore() {
     });
   };
 
+  const setStartupError = (context: string, error: FirestoreError) => {
+    data.startupError = `${context}:${error.code}`;
+  };
+
   const subscribeToUserData = (uid: string) => {
     unsubscribers.forEach((unsub) => unsub());
     unsubscribers.length = 0;
     taskListIdsKey = null;
+    data.settingsStatus = "loading";
+    data.taskListOrderStatus = "loading";
+    data.startupError = null;
 
     const settingsUnsub = onSnapshot(
       doc(db, "settings", uid),
@@ -435,9 +466,15 @@ function createStore() {
         } else {
           data.settings = null;
         }
+        data.settingsStatus = "ready";
         commit(null, "settings");
       },
-      (error) => logSnapshotError("settings", error),
+      (error) => {
+        logSnapshotError("settings", error);
+        data.settingsStatus = "error";
+        setStartupError("settings", error);
+        commit(null, "settings.error");
+      },
     );
     unsubscribers.push(settingsUnsub);
 
@@ -451,10 +488,16 @@ function createStore() {
         } else {
           data.taskListOrder = null;
         }
+        data.taskListOrderStatus = "ready";
         commit(trace, "taskListOrder");
         subscribeToTaskLists(data.taskListOrder);
       },
-      (error) => logSnapshotError("taskListOrder", error),
+      (error) => {
+        logSnapshotError("taskListOrder", error);
+        data.taskListOrderStatus = "error";
+        setStartupError("taskListOrder", error);
+        commit(null, "taskListOrder.error");
+      },
     );
     unsubscribers.push(taskListOrderUnsub);
   };
@@ -584,14 +627,19 @@ function createStore() {
   const authUnsubscribe = onAuthStateChanged(auth, (user) => {
     data.user = user;
     if (user) {
+      data.authStatus = "authenticated";
       subscribeToUserData(user.uid);
     } else {
+      data.authStatus = "unauthenticated";
       unsubscribers.forEach((unsub) => unsub());
       unsubscribers.length = 0;
       unsubscribeSharedTaskLists();
       data.settings = null;
+      data.settingsStatus = "idle";
       data.taskListOrder = null;
+      data.taskListOrderStatus = "idle";
       data.taskLists = {};
+      data.startupError = null;
       taskListIdsKey = null;
       resetTaskListCaches();
       pendingTraceQueueByScope.clear();

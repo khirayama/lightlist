@@ -11,19 +11,20 @@ LightList は Firebase Authentication を使用したメール/パスワード�
 **アプリケーション側（apps/web）:**
 
 ```
-src/
-├── components/
-│   └── ui/
-│       ├── FormInput.tsx      - フォーム入力欄コンポーネント
-│       ├── Alert.tsx          - 通知コンポーネント
-│       ├── ConfirmDialog.tsx  - 確認ダイアログ
-│       └── Spinner.tsx        - ローディング表示
-├── utils/
-│   ├── validation.ts          - フォームバリデーション関数
-│   └── errors.ts              - エラーメッセージハンドリング関数
-└── pages/
-    ├── index.tsx              - サインイン/サインアップ/パスワードリセット依頼ページ
-    └── password_reset.tsx     - パスワードリセット実行ページ
+apps/web/
+└── src/
+    ├── components/
+    │   └── ui/
+    │       ├── FormInput.tsx      - フォーム入力欄コンポーネント
+    │       ├── Alert.tsx          - 通知コンポーネント
+    │       ├── ConfirmDialog.tsx  - 確認ダイアログ
+    │       └── Spinner.tsx        - ローディング表示
+    ├── utils/
+    │   ├── validation.ts          - フォームバリデーション関数
+    │   └── errors.ts              - エラーメッセージハンドリング関数
+    └── pages/
+        ├── login.tsx              - サインイン/サインアップ/パスワードリセット依頼ページ
+        └── password_reset.tsx     - パスワードリセット実行ページ
 ```
 
 **アプリケーション側（apps/native）:**
@@ -39,6 +40,7 @@ apps/native/
 **SDK側（packages/sdk）:**
 
 ```
+packages/sdk/src/
 ├── firebase/
 │   ├── index.ts               - Firebase初期化（Web/Next.js）
 │   └── index.native.ts        - Firebase初期化（Expo/React Native）
@@ -81,7 +83,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 - `ConfirmDialog`: `Dialog` で構成した確認モーダル。破壊的操作用の `isDestructive` をサポート。
 - `Spinner`: i18next の `common.loading` をデフォルト文言にしたローディング表示（必要に応じて文言を上書き可）。
 
-### 認証ページUI（index.tsx）
+### 認証ページUI（login.tsx）
 
 - Appページと同じトーンの背景（`bg-gray-50` / `dark:bg-gray-950`）とテキストカラーで統一。
 - 中央寄せのカードレイアウト（`bg-white` / `dark:bg-gray-900`）を採用し、フォームの視認性を確保。
@@ -98,7 +100,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 
 ### ユーティリティ関数
 
-#### src/utils/validation.ts
+#### apps/web/src/utils/validation.ts
 
 フォームバリデーション関数を提供します。
 
@@ -115,7 +117,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
   - パスワード最小長、確認パスワード一致などをチェック
   - 戻り値: エラーメッセージオブジェクト
 
-#### src/utils/errors.ts
+#### apps/web/src/utils/errors.ts
 
 エラーハンドリング関数を提供します。
 
@@ -130,7 +132,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 
 ### 1. サインアップ (Sign Up)
 
-**ページ:** `src/pages/index.tsx` (signup タブ)
+**ページ:** `apps/web/src/pages/login.tsx` (signup タブ)
 **ネイティブ:** `apps/native/src/screens/AuthScreen.tsx` (signup タブ)
 
 **処理フロー:**
@@ -157,7 +159,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 
 ### 2. ログイン (Sign In)
 
-**ページ:** `src/pages/index.tsx` (signin タブ)
+**ページ:** `apps/web/src/pages/login.tsx` (signin タブ)
 **ネイティブ:** `apps/native/src/screens/AuthScreen.tsx` (signin タブ)
 
 **処理フロー:**
@@ -181,7 +183,7 @@ React Native 向けの Auth 永続化は `firebase/index.native.ts` 内で完結
 
 #### ステップ1: リセットメール送信
 
-**ページ:** `src/pages/index.tsx` (reset タブ)
+**ページ:** `apps/web/src/pages/login.tsx` (reset タブ)
 **ネイティブ:** `apps/native/src/screens/AuthScreen.tsx` (reset タブ)
 
 **処理フロー:**
@@ -212,7 +214,7 @@ https://[PROJECT].firebaseapp.com/password-reset?oobCode=[CODE]&mode=resetPasswo
 
 #### ステップ2: パスワード再設定
 
-**ページ:** `src/pages/password_reset.tsx`
+**ページ:** `apps/web/src/pages/password_reset.tsx`
 **ネイティブ:** `apps/native/src/screens/PasswordResetScreen.tsx`
 
 **処理フロー:**
@@ -389,7 +391,7 @@ Firebase 認証エラーをスロー
 
 ## 設定機能（Settings）
 
-設定ページは `src/pages/settings.tsx` に実装されています。
+設定ページは `apps/web/src/pages/settings.tsx` に実装されています。
 
 ### 設定ページの機能
 
@@ -569,11 +571,11 @@ auth:
   tabs: タブラベル（signin, signup）
 ```
 
-詳細は `locales/ja.json` および `locales/en.json` を参照してください。
+詳細は `apps/web/src/locales/ja.json` および `apps/web/src/locales/en.json` を参照してください。
 
 ## ページコンポーネント実装
 
-### index.tsx（認証ページ）
+### login.tsx（認証ページ）
 
 3つのタブを備えた統一された認証ページです。
 
@@ -607,14 +609,13 @@ auth:
 **使用コンポーネント:**
 
 - FormInput: パスワード入力
-- ErrorMessage: エラー表示
-- SuccessMessage: 成功メッセージ表示
+- Alert: エラー/成功表示
 - Spinner: ローディング表示
 
 **使用ユーティリティ:**
 
 - validatePasswordForm: パスワード入力フォームのバリデーション
-- getErrorMessage: エラーメッセージ変換
+- resolveErrorMessage: エラーメッセージ変換
 
 ## 状態管理
 
@@ -623,10 +624,14 @@ auth:
 ```typescript
 interface AppState {
   user: User | null;
+  authStatus: AuthStatus;
   settings: Settings | null;
+  settingsStatus: DataLoadStatus;
   taskLists: TaskList[];
+  taskListOrderStatus: DataLoadStatus;
   taskListOrderUpdatedAt: number | null;
   sharedTaskListsById: Record<string, TaskList>;
+  startupError: string | null;
 }
 ```
 
@@ -653,6 +658,7 @@ SDK内部では、`appStore.getData()` を使用して現在の内部データ�
 2. **セッション管理:**
    - Firebase Authentication は自動的にセッションを管理します
    - `onAuthStateChange` で認証状態の変化を監視（`@lightlist/sdk/auth` からexport）
+   - `authStatus` により、初期化中 (`loading`) と未ログイン (`unauthenticated`) を区別して扱います
 
 3. **データ保護:**
    - ユーザーデータは Firestore に保存されます
@@ -680,3 +686,9 @@ SDK内部では、`appStore.getData()` を使用して現在の内部データ�
 
 - 新しいパスワードを使用してログインしてください
 - 古いセッションは無効化されます
+
+### PWAでローディングが継続する
+
+1. `AppState.authStatus` が `loading` から遷移するかを確認
+2. `AppState.settingsStatus` / `AppState.taskListOrderStatus` が `error` になっていないか確認
+3. `AppState.startupError` の値（例: `taskListOrder:permission-denied`）を確認

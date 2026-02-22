@@ -28,12 +28,13 @@
 
 1.  **DataStore (Internal State)**
     - Firestore のドキュメント構造に近い形式でデータを保持します。
-    - `settings`, `taskListOrder`, `taskLists` などを含みます。
+    - `settings`, `taskListOrder`, `taskLists` に加え、`authStatus`, `settingsStatus`, `taskListOrderStatus`, `startupError` を含みます。
 
 2.  **AppState (Public State)**
     - アプリケーションが利用する形式に整形されたデータです。
     - `taskLists` は `taskListOrder` に基づいてソート済みで提供されます。
     - `sharedTaskListsById` は、自分のオーダーに含まれない共有リストを分離して保持します。
+    - 初期化中とエラーを判定するため、認証・購読のステータスを公開します。
 
 #### Firestore 購読戦略（詳細仕様）
 
@@ -51,8 +52,9 @@
     - 自分のリストに含まれない（共有コード経由でアクセスした）リストは、`subscribeToSharedTaskList` メソッドを通じて個別に購読されます。これにより、メインのリスト同期ロジックとは独立して管理されます。
 
 4.  **変更検知と通知**:
-    - `commit` は `user` / `taskListOrderUpdatedAt` / `settings` / `taskLists` / `sharedTaskListsById` を段階的に比較し、変更がない場合のみ通知をスキップします。
+    - `commit` は `user` / `authStatus` / `settingsStatus` / `taskListOrderStatus` / `taskListOrderUpdatedAt` / `startupError` / `settings` / `taskLists` / `sharedTaskListsById` を段階的に比較し、変更がない場合のみ通知をスキップします。
     - `transform` は `taskListOrder`・`settings`・各 `taskList` の変換結果をキャッシュし、同一入力参照に対して再計算せず参照を再利用します。
+    - `settings` / `taskListOrder` の `onSnapshot` エラー時は対応する status を `error` に更新し、`startupError` に原因を保存します。
 
 ### ミューテーション (Mutations)
 
@@ -108,10 +110,14 @@ packages/sdk/src/
 ```typescript
 export type AppState = {
   user: User | null;           // ログイン中のユーザー
+  authStatus: AuthStatus;      // 認証初期化状態
   settings: Settings | null;   // ユーザー設定（テーマ、言語など）
+  settingsStatus: DataLoadStatus; // settings購読状態
   taskLists: TaskList[];       // ユーザーのオーダー順にソートされたタスクリスト
+  taskListOrderStatus: DataLoadStatus; // taskListOrder購読状態
   taskListOrderUpdatedAt: number | null; // オーダー更新タイムスタンプ
   sharedTaskListsById: Record<string, TaskList>; // 閲覧中の共有リスト
+  startupError: string | null; // 初期化失敗時の識別子
 };
 ```
 

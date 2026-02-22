@@ -21,7 +21,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 
 - **ヘッダー / ドロワー:** ページタイトルと Drawer トリガーを配置。幅 1024px 以上ではドロワー内容を左カラムに固定し、より狭い幅では shadcn Drawer（左スライド、オーバーレイ付き）でログインメールを表示し、設定画面へのリンクを提供する。左右ドロワーはタップ操作を優先するため `handleOnly` を有効化し、コンテンツ上でのドラッグ開始を抑止している。
 - **タスクリスト一覧（ドロワー内）:** `appStore` から取得したリストを DnD で並び替え。作成ボタンは Dialog で開き、名前と背景色を入力してフォーム送信（`Enter` / 作成ボタン）で `createTaskList` を実行。作成ボタンの隣には「共有リストに参加」ボタンがあり、共有コードを入力する Dialog を開く。コードを入力して参加すると `fetchTaskListIdByShareCode` でリストを特定し、`addSharedTaskListToOrder` で自分のリストに追加する。ヘッダー直下の「カレンダーで確認」ボタンから下部シートを開き、日付付きタスクのカレンダーと一覧を表示する。シートは Drawer より高い z-index で重なり、mobile/desktop ともにより上端まで展開する。カレンダーは `w-full` 前提で表示し、wide layout では左にカレンダー・右にタスクリストを配置する。カレンダー領域はカルーセル表示で、未完了の日付付きタスクが存在する最初の月の前月から最後の月の翌月までを横スクロールで移動できる。初期表示は今月を優先し、必要に応じて今月のスライドを追加する。インジケーターは上部に表示し、カレンダー自体の前月・翌月ボタンは表示しない。各スライドで日付クリックすると該当日付の先頭タスクへスクロールし、同日付のタスク行をハイライトする。タスクがある日付には表示中の月の未完了タスクに限ってタスクリスト色のドットを表示し、一覧も表示中の月の未完了タスクのみを対象とする。一覧は日付順・タスク名順で表示し、1段目は左に日付・右にカラーとタスクリスト名、2段目にタスク名を表示する。タスク行クリックで日付を選択し、タスクリスト名クリックで対象タスクリストへ移動する。リストが長い場合はカレンダーを sticky に保ち、一覧側のみスクロールする。mobile では一覧領域を `flex-1` で確保し、一覧スクロール領域には下端余白と `data-vaul-no-drag` を適用して、最下部タスクの見切れとシートのドラッグ挙動との干渉を抑制する。リストが空のときは `app.emptyState` を表示し、各行には背景色スウォッチとタスク数を併記する。
-- **ネイティブ版カレンダー導線:** `apps/native` でも同じ導線を採用し、DrawerPanel の「カレンダーで確認」ボタンからモーダルシートを開く。`react-native-calendars` で月表示と日付ドットを描画し、日付タップで月内タスクリストを該当位置へスクロールしつつ同日タスクをハイライトし、タスクリスト名タップで対象リストへ遷移する。
+- **ネイティブ版カレンダー導線:** `apps/native` でも同じ導線を採用し、DrawerPanel の「カレンダーで確認」ボタンからモーダルシートを開く。月移動は矢印ではなく `Carousel` のスワイプと上部インジケーターで行い、`react-native-calendars` の日セルを Web 相当に寄せた配色・サイズで描画する。日付タップで表示中月のタスクリストを該当位置へスクロールし、同日タスクをハイライトし、タスクリスト名タップで対象リストへ遷移する。
 - **タスク詳細カルーセル:** 各タスクリストを `Carousel` で横スライド化し、Web ではホイール左右操作や前後ボタン、モバイルではスワイプで切り替える。各スライド内のタスクリストは独立して縦スクロール可能であり、リストが長くなっても画面全体のスクロールは発生しない。AppHeader 直下にドット型の locator を表示し、現在位置を示しつつクリックでリストを切り替えられる。ページ全体に表示中スライドの `TaskList.background` を適用し、内側を可読性の高い半透明のサーフェス（`bg-white/60 dark:bg-gray-900/60` + `backdrop-blur-md`）として構成する。ワイドレイアウトではタスクリストの最大幅を制限し、読みやすさを維持する。`TaskListCard` は共有ページと同じレイアウト（入力欄が上、一覧が下）で完了・日付設定・追加・編集を行う。
 - **色と共有:** タスクリストカード右上の編集（edit）/共有（share）アイコンボタンから Dialog を開き、編集Dialogでリスト名と背景色をまとめて変更する（保存はフォーム送信: `Enter` / 保存ボタン）。共有Dialogでコードの生成/停止とクリップボードコピーを行う。
 - **削除確認:** リスト編集Dialog内の更新ボタン上部に配置された削除ボタンから `deleteTaskList` を実行。
@@ -32,7 +32,7 @@ LightList はタスクリスト管理機能を提供しており、複数のタ�
 - モバイルのスワイプでインデックスが更新された場合は同期スクロールを即時適用し、不要な再アニメーションを避ける。
 - ページ全体の背景色は `selectedTaskListId` の変更に合わせて即座に切り替わる。
 - タスク並び替え中は `TaskListCard` からの sorting 状態を受け取り、カルーセルのスクロール操作を無効化して横スクロールを抑制する。
-- ネイティブでは `Carousel`（`Animated.FlatList` ベース）の `scrollEnabled` を並び替え状態と連動させ、通常時は横スワイプを優先し、タスクアイテムの drag_indicator ハンドルからドラッグを開始した場合のみ横スワイプを無効化する。ハンドル起点のドラッグは長押し不要で開始できる。
+- ネイティブでは `Carousel`（`react-native-pager-view` ベース）の `scrollEnabled` を並び替え状態と連動させ、通常時は横スワイプを優先し、タスクアイテムの drag_indicator ハンドルからドラッグを開始した場合のみ横スワイプを無効化する。ハンドル起点のドラッグは長押し不要で開始できる。index 確定は `onPageSelected` で行い、ローカル index と外部通知を同期する。外部 index 変更はページャーへ直接反映して連続スワイプ時の不安定な戻りを防ぐ。
 - リスト一覧での選択や Dialog オープン時は対象リストを事前に選択し、カルーセル位置とフォーム入力を一致させる。
 - locator（ドット）をクリックして `selectedTaskListId` を切り替え、カルーセル位置を同期する。locator は背景に `bg-white/40 dark:bg-black/40` と `backdrop-blur-md` を備えたカプセル状のバーに配置され、常に高い視認性を保つ。
 
@@ -72,7 +72,7 @@ const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
 const state = useSyncExternalStore(
   appStore.subscribe,
   appStore.getState,
-  appStore.getServerSnapshot
+  appStore.getServerSnapshot,
 );
 const [error, setError] = useState<string | null>(null);
 
@@ -219,8 +219,6 @@ app:
   shareCodePlaceholder: 共有コード入力のプレースホルダー
   join: 参加ボタンのテキスト
   joining: 参加中ボタンのテキスト
-  calendarSheetTitle: 日付付きタスク領域のタイトル
-  calendarSheetDescription: カレンダー領域の説明
   calendarNoDatedTasks: 日付付きタスクが存在しないときの表示
 taskList:
   taskCount: タスク件数の表示（{{count}} 形式）
@@ -235,11 +233,11 @@ taskList:
   backgroundNoneShort: スウォッチ用の短縮ラベル
 ```
 
-詳細は `locales/ja.json` および `locales/en.json` を参照してください。
+詳細は `apps/web/src/locales/ja.json` および `apps/web/src/locales/en.json` を参照してください。
 
 ## ネイティブアプリ
 
-**ページ:** `apps/native/src/App.tsx`
+**画面:** `apps/native/src/screens/AppScreen.tsx`（起点: `apps/native/src/App.tsx`）
 
 ### 概要
 
@@ -262,7 +260,7 @@ taskList:
 
 #### タスクリストカード
 
-- **背景:** ページ全体および各カードの最上位要素に `TaskList.background` を適用する。
+- **背景:** `TaskList.background` はカルーセル内のタスクリスト領域に適用し、ヘッダー領域には適用しない。背景未設定（`null`）時はテーマ背景色（light: `#F9FAFB` / dark: `#030712`）を使用する。
 - **アイテム:** タスクアイテム（`TaskItem`）には個別の背景色を付けず、親要素の背景が透けるように透明にする（ホバー時の背景色も適用しない）。
 - **コンテンツ面:** 内側はライト/ダークで可読性が担保されるサーフェスとして扱い、ヘッダー情報・操作ボタン・タスク一覧を構成する。入力フィールドやチェックボックスなど、操作上必要な要素のみ適切な背景色を持つ。
 
@@ -316,12 +314,6 @@ taskList:
 ### 概要
 
 メインコンテンツエリアは、統合ドロワーレイアウトの右側に表示される領域です。サイドバーで選択されたタスクリスト内のすべてのタスクを表示・管理します。タスクの作成、編集、日付設定、完了状態の切り替え、および並び替え機能を提供します。
-
-### 後方互換性
-
-**旧ページ:** `/tasklists/[id].tsx` → `/app` へリダイレクト
-
-既存のブックマークやリンク（例：`/tasklists/list-id`）の互換性を保つため、自動的に `/app` にリダイレクトされます。ユーザーは統合されたドロワーレイアウトで同じタスク管理機能を利用できます。
 
 ### 主要機能
 
@@ -685,22 +677,11 @@ await updateTasksOrder(taskListId, "task-1", "task-3");
 - 完了タスクを削除し、残りタスクの order を再採番してまとめて更新
 - `autoSort` が有効な場合は「未完了 → 日付 → 現在の order」優先で整列したうえで再採番する
 
-#### 計測ログ（task.completed 起点）
+#### 計測ログ（SDK）
 
-- `apps/native/src/components/app/TaskItem.tsx` のチェックボックス押下で `pressedAt` を取得し、`TaskListCard` に渡します。
-- `apps/native/src/components/app/TaskListCard.tsx` で `traceId` を生成し、`updateTask` / `updateTasksOrder` / `sortTasks` / `deleteCompletedTasks` / `addTask` に引き渡します。
-- `packages/sdk/src/mutations/app.ts` は `traceId` を受け取り、`mutation.start` / `mutation.before_write` / `mutation.after_write` を出力します。
-- `packages/sdk/src/store.ts` は pending trace を `scopeKey` 単位で保持し、対応する `onSnapshot` 受信時に `snapshot.received` を出力して `commit` と関連付けます。
-- `apps/native/src/components/app/TaskListCard.tsx` はタスク状態またはリスト順序の変化を検知して `ui.render.settled` を出力します。
-- `apps/native/src/components/app/TaskListCard.tsx` は `toggle_task` 計測中のみ `Profiler` で TaskItem の `actualDuration` を集計し、`ui.render.summary` に集約して出力します。
-- `apps/native/src/components/app/TaskListCard.tsx` は `ui.render.start` / `ui.render.end` で描画関数実行時間を計測し、`ui.paint.raf2`（2フレーム通過）と `ui.eventloop.drift`（`setTimeout(0)` ドリフト）を併記します。
-- ログはすべて `traceId` で連結でき、以下の区間を追跡できます。
-  - `ui.press` → `mutation.before_write`
-  - `mutation.before_write` → `mutation.after_write`
-  - `mutation.after_write` → `snapshot.received`
-  - `snapshot.received` → `store.commit.end`
-  - `store.commit.end` → `ui.render.settled`
-  - `ui.render.settled` → `ui.paint.raf2`
+- `packages/sdk/src/mutations/app.ts` は各更新 API で `traceId?: string` を受け取り、`mutation.start` / `mutation.before_write` / `mutation.after_write` を出力します。
+- `packages/sdk/src/store.ts` は pending trace を `scopeKey` 単位で保持し、対応する `onSnapshot` 受信時に `snapshot.received`、反映時に `store.commit.*` を出力します。
+- 画面側（Web/Native）は通常 `traceId` を明示的に渡さず呼び出し、SDK 側で生成された `traceId` により mutation から store 反映までを追跡します。
 
 ### 翻訳キー
 
@@ -789,11 +770,11 @@ pages:
     noTasks: 空状態テキスト
 ```
 
-詳細は `locales/ja.json` および `locales/en.json` を参照してください。
+詳細は `apps/web/src/locales/ja.json` および `apps/web/src/locales/en.json` を参照してください。
 
 ## 共有ページ
 
-**ページ:** `src/pages/sharecodes/[sharecode].tsx`
+**ページ:** `apps/web/src/pages/sharecodes/[sharecode].tsx`
 **画面:** `apps/native/src/screens/ShareCodeScreen.tsx`
 
 ### 概要
@@ -850,7 +831,7 @@ shareCodeを使用して、認証なしでタスクリストを閲覧・編集�
 const storeState = useSyncExternalStore(
   appStore.subscribe,
   appStore.getState,
-  appStore.getServerSnapshot
+  appStore.getServerSnapshot,
 );
 const [sharedTaskListId, setSharedTaskListId] = useState<string | null>(null);
 const [loading, setLoading] = useState(true);
@@ -936,7 +917,7 @@ pages:
     addToOrder: 自分のリストに追加
 ```
 
-詳細は `locales/ja.json` および `locales/en.json` を参照してください。
+詳細は `apps/web/src/locales/ja.json` および `apps/web/src/locales/en.json` を参照してください。
 
 ### セキュリティ考慮事項
 

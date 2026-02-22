@@ -5,6 +5,7 @@
 - `npm run dev`: 全ワークスペースの開発サーバー起動
 - `npm run build`: 全ワークスペースのビルド
 - `npm run format`: 全ワークスペースの整形
+- `npm run knip`: 未使用の依存関係・export・ファイル検出
 - `npm run typecheck`: 全ワークスペースの型チェック
 - `npm run deploy:firestore`: SDK の Firestore ルール/インデックスをデプロイ（dev）
 - `npm run deploy:firestore:prod`: SDK の Firestore ルール/インデックスをデプロイ（prod）
@@ -39,8 +40,8 @@
 - `cd packages/sdk`
 - `npm run format`
 - `npm run typecheck`
-- `npm run deploy`
-- `npm run deploy:prod`
+- `npm run deploy:firestore`
+- `npm run deploy:firestore:prod`
 
 ## 本番デプロイ準備（web）
 
@@ -69,6 +70,12 @@
   - 発生時のユーザー情報（UID, Email）
 - これにより、長時間放置後のトークン期限切れやネットワーク切断による権限エラー (`permission-denied` 等) を特定しやすくする。
 - Webアプリ (`apps/web`) では `ErrorBoundary` コンポーネントを使用し、予期せぬエラーによる画面のホワイトアウト（White Screen of Death）を防ぐ。
+
+## 未使用コード検出
+
+- ルートの `knip.json` でワークスペースごとのエントリを定義し、`npm run knip` で未使用コードを検出する。
+- `apps/native` の `babel.config.js` / `metro.config.js`、`apps/web/public/sw.js`、`packages/sdk/src/firebase/index.native.ts` は慣習的エントリとして検査対象に含める。
+- Expo 設定ファイル由来の `unlisted` は `knip.json` の `ignoreIssues` で管理する。
 
 ## 起動性能の実装方針（web）
 

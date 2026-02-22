@@ -5,6 +5,8 @@ export type Theme = "system" | "light" | "dark";
 export type Language = "ja" | "en";
 
 export type TaskInsertPosition = "bottom" | "top";
+export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
+export type DataLoadStatus = "idle" | "loading" | "ready" | "error";
 
 // For Firebase/Firestore
 export type User = FirebaseUser;
@@ -77,8 +79,12 @@ export type TaskList = {
 
 export type AppState = {
   user: User | null;
+  authStatus: AuthStatus;
   settings: Settings | null;
+  settingsStatus: DataLoadStatus;
   taskLists: TaskList[];
+  taskListOrderStatus: DataLoadStatus;
   taskListOrderUpdatedAt: number | null;
   sharedTaskListsById: Record<string, TaskList>;
+  startupError: string | null;
 };

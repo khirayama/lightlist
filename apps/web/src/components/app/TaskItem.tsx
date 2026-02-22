@@ -23,7 +23,7 @@ const Calendar = dynamic(
   },
 );
 
-export interface TaskForSortable {
+interface TaskForSortable {
   id: string;
   text: string;
   completed: boolean;
@@ -31,7 +31,7 @@ export interface TaskForSortable {
   order?: number;
 }
 
-export interface TaskItemProps<T extends TaskForSortable = TaskForSortable> {
+interface TaskItemProps<T extends TaskForSortable = TaskForSortable> {
   task: T;
   isEditing: boolean;
   editingText: string;

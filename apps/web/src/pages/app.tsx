@@ -225,6 +225,20 @@ export default function AppPage() {
   }, [router]);
 
   useEffect(() => {
+    if (state.authStatus !== "loading") {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      router.replace("/");
+    }, 10000);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [router, state.authStatus]);
+
+  useEffect(() => {
     if (state?.taskLists && state.taskLists.length > 0 && !selectedTaskListId) {
       setSelectedTaskListId(state.taskLists[0].id);
     }
@@ -280,8 +294,10 @@ export default function AppPage() {
     };
   }, [isDrawerOpen, isWideLayout]);
 
-  const isAuthLoading = !state.user;
-  const isTaskListsHydrating = state.taskListOrderUpdatedAt === null;
+  const isAuthLoading = state.authStatus === "loading";
+  const isTaskListsHydrating = state.taskListOrderStatus === "loading";
+  const hasStartupError =
+    state.settingsStatus === "error" || state.taskListOrderStatus === "error";
   const hasTaskLists = taskLists.length > 0;
   const userEmail = state.user?.email || t("app.drawerNoEmail");
   const selectedTaskListIndex = Math.max(
@@ -530,6 +546,10 @@ export default function AppPage() {
     return <Spinner fullPage />;
   }
 
+  if (state.authStatus === "unauthenticated") {
+    return <Spinner fullPage />;
+  }
+
   return (
     <div className="h-full min-h-full w-full text-gray-900 dark:text-gray-50 overflow-hidden">
       <div
@@ -583,7 +603,11 @@ export default function AppPage() {
           />
 
           <div className="h-full overflow-hidden">
-            {isTaskListsHydrating ? (
+            {hasStartupError ? (
+              <div className="flex h-full items-center justify-center p-4">
+                <Alert variant="error">{t("app.error")}</Alert>
+              </div>
+            ) : isTaskListsHydrating ? (
               <div className="flex h-full items-center justify-center p-4">
                 <Spinner />
               </div>

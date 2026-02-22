@@ -1,41 +1,236 @@
 {
+  "title": "LightList",
+  "copyright": "© 2024 LightList. All rights reserved.",
+  "common": {
+    "loading": "読み込み中...",
+    "back": "戻る",
+    "cancel": "キャンセル",
+    "deleting": "削除中...",
+    "close": "閉じる",
+    "add": "追加",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "error": "エラーが発生しました",
+    "next": "次へ",
+    "delete": "削除"
+  },
+  "auth": {
+    "tabs": {
+      "signin": "ログイン",
+      "signup": "サインアップ"
+    },
+    "form": {
+      "email": "メールアドレス",
+      "password": "パスワード",
+      "confirmPassword": "パスワード確認"
+    },
+    "validation": {
+      "email": {
+        "required": "メールアドレスを入力してください",
+        "invalid": "有効なメールアドレスを入力してください"
+      },
+      "password": {
+        "required": "パスワードを入力してください",
+        "tooShort": "パスワードは6文字以上である必要があります"
+      },
+      "confirmPassword": {
+        "required": "パスワード確認を入力してください",
+        "notMatch": "パスワードが一致しません"
+      }
+    },
+    "error": {
+      "invalidCredential": "メールアドレスまたはパスワードが正しくありません",
+      "userNotFound": "このメールアドレスで登録されたアカウントはありません",
+      "emailAlreadyInUse": "このメールアドレスは既に登録されています",
+      "weakPassword": "パスワードが弱すぎます（6文字以上推奨）",
+      "invalidEmail": "メールアドレスの形式が正しくありません",
+      "operationNotAllowed": "この認証方法は利用できません",
+      "tooManyRequests": "ログイン試行回数が多すぎます。後でもう一度試してください",
+      "general": "認証に失敗しました。もう一度試してください"
+    },
+    "button": {
+      "signin": "ログイン",
+      "signingIn": "ログイン中...",
+      "signup": "サインアップ",
+      "signingUp": "サインアップ中...",
+      "forgotPassword": "パスワードを忘れた",
+      "sendResetEmail": "リセットメール送信",
+      "sending": "送信中...",
+      "backToSignIn": "ログインに戻る",
+      "signOut": "ログアウト",
+      "cancel": "キャンセル",
+      "delete": "削除"
+    },
+    "passwordReset": {
+      "instruction": "登録されているメールアドレスを入力してください。パスワードリセットメールを送信します。",
+      "success": "パスワードリセットメールを送信しました。メールをご確認ください。",
+      "title": "パスワード再設定",
+      "newPassword": "新しいパスワード",
+      "confirmNewPassword": "新しいパスワード確認",
+      "setNewPassword": "パスワード再設定",
+      "settingNewPassword": "再設定中...",
+      "invalidCode": "パスワードリセットリンクが無効です",
+      "expiredCode": "パスワードリセットリンクの有効期限が切れています",
+      "resetSuccess": "パスワードが正常に変更されました"
+    },
+    "placeholder": {
+      "email": "example@email.com",
+      "password": "••••••••"
+    },
+    "signOutConfirm": {
+      "title": "ログアウト",
+      "message": "ログアウトしてもよろしいですか？"
+    },
+    "deleteAccountConfirm": {
+      "title": "アカウント削除",
+      "message": "アカウントを削除すると、すべてのデータが削除されます。この操作は取り消せません。本当に削除しますか？"
+    }
+  },
   "app": {
-    "name": "LightList",
     "emptyState": "タスクリストがありません",
     "createNew": "新規作成",
     "createTaskList": "タスクリスト作成",
     "taskListName": "タスクリスト名",
     "taskListNamePlaceholder": "タスクリスト名を入力",
     "create": "作成",
-    "creating": "作成中...",
-    "save": "保存",
     "cancel": "キャンセル",
     "error": "エラーが発生しました",
-    "signOut": "ログアウト",
-    "signOutConfirm": "この端末でログアウトしますか？",
-    "moveUp": "上へ移動",
-    "moveDown": "下へ移動",
+    "dragHint": "ドラッグして並び替え",
+    "openMenu": "メニューを開く",
     "drawerTitle": "タスクリスト",
+    "drawerNoEmail": "メールアドレス未設定",
+    "taskListLocator": {
+      "label": "タスクリストの位置",
+      "goTo": "タスクリスト{{index}}（全{{total}}）へ移動"
+    },
     "joinList": "リストに参加",
     "joinListTitle": "共有リストに参加",
     "joinListDescription": "共有コードを入力してリストに参加します。",
+    "shareCodePlaceholder": "共有コードを入力",
     "join": "参加",
     "joining": "参加中...",
     "calendarCheckButton": "カレンダーで確認",
-    "calendarSheetTitle": "日付付きタスク",
-    "calendarSheetDescription": "日付を選択すると該当タスクまでスクロールします",
+    "calendarAllDates": "すべての日付",
     "calendarNoDatedTasks": "日付が設定されたタスクはありません",
-    "taskListLocator": {
-      "label": "タスクリストインジケーター",
-      "goTo": "{{total}}番目のうち{{index}}番目のタスクリストへ移動"
-    }
+    "calendarNoTasksOnSelectedDate": "選択した日付のタスクはありません",
+    "name": "LightList",
+    "creating": "作成中...",
+    "save": "保存",
+    "signOut": "ログアウト",
+    "signOutConfirm": "この端末でログアウトしますか？",
+    "moveUp": "上へ移動",
+    "moveDown": "下へ移動"
   },
-  "common": {
-    "back": "戻る",
-    "next": "次へ",
-    "loading": "読み込み中...",
-    "delete": "削除",
-    "close": "閉じる"
+  "taskList": {
+    "taskCount": "{{count}}個のタスク",
+    "taskCount_one": "{{count}}個のタスク",
+    "taskCount_other": "{{count}}個のタスク",
+    "editDetails": "更新",
+    "selectColor": "色を選択",
+    "backgroundNone": "なし（実際はテーマカラーの色）",
+    "backgroundNoneShort": "なし",
+    "deleteList": "リストを削除",
+    "deleteListConfirm": {
+      "title": "リストの削除",
+      "message": "このリストを削除してもよろしいですか？この操作は取り消せません。"
+    },
+    "share": "共有",
+    "shareTitle": "リストを共有",
+    "shareCode": "共有コード",
+    "shareDescription": "共有コードを発行して、このリストを他の人が閲覧・編集できるようにします。",
+    "generateShare": "共有コードを生成",
+    "removeShare": "共有を停止",
+    "shareError": "共有設定の更新に失敗しました",
+    "addTask": "追加",
+    "addTaskPlaceholder": "タスクを入力...",
+    "deleteConfirm": "このタスクリストを削除しますか？",
+    "toggleComplete": "完了を切り替え",
+    "editTask": "タスクを編集",
+    "reorder": "並び替え"
+  },
+  "settings": {
+    "title": "設定",
+    "userInfo": {
+      "title": "アカウント"
+    },
+    "theme": {
+      "title": "テーマ",
+      "system": "システム",
+      "light": "ライト",
+      "dark": "ダーク"
+    },
+    "language": {
+      "title": "言語",
+      "japanese": "日本語",
+      "english": "英語"
+    },
+    "taskInsertPosition": {
+      "title": "追加位置",
+      "top": "上に追加",
+      "bottom": "下に追加"
+    },
+    "autoSort": {
+      "title": "自動並び替え",
+      "enable": "タスクを自動で並び替える"
+    },
+    "danger": {
+      "title": "危険な操作",
+      "signOut": "ログアウト",
+      "deleteAccount": "アカウント削除"
+    },
+    "actions": {
+      "title": "アカウント操作"
+    },
+    "deleteAccount": "アカウントを削除",
+    "deleteAccountConfirm": "アカウントと全データを削除しますか？",
+    "signingOut": "ログアウト中...",
+    "deletingAccount": "削除中..."
+  },
+  "pages": {
+    "index": {
+      "getStarted": "今すぐはじめる",
+      "description1": "Lightlistはシンプルなタスクリストサービスです。",
+      "description2": "タスク管理のToDoリストや買い物リストとして使えます。未登録の人ともリストを共有できます。"
+    },
+    "sharecode": {
+      "notFound": "タスクリストが見つかりません",
+      "error": "タスクリストの読み込みに失敗しました",
+      "addTaskError": "タスクの追加に失敗しました",
+      "updateError": "タスクの更新に失敗しました",
+      "reorderError": "タスクの順序を変更できませんでした",
+      "deleteError": "完了したタスクを削除できませんでした",
+      "addToOrderError": "リストの追加に失敗しました",
+      "addToOrder": "自分のリストに追加",
+      "title": "共有コード",
+      "open": "共有コードで開く",
+      "description": "共有コードを入力して共有リストを開きます。",
+      "codeLabel": "共有コード",
+      "codePlaceholder": "共有コードを入力",
+      "load": "読み込む",
+      "enterCode": "共有コードを入力してください。",
+      "addToOrderLoading": "追加中..."
+    },
+    "tasklist": {
+      "addTaskPlaceholder": "タスクを入力...",
+      "setDate": "期限を設定",
+      "noTasks": "タスクがありません",
+      "dragHint": "ドラッグして並び替え",
+      "sort": "並び替え",
+      "deleteCompleted": "完了タスクを削除",
+      "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？",
+      "clearDate": "期限をクリア"
+    },
+    "passwordReset": {
+      "title": "パスワード再設定",
+      "subtitle": "新しいパスワードを設定してください。",
+      "newPassword": "新しいパスワード",
+      "confirmPassword": "新しいパスワード（確認）",
+      "submit": "パスワードを設定",
+      "submitting": "更新中...",
+      "success": "パスワードを更新しました。再度ログインしてください。",
+      "invalidCode": "パスワードリセットリンクが無効です。",
+      "expiredCode": "パスワードリセットリンクの有効期限が切れています。"
+    }
   },
   "login": {
     "title": "ログイン",
@@ -65,118 +260,10 @@
     "resetInstruction": "登録済みのメールアドレスを入力してください。リセットメールを送信します。",
     "resetSuccess": "パスワードリセットメールを送信しました。メールをご確認ください。"
   },
-  "settings": {
-    "title": "設定",
-    "userInfo": {
-      "title": "アカウント"
-    },
-    "language": {
-      "title": "言語",
-      "japanese": "日本語",
-      "english": "英語"
-    },
-    "theme": {
-      "title": "テーマ",
-      "system": "システム",
-      "light": "ライト",
-      "dark": "ダーク"
-    },
-    "taskInsertPosition": {
-      "title": "追加位置",
-      "top": "上に追加",
-      "bottom": "下に追加"
-    },
-    "autoSort": {
-      "title": "自動並び替え"
-    },
-    "actions": {
-      "title": "アカウント操作"
-    },
-    "deleteAccount": "アカウントを削除",
-    "deleteAccountConfirm": "アカウントと全データを削除しますか？",
-    "signingOut": "ログアウト中...",
-    "deletingAccount": "削除中..."
-  },
-  "auth": {
-    "error": {
-      "invalidCredential": "メールアドレスまたはパスワードが正しくありません。",
-      "userNotFound": "アカウントが見つかりません。",
-      "emailAlreadyInUse": "このメールアドレスは既に登録されています。",
-      "weakPassword": "パスワードは6文字以上である必要があります。",
-      "tooManyRequests": "試行回数が多すぎます。しばらくしてからお試しください。",
-      "invalidEmail": "メールアドレスの形式が正しくありません。",
-      "operationNotAllowed": "許可されていない操作です。",
-      "general": "認証に失敗しました。再度お試しください。"
-    },
-    "passwordReset": {
-      "expiredCode": "パスワードリセットリンクの有効期限が切れています。",
-      "invalidCode": "パスワードリセットリンクが無効です。",
-      "resetSuccess": "パスワードを正常に更新しました。"
-    }
-  },
   "form": {
     "required": "入力内容を確認してください。",
     "invalidEmail": "メールアドレスの形式が正しくありません。",
     "passwordTooShort": "パスワードは6文字以上である必要があります。",
     "passwordMismatch": "パスワードが一致しません。"
-  },
-  "taskList": {
-    "taskCount": "{{count}}個のタスク",
-    "taskCount_one": "{{count}}個のタスク",
-    "taskCount_other": "{{count}}個のタスク",
-    "editDetails": "更新",
-    "shareTitle": "リストを共有",
-    "shareDescription": "共有コードを発行して、このリストを他の人が閲覧・編集できるようにします。",
-    "shareCode": "共有コード",
-    "generateShare": "共有コードを生成",
-    "removeShare": "共有を停止",
-    "shareError": "共有設定の更新に失敗しました",
-    "selectColor": "色を選択",
-    "backgroundNone": "なし (テーマカラーを使用)",
-    "backgroundNoneShort": "なし",
-    "addTask": "追加",
-    "addTaskPlaceholder": "タスクを入力...",
-    "deleteList": "リストを削除",
-    "deleteConfirm": "このタスクリストを削除しますか？",
-    "toggleComplete": "完了を切り替え",
-    "editTask": "タスクを編集",
-    "reorder": "並び替え"
-  },
-  "pages": {
-    "sharecode": {
-      "title": "共有コード",
-      "open": "共有コードで開く",
-      "description": "共有コードを入力して共有リストを開きます。",
-      "codeLabel": "共有コード",
-      "codePlaceholder": "共有コードを入力",
-      "load": "読み込む",
-      "enterCode": "共有コードを入力してください。",
-      "notFound": "タスクリストが見つかりません",
-      "error": "タスクリストの読み込みに失敗しました",
-      "addTaskError": "タスクの追加に失敗しました",
-      "updateError": "タスクの更新に失敗しました",
-      "addToOrderError": "リストの追加に失敗しました",
-      "addToOrder": "自分のリストに追加",
-      "addToOrderLoading": "追加中..."
-    },
-    "passwordReset": {
-      "title": "パスワード再設定",
-      "subtitle": "新しいパスワードを設定してください。",
-      "newPassword": "新しいパスワード",
-      "confirmPassword": "新しいパスワード（確認）",
-      "submit": "パスワードを設定",
-      "submitting": "更新中...",
-      "success": "パスワードを更新しました。再度ログインしてください。",
-      "invalidCode": "パスワードリセットリンクが無効です。",
-      "expiredCode": "パスワードリセットリンクの有効期限が切れています。"
-    },
-    "tasklist": {
-      "noTasks": "タスクがありません",
-      "setDate": "期限を設定",
-      "clearDate": "期限をクリア",
-      "sort": "並び替え",
-      "deleteCompleted": "完了タスクを削除",
-      "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？"
-    }
   }
 }

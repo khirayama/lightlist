@@ -4,12 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import { appStore } from "@lightlist/sdk/store";
-import {
-  AppState,
-  Theme,
-  Language,
-  TaskInsertPosition,
-} from "@lightlist/sdk/types";
+import { Theme, Language, TaskInsertPosition } from "@lightlist/sdk/types";
 import { updateSettings } from "@lightlist/sdk/mutations/app";
 import { signOut, deleteAccount } from "@lightlist/sdk/mutations/auth";
 import { resolveErrorMessage } from "@/utils/errors";
@@ -70,6 +65,20 @@ export default function SettingsPage() {
     };
   }, [router]);
 
+  useEffect(() => {
+    if (state.authStatus !== "loading") {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      router.replace("/");
+    }, 10000);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [router, state.authStatus]);
+
   const handleThemeChange = async (theme: Theme) => {
     await updateSetting({ theme });
   };
@@ -113,6 +122,24 @@ export default function SettingsPage() {
       setLoading(false);
     }
   };
+
+  if (state.authStatus === "loading" || state.settingsStatus === "loading") {
+    return <Spinner fullPage />;
+  }
+
+  if (state.authStatus === "unauthenticated") {
+    return <Spinner fullPage />;
+  }
+
+  if (state.settingsStatus === "error") {
+    return (
+      <div className="min-h-full w-full bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 lg:pt-8">
+          <Alert variant="error">{t("auth.error.general")}</Alert>
+        </div>
+      </div>
+    );
+  }
 
   if (!state.user || !state.settings) {
     return <Spinner fullPage />;

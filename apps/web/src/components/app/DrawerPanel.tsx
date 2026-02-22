@@ -520,5 +520,3 @@ export function DrawerPanel({
     </div>
   );
 }
-
-export default DrawerPanel;

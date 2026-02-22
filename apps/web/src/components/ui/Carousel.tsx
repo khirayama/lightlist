@@ -178,8 +178,8 @@ export function Carousel({
       aria-label={ariaLabel}
       className={clsx(
         indicatorInFlow
-          ? "flex justify-center gap-1"
-          : "absolute left-0 right-0 flex justify-center gap-1 pointer-events-none z-30",
+          ? "flex justify-center gap-0.5"
+          : "absolute left-0 right-0 flex justify-center gap-0.5 pointer-events-none z-30",
         indicatorInFlow
           ? indicatorPosition === "top"
             ? "mb-2"

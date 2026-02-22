@@ -1,41 +1,236 @@
 {
+  "title": "LightList",
+  "copyright": "© 2024 LightList. All rights reserved.",
+  "common": {
+    "loading": "Loading...",
+    "back": "Back",
+    "cancel": "Cancel",
+    "deleting": "Deleting...",
+    "close": "Close",
+    "add": "Add",
+    "copy": "Copy",
+    "copied": "Copied",
+    "error": "An error occurred",
+    "next": "Next",
+    "delete": "Delete"
+  },
+  "auth": {
+    "tabs": {
+      "signin": "Sign In",
+      "signup": "Sign Up"
+    },
+    "form": {
+      "email": "Email Address",
+      "password": "Password",
+      "confirmPassword": "Confirm Password"
+    },
+    "validation": {
+      "email": {
+        "required": "Please enter an email address",
+        "invalid": "Please enter a valid email address"
+      },
+      "password": {
+        "required": "Please enter a password",
+        "tooShort": "Password must be at least 6 characters"
+      },
+      "confirmPassword": {
+        "required": "Please enter a confirmation password",
+        "notMatch": "Passwords do not match"
+      }
+    },
+    "error": {
+      "invalidCredential": "Email or password is incorrect",
+      "userNotFound": "No account found with this email address",
+      "emailAlreadyInUse": "This email address is already registered",
+      "weakPassword": "Password is too weak (6 characters or more recommended)",
+      "invalidEmail": "Email address format is invalid",
+      "operationNotAllowed": "This authentication method is not available",
+      "tooManyRequests": "Too many login attempts. Please try again later",
+      "general": "Authentication failed. Please try again"
+    },
+    "button": {
+      "signin": "Sign In",
+      "signingIn": "Signing in...",
+      "signup": "Sign Up",
+      "signingUp": "Signing up...",
+      "forgotPassword": "Forgot Password?",
+      "sendResetEmail": "Send Reset Email",
+      "sending": "Sending...",
+      "backToSignIn": "Back to Sign In",
+      "signOut": "Sign Out",
+      "cancel": "Cancel",
+      "delete": "Delete"
+    },
+    "passwordReset": {
+      "instruction": "Enter the email address associated with your account. We will send you a password reset email.",
+      "success": "Password reset email sent. Please check your email.",
+      "title": "Reset Password",
+      "newPassword": "New Password",
+      "confirmNewPassword": "Confirm New Password",
+      "setNewPassword": "Reset Password",
+      "settingNewPassword": "Resetting...",
+      "invalidCode": "Password reset link is invalid",
+      "expiredCode": "Password reset link has expired",
+      "resetSuccess": "Password changed successfully"
+    },
+    "placeholder": {
+      "email": "example@email.com",
+      "password": "••••••••"
+    },
+    "signOutConfirm": {
+      "title": "Sign Out",
+      "message": "Are you sure you want to sign out?"
+    },
+    "deleteAccountConfirm": {
+      "title": "Delete Account",
+      "message": "Deleting your account will permanently remove all your data. This action cannot be undone. Are you sure?"
+    }
+  },
   "app": {
-    "name": "LightList",
     "emptyState": "No task lists",
     "createNew": "Create",
     "createTaskList": "Create Task List",
     "taskListName": "Task List Name",
     "taskListNamePlaceholder": "Enter task list name",
     "create": "Create",
-    "creating": "Creating...",
-    "save": "Save",
     "cancel": "Cancel",
     "error": "An error occurred",
-    "signOut": "Sign Out",
-    "signOutConfirm": "Sign out from this device?",
-    "moveUp": "Move up",
-    "moveDown": "Move Down",
-    "drawerTitle": "Lists",
+    "dragHint": "Drag to reorder",
+    "openMenu": "Open Menu",
+    "drawerTitle": "Task Lists",
+    "drawerNoEmail": "No email available",
+    "taskListLocator": {
+      "label": "Task list position",
+      "goTo": "Go to task list {{index}} of {{total}}"
+    },
     "joinList": "Join List",
     "joinListTitle": "Join Shared List",
     "joinListDescription": "Enter the share code to join a shared task list.",
+    "shareCodePlaceholder": "Enter share code",
     "join": "Join",
     "joining": "Joining...",
     "calendarCheckButton": "View in Calendar",
-    "calendarSheetTitle": "Tasks with Dates",
-    "calendarSheetDescription": "Select a date to scroll to matching tasks",
+    "calendarAllDates": "All dates",
     "calendarNoDatedTasks": "No tasks have a date",
-    "taskListLocator": {
-      "label": "Task List Indicator",
-      "goTo": "Go to task list {{index}} of {{total}}"
-    }
+    "calendarNoTasksOnSelectedDate": "No tasks on the selected date",
+    "name": "LightList",
+    "creating": "Creating...",
+    "save": "Save",
+    "signOut": "Sign Out",
+    "signOutConfirm": "Sign out from this device?",
+    "moveUp": "Move up",
+    "moveDown": "Move Down"
   },
-  "common": {
-    "back": "Back",
-    "next": "Next",
-    "loading": "Loading...",
-    "delete": "Delete",
-    "close": "Close"
+  "taskList": {
+    "taskCount": "{{count}} tasks",
+    "taskCount_one": "{{count}} task",
+    "taskCount_other": "{{count}} tasks",
+    "editDetails": "Edit List",
+    "selectColor": "Select Color",
+    "backgroundNone": "None (uses theme color)",
+    "backgroundNoneShort": "None",
+    "deleteList": "Delete List",
+    "deleteListConfirm": {
+      "title": "Delete List",
+      "message": "Are you sure you want to delete this list? This action cannot be undone."
+    },
+    "share": "Share",
+    "shareTitle": "Share List",
+    "shareCode": "Share Code",
+    "shareDescription": "Generate a share code to let others view and edit this list.",
+    "generateShare": "Generate Share Code",
+    "removeShare": "Stop Sharing",
+    "shareError": "Failed to update share settings",
+    "addTask": "Add",
+    "addTaskPlaceholder": "Enter task...",
+    "deleteConfirm": "Delete this task list?",
+    "toggleComplete": "Toggle completion",
+    "editTask": "Edit task",
+    "reorder": "Reorder"
+  },
+  "settings": {
+    "title": "Settings",
+    "userInfo": {
+      "title": "Account"
+    },
+    "theme": {
+      "title": "Theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "language": {
+      "title": "Language",
+      "japanese": "Japanese",
+      "english": "English"
+    },
+    "taskInsertPosition": {
+      "title": "New task position",
+      "top": "Add to top",
+      "bottom": "Add to bottom"
+    },
+    "autoSort": {
+      "title": "Auto sort tasks",
+      "enable": "Auto sort tasks"
+    },
+    "danger": {
+      "title": "Danger Zone",
+      "signOut": "Sign Out",
+      "deleteAccount": "Delete Account"
+    },
+    "actions": {
+      "title": "Account actions"
+    },
+    "deleteAccount": "Delete account",
+    "deleteAccountConfirm": "Delete your account and all data?",
+    "signingOut": "Signing out...",
+    "deletingAccount": "Deleting account..."
+  },
+  "pages": {
+    "index": {
+      "getStarted": "Get started",
+      "description1": "Lightlist is a simple task list service.",
+      "description2": "It can be used as a ToDo list for task management or a shopping list. You can share lists with people who are not registered."
+    },
+    "sharecode": {
+      "notFound": "This task list not found",
+      "error": "Failed to load task list",
+      "addTaskError": "Failed to add task",
+      "updateError": "Failed to update task",
+      "reorderError": "Failed to reorder tasks",
+      "deleteError": "Failed to delete completed tasks",
+      "addToOrderError": "Failed to add this task list",
+      "addToOrder": "Add to My Lists",
+      "title": "Share Code",
+      "open": "Open Share Code",
+      "description": "Enter a share code to open a shared list.",
+      "codeLabel": "Share Code",
+      "codePlaceholder": "Enter share code",
+      "load": "Load",
+      "enterCode": "Please enter a share code.",
+      "addToOrderLoading": "Adding..."
+    },
+    "tasklist": {
+      "addTaskPlaceholder": "Enter task...",
+      "setDate": "Set date",
+      "noTasks": "No tasks",
+      "dragHint": "Drag to reorder",
+      "sort": "Sort",
+      "deleteCompleted": "Delete completed tasks",
+      "deleteCompletedConfirm": "Delete {{count}} completed tasks?",
+      "clearDate": "Clear date"
+    },
+    "passwordReset": {
+      "title": "Reset password",
+      "subtitle": "Set a new password for your account.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "submit": "Set new password",
+      "submitting": "Updating...",
+      "success": "Password updated. Please sign in again.",
+      "invalidCode": "This reset link is invalid.",
+      "expiredCode": "This reset link has expired."
+    }
   },
   "login": {
     "title": "Sign in",
@@ -65,118 +260,10 @@
     "resetInstruction": "Enter your email and we will send a reset link.",
     "resetSuccess": "We sent a password reset email. Please check your inbox."
   },
-  "settings": {
-    "title": "Settings",
-    "userInfo": {
-      "title": "Account"
-    },
-    "language": {
-      "title": "Language",
-      "japanese": "Japanese",
-      "english": "English"
-    },
-    "theme": {
-      "title": "Theme",
-      "system": "System",
-      "light": "Light",
-      "dark": "Dark"
-    },
-    "taskInsertPosition": {
-      "title": "New task position",
-      "top": "Add to top",
-      "bottom": "Add to bottom"
-    },
-    "autoSort": {
-      "title": "Auto sort tasks"
-    },
-    "actions": {
-      "title": "Account actions"
-    },
-    "deleteAccount": "Delete account",
-    "deleteAccountConfirm": "Delete your account and all data?",
-    "signingOut": "Signing out...",
-    "deletingAccount": "Deleting account..."
-  },
-  "auth": {
-    "error": {
-      "invalidCredential": "Email or password is incorrect.",
-      "userNotFound": "Account not found.",
-      "emailAlreadyInUse": "This email address is already in use.",
-      "weakPassword": "Password must be at least 6 characters.",
-      "tooManyRequests": "Too many attempts. Try again later.",
-      "invalidEmail": "Email address is invalid.",
-      "operationNotAllowed": "Operation not allowed.",
-      "general": "Authentication failed. Please try again."
-    },
-    "passwordReset": {
-      "expiredCode": "This reset link has expired.",
-      "invalidCode": "This reset link is invalid.",
-      "resetSuccess": "Password updated successfully."
-    }
-  },
   "form": {
     "required": "Please fill in all fields.",
     "invalidEmail": "Please enter a valid email address.",
     "passwordTooShort": "Password must be at least 6 characters.",
     "passwordMismatch": "Passwords do not match."
-  },
-  "taskList": {
-    "taskCount": "{{count}} tasks",
-    "taskCount_one": "{{count}} task",
-    "taskCount_other": "{{count}} tasks",
-    "editDetails": "Edit List",
-    "shareTitle": "Share List",
-    "shareDescription": "Generate a share code to let others view and edit this list.",
-    "shareCode": "Share Code",
-    "generateShare": "Generate Share Code",
-    "removeShare": "Stop Sharing",
-    "shareError": "Failed to update share settings",
-    "selectColor": "Select Color",
-    "backgroundNone": "None (uses theme color)",
-    "backgroundNoneShort": "None",
-    "addTask": "Add",
-    "addTaskPlaceholder": "Enter task...",
-    "deleteList": "Delete List",
-    "deleteConfirm": "Delete this task list?",
-    "toggleComplete": "Toggle completion",
-    "editTask": "Edit task",
-    "reorder": "Reorder"
-  },
-  "pages": {
-    "sharecode": {
-      "title": "Share Code",
-      "open": "Open Share Code",
-      "description": "Enter a share code to open a shared list.",
-      "codeLabel": "Share Code",
-      "codePlaceholder": "Enter share code",
-      "load": "Load",
-      "enterCode": "Please enter a share code.",
-      "notFound": "This task list not found",
-      "error": "Failed to load task list",
-      "addTaskError": "Failed to add task",
-      "updateError": "Failed to update task",
-      "addToOrderError": "Failed to add this task list",
-      "addToOrder": "Add to My Lists",
-      "addToOrderLoading": "Adding..."
-    },
-    "passwordReset": {
-      "title": "Reset password",
-      "subtitle": "Set a new password for your account.",
-      "newPassword": "New password",
-      "confirmPassword": "Confirm new password",
-      "submit": "Set new password",
-      "submitting": "Updating...",
-      "success": "Password updated. Please sign in again.",
-      "invalidCode": "This reset link is invalid.",
-      "expiredCode": "This reset link has expired."
-    },
-    "tasklist": {
-      "noTasks": "No tasks",
-      "setDate": "Set date",
-      "clearDate": "Clear date",
-      "sort": "Sort",
-      "deleteCompleted": "Delete completed tasks",
-      "deleteCompletedConfirm": "Delete {{count}} completed tasks?"
-    }
   }
 }

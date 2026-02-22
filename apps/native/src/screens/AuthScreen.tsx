@@ -7,15 +7,11 @@ import {
   sendPasswordResetEmail,
 } from "@lightlist/sdk/mutations/auth";
 import { resolveErrorMessage } from "../utils/errors";
-import { isValidEmail } from "../utils/validation";
+import { FormErrors, validateAuthForm } from "../utils/validation";
 
 type AuthTab = "signin" | "signup" | "reset";
 
-type AuthScreenProps = {
-  onOpenShareCode: () => void;
-};
-
-export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
+export const AuthScreen = () => {
   const { t, i18n } = useTranslation();
   const passwordInputRef = useRef<TextInput | null>(null);
   const confirmPasswordInputRef = useRef<TextInput | null>(null);
@@ -24,8 +20,8 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
@@ -33,21 +29,10 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
   const isReset = activeTab === "reset";
   const isSignIn = activeTab === "signin";
 
-  const titleKey = isSignUp
-    ? "login.signUpTitle"
-    : isReset
-      ? "login.resetTitle"
-      : "login.title";
-  const subtitleKey = isSignUp
-    ? "login.signUpSubtitle"
-    : isReset
-      ? "login.resetSubtitle"
-      : "login.subtitle";
-
   const canSubmitSignIn =
-    !isSubmitting && email.trim().length > 0 && password.length > 0;
+    !loading && email.trim().length > 0 && password.length > 0;
   const canSubmitSignUp =
-    !isSubmitting &&
+    !loading &&
     email.trim().length > 0 &&
     password.length > 0 &&
     confirmPassword.length > 0;
@@ -56,9 +41,9 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
   const resetForm = () => {
     setPassword("");
     setConfirmPassword("");
-    setErrorMessage(null);
+    setErrors({});
     setResetSent(false);
-    setIsSubmitting(false);
+    setLoading(false);
     setResetLoading(false);
   };
 
@@ -67,98 +52,69 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
     resetForm();
   };
 
-  const validateSignIn = () => {
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) {
-      return t("form.required");
-    }
-    if (!isValidEmail(trimmedEmail)) {
-      return t("form.invalidEmail");
-    }
-    return null;
-  };
-
-  const validateSignUp = () => {
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password || !confirmPassword) {
-      return t("form.required");
-    }
-    if (!isValidEmail(trimmedEmail)) {
-      return t("form.invalidEmail");
-    }
-    if (password.length < 6) {
-      return t("form.passwordTooShort");
-    }
-    if (password !== confirmPassword) {
-      return t("form.passwordMismatch");
-    }
-    return null;
-  };
-
-  const validateReset = () => {
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      return t("form.required");
-    }
-    if (!isValidEmail(trimmedEmail)) {
-      return t("form.invalidEmail");
-    }
-    return null;
-  };
-
   const handleSignIn = async () => {
-    const validationError = validateSignIn();
-    if (validationError) {
-      setErrorMessage(validationError);
+    const validationErrors = validateAuthForm({ email, password }, t);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       return;
     }
-    const trimmedEmail = email.trim();
-    setIsSubmitting(true);
-    setErrorMessage(null);
+
+    setLoading(true);
+    setErrors({});
     try {
-      await signIn(trimmedEmail, password);
+      await signIn(email, password);
     } catch (error) {
-      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
+      setErrors({
+        general: resolveErrorMessage(error, t, "auth.error.general"),
+      });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   const handleSignUp = async () => {
-    const validationError = validateSignUp();
-    if (validationError) {
-      setErrorMessage(validationError);
+    const validationErrors = validateAuthForm(
+      { email, password, confirmPassword, requirePasswordConfirm: true },
+      t,
+    );
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       return;
     }
-    const trimmedEmail = email.trim();
+
     const resolvedLanguage = i18n.language.toLowerCase().startsWith("ja")
       ? "ja"
       : "en";
-    setIsSubmitting(true);
-    setErrorMessage(null);
+
+    setLoading(true);
+    setErrors({});
     try {
-      await signUp(trimmedEmail, password, resolvedLanguage);
+      await signUp(email, password, resolvedLanguage);
     } catch (error) {
-      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
+      setErrors({
+        general: resolveErrorMessage(error, t, "auth.error.general"),
+      });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   const handlePasswordReset = async () => {
-    const validationError = validateReset();
-    if (validationError) {
-      setErrorMessage(validationError);
+    const validationErrors = validateAuthForm({ email, password: "" }, t);
+    if (validationErrors.email) {
+      setErrors({ email: validationErrors.email });
       return;
     }
-    const trimmedEmail = email.trim();
+
     setResetLoading(true);
-    setErrorMessage(null);
+    setErrors({});
     try {
-      await sendPasswordResetEmail(trimmedEmail);
+      await sendPasswordResetEmail(email);
       setResetSent(true);
     } catch (error) {
-      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
+      setErrors({
+        general: resolveErrorMessage(error, t, "auth.error.general"),
+      });
     } finally {
       setResetLoading(false);
     }
@@ -166,79 +122,80 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
 
   return (
     <ScrollView
-      contentContainerClassName="flex-grow justify-center p-6"
+      contentContainerClassName="flex-grow justify-center px-4 py-10 w-full max-w-[576px] self-center"
       keyboardShouldPersistTaps="handled"
     >
       <View className="rounded-[16px] border p-6 bg-surface dark:bg-surface-dark border-border dark:border-border-dark">
         <View className="mb-5">
           <Text className="text-[12px] font-inter-semibold tracking-[2px] uppercase text-muted dark:text-muted-dark">
-            {t("app.name")}
+            {t("title")}
           </Text>
           <Text className="text-[28px] font-inter-bold text-text dark:text-text-dark mt-2.5">
-            {t(titleKey)}
-          </Text>
-          <Text className="text-[14px] font-inter text-muted dark:text-muted-dark mt-2">
-            {t(subtitleKey)}
+            {isReset ? t("auth.passwordReset.title") : t("title")}
           </Text>
         </View>
-        <View
-          className="flex-row rounded-[16px] p-1 gap-1 mb-5 bg-input-background dark:bg-input-background-dark"
-          accessibilityRole="tablist"
-        >
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isSignIn }}
-            onPress={() => handleTabChange("signin")}
-            disabled={isSubmitting || resetLoading}
-            className={`flex-1 rounded-[12px] py-2.5 items-center border border-transparent active:opacity-90 ${
-              isSignIn
-                ? "bg-surface dark:bg-surface-dark border-border dark:border-border-dark"
-                : "bg-transparent"
-            }`}
+
+        {!isReset ? (
+          <View
+            className="flex-row rounded-[16px] p-1 gap-1 mb-5 bg-input-background dark:bg-input-background-dark"
+            accessibilityRole="tablist"
           >
-            <Text
-              className={`text-[14px] font-inter-semibold ${
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isSignIn }}
+              onPress={() => handleTabChange("signin")}
+              disabled={loading || resetLoading}
+              className={`flex-1 rounded-[12px] py-2.5 items-center border border-transparent active:opacity-90 ${
                 isSignIn
-                  ? "text-text dark:text-text-dark"
-                  : "text-muted dark:text-muted-dark"
+                  ? "bg-surface dark:bg-surface-dark border-border dark:border-border-dark"
+                  : "bg-transparent"
               }`}
             >
-              {t("login.tabs.signIn")}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isSignUp }}
-            onPress={() => handleTabChange("signup")}
-            disabled={isSubmitting || resetLoading}
-            className={`flex-1 rounded-[12px] py-2.5 items-center border border-transparent active:opacity-90 ${
-              isSignUp
-                ? "bg-surface dark:bg-surface-dark border-border dark:border-border-dark"
-                : "bg-transparent"
-            }`}
-          >
-            <Text
-              className={`text-[14px] font-inter-semibold ${
+              <Text
+                className={`text-[14px] font-inter-semibold ${
+                  isSignIn
+                    ? "text-text dark:text-text-dark"
+                    : "text-muted dark:text-muted-dark"
+                }`}
+              >
+                {t("auth.tabs.signin")}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isSignUp }}
+              onPress={() => handleTabChange("signup")}
+              disabled={loading || resetLoading}
+              className={`flex-1 rounded-[12px] py-2.5 items-center border border-transparent active:opacity-90 ${
                 isSignUp
-                  ? "text-text dark:text-text-dark"
-                  : "text-muted dark:text-muted-dark"
+                  ? "bg-surface dark:bg-surface-dark border-border dark:border-border-dark"
+                  : "bg-transparent"
               }`}
             >
-              {t("login.tabs.signUp")}
-            </Text>
-          </Pressable>
-        </View>
-        {isSignIn && (
+              <Text
+                className={`text-[14px] font-inter-semibold ${
+                  isSignUp
+                    ? "text-text dark:text-text-dark"
+                    : "text-muted dark:text-muted-dark"
+                }`}
+              >
+                {t("auth.tabs.signup")}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {isSignIn ? (
           <View className="gap-4">
             <View className="gap-1.5">
               <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
-                {t("login.emailLabel")}
+                {t("auth.form.email")}
               </Text>
               <TextInput
                 className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                 value={email}
                 onChangeText={setEmail}
-                placeholder={t("login.emailPlaceholder")}
+                placeholder={t("auth.placeholder.email")}
                 placeholderClassName="text-placeholder dark:text-placeholder-dark"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -247,41 +204,60 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                 autoComplete="email"
                 returnKeyType="next"
                 onSubmitEditing={() => passwordInputRef.current?.focus()}
-                editable={!isSubmitting}
-                accessibilityLabel={t("login.emailLabel")}
+                editable={!loading}
+                accessibilityLabel={t("auth.form.email")}
               />
+              {errors.email ? (
+                <Text
+                  accessibilityRole="alert"
+                  className="text-[13px] font-inter text-error dark:text-error-dark"
+                >
+                  {errors.email}
+                </Text>
+              ) : null}
             </View>
+
             <View className="gap-1.5">
               <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
-                {t("login.passwordLabel")}
+                {t("auth.form.password")}
               </Text>
               <TextInput
                 ref={passwordInputRef}
                 className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                 value={password}
                 onChangeText={setPassword}
-                placeholder={t("login.passwordPlaceholder")}
+                placeholder={t("auth.placeholder.password")}
                 placeholderClassName="text-placeholder dark:text-placeholder-dark"
                 secureTextEntry
                 textContentType="password"
                 autoComplete="password"
                 returnKeyType="done"
                 onSubmitEditing={handleSignIn}
-                editable={!isSubmitting}
-                accessibilityLabel={t("login.passwordLabel")}
+                editable={!loading}
+                accessibilityLabel={t("auth.form.password")}
               />
+              {errors.password ? (
+                <Text
+                  accessibilityRole="alert"
+                  className="text-[13px] font-inter text-error dark:text-error-dark"
+                >
+                  {errors.password}
+                </Text>
+              ) : null}
             </View>
-            {errorMessage ? (
+
+            {errors.general ? (
               <Text
                 accessibilityRole="alert"
                 className="text-[13px] font-inter text-error dark:text-error-dark"
               >
-                {errorMessage}
+                {errors.general}
               </Text>
             ) : null}
+
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={t("login.submit")}
+              accessibilityLabel={t("auth.button.signin")}
               onPress={handleSignIn}
               disabled={!canSubmitSignIn}
               className={`rounded-[12px] py-3.5 items-center active:opacity-90 ${
@@ -297,33 +273,35 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                     : "text-muted dark:text-muted-dark"
                 }`}
               >
-                {isSubmitting ? t("login.loading") : t("login.submit")}
+                {loading ? t("auth.button.signingIn") : t("auth.button.signin")}
               </Text>
             </Pressable>
+
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={t("login.forgotPassword")}
+              accessibilityLabel={t("auth.button.forgotPassword")}
               onPress={() => handleTabChange("reset")}
-              disabled={isSubmitting}
+              disabled={loading}
               className="rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
             >
               <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
-                {t("login.forgotPassword")}
+                {t("auth.button.forgotPassword")}
               </Text>
             </Pressable>
           </View>
-        )}
-        {isSignUp && (
+        ) : null}
+
+        {isSignUp ? (
           <View className="gap-4">
             <View className="gap-1.5">
               <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
-                {t("login.emailLabel")}
+                {t("auth.form.email")}
               </Text>
               <TextInput
                 className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                 value={email}
                 onChangeText={setEmail}
-                placeholder={t("login.emailPlaceholder")}
+                placeholder={t("auth.placeholder.email")}
                 placeholderClassName="text-placeholder dark:text-placeholder-dark"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -332,61 +310,89 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                 autoComplete="email"
                 returnKeyType="next"
                 onSubmitEditing={() => passwordInputRef.current?.focus()}
-                editable={!isSubmitting}
-                accessibilityLabel={t("login.emailLabel")}
+                editable={!loading}
+                accessibilityLabel={t("auth.form.email")}
               />
+              {errors.email ? (
+                <Text
+                  accessibilityRole="alert"
+                  className="text-[13px] font-inter text-error dark:text-error-dark"
+                >
+                  {errors.email}
+                </Text>
+              ) : null}
             </View>
+
             <View className="gap-1.5">
               <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
-                {t("login.passwordLabel")}
+                {t("auth.form.password")}
               </Text>
               <TextInput
                 ref={passwordInputRef}
                 className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                 value={password}
                 onChangeText={setPassword}
-                placeholder={t("login.passwordPlaceholder")}
+                placeholder={t("auth.placeholder.password")}
                 placeholderClassName="text-placeholder dark:text-placeholder-dark"
                 secureTextEntry
                 textContentType="newPassword"
                 autoComplete="new-password"
                 returnKeyType="next"
                 onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
-                editable={!isSubmitting}
-                accessibilityLabel={t("login.passwordLabel")}
+                editable={!loading}
+                accessibilityLabel={t("auth.form.password")}
               />
+              {errors.password ? (
+                <Text
+                  accessibilityRole="alert"
+                  className="text-[13px] font-inter text-error dark:text-error-dark"
+                >
+                  {errors.password}
+                </Text>
+              ) : null}
             </View>
+
             <View className="gap-1.5">
               <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
-                {t("login.confirmPasswordLabel")}
+                {t("auth.form.confirmPassword")}
               </Text>
               <TextInput
                 ref={confirmPasswordInputRef}
                 className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholder={t("login.confirmPasswordPlaceholder")}
+                placeholder={t("auth.placeholder.password")}
                 placeholderClassName="text-placeholder dark:text-placeholder-dark"
                 secureTextEntry
                 textContentType="newPassword"
                 autoComplete="new-password"
                 returnKeyType="done"
                 onSubmitEditing={handleSignUp}
-                editable={!isSubmitting}
-                accessibilityLabel={t("login.confirmPasswordLabel")}
+                editable={!loading}
+                accessibilityLabel={t("auth.form.confirmPassword")}
               />
+              {errors.confirmPassword ? (
+                <Text
+                  accessibilityRole="alert"
+                  className="text-[13px] font-inter text-error dark:text-error-dark"
+                >
+                  {errors.confirmPassword}
+                </Text>
+              ) : null}
             </View>
-            {errorMessage ? (
+
+            {errors.general ? (
               <Text
                 accessibilityRole="alert"
                 className="text-[13px] font-inter text-error dark:text-error-dark"
               >
-                {errorMessage}
+                {errors.general}
               </Text>
             ) : null}
+
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={t("login.signUpSubmit")}
+              accessibilityLabel={t("auth.button.signup")}
               onPress={handleSignUp}
               disabled={!canSubmitSignUp}
               className={`rounded-[12px] py-3.5 items-center active:opacity-90 ${
@@ -402,33 +408,32 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                     : "text-muted dark:text-muted-dark"
                 }`}
               >
-                {isSubmitting
-                  ? t("login.signUpLoading")
-                  : t("login.signUpSubmit")}
+                {loading ? t("auth.button.signingUp") : t("auth.button.signup")}
               </Text>
             </Pressable>
           </View>
-        )}
-        {isReset && (
+        ) : null}
+
+        {isReset ? (
           <View className="gap-4">
             {resetSent ? (
               <Text className="text-[13px] font-inter text-success dark:text-success-dark">
-                {t("login.resetSuccess")}
+                {t("auth.passwordReset.success")}
               </Text>
             ) : (
               <>
                 <Text className="text-[13px] font-inter text-muted dark:text-muted-dark leading-[18px]">
-                  {t("login.resetInstruction")}
+                  {t("auth.passwordReset.instruction")}
                 </Text>
                 <View className="gap-1.5">
                   <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
-                    {t("login.emailLabel")}
+                    {t("auth.form.email")}
                   </Text>
                   <TextInput
                     className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
                     value={email}
                     onChangeText={setEmail}
-                    placeholder={t("login.emailPlaceholder")}
+                    placeholder={t("auth.placeholder.email")}
                     placeholderClassName="text-placeholder dark:text-placeholder-dark"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -438,20 +443,30 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                     returnKeyType="done"
                     onSubmitEditing={handlePasswordReset}
                     editable={!resetLoading}
-                    accessibilityLabel={t("login.emailLabel")}
+                    accessibilityLabel={t("auth.form.email")}
                   />
+                  {errors.email ? (
+                    <Text
+                      accessibilityRole="alert"
+                      className="text-[13px] font-inter text-error dark:text-error-dark"
+                    >
+                      {errors.email}
+                    </Text>
+                  ) : null}
                 </View>
-                {errorMessage ? (
+
+                {errors.general ? (
                   <Text
                     accessibilityRole="alert"
                     className="text-[13px] font-inter text-error dark:text-error-dark"
                   >
-                    {errorMessage}
+                    {errors.general}
                   </Text>
                 ) : null}
+
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={t("login.resetSubmit")}
+                  accessibilityLabel={t("auth.button.sendResetEmail")}
                   onPress={handlePasswordReset}
                   disabled={!canSendReset}
                   className={`rounded-[12px] py-3.5 items-center active:opacity-90 ${
@@ -468,25 +483,26 @@ export const AuthScreen = ({ onOpenShareCode }: AuthScreenProps) => {
                     }`}
                   >
                     {resetLoading
-                      ? t("login.resetLoading")
-                      : t("login.resetSubmit")}
+                      ? t("auth.button.sending")
+                      : t("auth.button.sendResetEmail")}
                   </Text>
                 </Pressable>
               </>
             )}
+
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={t("login.backToSignIn")}
+              accessibilityLabel={t("auth.button.backToSignIn")}
               onPress={() => handleTabChange("signin")}
               disabled={resetLoading}
               className="rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
             >
               <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
-                {t("login.backToSignIn")}
+                {t("auth.button.backToSignIn")}
               </Text>
             </Pressable>
           </View>
-        )}
+        ) : null}
       </View>
     </ScrollView>
   );

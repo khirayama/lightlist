@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -21,16 +27,17 @@ type ShareCodeScreenProps = {
   onOpenTaskList: () => void;
 };
 
+const getUserSnapshot = () => {
+  return appStore.getState().user;
+};
+
 export const ShareCodeScreen = ({
   initialShareCode,
   onBack,
   onOpenTaskList,
 }: ShareCodeScreenProps) => {
-  const { t } = useTranslation();
-  const storeState = useSyncExternalStore(
-    appStore.subscribe,
-    appStore.getState,
-  );
+  const { t, i18n } = useTranslation();
+  const user = useSyncExternalStore(appStore.subscribe, getUserSnapshot);
   const normalizedInitialShareCode =
     initialShareCode?.trim().toUpperCase() ?? "";
   const [shareCodeInput, setShareCodeInput] = useState(
@@ -68,7 +75,7 @@ export const ShareCodeScreen = ({
         const taskListId = await fetchTaskListIdByShareCode(activeShareCode);
         if (cancelled) return;
         if (!taskListId) {
-          setError(t("pages.sharecode.notFound"));
+          setError(i18n.t("pages.sharecode.notFound"));
           return;
         }
 
@@ -76,7 +83,7 @@ export const ShareCodeScreen = ({
         sharedTaskListUnsubscribeRef.current =
           appStore.subscribeToSharedTaskList(taskListId);
       } catch {
-        setError(t("pages.sharecode.error"));
+        setError(i18n.t("pages.sharecode.error"));
         setSharedTaskListId(null);
         sharedTaskListUnsubscribeRef.current?.();
         sharedTaskListUnsubscribeRef.current = null;
@@ -92,7 +99,7 @@ export const ShareCodeScreen = ({
     return () => {
       cancelled = true;
     };
-  }, [activeShareCode, t]);
+  }, [activeShareCode, i18n]);
 
   useEffect(
     () => () => {
@@ -101,13 +108,19 @@ export const ShareCodeScreen = ({
     [],
   );
 
-  const user = storeState.user;
-  const taskList: TaskList | null =
-    sharedTaskListId === null
-      ? null
-      : (storeState.taskLists.find((list) => list.id === sharedTaskListId) ??
-        storeState.sharedTaskListsById[sharedTaskListId] ??
-        null);
+  const getTaskListSnapshot = useCallback((): TaskList | null => {
+    if (sharedTaskListId === null) return null;
+    const state = appStore.getState();
+    return (
+      state.taskLists.find((list) => list.id === sharedTaskListId) ??
+      state.sharedTaskListsById[sharedTaskListId] ??
+      null
+    );
+  }, [sharedTaskListId]);
+  const taskList: TaskList | null = useSyncExternalStore(
+    appStore.subscribe,
+    getTaskListSnapshot,
+  );
 
   const handleShareCodeSubmit = () => {
     const normalized = shareCodeInput.trim().toUpperCase();
@@ -236,7 +249,7 @@ export const ShareCodeScreen = ({
 
   return (
     <View className="flex-1">
-      <View className="px-6 pb-0 max-w-[768px] w-full self-center">
+      <View className="px-4 pb-0 max-w-[768px] w-full self-center">
         {taskListHeader}
       </View>
       {taskList ? (
@@ -252,7 +265,6 @@ export const ShareCodeScreen = ({
             taskList={taskList}
             isActive={true}
             t={t}
-            // 共有画面ではリスト自体の編集は不可
             enableEditDialog={false}
             enableShareDialog={false}
           />

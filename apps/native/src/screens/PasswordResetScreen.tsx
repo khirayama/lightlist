@@ -13,7 +13,7 @@ import {
   verifyPasswordResetCode,
 } from "@lightlist/sdk/mutations/auth";
 import { resolveErrorMessage } from "../utils/errors";
-import { validatePasswordResetForm } from "../utils/validation";
+import { FormErrors, validatePasswordForm } from "../utils/validation";
 
 type PasswordResetScreenProps = {
   oobCode: string | null;
@@ -29,7 +29,7 @@ export const PasswordResetScreen = ({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FormErrors>({});
   const [resetSuccess, setResetSuccess] = useState(false);
   const confirmPasswordInputRef = useRef<TextInput | null>(null);
   const normalizedCode = typeof oobCode === "string" ? oobCode : "";
@@ -37,12 +37,12 @@ export const PasswordResetScreen = ({
   useEffect(() => {
     setPassword("");
     setConfirmPassword("");
-    setErrorMessage(null);
+    setErrors({});
     setResetSuccess(false);
 
     if (!normalizedCode) {
       setCodeValid(false);
-      setErrorMessage(t("pages.passwordReset.invalidCode"));
+      setErrors({ general: t("auth.passwordReset.invalidCode") });
       return;
     }
 
@@ -56,7 +56,9 @@ export const PasswordResetScreen = ({
         }
       } catch (error) {
         if (cancelled) return;
-        setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
+        setErrors({
+          general: resolveErrorMessage(error, t, "auth.error.general"),
+        });
         setCodeValid(false);
       }
     };
@@ -77,20 +79,19 @@ export const PasswordResetScreen = ({
   }, [onBack, resetSuccess]);
 
   const handleSubmit = async () => {
-    setErrorMessage(null);
+    setErrors({});
     if (!normalizedCode) {
       setCodeValid(false);
-      setErrorMessage(t("pages.passwordReset.invalidCode"));
+      setErrors({ general: t("auth.passwordReset.invalidCode") });
       return;
     }
 
-    const validationError = validatePasswordResetForm(
-      password,
-      confirmPassword,
+    const validationErrors = validatePasswordForm(
+      { password, confirmPassword },
       t,
     );
-    if (validationError) {
-      setErrorMessage(validationError);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       return;
     }
 
@@ -99,7 +100,9 @@ export const PasswordResetScreen = ({
       await confirmPasswordReset(normalizedCode, password);
       setResetSuccess(true);
     } catch (error) {
-      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
+      setErrors({
+        general: resolveErrorMessage(error, t, "auth.error.general"),
+      });
     } finally {
       setLoading(false);
     }
@@ -124,16 +127,16 @@ export const PasswordResetScreen = ({
             accessibilityRole="alert"
             className="text-[13px] font-inter text-error dark:text-error-dark"
           >
-            {errorMessage ?? t("pages.passwordReset.invalidCode")}
+            {errors.general ?? t("auth.passwordReset.invalidCode")}
           </Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("login.backToSignIn")}
+            accessibilityLabel={t("auth.button.backToSignIn")}
             onPress={onBack}
             className="rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
           >
             <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
-              {t("login.backToSignIn")}
+              {t("auth.button.backToSignIn")}
             </Text>
           </Pressable>
         </View>
@@ -144,7 +147,7 @@ export const PasswordResetScreen = ({
       return (
         <View className="gap-4">
           <Text className="text-[13px] font-inter text-success dark:text-success-dark">
-            {t("pages.passwordReset.success")}
+            {t("auth.passwordReset.resetSuccess")}
           </Text>
           <View className="items-center">
             <ActivityIndicator className="text-primary dark:text-primary-dark" />
@@ -155,23 +158,24 @@ export const PasswordResetScreen = ({
 
     return (
       <View className="gap-4">
-        {errorMessage ? (
+        {errors.general ? (
           <Text
             accessibilityRole="alert"
             className="text-[13px] font-inter text-error dark:text-error-dark"
           >
-            {errorMessage}
+            {errors.general}
           </Text>
         ) : null}
+
         <View className="gap-1.5">
           <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
-            {t("pages.passwordReset.newPassword")}
+            {t("auth.passwordReset.newPassword")}
           </Text>
           <TextInput
             className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
             value={password}
             onChangeText={setPassword}
-            placeholder={t("login.passwordPlaceholder")}
+            placeholder={t("auth.placeholder.password")}
             placeholderClassName="text-placeholder dark:text-placeholder-dark"
             secureTextEntry
             textContentType="newPassword"
@@ -179,19 +183,28 @@ export const PasswordResetScreen = ({
             returnKeyType="next"
             onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
             editable={!loading}
-            accessibilityLabel={t("pages.passwordReset.newPassword")}
+            accessibilityLabel={t("auth.passwordReset.newPassword")}
           />
+          {errors.password ? (
+            <Text
+              accessibilityRole="alert"
+              className="text-[13px] font-inter text-error dark:text-error-dark"
+            >
+              {errors.password}
+            </Text>
+          ) : null}
         </View>
+
         <View className="gap-1.5">
           <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
-            {t("pages.passwordReset.confirmPassword")}
+            {t("auth.passwordReset.confirmNewPassword")}
           </Text>
           <TextInput
             ref={confirmPasswordInputRef}
             className="rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            placeholder={t("login.confirmPasswordPlaceholder")}
+            placeholder={t("auth.placeholder.password")}
             placeholderClassName="text-placeholder dark:text-placeholder-dark"
             secureTextEntry
             textContentType="newPassword"
@@ -199,12 +212,21 @@ export const PasswordResetScreen = ({
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
             editable={!loading}
-            accessibilityLabel={t("pages.passwordReset.confirmPassword")}
+            accessibilityLabel={t("auth.passwordReset.confirmNewPassword")}
           />
+          {errors.confirmPassword ? (
+            <Text
+              accessibilityRole="alert"
+              className="text-[13px] font-inter text-error dark:text-error-dark"
+            >
+              {errors.confirmPassword}
+            </Text>
+          ) : null}
         </View>
+
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("pages.passwordReset.submit")}
+          accessibilityLabel={t("auth.passwordReset.setNewPassword")}
           onPress={handleSubmit}
           disabled={!canSubmit}
           className={`rounded-[12px] py-3.5 items-center active:opacity-90 ${
@@ -221,19 +243,20 @@ export const PasswordResetScreen = ({
             }`}
           >
             {loading
-              ? t("pages.passwordReset.submitting")
-              : t("pages.passwordReset.submit")}
+              ? t("auth.passwordReset.settingNewPassword")
+              : t("auth.passwordReset.setNewPassword")}
           </Text>
         </Pressable>
+
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("login.backToSignIn")}
+          accessibilityLabel={t("auth.button.backToSignIn")}
           onPress={onBack}
           disabled={loading}
           className="rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
         >
           <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
-            {t("login.backToSignIn")}
+            {t("auth.button.backToSignIn")}
           </Text>
         </Pressable>
       </View>
@@ -242,19 +265,16 @@ export const PasswordResetScreen = ({
 
   return (
     <ScrollView
-      contentContainerClassName="flex-grow justify-center p-6"
+      contentContainerClassName="flex-grow justify-center px-4 py-10 w-full max-w-[576px] self-center"
       keyboardShouldPersistTaps="handled"
     >
       <View className="rounded-[16px] border p-6 bg-surface dark:bg-surface-dark border-border dark:border-border-dark">
         <View className="mb-5">
           <Text className="text-[12px] font-inter-semibold tracking-[2px] uppercase text-muted dark:text-muted-dark">
-            {t("app.name")}
+            {t("title")}
           </Text>
           <Text className="text-[28px] font-inter-bold text-text dark:text-text-dark mt-2.5">
-            {t("pages.passwordReset.title")}
-          </Text>
-          <Text className="text-[14px] font-inter text-muted dark:text-muted-dark mt-2">
-            {t("pages.passwordReset.subtitle")}
+            {t("auth.passwordReset.title")}
           </Text>
         </View>
         {content}

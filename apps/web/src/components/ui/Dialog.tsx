@@ -149,10 +149,4 @@ function DialogFooter({ children }: DialogFooterProps) {
   );
 }
 
-export {
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-};
+export { DialogContent, DialogFooter };

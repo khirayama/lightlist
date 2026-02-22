@@ -2,7 +2,6 @@
   "name": "@lightlist/web",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "dev": "next dev --turbo",
     "format": "prettier --write .",
@@ -27,6 +26,7 @@
     "@radix-ui/react-popover": "^1.1.15",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
     "i18next": "^25.6.2",
     "i18next-browser-languagedetector": "^8.2.0",
     "next": "^16.0.10",

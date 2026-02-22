@@ -31,7 +31,10 @@ const hasMessage = (error: unknown): error is { message: string } =>
     typeof (error as { message?: unknown }).message === "string",
   );
 
-export const getErrorMessage = (errorCode: string, t: TFunction): string => {
+const getErrorMessage = (
+  errorCode: string,
+  t: TFunction<"translation">,
+): string => {
   if (isAuthErrorCode(errorCode)) {
     return t(ERROR_KEY_MAP[errorCode]);
   }
@@ -40,8 +43,8 @@ export const getErrorMessage = (errorCode: string, t: TFunction): string => {
 
 export const resolveErrorMessage = (
   error: unknown,
-  t: TFunction,
-  fallbackKey: string,
+  t: TFunction<"translation">,
+  fallbackKey: Parameters<TFunction<"translation">>[0],
 ): string => {
   if (typeof error === "string") {
     return error;
@@ -59,5 +62,5 @@ export const resolveErrorMessage = (
     return error.message;
   }
 
-  return t(fallbackKey as any);
+  return t(fallbackKey as never);
 };

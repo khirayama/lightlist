@@ -75,7 +75,10 @@ export default function App({ Component, pageProps }: AppProps) {
       window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1";
     if (isSecureOrLocalhost && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => registration.update())
+        .catch(() => {});
     }
 
     setMounted(true);

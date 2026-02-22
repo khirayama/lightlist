@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,11 +23,24 @@ type SettingsScreenProps = {
   onBack: () => void;
 };
 
+const getSettingsSnapshot = () => {
+  return appStore.getState().settings;
+};
+
+const getUserEmailSnapshot = () => {
+  return appStore.getState().user?.email ?? "";
+};
+
 export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
   const { t } = useTranslation();
-  const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
-  const settings = appState.settings;
-  const userEmail = appState.user?.email ?? "";
+  const settings = useSyncExternalStore(
+    appStore.subscribe,
+    getSettingsSnapshot,
+  );
+  const userEmail = useSyncExternalStore(
+    appStore.subscribe,
+    getUserEmailSnapshot,
+  );
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -52,7 +65,7 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage(t("app.error"));
+        setErrorMessage(t("common.error"));
       }
     } finally {
       setIsUpdating(false);
@@ -69,7 +82,7 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage(t("app.error"));
+        setErrorMessage(t("common.error"));
       }
     } finally {
       setIsSigningOut(false);
@@ -86,7 +99,7 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage(t("app.error"));
+        setErrorMessage(t("common.error"));
       }
     } finally {
       setIsDeletingAccount(false);
@@ -95,7 +108,7 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
 
   const confirmSignOut = () => {
     Alert.alert(t("app.signOut"), t("app.signOutConfirm"), [
-      { text: t("app.cancel"), style: "cancel" },
+      { text: t("common.cancel"), style: "cancel" },
       {
         text: t("app.signOut"),
         style: "destructive",
@@ -111,7 +124,7 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
       t("settings.deleteAccount"),
       t("settings.deleteAccountConfirm"),
       [
-        { text: t("app.cancel"), style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
           text: t("settings.deleteAccount"),
           style: "destructive",
@@ -123,24 +136,30 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
     );
   };
 
-  const themeOptions: { value: ThemeMode; label: string }[] = [
-    { value: "system", label: t("settings.theme.system") },
-    { value: "light", label: t("settings.theme.light") },
-    { value: "dark", label: t("settings.theme.dark") },
-  ];
+  const themeOptions: { value: ThemeMode; label: string }[] = useMemo(() => {
+    return [
+      { value: "system", label: t("settings.theme.system") },
+      { value: "light", label: t("settings.theme.light") },
+      { value: "dark", label: t("settings.theme.dark") },
+    ];
+  }, [t]);
 
-  const languageOptions: { value: Language; label: string }[] = [
-    { value: "ja", label: t("settings.language.japanese") },
-    { value: "en", label: t("settings.language.english") },
-  ];
+  const languageOptions: { value: Language; label: string }[] = useMemo(() => {
+    return [
+      { value: "ja", label: t("settings.language.japanese") },
+      { value: "en", label: t("settings.language.english") },
+    ];
+  }, [t]);
 
   const insertPositionOptions: {
     value: TaskInsertPosition;
     label: string;
-  }[] = [
-    { value: "top", label: t("settings.taskInsertPosition.top") },
-    { value: "bottom", label: t("settings.taskInsertPosition.bottom") },
-  ];
+  }[] = useMemo(() => {
+    return [
+      { value: "top", label: t("settings.taskInsertPosition.top") },
+      { value: "bottom", label: t("settings.taskInsertPosition.bottom") },
+    ];
+  }, [t]);
 
   const signOutLabel = isSigningOut
     ? t("settings.signingOut")
@@ -151,7 +170,7 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
   const actionsDisabled = isSigningOut || isDeletingAccount;
 
   return (
-    <ScrollView contentContainerClassName="p-6 pb-10 max-w-[768px] w-full self-center">
+    <ScrollView contentContainerClassName="px-4 pt-6 pb-10 max-w-[768px] w-full self-center">
       <View className="flex-row items-center gap-3 mb-4">
         <Pressable
           accessibilityRole="button"

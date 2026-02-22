@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { enUS, ja } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 
-export type CalendarProps = ComponentProps<typeof DayPicker>;
+type CalendarProps = ComponentProps<typeof DayPicker>;
 
 export function Calendar({
   className,

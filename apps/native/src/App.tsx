@@ -1,4 +1,11 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  Suspense,
+  useCallback,
+  lazy,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   NavigationContainer,
   DefaultTheme,
@@ -7,18 +14,13 @@ import {
   type RouteProp,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useTranslation } from "react-i18next";
 import { KeyboardAvoidingView, Platform } from "react-native";
 import { useColorScheme as useNWColorScheme } from "nativewind";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { AuthScreen } from "./screens/AuthScreen";
-import { PasswordResetScreen } from "./screens/PasswordResetScreen";
-import { ShareCodeScreen } from "./screens/ShareCodeScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
-import { AppScreen } from "./screens/AppScreen";
-import { themes, type ThemeMode, type ThemeName } from "./styles/theme";
+import { themes } from "./styles/theme";
 import { appStore } from "@lightlist/sdk/store";
 import {
   useFonts,
@@ -30,8 +32,27 @@ import {
 import { onAuthStateChange } from "@lightlist/sdk/auth";
 import i18n from "./utils/i18n";
 
-// Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
+
+const AppScreen = lazy(async () => {
+  const module = await import("./screens/AppScreen");
+  return { default: module.AppScreen };
+});
+
+const SettingsScreen = lazy(async () => {
+  const module = await import("./screens/SettingsScreen");
+  return { default: module.SettingsScreen };
+});
+
+const ShareCodeScreen = lazy(async () => {
+  const module = await import("./screens/ShareCodeScreen");
+  return { default: module.ShareCodeScreen };
+});
+
+const PasswordResetScreen = lazy(async () => {
+  const module = await import("./screens/PasswordResetScreen");
+  return { default: module.PasswordResetScreen };
+});
 
 type RootStackParamList = {
   Auth: undefined;
@@ -52,12 +73,31 @@ const linking = {
   },
 };
 
+const getUserSnapshot = () => {
+  return appStore.getState().user;
+};
+
+const getAppLanguageSnapshot = () => {
+  return appStore.getState().settings?.language ?? "ja";
+};
+
+const getAppThemeSnapshot = () => {
+  return appStore.getState().settings?.theme ?? "system";
+};
+
 export default function App() {
-  const { t } = useTranslation();
-  const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
+  const user = useSyncExternalStore(appStore.subscribe, getUserSnapshot);
+  const appLanguage = useSyncExternalStore(
+    appStore.subscribe,
+    getAppLanguageSnapshot,
+  );
+  const appTheme = useSyncExternalStore(
+    appStore.subscribe,
+    getAppThemeSnapshot,
+  );
 
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [fontsLoaded] = useFonts({
+  useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -74,21 +114,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const language = appState.settings?.language;
-    const targetLanguage =
-      language === "ja" || language === "en" ? language : "ja";
+    const targetLanguage = appLanguage === "en" ? "en" : "ja";
     if (i18n.language !== targetLanguage) {
       void i18n.changeLanguage(targetLanguage);
     }
-  }, [appState.settings?.language]);
+  }, [appLanguage]);
 
   useEffect(() => {
-    if (fontsLoaded && isAuthReady) {
+    if (isAuthReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, isAuthReady]);
-
-  const isReady = fontsLoaded && isAuthReady;
+  }, [isAuthReady]);
 
   const [navigationReady, setNavigationReady] = useState(false);
 
@@ -97,17 +133,12 @@ export default function App() {
   const theme = themes[resolvedTheme];
 
   useEffect(() => {
-    const storedTheme = appState.settings?.theme;
-    if (
-      storedTheme === "light" ||
-      storedTheme === "dark" ||
-      storedTheme === "system"
-    ) {
-      setColorScheme(storedTheme);
+    if (appTheme === "light" || appTheme === "dark" || appTheme === "system") {
+      setColorScheme(appTheme);
     } else {
       setColorScheme("system");
     }
-  }, [appState.settings?.theme, setColorScheme]);
+  }, [appTheme, setColorScheme]);
 
   const navigationTheme: NavigationTheme = {
     ...DefaultTheme,
@@ -125,9 +156,7 @@ export default function App() {
 
   useEffect(() => {
     if (!navigationReady) return;
-    const targetRoute: keyof RootStackParamList = appState.user
-      ? "TaskList"
-      : "Auth";
+    const targetRoute: keyof RootStackParamList = user ? "TaskList" : "Auth";
     const currentRoute = navigationRef.getCurrentRoute()?.name;
     if (currentRoute === "PasswordReset") return;
     if (currentRoute === targetRoute) return;
@@ -135,70 +164,63 @@ export default function App() {
       index: 0,
       routes: [{ name: targetRoute }],
     });
-  }, [appState.user, navigationReady]);
+  }, [user, navigationReady]);
 
-  if (!isReady) {
-    return null;
-  }
-
-  const handleOpenSettings = () => {
+  const handleOpenSettings = useCallback(() => {
     if (!navigationReady) return;
     navigationRef.navigate("Settings");
-  };
+  }, [navigationReady]);
 
-  const handleOpenShareCode = () => {
-    if (!navigationReady) return;
-    navigationRef.navigate("ShareCode");
-  };
-
-  const handleBackFromSettings = () => {
+  const handleBackFromSettings = useCallback(() => {
     if (!navigationReady) return;
     if (navigationRef.canGoBack()) {
       navigationRef.goBack();
       return;
     }
     navigationRef.navigate("TaskList");
-  };
+  }, [navigationReady]);
 
-  const handleBackFromShareCode = () => {
+  const handleBackFromShareCode = useCallback(() => {
     if (!navigationReady) return;
     if (navigationRef.canGoBack()) {
       navigationRef.goBack();
       return;
     }
-    navigationRef.navigate(appState.user ? "TaskList" : "Auth");
-  };
+    navigationRef.navigate(user ? "TaskList" : "Auth");
+  }, [navigationReady, user]);
 
-  const handleBackFromPasswordReset = () => {
+  const handleBackFromPasswordReset = useCallback(() => {
     if (!navigationReady) return;
     if (navigationRef.canGoBack()) {
       navigationRef.goBack();
       return;
     }
-    navigationRef.navigate(appState.user ? "TaskList" : "Auth");
-  };
+    navigationRef.navigate(user ? "TaskList" : "Auth");
+  }, [navigationReady, user]);
 
-  const handleOpenTaskListFromShareCode = () => {
+  const handleOpenTaskListFromShareCode = useCallback(() => {
     if (!navigationReady) return;
-    navigationRef.navigate(appState.user ? "TaskList" : "Auth");
-  };
+    navigationRef.navigate(user ? "TaskList" : "Auth");
+  }, [navigationReady, user]);
 
-  const screenMode: "auth" | "task" = appState.user ? "task" : "auth";
+  if (!isAuthReady) {
+    return null;
+  }
 
-  // Render functions
-  const renderAuthScreen = () => (
-    <AuthScreen onOpenShareCode={handleOpenShareCode} />
-  );
+  const screenMode: "auth" | "task" = user ? "task" : "auth";
+
+  const renderAuthScreen = () => <AuthScreen />;
 
   const renderAppScreen = () => (
-    <AppScreen
-      onOpenSettings={handleOpenSettings}
-      onOpenShareCode={handleOpenShareCode}
-    />
+    <Suspense fallback={null}>
+      <AppScreen onOpenSettings={handleOpenSettings} />
+    </Suspense>
   );
 
   const renderSettingsScreen = () => (
-    <SettingsScreen onBack={handleBackFromSettings} />
+    <Suspense fallback={null}>
+      <SettingsScreen onBack={handleBackFromSettings} />
+    </Suspense>
   );
 
   const renderShareCodeScreen = ({
@@ -206,11 +228,13 @@ export default function App() {
   }: {
     route: RouteProp<RootStackParamList, "ShareCode">;
   }) => (
-    <ShareCodeScreen
-      initialShareCode={route.params?.shareCode ?? null}
-      onBack={handleBackFromShareCode}
-      onOpenTaskList={handleOpenTaskListFromShareCode}
-    />
+    <Suspense fallback={null}>
+      <ShareCodeScreen
+        initialShareCode={route.params?.shareCode ?? null}
+        onBack={handleBackFromShareCode}
+        onOpenTaskList={handleOpenTaskListFromShareCode}
+      />
+    </Suspense>
   );
 
   const renderPasswordResetScreen = ({
@@ -218,10 +242,12 @@ export default function App() {
   }: {
     route: RouteProp<RootStackParamList, "PasswordReset">;
   }) => (
-    <PasswordResetScreen
-      oobCode={route.params?.oobCode ?? null}
-      onBack={handleBackFromPasswordReset}
-    />
+    <Suspense fallback={null}>
+      <PasswordResetScreen
+        oobCode={route.params?.oobCode ?? null}
+        onBack={handleBackFromPasswordReset}
+      />
+    </Suspense>
   );
 
   return (

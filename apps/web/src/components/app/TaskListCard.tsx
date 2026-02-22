@@ -720,5 +720,3 @@ export function TaskListCard({
     </section>
   );
 }
-
-export default TaskListCard;

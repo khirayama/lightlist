@@ -1,7 +1,7 @@
 import { colors } from "./colors";
 
-export type ThemeName = "light" | "dark";
-export type ThemeMode = "system" | ThemeName;
+type ThemeName = "light" | "dark";
+type ThemeMode = "system" | ThemeName;
 
 export const themes = colors;
 

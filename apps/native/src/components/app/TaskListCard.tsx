@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TFunction } from "i18next";
-import i18n from "../../utils/i18n";
 import {
   Alert,
   Animated,
@@ -11,14 +10,19 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Gesture } from "react-native-gesture-handler";
 import { AppIcon } from "../ui/AppIcon";
 import DateTimePicker, {
   DateTimePickerAndroid,
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import DraggableFlatList, {
-  type RenderItemParams,
-} from "react-native-draggable-flatlist";
+import ReorderableList, {
+  type ReorderableListDragEndEvent,
+  type ReorderableListDragStartEvent,
+  type ReorderableListRenderItem,
+  type ReorderableListReorderEvent,
+} from "react-native-reorderable-list";
+import { runOnJS } from "react-native-reanimated";
 import type { Task, TaskList } from "@lightlist/sdk/types";
 import {
   addTask,
@@ -38,10 +42,10 @@ type TaskListCardProps = {
   taskList: TaskList;
   isActive: boolean;
   onActivate?: (taskListId: string) => void;
+  onSortingChange?: (sorting: boolean) => void;
   t: TFunction;
-  // Dialog/Edit関連
   enableEditDialog?: boolean;
-  colors?: readonly string[];
+  colors?: readonly ColorOption[];
   showEditListDialog?: boolean;
   onEditDialogOpenChange?: (taskList: TaskList, open: boolean) => void;
   editListName?: string;
@@ -51,11 +55,11 @@ type TaskListCardProps = {
   onSaveListDetails?: () => void;
   deletingList?: boolean;
   onDeleteList?: () => void;
-  // Share関連
   enableShareDialog?: boolean;
   showShareDialog?: boolean;
   onShareDialogOpenChange?: (taskList: TaskList, open: boolean) => void;
   shareCode?: string | null;
+  shareCopySuccess?: boolean;
   generatingShareCode?: boolean;
   onGenerateShareCode?: () => void;
   removingShareCode?: boolean;
@@ -63,22 +67,32 @@ type TaskListCardProps = {
   onCopyShareLink?: () => void;
 };
 
+type ColorOption = {
+  value: string | null;
+  label?: string;
+  shortLabel?: string;
+  preview?: string;
+};
+
 export const TaskListCard = ({
   taskList,
   isActive,
-  onActivate,
+  onSortingChange,
   t,
-  enableEditDialog,
-  showEditListDialog,
+  enableEditDialog = false,
   onEditDialogOpenChange,
-  enableShareDialog,
+  enableShareDialog = false,
   showShareDialog,
   onShareDialogOpenChange,
 }: TaskListCardProps) => {
-  // Local state for optimistic updates
+  const [isTaskDragActive, setIsTaskDragActive] = useState(false);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
     taskList.tasks,
     (draggedId, targetId) => updateTasksOrder(taskList.id, draggedId, targetId),
+    {
+      suspendExternalSync: isTaskDragActive,
+    },
   );
   const [newTaskText, setNewTaskText] = useState("");
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
@@ -88,8 +102,26 @@ export const TaskListCard = ({
   const [taskError, setTaskError] = useState<string | null>(null);
   const [isAddInputFocused, setIsAddInputFocused] = useState(false);
   const addButtonVisibility = useRef(new Animated.Value(0)).current;
+  const panGesture = useMemo(
+    () => Gesture.Pan().activeOffsetY([-12, 12]).failOffsetX([-24, 24]),
+    [],
+  );
 
-  // Reset editing state when not active
+  const { tasksById, completedTaskCount } = useMemo(() => {
+    const nextTasksById: Record<string, Task> = {};
+    let nextCompletedTaskCount = 0;
+    tasks.forEach((task) => {
+      nextTasksById[task.id] = task;
+      if (task.completed) {
+        nextCompletedTaskCount += 1;
+      }
+    });
+    return {
+      tasksById: nextTasksById,
+      completedTaskCount: nextCompletedTaskCount,
+    };
+  }, [tasks]);
+
   useEffect(() => {
     if (!isActive) {
       setEditingTaskId(null);
@@ -99,8 +131,20 @@ export const TaskListCard = ({
       setTaskError(null);
       setAddTaskError(null);
       setIsAddInputFocused(false);
+      setIsTaskDragActive(false);
+      setDraggingTaskId(null);
     }
   }, [isActive]);
+
+  useEffect(() => {
+    onSortingChange?.(isTaskDragActive);
+  }, [isTaskDragActive, onSortingChange]);
+
+  useEffect(() => {
+    return () => {
+      onSortingChange?.(false);
+    };
+  }, [onSortingChange]);
 
   useEffect(() => {
     Animated.timing(addButtonVisibility, {
@@ -111,7 +155,6 @@ export const TaskListCard = ({
     }).start();
   }, [addButtonVisibility, isAddInputFocused]);
 
-  const completedTaskCount = tasks.filter((task) => task.completed).length;
   const canSortTasks = tasks.length > 1;
   const canDeleteCompletedTasks = completedTaskCount > 0;
   const canDragTask = tasks.length > 1;
@@ -126,7 +169,7 @@ export const TaskListCard = ({
   const [datePickerValue, setDatePickerValue] = useState<Date>(new Date());
 
   const datePickerTask = datePickerTaskId
-    ? (tasks.find((task) => task.id === datePickerTaskId) ?? null)
+    ? (tasksById[datePickerTaskId] ?? null)
     : null;
   const datePickerOpen = isIos && Boolean(datePickerTask);
   const currentDateValue = datePickerTask
@@ -136,14 +179,25 @@ export const TaskListCard = ({
     : "";
   const canClearDate = currentDateValue.trim().length > 0;
 
-  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
-    setTaskError(null);
-    try {
-      await updateTask(taskList.id, taskId, updates);
-    } catch (error) {
-      setTaskError(resolveErrorMessage(error, t, "app.error"));
-    }
-  };
+  const runTaskMutation = useCallback(
+    async ({
+      task,
+      updates,
+    }: {
+      task: Task;
+      updates: Partial<Task>;
+    }): Promise<boolean> => {
+      setTaskError(null);
+      try {
+        await updateTask(taskList.id, task.id, updates);
+        return true;
+      } catch (error) {
+        setTaskError(resolveErrorMessage(error, t, "common.error"));
+        return false;
+      }
+    },
+    [taskList.id, t],
+  );
 
   const applyDateChange = useCallback(
     (task: Task, nextDate: string) => {
@@ -152,9 +206,12 @@ export const TaskListCard = ({
         setEditingTaskDate(normalizedDate);
       }
       if (normalizedDate === (task.date ?? "")) return;
-      void handleUpdateTask(task.id, { date: normalizedDate });
+      void runTaskMutation({
+        task,
+        updates: { date: normalizedDate },
+      });
     },
-    [editingTaskId, handleUpdateTask],
+    [editingTaskId, runTaskMutation],
   );
 
   const closeDatePicker = () => {
@@ -229,8 +286,8 @@ export const TaskListCard = ({
     try {
       await addTask(taskList.id, trimmedText);
     } catch (error) {
-      setNewTaskText(trimmedText); // Restore input on error
-      setAddTaskError(resolveErrorMessage(error, t, "app.error"));
+      setNewTaskText(trimmedText);
+      setAddTaskError(resolveErrorMessage(error, t, "common.error"));
     }
   };
 
@@ -240,64 +297,76 @@ export const TaskListCard = ({
     setEditingTaskDate(task.date ?? "");
   }, []);
 
-  const handleEditEndTask = useCallback(async () => {
-    // We need to capture current state.
-    // Since this is used in renderItem, we need to be careful about closure staleness if we memoize strictly,
-    // but here we are using it inside the component.
-    // However, since we are passing it to TaskItem, we should probably pass the item to it so we can find it?
-    // Actually TaskItem calls onEditEnd().
-    // We need to know WHICH task is being edited. editingTaskId state holds that.
-    if (!editingTaskId) return;
+  const handleEditEndTask = useCallback(
+    async (task: Task, text?: string) => {
+      if (editingTaskId !== task.id) return;
 
-    const task = tasks.find((t) => t.id === editingTaskId);
-    if (!task) {
-      setEditingTaskId(null);
-      return;
-    }
+      const currentTask = tasksById[task.id];
+      if (!currentTask) {
+        setEditingTaskId(null);
+        return;
+      }
 
-    const trimmedText = editingTaskText.trim();
-    if (!trimmedText) {
-      // Revert if empty
-      setEditingTaskId(null);
-      setEditingTaskText("");
-      setEditingTaskDate("");
-      return;
-    }
-    const normalizedDate = editingTaskDate.trim();
-    if (trimmedText === task.text && normalizedDate === (task.date ?? "")) {
-      // No change
-      setEditingTaskId(null);
-      setEditingTaskText("");
-      setEditingTaskDate("");
-      return;
-    }
+      const trimmedText = (text ?? editingTaskText).trim();
+      if (!trimmedText) {
+        setEditingTaskId(null);
+        setEditingTaskText("");
+        setEditingTaskDate("");
+        return;
+      }
 
-    setTaskError(null);
-    try {
-      await updateTask(taskList.id, task.id, {
-        text: trimmedText,
-        date: normalizedDate,
+      const normalizedDate = editingTaskDate.trim();
+      if (
+        trimmedText === currentTask.text &&
+        normalizedDate === (currentTask.date ?? "")
+      ) {
+        setEditingTaskId(null);
+        setEditingTaskText("");
+        setEditingTaskDate("");
+        return;
+      }
+
+      const isUpdated = await runTaskMutation({
+        task: currentTask,
+        updates: {
+          text: trimmedText,
+          date: normalizedDate,
+        },
       });
-      setEditingTaskId(null);
-      setEditingTaskText("");
-      setEditingTaskDate("");
-    } catch (error) {
-      setTaskError(resolveErrorMessage(error, t, "app.error"));
-    }
-  }, [editingTaskId, editingTaskText, editingTaskDate, taskList.id, tasks, t]);
+      if (isUpdated) {
+        setEditingTaskId(null);
+        setEditingTaskText("");
+        setEditingTaskDate("");
+      }
+    },
+    [
+      editingTaskId,
+      editingTaskText,
+      editingTaskDate,
+      tasksById,
+      runTaskMutation,
+    ],
+  );
+
+  const handleTaskDateChange = useCallback(
+    (taskId: string, _date: string) => {
+      const task = tasksById[taskId];
+      if (!task) return;
+      openDatePicker(task);
+    },
+    [openDatePicker, tasksById],
+  );
 
   const handleToggleTask = useCallback(
     async (task: Task) => {
-      setTaskError(null);
-      try {
-        await updateTask(taskList.id, task.id, {
+      await runTaskMutation({
+        task,
+        updates: {
           completed: !task.completed,
-        });
-      } catch (error) {
-        setTaskError(resolveErrorMessage(error, t, "app.error"));
-      }
+        },
+      });
     },
-    [taskList.id, t],
+    [runTaskMutation],
   );
 
   const handleSortTasks = async () => {
@@ -305,7 +374,7 @@ export const TaskListCard = ({
     try {
       await sortTasks(taskList.id);
     } catch (error) {
-      setTaskError(resolveErrorMessage(error, t, "app.error"));
+      setTaskError(resolveErrorMessage(error, t, "common.error"));
     }
   };
 
@@ -314,7 +383,7 @@ export const TaskListCard = ({
     try {
       await deleteCompletedTasks(taskList.id);
     } catch (error) {
-      setTaskError(resolveErrorMessage(error, t, "app.error"));
+      setTaskError(resolveErrorMessage(error, t, "common.error"));
     }
   };
 
@@ -326,7 +395,7 @@ export const TaskListCard = ({
         count: completedTaskCount,
       }),
       [
-        { text: t("app.cancel"), style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
           text: t("common.delete"),
           style: "destructive",
@@ -343,23 +412,70 @@ export const TaskListCard = ({
       setTaskError(null);
       try {
         await reorderTask(draggedTaskId, targetTaskId);
+        setIsTaskDragActive(false);
       } catch (error) {
-        setTaskError(resolveErrorMessage(error, t, "app.error"));
+        setIsTaskDragActive(false);
+        setTaskError(resolveErrorMessage(error, t, "common.error"));
       }
     },
     [reorderTask, t],
   );
 
-  const renderItem = useCallback(
-    ({
-      item,
-      drag,
-      isActive: isDragActive,
-      getIndex,
-    }: RenderItemParams<Task>) => {
+  const addTaskPlaceholderLabel = t("pages.tasklist.addTaskPlaceholder");
+  const reorderLabel = t("taskList.reorder");
+  const moveUpLabel = t("app.moveUp");
+  const moveDownLabel = t("app.moveDown");
+
+  const handleTaskDragStart = useCallback(
+    (index: number) => {
+      setIsTaskDragActive(true);
+      const draggedTask = tasks[index];
+      setDraggingTaskId(draggedTask?.id ?? null);
+    },
+    [tasks],
+  );
+
+  const handleTaskDragEnd = useCallback((from: number, to: number) => {
+    setDraggingTaskId(null);
+    if (from === to) {
+      setIsTaskDragActive(false);
+    }
+  }, []);
+
+  const onTaskDragStart = useCallback(
+    (event: ReorderableListDragStartEvent) => {
+      "worklet";
+      runOnJS(handleTaskDragStart)(event.index);
+    },
+    [handleTaskDragStart],
+  );
+
+  const onTaskDragEnd = useCallback(
+    (event: ReorderableListDragEndEvent) => {
+      "worklet";
+      runOnJS(handleTaskDragEnd)(event.from, event.to);
+    },
+    [handleTaskDragEnd],
+  );
+
+  const handleTaskReorder = useCallback(
+    ({ from, to }: ReorderableListReorderEvent) => {
+      if (from === to) return;
+      const draggedTask = tasks[from];
+      const targetTask = tasks[to];
+      if (!draggedTask || !targetTask) {
+        setIsTaskDragActive(false);
+        return;
+      }
+      void handleReorderTask(draggedTask.id, targetTask.id);
+    },
+    [handleReorderTask, tasks],
+  );
+
+  const renderItem = useCallback<ReorderableListRenderItem<Task>>(
+    ({ item, index }) => {
       const isEditing = editingTaskId === item.id;
-      const currentIndex =
-        getIndex() ?? tasks.findIndex((task) => task.id === item.id);
+      const currentIndex = index;
       const canMoveTaskUp = canDragTask && currentIndex > 0;
       const canMoveTaskDown =
         canDragTask && currentIndex >= 0 && currentIndex < tasks.length - 1;
@@ -373,44 +489,43 @@ export const TaskListCard = ({
 
       return (
         <TaskItem
-          item={item}
+          task={item}
           isEditing={isEditing}
           editingText={isEditing ? editingTaskText : ""}
-          editingDate={isEditing ? editingTaskDate : ""}
+          onEditingTextChange={setEditingTaskText}
           onEditStart={handleEditStartTask}
           onEditEnd={handleEditEndTask}
-          onEditChangeText={setEditingTaskText}
-          onToggleComplete={handleToggleTask}
-          onOpenDatePicker={openDatePicker}
-          drag={drag}
-          isDragActive={isDragActive}
+          onToggle={handleToggleTask}
+          onDateChange={handleTaskDateChange}
+          setDateLabel={dateLabel}
+          dragHintLabel={reorderLabel}
+          editingDate={isEditing ? editingTaskDate : ""}
+          isDragActive={draggingTaskId === item.id}
           canDrag={canDragTask}
           canMoveUp={canMoveTaskUp}
           canMoveDown={canMoveTaskDown}
           onMoveUp={() => handleMoveTaskByOffset(-1)}
           onMoveDown={() => handleMoveTaskByOffset(1)}
-          dateLabel={dateLabel}
-          editPlaceholder={t("taskList.addTaskPlaceholder")}
-          reorderLabel={t("taskList.reorder")}
-          toggleCompleteLabel={t("taskList.toggleComplete")}
-          editTaskLabel={t("taskList.editTask")}
-          moveUpLabel={t("app.moveUp")}
-          moveDownLabel={t("app.moveDown")}
+          moveUpLabel={moveUpLabel}
+          moveDownLabel={moveDownLabel}
         />
       );
     },
     [
       editingTaskId,
       tasks,
+      draggingTaskId,
       canDragTask,
       editingTaskText,
       editingTaskDate,
       handleEditStartTask,
       handleEditEndTask,
       handleToggleTask,
-      openDatePicker,
+      handleTaskDateChange,
       dateLabel,
-      t,
+      reorderLabel,
+      moveUpLabel,
+      moveDownLabel,
       handleReorderTask,
     ],
   );
@@ -503,7 +618,7 @@ export const TaskListCard = ({
           className="flex-1 rounded-[12px] border border-border dark:border-border-dark px-3.5 py-3 text-[16px] font-inter text-text dark:text-text-dark bg-input-background dark:bg-input-background-dark"
           value={newTaskText}
           onChangeText={setNewTaskText}
-          placeholder={t("taskList.addTaskPlaceholder")}
+          placeholder={addTaskPlaceholderLabel}
           placeholderClassName="text-placeholder dark:text-placeholder-dark"
           returnKeyType="done"
           blurOnSubmit={false}
@@ -511,7 +626,7 @@ export const TaskListCard = ({
           onFocus={() => setIsAddInputFocused(true)}
           onBlur={() => setIsAddInputFocused(false)}
           editable={isActive}
-          accessibilityLabel={t("taskList.addTaskPlaceholder")}
+          accessibilityLabel={addTaskPlaceholderLabel}
         />
         <Animated.View style={[addButtonAnimatedStyle, { overflow: "hidden" }]}>
           <Pressable
@@ -620,18 +735,16 @@ export const TaskListCard = ({
           />
         ) : null}
       </Dialog>
-      <DraggableFlatList
+      <ReorderableList
         style={{ backgroundColor: taskList.background ?? undefined }}
         data={tasks}
         keyExtractor={(item) => item.id}
-        animationConfig={{ duration: 0 }}
-        activationDistance={8}
-        onDragEnd={({ from, to }) => {
-          const draggedTask = tasks[from];
-          const targetTask = tasks[to];
-          if (!draggedTask || !targetTask || from === to) return;
-          void handleReorderTask(draggedTask.id, targetTask.id);
-        }}
+        onReorder={handleTaskReorder}
+        onDragStart={onTaskDragStart}
+        onDragEnd={onTaskDragEnd}
+        panGesture={panGesture}
+        dragEnabled={canDragTask}
+        shouldUpdateActiveItem
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           padding: 16,

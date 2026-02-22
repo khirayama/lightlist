@@ -10,7 +10,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
-import { AppState, User } from "@lightlist/sdk/types";
+import { User } from "@lightlist/sdk/types";
 import {
   fetchTaskListIdByShareCode,
   addSharedTaskListToOrder,

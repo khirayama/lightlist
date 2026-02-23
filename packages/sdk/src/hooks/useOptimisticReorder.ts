@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 
-// Utility to move item in array
 export const arrayMove = <T>(array: T[], from: number, to: number): T[] => {
   const result = array.slice();
   const [removed] = result.splice(from, 1);
@@ -11,28 +10,28 @@ export const arrayMove = <T>(array: T[], from: number, to: number): T[] => {
 export const useOptimisticReorder = <T extends { id: string }>(
   initialItems: T[],
   onReorder: (draggedId: string, targetId: string) => Promise<void>,
-  options?: {
+  {
+    suspendExternalSync = false,
+  }: {
     suspendExternalSync?: boolean;
-  },
+  } = {},
 ) => {
   const [optimisticItems, setOptimisticItems] = useState<T[] | null>(null);
   const items = optimisticItems ?? initialItems;
-  const suspendExternalSync = options?.suspendExternalSync ?? false;
-
-  const setItems = useCallback((nextItems: T[]) => {
-    setOptimisticItems(nextItems);
-  }, []);
 
   useEffect(() => {
-    if (suspendExternalSync) return;
-    if (!optimisticItems) return;
-    if (optimisticItems.length !== initialItems.length) return;
-    const isSameOrder = optimisticItems.every(
-      (item, index) => item.id === initialItems[index]?.id,
-    );
-    if (isSameOrder) {
-      setOptimisticItems(null);
+    if (
+      suspendExternalSync ||
+      !optimisticItems ||
+      optimisticItems.length !== initialItems.length ||
+      !optimisticItems.every(
+        (item, index) => item.id === initialItems[index]?.id,
+      )
+    ) {
+      return;
     }
+
+    setOptimisticItems(null);
   }, [initialItems, optimisticItems, suspendExternalSync]);
 
   const reorder = useCallback(
@@ -63,7 +62,6 @@ export const useOptimisticReorder = <T extends { id: string }>(
 
   return {
     items,
-    setItems,
     reorder,
   };
 };

@@ -10,6 +10,12 @@
 - `npm run deploy:firestore`: SDK の Firestore ルール/インデックスをデプロイ（dev）
 - `npm run deploy:firestore:prod`: SDK の Firestore ルール/インデックスをデプロイ（prod）
 
+## agentドキュメント運用
+
+- `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` は、作業ごとの進捗ではなく、今後も使う運用ルール・手順・コマンド・構成情報を蓄積するためのドキュメントとして扱う。
+- 作業完了時に再利用価値のある恒久知見が増えた場合は更新する。
+- `AGENTS.md` を正本とし、`CLAUDE.md` / `GEMINI.md` は要点を揃えて追従する。
+
 ## apps/web
 
 - `cd apps/web`

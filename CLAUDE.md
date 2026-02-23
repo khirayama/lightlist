@@ -22,9 +22,16 @@
 - 共有ページ: `apps/web/src/pages/sharecodes/[sharecode].tsx`
 - SDK の Firestore デプロイ: `packages/sdk` の `deploy:firestore` 系スクリプト
 
+## agentドキュメント更新
+
+- 作業完了時に再利用価値のある恒久的な知見（ルール、手順、コマンド、構成差分）が増えた場合は、まず `AGENTS.md` を更新する。
+- `CLAUDE.md` は `AGENTS.md` の要点と矛盾しないように必要最小限で追従更新する。
+- 進捗報告やタスク固有メモは書かない。
+
 ## 完了条件
 
 1. 実装と `docs/` の整合を取る（進捗ではなく仕様として記述）。
-2. `npm run format` を実行する。
-3. `npm run build` と `npm run typecheck` を実行し、エラーなしを確認する。
-4. 明示指示がない限りコミットしない。
+2. agent ドキュメント（少なくとも `AGENTS.md`）に恒久知見の更新が必要か確認し、必要なら反映する。
+3. `npm run format` を実行する。
+4. `npm run build` と `npm run typecheck` を実行し、エラーなしを確認する。
+5. 明示指示がない限りコミットしない。

@@ -1,12 +1,13 @@
 {
-  "title": "LightList",
-  "copyright": "© 2024 LightList. All rights reserved.",
+  "title": "Lightlist",
+  "copyright": "© 2024 Lightlist. All rights reserved.",
   "common": {
     "loading": "Loading...",
     "back": "Back",
     "cancel": "Cancel",
     "deleting": "Deleting...",
     "close": "Close",
+    "skipToMain": "Skip to main content",
     "add": "Add",
     "copy": "Copy",
     "copied": "Copied",
@@ -108,8 +109,6 @@
     "join": "Join",
     "joining": "Joining...",
     "calendarCheckButton": "View in Calendar",
-    "calendarSheetTitle": "Tasks with Dates",
-    "calendarSheetDescription": "Select a date to scroll to matching tasks",
     "calendarAllDates": "All dates",
     "calendarNoDatedTasks": "No tasks have a date",
     "calendarNoTasksOnSelectedDate": "No tasks on the selected date"
@@ -139,6 +138,9 @@
     "userInfo": {
       "title": "Account"
     },
+    "preferences": {
+      "title": "Display & behavior"
+    },
     "theme": {
       "title": "Theme",
       "system": "System",
@@ -163,13 +165,45 @@
       "title": "Danger Zone",
       "signOut": "Sign Out",
       "deleteAccount": "Delete Account"
-    }
+    },
+    "actions": {
+      "title": "Account actions"
+    },
+    "deleteAccount": "Delete account",
+    "deleteAccountConfirm": "Delete your account and all data?",
+    "signingOut": "Signing out...",
+    "deletingAccount": "Deleting account..."
   },
   "pages": {
     "index": {
-      "getStarted": "Get started",
-      "description1": "Lightlist is a simple task list service.",
-      "description2": "It can be used as a ToDo list for task management or a shopping list. You can share lists with people who are not registered."
+      "getStarted": "Get started for free",
+      "headline": "Simple enough.\nThat's the point.",
+      "subheadline": "For anyone tired of complex task apps.\nSimple enough for everyone, right from the start.\nShare with others when you need to.",
+      "features": {
+        "title": "Three things Lightlist does",
+        "simple": {
+          "title": "Just what you need",
+          "description": "Add tasks. Check them off. That's it. No tutorial, no manual needed. Anyone can start right away — no matter their experience with technology."
+        },
+        "multidevice": {
+          "title": "Any device, anytime",
+          "description": "Access from any browser, or use the iOS and Android apps. Your lists stay in sync across all devices in real time."
+        },
+        "share": {
+          "title": "Share when you want to",
+          "description": "Generate a share code and invite anyone to your list in seconds. No account required to join. Out of the way when you don't need it."
+        }
+      },
+      "preview": {
+        "title": "See it in action",
+        "desktopAlt": "Desktop screenshot",
+        "mobileAlt": "Mobile screenshot"
+      },
+      "cta": {
+        "title": "Simple enough. That's the point.",
+        "description": "If task management feels like too much, Lightlist is for you. Start with one list.",
+        "button": "Get started for free"
+      }
     },
     "sharecode": {
       "notFound": "This task list not found",

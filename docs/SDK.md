@@ -1,6 +1,6 @@
-# LightList SDK Documentation
+# Lightlist SDK Documentation
 
-`@lightlist/sdk` は、LightList アプリケーション（Web および Native）の共通ロジック、状態管理、およびデータアクセス層を提供するパッケージです。
+`@lightlist/sdk` は、Lightlist アプリケーション（Web および Native）の共通ロジック、状態管理、およびデータアクセス層を提供するパッケージです。
 
 ## 概要
 

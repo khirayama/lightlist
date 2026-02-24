@@ -23,7 +23,7 @@ const Calendar = dynamic(
   },
 );
 
-export interface TaskForSortable {
+interface TaskForSortable {
   id: string;
   text: string;
   completed: boolean;
@@ -31,7 +31,7 @@ export interface TaskForSortable {
   order?: number;
 }
 
-export interface TaskItemProps<T extends TaskForSortable = TaskForSortable> {
+interface TaskItemProps<T extends TaskForSortable = TaskForSortable> {
   task: T;
   isEditing: boolean;
   editingText: string;
@@ -101,6 +101,7 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
   };
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const taskTextId = `task-item-text-${task.id}`;
   const selectedDate = parseTaskDate(task.date);
   const dateDisplayValue = selectedDate
     ? new Intl.DateTimeFormat(i18n.language, {
@@ -133,6 +134,7 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
           type="checkbox"
           checked={task.completed}
           onChange={() => onToggle(task)}
+          aria-labelledby={taskTextId}
           className="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
         />
         <div className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white transition-colors peer-checked:border-transparent peer-checked:bg-gray-200 peer-focus-visible:ring-2 peer-focus-visible:ring-gray-400 dark:border-gray-300 dark:bg-gray-900 dark:peer-checked:bg-gray-800">
@@ -159,6 +161,7 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
         ) : null}
         {isEditing ? (
           <input
+            id={taskTextId}
             type="text"
             value={editingText}
             onChange={(e) => onEditingTextChange(e.target.value)}
@@ -180,6 +183,7 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
           />
         ) : (
           <span
+            id={taskTextId}
             role="button"
             tabIndex={0}
             onClick={() => onEditStart(task)}

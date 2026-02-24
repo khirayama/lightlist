@@ -2,7 +2,7 @@
 
 ## 分類
 
-- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, Calendar, ColorPicker, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel, Command, Popover, AppIcon, ErrorBoundary）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。Dialog/Carousel も含め、ライト/ダークの可読性と操作性（focus-visible 等）を優先して必要なスタイルを持つ。Alert は variant 別に配色を切り替え、ConfirmDialog は Dialog を使って破壊的アクションのスタイルを切り替える。Spinner は `AppIcon` (logo) を使用し、アニメーション（pulse）を伴う。`fullPage` prop を指定することで、画面中央に配置される。Calendar は i18next の言語に合わせて locale を切り替え、選択日の背景色・文字色は `day_button` の `aria-selected` スタイルでライト/ダーク両方に統一する。AppIcon は `@lightlist/sdk/icons` で定義された SVG パスデータを使用し、Web/Native で統一されたアイコン表示を実現する。ColorPicker はタスクリストの背景色選択などで利用する再利用可能なカラー選択コンポーネント。ErrorBoundary はアプリ全体のクラッシュを捕捉し、リロードボタン付きのフォールバック画面を表示する。`AppIcon` (alert-circle) を使用し、シンプルでユーザーフレンドリーなエラー表示を提供する
+- `apps/web/src/components/ui`: SDKに依存しないプリミティブ（Alert, Calendar, ColorPicker, ConfirmDialog, Dialog, Drawer, FormInput, Spinner, Carousel, Command, Popover, AppIcon, BrandLogo, ErrorBoundary）。Drawer は shadcn Drawer コンポジションを採用し、オーバーレイとレイアウトを Tailwind で定義済み。Dialog/Carousel も含め、ライト/ダークの可読性と操作性（focus-visible 等）を優先して必要なスタイルを持つ。Alert は variant 別に配色を切り替え、ConfirmDialog は Dialog を使って破壊的アクションのスタイルを切り替える。Spinner は `BrandLogo` を使用し、アニメーション（pulse）を伴う。`fullPage` prop を指定することで、画面中央に配置される。Calendar は i18next の言語に合わせて locale を切り替え、選択日の背景色・文字色は `day_button` の `aria-selected` スタイルでライト/ダーク両方に統一する。AppIcon は `@lightlist/sdk/icons` で定義された SVG パスデータを使用し、Web/Native で統一された汎用アイコン表示を実現する。BrandLogo は `apps/web/public/brand/logo.svg` を表示する Web 向けブランドロゴ表示コンポーネント。ColorPicker はタスクリストの背景色選択などで利用する再利用可能なカラー選択コンポーネント。ErrorBoundary はアプリ全体のクラッシュを捕捉し、リロードボタン付きのフォールバック画面を表示する。`AppIcon` (alert-circle) を使用し、シンプルでユーザーフレンドリーなエラー表示を提供する
 - `apps/web/src/components/app`: 設定や、タスク表示・並び替えなど、アプリ固有の共有コンポーネント。SDKへの依存が判断基準。TaskListCard はタスクリストの操作（追加/編集/並び替え）を集約し、TaskItem は個々のタスク表示（ドラッグハンドル/チェックボックス/テキスト/日付）を担当する。DrawerPanel はタスクリスト一覧と作成・参加フローに加え、ヘッダー直下ボタンから開く下部シートで日付付きタスクの確認・日付変更を提供する
 - `apps/native/src/components/ui`: ネイティブ向けのプリミティブ（Dialog, AppIcon, Carousel）。Carousel は `react-native-pager-view` ベースで、`index` / `onIndexChange` の Controlled API を前提に `onPageSelected` を単一の index 確定イベントとして扱う。外部 index 変更はページャーへ直接反映して連続スワイプ時の戻りを防ぎ、`scrollEnabled` により並び替え中だけ横スワイプを停止できる。AppIcon は `@lightlist/sdk/icons` の SVG パスデータを `react-native-svg` で描画する
 - `apps/native/src/components/app`: ネイティブ固有のタスク操作UIなど、画面共通で再利用するコンポーネント（TaskListCard はタスク追加/編集/並び替え/完了/完了削除の操作UIを集約し、タスク追加の send ボタンは入力フォーカス時のみアニメーション表示する。ヘッダーやリスト選択は画面側で管理）。TaskItem/TaskListCard の主要 props 命名（`task`, `onToggle`, `onDateChange`, `onEditingTextChange` など）は `apps/web` 側と揃え、`onToggle(task)` を共通シグネチャとして扱う。TaskItem の並び替え開始は drag_indicator ハンドル起点のみで、`onPressIn` により長押し不要で開始する。TaskListCard / DrawerPanel の `panGesture` は `activeOffsetY: [-12, 12]` / `failOffsetX: [-24, 24]` で統一し、ハンドル誤操作を抑えつつ縦ドラッグを優先する。DrawerPanel はタスクリスト一覧とリスト作成・参加ダイアログを集約し、並び替え更新は `onReorderTaskList` の単一経路で扱う
@@ -13,8 +13,14 @@
 - SDKやタスクドメインに触れる場合は `tasks` など機能ベースのディレクトリにまとめる
 - ボタンや入力などのプリミティブは `ui` に集約し、スタイルの重複を避ける
 - テーマとi18nはプリミティブで吸収し、ページ側での個別対応を増やさない
-- アイコンは `@lightlist/sdk/icons` に集約された共通名と SVG パスデータを使用し、Web（標準SVG）と Native（react-native-svg）の両プラットフォームで一貫したビジュアルを提供する。これにより、フォントファイルのロードや外部アイコンライブラリへの依存を排除している
+- 汎用アイコンは `@lightlist/sdk/icons` に集約された共通名と SVG パスデータを使用し、Web（標準SVG）と Native（react-native-svg）の両プラットフォームで一貫したビジュアルを提供する。ブランドロゴ表示は Web の `BrandLogo`（`/brand/logo.svg`）を使用する。これにより、フォントファイルのロードや外部アイコンライブラリへの依存を排除している
 - モーダルは `ui/Dialog` を使用し、`titleId`/`descriptionId` を設定してアクセシビリティを担保する。Web の Drawer は shadcn 構成要素（Overlay/Content/Header/Title/Description/Trigger/Close/Portal）を利用し、Title/Description は Drawer 配下のみで使う。常設サイドバー表示では通常の見出し/本文要素でタイトル/説明を補う
+- Web の AppShell は先頭にスキップリンクを配置し、各ページの主領域は `id="main-content"` を持つ `main` 要素を使用する（`/app` を含む）
+- Web の通知 UI は `ui/Alert` を使用し、`variant` ごとに通知優先度を分ける。`error` / `warning` は assertive、`info` / `success` は polite を既定とし、必要時のみ `announcement` prop で上書きする
+- Web の `ui/Carousel` は非アクティブスライドを `aria-hidden` にし、スクリーンリーダーの読み上げ対象を現在表示スライドに寄せる
+- Web の `TaskItem` の完了チェックボックスはタスクテキストを `aria-labelledby` で関連付ける。`TaskListCard` の新規タスク入力（combobox）は placeholder とは別に `aria-label` を持つ
+- Native のカスタム操作 UI（`Pressable`）は `accessibilityRole` / `accessibilityLabel` / `accessibilityState` をセットで定義する。特に完了切り替えは `checkbox` ロールと `checked` 状態、設定の選択肢は `radio` ロールと `checked` 状態を使用する
+- Native の `ui/Dialog` 背景スクラムは既定で読み上げ対象外とし、必要時のみ `overlayAccessible` / `overlayAccessibilityLabel` を使って背景閉じる操作を公開する
 
 ## Pages ルーティング
 
@@ -54,6 +60,8 @@
 ## 設定ページ
 
 - 戻る操作は履歴がある場合にブラウザバックを行い、履歴がない場合は `/app` に遷移してタスク一覧に戻る
-- 各設定はカード型セクションでまとめ、`fieldset`/`legend` でまとまりを明示する
-- ラジオ/チェックボックスはタイル状の選択 UI とし、ライト/ダーク両テーマの可読性とフォーカス可視性を担保する
-- 破壊的アクションは赤系のカードとボタンで分離し、誤操作を避ける
+- Web / Native ともに「ヘッダー」「表示と動作」「アカウント操作」のカード型セクションで構成し、主要画面の情報設計を揃える
+- 設定画面ヘッダーの戻る導線は、Web / Native ともに `settings.title` 見出しの左側に丸型のアイコンボタン（`arrow-back`）として配置する
+- 「表示と動作」セクションには言語 / テーマ / 追加位置（select形式）と自動並び替え（トグル）をまとめる
+- Web はネイティブの `<select>`、Native は選択行タップで開くダイアログ式セレクタで、単一選択の操作モデルを揃える
+- アカウント操作セクションにはメールアドレス表示とログアウト / アカウント削除をまとめ、削除のみ赤系の破壊的ボタンとして分離する

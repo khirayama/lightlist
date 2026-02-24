@@ -138,7 +138,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
-      <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4 py-10 sm:px-6">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4 py-10 sm:px-6"
+      >
         <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-8">
           <div className="mb-6 text-center">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -331,7 +335,7 @@ export default function LoginPage() {
         <p className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
           {t("copyright")}
         </p>
-      </div>
+      </main>
     </div>
   );
 }

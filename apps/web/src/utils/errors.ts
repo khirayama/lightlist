@@ -31,7 +31,7 @@ const hasMessage = (error: unknown): error is { message: string } =>
     typeof (error as { message?: unknown }).message === "string",
   );
 
-export const getErrorMessage = (
+const getErrorMessage = (
   errorCode: string,
   t: TFunction<"translation">,
 ): string => {

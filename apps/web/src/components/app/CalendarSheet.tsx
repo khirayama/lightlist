@@ -54,10 +54,12 @@ export function CalendarSheet({
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<
     Date | undefined
   >(undefined);
-  const [calendarIndex, setCalendarIndex] = useState(0);
+  const [selectedCalendarMonthKey, setSelectedCalendarMonthKey] = useState<
+    string | null
+  >(null);
   const [calendarError] = useState<string | null>(null);
   const datedTaskRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const hasInitializedCalendarIndexRef = useRef(false);
+  const lastCalendarIndexRef = useRef(0);
 
   const datedTasks = useMemo<DatedTask[]>(() => {
     const flattened: DatedTask[] = [];
@@ -175,26 +177,60 @@ export function CalendarSheet({
     return map;
   }, [datedTasksByMonth]);
 
+  const calendarMonthKeys = useMemo(() => {
+    return calendarMonths.map((month) => formatMonthKey(month));
+  }, [calendarMonths]);
+
+  const calendarIndex = useMemo(() => {
+    if (calendarMonthKeys.length === 0) return 0;
+    if (selectedCalendarMonthKey) {
+      const matchedIndex = calendarMonthKeys.indexOf(selectedCalendarMonthKey);
+      if (matchedIndex >= 0) {
+        return matchedIndex;
+      }
+    }
+    const currentMonthIndex = calendarMonthKeys.indexOf(
+      formatMonthKey(new Date()),
+    );
+    if (currentMonthIndex >= 0) {
+      return currentMonthIndex;
+    }
+    return Math.min(lastCalendarIndexRef.current, calendarMonthKeys.length - 1);
+  }, [calendarMonthKeys, selectedCalendarMonthKey]);
+
   useEffect(() => {
-    if (calendarMonths.length === 0) {
-      setCalendarIndex(0);
-      hasInitializedCalendarIndexRef.current = false;
+    if (calendarMonthKeys.length === 0) {
+      setSelectedCalendarMonthKey(null);
+      lastCalendarIndexRef.current = 0;
       return;
     }
+    if (
+      selectedCalendarMonthKey &&
+      calendarMonthKeys.includes(selectedCalendarMonthKey)
+    ) {
+      return;
+    }
+
+    const fallbackIndex = Math.min(
+      lastCalendarIndexRef.current,
+      calendarMonthKeys.length - 1,
+    );
+    const fallbackMonthKey =
+      calendarMonthKeys[Math.max(fallbackIndex, 0)] ??
+      calendarMonthKeys[0] ??
+      null;
     const currentMonthKey = formatMonthKey(new Date());
-    setCalendarIndex((currentIndex) => {
-      if (!hasInitializedCalendarIndexRef.current) {
-        hasInitializedCalendarIndexRef.current = true;
-        const currentMonthIndex = calendarMonths.findIndex(
-          (month) => formatMonthKey(month) === currentMonthKey,
-        );
-        if (currentMonthIndex >= 0) {
-          return currentMonthIndex;
-        }
-      }
-      return Math.min(currentIndex, calendarMonths.length - 1);
-    });
-  }, [calendarMonths]);
+    const nextMonthKey =
+      selectedCalendarMonthKey === null &&
+      calendarMonthKeys.includes(currentMonthKey)
+        ? currentMonthKey
+        : fallbackMonthKey;
+    setSelectedCalendarMonthKey(nextMonthKey);
+  }, [calendarMonthKeys, selectedCalendarMonthKey]);
+
+  useEffect(() => {
+    lastCalendarIndexRef.current = calendarIndex;
+  }, [calendarIndex]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -259,7 +295,11 @@ export function CalendarSheet({
   };
 
   const handleCalendarIndexChange = (nextIndex: number) => {
-    setCalendarIndex(nextIndex);
+    const monthKey = calendarMonthKeys[nextIndex];
+    if (!monthKey) return;
+    if (monthKey === selectedCalendarMonthKey) return;
+    lastCalendarIndexRef.current = nextIndex;
+    setSelectedCalendarMonthKey(monthKey);
     setSelectedCalendarDate(undefined);
   };
 

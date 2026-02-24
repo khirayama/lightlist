@@ -12,6 +12,8 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { Spinner } from "@/components/ui/Spinner";
 import "@/styles/globals.css";
 
+const MAIN_CONTENT_ID = "main-content";
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
@@ -39,7 +41,6 @@ export default function App({ Component, pageProps }: AppProps) {
   const pwaHead = (
     <Head>
       <link rel="manifest" href="/manifest.webmanifest" />
-      <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
       <link
         rel="icon"
         href="/icons/icon-192.png"
@@ -75,7 +76,10 @@ export default function App({ Component, pageProps }: AppProps) {
       window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1";
     if (isSecureOrLocalhost && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => registration.update())
+        .catch(() => {});
     }
 
     setMounted(true);
@@ -136,6 +140,13 @@ export default function App({ Component, pageProps }: AppProps) {
     }
   }, [appState.settings]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const language =
+      appState.settings?.language ?? i18n.resolvedLanguage ?? "en";
+    document.documentElement.lang = language === "ja" ? "ja" : "en";
+  }, [appState.settings?.language, i18n.resolvedLanguage]);
+
   if (!mounted) {
     return (
       <ErrorBoundary>
@@ -156,6 +167,12 @@ export default function App({ Component, pageProps }: AppProps) {
         className={`${inter.variable} ${notoSansJp.variable} h-dvh w-full overflow-hidden font-sans`}
       >
         <div className="h-full w-full overflow-y-auto">
+          <a
+            href={`#${MAIN_CONTENT_ID}`}
+            className="pointer-events-none absolute left-4 top-2 z-[2000] -translate-y-16 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white opacity-0 shadow-lg transition focus:pointer-events-auto focus:translate-y-0 focus:opacity-100 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:focus:outline-gray-500"
+          >
+            {t("common.skipToMain")}
+          </a>
           <Component {...pageProps} />
         </div>
       </div>

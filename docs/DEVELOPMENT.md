@@ -89,3 +89,18 @@
 - `TaskListCard` / `DrawerPanel` / `Carousel` / `ConfirmDialog` は `next/dynamic` で遅延ロードし、初期バンドル評価を分散する。
 - ランディングページ (`/`) は `getServerSideProps` を使わず静的配信し、言語切り替えはクエリ (`?lang=`) をクライアント側で同期する。
 - フォントは `_document.tsx` の外部 CSS 読み込みを廃止し、`_app.tsx` の `next/font/google` に統一する。Portal 配下の UI も `font-sans` が同じ変数を参照できるよう、`body` にフォント変数クラスを付与する。
+
+## アクセシビリティ監査
+
+- Web の手動確認対象ページ: `/login` / `/app` / `/settings` / `/password_reset` / `/sharecodes/[sharecode]`
+- Web の確認項目:
+  - キーボードのみで主要操作が完結できる（スキップリンク、フォーム、ダイアログ、カルーセル切り替え）
+  - スキップリンクから `main#main-content` に移動できる
+  - エラー通知は即時、成功/情報通知は過剰に割り込まず読み上げられる
+  - 非表示カルーセルスライドがスクリーンリーダーで優先的に読まれない
+- Web の自動監査運用:
+  - 開発サーバー起動後に Lighthouse の Accessibility を主要ページで確認する
+  - axe 系ツール（ブラウザ拡張、または Playwright/axe の手元スクリプト）で重大な violation がないことを確認する
+- Native の手動確認項目:
+  - VoiceOver（iOS）/ TalkBack（Android）で主要画面を確認する
+  - カスタム `Pressable` 追加時は `accessibilityRole` / `accessibilityLabel` / `accessibilityState` の3点を必ず確認する

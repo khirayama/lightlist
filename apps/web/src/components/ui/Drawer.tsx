@@ -16,7 +16,6 @@ type DrawerContentProps = ComponentPropsWithoutRef<
 };
 
 type DrawerHeaderProps = HTMLAttributes<HTMLDivElement>;
-type DrawerFooterProps = HTMLAttributes<HTMLDivElement>;
 
 function cn(...values: Array<string | undefined | null | false>): string {
   return values.filter(Boolean).join(" ");
@@ -24,8 +23,7 @@ function cn(...values: Array<string | undefined | null | false>): string {
 
 export const Drawer = DrawerPrimitive.Root;
 export const DrawerTrigger = DrawerPrimitive.Trigger;
-export const DrawerPortal = DrawerPrimitive.Portal;
-export const DrawerClose = DrawerPrimitive.Close;
+const DrawerPortal = DrawerPrimitive.Portal;
 
 const DrawerOverlay = forwardRef<
   ElementRef<typeof DrawerPrimitive.Overlay>,
@@ -78,15 +76,6 @@ function DrawerHeader({ className, ...props }: DrawerHeaderProps) {
   );
 }
 
-function DrawerFooter({ className, ...props }: DrawerFooterProps) {
-  return (
-    <div
-      className={cn("mt-auto flex flex-wrap justify-end gap-2", className)}
-      {...props}
-    />
-  );
-}
-
 const DrawerTitle = forwardRef<
   ElementRef<typeof DrawerPrimitive.Title>,
   ComponentPropsWithoutRef<typeof DrawerPrimitive.Title>
@@ -116,11 +105,4 @@ const DrawerDescription = forwardRef<
   );
 });
 
-export {
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerOverlay,
-  DrawerTitle,
-};
+export { DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle };

@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   FlatList,
   Modal,
@@ -9,11 +16,20 @@ import {
   useColorScheme,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import DraggableFlatList, {
-  type RenderItemParams,
-} from "react-native-draggable-flatlist";
-import { Calendar, type DateData } from "react-native-calendars";
+import ReorderableList, {
+  type ReorderableListRenderItem,
+  type ReorderableListReorderEvent,
+  useIsActive,
+  useReorderableDrag,
+} from "react-native-reorderable-list";
+import {
+  Calendar,
+  type CalendarProps as ReactNativeCalendarProps,
+  type DateData,
+} from "react-native-calendars";
+import { Gesture } from "react-native-gesture-handler";
 import { AppIcon } from "../ui/AppIcon";
+import { Carousel } from "../ui/Carousel";
 import { Dialog } from "../ui/Dialog";
 import type { Task, TaskList } from "@lightlist/sdk/types";
 import { formatDate, parseISODate } from "@lightlist/sdk/utils/dateParser";
@@ -35,7 +51,7 @@ type DrawerPanelProps = {
   onCreateListInputChange: (value: string) => void;
   createListBackground: string | null;
   onCreateListBackgroundChange: (color: string | null) => void;
-  colors: readonly ColorOption[];
+  colors: ColorOption[];
   onCreateList: () => void | Promise<void>;
   hasTaskLists: boolean;
   taskLists: TaskList[];
@@ -54,14 +70,13 @@ type DrawerPanelProps = {
   onJoinList: () => void | Promise<void>;
   joinListError: string | null;
   joiningList: boolean;
-  creatingList: boolean;
 };
 
 type DatedTask = {
   id: string;
   taskListId: string;
   taskListName: string;
-  taskListBackground: string | null;
+  taskListBackground: string;
   task: Task;
   dateValue: Date;
   dateKey: string;
@@ -69,6 +84,9 @@ type DatedTask = {
 };
 
 type CalendarMarkedDate = {
+  today?: boolean;
+  inactive?: boolean;
+  disabled?: boolean;
   selected?: boolean;
   selectedColor?: string;
   selectedTextColor?: string;
@@ -76,19 +94,27 @@ type CalendarMarkedDate = {
   dots?: { key: string; color: string }[];
 };
 
-const FALLBACK_DOT_COLOR = "#9CA3AF";
+type CalendarDayComponentProps = ComponentProps<
+  NonNullable<ReactNativeCalendarProps["dayComponent"]>
+>;
+
+type VisibleCalendarTask = DatedTask & {
+  dateLabel: string;
+  taskListColor: string;
+};
+
+const noop = () => {};
+const resolveTaskListBackground = (
+  background: string | null,
+  isDark: boolean,
+): string =>
+  background ?? (isDark ? themes.dark.background : themes.light.background);
 
 const formatMonthKey = (date: Date): string =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 
 const shiftMonth = (date: Date, offset: number): Date =>
   new Date(date.getFullYear(), date.getMonth() + offset, 1);
-
-const formatMonthTitle = (date: Date, language: string): string =>
-  new Intl.DateTimeFormat(language, {
-    year: "numeric",
-    month: "long",
-  }).format(date);
 
 const formatTaskDateLabel = (date: Date, language: string): string =>
   new Intl.DateTimeFormat(language, {
@@ -123,23 +149,31 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
     onJoinList,
     joinListError,
     joiningList,
-    creatingList,
   } = props;
 
   const { t, i18n } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const canCreateList = !creatingList && createListInput.trim().length > 0;
+  const canCreateList = createListInput.trim().length > 0;
   const canJoinList = !joiningList && joinListInput.trim().length > 0;
   const canDragList = hasTaskLists && taskLists.length > 1;
+  const listPanGesture = useMemo(
+    () => Gesture.Pan().activeOffsetY([-12, 12]).failOffsetX([-24, 24]),
+    [],
+  );
 
   const [calendarSheetOpen, setCalendarSheetOpen] = useState(false);
-  const [calendarIndex, setCalendarIndex] = useState(0);
+  const [selectedCalendarMonthKey, setSelectedCalendarMonthKey] = useState<
+    string | null
+  >(null);
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<
     string | null
   >(null);
-  const calendarListRef = useRef<FlatList<DatedTask> | null>(null);
+  const lastCalendarIndexRef = useRef(0);
+  const calendarListRefs = useRef<
+    Record<string, FlatList<VisibleCalendarTask> | null>
+  >({});
 
   const datedTasks = useMemo<DatedTask[]>(() => {
     const collected: DatedTask[] = [];
@@ -153,7 +187,10 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
           id: `${taskList.id}:${task.id}`,
           taskListId: taskList.id,
           taskListName: taskList.name,
-          taskListBackground: taskList.background,
+          taskListBackground: resolveTaskListBackground(
+            taskList.background,
+            isDark,
+          ),
           task,
           dateValue: parsedDate,
           dateKey,
@@ -171,7 +208,7 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
     });
 
     return collected;
-  }, [taskLists]);
+  }, [taskLists, isDark]);
 
   const calendarMonths = useMemo<Date[]>(() => {
     const currentMonth = new Date();
@@ -247,7 +284,7 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
         if (!monthDots[task.dateKey]) {
           monthDots[task.dateKey] = [];
         }
-        const color = task.taskListBackground ?? FALLBACK_DOT_COLOR;
+        const color = task.taskListBackground;
         if (monthDots[task.dateKey].includes(color)) {
           continue;
         }
@@ -259,73 +296,180 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
     }
     return map;
   }, [datedTasksByMonth]);
+  const calendarMonthKeys = useMemo(() => {
+    return calendarMonths.map((month) => formatMonthKey(month));
+  }, [calendarMonths]);
+  const calendarIndex = useMemo(() => {
+    if (calendarMonthKeys.length === 0) return 0;
+    if (selectedCalendarMonthKey) {
+      const matchedIndex = calendarMonthKeys.indexOf(selectedCalendarMonthKey);
+      if (matchedIndex >= 0) {
+        return matchedIndex;
+      }
+    }
+    const currentMonthKey = formatMonthKey(new Date());
+    const currentMonthIndex = calendarMonthKeys.indexOf(currentMonthKey);
+    if (currentMonthIndex >= 0) {
+      return currentMonthIndex;
+    }
+    return Math.min(lastCalendarIndexRef.current, calendarMonthKeys.length - 1);
+  }, [calendarMonthKeys, selectedCalendarMonthKey]);
 
   useEffect(() => {
-    if (!calendarSheetOpen) return;
-
+    if (calendarMonthKeys.length === 0) {
+      setSelectedCalendarMonthKey(null);
+      return;
+    }
+    if (
+      selectedCalendarMonthKey &&
+      calendarMonthKeys.includes(selectedCalendarMonthKey)
+    ) {
+      return;
+    }
     const currentMonthKey = formatMonthKey(new Date());
-    const currentMonthIndex = calendarMonths.findIndex(
-      (month) => formatMonthKey(month) === currentMonthKey,
+    const fallbackIndex = Math.min(
+      lastCalendarIndexRef.current,
+      calendarMonthKeys.length - 1,
     );
-
-    setCalendarIndex(currentMonthIndex >= 0 ? currentMonthIndex : 0);
-    setSelectedCalendarDateKey(null);
-  }, [calendarSheetOpen, calendarMonths]);
-
-  const currentMonth =
-    calendarMonths[calendarIndex] ?? calendarMonths[0] ?? new Date();
-  const currentMonthKey = currentMonth
-    ? formatMonthKey(currentMonth)
-    : formatMonthKey(new Date());
-  const visibleDatedTasks = datedTasksByMonth[currentMonthKey] ?? [];
-  const visibleDateDotColors = monthDateDotColors[currentMonthKey] ?? {};
-
-  const markedDates = useMemo<Record<string, CalendarMarkedDate>>(() => {
-    const marked: Record<string, CalendarMarkedDate> = {};
-
-    for (const [dateKey, colors] of Object.entries(visibleDateDotColors)) {
-      marked[dateKey] = {
-        marked: colors.length > 0,
-        dots: colors.map((color, index) => ({
-          key: `${dateKey}-${index}`,
-          color,
-        })),
-      };
+    const fallbackMonthKey =
+      calendarMonthKeys[Math.max(fallbackIndex, 0)] ??
+      (calendarMonthKeys.includes(currentMonthKey)
+        ? currentMonthKey
+        : calendarMonthKeys[0]) ??
+      null;
+    setSelectedCalendarMonthKey(fallbackMonthKey);
+  }, [calendarMonthKeys, selectedCalendarMonthKey]);
+  useEffect(() => {
+    lastCalendarIndexRef.current = calendarIndex;
+  }, [calendarIndex]);
+  const currentLanguage = i18n.language;
+  const calendarTasksByMonth = useMemo<
+    Record<string, VisibleCalendarTask[]>
+  >(() => {
+    const map: Record<string, VisibleCalendarTask[]> = {};
+    for (const [monthKey, monthTasks] of Object.entries(datedTasksByMonth)) {
+      map[monthKey] = monthTasks.map((task) => ({
+        ...task,
+        dateLabel: formatTaskDateLabel(task.dateValue, currentLanguage),
+        taskListColor: task.taskListBackground,
+      }));
     }
-
-    if (selectedCalendarDateKey) {
-      marked[selectedCalendarDateKey] = {
-        ...(marked[selectedCalendarDateKey] ?? {}),
-        selected: true,
-        selectedColor: isDark ? themes.dark.primary : themes.light.primary,
-        selectedTextColor: isDark
-          ? themes.dark.primaryText
-          : themes.light.primaryText,
-      };
-    }
-
-    return marked;
-  }, [visibleDateDotColors, selectedCalendarDateKey, isDark]);
+    return map;
+  }, [datedTasksByMonth, currentLanguage]);
+  const moveUpLabel = t("app.moveUp");
+  const moveDownLabel = t("app.moveDown");
+  const taskListNameLabel = t("app.taskListName");
+  const reorderLabel = t("taskList.reorder");
 
   const calendarTheme = useMemo(
     () => ({
-      backgroundColor: isDark ? themes.dark.surface : themes.light.surface,
-      calendarBackground: isDark ? themes.dark.surface : themes.light.surface,
-      textSectionTitleColor: isDark ? themes.dark.muted : themes.light.muted,
-      monthTextColor: isDark ? themes.dark.text : themes.light.text,
-      dayTextColor: isDark ? themes.dark.text : themes.light.text,
-      textDisabledColor: isDark ? themes.dark.placeholder : themes.light.border,
-      selectedDayBackgroundColor: isDark
-        ? themes.dark.primary
-        : themes.light.primary,
-      selectedDayTextColor: isDark
-        ? themes.dark.primaryText
-        : themes.light.primaryText,
-      todayTextColor: isDark ? themes.dark.primary : themes.light.primary,
-      dotColor: isDark ? themes.dark.primary : themes.light.primary,
+      backgroundColor: "transparent",
+      calendarBackground: "transparent",
+      textSectionTitleColor: isDark ? "#9CA3AF" : "#6B7280",
+      monthTextColor: isDark ? "#F9FAFB" : "#111827",
+      dayTextColor: isDark ? "#F9FAFB" : "#111827",
+      textDisabledColor: isDark ? "#6B7280" : "#9CA3AF",
+      selectedDayBackgroundColor: isDark ? "#F9FAFB" : "#111827",
+      selectedDayTextColor: isDark ? "#111827" : "#F9FAFB",
+      todayTextColor: isDark ? "#F9FAFB" : "#111827",
+      dotColor: isDark ? "#F9FAFB" : "#111827",
+      textDayFontFamily: "Inter_500Medium",
+      textMonthFontFamily: "Inter_600SemiBold",
+      textDayHeaderFontFamily: "Inter_500Medium",
+      textDayFontSize: 14,
+      textMonthFontSize: 14,
+      textDayHeaderFontSize: 12,
     }),
     [isDark],
   );
+  const getMarkedDatesForMonth = useCallback(
+    (monthKey: string, dateDotColors: Record<string, string[]>) => {
+      const marked: Record<string, CalendarMarkedDate> = {};
+      for (const [dateKey, colors] of Object.entries(dateDotColors)) {
+        marked[dateKey] = {
+          marked: colors.length > 0,
+          dots: colors.map((color, index) => ({
+            key: `${dateKey}-${index}`,
+            color,
+          })),
+        };
+      }
+      if (
+        selectedCalendarDateKey &&
+        selectedCalendarDateKey.startsWith(`${monthKey}-`)
+      ) {
+        marked[selectedCalendarDateKey] = {
+          ...(marked[selectedCalendarDateKey] ?? {}),
+          selected: true,
+          selectedColor: isDark ? themes.dark.primary : themes.light.primary,
+          selectedTextColor: isDark
+            ? themes.dark.primaryText
+            : themes.light.primaryText,
+        };
+      }
+      return marked;
+    },
+    [isDark, selectedCalendarDateKey],
+  );
+  const renderCalendarDay = useCallback((props: CalendarDayComponentProps) => {
+    const { date, marking, state, onPress } = props;
+    if (!date) {
+      return <View className="h-9 w-9" />;
+    }
+
+    const isSelected = Boolean(marking?.selected) || state === "selected";
+    const isDisabled =
+      typeof marking?.disabled === "boolean"
+        ? marking.disabled
+        : state === "disabled";
+    const isInactive =
+      typeof marking?.inactive === "boolean"
+        ? marking.inactive
+        : state === "inactive";
+    const isToday =
+      typeof marking?.today === "boolean" ? marking.today : state === "today";
+    const dotItems = marking?.dots ?? [];
+    const isMuted = isDisabled || isInactive;
+
+    return (
+      <Pressable
+        accessibilityRole={isDisabled ? undefined : "button"}
+        accessibilityState={{ disabled: isDisabled, selected: isSelected }}
+        onPress={() => onPress?.(date)}
+        disabled={isDisabled}
+        className={`h-9 w-9 items-center justify-center rounded-[8px] ${
+          isSelected
+            ? "bg-[#111827] dark:bg-[#F9FAFB]"
+            : isToday
+              ? "border border-[#D1D5DB] dark:border-[#374151]"
+              : ""
+        }`}
+      >
+        <Text
+          className={`text-[14px] font-inter-medium ${
+            isSelected
+              ? "text-[#F9FAFB] dark:text-[#111827]"
+              : isMuted
+                ? "text-[#9CA3AF] dark:text-[#6B7280] opacity-50"
+                : "text-[#111827] dark:text-[#F9FAFB]"
+          } ${dotItems.length > 0 ? "pb-2" : ""}`}
+        >
+          {date.day}
+        </Text>
+        {dotItems.length > 0 ? (
+          <View className="absolute bottom-1 w-full flex-row items-center justify-center gap-0.5">
+            {dotItems.slice(0, 3).map((dot, index) => (
+              <View
+                key={`${date.dateString}-${dot.color}-${index}`}
+                className="h-1.5 w-1.5 rounded-full border border-[#111827] dark:border-[#F9FAFB]"
+                style={{ backgroundColor: dot.color }}
+              />
+            ))}
+          </View>
+        ) : null}
+      </Pressable>
+    );
+  }, []);
 
   const handleCreateListSubmit = async () => {
     if (!canCreateList) return;
@@ -337,42 +481,273 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
     await onJoinList();
   };
 
-  const handleSelectTaskList = (taskListId: string) => {
-    onSelectTaskList(taskListId);
-    onCloseDrawer();
-  };
+  const handleSelectTaskList = useCallback(
+    (taskListId: string) => {
+      onSelectTaskList(taskListId);
+      onCloseDrawer();
+    },
+    [onCloseDrawer, onSelectTaskList],
+  );
 
-  const handleOpenSettings = () => {
+  const handleOpenSettings = useCallback(() => {
     onCloseDrawer();
     onOpenSettings();
-  };
+  }, [onCloseDrawer, onOpenSettings]);
 
-  const handleSelectCalendarDate = (dateKey: string) => {
-    setSelectedCalendarDateKey(dateKey);
-    const targetIndex = visibleDatedTasks.findIndex(
-      (task) => task.dateKey === dateKey,
-    );
-    if (targetIndex < 0) return;
+  const handleSelectCalendarDate = useCallback(
+    (dateKey: string, monthTasks: VisibleCalendarTask[], monthKey: string) => {
+      setSelectedCalendarDateKey(dateKey);
+      const targetIndex = monthTasks.findIndex(
+        (task) => task.dateKey === dateKey,
+      );
+      if (targetIndex < 0) return;
 
-    requestAnimationFrame(() => {
-      calendarListRef.current?.scrollToIndex({
-        index: targetIndex,
-        animated: true,
-        viewPosition: 0.45,
+      requestAnimationFrame(() => {
+        calendarListRefs.current[monthKey]?.scrollToIndex({
+          index: targetIndex,
+          animated: true,
+          viewPosition: 0.45,
+        });
       });
-    });
-  };
+    },
+    [],
+  );
 
-  const handleOpenTaskListFromCalendar = (taskListId: string) => {
-    onSelectTaskList(taskListId);
-    setCalendarSheetOpen(false);
-    if (!isWideLayout) {
-      onCloseDrawer();
+  const handleOpenTaskListFromCalendar = useCallback(
+    (taskListId: string) => {
+      onSelectTaskList(taskListId);
+      setCalendarSheetOpen(false);
+      if (!isWideLayout) {
+        onCloseDrawer();
+      }
+    },
+    [isWideLayout, onCloseDrawer, onSelectTaskList],
+  );
+
+  const handleOpenCalendarSheet = useCallback(() => {
+    if (!selectedCalendarMonthKey) {
+      const currentMonthKey = formatMonthKey(new Date());
+      const currentMonthIndex = calendarMonthKeys.indexOf(currentMonthKey);
+      const initialIndex =
+        currentMonthIndex >= 0
+          ? currentMonthIndex
+          : Math.min(
+              lastCalendarIndexRef.current,
+              calendarMonthKeys.length - 1,
+            );
+      const initialMonthKey =
+        calendarMonthKeys[Math.max(initialIndex, 0)] ?? null;
+      if (initialMonthKey) {
+        lastCalendarIndexRef.current = Math.max(initialIndex, 0);
+        setSelectedCalendarMonthKey(initialMonthKey);
+      }
     }
+    setSelectedCalendarDateKey(null);
+    setCalendarSheetOpen(true);
+  }, [calendarMonthKeys, selectedCalendarMonthKey]);
+  const handleCloseCalendarSheet = useCallback(() => {
+    setCalendarSheetOpen(false);
+  }, []);
+  const handleCalendarIndexChange = useCallback(
+    (nextIndex: number) => {
+      const monthKey = calendarMonthKeys[nextIndex];
+      if (!monthKey) return;
+      if (monthKey === selectedCalendarMonthKey) return;
+      lastCalendarIndexRef.current = nextIndex;
+      setSelectedCalendarMonthKey(monthKey);
+      setSelectedCalendarDateKey(null);
+    },
+    [calendarMonthKeys, selectedCalendarMonthKey],
+  );
+  const keyExtractorDatedTask = useCallback((item: VisibleCalendarTask) => {
+    return item.id;
+  }, []);
+  const keyExtractorTaskList = useCallback((item: TaskList) => {
+    return item.id;
+  }, []);
+  const handleTaskListReorder = useCallback(
+    ({ from, to }: ReorderableListReorderEvent) => {
+      const draggedList = taskLists[from];
+      const targetList = taskLists[to];
+      if (!draggedList || !targetList || from === to) return;
+      void onReorderTaskList(draggedList.id, targetList.id);
+    },
+    [onReorderTaskList, taskLists],
+  );
+  const renderCalendarTask = useCallback(
+    ({
+      item,
+      monthKey,
+      monthTasks,
+    }: {
+      item: VisibleCalendarTask;
+      monthKey: string;
+      monthTasks: VisibleCalendarTask[];
+    }) => {
+      const isHighlighted = selectedCalendarDateKey === item.dateKey;
+      return (
+        <View
+          className={`flex-row items-start gap-2 border-b border-[#E5E7EB] px-3 py-2 dark:border-[#1F2937] ${
+            isHighlighted ? "bg-[#F3F4F6] dark:bg-[#1F2937]" : ""
+          }`}
+        >
+          <View className="min-w-0 flex-1 gap-1">
+            <View className="flex-row items-center justify-between gap-2">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={item.dateLabel}
+                onPress={() =>
+                  handleSelectCalendarDate(item.dateKey, monthTasks, monthKey)
+                }
+              >
+                <Text className="text-[12px] font-inter text-[#4B5563] dark:text-[#D1D5DB]">
+                  {item.dateLabel}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={item.taskListName}
+                onPress={() => handleOpenTaskListFromCalendar(item.taskListId)}
+                className="min-w-0 flex-row items-center gap-2"
+              >
+                <View
+                  style={{ backgroundColor: item.taskListColor }}
+                  className="h-4 w-4 rounded-full border border-[#D1D5DB] dark:border-[#374151]"
+                />
+                <Text
+                  className="shrink text-[12px] font-inter-semibold text-[#374151] dark:text-[#E5E7EB]"
+                  numberOfLines={1}
+                >
+                  {item.taskListName}
+                </Text>
+              </Pressable>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={item.task.text}
+              onPress={() =>
+                handleSelectCalendarDate(item.dateKey, monthTasks, monthKey)
+              }
+            >
+              <Text
+                className="text-[16px] leading-6 font-inter-medium text-[#111827] dark:text-[#F9FAFB]"
+                numberOfLines={2}
+              >
+                {item.task.text}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      );
+    },
+    [
+      handleOpenTaskListFromCalendar,
+      handleSelectCalendarDate,
+      selectedCalendarDateKey,
+    ],
+  );
+  const TaskListRow = ({ item, index }: { item: TaskList; index: number }) => {
+    const drag = useReorderableDrag();
+    const isDragActive = useIsActive();
+    const isSelected = item.id === selectedTaskListId;
+    const currentIndex = index;
+    const canMoveListUp = canDragList && currentIndex > 0;
+    const canMoveListDown =
+      canDragList && currentIndex >= 0 && currentIndex < taskLists.length - 1;
+    const accessibilityActions: { name: string; label: string }[] = [];
+
+    if (canMoveListUp) {
+      accessibilityActions.push({
+        name: "moveUp",
+        label: moveUpLabel,
+      });
+    }
+    if (canMoveListDown) {
+      accessibilityActions.push({
+        name: "moveDown",
+        label: moveDownLabel,
+      });
+    }
+
+    const handleMoveListByOffset = (offset: number) => {
+      if (!canDragList || currentIndex < 0) return;
+      const targetList = taskLists[currentIndex + offset];
+      if (!targetList) return;
+      void onReorderTaskList(item.id, targetList.id);
+    };
+
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+        accessibilityLabel={item.name || taskListNameLabel}
+        onPress={() => handleSelectTaskList(item.id)}
+        className={`rounded-[10px] border border-transparent p-2 flex-row items-center gap-2 active:opacity-90 ${
+          isSelected
+            ? "bg-input-background dark:bg-input-background-dark"
+            : "bg-transparent"
+        } ${isDragActive ? "opacity-50" : ""}`}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={reorderLabel}
+          accessibilityActions={accessibilityActions}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === "moveUp") {
+              handleMoveListByOffset(-1);
+              return;
+            }
+            if (event.nativeEvent.actionName === "moveDown") {
+              handleMoveListByOffset(1);
+            }
+          }}
+          onPressIn={canDragList ? drag : undefined}
+          onPress={noop}
+          disabled={!canDragList}
+          className="rounded-[10px] p-1 items-center justify-center active:opacity-80"
+        >
+          <AppIcon
+            name="drag-indicator"
+            className={
+              canDragList
+                ? "fill-text dark:fill-text-dark"
+                : "fill-muted dark:fill-muted-dark"
+            }
+          />
+        </Pressable>
+        <View
+          style={
+            item.background ? { backgroundColor: item.background } : undefined
+          }
+          className={`w-3 h-3 rounded-full border border-border dark:border-border-dark ${
+            !item.background ? "bg-background dark:bg-background-dark" : ""
+          }`}
+        />
+        <View className="flex-1 gap-0.5">
+          <Text
+            className={`text-[14px] font-inter-semibold text-text dark:text-text-dark ${
+              isSelected ? "font-inter-bold" : ""
+            }`}
+            numberOfLines={1}
+          >
+            {item.name || taskListNameLabel}
+          </Text>
+          <Text className="text-[12px] font-inter text-muted dark:text-muted-dark">
+            {t("taskList.taskCount", {
+              count: item.tasks.length,
+            })}
+          </Text>
+        </View>
+      </Pressable>
+    );
   };
 
-  const canMoveToPreviousMonth = calendarIndex > 0;
-  const canMoveToNextMonth = calendarIndex < calendarMonths.length - 1;
+  const renderTaskListItem: ReorderableListRenderItem<TaskList> = ({
+    item,
+    index,
+  }) => {
+    return <TaskListRow item={item} index={index} />;
+  };
 
   return (
     <View className="flex-1 bg-surface dark:bg-surface-dark p-4">
@@ -413,14 +788,15 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("app.calendarCheckButton")}
-        onPress={() => setCalendarSheetOpen(true)}
-        className="mb-4 rounded-[12px] border border-border dark:border-border-dark px-4 py-3 flex-row items-center justify-center gap-2 bg-surface dark:bg-surface-dark active:opacity-90"
+        onPress={handleOpenCalendarSheet}
+        className="mb-4 flex-row items-center justify-center gap-2 rounded-[12px] border border-[#D1D5DB] bg-[#FFFFFF] px-4 py-2 shadow-sm active:opacity-90 dark:border-[#374151] dark:bg-[#111827]"
       >
         <AppIcon
           name="calendar-today"
+          size={20}
           className="fill-text dark:fill-text-dark"
         />
-        <Text className="text-[14px] font-inter-semibold text-text dark:text-text-dark">
+        <Text className="text-[14px] font-inter-semibold text-[#111827] dark:text-[#F9FAFB]">
           {t("app.calendarCheckButton")}
         </Text>
       </Pressable>
@@ -429,212 +805,134 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
         visible={calendarSheetOpen}
         transparent
         animationType="slide"
-        onRequestClose={() => setCalendarSheetOpen(false)}
+        onRequestClose={handleCloseCalendarSheet}
       >
         <View className="flex-1 justify-end">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("common.close")}
-            onPress={() => setCalendarSheetOpen(false)}
+            onPress={handleCloseCalendarSheet}
             className="absolute inset-0 bg-black/45"
           />
-          <View className="max-h-[92%] rounded-t-[20px] border border-border dark:border-border-dark bg-surface dark:bg-surface-dark px-4 pt-4 pb-6 gap-3">
-            <View className="flex-row items-start justify-between gap-3">
-              <View className="flex-1">
-                <Text className="text-[18px] font-inter-bold text-text dark:text-text-dark">
-                  {t("app.calendarSheetTitle")}
-                </Text>
-                <Text className="mt-1 text-[13px] font-inter text-muted dark:text-muted-dark">
-                  {t("app.calendarSheetDescription")}
-                </Text>
+          <View className="h-[94%] rounded-t-[16px] bg-surface dark:bg-surface-dark overflow-hidden">
+            <View className="flex-1 min-h-0 px-4 pt-4 pb-6">
+              <View className="mb-2 flex-row justify-end">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.close")}
+                  onPress={handleCloseCalendarSheet}
+                  className="rounded-[12px] p-2 items-center justify-center active:opacity-90"
+                >
+                  <AppIcon
+                    name="close"
+                    className="fill-text dark:fill-text-dark"
+                  />
+                </Pressable>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("common.close")}
-                onPress={() => setCalendarSheetOpen(false)}
-                className="rounded-[12px] p-2 items-center justify-center active:opacity-90"
-              >
-                <AppIcon
-                  name="close"
-                  className="fill-text dark:fill-text-dark"
-                />
-              </Pressable>
-            </View>
 
-            {datedTasks.length > 0 ? (
-              <>
-                <View className="flex-row items-center justify-between">
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("common.back")}
-                    onPress={() => {
-                      if (!canMoveToPreviousMonth) return;
-                      setCalendarIndex((current) => current - 1);
-                      setSelectedCalendarDateKey(null);
-                    }}
-                    disabled={!canMoveToPreviousMonth}
-                    className={`rounded-[10px] p-2 items-center justify-center active:opacity-90 ${
-                      canMoveToPreviousMonth ? "opacity-100" : "opacity-35"
-                    }`}
-                  >
-                    <AppIcon
-                      name="arrow-back"
-                      className="fill-text dark:fill-text-dark"
-                    />
-                  </Pressable>
-                  <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
-                    {formatMonthTitle(currentMonth, i18n.language)}
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("common.next")}
-                    onPress={() => {
-                      if (!canMoveToNextMonth) return;
-                      setCalendarIndex((current) => current + 1);
-                      setSelectedCalendarDateKey(null);
-                    }}
-                    disabled={!canMoveToNextMonth}
-                    className={`rounded-[10px] p-2 items-center justify-center active:opacity-90 ${
-                      canMoveToNextMonth ? "opacity-100" : "opacity-35"
-                    }`}
-                  >
-                    <View className="rotate-180">
-                      <AppIcon
-                        name="arrow-back"
-                        className="fill-text dark:fill-text-dark"
-                      />
-                    </View>
-                  </Pressable>
-                </View>
+              {datedTasks.length > 0 ? (
+                <Carousel
+                  style={{ flex: 1 }}
+                  index={calendarIndex}
+                  onIndexChange={handleCalendarIndexChange}
+                  showIndicators={calendarMonths.length > 1}
+                  indicatorPosition="top"
+                  indicatorInFlow
+                >
+                  {calendarMonths.map((calendarMonth) => {
+                    const monthKey = formatMonthKey(calendarMonth);
+                    const visibleCalendarTasks =
+                      calendarTasksByMonth[monthKey] ?? [];
+                    const dateDotColors = monthDateDotColors[monthKey] ?? {};
+                    const markedDates = getMarkedDatesForMonth(
+                      monthKey,
+                      dateDotColors,
+                    );
 
-                <Calendar
-                  current={`${currentMonthKey}-01`}
-                  onDayPress={(day: DateData) =>
-                    handleSelectCalendarDate(day.dateString)
-                  }
-                  hideArrows
-                  disableMonthChange
-                  hideExtraDays
-                  firstDay={1}
-                  markingType="multi-dot"
-                  markedDates={markedDates}
-                  theme={calendarTheme}
-                />
-
-                <View className="h-[320px] rounded-[12px] border border-border dark:border-border-dark overflow-hidden">
-                  {visibleDatedTasks.length > 0 ? (
-                    <FlatList
-                      ref={calendarListRef}
-                      data={visibleDatedTasks}
-                      keyExtractor={(item) => item.id}
-                      showsVerticalScrollIndicator={false}
-                      onScrollToIndexFailed={(info) => {
-                        calendarListRef.current?.scrollToOffset({
-                          offset: info.averageItemLength * info.index,
-                          animated: true,
-                        });
-                      }}
-                      renderItem={({ item }) => {
-                        const isHighlighted =
-                          selectedCalendarDateKey === item.dateKey;
-                        const dateLabel = formatTaskDateLabel(
-                          item.dateValue,
-                          i18n.language,
-                        );
-                        const taskListColor =
-                          item.taskListBackground ?? FALLBACK_DOT_COLOR;
-
-                        return (
-                          <View
-                            className={`border-b border-border dark:border-border-dark px-3 py-2 ${
-                              isHighlighted
-                                ? "bg-input-background dark:bg-input-background-dark"
-                                : "bg-surface dark:bg-surface-dark"
-                            }`}
-                          >
-                            <View className="flex-row items-center justify-between gap-3">
-                              <Pressable
-                                accessibilityRole="button"
-                                accessibilityLabel={dateLabel}
-                                onPress={() =>
-                                  handleSelectCalendarDate(item.dateKey)
-                                }
-                              >
-                                <Text className="text-[12px] font-inter text-muted dark:text-muted-dark">
-                                  {dateLabel}
-                                </Text>
-                              </Pressable>
-                              <Pressable
-                                accessibilityRole="button"
-                                accessibilityLabel={item.taskListName}
-                                onPress={() =>
-                                  handleOpenTaskListFromCalendar(
-                                    item.taskListId,
-                                  )
-                                }
-                                className="flex-row items-center gap-2"
-                              >
-                                <View
-                                  style={{ backgroundColor: taskListColor }}
-                                  className="w-3 h-3 rounded-full border border-border dark:border-border-dark"
-                                />
-                                <Text
-                                  className="text-[12px] font-inter-semibold text-muted dark:text-muted-dark"
-                                  numberOfLines={1}
-                                >
-                                  {item.taskListName}
-                                </Text>
-                              </Pressable>
-                            </View>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={item.task.text}
-                              onPress={() =>
-                                handleSelectCalendarDate(item.dateKey)
+                    return (
+                      <View
+                        key={monthKey}
+                        className={`h-full min-h-0 pb-12 ${
+                          isWideLayout ? "flex-row gap-3" : "flex-col gap-3"
+                        }`}
+                      >
+                        <View className={isWideLayout ? "w-[43%]" : "w-full"}>
+                          <Calendar
+                            style={{ paddingHorizontal: 8, paddingBottom: 8 }}
+                            current={`${monthKey}-01`}
+                            onDayPress={(day: DateData) =>
+                              handleSelectCalendarDate(
+                                day.dateString,
+                                visibleCalendarTasks,
+                                monthKey,
+                              )
+                            }
+                            hideArrows
+                            disableMonthChange
+                            hideExtraDays
+                            firstDay={1}
+                            markingType="multi-dot"
+                            markedDates={markedDates}
+                            theme={calendarTheme}
+                            dayComponent={renderCalendarDay}
+                          />
+                        </View>
+                        <View className="min-h-0 flex-1 rounded-[12px] border border-[#E5E7EB] dark:border-[#1F2937] overflow-hidden">
+                          {visibleCalendarTasks.length > 0 ? (
+                            <FlatList
+                              ref={(instance) => {
+                                calendarListRefs.current[monthKey] = instance;
+                              }}
+                              data={visibleCalendarTasks}
+                              keyExtractor={keyExtractorDatedTask}
+                              showsVerticalScrollIndicator={false}
+                              onScrollToIndexFailed={(info) => {
+                                calendarListRefs.current[
+                                  monthKey
+                                ]?.scrollToOffset({
+                                  offset: info.averageItemLength * info.index,
+                                  animated: true,
+                                });
+                              }}
+                              renderItem={({ item }) =>
+                                renderCalendarTask({
+                                  item,
+                                  monthKey,
+                                  monthTasks: visibleCalendarTasks,
+                                })
                               }
-                              className="mt-1"
-                            >
-                              <Text
-                                className="text-[15px] font-inter-medium text-text dark:text-text-dark"
-                                numberOfLines={2}
-                              >
-                                {item.task.text}
+                            />
+                          ) : (
+                            <View className="flex-1 items-center justify-center p-4">
+                              <Text className="text-[13px] font-inter text-muted dark:text-muted-dark">
+                                {t("app.calendarNoDatedTasks")}
                               </Text>
-                            </Pressable>
-                          </View>
-                        );
-                      }}
-                    />
-                  ) : (
-                    <View className="flex-1 items-center justify-center p-4">
-                      <Text className="text-[13px] font-inter text-muted dark:text-muted-dark">
-                        {t("app.calendarNoDatedTasks")}
-                      </Text>
-                    </View>
-                  )}
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </Carousel>
+              ) : (
+                <View className="flex-1 items-center justify-center p-4">
+                  <Text className="text-[13px] font-inter text-muted dark:text-muted-dark">
+                    {t("app.calendarNoDatedTasks")}
+                  </Text>
                 </View>
-              </>
-            ) : (
-              <View className="py-6 items-center justify-center">
-                <Text className="text-[13px] font-inter text-muted dark:text-muted-dark">
-                  {t("app.calendarNoDatedTasks")}
-                </Text>
-              </View>
-            )}
+              )}
+            </View>
           </View>
         </View>
       </Modal>
 
-      <DraggableFlatList
+      <ReorderableList
         data={taskLists}
-        keyExtractor={(item) => item.id}
-        animationConfig={{ duration: 0 }}
-        onDragEnd={({ from, to }) => {
-          const draggedList = taskLists[from];
-          const targetList = taskLists[to];
-          if (!draggedList || !targetList || from === to) return;
-          void onReorderTaskList(draggedList.id, targetList.id);
-        }}
+        keyExtractor={keyExtractorTaskList}
+        onReorder={handleTaskListReorder}
+        panGesture={listPanGesture}
+        dragEnabled={canDragList}
+        shouldUpdateActiveItem
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ gap: 8, paddingBottom: 20 }}
         ListFooterComponent={
@@ -670,12 +968,12 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                 <>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={t("app.cancel")}
+                    accessibilityLabel={t("common.cancel")}
                     onPress={() => onJoinListDialogChange(false)}
                     className="flex-1 rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
                   >
                     <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
-                      {t("app.cancel")}
+                      {t("common.cancel")}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -738,12 +1036,12 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                 <>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={t("app.cancel")}
+                    accessibilityLabel={t("common.cancel")}
                     onPress={() => onCreateListDialogChange(false)}
                     className="flex-1 rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
                   >
                     <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
-                      {t("app.cancel")}
+                      {t("common.cancel")}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -764,7 +1062,7 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                           : "text-muted dark:text-muted-dark"
                       }`}
                     >
-                      {creatingList ? t("app.creating") : t("app.create")}
+                      {t("app.create")}
                     </Text>
                   </Pressable>
                 </>
@@ -783,7 +1081,7 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
                     placeholderClassName="text-placeholder dark:text-placeholder-dark"
                     returnKeyType="done"
                     onSubmitEditing={handleCreateListSubmit}
-                    editable={!creatingList}
+                    editable
                     accessibilityLabel={t("app.taskListName")}
                     autoFocus
                   />
@@ -852,112 +1150,7 @@ export const DrawerPanel = (props: DrawerPanelProps) => {
             {t("app.emptyState")}
           </Text>
         }
-        renderItem={({
-          item,
-          drag,
-          isActive,
-          getIndex,
-        }: RenderItemParams<TaskList>) => {
-          const isSelected = item.id === selectedTaskListId;
-          const currentIndex =
-            getIndex() ?? taskLists.findIndex((list) => list.id === item.id);
-          const canMoveListUp = canDragList && currentIndex > 0;
-          const canMoveListDown =
-            canDragList &&
-            currentIndex >= 0 &&
-            currentIndex < taskLists.length - 1;
-          const accessibilityActions: { name: string; label: string }[] = [];
-
-          if (canMoveListUp) {
-            accessibilityActions.push({
-              name: "moveUp",
-              label: t("app.moveUp"),
-            });
-          }
-          if (canMoveListDown) {
-            accessibilityActions.push({
-              name: "moveDown",
-              label: t("app.moveDown"),
-            });
-          }
-
-          const handleMoveListByOffset = (offset: number) => {
-            if (!canDragList || currentIndex < 0) return;
-            const targetList = taskLists[currentIndex + offset];
-            if (!targetList) return;
-            void onReorderTaskList(item.id, targetList.id);
-          };
-
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
-              accessibilityLabel={item.name || t("app.taskListName")}
-              onPress={() => handleSelectTaskList(item.id)}
-              className={`rounded-[10px] border border-transparent p-2 flex-row items-center gap-2 active:opacity-90 ${
-                isSelected
-                  ? "bg-input-background dark:bg-input-background-dark"
-                  : "bg-transparent"
-              } ${isActive ? "opacity-50" : ""}`}
-            >
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("taskList.reorder")}
-                accessibilityActions={accessibilityActions}
-                onAccessibilityAction={(event) => {
-                  if (event.nativeEvent.actionName === "moveUp") {
-                    handleMoveListByOffset(-1);
-                    return;
-                  }
-                  if (event.nativeEvent.actionName === "moveDown") {
-                    handleMoveListByOffset(1);
-                  }
-                }}
-                onLongPress={canDragList ? drag : undefined}
-                delayLongPress={150}
-                onPress={() => {}}
-                disabled={!canDragList}
-                className="rounded-[10px] p-1 items-center justify-center active:opacity-80"
-              >
-                <AppIcon
-                  name="drag-indicator"
-                  className={
-                    canDragList
-                      ? "fill-text dark:fill-text-dark"
-                      : "fill-muted dark:fill-muted-dark"
-                  }
-                />
-              </Pressable>
-              <View
-                style={
-                  item.background
-                    ? { backgroundColor: item.background }
-                    : undefined
-                }
-                className={`w-3 h-3 rounded-full border border-border dark:border-border-dark ${
-                  !item.background
-                    ? "bg-background dark:bg-background-dark"
-                    : ""
-                }`}
-              />
-              <View className="flex-1 gap-0.5">
-                <Text
-                  className={`text-[14px] font-inter-semibold text-text dark:text-text-dark ${
-                    isSelected ? "font-inter-bold" : ""
-                  }`}
-                  numberOfLines={1}
-                >
-                  {item.name || t("app.taskListName")}
-                </Text>
-                <Text className="text-[12px] font-inter text-muted dark:text-muted-dark">
-                  {t("taskList.taskCount", {
-                    count: item.tasks.length,
-                  })}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        }}
+        renderItem={renderTaskListItem}
       />
     </View>
   );

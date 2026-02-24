@@ -15,6 +15,8 @@ type DialogProps = {
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
+  overlayAccessible?: boolean;
+  overlayAccessibilityLabel?: string;
 };
 
 export const Dialog = ({
@@ -24,6 +26,8 @@ export const Dialog = ({
   description,
   children,
   footer,
+  overlayAccessible = false,
+  overlayAccessibilityLabel,
 }: DialogProps) => {
   return (
     <Modal
@@ -34,8 +38,11 @@ export const Dialog = ({
     >
       <View className="flex-1 justify-center items-center p-6">
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={title}
+          accessible={overlayAccessible}
+          accessibilityRole={overlayAccessible ? "button" : undefined}
+          accessibilityLabel={
+            overlayAccessible ? overlayAccessibilityLabel : undefined
+          }
           onPress={() => onOpenChange(false)}
           className="absolute inset-0 bg-black/45"
         />
@@ -48,7 +55,10 @@ export const Dialog = ({
             className="w-full max-w-[460px] rounded-[20px] border p-5 bg-surface dark:bg-surface-dark border-border dark:border-border-dark"
           >
             <View className="gap-1.5 mb-3">
-              <Text className="text-lg font-inter-bold text-text dark:text-text-dark">
+              <Text
+                accessibilityRole="header"
+                className="text-lg font-inter-bold text-text dark:text-text-dark"
+              >
                 {title}
               </Text>
               {description ? (

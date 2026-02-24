@@ -52,5 +52,3 @@ export function ColorPicker({
     </div>
   );
 }
-
-export default ColorPicker;

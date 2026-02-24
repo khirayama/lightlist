@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { AppIcon } from "./AppIcon";
+import { BrandLogo } from "./BrandLogo";
 
 type SpinnerProps = {
   className?: string;
@@ -14,10 +14,9 @@ export function Spinner({ className, fullPage }: SpinnerProps) {
       aria-busy="true"
       className={clsx("flex items-center justify-center", className)}
     >
-      <AppIcon
-        name="logo"
-        className="h-12 w-12 animate-pulse text-gray-900 dark:text-gray-50"
-      />
+      <div className="animate-pulse">
+        <BrandLogo alt="" aria-hidden="true" className="h-14 w-auto" />
+      </div>
       <span className="sr-only">Loading...</span>
     </div>
   );

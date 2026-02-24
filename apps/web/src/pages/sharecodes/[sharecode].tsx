@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,7 +10,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { onAuthStateChange } from "@lightlist/sdk/auth";
-import { AppState, User } from "@lightlist/sdk/types";
+import { User } from "@lightlist/sdk/types";
 import {
   fetchTaskListIdByShareCode,
   addSharedTaskListToOrder,
@@ -38,7 +38,6 @@ export default function ShareCodePage() {
   const [user, setUser] = useState<User | null>(null);
   const [addToOrderLoading, setAddToOrderLoading] = useState(false);
   const [addToOrderError, setAddToOrderError] = useState<string | null>(null);
-  const sharedTaskListUnsubscribeRef = useRef<(() => void) | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -62,6 +61,12 @@ export default function ShareCodePage() {
     if (!sharecode || typeof sharecode !== "string") return;
 
     let cancelled = false;
+    let unsubscribeSharedTaskList: (() => void) | null = null;
+    const cleanupSubscription = () => {
+      unsubscribeSharedTaskList?.();
+      unsubscribeSharedTaskList = null;
+    };
+
     const loadTaskList = async () => {
       try {
         setLoading(true);
@@ -71,20 +76,18 @@ export default function ShareCodePage() {
         if (!taskListId) {
           setSharedTaskListId(null);
           setError(t("pages.sharecode.notFound"));
-          sharedTaskListUnsubscribeRef.current?.();
-          sharedTaskListUnsubscribeRef.current = null;
+          cleanupSubscription();
           return;
         }
 
         setSharedTaskListId(taskListId);
-        sharedTaskListUnsubscribeRef.current?.();
-        sharedTaskListUnsubscribeRef.current =
+        cleanupSubscription();
+        unsubscribeSharedTaskList =
           appStore.subscribeToSharedTaskList(taskListId);
       } catch (err) {
         setError(resolveErrorMessage(err, t, "pages.sharecode.error"));
         setSharedTaskListId(null);
-        sharedTaskListUnsubscribeRef.current?.();
-        sharedTaskListUnsubscribeRef.current = null;
+        cleanupSubscription();
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -92,18 +95,12 @@ export default function ShareCodePage() {
       }
     };
 
-    loadTaskList();
+    void loadTaskList();
     return () => {
       cancelled = true;
+      cleanupSubscription();
     };
   }, [sharecode, t]);
-
-  useEffect(
-    () => () => {
-      sharedTaskListUnsubscribeRef.current?.();
-    },
-    [],
-  );
 
   const taskList =
     sharedTaskListId === null
@@ -196,7 +193,7 @@ export default function ShareCodePage() {
         )}
       </header>
 
-      <main className="flex-1 overflow-hidden">
+      <main id="main-content" tabIndex={-1} className="flex-1 overflow-hidden">
         {addToOrderError && (
           <div className="p-4 pb-0">
             <Alert variant="error">{addToOrderError}</Alert>

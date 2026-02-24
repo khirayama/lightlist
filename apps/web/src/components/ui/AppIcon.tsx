@@ -29,14 +29,7 @@ export const AppIcon = ({
         ...props.style,
       }}
     >
-      {name === "logo" ? (
-        <g transform="scale(0.046875)">
-          {" "}
-          {/* 24/512 = 0.046875 */}
-          <path d={(paths as string[])[0]} />
-          <path d={(paths as string[])[1]} fill="white" />
-        </g>
-      ) : isArray ? (
+      {isArray ? (
         (paths as string[]).map((p, i) => <path key={i} d={p} />)
       ) : (
         <path d={paths as string} />

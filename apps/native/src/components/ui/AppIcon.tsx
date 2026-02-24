@@ -1,4 +1,4 @@
-import Svg, { Path, G, type SvgProps } from "react-native-svg";
+import Svg, { Path, type SvgProps } from "react-native-svg";
 import { ICON_PATHS, type AppIconName } from "@lightlist/sdk/icons";
 import { cssInterop } from "nativewind";
 
@@ -38,12 +38,7 @@ export const AppIcon = ({
       className={className}
       {...props}
     >
-      {name === "logo" ? (
-        <G transform="scale(0.046875)">
-          <Path d={(paths as string[])[0]} />
-          <Path d={(paths as string[])[1]} fill="white" />
-        </G>
-      ) : isArray ? (
+      {isArray ? (
         (paths as string[]).map((p, i) => <Path key={i} d={p} />)
       ) : (
         <Path d={paths as string} />

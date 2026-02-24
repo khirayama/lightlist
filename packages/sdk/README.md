@@ -1,6 +1,6 @@
 # @lightlist/sdk
 
-Shared SDK for LightList applications (Web & Native).
+Shared SDK for Lightlist applications (Web & Native).
 
 ## Structure
 

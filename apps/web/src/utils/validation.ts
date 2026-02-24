@@ -7,14 +7,14 @@ export type FormErrors = Partial<{
   general: string;
 }>;
 
-export type AuthFormData = {
+type AuthFormData = {
   email: string;
   password: string;
   confirmPassword?: string;
   requirePasswordConfirm?: boolean;
 };
 
-export type PasswordFormData = {
+type PasswordFormData = {
   password: string;
   confirmPassword: string;
 };

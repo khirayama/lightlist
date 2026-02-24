@@ -1,12 +1,13 @@
 {
-  "title": "LightList",
-  "copyright": "© 2024 LightList. All rights reserved.",
+  "title": "Lightlist",
+  "copyright": "© 2024 Lightlist. All rights reserved.",
   "common": {
     "loading": "読み込み中...",
     "back": "戻る",
     "cancel": "キャンセル",
     "deleting": "削除中...",
     "close": "閉じる",
+    "skipToMain": "メインコンテンツへ移動",
     "add": "追加",
     "copy": "コピー",
     "copied": "コピーしました",
@@ -108,8 +109,6 @@
     "join": "参加",
     "joining": "参加中...",
     "calendarCheckButton": "カレンダーで確認",
-    "calendarSheetTitle": "日付付きタスク",
-    "calendarSheetDescription": "日付を選択すると該当タスクまでスクロールします",
     "calendarAllDates": "すべての日付",
     "calendarNoDatedTasks": "日付が設定されたタスクはありません",
     "calendarNoTasksOnSelectedDate": "選択した日付のタスクはありません"
@@ -139,6 +138,9 @@
     "userInfo": {
       "title": "アカウント"
     },
+    "preferences": {
+      "title": "表示と動作"
+    },
     "theme": {
       "title": "テーマ",
       "system": "システム",
@@ -163,13 +165,45 @@
       "title": "危険な操作",
       "signOut": "ログアウト",
       "deleteAccount": "アカウント削除"
-    }
+    },
+    "actions": {
+      "title": "アカウント操作"
+    },
+    "deleteAccount": "アカウントを削除",
+    "deleteAccountConfirm": "アカウントと全データを削除しますか？",
+    "signingOut": "ログアウト中...",
+    "deletingAccount": "削除中..."
   },
   "pages": {
     "index": {
-      "getStarted": "今すぐはじめる",
-      "description1": "Lightlistはシンプルなタスクリストサービスです。",
-      "description2": "タスク管理のToDoリストや買い物リストとして使えます。未登録の人ともリストを共有できます。"
+      "getStarted": "無料ではじめる",
+      "headline": "タスクリストは、\nシンプルでいい。",
+      "subheadline": "タスク管理アプリに疲れたあなたへ。\n余計な機能はない。誰でも、すぐに使いはじめられる。\nそれでいて、必要なときは共有もできる。",
+      "features": {
+        "title": "Lightlistの3つのこと",
+        "simple": {
+          "title": "これだけでいい",
+          "description": "タスクを追加して、完了する。それだけ。説明書もチュートリアルも必要ありません。はじめてでも迷わない、ちょうどいいシンプルさです。"
+        },
+        "multidevice": {
+          "title": "どこからでも、そのまま使える",
+          "description": "ブラウザはもちろん、iOSやAndroidアプリからもアクセス可能。どのデバイスからでも同じリストをリアルタイムに確認・編集できます。"
+        },
+        "share": {
+          "title": "必要なとき、共有できる",
+          "description": "共有コードを発行するだけで、家族・友人・チームとリアルタイム共有。一人で使うだけでも、もちろん十分です。"
+        }
+      },
+      "preview": {
+        "title": "こんな感じで使います",
+        "desktopAlt": "デスクトップ画面のスクリーンショット",
+        "mobileAlt": "モバイル画面のスクリーンショット"
+      },
+      "cta": {
+        "title": "これでいい、ちょうどいい。",
+        "description": "タスク管理をもっとシンプルに。まず一つ、リストをつくってみてください。",
+        "button": "無料ではじめる"
+      }
     },
     "sharecode": {
       "notFound": "タスクリストが見つかりません",

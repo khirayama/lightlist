@@ -140,7 +140,6 @@ export function TaskListCard({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteCompletedPending, setDeleteCompletedPending] = useState(false);
   const newTaskInputRef = useRef<HTMLInputElement | null>(null);
-  const restoreNewTaskFocusRef = useRef(false);
 
   const handleSortingChange = (sorting: boolean) => {
     onSortingChange?.(sorting);
@@ -333,15 +332,7 @@ export function TaskListCard({
         onSubmit={(e) => {
           e.preventDefault();
           if (newTaskText.trim() === "") return;
-          restoreNewTaskFocusRef.current = true;
           newTaskInputRef.current?.focus();
-          requestAnimationFrame(() => {
-            const input = newTaskInputRef.current;
-            if (!input) return;
-            if (!input.disabled) {
-              restoreNewTaskFocusRef.current = false;
-            }
-          });
           void handleAddTask();
         }}
       >
@@ -350,6 +341,7 @@ export function TaskListCard({
             <input
               ref={newTaskInputRef}
               type="text"
+              aria-label={t("pages.tasklist.addTaskPlaceholder")}
               role="combobox"
               aria-autocomplete="list"
               aria-haspopup="listbox"
@@ -720,5 +712,3 @@ export function TaskListCard({
     </section>
   );
 }
-
-export default TaskListCard;

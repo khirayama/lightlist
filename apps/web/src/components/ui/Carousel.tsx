@@ -1,68 +1,28 @@
 import React, {
   useRef,
   useEffect,
-  useState,
   useCallback,
   ReactNode,
   Children,
 } from "react";
 import clsx from "clsx";
 
-// Propsの型定義
 export interface CarouselProps {
-  /**
-   * カルーセルに表示するスライド要素のリスト
-   */
   children: ReactNode;
-  /**
-   * 現在のインデックス (Optional: 指定するとControlledモードになる)
-   */
-  index?: number;
-  /**
-   * インデックスが変更された時のコールバック
-   * スクロール停止後、またはインジケータークリック時に発火
-   */
-  onIndexChange?: (index: number) => void;
-  /**
-   * コンテナの追加クラス名
-   */
+  index: number;
+  onIndexChange: (index: number) => void;
   className?: string;
-  /**
-   * インジケーターを表示するかどうか
-   * @default true
-   */
   showIndicators?: boolean;
-  /**
-   * インジケーターの表示位置
-   * @default "bottom"
-   */
   indicatorPosition?: "top" | "bottom";
-  /**
-   * インジケーターのARIAラベル (全体のナビゲーション用)
-   */
   ariaLabel?: string;
-  /**
-   * 各インジケーターボタンのラベル生成関数
-   */
   getIndicatorLabel?: (index: number, total: number) => string;
-  /**
-   * スクロール操作を許可するかどうか
-   * @default true
-   */
   scrollEnabled?: boolean;
-  /**
-   * インジケーターを通常レイアウトフローで表示するかどうか
-   * @default false
-   */
   indicatorInFlow?: boolean;
 }
 
-/**
- * Web用カルーセルコンポーネント
- */
 export function Carousel({
   children,
-  index: externalIndex,
+  index,
   onIndexChange,
   className,
   showIndicators = true,
@@ -74,42 +34,26 @@ export function Carousel({
 }: CarouselProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentIndexRef = useRef(0);
   const skipSmoothSyncRef = useRef(false);
 
-  // 内部状態としてのindex (Uncontrolledモード用)
-  const [internalIndex, setInternalIndex] = useState(0);
-
-  // External index があればそれを優先 (Semi-controlled)
-  const isControlled = externalIndex !== undefined;
-  const currentIndex = isControlled ? externalIndex : internalIndex;
+  const count = Children.count(children);
+  const currentIndex =
+    count === 0 ? 0 : Math.max(0, Math.min(index, count - 1));
   currentIndexRef.current = currentIndex;
 
-  const count = Children.count(children);
-
-  // items.length が減って currentIndex が範囲外になった場合の補正
   useEffect(() => {
-    if (currentIndex >= count && count > 0) {
-      const newIndex = count - 1;
-      // 内部状態も更新しておく
-      if (!isControlled) {
-        setInternalIndex(newIndex);
-      }
-      // 親に通知
-      onIndexChange?.(newIndex);
-    }
-  }, [count, currentIndex, isControlled, onIndexChange]);
+    if (count === 0) return;
+    if (index === currentIndex) return;
+    onIndexChange(currentIndex);
+  }, [count, currentIndex, index, onIndexChange]);
 
-  // 外部から index が変わった場合は、スクロール位置を同期する
   useEffect(() => {
     const container = containerRef.current;
     if (!container || count === 0) return;
 
-    // コンテナの幅に基づいてターゲット位置を計算
     const targetScrollLeft = currentIndex * container.clientWidth;
-
-    // スクロール中以外で、かつ位置が大きくズレている場合のみ移動させる
     if (!isScrollingRef.current) {
       if (Math.abs(container.scrollLeft - targetScrollLeft) > 2) {
         container.scrollTo({
@@ -119,7 +63,7 @@ export function Carousel({
       }
       skipSmoothSyncRef.current = false;
     }
-  }, [currentIndex, count]);
+  }, [count, currentIndex]);
 
   useEffect(() => {
     return () => {
@@ -129,57 +73,47 @@ export function Carousel({
     };
   }, []);
 
-  // スクロールイベントハンドラ
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // スクロール中はフラグを立てる (State更新を抑制するため)
     isScrollingRef.current = true;
-
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
 
-    // デバウンス処理: スクロール停止を検知
     scrollTimeoutRef.current = setTimeout(() => {
       isScrollingRef.current = false;
       if (container.clientWidth === 0 || count === 0) return;
 
-      // 現在のスクロール位置から最も近いスライドのインデックスを計算
-      const newIndex = Math.round(container.scrollLeft / container.clientWidth);
+      const nextIndex = Math.round(
+        container.scrollLeft / container.clientWidth,
+      );
+      const clampedIndex = Math.max(0, Math.min(nextIndex, count - 1));
 
-      // 範囲外へのアクセス防止
-      const clampedIndex = Math.max(0, Math.min(newIndex, count - 1));
-
-      // インデックスが変わっていたら通知
       if (clampedIndex !== currentIndexRef.current) {
         skipSmoothSyncRef.current = true;
-        if (!isControlled) {
-          setInternalIndex(clampedIndex);
-        }
-        onIndexChange?.(clampedIndex);
+        onIndexChange(clampedIndex);
       }
-    }, 150); // 150ms静止でスクロール終了とみなす
-  }, [count, isControlled, onIndexChange]);
+    }, 150);
+  }, [count, onIndexChange]);
 
-  // インジケータークリック時の処理
-  const handleIndicatorClick = (idx: number) => {
-    if (idx === currentIndexRef.current) return;
-    skipSmoothSyncRef.current = false;
-    if (!isControlled) {
-      setInternalIndex(idx);
-    }
-    onIndexChange?.(idx);
-  };
+  const handleIndicatorClick = useCallback(
+    (idx: number) => {
+      if (idx === currentIndexRef.current) return;
+      skipSmoothSyncRef.current = false;
+      onIndexChange(idx);
+    },
+    [onIndexChange],
+  );
 
   const indicatorNav = (
     <nav
       aria-label={ariaLabel}
       className={clsx(
         indicatorInFlow
-          ? "flex justify-center gap-1"
-          : "absolute left-0 right-0 flex justify-center gap-1 pointer-events-none z-30",
+          ? "flex justify-center gap-0.5"
+          : "absolute left-0 right-0 flex justify-center gap-0.5 pointer-events-none z-30",
         indicatorInFlow
           ? indicatorPosition === "top"
             ? "mb-2"
@@ -232,16 +166,15 @@ export function Carousel({
           scrollEnabled ? "overflow-x-auto" : "overflow-hidden",
         )}
         style={{
-          // スクロールバーを隠すスタイル
-          scrollbarWidth: "none", // Firefox
-          msOverflowStyle: "none", // IE/Edge
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
         }}
       >
         {Children.map(children, (child, idx) => (
-          // 各スライド: コンテナ幅いっぱい、縮小なし、スナップ位置は開始位置
           <div
             key={idx}
             className="w-full h-full flex-shrink-0 snap-start snap-always"
+            aria-hidden={idx === currentIndex ? undefined : true}
           >
             {child}
           </div>

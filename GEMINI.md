@@ -13,10 +13,12 @@
 - コメント追加は不要、テスト追加は不要、後方互換性は考慮不要。
 - TypeScript を厳密に扱い、`any` / `unknown` を避ける。
 - i18next による文言管理とテーマ（system/light/dark）対応を維持する。
+- `apps/native` の依存更新後（特に `npm audit fix --force` 後）は `npx expo install --check` を実行し、不整合時は `npx expo install --fix` で Expo SDK 互換版へ再整列する。
 
 ## 3. 現在の構成
 
 - モノレポ: Turbo + npm workspaces
+- React系依存は app ごとに管理し、共有ライブラリ（`packages/sdk`）は `react` を `peerDependencies` で要求する。
 - `apps/web`: Next.js Pages Router
   - 認証: `apps/web/src/pages/login.tsx`
   - 共有: `apps/web/src/pages/sharecodes/[sharecode].tsx`

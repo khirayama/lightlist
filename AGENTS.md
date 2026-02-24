@@ -27,6 +27,7 @@
 ## プロジェクト構成
 
 - モノレポ: npm workspaces + Turbo (`turbo.json`)
+- React系依存（`react` / `react-dom` / `@types/react*`）は各 app (`apps/web`, `apps/native`) で管理し、ルート `overrides` では固定しない。共有ライブラリ (`packages/sdk`) は React を `peerDependencies` で要求する。
 - Web: `apps/web`（Next.js Pages Router + TypeScript + Tailwind）
 - Native: `apps/native`（Expo + React Native + NativeWind）
 - SDK: `packages/sdk`（Firebase Auth/Firestore、共通状態管理・ミューテーション）
@@ -59,6 +60,8 @@
   - `npm run dev:lan`
   - `npm run dev:local`
   - `npm run typecheck`
+  - `npx expo install --check`（依存更新後の Expo SDK 互換性確認）
+  - `npx expo install --fix`（`npm audit fix --force` 等で Expo 互換性が崩れた場合の再整列）
 - `packages/sdk`:
   - `npm run typecheck`
   - `npm run deploy:firestore`

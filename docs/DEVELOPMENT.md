@@ -10,6 +10,12 @@
 - `npm run deploy:firestore`: SDK の Firestore ルール/インデックスをデプロイ（dev）
 - `npm run deploy:firestore:prod`: SDK の Firestore ルール/インデックスをデプロイ（prod）
 
+## 依存関係運用（React系）
+
+- `react` / `react-dom` / `@types/react` / `@types/react-dom` はルート `package.json` の `overrides` で固定しない。
+- `apps/web` と `apps/native` がそれぞれの `package.json` で React 系バージョンを管理する。
+- 共有ライブラリ（`packages/sdk`）は React を `peerDependencies` として要求し、利用側アプリが実体を提供する。
+
 ## agentドキュメント運用
 
 - `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` は、作業ごとの進捗ではなく、今後も使う運用ルール・手順・コマンド・構成情報を蓄積するためのドキュメントとして扱う。
@@ -89,3 +95,18 @@
 - `TaskListCard` / `DrawerPanel` / `Carousel` / `ConfirmDialog` は `next/dynamic` で遅延ロードし、初期バンドル評価を分散する。
 - ランディングページ (`/`) は `getServerSideProps` を使わず静的配信し、言語切り替えはクエリ (`?lang=`) をクライアント側で同期する。
 - フォントは `_document.tsx` の外部 CSS 読み込みを廃止し、`_app.tsx` の `next/font/google` に統一する。Portal 配下の UI も `font-sans` が同じ変数を参照できるよう、`body` にフォント変数クラスを付与する。
+
+## アクセシビリティ監査
+
+- Web の手動確認対象ページ: `/login` / `/app` / `/settings` / `/password_reset` / `/sharecodes/[sharecode]`
+- Web の確認項目:
+  - キーボードのみで主要操作が完結できる（スキップリンク、フォーム、ダイアログ、カルーセル切り替え）
+  - スキップリンクから `main#main-content` に移動できる
+  - エラー通知は即時、成功/情報通知は過剰に割り込まず読み上げられる
+  - 非表示カルーセルスライドがスクリーンリーダーで優先的に読まれない
+- Web の自動監査運用:
+  - 開発サーバー起動後に Lighthouse の Accessibility を主要ページで確認する
+  - axe 系ツール（ブラウザ拡張、または Playwright/axe の手元スクリプト）で重大な violation がないことを確認する
+- Native の手動確認項目:
+  - VoiceOver（iOS）/ TalkBack（Android）で主要画面を確認する
+  - カスタム `Pressable` 追加時は `accessibilityRole` / `accessibilityLabel` / `accessibilityState` の3点を必ず確認する

@@ -45,7 +45,7 @@
 
 ## ビジュアルスタイル
 
-- アプリケーション全体のフォントは、Web では `Yu Gothic` / `YuGothic` / `system-ui` / `sans-serif` のローカルフォントスタックを Tailwind の `font-sans` から適用する。外部フォント配信（`next/font/google` など）への依存を排除しており、ネットワーク環境に関わらずビルドが安定して成功する
+- アプリケーション全体のフォントは、Web では Google Fonts の `<link>` タグ（`Inter` / `Noto Sans JP`）を `_app.tsx` の `<Head>` に追加してランタイムで読み込み、Tailwind の `font-sans` に `Inter` / `Noto Sans JP` をフォントファミリー名で直接指定して適用する。`next/font/google` による ビルド時フェッチを使わないため、ネットワーク制限のあるビルド環境でも安定してビルドが成功する
 - Web の Drawer はオーバーレイやスライド方向、背景/文字色を Tailwind で定義し、ライト/ダークの可読性を担保する
 - z-index は通常レイヤーを 10 刻み（10〜100）、ダイアログ系は 10 刻み（1000〜1500）で管理し、Web の Drawer はオーバーレイ 1000/コンテンツ 1100、Dialog はオーバーレイ 1200/コンテンツ 1300 を基本とする
 - Web (Mobile) の Drawer ではヘッダーに閉じる（×）ボタンを配置し、`aria-label`/`title` は i18next の `common.close` を使用する

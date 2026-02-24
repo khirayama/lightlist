@@ -26,7 +26,14 @@ export default {
         primary: "#ffffff",
       },
       fontFamily: {
-        sans: ["Yu Gothic", "YuGothic", "system-ui", "sans-serif"],
+        sans: [
+          "Inter",
+          "Noto Sans JP",
+          "Yu Gothic",
+          "YuGothic",
+          "system-ui",
+          "sans-serif",
+        ],
       },
     },
   },

@@ -1,6 +1,5 @@
 import type { AppProps } from "next/app";
 import Head from "next/head";
-import { Inter, Noto_Sans_JP } from "next/font/google";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -13,19 +12,6 @@ import { Spinner } from "@/components/ui/Spinner";
 import "@/styles/globals.css";
 
 const MAIN_CONTENT_ID = "main-content";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const notoSansJp = Noto_Sans_JP({
-  variable: "--font-noto-sans-jp",
-  weight: ["400", "500", "700"],
-  display: "swap",
-  preload: false,
-});
 
 export default function App({ Component, pageProps }: AppProps) {
   const [mounted, setMounted] = useState(false);
@@ -84,10 +70,6 @@ export default function App({ Component, pageProps }: AppProps) {
 
     setMounted(true);
 
-    if (typeof document !== "undefined") {
-      document.body.classList.add(inter.variable, notoSansJp.variable);
-    }
-
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const applyTheme = (theme: Theme) => {
       const isDark =
@@ -112,9 +94,6 @@ export default function App({ Component, pageProps }: AppProps) {
 
     return () => {
       mediaQuery.removeEventListener("change", handleMediaChange);
-      if (typeof document !== "undefined") {
-        document.body.classList.remove(inter.variable, notoSansJp.variable);
-      }
     };
   }, []);
 
@@ -151,9 +130,7 @@ export default function App({ Component, pageProps }: AppProps) {
     return (
       <ErrorBoundary>
         {pwaHead}
-        <div
-          className={`${inter.variable} ${notoSansJp.variable} h-dvh w-full overflow-hidden font-sans`}
-        >
+        <div className="h-dvh w-full overflow-hidden font-sans">
           <Spinner fullPage />
         </div>
       </ErrorBoundary>
@@ -163,9 +140,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <ErrorBoundary>
       {pwaHead}
-      <div
-        className={`${inter.variable} ${notoSansJp.variable} h-dvh w-full overflow-hidden font-sans`}
-      >
+      <div className="h-dvh w-full overflow-hidden font-sans">
         <div className="h-full w-full overflow-y-auto">
           <a
             href={`#${MAIN_CONTENT_ID}`}

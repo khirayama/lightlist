@@ -9,18 +9,17 @@
 ### 追加ファイル
 
 - `apps/web/public/manifest.webmanifest`
-- `apps/web/public/icons/icon.svg`
-- `apps/web/public/icons/maskable.svg`
 - `apps/web/public/icons/icon-192.png`
 - `apps/web/public/icons/icon-512.png`
 - `apps/web/public/icons/maskable-512.png`
 - `apps/web/public/icons/apple-touch-icon.png`
+- `apps/web/public/brand/logo.svg`
 - `apps/web/public/sw.js`
 
 ### 既存ファイルの変更
 
 - `apps/web/src/pages/_app.tsx`
-  - `next/head` で `manifest` と `theme-color`、アイコンなどの共通メタデータを追加
+  - `next/head` で `manifest` と `theme-color`、PNGベースのアイコンなどの共通メタデータを追加
   - `mounted` 前でも `Head` を出し、初回HTMLにも manifest が含まれるようにする
   - `navigator.serviceWorker.register(\"/sw.js\")` で SW を登録し、`registration.update()` を実行して更新チェックを即時化する
 - `apps/web/next.config.js`
@@ -29,6 +28,7 @@
 ## 制約
 
 - `sw.js` はインストール条件を満たすための最小実装で、オフライン対応やキャッシュ戦略は含まない
+- PWA アイコンは `apps/web/public/icons/*.png` を使用し、ブランドロゴのSVG表示は `apps/web/public/brand/logo.svg` を UI 用に分離している
 
 ## 起動時ローディング対策
 

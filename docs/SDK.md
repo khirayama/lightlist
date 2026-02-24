@@ -1,6 +1,6 @@
-# LightList SDK Documentation
+# Lightlist SDK Documentation
 
-`@lightlist/sdk` は、LightList アプリケーション（Web および Native）の共通ロジック、状態管理、およびデータアクセス層を提供するパッケージです。
+`@lightlist/sdk` は、Lightlist アプリケーション（Web および Native）の共通ロジック、状態管理、およびデータアクセス層を提供するパッケージです。
 
 ## 概要
 
@@ -10,6 +10,12 @@
 - **状態管理 (State Management)**: アプリケーション全体のデータ（ユーザー、設定、タスクリスト）を一元管理し、リアルタイムで同期します。
 - **データ整合性**: タスクの追加、更新、並び替えなどのデータ操作におけるビジネスロジックと整合性を保証します。
 - **型定義**: アプリケーション全体で使用される共通の TypeScript 型定義を提供します。
+
+## 依存関係ポリシー
+
+- `react` は `peerDependencies` で要求し、利用側アプリ（`apps/web` / `apps/native`）が提供する。
+- SDK 内の型チェック・ローカル開発のために `devDependencies` に `react` を持つ。
+- `react-dom` は SDK 実装で使用していないため、SDK の `dependencies` / `peerDependencies` には含めない。
 
 ## アーキテクチャ
 

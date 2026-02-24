@@ -14,10 +14,12 @@
 - TypeScript で厳密に型付けし、`any` / `unknown` の使用を避ける。
 - 不要な処理・関数・ファイルは積極的に削除する。
 - 文言は i18next で管理し、テーマ（system/light/dark）対応を維持する。
+- `apps/native` の依存更新後（特に `npm audit fix --force` 後）は `npx expo install --check` で Expo SDK 互換性を確認し、不整合時は `npx expo install --fix` で再整列する。
 
 ## プロジェクト実態（2026-02）
 
 - モノレポ: `apps/web`（Next.js）/ `apps/native`（Expo）/ `packages/sdk`（Firebase 共通ロジック）
+- React系依存は `apps/web` / `apps/native` で個別管理し、`packages/sdk` は `react` を `peerDependencies` で要求する。
 - Web 認証ページ: `apps/web/src/pages/login.tsx`
 - 共有ページ: `apps/web/src/pages/sharecodes/[sharecode].tsx`
 - SDK の Firestore デプロイ: `packages/sdk` の `deploy:firestore` 系スクリプト

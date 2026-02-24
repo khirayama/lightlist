@@ -2,7 +2,7 @@
 
 ## 概要
 
-LightList は Firebase Authentication を使用したメール/パスワード認証システムを実装しています。
+Lightlist は Firebase Authentication を使用したメール/パスワード認証システムを実装しています。
 
 ## アーキテクチャ
 
@@ -410,7 +410,7 @@ Firebase 認証エラーをスロー
 
 **実装詳細:**
 
-- テーマ選択はラジオボタンで実装
+- テーマ選択は select UI で実装（Web は `<select>`、Native はダイアログ式セレクタ）
 - 選択後、`updateSettings({ theme })` で Firestore に保存
 - `_app.tsx` でテーマを監視し、HTML の `dark` クラスを切り替え
 - Tailwind CSS の `dark:` プレフィックスでダークモード対応
@@ -435,21 +435,21 @@ document.documentElement.classList.toggle("dark", isDark);
 
 **実装詳細:**
 
-- 言語選択はラジオボタンで実装
+- 言語選択は select UI で実装（Web は `<select>`、Native はダイアログ式セレクタ）
 - `updateSettings({ language })`で Firestore に保存
 - `appStore` の言語設定変更を `_app.tsx` が監視し、UI の言語を即座に切り替え
 - 言語変更後、自動的に UI テキストが更新される
 
 #### 4. タスク追加位置
 
-- **先頭に追加** (`top`) と **末尾に追加** (`bottom`) をラジオボタンで切り替え
+- **先頭に追加** (`top`) と **末尾に追加** (`bottom`) を select UI で切り替え（Web は `<select>`、Native はダイアログ式セレクタ）
 - デフォルトは「先頭に追加」 (`top`)
 - `updateSettings({ taskInsertPosition })` で Firestore に保存
 - SDK 内でタスク追加時の挿入位置に利用する
 
 #### 5. 自動ソート
 
-- チェックボックスで ON/OFF を切り替え
+- スイッチ風トグル（内部的にはチェックボックス入力）で ON/OFF を切り替え
 - `updateSettings({ autoSort })` で Firestore に保存
 - タスクの並び替え挙動を切り替えるためのフラグとして保持
 

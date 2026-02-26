@@ -1,5 +1,4 @@
 export const APP_ICON_NAMES = [
-  "logo",
   "menu",
   "edit",
   "share",
@@ -18,10 +17,6 @@ export const APP_ICON_NAMES = [
 export type AppIconName = (typeof APP_ICON_NAMES)[number];
 
 export const ICON_PATHS: Record<AppIconName, string | string[]> = {
-  logo: [
-    "M144 48h224c53 0 96 43 96 96v224c0 53-43 96-96 96H144c-53 0-96-43-96-96V144c0-53 43-96 96-96z", // rect 48,48,416,416 rx 96 -> M144 48h224c53 0 96 43 96 96v224c0 53-43 96-96 96H144c-53 0-96-43-96-96V144c0-53 43-96 96-96z
-    "M176 178a18 18 0 0 1 18-18h140a18 18 0 1 1 0 36H194a18 18 0 0 1-18-18Zm0 78a18 18 0 0 1 18-18h104a18 18 0 1 1 0 36H194a18 18 0 0 1-18-18Zm0 78a18 18 0 0 1 18-18h140a18 18 0 1 1 0 36H194a18 18 0 0 1-18-18Z",
-  ],
   menu: "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
   edit: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.995.995 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
   share:

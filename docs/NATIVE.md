@@ -29,7 +29,7 @@
 - テーマ定義: `apps/native/src/styles/theme.ts` に定数と型定義を集約
 - スタイリング: NativeWind v4 (Tailwind CSS) を使用。`apps/native/global.css` を定義し、`apps/native/src/index.ts` でインポートして適用。`babel.config.js` で `{ jsxImportSource: "nativewind" }` を設定。
 - Metro 解決: `apps/native/metro.config.js` で monorepo の `node_modules` 探索順を固定し、`react` / `react-native` を `apps/native` 側へ解決して Expo Go 起動時の React Native 二重バンドルを防止する
-- アプリアイコン/スプラッシュ画像は `apps/native/assets`（`icon.png` / `adaptive-icon.png` / `splash-icon.png`）を正本とし、必要に応じて `ios/LightlistDev/Images.xcassets` と `android/app/src/main/res` の生成済み画像を同じロゴで更新する。現行 PNG は既存デザインを踏襲しつつ、ロゴをわずかに縮小して上下余白を増やした配置を採用する
+- アプリアイコン/スプラッシュ画像は `apps/native/assets`（`icon.png` / `adaptive-icon.png` / `splash-icon.png`）を正本とし、必要に応じて `ios/LightlistDev/Images.xcassets` と `android/app/src/main/res` の生成済み画像を同じロゴで更新する。現行アプリアイコン（`icon.png` / `adaptive-icon.png`）は既存デザインを踏襲し、ロゴレイヤーのみを従来比 `97%` に縮小して上下余白を微増した配置を採用する
 - 画面: `apps/native/src/screens` に `AuthScreen` / `AppScreen` / `SettingsScreen` / `ShareCodeScreen` / `PasswordResetScreen` を配置。各画面は自己完結型で、状態管理・ビジネスロジック・SDK呼び出しを内包する
 - UIコンポーネント: `apps/native/src/components/ui` に `Dialog.tsx`（作成/編集用ダイアログ）、`Carousel.tsx`（リスト表示）、`AppIcon.tsx`（SVGアイコン）を集約
 - appコンポーネント: `apps/native/src/components/app/TaskListCard.tsx` を `AppScreen` / `ShareCodeScreen` で共通利用し、タスク追加/編集/並び替え/完了/完了削除の操作UIを集約。Web版に合わせ、タスクの日付をテキスト上部に表示し、エラー表示用変数名などの内部ロジックも共通化している（ヘッダーやリスト選択は画面側で管理）。`apps/native/src/components/app/DrawerPanel.tsx` はタスクリスト一覧と作成・参加ダイアログを集約

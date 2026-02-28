@@ -5,6 +5,7 @@ import {
   Text,
   TextInput,
   View,
+  useColorScheme,
   useWindowDimensions,
 } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -29,40 +30,47 @@ import { Carousel } from "../components/ui/Carousel";
 import { Dialog } from "../components/ui/Dialog";
 import { TaskListCard } from "../components/app/TaskListCard";
 import { DrawerPanel, type ColorOption } from "../components/app/DrawerPanel";
-import { listColors } from "../styles/theme";
+import { listColors, themes } from "../styles/theme";
 
 const EMPTY_TASK_LISTS: TaskList[] = [];
+const COLOR_OPTIONS: ColorOption[] = [
+  { value: null },
+  ...listColors.map((color) => ({ value: color })),
+];
+const getUserEmailSnapshot = () => {
+  return appStore.getState().user?.email ?? "";
+};
+const getTaskListsSnapshot = () => {
+  return appStore.getState().taskLists;
+};
 
 const Drawer = createDrawerNavigator();
+const resolveTaskListBackground = (
+  background: string | null,
+  isDark: boolean,
+): string =>
+  background ?? (isDark ? themes.dark.background : themes.light.background);
 
 type AppScreenContentProps = {
-  onOpenSettings: () => void;
-  onOpenShareCode: () => void;
   selectedTaskListId: string | null;
   onSelectTaskList: (id: string | null) => void;
+  taskLists: TaskList[];
 };
 
 const AppScreenContent = ({
-  onOpenSettings,
-  onOpenShareCode,
   selectedTaskListId,
   onSelectTaskList,
+  taskLists,
 }: AppScreenContentProps) => {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
   const isWideLayout = width >= 1024;
-
-  const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
-  const taskListsData = appState.taskLists;
-  const { items: taskLists, reorder: reorderTaskList } = useOptimisticReorder(
-    taskListsData,
-    updateTaskListOrder,
-  );
 
   const [appErrorMessage, setAppErrorMessage] = useState<string | null>(null);
 
-  // List Edit State
   const [editListName, setEditListName] = useState("");
   const [editListBackground, setEditListBackground] = useState<string | null>(
     null,
@@ -70,8 +78,8 @@ const AppScreenContent = ({
   const [isSavingList, setIsSavingList] = useState(false);
   const [isDeletingList, setIsDeletingList] = useState(false);
   const [isEditListDialogOpen, setIsEditListDialogOpen] = useState(false);
+  const [isTaskSorting, setIsTaskSorting] = useState(false);
 
-  // Share State
   const [shareErrorMessage, setShareErrorMessage] = useState<string | null>(
     null,
   );
@@ -83,7 +91,6 @@ const AppScreenContent = ({
   const selectedTaskList: TaskList | null =
     taskLists.find((list) => list.id === selectedTaskListId) ?? null;
 
-  // Sync edit form with selected list
   useEffect(() => {
     if (!selectedTaskList) {
       setEditListName("");
@@ -92,7 +99,11 @@ const AppScreenContent = ({
     }
     setEditListName(selectedTaskList.name);
     setEditListBackground(selectedTaskList.background);
-  }, [selectedTaskList]);
+  }, [
+    selectedTaskList?.id,
+    selectedTaskList?.name,
+    selectedTaskList?.background,
+  ]);
 
   useEffect(() => {
     setShareErrorMessage(null);
@@ -144,7 +155,7 @@ const AppScreenContent = ({
       if (error instanceof Error) {
         setAppErrorMessage(error.message);
       } else {
-        setAppErrorMessage(t("app.error"));
+        setAppErrorMessage(t("common.error"));
       }
     } finally {
       setIsSavingList(false);
@@ -161,7 +172,7 @@ const AppScreenContent = ({
       if (error instanceof Error) {
         setAppErrorMessage(error.message);
       } else {
-        setAppErrorMessage(t("app.error"));
+        setAppErrorMessage(t("common.error"));
       }
     } finally {
       setIsDeletingList(false);
@@ -171,7 +182,7 @@ const AppScreenContent = ({
   const confirmDeleteList = () => {
     if (!selectedTaskList) return;
     Alert.alert(t("taskList.deleteList"), t("taskList.deleteConfirm"), [
-      { text: t("app.cancel"), style: "cancel" },
+      { text: t("common.cancel"), style: "cancel" },
       {
         text: t("taskList.deleteList"),
         style: "destructive",
@@ -262,12 +273,12 @@ const AppScreenContent = ({
               <>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={t("app.cancel")}
+                  accessibilityLabel={t("common.cancel")}
                   onPress={() => handleEditListDialogChange(false)}
                   className="flex-1 rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
                 >
                   <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
-                    {t("app.cancel")}
+                    {t("common.cancel")}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -482,43 +493,49 @@ const AppScreenContent = ({
         index={selectedTaskListIndex}
         onIndexChange={handleCarouselIndexChange}
         showIndicators={false}
+        scrollEnabled={!isTaskSorting}
       >
-        {stableTaskLists.map((taskList) => {
+        {stableTaskLists.map((taskList, index) => {
           const isActive = taskList.id === selectedTaskListId;
+          const shouldRenderTaskListCard =
+            Math.abs(index - selectedTaskListIndex) <= 1;
 
           return (
             <View
               key={taskList.id}
-              style={
-                taskList.background
-                  ? { backgroundColor: taskList.background }
-                  : undefined
-              }
-              className={`flex-1 ${!taskList.background ? "bg-background dark:bg-background-dark" : ""}`}
+              style={{
+                backgroundColor: resolveTaskListBackground(
+                  taskList.background,
+                  isDark,
+                ),
+              }}
+              className="flex-1"
             >
-              <TaskListCard
-                taskList={taskList}
-                isActive={isActive}
-                onActivate={onSelectTaskList}
-                t={t}
-                enableEditDialog
-                showEditListDialog={isEditListDialogOpen}
-                onEditDialogOpenChange={(tl, open) => {
-                  // Switch to the list we want to edit if different
-                  if (tl.id !== selectedTaskListId) {
-                    onSelectTaskList(tl.id);
-                  }
-                  handleEditListDialogChange(open);
-                }}
-                enableShareDialog
-                showShareDialog={isShareDialogOpen}
-                onShareDialogOpenChange={(tl, open) => {
-                  if (tl.id !== selectedTaskListId) {
-                    onSelectTaskList(tl.id);
-                  }
-                  handleShareDialogChange(open);
-                }}
-              />
+              {shouldRenderTaskListCard ? (
+                <TaskListCard
+                  taskList={taskList}
+                  isActive={isActive}
+                  onActivate={onSelectTaskList}
+                  onSortingChange={setIsTaskSorting}
+                  t={t}
+                  enableEditDialog
+                  showEditListDialog={isEditListDialogOpen}
+                  onEditDialogOpenChange={(tl, open) => {
+                    if (tl.id !== selectedTaskListId) {
+                      onSelectTaskList(tl.id);
+                    }
+                    handleEditListDialogChange(open);
+                  }}
+                  enableShareDialog
+                  showShareDialog={isShareDialogOpen}
+                  onShareDialogOpenChange={(tl, open) => {
+                    if (tl.id !== selectedTaskListId) {
+                      onSelectTaskList(tl.id);
+                    }
+                    handleShareDialogChange(open);
+                  }}
+                />
+              ) : null}
             </View>
           );
         })}
@@ -531,16 +548,9 @@ const AppScreenContent = ({
       </View>
     );
 
-  const currentBackground = selectedTaskList?.background;
-
   return (
-    <View
-      style={
-        currentBackground ? { backgroundColor: currentBackground } : undefined
-      }
-      className={`flex-1 ${!currentBackground ? "bg-background dark:bg-background-dark" : ""}`}
-    >
-      <View className="px-6 pb-0 max-w-[768px] w-full self-center">
+    <View className="flex-1 bg-background dark:bg-background-dark">
+      <View className="px-4 pb-0 max-w-[768px] w-full self-center">
         {taskListHeader}
         {indicator}
       </View>
@@ -551,22 +561,29 @@ const AppScreenContent = ({
 
 type AppScreenProps = {
   onOpenSettings: () => void;
-  onOpenShareCode: () => void;
 };
 
-export const AppScreen = ({
-  onOpenSettings,
-  onOpenShareCode,
-}: AppScreenProps) => {
+export const AppScreen = ({ onOpenSettings }: AppScreenProps) => {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const isWideLayout = width >= 1024;
-  const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
-  const userEmail = appState.user?.email ?? "";
-  const taskListsData = appState.taskLists;
+  const userEmail = useSyncExternalStore(
+    appStore.subscribe,
+    getUserEmailSnapshot,
+  );
+  const taskListsData = useSyncExternalStore(
+    appStore.subscribe,
+    getTaskListsSnapshot,
+  );
+  const persistTaskListReorder = useCallback(
+    async (draggedTaskListId: string, targetTaskListId: string) => {
+      await updateTaskListOrder(draggedTaskListId, targetTaskListId);
+    },
+    [],
+  );
   const { items: taskLists, reorder: reorderTaskList } = useOptimisticReorder(
     taskListsData,
-    updateTaskListOrder,
+    persistTaskListReorder,
   );
 
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
@@ -584,10 +601,6 @@ export const AppScreen = ({
   const [isCreateListDialogOpen, setIsCreateListDialogOpen] = useState(false);
   const [isJoinListDialogOpen, setIsJoinListDialogOpen] = useState(false);
 
-  const colorOptions: ColorOption[] = listColors.map((color) => ({
-    value: color,
-  }));
-
   useEffect(() => {
     if (taskLists.length === 0) {
       setSelectedTaskListId(null);
@@ -601,7 +614,7 @@ export const AppScreen = ({
     }
   }, [taskLists, selectedTaskListId]);
 
-  const handleCreateList = async () => {
+  const handleCreateList = useCallback(async () => {
     const trimmedName = createListName.trim();
     if (!trimmedName) return;
     setIsCreatingList(true);
@@ -612,13 +625,12 @@ export const AppScreen = ({
       setSelectedTaskListId(newListId);
       setIsCreateListDialogOpen(false);
     } catch {
-      // Error handling
     } finally {
       setIsCreatingList(false);
     }
-  };
+  }, [createListName, createListBackground]);
 
-  const handleJoinList = async () => {
+  const handleJoinList = useCallback(async () => {
     const trimmedCode = joinListInput.trim().toUpperCase();
     if (!trimmedCode) {
       setJoinListError(t("pages.sharecode.enterCode"));
@@ -645,34 +657,53 @@ export const AppScreen = ({
     } finally {
       setIsJoiningList(false);
     }
-  };
+  }, [joinListInput, t]);
 
-  const handleReorderTaskList = async (
-    draggedTaskListId: string,
-    targetTaskListId: string,
-  ) => {
-    if (!draggedTaskListId || !targetTaskListId) return;
-    if (draggedTaskListId === targetTaskListId) return;
-    try {
-      await reorderTaskList(draggedTaskListId, targetTaskListId);
-    } catch {}
-  };
+  const handleReorderTaskList = useCallback(
+    async (draggedTaskListId: string, targetTaskListId: string) => {
+      if (!draggedTaskListId || !targetTaskListId) return;
+      if (draggedTaskListId === targetTaskListId) return;
+      try {
+        await reorderTaskList(draggedTaskListId, targetTaskListId);
+      } catch {}
+    },
+    [reorderTaskList],
+  );
 
-  const handleCreateListDialogChange = (open: boolean) => {
+  const handleCreateListDialogChange = useCallback((open: boolean) => {
     setIsCreateListDialogOpen(open);
     if (!open) {
       setCreateListName("");
       setCreateListBackground(null);
     }
-  };
+  }, []);
 
-  const handleJoinListDialogChange = (open: boolean) => {
+  const handleJoinListDialogChange = useCallback((open: boolean) => {
     setIsJoinListDialogOpen(open);
     if (!open) {
       setJoinListInput("");
       setJoinListError(null);
     }
-  };
+  }, []);
+
+  const handleJoinListInputChange = useCallback((value: string) => {
+    setJoinListInput(value);
+    setJoinListError(null);
+  }, []);
+
+  const handleSelectTaskList = useCallback((id: string | null) => {
+    setSelectedTaskListId(id);
+  }, []);
+
+  const renderMainScreen = useCallback(() => {
+    return (
+      <AppScreenContent
+        selectedTaskListId={selectedTaskListId}
+        onSelectTaskList={handleSelectTaskList}
+        taskLists={taskLists}
+      />
+    );
+  }, [selectedTaskListId, handleSelectTaskList, taskLists]);
 
   return (
     <Drawer.Navigator
@@ -686,26 +717,22 @@ export const AppScreen = ({
           onCreateListInputChange={setCreateListName}
           createListBackground={createListBackground}
           onCreateListBackgroundChange={setCreateListBackground}
-          colors={colorOptions}
+          colors={COLOR_OPTIONS}
           onCreateList={handleCreateList}
           hasTaskLists={taskLists.length > 0}
           taskLists={taskLists}
           onReorderTaskList={handleReorderTaskList}
           selectedTaskListId={selectedTaskListId}
-          onSelectTaskList={setSelectedTaskListId}
+          onSelectTaskList={handleSelectTaskList}
           onCloseDrawer={() => props.navigation.closeDrawer()}
           onOpenSettings={onOpenSettings}
           showJoinListDialog={isJoinListDialogOpen}
           onJoinListDialogChange={handleJoinListDialogChange}
           joinListInput={joinListInput}
-          onJoinListInputChange={(value) => {
-            setJoinListInput(value);
-            setJoinListError(null);
-          }}
+          onJoinListInputChange={handleJoinListInputChange}
           onJoinList={handleJoinList}
           joinListError={joinListError}
           joiningList={isJoiningList}
-          creatingList={isCreatingList}
         />
       )}
       screenOptions={{
@@ -717,16 +744,7 @@ export const AppScreen = ({
         },
       }}
     >
-      <Drawer.Screen name="Main">
-        {() => (
-          <AppScreenContent
-            onOpenSettings={onOpenSettings}
-            onOpenShareCode={onOpenShareCode}
-            selectedTaskListId={selectedTaskListId}
-            onSelectTaskList={setSelectedTaskListId}
-          />
-        )}
-      </Drawer.Screen>
+      <Drawer.Screen name="Main">{renderMainScreen}</Drawer.Screen>
     </Drawer.Navigator>
   );
 };

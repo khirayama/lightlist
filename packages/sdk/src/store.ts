@@ -32,88 +32,6 @@ type DataStore = {
 
 type StoreListener = (state: AppState) => void;
 
-export type PerformanceTrace = {
-  traceId: string;
-  op: string;
-  scopeKey: string;
-  taskListId?: string;
-  taskId?: string;
-  startedAt: number;
-};
-
-type StoredPerformanceTrace = PerformanceTrace & {
-  registeredAt: number;
-};
-
-const TRACE_RETENTION_MS = 30_000;
-const TRACE_QUEUE_LIMIT = 40;
-const pendingTraceQueueByScope = new Map<string, StoredPerformanceTrace[]>();
-
-const roundMs = (value: number): number => {
-  return Math.round(value * 100) / 100;
-};
-
-const prunePendingTraceQueue = (scopeKey: string, now: number): void => {
-  const queue = pendingTraceQueueByScope.get(scopeKey);
-  if (!queue || queue.length === 0) {
-    pendingTraceQueueByScope.delete(scopeKey);
-    return;
-  }
-  const filtered = queue.filter(
-    (trace) => now - trace.registeredAt <= TRACE_RETENTION_MS,
-  );
-  if (filtered.length === 0) {
-    pendingTraceQueueByScope.delete(scopeKey);
-    return;
-  }
-  const nextQueue =
-    filtered.length > TRACE_QUEUE_LIMIT
-      ? filtered.slice(filtered.length - TRACE_QUEUE_LIMIT)
-      : filtered;
-  pendingTraceQueueByScope.set(scopeKey, nextQueue);
-};
-
-export function registerPendingPerformanceTrace(trace: PerformanceTrace): void {
-  const now = Date.now();
-  prunePendingTraceQueue(trace.scopeKey, now);
-  const queue = pendingTraceQueueByScope.get(trace.scopeKey) ?? [];
-  const nextQueue = [
-    ...queue,
-    {
-      ...trace,
-      registeredAt: now,
-    },
-  ];
-  const normalizedQueue =
-    nextQueue.length > TRACE_QUEUE_LIMIT
-      ? nextQueue.slice(nextQueue.length - TRACE_QUEUE_LIMIT)
-      : nextQueue;
-  pendingTraceQueueByScope.set(trace.scopeKey, normalizedQueue);
-}
-
-export function consumePendingPerformanceTrace(
-  scopeKey: string,
-): PerformanceTrace | null {
-  const now = Date.now();
-  prunePendingTraceQueue(scopeKey, now);
-  const queue = pendingTraceQueueByScope.get(scopeKey);
-  if (!queue || queue.length === 0) return null;
-  const [first, ...rest] = queue;
-  if (rest.length === 0) {
-    pendingTraceQueueByScope.delete(scopeKey);
-  } else {
-    pendingTraceQueueByScope.set(scopeKey, rest);
-  }
-  return {
-    traceId: first.traceId,
-    op: first.op,
-    scopeKey: first.scopeKey,
-    taskListId: first.taskListId,
-    taskId: first.taskId,
-    startedAt: first.startedAt,
-  };
-}
-
 function createStore() {
   type TaskListTransformCacheEntry = {
     source: TaskListStore;
@@ -234,16 +152,6 @@ function createStore() {
       taskInsertPosition: settingsStore.taskInsertPosition,
       autoSort: settingsStore.autoSort,
     };
-    if (
-      cachedSettings &&
-      cachedSettings.theme === nextSettings.theme &&
-      cachedSettings.language === nextSettings.language &&
-      cachedSettings.taskInsertPosition === nextSettings.taskInsertPosition &&
-      cachedSettings.autoSort === nextSettings.autoSort
-    ) {
-      cachedSettingsSource = settingsStore;
-      return cachedSettings;
-    }
     cachedSettingsSource = settingsStore;
     cachedSettings = nextSettings;
     return nextSettings;
@@ -319,48 +227,12 @@ function createStore() {
 
   let currentAppState: AppState = initialAppState;
 
-  const logStorePerf = (
-    phase: string,
-    context: string,
-    trace: PerformanceTrace | null,
-    details: {
-      elapsedMs?: number;
-      transformMs?: number;
-      notifyMs?: number;
-      docChangeCount?: number;
-      listenerCount?: number;
-      skipped?: boolean;
-    } = {},
-  ) => {
-    if (!trace) return;
-    const payload = {
-      scope: "sdk.store",
-      phase,
-      context,
-      traceId: trace?.traceId ?? null,
-      op: trace?.op ?? null,
-      scopeKey: trace?.scopeKey ?? null,
-      taskListId: trace?.taskListId ?? null,
-      taskId: trace?.taskId ?? null,
-      ts: Date.now(),
-      ...details,
-    };
-    console.log(`[Perf][sdk.store] ${JSON.stringify(payload)}`);
-  };
-
   const getState = (): AppState => {
     return currentAppState;
   };
 
-  const commit = (
-    trace: PerformanceTrace | null = null,
-    context: string = "unknown",
-  ) => {
-    const commitStartedAt = performance.now();
-    logStorePerf("store.commit.start", context, trace);
-    const transformStartedAt = performance.now();
+  const commit = () => {
     const nextAppState = transform(data);
-    const transformMs = roundMs(performance.now() - transformStartedAt);
     const sameUser = currentAppState.user === nextAppState.user;
     const sameAuthStatus =
       currentAppState.authStatus === nextAppState.authStatus;
@@ -410,28 +282,11 @@ function createStore() {
       sameTaskLists &&
       sameSharedTaskListsById
     ) {
-      logStorePerf("store.commit.end", context, trace, {
-        elapsedMs: roundMs(performance.now() - commitStartedAt),
-        transformMs,
-        skipped: true,
-      });
       return;
     }
 
     currentAppState = nextAppState;
-    const notifyStartedAt = performance.now();
     listeners.forEach((listener) => listener(currentAppState));
-    const notifyMs = roundMs(performance.now() - notifyStartedAt);
-    logStorePerf("store.listeners.notified", context, trace, {
-      notifyMs,
-      listenerCount: listeners.size,
-    });
-    logStorePerf("store.commit.end", context, trace, {
-      elapsedMs: roundMs(performance.now() - commitStartedAt),
-      transformMs,
-      notifyMs,
-      skipped: false,
-    });
   };
 
   const logSnapshotError = (context: string, error: FirestoreError) => {
@@ -460,20 +315,19 @@ function createStore() {
     const settingsUnsub = onSnapshot(
       doc(db, "settings", uid),
       (snapshot) => {
-        logStorePerf("snapshot.received", "settings", null);
         if (snapshot.exists()) {
           data.settings = snapshot.data() as SettingsStore;
         } else {
           data.settings = null;
         }
         data.settingsStatus = "ready";
-        commit(null, "settings");
+        commit();
       },
       (error) => {
         logSnapshotError("settings", error);
         data.settingsStatus = "error";
         setStartupError("settings", error);
-        commit(null, "settings.error");
+        commit();
       },
     );
     unsubscribers.push(settingsUnsub);
@@ -481,22 +335,20 @@ function createStore() {
     const taskListOrderUnsub = onSnapshot(
       doc(db, "taskListOrder", uid),
       (snapshot) => {
-        const trace = consumePendingPerformanceTrace(`taskListOrder/${uid}`);
-        logStorePerf("snapshot.received", "taskListOrder", trace);
         if (snapshot.exists()) {
           data.taskListOrder = snapshot.data() as TaskListOrderStore;
         } else {
           data.taskListOrder = null;
         }
         data.taskListOrderStatus = "ready";
-        commit(trace, "taskListOrder");
+        commit();
         subscribeToTaskLists(data.taskListOrder);
       },
       (error) => {
         logSnapshotError("taskListOrder", error);
         data.taskListOrderStatus = "error";
         setStartupError("taskListOrder", error);
-        commit(null, "taskListOrder.error");
+        commit();
       },
     );
     unsubscribers.push(taskListOrderUnsub);
@@ -540,7 +392,7 @@ function createStore() {
 
     if (!taskListOrder || nextTaskListIds.length === 0) {
       if (taskListsChanged) {
-        commit(null, "taskLists.sync");
+        commit();
       }
       return;
     }
@@ -554,15 +406,10 @@ function createStore() {
       const taskListsUnsub = onSnapshot(
         query(collection(db, "taskLists"), where("__name__", "in", chunk)),
         (snapshot) => {
-          const snapshotStartedAt = performance.now();
           const nextTaskLists = { ...data.taskLists };
           let changed = false;
-          let trace: PerformanceTrace | null = null;
           snapshot.docChanges().forEach((change) => {
             const taskListId = change.doc.id;
-            if (!trace) {
-              trace = consumePendingPerformanceTrace(`taskLists/${taskListId}`);
-            }
             if (change.type === "removed") {
               if (
                 !Object.prototype.hasOwnProperty.call(nextTaskLists, taskListId)
@@ -581,13 +428,9 @@ function createStore() {
             nextTaskLists[taskListId] = taskListData;
             changed = true;
           });
-          logStorePerf("snapshot.received", "taskLists.chunk", trace, {
-            elapsedMs: roundMs(performance.now() - snapshotStartedAt),
-            docChangeCount: snapshot.docChanges().length,
-          });
           if (!changed) return;
           data.taskLists = nextTaskLists;
-          commit(trace, "taskLists.chunk");
+          commit();
         },
         (error) => logSnapshotError("taskLists (chunk)", error),
       );
@@ -602,15 +445,13 @@ function createStore() {
     const unsubscribe = onSnapshot(
       doc(db, "taskLists", taskListId),
       (snapshot) => {
-        const trace = consumePendingPerformanceTrace(`taskLists/${taskListId}`);
-        logStorePerf("snapshot.received", "taskLists.shared", trace);
         if (snapshot.exists()) {
           data.taskLists[taskListId] = snapshot.data() as TaskListStore;
         } else {
           delete data.taskLists[taskListId];
           removeTaskListFromCache(taskListId);
         }
-        commit(trace, "taskLists.shared");
+        commit();
       },
       (error) => logSnapshotError(`sharedTaskList (${taskListId})`, error),
     );
@@ -642,9 +483,8 @@ function createStore() {
       data.startupError = null;
       taskListIdsKey = null;
       resetTaskListCaches();
-      pendingTraceQueueByScope.clear();
     }
-    commit(null, "authStateChanged");
+    commit();
   });
 
   const store = {

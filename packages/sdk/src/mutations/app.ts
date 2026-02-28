@@ -17,70 +17,8 @@ import {
   TaskListStore,
   TaskListStoreTask,
 } from "../types";
-import { appStore, registerPendingPerformanceTrace } from "../store";
+import { appStore } from "../store";
 import { parseDateFromText } from "../utils/dateParser";
-
-type MutationOperation =
-  | "add_task"
-  | "toggle_task"
-  | "edit_task"
-  | "set_task_date"
-  | "update_task"
-  | "delete_task"
-  | "reorder_task"
-  | "sort_tasks"
-  | "delete_completed_tasks"
-  | "reorder_task_list";
-
-const roundMs = (value: number): number => {
-  return Math.round(value * 100) / 100;
-};
-
-const createTraceId = (operation: MutationOperation, key: string): string => {
-  return `${operation}:${key}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
-};
-
-const resolveTraceId = (
-  traceId: string | undefined,
-  operation: MutationOperation,
-  key: string,
-): string => {
-  return traceId ?? createTraceId(operation, key);
-};
-
-const logMutationPerf = (payload: {
-  phase: string;
-  op: MutationOperation;
-  traceId: string;
-  taskListId?: string;
-  taskId?: string;
-  elapsedMs?: number;
-  autoSortMs?: number;
-  writeFieldCount?: number;
-}) => {
-  console.log(
-    `[Perf][sdk.mutation] ${JSON.stringify({
-      scope: "sdk.mutation",
-      ts: Date.now(),
-      ...payload,
-    })}`,
-  );
-};
-
-const resolveUpdateTaskOperation = (
-  updates: Partial<Task>,
-): MutationOperation => {
-  if (updates.completed !== undefined) {
-    return "toggle_task";
-  }
-  if (updates.text !== undefined) {
-    return "edit_task";
-  }
-  if (updates.date !== undefined) {
-    return "set_task_date";
-  }
-  return "update_task";
-};
 
 function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
   const getDateValue = (task: TaskListStoreTask): number => {
@@ -134,32 +72,10 @@ export async function updateSettings(settings: Partial<Settings>) {
   );
 }
 
-/**
- * TaskList 並び順更新（ドラッグ&ドロップ時）
- * 浮動小数 order を使用し、ドラッグされた TaskList のみの order 更新で完結
- *
- * @param draggedTaskListId ドラッグされた TaskList ID
- * @param targetTaskListId ドロップ先 TaskList ID（この前に挿入）
- */
 export async function updateTaskListOrder(
   draggedTaskListId: string,
   targetTaskListId: string,
-  traceId?: string,
 ) {
-  const operation: MutationOperation = "reorder_task_list";
-  const resolvedTraceId = resolveTraceId(
-    traceId,
-    operation,
-    `${draggedTaskListId}:${targetTaskListId}`,
-  );
-  const startedAt = performance.now();
-  logMutationPerf({
-    phase: "mutation.start",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId: draggedTaskListId,
-  });
-
   const data = appStore.getData();
 
   const uid = auth.currentUser?.uid;
@@ -195,28 +111,7 @@ export async function updateTaskListOrder(
   taskListOrders.forEach((item, index) => {
     updateData[item.id] = { order: (index + 1) * 1.0 };
   });
-  registerPendingPerformanceTrace({
-    traceId: resolvedTraceId,
-    op: operation,
-    scopeKey: `taskListOrder/${uid}`,
-    startedAt,
-  });
-  logMutationPerf({
-    phase: "mutation.before_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId: draggedTaskListId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-    writeFieldCount: Object.keys(updateData).length,
-  });
   await updateDoc(doc(db, "taskListOrder", uid), updateData);
-  logMutationPerf({
-    phase: "mutation.after_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId: draggedTaskListId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-  });
 }
 
 export async function createTaskList(
@@ -302,9 +197,7 @@ export async function addTask(
   text: string,
   date: string = "",
   id?: string,
-  traceId?: string,
 ) {
-  const operation: MutationOperation = "add_task";
   const data = appStore.getData();
   const { date: parsedDate, text: parsedTextRaw } = parseDateFromText(
     text.trim(),
@@ -315,15 +208,6 @@ export async function addTask(
   if (normalizedText === "") throw new Error("Task text is empty");
 
   const taskId = id || generateTaskId();
-  const resolvedTraceId = resolveTraceId(traceId, operation, taskId);
-  const startedAt = performance.now();
-  logMutationPerf({
-    phase: "mutation.start",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId,
-  });
 
   const taskListData: TaskListStore = data.taskLists[taskListId];
   if (!taskListData) throw new Error("Task list not found");
@@ -347,14 +231,8 @@ export async function addTask(
 
   const reorderedTasks = [...tasks];
   reorderedTasks.splice(insertIndex, 0, newTask);
-  let autoSortMs: number | undefined;
   const normalizedTasks = autoSortEnabled
-    ? (() => {
-        const autoSortStartedAt = performance.now();
-        const next = getAutoSortedTasks(reorderedTasks);
-        autoSortMs = roundMs(performance.now() - autoSortStartedAt);
-        return next;
-      })()
+    ? getAutoSortedTasks(reorderedTasks)
     : reorderedTasks.map((task, index) => ({
         ...task,
         order: (index + 1) * 1.0,
@@ -390,34 +268,7 @@ export async function addTask(
   }
   updateData.history = history;
 
-  registerPendingPerformanceTrace({
-    traceId: resolvedTraceId,
-    op: operation,
-    scopeKey: `taskLists/${taskListId}`,
-    taskListId,
-    taskId,
-    startedAt,
-  });
-  logMutationPerf({
-    phase: "mutation.before_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-    autoSortMs,
-    writeFieldCount: Object.keys(updateData).length,
-  });
   await updateDoc(taskListRef, updateData);
-  logMutationPerf({
-    phase: "mutation.after_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-    autoSortMs,
-  });
 
   return taskId;
 }
@@ -426,7 +277,6 @@ export async function updateTask(
   taskListId: string,
   taskId: string,
   updates: Partial<Task>,
-  traceId?: string,
 ) {
   const normalizedUpdates: Partial<Task> = { ...updates };
   if (normalizedUpdates.text) {
@@ -443,16 +293,6 @@ export async function updateTask(
     throw new Error("Task text is empty");
   }
 
-  const operation = resolveUpdateTaskOperation(normalizedUpdates);
-  const resolvedTraceId = resolveTraceId(traceId, operation, taskId);
-  const startedAt = performance.now();
-  logMutationPerf({
-    phase: "mutation.start",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId,
-  });
   const now = Date.now();
   const data = appStore.getData();
   const autoSortEnabled = Boolean(data.settings?.autoSort);
@@ -463,32 +303,7 @@ export async function updateTask(
     Object.entries(normalizedUpdates).forEach(([key, value]) => {
       updateData[`tasks.${taskId}.${key}`] = value;
     });
-    registerPendingPerformanceTrace({
-      traceId: resolvedTraceId,
-      op: operation,
-      scopeKey: `taskLists/${taskListId}`,
-      taskListId,
-      taskId,
-      startedAt,
-    });
-    logMutationPerf({
-      phase: "mutation.before_write",
-      op: operation,
-      traceId: resolvedTraceId,
-      taskListId,
-      taskId,
-      elapsedMs: roundMs(performance.now() - startedAt),
-      writeFieldCount: Object.keys(updateData).length,
-    });
     await updateDoc(taskListRef, updateData);
-    logMutationPerf({
-      phase: "mutation.after_write",
-      op: operation,
-      traceId: resolvedTraceId,
-      taskListId,
-      taskId,
-      elapsedMs: roundMs(performance.now() - startedAt),
-    });
     return;
   }
 
@@ -498,9 +313,7 @@ export async function updateTask(
   const updatedTasks = Object.values(taskListData.tasks).map((task) =>
     task.id === taskId ? { ...task, ...normalizedUpdates } : task,
   );
-  const autoSortStartedAt = performance.now();
   const normalizedTasks = getAutoSortedTasks(updatedTasks);
-  const autoSortMs = roundMs(performance.now() - autoSortStartedAt);
 
   const updateData: Record<string, unknown> = { updatedAt: now };
   normalizedTasks.forEach((task) => {
@@ -510,51 +323,10 @@ export async function updateTask(
       updateData[`tasks.${task.id}.order`] = task.order;
     }
   });
-  registerPendingPerformanceTrace({
-    traceId: resolvedTraceId,
-    op: operation,
-    scopeKey: `taskLists/${taskListId}`,
-    taskListId,
-    taskId,
-    startedAt,
-  });
-  logMutationPerf({
-    phase: "mutation.before_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-    autoSortMs,
-    writeFieldCount: Object.keys(updateData).length,
-  });
   await updateDoc(taskListRef, updateData);
-  logMutationPerf({
-    phase: "mutation.after_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-    autoSortMs,
-  });
 }
 
-export async function deleteTask(
-  taskListId: string,
-  taskId: string,
-  traceId?: string,
-) {
-  const operation: MutationOperation = "delete_task";
-  const resolvedTraceId = resolveTraceId(traceId, operation, taskId);
-  const startedAt = performance.now();
-  logMutationPerf({
-    phase: "mutation.start",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId,
-  });
+export async function deleteTask(taskListId: string, taskId: string) {
   const now = Date.now();
   const data = appStore.getData();
   const autoSortEnabled = Boolean(data.settings?.autoSort);
@@ -565,32 +337,7 @@ export async function deleteTask(
       [`tasks.${taskId}`]: deleteField(),
       updatedAt: now,
     };
-    registerPendingPerformanceTrace({
-      traceId: resolvedTraceId,
-      op: operation,
-      scopeKey: `taskLists/${taskListId}`,
-      taskListId,
-      taskId,
-      startedAt,
-    });
-    logMutationPerf({
-      phase: "mutation.before_write",
-      op: operation,
-      traceId: resolvedTraceId,
-      taskListId,
-      taskId,
-      elapsedMs: roundMs(performance.now() - startedAt),
-      writeFieldCount: Object.keys(updateData).length,
-    });
     await updateDoc(taskListRef, updateData);
-    logMutationPerf({
-      phase: "mutation.after_write",
-      op: operation,
-      traceId: resolvedTraceId,
-      taskListId,
-      taskId,
-      elapsedMs: roundMs(performance.now() - startedAt),
-    });
     return;
   }
 
@@ -611,62 +358,14 @@ export async function deleteTask(
     updateData[`tasks.${task.id}.order`] = task.order;
   });
 
-  registerPendingPerformanceTrace({
-    traceId: resolvedTraceId,
-    op: operation,
-    scopeKey: `taskLists/${taskListId}`,
-    taskListId,
-    taskId,
-    startedAt,
-  });
-  logMutationPerf({
-    phase: "mutation.before_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-    writeFieldCount: Object.keys(updateData).length,
-  });
   await updateDoc(taskListRef, updateData);
-  logMutationPerf({
-    phase: "mutation.after_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-  });
 }
 
-/**
- * タスク並び順更新（ドラッグ&ドロップ時）
- * 浮動小数 order を使用し、ドラッグされたタスクのみの order 更新で完結
- *
- * @param taskListId タスクリスト ID
- * @param draggedTaskId ドラッグされたタスク ID
- * @param targetTaskId ドロップ先タスク ID（この前に挿入）
- */
 export async function updateTasksOrder(
   taskListId: string,
   draggedTaskId: string,
   targetTaskId: string,
-  traceId?: string,
 ) {
-  const operation: MutationOperation = "reorder_task";
-  const resolvedTraceId = resolveTraceId(
-    traceId,
-    operation,
-    `${draggedTaskId}:${targetTaskId}`,
-  );
-  const startedAt = performance.now();
-  logMutationPerf({
-    phase: "mutation.start",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId: draggedTaskId,
-  });
   const taskListData = await getTaskListData(taskListId);
   if (draggedTaskId === targetTaskId) return;
 
@@ -714,54 +413,15 @@ export async function updateTasksOrder(
       updateData[`tasks.${task.id}.order`] = (index + 1) * 1.0;
     });
   }
-  registerPendingPerformanceTrace({
-    traceId: resolvedTraceId,
-    op: operation,
-    scopeKey: `taskLists/${taskListId}`,
-    taskListId,
-    taskId: draggedTaskId,
-    startedAt,
-  });
-  logMutationPerf({
-    phase: "mutation.before_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId: draggedTaskId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-    writeFieldCount: Object.keys(updateData).length,
-  });
   await updateDoc(taskListRef, updateData);
-  logMutationPerf({
-    phase: "mutation.after_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    taskId: draggedTaskId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-  });
 }
 
-export async function sortTasks(
-  taskListId: string,
-  traceId?: string,
-): Promise<void> {
-  const operation: MutationOperation = "sort_tasks";
-  const resolvedTraceId = resolveTraceId(traceId, operation, taskListId);
-  const startedAt = performance.now();
-  logMutationPerf({
-    phase: "mutation.start",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-  });
+export async function sortTasks(taskListId: string): Promise<void> {
   const taskListData = await getTaskListData(taskListId);
   const tasks = Object.values(taskListData.tasks);
   if (tasks.length < 2) return;
 
-  const autoSortStartedAt = performance.now();
   const normalizedTasks = getAutoSortedTasks(tasks);
-  const autoSortMs = roundMs(performance.now() - autoSortStartedAt);
   const now = Date.now();
 
   const taskListRef = doc(db, "taskLists", taskListId);
@@ -769,46 +429,12 @@ export async function sortTasks(
   normalizedTasks.forEach((task) => {
     updateData[`tasks.${task.id}.order`] = task.order;
   });
-  registerPendingPerformanceTrace({
-    traceId: resolvedTraceId,
-    op: operation,
-    scopeKey: `taskLists/${taskListId}`,
-    taskListId,
-    startedAt,
-  });
-  logMutationPerf({
-    phase: "mutation.before_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-    autoSortMs,
-    writeFieldCount: Object.keys(updateData).length,
-  });
   await updateDoc(taskListRef, updateData);
-  logMutationPerf({
-    phase: "mutation.after_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-    autoSortMs,
-  });
 }
 
 export async function deleteCompletedTasks(
   taskListId: string,
-  traceId?: string,
 ): Promise<number> {
-  const operation: MutationOperation = "delete_completed_tasks";
-  const resolvedTraceId = resolveTraceId(traceId, operation, taskListId);
-  const startedAt = performance.now();
-  logMutationPerf({
-    phase: "mutation.start",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-  });
   const data = appStore.getData();
   const autoSortEnabled = Boolean(data.settings?.autoSort);
 
@@ -838,29 +464,7 @@ export async function deleteCompletedTasks(
     updateData[`tasks.${task.id}.order`] = task.order;
   });
 
-  registerPendingPerformanceTrace({
-    traceId: resolvedTraceId,
-    op: operation,
-    scopeKey: `taskLists/${taskListId}`,
-    taskListId,
-    startedAt,
-  });
-  logMutationPerf({
-    phase: "mutation.before_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-    writeFieldCount: Object.keys(updateData).length,
-  });
   await updateDoc(taskListRef, updateData);
-  logMutationPerf({
-    phase: "mutation.after_write",
-    op: operation,
-    traceId: resolvedTraceId,
-    taskListId,
-    elapsedMs: roundMs(performance.now() - startedAt),
-  });
 
   return completedTasks.length;
 }

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./auth": "./src/auth.ts",
+    "./firebase": "./src/firebase/index.ts",
     "./store": "./src/store.ts",
     "./types": "./src/types.ts",
     "./icons": "./src/icons.ts",

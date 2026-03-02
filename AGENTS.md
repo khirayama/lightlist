@@ -28,9 +28,14 @@
 
 - モノレポ: npm workspaces + Turbo (`turbo.json`)
 - React系依存（`react` / `react-dom` / `@types/react*`）は各 app (`apps/web`, `apps/native`) で管理し、ルート `overrides` では固定しない。共有ライブラリ (`packages/sdk`) は React を `peerDependencies` で要求する。
+- `packages/sdk` の `@lightlist/sdk/firebase` は package `exports` の `react-native` 条件で `src/firebase/index.native.ts` を解決し、Web では `src/firebase/index.ts` を解決する。
 - Web: `apps/web`（Next.js Pages Router + TypeScript + Tailwind）
 - Native: `apps/native`（Expo + React Native + NativeWind）
 - SDK: `packages/sdk`（Firebase Auth/Firestore、共通状態管理・ミューテーション）
+- タスクリストは `taskLists.memberCount` で保持ユーザー数を管理し、削除操作は「`taskListOrder` から外す」を基本とする。`memberCount` が 0 になった場合のみ `taskLists` 実体を削除する。
+- 共有権限モデルは「共有URLを知っているユーザーは未認証でも閲覧・編集可」を仕様として固定する。production readiness 評価で挙がった認可モデル再設計（item1）は 2026-03 時点で対応不要とする。
+- パスワードリセットURLは `NEXT_PUBLIC_PASSWORD_RESET_URL`（Web）または `EXPO_PUBLIC_PASSWORD_RESET_URL`（Native）が必須。未設定時はエラー。prod 設定で `localhost` を使わない。
+- Native のディープリンク scheme は `APP_ENV` に応じて `lightlist` / `lightlist-staging` / `lightlist-dev` を使う。
 - Web の主要ページ:
   - `apps/web/src/pages/index.tsx`（ランディング）
   - `apps/web/src/pages/login.tsx`（サインイン/サインアップ/リセット依頼）
@@ -38,6 +43,8 @@
   - `apps/web/src/pages/settings.tsx`
   - `apps/web/src/pages/password_reset.tsx`
   - `apps/web/src/pages/sharecodes/[sharecode].tsx`
+  - `apps/web/src/pages/404.tsx`（カスタム404ページ）
+  - `apps/web/src/pages/500.tsx`（カスタム500ページ）
 - 共通 import:
   - Web アプリ内: `@/*`
   - SDK: `@lightlist/sdk/*`
@@ -48,24 +55,35 @@
   - `npm run dev`（`turbo run dev`。`apps/web` と `apps/native` の dev を起動）
   - `npm run build`
   - `npm run format`
+  - `npm run lint`
   - `npm run typecheck`
   - `npm run deploy:firestore`
   - `npm run deploy:firestore:prod`
 - `apps/web`:
   - `npm run dev`
   - `npm run build`
+  - `npm run lint`
   - `npm run typecheck`
 - `apps/native`:
   - `npm run dev`
   - `npm run dev:lan`
   - `npm run dev:local`
+  - `npm run lint`
   - `npm run typecheck`
   - `npx expo install --check`（依存更新後の Expo SDK 互換性確認）
   - `npx expo install --fix`（`npm audit fix --force` 等で Expo 互換性が崩れた場合の再整列）
 - `packages/sdk`:
   - `npm run typecheck`
+  - `npm run lint`
   - `npm run deploy:firestore`
   - `npm run deploy:firestore:prod`
+
+## セキュリティ・品質ルール
+
+- `console.error` にユーザーメール等の PII（個人識別情報）を含めない。`userEmail` は必ずログから除外する。
+- `store.ts` の `unsubscribers` 配列は 0 番目が settings、1 番目が taskListOrder の購読解除関数で固定。2 番目以降がタスクリスト用。`TASK_LIST_UNSUBSCRIBERS_START_INDEX = 2` 定数でインデックスを管理する。
+- `ErrorBoundary` はクラスコンポーネントのため `withTranslation()` HOC で i18next を注入する（`useTranslation` フック不可）。
+- CI（`.github/workflows/quality.yml`）の `npm audit --audit-level=high` は必須ステップ。削除しない。
 
 ## 作業完了チェック
 

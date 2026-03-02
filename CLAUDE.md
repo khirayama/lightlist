@@ -20,6 +20,11 @@
 
 - モノレポ: `apps/web`（Next.js）/ `apps/native`（Expo）/ `packages/sdk`（Firebase 共通ロジック）
 - React系依存は `apps/web` / `apps/native` で個別管理し、`packages/sdk` は `react` を `peerDependencies` で要求する。
+- `@lightlist/sdk/firebase` は package `exports` の `react-native` 条件で `src/firebase/index.native.ts`、それ以外で `src/firebase/index.ts` を解決する。
+- タスクリストは `taskLists.memberCount` で保持ユーザー数を管理し、削除操作は `taskListOrder` からの離脱を基本とする（`memberCount` が 0 のときのみ実体削除）。
+- 共有権限モデルは「共有URLを知っているユーザーは未認証でも閲覧・編集可」を固定仕様とし、production readiness 評価の item1（認可モデル再設計）は 2026-03 時点で対応不要とする。
+- パスワードリセットURLは `NEXT_PUBLIC_PASSWORD_RESET_URL`（Web）または `EXPO_PUBLIC_PASSWORD_RESET_URL`（Native）が必須。prod 設定で `localhost` を使わない。
+- Native のディープリンク scheme は `APP_ENV` ごとに `lightlist` / `lightlist-staging` / `lightlist-dev` を使う。
 - Web 認証ページ: `apps/web/src/pages/login.tsx`
 - 共有ページ: `apps/web/src/pages/sharecodes/[sharecode].tsx`
 - SDK の Firestore デプロイ: `packages/sdk` の `deploy:firestore` 系スクリプト

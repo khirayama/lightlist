@@ -6,14 +6,13 @@
   },
   "workspaces": {
     "apps/web": {
-      "entry": ["public/sw.js"]
+      "entry": ["public/sw.js"],
+      "ignoreDependencies": ["firebase"]
     },
     "apps/native": {
       "entry": ["app.json", "babel.config.js", "metro.config.js"],
-      "ignoreDependencies": ["@expo/ngrok", "expo-status-bar"]
+      "ignoreDependencies": ["@expo/ngrok", "expo-status-bar", "firebase"]
     },
-    "packages/sdk": {
-      "entry": ["src/firebase/index.native.ts"]
-    }
+    "packages/sdk": {}
   }
 }

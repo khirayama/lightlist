@@ -23,7 +23,23 @@ export default {
     },
     extend: {
       colors: {
-        primary: "#ffffff",
+        background: { DEFAULT: "#F9FAFB", dark: "#030712" },
+        surface: { DEFAULT: "#FFFFFF", dark: "#111827" },
+        text: { DEFAULT: "#111827", dark: "#F9FAFB" },
+        muted: { DEFAULT: "#4B5563", dark: "#D1D5DB" },
+        border: { DEFAULT: "#D1D5DB", dark: "#374151" },
+        primary: { DEFAULT: "#111827", dark: "#F9FAFB" },
+        primaryText: { DEFAULT: "#F9FAFB", dark: "#111827" },
+        error: { DEFAULT: "#DC2626", dark: "#EF4444" },
+        success: { DEFAULT: "#059669", dark: "#10B981" },
+        inputBackground: { DEFAULT: "#FFFFFF", dark: "#111827" },
+        placeholder: { DEFAULT: "#9CA3AF", dark: "#6B7280" },
+        coral: "#F87171",
+        amber: "#FBBF24",
+        emerald: "#34D399",
+        sky: "#38BDF8",
+        indigo: "#818CF8",
+        violet: "#A78BFA",
       },
       fontFamily: {
         sans: [

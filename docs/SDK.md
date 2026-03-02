@@ -16,6 +16,7 @@
 - `react` は `peerDependencies` で要求し、利用側アプリ（`apps/web` / `apps/native`）が提供する。
 - SDK 内の型チェック・ローカル開発のために `devDependencies` に `react` を持つ。
 - `react-dom` は SDK 実装で使用していないため、SDK の `dependencies` / `peerDependencies` には含めない。
+- `@lightlist/sdk/firebase` の `exports` はプラットフォーム別に解決し、Web は `src/firebase/index.ts`、React Native は `src/firebase/index.native.ts` を使う。
 
 ## アーキテクチャ
 
@@ -72,20 +73,16 @@
 #### 主要なロジック
 
 - **楽観的更新**: ストア自体はサーバーデータを正としますが、各ミューテーション関数内では、書き込み完了を待たずにUIへの反映（または完了後の速やかな反映）を意識した設計となっています。
+- **トランザクション非使用の方針**: `mutations/app.ts` のタスク操作（追加・更新・削除・並び替え）では、Firestore トランザクション（`runTransaction`）を意図的に使用しない。理由は `onSnapshot` の挙動保護のため。トランザクション内で Firestore ドキュメントを読み取ると、完了前に `onSnapshot` がキャンセル・リセットされ、UI の一時的なちらつきやデータ欠落が発生する。これを避けるため、直接の `updateDoc` / `writeBatch` による書き込みを採用している。今後もこの設計を変更しないこと（トランザクション導入は禁止）。
 - **並び替えフックの契約**: `useOptimisticReorder` の戻り値は `items` / `reorder` の 2 つで、呼び出し側からローカル配列を直接差し替える API は持たせない。
 - **並び替え同期の最適化**: `useOptimisticReorder` は通常時に `initialItems` を直接参照し、並び替え中のみローカルの optimistic state を保持することで、非並び替え更新時の不要な再レンダーを抑制します。
 - **ドラッグ中同期の抑制**: `useOptimisticReorder` は `suspendExternalSync` オプションで外部同期の取り込みを一時停止でき、Native のタスクドラッグ中に snapshot が差し替わるケースの表示競合を防ぎます。
 - **タスク並び替え書き込みの最小化**: `updateTasksOrder` は通常ドラッグ対象 1 件の `order` のみを書き込み、前後ギャップが不足する場合だけ全体を再採番します。
 - **自動ソート (Auto Sort)**: `settings.autoSort` が有効な場合、タスクの更新時に「未完了 > 日付 > オーダー」の優先順位で自動的に並び替えが行われます。
 - **オーダー管理**: タスクおよびリストの並び順は `order` (number) フィールドで管理され、浮動小数点数を利用して挿入時の再採番コストを低減、または必要に応じてリバランス（連番の再割り当て）を行います。
-- **性能計測トレース**: `mutations/app.ts` の主要更新 API は `traceId?: string` を受け取り、`registerPendingPerformanceTrace` で store 側へ引き継いだうえで `mutation.start` / `mutation.before_write` / `mutation.after_write` を出力します。
-
-#### パフォーマンス計測ログ
-
-- `src/store.ts` は `scopeKey` 単位で pending trace をキュー管理し、対応する `onSnapshot` 受信時に `consumePendingPerformanceTrace` で取り出します。
-- `commit(trace, context)` は `store.commit.start` / `store.listeners.notified` / `store.commit.end` を出力し、`traceId` 付きで遅延区間を可視化します。
-- `taskListOrder` / `taskLists`（chunk/shared）で `snapshot.received` を出力し、mutation の書き込み完了後にどの時点で購読反映されたかを確認できます。
-- ログ形式は JSON 文字列で統一し、最低限 `scope` / `phase` / `traceId` / `op` / `elapsedMs` / `ts` を含みます。
+- **保持者管理 (`memberCount`)**: `TaskListStore.memberCount` でタスクリスト保持ユーザー数を管理します。`addSharedTaskListToOrder` は transaction で `memberCount` を +1、`deleteTaskList` は `taskListOrder` から離脱させて `memberCount` を -1 し、0 になった場合のみ `taskLists` 実体と `shareCodes` を削除します。
+- **共有権限ポリシー**: 共有URLを知っているユーザーは、認証の有無にかかわらず共有リストを閲覧・編集できます（現行仕様）。
+- **Production Readiness 方針（item1）**: 認可モデル再設計（`taskListOrder` 依存の権限モデルの見直し）は、2026-03 時点では対応不要と判断し、現行仕様を維持します。
 
 ## モジュール構成
 
@@ -140,6 +137,7 @@ export type TaskList = {
   history: string[];   // 入力履歴（最大300件）
   shareCode: string | null;
   background: string | null;
+  memberCount: number; // このリストを保持しているユーザー数
   createdAt: number;
   updatedAt: number;
 };

@@ -5,6 +5,7 @@
 - `npm run dev`: 全ワークスペースの開発サーバー起動
 - `npm run build`: 全ワークスペースのビルド
 - `npm run format`: 全ワークスペースの整形
+- `npm run lint`: 全ワークスペースの lint
 - `npm run knip`: 未使用の依存関係・export・ファイル検出
 - `npm run typecheck`: 全ワークスペースの型チェック
 - `npm run deploy:firestore`: SDK の Firestore ルール/インデックスをデプロイ（dev）
@@ -29,6 +30,7 @@
 - `npm run build`
 - `npm run build:prod`
 - `npm run format`
+- `npm run lint`
 - `npm run start`
 - `npm run start:prod`
 - `npm run typecheck`
@@ -45,12 +47,14 @@
 - `npm run android`
 - `npm run ios`
 - `npm run format`
+- `npm run lint`
 - `npm run typecheck`
 
 ## packages/sdk
 
 - `cd packages/sdk`
 - `npm run format`
+- `npm run lint`
 - `npm run typecheck`
 - `npm run deploy:firestore`
 - `npm run deploy:firestore:prod`
@@ -61,10 +65,23 @@
 - `npm run build:prod`: `.env.prod` を `.env.production` にコピーしてビルド
 - `npm run start:prod`: `.env.prod` を `.env.production` にコピーして起動
 - 必要な環境変数は `docs/AUTHENTICATION.md` を参照する
+- `NEXT_PUBLIC_PASSWORD_RESET_URL` は必須。`localhost` は本番設定として使用しない
+
+## 品質ゲート
+
+- 各 workspace の `lint` は `eslint . --max-warnings=0` を実行する
+- CI は `.github/workflows/quality.yml` で `npm run lint` / `npm run typecheck` / `npm run build` を実行する
+
+## Production Readiness 方針（2026-03）
+
+- 共有権限モデル（共有URLを知っている未認証ユーザーの閲覧・編集を許可）は現行仕様として維持する
+- production readiness 評価で挙がった「認可モデル再設計（item1）」は現時点で対応不要とし、この方針を仕様として固定する
+- `next/font/google` はビルド時に外部取得が必要なため、Web build にはネットワーク到達性が前提となる
 
 ## Firestore 購読
 
 - `taskListOrder` のスナップショット更新時に、購読対象の `taskLists` を再計算して購読を更新する
+- `taskLists` は `memberCount` で保持ユーザー数を管理する。`addSharedTaskListToOrder` で `+1`、`deleteTaskList`（一覧から外す）で `-1` し、0 になった場合のみリスト実体を削除する
 
 ## 状態管理の最適化 (SDK)
 
@@ -86,6 +103,7 @@
 ## 未使用コード検出
 
 - ルートの `knip.json` でワークスペースごとのエントリを定義し、`npm run knip` で未使用コードを検出する。
+- コンポーネント内でのみ利用する型・interfaceは `export` せず、ファイルローカル定義にする。
 - `apps/native` の `babel.config.js` / `metro.config.js`、`apps/web/public/sw.js`、`packages/sdk/src/firebase/index.native.ts` は慣習的エントリとして検査対象に含める。
 - Expo 設定ファイル由来の `unlisted` は `knip.json` の `ignoreIssues` で管理する。
 

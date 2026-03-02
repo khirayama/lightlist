@@ -12,14 +12,13 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "format": "prettier --write .",
-    "lint": "echo 'No lint script defined for native'",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@lightlist/sdk": "*",
     "@react-native-community/datetimepicker": "8.4.4",
-    "@react-native/virtualized-lists": "^0.81.5",
     "@react-navigation/drawer": "^7.8.1",
     "@react-navigation/native": "^7.1.28",
     "@react-navigation/native-stack": "^7.13.0",
@@ -27,7 +26,6 @@
     "expo-font": "~14.0.11",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
-    "firebase-tools": "^15.7.0",
     "i18next": "^25.8.13",
     "nativewind": "^4.2.2",
     "react": "19.1.0",

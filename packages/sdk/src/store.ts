@@ -110,6 +110,8 @@ function createStore() {
       history: listData.history,
       shareCode: listData.shareCode,
       background: listData.background,
+      memberCount:
+        typeof listData.memberCount === "number" ? listData.memberCount : 1,
       createdAt: listData.createdAt,
       updatedAt: listData.updatedAt,
     };
@@ -128,6 +130,7 @@ function createStore() {
       history: [],
       shareCode: null,
       background: null,
+      memberCount: 0,
       createdAt: 0,
       updatedAt: 0,
     };
@@ -213,6 +216,8 @@ function createStore() {
 
   const initialAppState = transform(initialData);
 
+  const TASK_LIST_UNSUBSCRIBERS_START_INDEX = 2;
+
   const listeners = new Set<StoreListener>();
   const unsubscribers: (() => void)[] = [];
   const sharedTaskListUnsubscribers = new Map<string, () => void>();
@@ -295,7 +300,6 @@ function createStore() {
       code: error.code,
       message: error.message,
       userUid: user?.uid,
-      userEmail: user?.email,
       timestamp: new Date().toISOString(),
     });
   };
@@ -365,7 +369,9 @@ function createStore() {
     if (taskListIdsKey === nextTaskListIdsKey) return;
     taskListIdsKey = nextTaskListIdsKey;
 
-    const taskListUnsubscribers = unsubscribers.splice(2);
+    const taskListUnsubscribers = unsubscribers.splice(
+      TASK_LIST_UNSUBSCRIBERS_START_INDEX,
+    );
     taskListUnsubscribers.forEach((unsub) => unsub());
 
     const keepTaskListIds = new Set<string>([

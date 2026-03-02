@@ -8,7 +8,7 @@ import {
   deleteUser,
   ActionCodeSettings,
 } from "firebase/auth";
-import { collection, doc, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, writeBatch } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
 import {
@@ -18,6 +18,19 @@ import {
   Language,
 } from "../types";
 import { appStore } from "../store";
+import { deleteTaskList } from "./app";
+
+const requirePasswordResetUrl = (): string => {
+  const resetUrl =
+    process.env.NEXT_PUBLIC_PASSWORD_RESET_URL ||
+    process.env.EXPO_PUBLIC_PASSWORD_RESET_URL;
+  if (!resetUrl) {
+    throw new Error(
+      "Missing environment variable: NEXT_PUBLIC_PASSWORD_RESET_URL or EXPO_PUBLIC_PASSWORD_RESET_URL",
+    );
+  }
+  return resetUrl;
+};
 
 export async function signUp(
   email: string,
@@ -50,6 +63,7 @@ export async function signUp(
     history: [],
     shareCode: null,
     background: null,
+    memberCount: 1,
     createdAt: now,
     updatedAt: now,
   };
@@ -81,15 +95,18 @@ export async function sendPasswordResetEmail(
 ) {
   const data = appStore.getData();
 
-  const resetUrl =
-    process.env.NEXT_PUBLIC_PASSWORD_RESET_URL || "http://localhost:3000";
   const actionCodeSettings: ActionCodeSettings = {
-    url: resetUrl,
+    url: requirePasswordResetUrl(),
     handleCodeInApp: false,
   };
   const languageToUse = language || data.settings?.language || "ja";
+  const previousLanguageCode = auth.languageCode;
   auth.languageCode = languageToUse;
-  await firebaseSendPasswordResetEmail(auth, email, actionCodeSettings);
+  try {
+    await firebaseSendPasswordResetEmail(auth, email, actionCodeSettings);
+  } finally {
+    auth.languageCode = previousLanguageCode;
+  }
 }
 
 export async function verifyPasswordResetCode(code: string) {
@@ -101,19 +118,25 @@ export async function confirmPasswordReset(code: string, newPassword: string) {
 }
 
 export async function deleteAccount() {
-  const data = appStore.getData();
-
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("No user logged in");
 
+  const taskListOrderRef = doc(db, "taskListOrder", uid);
+  const taskListOrderSnapshot = await getDoc(taskListOrderRef);
+  if (taskListOrderSnapshot.exists()) {
+    const taskListOrderData =
+      taskListOrderSnapshot.data() as TaskListOrderStore;
+    const taskListIds = Object.keys(taskListOrderData).filter(
+      (key) => key !== "createdAt" && key !== "updatedAt",
+    );
+    await Promise.allSettled(
+      taskListIds.map((taskListId) => deleteTaskList(taskListId)),
+    );
+  }
+
   const batch = writeBatch(db);
   batch.delete(doc(db, "settings", uid));
-  batch.delete(doc(db, "taskListOrder", uid));
-
-  const taskListIds = Object.keys(data.taskLists);
-  taskListIds.forEach((id) => {
-    batch.delete(doc(db, "taskLists", id));
-  });
+  batch.delete(taskListOrderRef);
 
   await batch.commit();
   await deleteUser(auth.currentUser!);

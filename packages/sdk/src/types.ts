@@ -46,6 +46,7 @@ export type TaskListStore = {
   history: string[];
   shareCode: string | null;
   background: string | null;
+  memberCount: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -73,6 +74,7 @@ export type TaskList = {
   history: string[];
   shareCode: string | null;
   background: string | null;
+  memberCount: number;
   createdAt: number;
   updatedAt: number;
 };

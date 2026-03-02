@@ -20,6 +20,47 @@ import {
 import { appStore } from "../store";
 import { parseDateFromText } from "../utils/dateParser";
 
+const TASK_LIST_ORDER_METADATA_KEYS = new Set(["createdAt", "updatedAt"]);
+
+function assertTaskListStore(data: unknown, id: string): TaskListStore {
+  if (data == null) throw new Error(`TaskList not found: ${id}`);
+  const d = data as Record<string, unknown>;
+  if (
+    typeof d.name !== "string" ||
+    typeof d.tasks !== "object" ||
+    d.tasks === null ||
+    typeof d.memberCount !== "number"
+  ) {
+    throw new Error(`TaskList data is malformed: ${id}`);
+  }
+  return data as TaskListStore;
+}
+
+function assertTaskListOrderStore(
+  data: unknown,
+  uid: string,
+): TaskListOrderStore {
+  if (data == null) throw new Error(`TaskListOrder not found: ${uid}`);
+  return data as TaskListOrderStore;
+}
+
+const getTaskListOrderEntries = (taskListOrder: TaskListOrderStore) => {
+  return Object.entries(taskListOrder).filter(
+    ([key]) => !TASK_LIST_ORDER_METADATA_KEYS.has(key),
+  );
+};
+
+const getValidMemberCount = (taskList: TaskListStore): number => {
+  if (!Number.isInteger(taskList.memberCount) || taskList.memberCount < 1) {
+    throw new Error("Invalid member count");
+  }
+  return taskList.memberCount;
+};
+
+const normalizeShareCode = (shareCode: string): string => {
+  return shareCode.trim().toUpperCase();
+};
+
 function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
   const getDateValue = (task: TaskListStoreTask): number => {
     if (!task.date) return Number.POSITIVE_INFINITY;
@@ -54,7 +95,7 @@ async function getTaskListData(taskListId: string): Promise<TaskListStore> {
 
   const snapshot = await getDoc(doc(db, "taskLists", taskListId));
   if (!snapshot.exists()) throw new Error("Task list not found");
-  return snapshot.data() as TaskListStore;
+  return assertTaskListStore(snapshot.data(), taskListId);
 }
 
 export async function updateSettings(settings: Partial<Settings>) {
@@ -85,7 +126,7 @@ export async function updateTaskListOrder(
   if (!data.taskListOrder) throw new Error("TaskListOrder not found");
 
   const taskListOrders = Object.entries(data.taskListOrder)
-    .filter(([key]) => key !== "createdAt" && key !== "updatedAt")
+    .filter(([key]) => !TASK_LIST_ORDER_METADATA_KEYS.has(key))
     .map(([id, value]) => ({
       id,
       order: (value as { order: number }).order,
@@ -127,7 +168,7 @@ export async function createTaskList(
 
   const taskListOrders =
     Object.entries(data.taskListOrder || {})
-      .filter(([key]) => key !== "createdAt" && key !== "updatedAt")
+      .filter(([key]) => !TASK_LIST_ORDER_METADATA_KEYS.has(key))
       .map(([, value]) => (value as { order: number }).order) || [];
 
   let newOrder: number;
@@ -146,6 +187,7 @@ export async function createTaskList(
     history: [],
     shareCode: null,
     background,
+    memberCount: 1,
     createdAt: now,
     updatedAt: now,
   };
@@ -163,7 +205,7 @@ export async function createTaskList(
 
 export async function updateTaskList(
   taskListId: string,
-  updates: Partial<Omit<TaskListStore, "id" | "createdAt" | "updatedAt">>,
+  updates: Partial<Pick<TaskListStore, "name" | "background">>,
 ) {
   const now = Date.now();
   const updateData: Record<string, unknown> = {
@@ -177,15 +219,54 @@ export async function deleteTaskList(taskListId: string) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("No user logged in");
 
-  const now = Date.now();
+  await runTransaction(db, async (transaction) => {
+    const now = Date.now();
+    const taskListOrderRef = doc(db, "taskListOrder", uid);
+    const taskListOrderSnapshot = await transaction.get(taskListOrderRef);
+    if (!taskListOrderSnapshot.exists()) {
+      throw new Error("TaskListOrder not found");
+    }
 
-  const batch = writeBatch(db);
-  batch.delete(doc(db, "taskLists", taskListId));
-  batch.update(doc(db, "taskListOrder", uid), {
-    [taskListId]: deleteField(),
-    updatedAt: now,
+    const taskListOrderData = assertTaskListOrderStore(
+      taskListOrderSnapshot.data(),
+      uid,
+    );
+    if (!taskListOrderData[taskListId]) {
+      throw new Error("Task list not found");
+    }
+
+    const taskListRef = doc(db, "taskLists", taskListId);
+    const taskListSnapshot = await transaction.get(taskListRef);
+
+    transaction.update(taskListOrderRef, {
+      [taskListId]: deleteField(),
+      updatedAt: now,
+    });
+
+    if (!taskListSnapshot.exists()) {
+      return;
+    }
+
+    const taskListData = assertTaskListStore(
+      taskListSnapshot.data(),
+      taskListId,
+    );
+    const currentMemberCount = getValidMemberCount(taskListData);
+    const nextMemberCount = currentMemberCount - 1;
+
+    if (nextMemberCount <= 0) {
+      if (taskListData.shareCode) {
+        transaction.delete(doc(db, "shareCodes", taskListData.shareCode));
+      }
+      transaction.delete(taskListRef);
+      return;
+    }
+
+    transaction.update(taskListRef, {
+      memberCount: nextMemberCount,
+      updatedAt: now,
+    });
   });
-  await batch.commit();
 }
 
 export function generateTaskId(): string {
@@ -478,6 +559,8 @@ function generateRandomShareCode(length: number = 8): string {
   return code;
 }
 
+const MAX_SHARE_CODE_ATTEMPTS = 10;
+
 export async function generateShareCode(taskListId: string): Promise<string> {
   const data = appStore.getData();
 
@@ -485,7 +568,7 @@ export async function generateShareCode(taskListId: string): Promise<string> {
     throw new Error("Task list not found");
   }
 
-  while (true) {
+  for (let attempt = 0; attempt < MAX_SHARE_CODE_ATTEMPTS; attempt++) {
     const shareCode = generateRandomShareCode();
     const reserved = await runTransaction(
       db,
@@ -501,8 +584,10 @@ export async function generateShareCode(taskListId: string): Promise<string> {
         if (!taskListSnapshot.exists()) {
           throw new Error("Task list not found");
         }
-        const currentShareCode = (taskListSnapshot.data() as TaskListStore)
-          .shareCode;
+        const currentShareCode = assertTaskListStore(
+          taskListSnapshot.data(),
+          taskListId,
+        ).shareCode;
         if (currentShareCode) {
           transaction.delete(doc(db, "shareCodes", currentShareCode));
         }
@@ -518,6 +603,8 @@ export async function generateShareCode(taskListId: string): Promise<string> {
       return reserved;
     }
   }
+
+  throw new Error("Failed to generate a unique share code. Please try again.");
 }
 
 export async function removeShareCode(taskListId: string): Promise<void> {
@@ -534,8 +621,10 @@ export async function removeShareCode(taskListId: string): Promise<void> {
     if (!taskListSnapshot.exists()) {
       throw new Error("Task list not found");
     }
-    const currentShareCode = (taskListSnapshot.data() as TaskListStore)
-      .shareCode;
+    const currentShareCode = assertTaskListStore(
+      taskListSnapshot.data(),
+      taskListId,
+    ).shareCode;
     if (currentShareCode) {
       transaction.delete(doc(db, "shareCodes", currentShareCode));
     }
@@ -549,68 +638,96 @@ export async function removeShareCode(taskListId: string): Promise<void> {
 export async function fetchTaskListIdByShareCode(
   shareCode: string,
 ): Promise<string | null> {
-  const shareCodeRef = doc(db, "shareCodes", shareCode);
+  const normalizedShareCode = normalizeShareCode(shareCode);
+  if (!normalizedShareCode) {
+    return null;
+  }
+
+  const shareCodeRef = doc(db, "shareCodes", normalizedShareCode);
   const shareCodeSnapshot = await getDoc(shareCodeRef);
   if (!shareCodeSnapshot.exists()) {
     return null;
   }
 
-  const data = shareCodeSnapshot.data() as { taskListId?: string };
-  return data.taskListId ?? null;
+  const data = shareCodeSnapshot.data() as { taskListId?: string } | undefined;
+  return data?.taskListId ?? null;
 }
 
 export async function fetchTaskListByShareCode(
   shareCode: string,
 ): Promise<TaskListStore | null> {
-  const shareCodeRef = doc(db, "shareCodes", shareCode);
+  const normalizedShareCode = normalizeShareCode(shareCode);
+  if (!normalizedShareCode) {
+    return null;
+  }
+
+  const shareCodeRef = doc(db, "shareCodes", normalizedShareCode);
   const shareCodeSnapshot = await getDoc(shareCodeRef);
   if (!shareCodeSnapshot.exists()) {
     return null;
   }
 
-  const { taskListId } = shareCodeSnapshot.data() as { taskListId: string };
+  const shareData = shareCodeSnapshot.data() as
+    | { taskListId: string }
+    | undefined;
+  if (!shareData?.taskListId) return null;
+  const { taskListId } = shareData;
   const taskListRef = doc(db, "taskLists", taskListId);
   const taskListSnapshot = await getDoc(taskListRef);
   if (!taskListSnapshot.exists()) {
     return null;
   }
 
-  return taskListSnapshot.data() as TaskListStore;
+  return assertTaskListStore(taskListSnapshot.data(), taskListId);
 }
 
 export async function addSharedTaskListToOrder(
   taskListId: string,
 ): Promise<void> {
-  const data = appStore.getData();
-
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("No user logged in");
 
-  if (!data.taskListOrder) {
-    throw new Error("TaskListOrder not found");
-  }
+  await runTransaction(db, async (transaction) => {
+    const now = Date.now();
+    const taskListOrderRef = doc(db, "taskListOrder", uid);
+    const taskListOrderSnapshot = await transaction.get(taskListOrderRef);
+    if (!taskListOrderSnapshot.exists()) {
+      throw new Error("TaskListOrder not found");
+    }
 
-  if (data.taskListOrder[taskListId]) {
-    throw new Error("This task list is already in your order");
-  }
+    const taskListOrderData = assertTaskListOrderStore(
+      taskListOrderSnapshot.data(),
+      uid,
+    );
+    if (taskListOrderData[taskListId]) {
+      throw new Error("This task list is already in your order");
+    }
 
-  const taskListOrders =
-    Object.entries(data.taskListOrder)
-      .filter(([key]) => key !== "createdAt" && key !== "updatedAt")
-      .map(([, value]) => (value as { order: number }).order) || [];
+    const taskListOrders = getTaskListOrderEntries(taskListOrderData).map(
+      ([, value]) => (value as { order: number }).order,
+    );
 
-  let newOrder: number;
-  if (taskListOrders.length === 0) {
-    newOrder = 1.0;
-  } else {
-    const maxOrder = Math.max(...taskListOrders);
-    newOrder = maxOrder + 1.0;
-  }
+    const newOrder =
+      taskListOrders.length === 0 ? 1.0 : Math.max(...taskListOrders) + 1.0;
 
-  const now = Date.now();
+    const taskListRef = doc(db, "taskLists", taskListId);
+    const taskListSnapshot = await transaction.get(taskListRef);
+    if (!taskListSnapshot.exists()) {
+      throw new Error("Task list not found");
+    }
+    const taskListData = assertTaskListStore(
+      taskListSnapshot.data(),
+      taskListId,
+    );
+    const currentMemberCount = getValidMemberCount(taskListData);
 
-  await updateDoc(doc(db, "taskListOrder", uid), {
-    [taskListId]: { order: newOrder },
-    updatedAt: now,
+    transaction.update(taskListOrderRef, {
+      [taskListId]: { order: newOrder },
+      updatedAt: now,
+    });
+    transaction.update(taskListRef, {
+      memberCount: currentMemberCount + 1,
+      updatedAt: now,
+    });
   });
 }

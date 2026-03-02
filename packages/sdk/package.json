@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./firebase": "./src/firebase/index.ts",
+    "./firebase": {
+      "react-native": "./src/firebase/index.native.ts",
+      "default": "./src/firebase/index.ts"
+    },
     "./store": "./src/store.ts",
     "./types": "./src/types.ts",
     "./icons": "./src/icons.ts",
@@ -17,7 +20,7 @@
     "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes",
     "deploy:firestore:prod": "firebase deploy --only firestore:rules,firestore:indexes --project prod",
     "format": "prettier --write .",
-    "lint": "echo 'No lint script defined for sdk'",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {

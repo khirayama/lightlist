@@ -7,14 +7,14 @@ export type FormErrors = Partial<{
   general: string;
 }>;
 
-export type AuthFormData = {
+type AuthFormData = {
   email: string;
   password: string;
   confirmPassword?: string;
   requirePasswordConfirm?: boolean;
 };
 
-export type PasswordFormData = {
+type PasswordFormData = {
   password: string;
   confirmPassword: string;
 };
@@ -37,7 +37,7 @@ export const validateAuthForm = (
 
   if (!data.password) {
     errors.password = t("auth.validation.password.required");
-  } else if (data.requirePasswordConfirm && data.password.length < 6) {
+  } else if (data.requirePasswordConfirm && data.password.length < 8) {
     errors.password = t("auth.validation.password.tooShort");
   }
 
@@ -60,7 +60,7 @@ export const validatePasswordForm = (
 
   if (!data.password) {
     errors.password = t("auth.validation.password.required");
-  } else if (data.password.length < 6) {
+  } else if (data.password.length < 8) {
     errors.password = t("auth.validation.password.tooShort");
   }
 

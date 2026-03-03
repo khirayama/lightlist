@@ -14,7 +14,9 @@
     "./mutations/auth": "./src/mutations/auth.ts",
     "./mutations/app": "./src/mutations/app.ts",
     "./hooks/useOptimisticReorder": "./src/hooks/useOptimisticReorder.ts",
-    "./utils/dateParser": "./src/utils/dateParser.ts"
+    "./utils/dateParser": "./src/utils/dateParser.ts",
+    "./utils/errors": "./src/utils/errors.ts",
+    "./utils/validation": "./src/utils/validation.ts"
   },
   "scripts": {
     "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes",

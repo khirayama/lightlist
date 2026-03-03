@@ -1,12 +1,13 @@
 {
-  "title": "LightList",
-  "copyright": "© 2024 LightList. All rights reserved.",
+  "title": "Lightlist",
+  "copyright": "© 2024 Lightlist. All rights reserved.",
   "common": {
     "loading": "読み込み中...",
     "back": "戻る",
     "cancel": "キャンセル",
     "deleting": "削除中...",
     "close": "閉じる",
+    "skipToMain": "メインコンテンツへ移動",
     "add": "追加",
     "copy": "コピー",
     "copied": "コピーしました",
@@ -29,7 +30,7 @@
       },
       "password": {
         "required": "パスワードを入力してください",
-        "tooShort": "パスワードは6文字以上である必要があります"
+        "tooShort": "パスワードは8文字以上である必要があります"
       },
       "confirmPassword": {
         "required": "パスワード確認を入力してください",
@@ -40,7 +41,7 @@
       "invalidCredential": "メールアドレスまたはパスワードが正しくありません",
       "userNotFound": "このメールアドレスで登録されたアカウントはありません",
       "emailAlreadyInUse": "このメールアドレスは既に登録されています",
-      "weakPassword": "パスワードが弱すぎます（6文字以上推奨）",
+      "weakPassword": "パスワードが弱すぎます（8文字以上推奨）",
       "invalidEmail": "メールアドレスの形式が正しくありません",
       "operationNotAllowed": "この認証方法は利用できません",
       "tooManyRequests": "ログイン試行回数が多すぎます。後でもう一度試してください",
@@ -108,8 +109,6 @@
     "join": "参加",
     "joining": "参加中...",
     "calendarCheckButton": "カレンダーで確認",
-    "calendarSheetTitle": "日付付きタスク",
-    "calendarSheetDescription": "日付を選択すると該当タスクまでスクロールします",
     "calendarAllDates": "すべての日付",
     "calendarNoDatedTasks": "日付が設定されたタスクはありません",
     "calendarNoTasksOnSelectedDate": "選択した日付のタスクはありません"
@@ -122,10 +121,10 @@
     "selectColor": "色を選択",
     "backgroundNone": "なし（実際はテーマカラーの色）",
     "backgroundNoneShort": "なし",
-    "deleteList": "リストを削除",
+    "deleteList": "リストを一覧から外す",
     "deleteListConfirm": {
-      "title": "リストの削除",
-      "message": "このリストを削除してもよろしいですか？この操作は取り消せません。"
+      "title": "リストを一覧から外す",
+      "message": "このリストを自分の一覧から外します。他に保持しているユーザーがいない場合はリスト自体も削除されます。よろしいですか？"
     },
     "share": "共有",
     "shareTitle": "リストを共有",
@@ -138,6 +137,9 @@
     "title": "設定",
     "userInfo": {
       "title": "アカウント"
+    },
+    "preferences": {
+      "title": "表示と動作"
     },
     "theme": {
       "title": "テーマ",
@@ -163,13 +165,50 @@
       "title": "危険な操作",
       "signOut": "ログアウト",
       "deleteAccount": "アカウント削除"
-    }
+    },
+    "actions": {
+      "title": "アカウント操作"
+    },
+    "deleteAccount": "アカウントを削除",
+    "deleteAccountConfirm": "アカウントと全データを削除しますか？",
+    "signingOut": "ログアウト中...",
+    "deletingAccount": "削除中..."
   },
   "pages": {
     "index": {
-      "getStarted": "今すぐはじめる",
-      "description1": "Lightlistはシンプルなタスクリストサービスです。",
-      "description2": "タスク管理のToDoリストや買い物リストとして使えます。未登録の人ともリストを共有できます。"
+      "getStarted": "無料ではじめる",
+      "headline": "タスクリストは、\nシンプルでいい。",
+      "subheadline": "タスク管理アプリに疲れたあなたへ。\n余計な機能はない。誰でも、すぐに使いはじめられる。\nそれでいて、必要なときは共有もできる。",
+      "seo": {
+        "title": "Lightlist | シンプルな共有タスクリスト・ToDoアプリ",
+        "description": "Lightlist は個人・家族・小さなチーム向けのシンプルな共有タスクリスト / ToDo アプリ。買い物リストややることをブラウザ・iPhone・Androidで同期して使えます。",
+        "keywords": "タスクリスト,ToDo,共有タスクリスト,共有リスト,買い物リスト,家族,チーム,Lightlist"
+      },
+      "features": {
+        "title": "Lightlistの3つのこと",
+        "simple": {
+          "title": "これだけでいい",
+          "description": "タスクを追加して、完了する。それだけ。説明書もチュートリアルも必要ありません。はじめてでも迷わない、ちょうどいいシンプルさです。"
+        },
+        "multidevice": {
+          "title": "どこからでも、そのまま使える",
+          "description": "ブラウザはもちろん、iOSやAndroidアプリからもアクセス可能。どのデバイスからでも同じリストをリアルタイムに確認・編集できます。"
+        },
+        "share": {
+          "title": "必要なとき、共有できる",
+          "description": "共有コードを発行するだけで、家族・友人・チームとリアルタイム共有。一人で使うだけでも、もちろん十分です。"
+        }
+      },
+      "preview": {
+        "title": "こんな感じで使います",
+        "desktopAlt": "デスクトップ画面のスクリーンショット",
+        "mobileAlt": "モバイル画面のスクリーンショット"
+      },
+      "cta": {
+        "title": "これでいい、ちょうどいい。",
+        "description": "タスク管理をもっとシンプルに。まず一つ、リストをつくってみてください。",
+        "button": "無料ではじめる"
+      }
     },
     "sharecode": {
       "notFound": "タスクリストが見つかりません",
@@ -189,6 +228,21 @@
       "sort": "並び替え",
       "deleteCompleted": "完了タスクを削除",
       "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？"
+    },
+    "notFound": {
+      "title": "ページが見つかりません",
+      "description": "お探しのページは存在しません。",
+      "backHome": "ホームに戻る"
+    },
+    "serverError": {
+      "title": "サーバーエラー",
+      "description": "サーバーで予期しないエラーが発生しました。",
+      "backHome": "ホームに戻る"
+    },
+    "error": {
+      "title": "エラーが発生しました",
+      "description": "予期しないエラーが発生しました。ページを再読み込みしてください。",
+      "reload": "ページを再読み込み"
     }
   }
 }

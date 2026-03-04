@@ -6,6 +6,7 @@ import {
   verifyPasswordResetCode as firebaseVerifyPasswordResetCode,
   confirmPasswordReset as firebaseConfirmPasswordReset,
   deleteUser,
+  verifyBeforeUpdateEmail,
   ActionCodeSettings,
 } from "firebase/auth";
 import { collection, doc, getDoc, writeBatch } from "firebase/firestore";
@@ -19,6 +20,20 @@ import {
 } from "../types";
 import { appStore } from "../store";
 import { deleteTaskList } from "./app";
+import { DEFAULT_LANGUAGE, normalizeLanguage } from "../utils/language";
+
+const withAuthLanguage = async <T>(
+  language: Language,
+  fn: () => Promise<T>,
+): Promise<T> => {
+  const previousLanguageCode = auth.languageCode;
+  auth.languageCode = language;
+  try {
+    return await fn();
+  } finally {
+    auth.languageCode = previousLanguageCode;
+  }
+};
 
 const requirePasswordResetUrl = (): string => {
   const resetUrl =
@@ -30,6 +45,20 @@ const requirePasswordResetUrl = (): string => {
     );
   }
   return resetUrl;
+};
+
+const INITIAL_TASK_LIST_NAME_BY_LANGUAGE: Record<Language, string> = {
+  ja: "📒個人",
+  en: "📒PERSONAL",
+  es: "📒PERSONAL",
+  de: "📒PERSÖNLICH",
+  fr: "📒PERSONNEL",
+  ko: "📒개인",
+  "zh-CN": "📒个人",
+  hi: "📒व्यक्तिगत",
+  ar: "📒شخصية",
+  "pt-BR": "📒PESSOAL",
+  id: "📒PRIBADI",
 };
 
 export async function signUp(
@@ -45,11 +74,12 @@ export async function signUp(
   const uid = userCredential.user.uid;
   const now = Date.now();
   const taskListId = doc(collection(db, "taskLists")).id;
-  const taskListName = language === "ja" ? "📒個人" : "📒PERSONAL";
+  const normalizedLanguage = normalizeLanguage(language);
+  const taskListName = INITIAL_TASK_LIST_NAME_BY_LANGUAGE[normalizedLanguage];
 
   const settingsData: SettingsStore = {
     theme: "system",
-    language,
+    language: normalizedLanguage,
     taskInsertPosition: "top",
     autoSort: false,
     createdAt: now,
@@ -99,14 +129,12 @@ export async function sendPasswordResetEmail(
     url: requirePasswordResetUrl(),
     handleCodeInApp: false,
   };
-  const languageToUse = language || data.settings?.language || "ja";
-  const previousLanguageCode = auth.languageCode;
-  auth.languageCode = languageToUse;
-  try {
-    await firebaseSendPasswordResetEmail(auth, email, actionCodeSettings);
-  } finally {
-    auth.languageCode = previousLanguageCode;
-  }
+  const languageToUse = normalizeLanguage(
+    language || data.settings?.language || DEFAULT_LANGUAGE,
+  );
+  await withAuthLanguage(languageToUse, () =>
+    firebaseSendPasswordResetEmail(auth, email, actionCodeSettings),
+  );
 }
 
 export async function verifyPasswordResetCode(code: string) {
@@ -115,6 +143,18 @@ export async function verifyPasswordResetCode(code: string) {
 
 export async function confirmPasswordReset(code: string, newPassword: string) {
   await firebaseConfirmPasswordReset(auth, code, newPassword);
+}
+
+export async function sendEmailChangeVerification(newEmail: string) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("No user logged in");
+  const data = appStore.getData();
+  const language = normalizeLanguage(
+    data.settings?.language || DEFAULT_LANGUAGE,
+  );
+  await withAuthLanguage(language, () =>
+    verifyBeforeUpdateEmail(user, newEmail),
+  );
 }
 
 export async function deleteAccount() {

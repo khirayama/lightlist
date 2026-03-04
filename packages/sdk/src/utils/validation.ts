@@ -72,3 +72,20 @@ export const validatePasswordForm = (
 
   return errors;
 };
+
+type EmailChangeFormData = {
+  newEmail: string;
+};
+
+export const validateEmailChangeForm = (
+  data: EmailChangeFormData,
+  t: TFunction<"translation">,
+): FormErrors => {
+  const errors: FormErrors = {};
+  if (!data.newEmail.trim()) {
+    errors.email = t("auth.validation.email.required");
+  } else if (!validateEmail(data.newEmail)) {
+    errors.email = t("auth.validation.email.invalid");
+  }
+  return errors;
+};

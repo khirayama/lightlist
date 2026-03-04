@@ -10,6 +10,7 @@ const ERROR_KEY_MAP = {
   "auth/too-many-requests": "auth.error.tooManyRequests",
   "auth/expired-action-code": "auth.passwordReset.expiredCode",
   "auth/invalid-action-code": "auth.passwordReset.invalidCode",
+  "auth/requires-recent-login": "auth.error.requiresRecentLogin",
 } as const;
 
 type AuthErrorCode = keyof typeof ERROR_KEY_MAP;

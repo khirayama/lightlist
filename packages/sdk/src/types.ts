@@ -2,7 +2,18 @@ import { User as FirebaseUser } from "firebase/auth";
 
 export type Theme = "system" | "light" | "dark";
 
-export type Language = "ja" | "en";
+export type Language =
+  | "ja"
+  | "en"
+  | "es"
+  | "de"
+  | "fr"
+  | "ko"
+  | "zh-CN"
+  | "hi"
+  | "ar"
+  | "pt-BR"
+  | "id";
 
 export type TaskInsertPosition = "bottom" | "top";
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";

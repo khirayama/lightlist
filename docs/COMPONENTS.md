@@ -13,6 +13,7 @@
 - SDKやタスクドメインに触れる場合は `tasks` など機能ベースのディレクトリにまとめる
 - ボタンや入力などのプリミティブは `ui` に集約し、スタイルの重複を避ける
 - テーマとi18nはプリミティブで吸収し、ページ側での個別対応を増やさない
+- Web の `StartupSplash` は hydration mismatch を避けるため、起動時の読み上げラベルを i18n の動的言語解決に依存させず固定文字列（`読み込み中`）で提供する
 - 汎用アイコンは `@lightlist/sdk/icons` に集約された共通名と SVG パスデータを使用し、Web（標準SVG）と Native（react-native-svg）の両プラットフォームで一貫したビジュアルを提供する。ブランドロゴ表示は Web の `BrandLogo`（`/brand/logo.svg`）を使用する。これにより、フォントファイルのロードや外部アイコンライブラリへの依存を排除している
 - モーダルは `ui/Dialog` を使用し、`titleId`/`descriptionId` を設定してアクセシビリティを担保する。Web の Drawer は shadcn 構成要素（Overlay/Content/Header/Title/Description/Trigger/Close/Portal）を利用し、Title/Description は Drawer 配下のみで使う。常設サイドバー表示では通常の見出し/本文要素でタイトル/説明を補う
 - Web の AppShell は先頭にスキップリンクを配置し、各ページの主領域は `id="main-content"` を持つ `main` 要素を使用する（`/app` を含む）

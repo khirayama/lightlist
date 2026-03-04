@@ -23,6 +23,7 @@
   - `next/head` で `manifest` と `theme-color`、PNGベースのアイコンなどの共通メタデータを追加
   - `mounted` 前でも `Head` を出し、初回HTMLにも manifest が含まれるようにする
   - 起動時は `StartupSplash` を表示し、`mounted` 後に通常のページ描画へ切り替える
+  - `StartupSplash` の読み上げラベルは固定文字列（`読み込み中`）を使い、初期 hydration 時の言語差分で mismatch を起こさない
   - `navigator.serviceWorker.register(\"/sw.js\")` で SW を登録し、`registration.update()` を実行して更新チェックを即時化する
 - `apps/web/next.config.js`
   - `/sw.js` に `Cache-Control: no-cache, no-store, must-revalidate` を付与し、古い Service Worker を残しにくくする
@@ -32,7 +33,7 @@
 - `sw.js` はインストール条件を満たすための最小実装で、オフライン対応やキャッシュ戦略は含まない
 - PWA アイコンは `apps/web/public/icons/*.png` を使用し、ブランドロゴのSVG表示は `apps/web/public/brand/logo.svg` を UI 用に分離している
 - `apps/web/public/icons/*.png` は `apps/native/assets/icon.png` を正本として各サイズ（512/192/180）へリサイズして同期し、角丸白背景上のロゴを既存デザイン準拠で表示する
-- `apps/web/public/icons/*.png` のブランドロゴは、角丸白背景の中央付近に縮小して配置し、上下の余白を確保しつつ視覚上の重心を中央に寄せたレイアウトを採用する（現行アセットはロゴレイヤーのみを従来比 `90%` に縮小し、上下余白を微増した配置を反映）
+- `apps/web/public/icons/*.png` のブランドロゴは、角丸白背景の中央付近に縮小して配置し、上下の余白を確保しつつ視覚上の重心を中央に寄せたレイアウトを採用する（現行アセットはロゴレイヤーのみを直前版から `85%`（当初比 `76.5%`）に縮小し、上下余白を増やした配置を反映）
 
 ## 起動時ローディング対策
 

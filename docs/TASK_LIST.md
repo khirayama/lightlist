@@ -234,7 +234,7 @@ taskList:
   backgroundNoneShort: スウォッチ用の短縮ラベル
 ```
 
-詳細は `apps/web/src/locales/ja.json` および `apps/web/src/locales/en.json` を参照してください。
+詳細は `apps/web/src/locales/*.json` および `apps/native/src/locales/*.json` を参照してください。
 
 ## ネイティブアプリ
 
@@ -552,7 +552,7 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 **動作:**
 
 1. **日付解析と正規化**:
-   - `parseDateFromText(text)` を実行し、テキスト内の日付キーワード（例：「明日」「来週月曜」）を抽出。
+  - `parseDateFromText(text, language)` を実行し、設定言語に応じた日付キーワード（today/tomorrow/in X days/weekday 系）を抽出。
    - 日付が検出された場合、その日付を優先して設定し、キーワードを除去したテキストをタスク名とします。
    - `text` が空文字の場合はエラーをスローします。
 
@@ -588,7 +588,7 @@ const [isTaskSorting, setIsTaskSorting] = useState(false);
 **動作:**
 
 1. **テキスト更新時の日付再解析**:
-   - `updates.text` が含まれる場合、再度 `parseDateFromText` を実行します。
+   - `updates.text` が含まれる場合、再度 `parseDateFromText(text, language)` を実行します。
    - 新たに日付が検出された場合、`date` フィールドも同時に更新し、テキストからキーワードを除去します。
 
 2. **ソートと更新**:
@@ -705,7 +705,7 @@ pages:
     deleteError: 完了タスク削除の失敗メッセージ
 ```
 
-詳細は `apps/web/src/locales/ja.json` および `apps/web/src/locales/en.json` を参照してください。
+詳細は `apps/web/src/locales/*.json` および `apps/native/src/locales/*.json` を参照してください。
 
 ### デザイン仕様
 
@@ -772,7 +772,7 @@ pages:
     noTasks: 空状態テキスト
 ```
 
-詳細は `apps/web/src/locales/ja.json` および `apps/web/src/locales/en.json` を参照してください。
+詳細は `apps/web/src/locales/*.json` および `apps/native/src/locales/*.json` を参照してください。
 
 ## 共有ページ
 
@@ -920,7 +920,7 @@ pages:
     addToOrder: 自分のリストに追加
 ```
 
-詳細は `apps/web/src/locales/ja.json` および `apps/web/src/locales/en.json` を参照してください。
+詳細は `apps/web/src/locales/*.json` および `apps/native/src/locales/*.json` を参照してください。
 
 ### セキュリティ考慮事項
 

@@ -112,6 +112,13 @@
 - `/app` は `taskListOrderUpdatedAt` を待って全画面スピナーを維持しない。認証確認後はシェルを先に表示し、タスクリスト同期中はコンテンツ領域のみローディングを表示する。
 - `TaskListCard` / `DrawerPanel` / `Carousel` / `ConfirmDialog` は `next/dynamic` で遅延ロードし、初期バンドル評価を分散する。
 - ランディングページ (`/`) は `getServerSideProps` を使わず静的配信し、言語切り替えはクエリ (`?lang=`) をクライアント側で同期する。
+- サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。i18next の `fallbackLng` は `ja` を使用する。
+- `apps/web/src/locales/*.json` と `apps/native/src/locales/*.json` は同一キー構造を維持し、英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。
+- Web は `document.documentElement.lang` と `document.documentElement.dir` を言語に同期する。`ar` は `dir="rtl"`、それ以外は `dir="ltr"`。
+- Web の `Carousel` は `direction` prop（`ltr` / `rtl`）で表示方向を受け取り、`scrollLeft` をブラウザ差分（positive/negative）込みで正規化して index を算出する。RTL では index 0 を右端に配置し、外部 index は配列順のまま扱う。
+- Native は言語設定に応じて LTR/RTL を即時に切り替える。再起動は不要。
+- Native の方向判定は `I18nManager` ではなく `settings.language` 由来の `uiDirection` を使用し、Expo Go / Development Build / 本番で同一挙動にする。
+- Native の `Carousel` は `react-native-pager-view` の `layoutDirection` を `uiDirection` で制御し、方向変更時は `key` 再マウントと `setPageWithoutAnimation` で現在 index を再同期する。
 - フォントは `_document.tsx` の外部 CSS 読み込みを廃止し、`_app.tsx` の `next/font/google` に統一する。Portal 配下の UI も `font-sans` が同じ変数を参照できるよう、`body` にフォント変数クラスを付与する。
 
 ## アクセシビリティ監査

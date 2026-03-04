@@ -15,6 +15,7 @@
     "./mutations/app": "./src/mutations/app.ts",
     "./hooks/useOptimisticReorder": "./src/hooks/useOptimisticReorder.ts",
     "./utils/dateParser": "./src/utils/dateParser.ts",
+    "./utils/language": "./src/utils/language.ts",
     "./utils/errors": "./src/utils/errors.ts",
     "./utils/validation": "./src/utils/validation.ts"
   },
@@ -32,7 +33,8 @@
     "@firebase/auth": "^1.11.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "fast-deep-equal": "^3.1.3",
-    "firebase": "^12.9.0"
+    "firebase": "^12.9.0",
+    "i18next": "^25.8.13"
   },
   "devDependencies": {
     "@types/node": "^24.10.13",

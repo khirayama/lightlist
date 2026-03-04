@@ -19,6 +19,7 @@ import {
 } from "../types";
 import { appStore } from "../store";
 import { parseDateFromText } from "../utils/dateParser";
+import { DEFAULT_LANGUAGE, normalizeLanguage } from "../utils/language";
 
 const TASK_LIST_ORDER_METADATA_KEYS = new Set(["createdAt", "updatedAt"]);
 
@@ -280,8 +281,12 @@ export async function addTask(
   id?: string,
 ) {
   const data = appStore.getData();
+  const language = normalizeLanguage(
+    data.settings?.language ?? DEFAULT_LANGUAGE,
+  );
   const { date: parsedDate, text: parsedTextRaw } = parseDateFromText(
     text.trim(),
+    language,
   );
   const normalizedText = parsedTextRaw.trim();
   const finalDate = parsedDate || date;
@@ -359,10 +364,15 @@ export async function updateTask(
   taskId: string,
   updates: Partial<Task>,
 ) {
+  const data = appStore.getData();
+  const language = normalizeLanguage(
+    data.settings?.language ?? DEFAULT_LANGUAGE,
+  );
   const normalizedUpdates: Partial<Task> = { ...updates };
   if (normalizedUpdates.text) {
     const { date: parsedDate, text: parsedTextRaw } = parseDateFromText(
       normalizedUpdates.text.trim(),
+      language,
     );
     if (parsedDate) {
       normalizedUpdates.date = parsedDate;
@@ -375,7 +385,6 @@ export async function updateTask(
   }
 
   const now = Date.now();
-  const data = appStore.getData();
   const autoSortEnabled = Boolean(data.settings?.autoSort);
   const taskListRef = doc(db, "taskLists", taskListId);
 

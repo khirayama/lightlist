@@ -9,17 +9,28 @@ import {
   getDoc,
 } from "firebase/firestore";
 
-import { auth, db } from "../firebase";
+import { getAuthInstance, getDbInstance } from "../firebase";
 import {
+  Language,
   Settings,
   Task,
   TaskListOrderStore,
   TaskListStore,
   TaskListStoreTask,
 } from "../types";
-import { appStore } from "../store";
+import { getCurrentSettings } from "../settings";
+import {
+  getCurrentTaskListOrderStore,
+  getCurrentTaskListStoreData,
+} from "../taskLists";
 import { parseDateFromText } from "../utils/dateParser";
 import { DEFAULT_LANGUAGE, normalizeLanguage } from "../utils/language";
+
+type ResolvedTaskSettings = {
+  autoSort: boolean;
+  language: ReturnType<typeof normalizeLanguage>;
+  taskInsertPosition: "bottom" | "top";
+};
 
 const TASK_LIST_ORDER_METADATA_KEYS = new Set(["createdAt", "updatedAt"]);
 
@@ -91,7 +102,8 @@ function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
 }
 
 async function getTaskListData(taskListId: string): Promise<TaskListStore> {
-  const cached = appStore.getData().taskLists[taskListId];
+  const db = getDbInstance();
+  const cached = getCurrentTaskListStoreData(taskListId);
   if (cached) return cached;
 
   const snapshot = await getDoc(doc(db, "taskLists", taskListId));
@@ -99,9 +111,109 @@ async function getTaskListData(taskListId: string): Promise<TaskListStore> {
   return assertTaskListStore(snapshot.data(), taskListId);
 }
 
+function requireCurrentUserId(): string {
+  const uid = getAuthInstance().currentUser?.uid;
+  if (!uid) {
+    throw new Error("No user logged in");
+  }
+  return uid;
+}
+
+function getResolvedTaskSettings(): ResolvedTaskSettings {
+  const settings = getCurrentSettings();
+  return {
+    autoSort: Boolean(settings?.autoSort),
+    language: normalizeLanguage(settings?.language ?? DEFAULT_LANGUAGE),
+    taskInsertPosition:
+      settings?.taskInsertPosition === "bottom" ? "bottom" : "top",
+  };
+}
+
+function getOrderedTaskListOrders(taskListOrder: TaskListOrderStore): number[] {
+  return getTaskListOrderEntries(taskListOrder).map(
+    ([, value]) => (value as { order: number }).order,
+  );
+}
+
+async function getTaskListOrderData(uid: string): Promise<TaskListOrderStore> {
+  const db = getDbInstance();
+  const cached = getCurrentTaskListOrderStore();
+  if (cached) {
+    return cached;
+  }
+  const snapshot = await getDoc(doc(db, "taskListOrder", uid));
+  return assertTaskListOrderStore(snapshot.data(), uid);
+}
+
+function getSortedTasks(taskListData: TaskListStore): TaskListStoreTask[] {
+  return Object.values(taskListData.tasks).sort((a, b) => a.order - b.order);
+}
+
+function renumberTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
+  return tasks.map((task, index) => ({
+    ...task,
+    order: (index + 1) * 1.0,
+  }));
+}
+
+function buildTaskUpdateData(params: {
+  deleteTaskIds?: string[];
+  now: number;
+  replaceTaskIds?: string[];
+  tasks: TaskListStoreTask[];
+}): Record<string, unknown> {
+  const replaceTaskIds = new Set(params.replaceTaskIds ?? []);
+  const updateData: Record<string, unknown> = { updatedAt: params.now };
+
+  (params.deleteTaskIds ?? []).forEach((taskId) => {
+    updateData[`tasks.${taskId}`] = deleteField();
+  });
+
+  params.tasks.forEach((task) => {
+    if (replaceTaskIds.has(task.id)) {
+      updateData[`tasks.${task.id}`] = task;
+      return;
+    }
+    updateData[`tasks.${task.id}.order`] = task.order;
+  });
+
+  return updateData;
+}
+
+function buildHistory(history: string[], normalizedText: string): string[] {
+  const nextHistory = history
+    .map((item) => item.trim())
+    .filter((item) => item !== "");
+  const normalizedTextLower = normalizedText.toLowerCase();
+  const existingIndex = nextHistory.findIndex(
+    (item) => item.toLowerCase() === normalizedTextLower,
+  );
+  if (existingIndex >= 0) {
+    nextHistory.splice(existingIndex, 1);
+  }
+
+  nextHistory.unshift(normalizedText);
+  while (nextHistory.length > 300) {
+    nextHistory.pop();
+  }
+
+  return nextHistory;
+}
+
+function normalizeTaskInput(text: string, date: string, language: Language) {
+  const { date: parsedDate, text: parsedTextRaw } = parseDateFromText(
+    text.trim(),
+    language,
+  );
+  return {
+    date: parsedDate || date,
+    text: parsedTextRaw.trim(),
+  };
+}
+
 export async function updateSettings(settings: Partial<Settings>) {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("No user logged in");
+  const db = getDbInstance();
+  const uid = requireCurrentUserId();
 
   const now = Date.now();
   await setDoc(
@@ -118,15 +230,13 @@ export async function updateTaskListOrder(
   draggedTaskListId: string,
   targetTaskListId: string,
 ) {
-  const data = appStore.getData();
-
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("No user logged in");
+  const db = getDbInstance();
+  const uid = requireCurrentUserId();
   if (draggedTaskListId === targetTaskListId) return;
 
-  if (!data.taskListOrder) throw new Error("TaskListOrder not found");
+  const currentTaskListOrder = await getTaskListOrderData(uid);
 
-  const taskListOrders = Object.entries(data.taskListOrder)
+  const taskListOrders = Object.entries(currentTaskListOrder)
     .filter(([key]) => !TASK_LIST_ORDER_METADATA_KEYS.has(key))
     .map(([id, value]) => ({
       id,
@@ -160,17 +270,13 @@ export async function createTaskList(
   name: string,
   background: string | null = null,
 ) {
-  const data = appStore.getData();
-
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("No user logged in");
+  const db = getDbInstance();
+  const uid = requireCurrentUserId();
 
   const taskListId = doc(collection(db, "taskLists")).id;
-
-  const taskListOrders =
-    Object.entries(data.taskListOrder || {})
-      .filter(([key]) => !TASK_LIST_ORDER_METADATA_KEYS.has(key))
-      .map(([, value]) => (value as { order: number }).order) || [];
+  const taskListOrders = getCurrentTaskListOrderStore()
+    ? getOrderedTaskListOrders(getCurrentTaskListOrderStore()!)
+    : [];
 
   let newOrder: number;
   if (taskListOrders.length === 0) {
@@ -208,6 +314,7 @@ export async function updateTaskList(
   taskListId: string,
   updates: Partial<Pick<TaskListStore, "name" | "background">>,
 ) {
+  const db = getDbInstance();
   const now = Date.now();
   const updateData: Record<string, unknown> = {
     ...updates,
@@ -217,8 +324,8 @@ export async function updateTaskList(
 }
 
 export async function deleteTaskList(taskListId: string) {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("No user logged in");
+  const db = getDbInstance();
+  const uid = requireCurrentUserId();
 
   await runTransaction(db, async (transaction) => {
     const now = Date.now();
@@ -271,6 +378,7 @@ export async function deleteTaskList(taskListId: string) {
 }
 
 export function generateTaskId(): string {
+  const db = getDbInstance();
   return doc(collection(db, "taskLists")).id;
 }
 
@@ -280,31 +388,21 @@ export async function addTask(
   date: string = "",
   id?: string,
 ) {
-  const data = appStore.getData();
-  const language = normalizeLanguage(
-    data.settings?.language ?? DEFAULT_LANGUAGE,
-  );
-  const { date: parsedDate, text: parsedTextRaw } = parseDateFromText(
-    text.trim(),
-    language,
-  );
-  const normalizedText = parsedTextRaw.trim();
-  const finalDate = parsedDate || date;
+  const db = getDbInstance();
+  const settings = getResolvedTaskSettings();
+  const normalizedInput = normalizeTaskInput(text, date, settings.language);
+  const normalizedText = normalizedInput.text;
+  const finalDate = normalizedInput.date;
 
   if (normalizedText === "") throw new Error("Task text is empty");
 
   const taskId = id || generateTaskId();
 
-  const taskListData: TaskListStore = data.taskLists[taskListId];
+  const taskListData = await getTaskListData(taskListId);
   if (!taskListData) throw new Error("Task list not found");
 
-  const autoSortEnabled = Boolean(data.settings?.autoSort);
-  const tasks = Object.values(taskListData.tasks).sort(
-    (a, b) => a.order - b.order,
-  );
-  const insertPosition =
-    data.settings?.taskInsertPosition === "bottom" ? "bottom" : "top";
-  const insertIndex = insertPosition === "top" ? 0 : tasks.length;
+  const tasks = getSortedTasks(taskListData);
+  const insertIndex = settings.taskInsertPosition === "top" ? 0 : tasks.length;
 
   const now = Date.now();
   const newTask: TaskListStoreTask = {
@@ -317,42 +415,17 @@ export async function addTask(
 
   const reorderedTasks = [...tasks];
   reorderedTasks.splice(insertIndex, 0, newTask);
-  const normalizedTasks = autoSortEnabled
+  const normalizedTasks = settings.autoSort
     ? getAutoSortedTasks(reorderedTasks)
-    : reorderedTasks.map((task, index) => ({
-        ...task,
-        order: (index + 1) * 1.0,
-      }));
+    : renumberTasks(reorderedTasks);
 
   const taskListRef = doc(db, "taskLists", taskListId);
-  const updateData: Record<string, unknown> = {
-    updatedAt: now,
-  };
-
-  normalizedTasks.forEach((task) => {
-    if (task.id === taskId) {
-      updateData[`tasks.${task.id}`] = task;
-    } else {
-      updateData[`tasks.${task.id}.order`] = task.order;
-    }
+  const updateData = buildTaskUpdateData({
+    now,
+    replaceTaskIds: [taskId],
+    tasks: normalizedTasks,
   });
-
-  const history = (taskListData.history || [])
-    .map((item) => item.trim())
-    .filter((item) => item !== "");
-  const normalizedTextLower = normalizedText.toLowerCase();
-  const existingIndex = history.findIndex(
-    (item) => item.toLowerCase() === normalizedTextLower,
-  );
-  if (existingIndex >= 0) {
-    history.splice(existingIndex, 1);
-  }
-
-  history.unshift(normalizedText);
-  while (history.length > 300) {
-    history.pop();
-  }
-  updateData.history = history;
+  updateData.history = buildHistory(taskListData.history || [], normalizedText);
 
   await updateDoc(taskListRef, updateData);
 
@@ -364,19 +437,18 @@ export async function updateTask(
   taskId: string,
   updates: Partial<Task>,
 ) {
-  const data = appStore.getData();
-  const language = normalizeLanguage(
-    data.settings?.language ?? DEFAULT_LANGUAGE,
-  );
+  const db = getDbInstance();
+  const settings = getResolvedTaskSettings();
   const normalizedUpdates: Partial<Task> = { ...updates };
   if (normalizedUpdates.text) {
-    const { date: parsedDate, text: parsedTextRaw } = parseDateFromText(
-      normalizedUpdates.text.trim(),
-      language,
+    const normalizedInput = normalizeTaskInput(
+      normalizedUpdates.text,
+      normalizedUpdates.date ?? "",
+      settings.language,
     );
-    if (parsedDate) {
-      normalizedUpdates.date = parsedDate;
-      normalizedUpdates.text = parsedTextRaw.trim();
+    if (normalizedInput.date) {
+      normalizedUpdates.date = normalizedInput.date;
+      normalizedUpdates.text = normalizedInput.text;
     }
   }
 
@@ -385,10 +457,9 @@ export async function updateTask(
   }
 
   const now = Date.now();
-  const autoSortEnabled = Boolean(data.settings?.autoSort);
   const taskListRef = doc(db, "taskLists", taskListId);
 
-  if (!autoSortEnabled) {
+  if (!settings.autoSort) {
     const updateData: Record<string, unknown> = { updatedAt: now };
     Object.entries(normalizedUpdates).forEach(([key, value]) => {
       updateData[`tasks.${taskId}.${key}`] = value;
@@ -405,24 +476,20 @@ export async function updateTask(
   );
   const normalizedTasks = getAutoSortedTasks(updatedTasks);
 
-  const updateData: Record<string, unknown> = { updatedAt: now };
-  normalizedTasks.forEach((task) => {
-    if (task.id === taskId) {
-      updateData[`tasks.${task.id}`] = task;
-    } else {
-      updateData[`tasks.${task.id}.order`] = task.order;
-    }
+  const updateData = buildTaskUpdateData({
+    now,
+    replaceTaskIds: [taskId],
+    tasks: normalizedTasks,
   });
   await updateDoc(taskListRef, updateData);
 }
 
 export async function deleteTask(taskListId: string, taskId: string) {
+  const db = getDbInstance();
   const now = Date.now();
-  const data = appStore.getData();
-  const autoSortEnabled = Boolean(data.settings?.autoSort);
   const taskListRef = doc(db, "taskLists", taskListId);
 
-  if (!autoSortEnabled) {
+  if (!getResolvedTaskSettings().autoSort) {
     const updateData = {
       [`tasks.${taskId}`]: deleteField(),
       updatedAt: now,
@@ -439,13 +506,10 @@ export async function deleteTask(taskListId: string, taskId: string) {
   );
   const normalizedTasks = getAutoSortedTasks(remainingTasks);
 
-  const updateData: Record<string, unknown> = {
-    [`tasks.${taskId}`]: deleteField(),
-    updatedAt: now,
-  };
-
-  normalizedTasks.forEach((task) => {
-    updateData[`tasks.${task.id}.order`] = task.order;
+  const updateData = buildTaskUpdateData({
+    deleteTaskIds: [taskId],
+    now,
+    tasks: normalizedTasks,
   });
 
   await updateDoc(taskListRef, updateData);
@@ -456,12 +520,11 @@ export async function updateTasksOrder(
   draggedTaskId: string,
   targetTaskId: string,
 ) {
+  const db = getDbInstance();
   const taskListData = await getTaskListData(taskListId);
   if (draggedTaskId === targetTaskId) return;
 
-  const tasks = Object.values(taskListData.tasks).sort(
-    (a, b) => a.order - b.order,
-  );
+  const tasks = getSortedTasks(taskListData);
   const draggedIndex = tasks.findIndex((task) => task.id === draggedTaskId);
   if (draggedIndex === -1) throw new Error("Task not found");
 
@@ -499,25 +562,26 @@ export async function updateTasksOrder(
     updateData[`tasks.${draggedTask.id}.order`] = nextOrder;
   } else {
     tasks.splice(insertionIndex, 0, draggedTask);
-    tasks.forEach((task, index) => {
-      updateData[`tasks.${task.id}.order`] = (index + 1) * 1.0;
+    renumberTasks(tasks).forEach((task) => {
+      updateData[`tasks.${task.id}.order`] = task.order;
     });
   }
   await updateDoc(taskListRef, updateData);
 }
 
 export async function sortTasks(taskListId: string): Promise<void> {
+  const db = getDbInstance();
   const taskListData = await getTaskListData(taskListId);
-  const tasks = Object.values(taskListData.tasks);
+  const tasks = getSortedTasks(taskListData);
   if (tasks.length < 2) return;
 
   const normalizedTasks = getAutoSortedTasks(tasks);
   const now = Date.now();
 
   const taskListRef = doc(db, "taskLists", taskListId);
-  const updateData: Record<string, unknown> = { updatedAt: now };
-  normalizedTasks.forEach((task) => {
-    updateData[`tasks.${task.id}.order`] = task.order;
+  const updateData = buildTaskUpdateData({
+    now,
+    tasks: normalizedTasks,
   });
   await updateDoc(taskListRef, updateData);
 }
@@ -525,33 +589,25 @@ export async function sortTasks(taskListId: string): Promise<void> {
 export async function deleteCompletedTasks(
   taskListId: string,
 ): Promise<number> {
-  const data = appStore.getData();
-  const autoSortEnabled = Boolean(data.settings?.autoSort);
+  const db = getDbInstance();
+  const autoSortEnabled = getResolvedTaskSettings().autoSort;
 
   const taskListData = await getTaskListData(taskListId);
-  const tasks = Object.values(taskListData.tasks);
+  const tasks = getSortedTasks(taskListData);
   const completedTasks = tasks.filter((task) => task.completed);
   if (completedTasks.length === 0) return 0;
 
   const remainingTasks = tasks.filter((task) => !task.completed);
   const normalizedRemainingTasks = autoSortEnabled
     ? getAutoSortedTasks(remainingTasks)
-    : [...remainingTasks]
-        .sort((a, b) => a.order - b.order)
-        .map((task, index) => ({
-          ...task,
-          order: (index + 1) * 1.0,
-        }));
+    : renumberTasks(remainingTasks);
 
   const now = Date.now();
   const taskListRef = doc(db, "taskLists", taskListId);
-  const updateData: Record<string, unknown> = { updatedAt: now };
-
-  completedTasks.forEach((task) => {
-    updateData[`tasks.${task.id}`] = deleteField();
-  });
-  normalizedRemainingTasks.forEach((task) => {
-    updateData[`tasks.${task.id}.order`] = task.order;
+  const updateData = buildTaskUpdateData({
+    deleteTaskIds: completedTasks.map((task) => task.id),
+    now,
+    tasks: normalizedRemainingTasks,
   });
 
   await updateDoc(taskListRef, updateData);
@@ -571,9 +627,8 @@ function generateRandomShareCode(length: number = 8): string {
 const MAX_SHARE_CODE_ATTEMPTS = 10;
 
 export async function generateShareCode(taskListId: string): Promise<string> {
-  const data = appStore.getData();
-
-  if (!data.taskLists[taskListId]) {
+  const db = getDbInstance();
+  if (!(await getTaskListData(taskListId))) {
     throw new Error("Task list not found");
   }
 
@@ -617,9 +672,8 @@ export async function generateShareCode(taskListId: string): Promise<string> {
 }
 
 export async function removeShareCode(taskListId: string): Promise<void> {
-  const data = appStore.getData();
-
-  if (!data.taskLists[taskListId]) {
+  const db = getDbInstance();
+  if (!(await getTaskListData(taskListId))) {
     throw new Error("Task list not found");
   }
 
@@ -647,6 +701,7 @@ export async function removeShareCode(taskListId: string): Promise<void> {
 export async function fetchTaskListIdByShareCode(
   shareCode: string,
 ): Promise<string | null> {
+  const db = getDbInstance();
   const normalizedShareCode = normalizeShareCode(shareCode);
   if (!normalizedShareCode) {
     return null;
@@ -665,6 +720,7 @@ export async function fetchTaskListIdByShareCode(
 export async function fetchTaskListByShareCode(
   shareCode: string,
 ): Promise<TaskListStore | null> {
+  const db = getDbInstance();
   const normalizedShareCode = normalizeShareCode(shareCode);
   if (!normalizedShareCode) {
     return null;
@@ -693,8 +749,8 @@ export async function fetchTaskListByShareCode(
 export async function addSharedTaskListToOrder(
   taskListId: string,
 ): Promise<void> {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("No user logged in");
+  const db = getDbInstance();
+  const uid = requireCurrentUserId();
 
   await runTransaction(db, async (transaction) => {
     const now = Date.now();
@@ -712,9 +768,7 @@ export async function addSharedTaskListToOrder(
       throw new Error("This task list is already in your order");
     }
 
-    const taskListOrders = getTaskListOrderEntries(taskListOrderData).map(
-      ([, value]) => (value as { order: number }).order,
-    );
+    const taskListOrders = getOrderedTaskListOrders(taskListOrderData);
 
     const newOrder =
       taskListOrders.length === 0 ? 1.0 : Math.max(...taskListOrders) + 1.0;

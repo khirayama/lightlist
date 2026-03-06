@@ -1,5 +1,3 @@
-import { User as FirebaseUser } from "firebase/auth";
-
 export type Theme = "system" | "light" | "dark";
 
 export type Language =
@@ -19,8 +17,10 @@ export type TaskInsertPosition = "bottom" | "top";
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 export type DataLoadStatus = "idle" | "loading" | "ready" | "error";
 
-// For Firebase/Firestore
-export type User = FirebaseUser;
+export type User = {
+  uid: string;
+  email: string | null;
+};
 
 export type SettingsStore = {
   theme: Theme;

@@ -8,24 +8,27 @@ import {
   deleteUser,
   verifyBeforeUpdateEmail,
   ActionCodeSettings,
+  type User,
 } from "firebase/auth";
 import { collection, doc, getDoc, writeBatch } from "firebase/firestore";
 
-import { auth, db } from "../firebase";
+import { getAuthInstance, getDbInstance } from "../firebase";
 import {
   SettingsStore,
   TaskListOrderStore,
   TaskListStore,
   Language,
 } from "../types";
-import { appStore } from "../store";
+import { getCurrentSettings } from "../settings";
 import { deleteTaskList } from "./app";
 import { DEFAULT_LANGUAGE, normalizeLanguage } from "../utils/language";
+import { getPasswordResetUrl } from "../utils/env";
 
 const withAuthLanguage = async <T>(
   language: Language,
   fn: () => Promise<T>,
 ): Promise<T> => {
+  const auth = getAuthInstance();
   const previousLanguageCode = auth.languageCode;
   auth.languageCode = language;
   try {
@@ -33,18 +36,6 @@ const withAuthLanguage = async <T>(
   } finally {
     auth.languageCode = previousLanguageCode;
   }
-};
-
-const requirePasswordResetUrl = (): string => {
-  const resetUrl =
-    process.env.NEXT_PUBLIC_PASSWORD_RESET_URL ||
-    process.env.EXPO_PUBLIC_PASSWORD_RESET_URL;
-  if (!resetUrl) {
-    throw new Error(
-      "Missing environment variable: NEXT_PUBLIC_PASSWORD_RESET_URL or EXPO_PUBLIC_PASSWORD_RESET_URL",
-    );
-  }
-  return resetUrl;
 };
 
 const INITIAL_TASK_LIST_NAME_BY_LANGUAGE: Record<Language, string> = {
@@ -61,11 +52,74 @@ const INITIAL_TASK_LIST_NAME_BY_LANGUAGE: Record<Language, string> = {
   id: "📒PRIBADI",
 };
 
+const getPreferredLanguage = (language?: Language): Language => {
+  return normalizeLanguage(
+    language ?? getCurrentSettings()?.language ?? DEFAULT_LANGUAGE,
+  );
+};
+
+const requireCurrentUser = (): User => {
+  const user = getAuthInstance().currentUser;
+  if (!user) {
+    throw new Error("No user logged in");
+  }
+  return user;
+};
+
+const getTaskListIdsFromOrder = (
+  taskListOrder: TaskListOrderStore,
+): string[] => {
+  return Object.keys(taskListOrder).filter(
+    (key) => key !== "createdAt" && key !== "updatedAt",
+  );
+};
+
+const createInitialSettingsStore = (
+  language: Language,
+  now: number,
+): SettingsStore => ({
+  theme: "system",
+  language,
+  taskInsertPosition: "top",
+  autoSort: false,
+  createdAt: now,
+  updatedAt: now,
+});
+
+const createInitialTaskListStore = (
+  taskListId: string,
+  language: Language,
+  now: number,
+): TaskListStore => ({
+  id: taskListId,
+  name: INITIAL_TASK_LIST_NAME_BY_LANGUAGE[language],
+  tasks: {},
+  history: [],
+  shareCode: null,
+  background: null,
+  memberCount: 1,
+  createdAt: now,
+  updatedAt: now,
+});
+
+const createInitialTaskListOrderStore = (
+  taskListId: string,
+  now: number,
+): TaskListOrderStore => {
+  return {
+    [taskListId]: { order: 1.0 },
+    createdAt: now,
+    updatedAt: now,
+  } as TaskListOrderStore;
+};
+
 export async function signUp(
   email: string,
   password: string,
   language: Language,
 ) {
+  const auth = getAuthInstance();
+  const db = getDbInstance();
   const userCredential = await createUserWithEmailAndPassword(
     auth,
     email,
@@ -75,34 +129,13 @@ export async function signUp(
   const now = Date.now();
   const taskListId = doc(collection(db, "taskLists")).id;
   const normalizedLanguage = normalizeLanguage(language);
-  const taskListName = INITIAL_TASK_LIST_NAME_BY_LANGUAGE[normalizedLanguage];
-
-  const settingsData: SettingsStore = {
-    theme: "system",
-    language: normalizedLanguage,
-    taskInsertPosition: "top",
-    autoSort: false,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  const taskListData: TaskListStore = {
-    id: taskListId,
-    name: taskListName,
-    tasks: {},
-    history: [],
-    shareCode: null,
-    background: null,
-    memberCount: 1,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  const taskListOrderData = {
-    [taskListId]: { order: 1.0 },
-    createdAt: now,
-    updatedAt: now,
-  } as TaskListOrderStore;
+  const settingsData = createInitialSettingsStore(normalizedLanguage, now);
+  const taskListData = createInitialTaskListStore(
+    taskListId,
+    normalizedLanguage,
+    now,
+  );
+  const taskListOrderData = createInitialTaskListOrderStore(taskListId, now);
 
   const batch = writeBatch(db);
   batch.set(doc(db, "settings", uid), settingsData);
@@ -112,63 +145,56 @@ export async function signUp(
 }
 
 export async function signIn(email: string, password: string) {
-  await signInWithEmailAndPassword(auth, email, password);
+  await signInWithEmailAndPassword(getAuthInstance(), email, password);
 }
 
 export async function signOut() {
-  await firebaseSignOut(auth);
+  await firebaseSignOut(getAuthInstance());
 }
 
 export async function sendPasswordResetEmail(
   email: string,
   language?: Language,
 ) {
-  const data = appStore.getData();
+  const auth = getAuthInstance();
 
   const actionCodeSettings: ActionCodeSettings = {
-    url: requirePasswordResetUrl(),
+    url: getPasswordResetUrl(),
     handleCodeInApp: false,
   };
-  const languageToUse = normalizeLanguage(
-    language || data.settings?.language || DEFAULT_LANGUAGE,
-  );
+  const languageToUse = getPreferredLanguage(language);
   await withAuthLanguage(languageToUse, () =>
     firebaseSendPasswordResetEmail(auth, email, actionCodeSettings),
   );
 }
 
 export async function verifyPasswordResetCode(code: string) {
-  return await firebaseVerifyPasswordResetCode(auth, code);
+  return await firebaseVerifyPasswordResetCode(getAuthInstance(), code);
 }
 
 export async function confirmPasswordReset(code: string, newPassword: string) {
-  await firebaseConfirmPasswordReset(auth, code, newPassword);
+  await firebaseConfirmPasswordReset(getAuthInstance(), code, newPassword);
 }
 
 export async function sendEmailChangeVerification(newEmail: string) {
-  const user = auth.currentUser;
-  if (!user) throw new Error("No user logged in");
-  const data = appStore.getData();
-  const language = normalizeLanguage(
-    data.settings?.language || DEFAULT_LANGUAGE,
-  );
+  const user = requireCurrentUser();
+  const language = getPreferredLanguage();
   await withAuthLanguage(language, () =>
     verifyBeforeUpdateEmail(user, newEmail),
   );
 }
 
 export async function deleteAccount() {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("No user logged in");
+  const user = requireCurrentUser();
+  const db = getDbInstance();
+  const uid = user.uid;
 
   const taskListOrderRef = doc(db, "taskListOrder", uid);
   const taskListOrderSnapshot = await getDoc(taskListOrderRef);
   if (taskListOrderSnapshot.exists()) {
     const taskListOrderData =
       taskListOrderSnapshot.data() as TaskListOrderStore;
-    const taskListIds = Object.keys(taskListOrderData).filter(
-      (key) => key !== "createdAt" && key !== "updatedAt",
-    );
+    const taskListIds = getTaskListIdsFromOrder(taskListOrderData);
     await Promise.allSettled(
       taskListIds.map((taskListId) => deleteTaskList(taskListId)),
     );
@@ -179,5 +205,5 @@ export async function deleteAccount() {
   batch.delete(taskListOrderRef);
 
   await batch.commit();
-  await deleteUser(auth.currentUser!);
+  await deleteUser(user);
 }

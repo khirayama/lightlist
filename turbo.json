@@ -6,6 +6,7 @@
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },
@@ -13,7 +14,6 @@
       "cache": false
     },
     "lint": {
-      "dependsOn": ["^build"],
       "outputs": []
     },
     "deploy:firestore": {
@@ -23,7 +23,7 @@
       "cache": false
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"],
+      "dependsOn": ["^build", "^typecheck"],
       "outputs": []
     }
   }

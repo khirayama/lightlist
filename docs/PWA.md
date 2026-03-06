@@ -1,52 +1,39 @@
 # PWA
 
-## 目的
+## 実装範囲
 
-- Web App Manifest と Service Worker を追加し、インストール可能（installable）判定が走る前提を整える
+- Web は manifest と service worker を持つ最小構成の PWA です。
+- manifest は [manifest.webmanifest](/home/khirayama/Works/lightlist-poc/apps/web/public/manifest.webmanifest) で管理します。
+- service worker は [sw.js](/home/khirayama/Works/lightlist-poc/apps/web/public/sw.js) です。
 
-## 実装内容
+## manifest
 
-### 追加ファイル
+- `start_url`: `/app`
+- `scope`: `/`
+- `display`: `standalone`
+- icons
+  - `icon-192.png`
+  - `icon-512.png`
+  - `maskable-512.png`
 
-- `apps/web/public/manifest.webmanifest`
-- `apps/web/public/icons/icon-192.png`
-- `apps/web/public/icons/icon-512.png`
-- `apps/web/public/icons/maskable-512.png`
-- `apps/web/public/icons/apple-touch-icon.png`
-- `apps/web/public/brand/logo.svg`
-- `apps/web/public/sw.js`
-- `apps/web/src/components/ui/StartupSplash.tsx`
+## service worker
 
-### 既存ファイルの変更
+- install 時に `skipWaiting()`
+- activate 時に `clients.claim()`
+- `SKIP_WAITING` message を受けたら `skipWaiting()`
 
-- `apps/web/src/pages/_app.tsx`
-  - `next/head` で `manifest` と `theme-color`、PNGベースのアイコンなどの共通メタデータを追加
-  - `mounted` 前でも `Head` を出し、初回HTMLにも manifest が含まれるようにする
-  - 起動時は `StartupSplash` を表示し、`mounted` 後に通常のページ描画へ切り替える
-  - `StartupSplash` の読み上げラベルは固定文字列（`読み込み中`）を使い、初期 hydration 時の言語差分で mismatch を起こさない
-  - `navigator.serviceWorker.register(\"/sw.js\")` で SW を登録し、`registration.update()` を実行して更新チェックを即時化する
-- `apps/web/next.config.js`
-  - `/sw.js` に `Cache-Control: no-cache, no-store, must-revalidate` を付与し、古い Service Worker を残しにくくする
+## 登録
 
-## 制約
+- [_app.tsx](/home/khirayama/Works/lightlist-poc/apps/web/src/pages/_app.tsx) で HTTPS または localhost のときだけ `/sw.js` を登録します。
+- 登録後に `registration.update()` を呼びます。
 
-- `sw.js` はインストール条件を満たすための最小実装で、オフライン対応やキャッシュ戦略は含まない
-- PWA アイコンは `apps/web/public/icons/*.png` を使用し、ブランドロゴのSVG表示は `apps/web/public/brand/logo.svg` を UI 用に分離している
-- `apps/web/public/icons/*.png` は `apps/native/assets/icon.png` を正本として各サイズ（512/192/180）へリサイズして同期し、角丸白背景上のロゴを既存デザイン準拠で表示する
-- `apps/web/public/icons/*.png` のブランドロゴは、角丸白背景の中央付近に縮小して配置し、上下の余白を確保しつつ視覚上の重心を中央に寄せたレイアウトを採用する（現行アセットはロゴレイヤーのみを直前版から `85%`（当初比 `76.5%`）に縮小し、上下余白を増やした配置を反映）
+## 起動時 UI
 
-## 起動時ローディング対策
+- 初回マウント前は `StartupSplash` を表示します。
+- `StartupSplash` の読み上げラベルは hydration mismatch を避けるため固定文字列 `読み込み中` です。
 
-- `packages/sdk/src/store.ts` の `AppState` に以下の状態を追加
-  - `authStatus` (`loading | authenticated | unauthenticated`)
-  - `settingsStatus` (`idle | loading | ready | error`)
-  - `taskListOrderStatus` (`idle | loading | ready | error`)
-  - `startupError` (`string | null`)
-- `/app` と `/settings` は上記ステータスを参照して待機条件を制御し、`null` 判定のみで無限ローディングしないようにした
-- `/app` と `/settings` では `authStatus === "loading"` が一定時間継続した場合に `/` へフォールバック遷移する
-- 起動時の全画面ローディングは `StartupSplash`（ブランドロゴ表示）を使用し、通常のページ内待機は既存 `Spinner` を継続利用する
+## やらないこと
 
-## 拡張の方向性
-
-- オフライン対応とキャッシュ戦略（静的アセット/画像/Firestore等）の設計を追加する
-- 更新検知（新しいSWが有効になったら通知してリロード促し）を追加する
+- オフライン対応はしません。
+- キャッシュ戦略は持ちません。
+- 更新通知 UI は持ちません。

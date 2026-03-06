@@ -20,14 +20,24 @@
 
 - モノレポ: `apps/web`（Next.js）/ `apps/native`（Expo）/ `packages/sdk`（Firebase 共通ロジック）
 - React系依存は `apps/web` / `apps/native` で個別管理し、`packages/sdk` は `react` を `peerDependencies` で要求する。
-- `@lightlist/sdk/firebase` は package `exports` の `react-native` 条件で `src/firebase/index.native.ts`、それ以外で `src/firebase/index.ts` を解決する。
+- `packages/sdk` は `dist` 配布の workspace package として扱い、apps から `packages/sdk/src/*` を直接参照しない。公開 env が必要な SDK 初期化は apps の entry で `initializeSdk()` に渡す。
+- Firebase 初期化は `packages/sdk/src/firebase/` の内部実装に限定し、apps は `firebase/*` と `@lightlist/sdk/firebase` を import しない。認証・設定・タスクリストの購読は `@lightlist/sdk/session` / `@lightlist/sdk/settings` / `@lightlist/sdk/taskLists` を使い、apps から `@lightlist/sdk/store` を直接 import しない。
 - タスクリストは `taskLists.memberCount` で保持ユーザー数を管理し、削除操作は `taskListOrder` からの離脱を基本とする（`memberCount` が 0 のときのみ実体削除）。
 - 共有権限モデルは「共有URLを知っているユーザーは未認証でも閲覧・編集可」を固定仕様とし、production readiness 評価の item1（認可モデル再設計）は 2026-03 時点で対応不要とする。
 - パスワードリセットURLは `NEXT_PUBLIC_PASSWORD_RESET_URL`（Web）または `EXPO_PUBLIC_PASSWORD_RESET_URL`（Native）が必須。prod 設定で `localhost` を使わない。
 - Native のディープリンク scheme は `APP_ENV` ごとに `lightlist` / `lightlist-staging` / `lightlist-dev` を使う。
+- サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
+- `apps/web/src/locales/*.json` と `apps/native/src/locales/*.json` は同一キー構造を維持し、英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。
+- Web は言語切替時に `document.documentElement.lang` と `dir` を同期する。`ar` は RTL、それ以外は LTR。
+- Web の `StartupSplash` は hydration mismatch 回避のため、読み上げラベルを i18n の初期言語解決に依存させず固定文字列（`読み込み中`）で扱う。
+- Web の `Carousel` は `direction` prop で方向を受け取り、RTL 時の `scrollLeft` はブラウザ差分を正規化して index を管理する。
+- Native は言語設定に応じて LTR/RTL を即時に切り替える。再起動は不要。
+- Native の方向判定は `I18nManager` ではなく `settings.language` 由来の `uiDirection` を使用し、Expo Go / Development Build / 本番で同一挙動にする。
+- Native の `Carousel` は `uiDirection` 変更時に `PagerView` を再マウントし、`setPageWithoutAnimation(currentIndex)` で index 同期を維持する。
 - Web 認証ページ: `apps/web/src/pages/login.tsx`
 - 共有ページ: `apps/web/src/pages/sharecodes/[sharecode].tsx`
 - SDK の Firestore デプロイ: `packages/sdk` の `deploy:firestore` 系スクリプト
+- Web の本番 env は Next.js 標準の `.env.production` / `.env.production.local` または deploy 環境変数で供給し、build/start 前に `.env` をコピーしない。
 
 ## agentドキュメント更新
 

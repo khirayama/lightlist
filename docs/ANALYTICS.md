@@ -1,88 +1,61 @@
-# Analytics & Crashlytics
+# Analytics
 
-## 概要と設計方針
+## 構成
 
-Firebase Analytics と Firebase Crashlytics を使ってユーザー行動とエラーを計測する。
+- 実装は `packages/sdk/src/analytics/` に集約します。
+- apps 側は `@lightlist/sdk/analytics` だけを import します。
+- PII はイベント名にもパラメータにも含めません。
+- イベント API の定義は `shared.ts` に集約し、platform ごとの差分は adapter だけに閉じ込めます。
 
-実装詳細は `packages/sdk` に隠蔽し、apps 側は `@lightlist/sdk/analytics` 経由で利用する。PII（タスク名・リスト名・ユーザーID 等）はパラメータに含めない。
+## プラットフォーム別実装
 
-## 実装アーキテクチャ
+- Web
+  - `firebase/analytics` を使います。
+  - 開発時は `console.log` にも出します。
+  - 例外は `app_exception` を Analytics へ送ります。
+- Native
+  - Expo Go では `console.log` / `console.error` のみです。
+  - Development Build / 本番では `@react-native-firebase/analytics` と `@react-native-firebase/crashlytics` を使います。
+  - `logException()` は Crashlytics に `recordError()` します。
 
-```
-packages/sdk/src/analytics/
-  index.ts          - Web 実装 (firebase/analytics)
-  index.native.ts   - Native 実装 (@react-native-firebase + Expo Go 条件分岐)
-```
+## 主なイベント
 
-`package.json` の exports:
+- 認証
+  - `sign_up`
+  - `login`
+  - `app_sign_out`
+  - `app_delete_account`
+  - `app_password_reset_email_sent`
+  - `app_email_change_requested`
+- タスクリスト
+  - `app_task_list_create`
+  - `app_task_list_delete`
+  - `app_task_list_reorder`
+- タスク
+  - `app_task_add`
+  - `app_task_update`
+  - `app_task_delete`
+  - `app_task_reorder`
+  - `app_task_sort`
+  - `app_task_delete_completed`
+- 共有
+  - `app_share_code_generate`
+  - `app_share_code_remove`
+  - `app_share_code_join`
+  - `share`
+- 設定
+  - `app_settings_theme_change`
+  - `app_settings_language_change`
+  - `app_settings_task_insert_position_change`
+  - `app_settings_auto_sort_change`
+- 例外
+  - `app_exception`
 
-```json
-"./analytics": {
-  "react-native": "./src/analytics/index.native.ts",
-  "default": "./src/analytics/index.ts"
-}
-```
+## 環境変数
 
-apps 側の利用:
+- Web で Analytics を有効にするには `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` が必要です。
 
-```ts
-import { logTaskAdd, logException } from "@lightlist/sdk/analytics";
-```
+## 補足
 
-### Native の Expo Go 判定
-
-`Constants.executionEnvironment === "storeClient"` で Expo Go を判定し、Expo Go 時はログ出力のみ行う。Development Build / 本番では `@react-native-firebase/analytics` と `@react-native-firebase/crashlytics` を実際に呼ぶ。
-
-### Web の Crashlytics 代替
-
-Web に Crashlytics はないため、`app_exception` イベントを Analytics に記録する形で代替する。`_app.tsx` の `window.onerror` / `unhandledrejection` と `ErrorBoundary.componentDidCatch` から呼ぶ。
-
-## イベント一覧
-
-| イベント名 | トリガー | パラメータ |
-|---|---|---|
-| `sign_up` | サインアップ成功 | `method: "email"` |
-| `login` | サインイン成功 | `method: "email"` |
-| `app_sign_out` | サインアウト成功 | なし |
-| `app_delete_account` | アカウント削除成功 | なし |
-| `app_password_reset_email_sent` | パスワードリセットメール送信成功 | なし |
-| `app_email_change_requested` | メールアドレス変更リクエスト成功 | なし |
-| `app_task_list_create` | タスクリスト作成成功 | なし |
-| `app_task_list_delete` | タスクリスト削除成功 | なし |
-| `app_task_list_reorder` | タスクリスト並び替え成功 | なし |
-| `app_task_add` | タスク追加成功 | `has_date: boolean` |
-| `app_task_update` | タスク更新成功 | `fields: string`（例: `"completed,date"`） |
-| `app_task_delete` | タスク削除成功 | なし |
-| `app_task_reorder` | タスク並び替え成功 | なし |
-| `app_task_sort` | タスク手動ソート成功 | なし |
-| `app_task_delete_completed` | 完了タスク一括削除成功 | `count: number` |
-| `app_share_code_generate` | 共有コード生成成功 | なし |
-| `app_share_code_remove` | 共有コード削除成功 | なし |
-| `app_share_code_join` | 共有リスト参加成功 | なし |
-| `share` | 共有ページ表示成功 | `method: "share_code"`, `content_type: "task_list"` |
-| `app_settings_theme_change` | テーマ変更成功 | `theme: "system" \| "light" \| "dark"` |
-| `app_settings_language_change` | 言語変更成功 | `language: string` |
-| `app_settings_task_insert_position_change` | 挿入位置変更成功 | `position: "top" \| "bottom"` |
-| `app_settings_auto_sort_change` | 自動ソート変更成功 | `enabled: boolean` |
-| `app_exception` | ErrorBoundary / window.onerror | `description: string`, `fatal: boolean` |
-
-## Web セットアップ手順
-
-`.env.local` / `.env.prod` に追加:
-
-```
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
-```
-
-Firebase Console で Analytics を有効化し、Measurement ID を取得する。
-
-## Native セットアップ手順
-
-1. Firebase Console から `google-services.json`（Android）と `GoogleService-Info.plist`（iOS）を取得し、`apps/native/` に配置する。
-2. `@react-native-firebase/app`, `analytics`, `crashlytics` は `packages/sdk/dependencies` に含まれており、`apps/native` への追加は不要。
-3. Expo Go での動作確認はログ出力のみ。Development Build または本番ビルドで Firebase Console の DebugView を使って確認する。
-
-### DebugView 確認方法
-
-- **Web**: `?firebase_analytics_debug=1` クエリパラメータを付与してアクセスし、Firebase Console の DebugView でイベントを確認する。
-- **Native (Development Build)**: Firebase Console の DebugView でデバイスを選択し確認する。
+- Native の Firebase plugin は `app` と `crashlytics` のみ設定します。
+- `analytics` は Expo plugin を持たないため `app.config.ts` の `plugins` へ追加しません。

@@ -1,42 +1,30 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getFirebaseConfig } from "../utils/env";
 
-const requireEnv = (value: string | undefined, key: string): string => {
-  if (!value) {
-    throw new Error(`Missing environment variable: ${key}`);
+let cachedAuth: Auth | null = null;
+let cachedDb: Firestore | null = null;
+
+const getApp = () =>
+  getApps().length === 0
+    ? initializeApp(getFirebaseConfig("NEXT_PUBLIC"))
+    : getApps()[0];
+
+export const getAuthInstance = (): Auth => {
+  if (cachedAuth) {
+    return cachedAuth;
   }
-  return value;
+
+  cachedAuth = getAuth(getApp());
+  return cachedAuth;
 };
 
-const firebaseConfig = {
-  apiKey: requireEnv(
-    process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    "NEXT_PUBLIC_FIREBASE_API_KEY",
-  ),
-  authDomain: requireEnv(
-    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
-  ),
-  projectId: requireEnv(
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
-  ),
-  storageBucket: requireEnv(
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
-  ),
-  messagingSenderId: requireEnv(
-    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
-  ),
-  appId: requireEnv(
-    process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    "NEXT_PUBLIC_FIREBASE_APP_ID",
-  ),
-};
+export const getDbInstance = (): Firestore => {
+  if (cachedDb) {
+    return cachedDb;
+  }
 
-const app =
-  getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+  cachedDb = getFirestore(getApp());
+  return cachedDb;
+};

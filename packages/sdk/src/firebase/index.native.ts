@@ -1,9 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initializeApp, getApps } from "firebase/app";
-import type { Persistence, ReactNativeAsyncStorage } from "@firebase/auth";
+import type {
+  Auth,
+  Persistence,
+  ReactNativeAsyncStorage,
+} from "@firebase/auth";
 import { getAuth, initializeAuth } from "@firebase/auth";
 import * as FirebaseAuth from "@firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getFirebaseConfig } from "../utils/env";
 
 const getReactNativePersistence = (
   FirebaseAuth as {
@@ -17,51 +22,37 @@ if (!getReactNativePersistence) {
   throw new Error("getReactNativePersistence is not available");
 }
 
-const requireEnv = (value: string | undefined, key: string): string => {
-  if (!value) {
-    throw new Error(`Missing environment variable: ${key}`);
+let cachedAuth: Auth | null = null;
+let cachedDb: Firestore | null = null;
+
+const getApp = () =>
+  getApps().length === 0
+    ? initializeApp(getFirebaseConfig("EXPO_PUBLIC"))
+    : getApps()[0];
+
+export const getAuthInstance = (): Auth => {
+  if (cachedAuth) {
+    return cachedAuth;
   }
-  return value;
-};
 
-const firebaseConfig = {
-  apiKey: requireEnv(
-    process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-    "EXPO_PUBLIC_FIREBASE_API_KEY",
-  ),
-  authDomain: requireEnv(
-    process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN",
-  ),
-  projectId: requireEnv(
-    process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-    "EXPO_PUBLIC_FIREBASE_PROJECT_ID",
-  ),
-  storageBucket: requireEnv(
-    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET",
-  ),
-  messagingSenderId: requireEnv(
-    process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
-  ),
-  appId: requireEnv(
-    process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-    "EXPO_PUBLIC_FIREBASE_APP_ID",
-  ),
-};
+  const app = getApp();
 
-const app =
-  getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = (() => {
   try {
-    return initializeAuth(app, {
+    cachedAuth = initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage),
     });
   } catch {
-    return getAuth(app);
+    cachedAuth = getAuth(app);
   }
-})();
 
-export { auth };
-export const db = getFirestore(app);
+  return cachedAuth;
+};
+
+export const getDbInstance = (): Firestore => {
+  if (cachedDb) {
+    return cachedDb;
+  }
+
+  cachedDb = getFirestore(getApp());
+  return cachedDb;
+};

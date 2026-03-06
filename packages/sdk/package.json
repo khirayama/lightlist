@@ -4,32 +4,77 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./firebase": {
-      "react-native": "./src/firebase/index.native.ts",
-      "default": "./src/firebase/index.ts"
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
     },
-    "./store": "./src/store.ts",
-    "./types": "./src/types.ts",
-    "./icons": "./src/icons.ts",
-    "./mutations/auth": "./src/mutations/auth.ts",
-    "./mutations/app": "./src/mutations/app.ts",
-    "./hooks/useOptimisticReorder": "./src/hooks/useOptimisticReorder.ts",
-    "./utils/dateParser": "./src/utils/dateParser.ts",
-    "./utils/language": "./src/utils/language.ts",
-    "./utils/errors": "./src/utils/errors.ts",
-    "./utils/validation": "./src/utils/validation.ts",
+    "./session": {
+      "types": "./dist/session.d.ts",
+      "default": "./dist/session.js"
+    },
+    "./settings": {
+      "types": "./dist/settings.d.ts",
+      "default": "./dist/settings.js"
+    },
+    "./taskLists": {
+      "types": "./dist/taskLists.d.ts",
+      "default": "./dist/taskLists.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
+    "./icons": {
+      "types": "./dist/icons.d.ts",
+      "default": "./dist/icons.js"
+    },
+    "./mutations/auth": {
+      "types": "./dist/mutations/auth.d.ts",
+      "default": "./dist/mutations/auth.js"
+    },
+    "./mutations/app": {
+      "types": "./dist/mutations/app.d.ts",
+      "default": "./dist/mutations/app.js"
+    },
+    "./hooks/useOptimisticReorder": {
+      "types": "./dist/hooks/useOptimisticReorder.d.ts",
+      "default": "./dist/hooks/useOptimisticReorder.js"
+    },
+    "./utils/dateParser": {
+      "types": "./dist/utils/dateParser.d.ts",
+      "default": "./dist/utils/dateParser.js"
+    },
+    "./utils/language": {
+      "types": "./dist/utils/language.d.ts",
+      "default": "./dist/utils/language.js"
+    },
+    "./utils/errors": {
+      "types": "./dist/utils/errors.d.ts",
+      "default": "./dist/utils/errors.js"
+    },
+    "./utils/validation": {
+      "types": "./dist/utils/validation.d.ts",
+      "default": "./dist/utils/validation.js"
+    },
     "./analytics": {
-      "react-native": "./src/analytics/index.native.ts",
-      "default": "./src/analytics/index.ts"
+      "types": "./dist/analytics/index.d.ts",
+      "react-native": "./dist/analytics/index.native.js",
+      "default": "./dist/analytics/index.js"
     }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes",
     "deploy:firestore:prod": "firebase deploy --only firestore:rules,firestore:indexes --project prod",
     "format": "prettier --write .",
     "lint": "eslint . --max-warnings=0",
+    "prepare": "npm run build",
     "typecheck": "tsc --noEmit"
   },
+  "files": [
+    "dist"
+  ],
   "peerDependencies": {
     "react": "^19.0.0"
   },

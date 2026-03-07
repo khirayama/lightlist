@@ -45,7 +45,8 @@
       "invalidEmail": "Email address format is invalid",
       "operationNotAllowed": "This authentication method is not available",
       "tooManyRequests": "Too many login attempts. Please try again later",
-      "general": "Authentication failed. Please try again"
+      "general": "Authentication failed. Please try again",
+      "requiresRecentLogin": "For security reasons, please sign out and sign in again before retrying"
     },
     "button": {
       "signin": "Sign In",
@@ -111,7 +112,9 @@
     "calendarCheckButton": "View in Calendar",
     "calendarAllDates": "All dates",
     "calendarNoDatedTasks": "No tasks have a date",
-    "calendarNoTasksOnSelectedDate": "No tasks on the selected date"
+    "calendarNoTasksOnSelectedDate": "No tasks on the selected date",
+    "rtlRestartTitle": "Restart Required",
+    "rtlRestartMessage": "Restart the app to apply right-to-left layout changes."
   },
   "taskList": {
     "taskCount": "{{count}} tasks",
@@ -172,7 +175,16 @@
     "deleteAccount": "Delete account",
     "deleteAccountConfirm": "Delete your account and all data?",
     "signingOut": "Signing out...",
-    "deletingAccount": "Deleting account..."
+    "deletingAccount": "Deleting account...",
+    "emailChange": {
+      "title": "Change Email Address",
+      "newEmailLabel": "New Email Address",
+      "newEmailPlaceholder": "new@example.com",
+      "submitButton": "Send Verification Email",
+      "submitting": "Sending...",
+      "successMessage": "Verification email sent. Click the link in the new email address to complete the change.",
+      "changeButton": "Change"
+    }
   },
   "pages": {
     "index": {

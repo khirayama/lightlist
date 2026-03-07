@@ -1,0 +1,291 @@
+{
+  "title": "Lightlist",
+  "copyright": "© 2024 Lightlist. Todos os direitos reservados.",
+  "common": {
+    "loading": "Carregando...",
+    "back": "Voltar",
+    "cancel": "Cancelar",
+    "deleting": "Excluindo...",
+    "close": "Fechar",
+    "add": "Adicionar",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "error": "Ocorreu um erro",
+    "next": "Próximo",
+    "delete": "Excluir",
+    "selectOption": "Selecione uma opção",
+    "selected": "Selecionado"
+  },
+  "auth": {
+    "tabs": {
+      "signin": "Entrar",
+      "signup": "Cadastrar"
+    },
+    "form": {
+      "email": "Endereço de e-mail",
+      "password": "Senha",
+      "confirmPassword": "Confirmar senha"
+    },
+    "validation": {
+      "email": {
+        "required": "Digite um endereço de e-mail",
+        "invalid": "Digite um endereço de e-mail válido"
+      },
+      "password": {
+        "required": "Digite uma senha",
+        "tooShort": "A senha deve ter pelo menos 8 caracteres"
+      },
+      "confirmPassword": {
+        "required": "Digite a confirmação da senha",
+        "notMatch": "As senhas não coincidem"
+      }
+    },
+    "error": {
+      "invalidCredential": "E-mail ou senha incorretos",
+      "userNotFound": "Nenhuma conta encontrada com este endereço de e-mail",
+      "emailAlreadyInUse": "Este endereço de e-mail já está cadastrado",
+      "weakPassword": "A senha é muito fraca (recomendado 6 caracteres ou mais)",
+      "invalidEmail": "O formato do e-mail é inválido",
+      "operationNotAllowed": "Este método de autenticação não está disponível",
+      "tooManyRequests": "Muitas tentativas de login. Tente novamente mais tarde",
+      "general": "Falha na autenticação. Tente novamente",
+      "requiresRecentLogin": "Por segurança, saia e entre novamente antes de tentar de novo"
+    },
+    "button": {
+      "signin": "Entrar",
+      "signingIn": "Entrando...",
+      "signup": "Cadastrar",
+      "signingUp": "Cadastrando...",
+      "forgotPassword": "Esqueceu a senha?",
+      "sendResetEmail": "Enviar e-mail de redefinição",
+      "sending": "Enviando...",
+      "backToSignIn": "Voltar para entrar",
+      "signOut": "Sair",
+      "cancel": "Cancelar",
+      "delete": "Excluir"
+    },
+    "passwordReset": {
+      "instruction": "Digite o endereço de e-mail associado à sua conta. Enviaremos um e-mail para redefinir a senha.",
+      "success": "E-mail de redefinição de senha enviado. Verifique sua caixa de entrada.",
+      "title": "Redefinir senha",
+      "newPassword": "Nova senha",
+      "confirmNewPassword": "Confirmar nova senha",
+      "setNewPassword": "Redefinir senha",
+      "settingNewPassword": "Redefinindo...",
+      "invalidCode": "O link de redefinição de senha é inválido",
+      "expiredCode": "O link de redefinição de senha expirou",
+      "resetSuccess": "Senha alterada com sucesso"
+    },
+    "placeholder": {
+      "email": "exemplo@email.com",
+      "password": "••••••••"
+    },
+    "signOutConfirm": {
+      "title": "Sair",
+      "message": "Tem certeza de que deseja sair?"
+    },
+    "deleteAccountConfirm": {
+      "title": "Excluir conta",
+      "message": "Excluir sua conta removerá permanentemente todos os seus dados. Esta ação não pode ser desfeita. Tem certeza?"
+    }
+  },
+  "app": {
+    "emptyState": "Nenhuma lista de tarefas",
+    "createNew": "Criar",
+    "createTaskList": "Criar lista de tarefas",
+    "taskListName": "Nome da lista de tarefas",
+    "taskListNamePlaceholder": "Digite o nome da lista",
+    "create": "Criar",
+    "cancel": "Cancelar",
+    "error": "Ocorreu um erro",
+    "dragHint": "Arraste para reordenar",
+    "openMenu": "Abrir menu",
+    "drawerTitle": "Listas de tarefas",
+    "drawerNoEmail": "Nenhum e-mail disponível",
+    "taskListLocator": {
+      "label": "Posição da lista de tarefas",
+      "goTo": "Ir para a lista {{index}} de {{total}}"
+    },
+    "joinList": "Entrar na lista",
+    "joinListTitle": "Entrar em lista compartilhada",
+    "joinListDescription": "Digite o código de compartilhamento para entrar em uma lista compartilhada.",
+    "shareCodePlaceholder": "Digite o código de compartilhamento",
+    "join": "Entrar",
+    "joining": "Entrando...",
+    "calendarCheckButton": "Ver no calendário",
+    "calendarAllDates": "Todas as datas",
+    "calendarNoDatedTasks": "Nenhuma tarefa com data",
+    "calendarNoTasksOnSelectedDate": "Nenhuma tarefa na data selecionada",
+    "name": "Lightlist",
+    "creating": "Criando...",
+    "save": "Salvar",
+    "signOut": "Sair",
+    "signOutConfirm": "Sair deste dispositivo?",
+    "moveUp": "Mover para cima",
+    "moveDown": "Mover para baixo",
+    "rtlRestartTitle": "Reinicialização necessária",
+    "rtlRestartMessage": "Reinicie o app para aplicar alterações de layout da direita para a esquerda."
+  },
+  "taskList": {
+    "taskCount": "{{count}} tarefas",
+    "taskCount_one": "{{count}} tarefa",
+    "taskCount_other": "{{count}} tarefas",
+    "editDetails": "Editar lista",
+    "selectColor": "Selecionar cor",
+    "backgroundNone": "Nenhum (usa a cor do tema)",
+    "backgroundNoneShort": "Nenhum",
+    "deleteList": "Remover das minhas listas",
+    "deleteListConfirm": {
+      "title": "Remover das minhas listas",
+      "message": "Isso remove a lista das suas listas. Se nenhum outro usuário mantiver a lista, ela será excluída. Continuar?"
+    },
+    "share": "Compartilhar",
+    "shareTitle": "Compartilhar lista",
+    "shareCode": "Código de compartilhamento",
+    "shareDescription": "Gere um código de compartilhamento para permitir que outras pessoas vejam e editem esta lista.",
+    "generateShare": "Gerar código de compartilhamento",
+    "removeShare": "Parar compartilhamento",
+    "shareError": "Falha ao atualizar configurações de compartilhamento",
+    "addTask": "Adicionar",
+    "addTaskPlaceholder": "Digite uma tarefa...",
+    "deleteConfirm": "Remover esta lista das suas listas?",
+    "toggleComplete": "Alternar conclusão",
+    "editTask": "Editar tarefa",
+    "reorder": "Reordenar"
+  },
+  "settings": {
+    "title": "Configurações",
+    "userInfo": {
+      "title": "Conta"
+    },
+    "preferences": {
+      "title": "Exibição e comportamento"
+    },
+    "theme": {
+      "title": "Tema",
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Escuro"
+    },
+    "language": {
+      "title": "Idioma",
+      "japanese": "Japonês",
+      "english": "Inglês"
+    },
+    "taskInsertPosition": {
+      "title": "Posição da nova tarefa",
+      "top": "Adicionar no topo",
+      "bottom": "Adicionar embaixo"
+    },
+    "autoSort": {
+      "title": "Ordenar tarefas automaticamente",
+      "enable": "Ordenar tarefas automaticamente"
+    },
+    "danger": {
+      "title": "Zona de perigo",
+      "signOut": "Sair",
+      "deleteAccount": "Excluir conta"
+    },
+    "actions": {
+      "title": "Ações da conta"
+    },
+    "deleteAccount": "Excluir conta",
+    "deleteAccountConfirm": "Excluir sua conta e todos os dados?",
+    "signingOut": "Saindo...",
+    "deletingAccount": "Excluindo conta...",
+    "emailChange": {
+      "title": "Alterar endereço de e-mail",
+      "newEmailLabel": "Novo endereço de e-mail",
+      "newEmailPlaceholder": "novo@exemplo.com",
+      "submitButton": "Enviar e-mail de verificação",
+      "submitting": "Enviando...",
+      "successMessage": "E-mail de verificação enviado. Clique no link no novo endereço de e-mail para concluir a alteração.",
+      "changeButton": "Alterar"
+    }
+  },
+  "pages": {
+    "index": {
+      "getStarted": "Comece grátis",
+      "description1": "Lightlist é um serviço simples de lista de tarefas.",
+      "description2": "Ele pode ser usado como lista ToDo para gerenciamento de tarefas ou como lista de compras. Você pode compartilhar listas com pessoas não registradas."
+    },
+    "sharecode": {
+      "notFound": "Esta lista de tarefas não foi encontrada",
+      "error": "Falha ao carregar a lista de tarefas",
+      "addTaskError": "Falha ao adicionar tarefa",
+      "updateError": "Falha ao atualizar tarefa",
+      "reorderError": "Falha ao reordenar tarefas",
+      "deleteError": "Falha ao excluir tarefas concluídas",
+      "addToOrderError": "Falha ao adicionar esta lista de tarefas",
+      "addToOrder": "Adicionar às minhas listas",
+      "title": "Código de compartilhamento",
+      "open": "Abrir código de compartilhamento",
+      "description": "Digite um código de compartilhamento para abrir uma lista compartilhada.",
+      "codeLabel": "Código de compartilhamento",
+      "codePlaceholder": "Digite o código de compartilhamento",
+      "load": "Carregar",
+      "enterCode": "Digite um código de compartilhamento.",
+      "addToOrderLoading": "Adicionando..."
+    },
+    "tasklist": {
+      "addTaskPlaceholder": "Digite uma tarefa...",
+      "setDate": "Definir data",
+      "noTasks": "Sem tarefas",
+      "dragHint": "Arraste para reordenar",
+      "sort": "Ordenar",
+      "deleteCompleted": "Excluir tarefas concluídas",
+      "deleteCompletedConfirm": "Excluir {{count}} tarefas concluídas?",
+      "clearDate": "Limpar data"
+    },
+    "passwordReset": {
+      "title": "Redefinir senha",
+      "subtitle": "Defina uma nova senha para sua conta.",
+      "newPassword": "Nova senha",
+      "confirmPassword": "Confirmar nova senha",
+      "submit": "Definir nova senha",
+      "submitting": "Atualizando...",
+      "success": "Senha atualizada. Faça login novamente.",
+      "invalidCode": "Este link de redefinição é inválido.",
+      "expiredCode": "Este link de redefinição expirou."
+    }
+  },
+  "login": {
+    "title": "Entrar",
+    "subtitle": "Use sua conta Lightlist.",
+    "signUpTitle": "Criar conta",
+    "signUpSubtitle": "Comece com uma conta Lightlist.",
+    "resetTitle": "Redefinir senha",
+    "resetSubtitle": "Enviaremos por e-mail um link de redefinição.",
+    "tabs": {
+      "signIn": "Entrar",
+      "signUp": "Cadastrar"
+    },
+    "emailLabel": "E-mail",
+    "emailPlaceholder": "nome@exemplo.com",
+    "passwordLabel": "Senha",
+    "passwordPlaceholder": "Digite sua senha",
+    "confirmPasswordLabel": "Confirmar senha",
+    "confirmPasswordPlaceholder": "Digite sua senha novamente",
+    "submit": "Entrar",
+    "loading": "Entrando...",
+    "signUpSubmit": "Cadastrar",
+    "signUpLoading": "Cadastrando...",
+    "resetSubmit": "Enviar e-mail de redefinição",
+    "resetLoading": "Enviando...",
+    "forgotPassword": "Esqueceu a senha",
+    "backToSignIn": "Voltar para entrar",
+    "resetInstruction": "Digite seu e-mail e enviaremos um link de redefinição.",
+    "resetSuccess": "Enviamos um e-mail de redefinição de senha. Verifique sua caixa de entrada."
+  },
+  "form": {
+    "required": "Preencha todos os campos.",
+    "invalidEmail": "Digite um endereço de e-mail válido.",
+    "passwordTooShort": "A senha deve ter pelo menos 6 caracteres.",
+    "passwordMismatch": "As senhas não coincidem."
+  },
+  "errorBoundary": {
+    "title": "Algo deu errado",
+    "message": "Ocorreu um erro inesperado. Tente recarregar.",
+    "reload": "Recarregar"
+  }
+}

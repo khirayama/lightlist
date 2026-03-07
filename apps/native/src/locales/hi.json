@@ -1,0 +1,291 @@
+{
+  "title": "Lightlist",
+  "copyright": "© 2024 Lightlist. सर्वाधिकार सुरक्षित।",
+  "common": {
+    "loading": "लोड हो रहा है...",
+    "back": "वापस",
+    "cancel": "रद्द करें",
+    "deleting": "हटाया जा रहा है...",
+    "close": "बंद करें",
+    "add": "जोड़ें",
+    "copy": "कॉपी करें",
+    "copied": "कॉपी हो गया",
+    "error": "एक त्रुटि हुई",
+    "next": "अगला",
+    "delete": "हटाएँ",
+    "selectOption": "एक विकल्प चुनें",
+    "selected": "चयनित"
+  },
+  "auth": {
+    "tabs": {
+      "signin": "साइन इन",
+      "signup": "साइन अप"
+    },
+    "form": {
+      "email": "ईमेल पता",
+      "password": "पासवर्ड",
+      "confirmPassword": "पासवर्ड की पुष्टि करें"
+    },
+    "validation": {
+      "email": {
+        "required": "कृपया ईमेल पता दर्ज करें",
+        "invalid": "कृपया मान्य ईमेल पता दर्ज करें"
+      },
+      "password": {
+        "required": "कृपया पासवर्ड दर्ज करें",
+        "tooShort": "पासवर्ड कम से कम 8 अक्षरों का होना चाहिए"
+      },
+      "confirmPassword": {
+        "required": "कृपया पुष्टि पासवर्ड दर्ज करें",
+        "notMatch": "पासवर्ड मेल नहीं खाते"
+      }
+    },
+    "error": {
+      "invalidCredential": "ईमेल या पासवर्ड गलत है",
+      "userNotFound": "इस ईमेल पते से कोई खाता नहीं मिला",
+      "emailAlreadyInUse": "यह ईमेल पता पहले से पंजीकृत है",
+      "weakPassword": "पासवर्ड बहुत कमजोर है (6 या अधिक अक्षर सुझाए जाते हैं)",
+      "invalidEmail": "ईमेल पते का प्रारूप अमान्य है",
+      "operationNotAllowed": "यह प्रमाणीकरण तरीका उपलब्ध नहीं है",
+      "tooManyRequests": "बहुत अधिक लॉगिन प्रयास। कृपया बाद में फिर प्रयास करें",
+      "general": "प्रमाणीकरण विफल रहा। कृपया पुनः प्रयास करें",
+      "requiresRecentLogin": "सुरक्षा कारणों से, कृपया साइन आउट करके फिर से साइन इन करें और फिर प्रयास करें"
+    },
+    "button": {
+      "signin": "साइन इन",
+      "signingIn": "साइन इन हो रहा है...",
+      "signup": "साइन अप",
+      "signingUp": "साइन अप हो रहा है...",
+      "forgotPassword": "पासवर्ड भूल गए?",
+      "sendResetEmail": "रीसेट ईमेल भेजें",
+      "sending": "भेजा जा रहा है...",
+      "backToSignIn": "साइन इन पर वापस जाएँ",
+      "signOut": "साइन आउट",
+      "cancel": "रद्द करें",
+      "delete": "हटाएँ"
+    },
+    "passwordReset": {
+      "instruction": "अपने खाते से जुड़ा ईमेल पता दर्ज करें। हम आपको पासवर्ड रीसेट ईमेल भेजेंगे।",
+      "success": "पासवर्ड रीसेट ईमेल भेज दिया गया है। कृपया अपना ईमेल देखें।",
+      "title": "पासवर्ड रीसेट करें",
+      "newPassword": "नया पासवर्ड",
+      "confirmNewPassword": "नए पासवर्ड की पुष्टि करें",
+      "setNewPassword": "पासवर्ड रीसेट करें",
+      "settingNewPassword": "रीसेट किया जा रहा है...",
+      "invalidCode": "पासवर्ड रीसेट लिंक अमान्य है",
+      "expiredCode": "पासवर्ड रीसेट लिंक की अवधि समाप्त हो गई है",
+      "resetSuccess": "पासवर्ड सफलतापूर्वक बदल दिया गया"
+    },
+    "placeholder": {
+      "email": "udaharan@email.com",
+      "password": "••••••••"
+    },
+    "signOutConfirm": {
+      "title": "साइन आउट",
+      "message": "क्या आप वाकई साइन आउट करना चाहते हैं?"
+    },
+    "deleteAccountConfirm": {
+      "title": "खाता हटाएँ",
+      "message": "आपका खाता हटाने पर आपका सारा डेटा स्थायी रूप से हट जाएगा। यह कार्रवाई वापस नहीं की जा सकती। क्या आप सुनिश्चित हैं?"
+    }
+  },
+  "app": {
+    "emptyState": "कोई टास्क सूची नहीं",
+    "createNew": "बनाएँ",
+    "createTaskList": "टास्क सूची बनाएँ",
+    "taskListName": "टास्क सूची का नाम",
+    "taskListNamePlaceholder": "टास्क सूची का नाम दर्ज करें",
+    "create": "बनाएँ",
+    "cancel": "रद्द करें",
+    "error": "एक त्रुटि हुई",
+    "dragHint": "क्रम बदलने के लिए खींचें",
+    "openMenu": "मेनू खोलें",
+    "drawerTitle": "टास्क सूचियाँ",
+    "drawerNoEmail": "कोई ईमेल उपलब्ध नहीं",
+    "taskListLocator": {
+      "label": "टास्क सूची की स्थिति",
+      "goTo": "{{total}} में से {{index}}वीं सूची पर जाएँ"
+    },
+    "joinList": "सूची में शामिल हों",
+    "joinListTitle": "साझा सूची में शामिल हों",
+    "joinListDescription": "साझा टास्क सूची में शामिल होने के लिए शेयर कोड दर्ज करें।",
+    "shareCodePlaceholder": "शेयर कोड दर्ज करें",
+    "join": "शामिल हों",
+    "joining": "शामिल हो रहे हैं...",
+    "calendarCheckButton": "कैलेंडर में देखें",
+    "calendarAllDates": "सभी तिथियाँ",
+    "calendarNoDatedTasks": "किसी भी टास्क में तिथि सेट नहीं है",
+    "calendarNoTasksOnSelectedDate": "चयनित तिथि पर कोई टास्क नहीं",
+    "name": "Lightlist",
+    "creating": "बनाया जा रहा है...",
+    "save": "सहेजें",
+    "signOut": "साइन आउट",
+    "signOutConfirm": "क्या इस डिवाइस से साइन आउट करें?",
+    "moveUp": "ऊपर ले जाएँ",
+    "moveDown": "नीचे ले जाएँ",
+    "rtlRestartTitle": "रीस्टार्ट आवश्यक",
+    "rtlRestartMessage": "दाएँ-से-बाएँ लेआउट लागू करने के लिए ऐप को पुनः प्रारंभ करें।"
+  },
+  "taskList": {
+    "taskCount": "{{count}} टास्क",
+    "taskCount_one": "{{count}} टास्क",
+    "taskCount_other": "{{count}} टास्क",
+    "editDetails": "सूची संपादित करें",
+    "selectColor": "रंग चुनें",
+    "backgroundNone": "कोई नहीं (थीम रंग का उपयोग)",
+    "backgroundNoneShort": "कोई नहीं",
+    "deleteList": "मेरी सूचियों से हटाएँ",
+    "deleteListConfirm": {
+      "title": "मेरी सूचियों से हटाएँ",
+      "message": "इससे यह सूची आपकी सूचियों से हट जाएगी। यदि कोई अन्य उपयोगकर्ता इसे नहीं रखता, तो सूची स्वयं भी हट जाएगी। जारी रखें?"
+    },
+    "share": "साझा करें",
+    "shareTitle": "सूची साझा करें",
+    "shareCode": "शेयर कोड",
+    "shareDescription": "शेयर कोड बनाएँ ताकि अन्य लोग इस सूची को देख और संपादित कर सकें।",
+    "generateShare": "शेयर कोड बनाएँ",
+    "removeShare": "साझा करना बंद करें",
+    "shareError": "शेयर सेटिंग्स अपडेट करने में विफल",
+    "addTask": "जोड़ें",
+    "addTaskPlaceholder": "टास्क दर्ज करें...",
+    "deleteConfirm": "क्या इस सूची को आपकी सूचियों से हटाएँ?",
+    "toggleComplete": "पूर्णता स्थिति बदलें",
+    "editTask": "कार्य संपादित करें",
+    "reorder": "पुनः क्रमित करें"
+  },
+  "settings": {
+    "title": "सेटिंग्स",
+    "userInfo": {
+      "title": "खाता"
+    },
+    "preferences": {
+      "title": "दृश्य और व्यवहार"
+    },
+    "theme": {
+      "title": "थीम",
+      "system": "सिस्टम",
+      "light": "लाइट",
+      "dark": "डार्क"
+    },
+    "language": {
+      "title": "भाषा",
+      "japanese": "जापानी",
+      "english": "अंग्रेज़ी"
+    },
+    "taskInsertPosition": {
+      "title": "नई टास्क की स्थिति",
+      "top": "ऊपर जोड़ें",
+      "bottom": "नीचे जोड़ें"
+    },
+    "autoSort": {
+      "title": "टास्क स्वतः क्रमबद्ध करें",
+      "enable": "टास्क स्वतः क्रमबद्ध करें"
+    },
+    "danger": {
+      "title": "खतरे का क्षेत्र",
+      "signOut": "साइन आउट",
+      "deleteAccount": "खाता हटाएँ"
+    },
+    "actions": {
+      "title": "खाता क्रियाएँ"
+    },
+    "deleteAccount": "खाता हटाएँ",
+    "deleteAccountConfirm": "क्या आपका खाता और सारा डेटा हटाना है?",
+    "signingOut": "साइन आउट हो रहा है...",
+    "deletingAccount": "खाता हटाया जा रहा है...",
+    "emailChange": {
+      "title": "ईमेल पता बदलें",
+      "newEmailLabel": "नया ईमेल पता",
+      "newEmailPlaceholder": "naya@udaharan.com",
+      "submitButton": "सत्यापन ईमेल भेजें",
+      "submitting": "भेजा जा रहा है...",
+      "successMessage": "सत्यापन ईमेल भेज दिया गया है। परिवर्तन पूरा करने के लिए नए ईमेल पते में लिंक पर क्लिक करें।",
+      "changeButton": "बदलें"
+    }
+  },
+  "pages": {
+    "index": {
+      "getStarted": "मुफ़्त में शुरू करें",
+      "description1": "Lightlist एक सरल टास्क सूची सेवा है।",
+      "description2": "इसे कार्य प्रबंधन के लिए ToDo सूची या खरीदारी सूची के रूप में इस्तेमाल किया जा सकता है। आप गैर-पंजीकृत लोगों के साथ भी सूचियाँ साझा कर सकते हैं।"
+    },
+    "sharecode": {
+      "notFound": "यह टास्क सूची नहीं मिली",
+      "error": "टास्क सूची लोड नहीं हो सकी",
+      "addTaskError": "टास्क जोड़ने में विफल",
+      "updateError": "टास्क अपडेट करने में विफल",
+      "reorderError": "टास्क क्रम बदलने में विफल",
+      "deleteError": "पूर्ण किए गए टास्क हटाने में विफल",
+      "addToOrderError": "इस टास्क सूची को जोड़ने में विफल",
+      "addToOrder": "मेरी सूचियों में जोड़ें",
+      "title": "शेयर कोड",
+      "open": "शेयर कोड खोलें",
+      "description": "साझा सूची खोलने के लिए शेयर कोड दर्ज करें।",
+      "codeLabel": "शेयर कोड",
+      "codePlaceholder": "शेयर कोड दर्ज करें",
+      "load": "लोड करें",
+      "enterCode": "कृपया शेयर कोड दर्ज करें।",
+      "addToOrderLoading": "जोड़ा जा रहा है..."
+    },
+    "tasklist": {
+      "addTaskPlaceholder": "टास्क दर्ज करें...",
+      "setDate": "तिथि सेट करें",
+      "noTasks": "कोई टास्क नहीं",
+      "dragHint": "क्रम बदलने के लिए खींचें",
+      "sort": "क्रमबद्ध करें",
+      "deleteCompleted": "पूर्ण किए गए टास्क हटाएँ",
+      "deleteCompletedConfirm": "क्या {{count}} पूर्ण किए गए टास्क हटाने हैं?",
+      "clearDate": "तारीख हटाएँ"
+    },
+    "passwordReset": {
+      "title": "पासवर्ड रीसेट करें",
+      "subtitle": "अपने खाते के लिए नया पासवर्ड सेट करें।",
+      "newPassword": "नया पासवर्ड",
+      "confirmPassword": "नया पासवर्ड पुष्टि करें",
+      "submit": "नया पासवर्ड सेट करें",
+      "submitting": "अपडेट हो रहा है...",
+      "success": "पासवर्ड अपडेट हो गया। कृपया फिर से साइन इन करें।",
+      "invalidCode": "यह रीसेट लिंक अमान्य है।",
+      "expiredCode": "यह रीसेट लिंक समाप्त हो चुका है।"
+    }
+  },
+  "login": {
+    "title": "साइन इन",
+    "subtitle": "अपने Lightlist खाते का उपयोग करें।",
+    "signUpTitle": "खाता बनाएं",
+    "signUpSubtitle": "Lightlist खाते से शुरुआत करें।",
+    "resetTitle": "पासवर्ड रीसेट करें",
+    "resetSubtitle": "हम आपको रीसेट लिंक ईमेल करेंगे।",
+    "tabs": {
+      "signIn": "साइन इन",
+      "signUp": "साइन अप"
+    },
+    "emailLabel": "ईमेल",
+    "emailPlaceholder": "नाम@उदाहरण.com",
+    "passwordLabel": "पासवर्ड",
+    "passwordPlaceholder": "अपना पासवर्ड दर्ज करें",
+    "confirmPasswordLabel": "पासवर्ड की पुष्टि करें",
+    "confirmPasswordPlaceholder": "अपना पासवर्ड फिर से दर्ज करें",
+    "submit": "साइन इन",
+    "loading": "साइन इन हो रहा है...",
+    "signUpSubmit": "साइन अप",
+    "signUpLoading": "साइन अप हो रहा है...",
+    "resetSubmit": "रीसेट ईमेल भेजें",
+    "resetLoading": "भेजा जा रहा है...",
+    "forgotPassword": "पासवर्ड भूल गए",
+    "backToSignIn": "साइन इन पर वापस जाएँ",
+    "resetInstruction": "अपना ईमेल दर्ज करें, हम रीसेट लिंक भेजेंगे।",
+    "resetSuccess": "हमने पासवर्ड रीसेट ईमेल भेज दिया है। कृपया अपना इनबॉक्स देखें।"
+  },
+  "form": {
+    "required": "कृपया सभी फ़ील्ड भरें।",
+    "invalidEmail": "कृपया वैध ईमेल पता दर्ज करें।",
+    "passwordTooShort": "पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।",
+    "passwordMismatch": "पासवर्ड मेल नहीं खाते।"
+  },
+  "errorBoundary": {
+    "title": "कुछ गलत हो गया",
+    "message": "एक अप्रत्याशित त्रुटि हुई। कृपया दोबारा लोड करके फिर प्रयास करें।",
+    "reload": "रीलोड करें"
+  }
+}

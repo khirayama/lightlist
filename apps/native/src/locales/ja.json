@@ -1,6 +1,6 @@
 {
   "title": "Lightlist",
-  "copyright": "© 2024 Lightlist. All rights reserved.",
+  "copyright": "© 2024 Lightlist. 全著作権所有。",
   "common": {
     "loading": "読み込み中...",
     "back": "戻る",
@@ -48,7 +48,8 @@
       "invalidEmail": "メールアドレスの形式が正しくありません",
       "operationNotAllowed": "この認証方法は利用できません",
       "tooManyRequests": "ログイン試行回数が多すぎます。後でもう一度試してください",
-      "general": "認証に失敗しました。もう一度試してください"
+      "general": "認証に失敗しました。もう一度試してください",
+      "requiresRecentLogin": "セキュリティのため、一度ログアウトして再ログインしてから再試行してください"
     },
     "button": {
       "signin": "ログイン",
@@ -76,7 +77,7 @@
       "resetSuccess": "パスワードが正常に変更されました"
     },
     "placeholder": {
-      "email": "example@email.com",
+      "email": "sample@example.com",
       "password": "••••••••"
     },
     "signOutConfirm": {
@@ -121,7 +122,9 @@
     "signOut": "ログアウト",
     "signOutConfirm": "この端末でログアウトしますか？",
     "moveUp": "上へ移動",
-    "moveDown": "下へ移動"
+    "moveDown": "下へ移動",
+    "rtlRestartTitle": "再起動が必要です",
+    "rtlRestartMessage": "右から左への表示を反映するにはアプリの再起動が必要です。"
   },
   "taskList": {
     "taskCount": "{{count}}個のタスク",
@@ -189,7 +192,16 @@
     "deleteAccount": "アカウントを削除",
     "deleteAccountConfirm": "アカウントと全データを削除しますか？",
     "signingOut": "ログアウト中...",
-    "deletingAccount": "削除中..."
+    "deletingAccount": "削除中...",
+    "emailChange": {
+      "title": "メールアドレスを変更",
+      "newEmailLabel": "新しいメールアドレス",
+      "newEmailPlaceholder": "new@example.jp",
+      "submitButton": "確認メールを送信",
+      "submitting": "送信中...",
+      "successMessage": "確認メールを送信しました。新しいメールアドレスのリンクをクリックすると変更が完了します。",
+      "changeButton": "変更"
+    }
   },
   "pages": {
     "index": {
@@ -249,7 +261,7 @@
       "signUp": "サインアップ"
     },
     "emailLabel": "メールアドレス",
-    "emailPlaceholder": "name@example.com",
+    "emailPlaceholder": "name@example.jp",
     "passwordLabel": "パスワード",
     "passwordPlaceholder": "パスワードを入力",
     "confirmPasswordLabel": "パスワード確認",

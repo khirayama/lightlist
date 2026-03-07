@@ -1,0 +1,291 @@
+{
+  "title": "Lightlist",
+  "copyright": "© 2024 Lightlist. Tous droits réservés.",
+  "common": {
+    "loading": "Chargement...",
+    "back": "Retour",
+    "cancel": "Annuler",
+    "deleting": "Suppression...",
+    "close": "Fermer",
+    "add": "Ajouter",
+    "copy": "Copier",
+    "copied": "Copié",
+    "error": "Une erreur est survenue",
+    "next": "Suivant",
+    "delete": "Supprimer",
+    "selectOption": "Sélectionnez une option",
+    "selected": "Sélectionné"
+  },
+  "auth": {
+    "tabs": {
+      "signin": "Se connecter",
+      "signup": "S'inscrire"
+    },
+    "form": {
+      "email": "Adresse e-mail",
+      "password": "Mot de passe",
+      "confirmPassword": "Confirmer le mot de passe"
+    },
+    "validation": {
+      "email": {
+        "required": "Veuillez saisir une adresse e-mail",
+        "invalid": "Veuillez saisir une adresse e-mail valide"
+      },
+      "password": {
+        "required": "Veuillez saisir un mot de passe",
+        "tooShort": "Le mot de passe doit contenir au moins 8 caractères"
+      },
+      "confirmPassword": {
+        "required": "Veuillez confirmer le mot de passe",
+        "notMatch": "Les mots de passe ne correspondent pas"
+      }
+    },
+    "error": {
+      "invalidCredential": "L'e-mail ou le mot de passe est incorrect",
+      "userNotFound": "Aucun compte trouvé avec cette adresse e-mail",
+      "emailAlreadyInUse": "Cette adresse e-mail est déjà enregistrée",
+      "weakPassword": "Le mot de passe est trop faible (6 caractères ou plus recommandés)",
+      "invalidEmail": "Le format de l'adresse e-mail est invalide",
+      "operationNotAllowed": "Cette méthode d'authentification n'est pas disponible",
+      "tooManyRequests": "Trop de tentatives de connexion. Veuillez réessayer plus tard",
+      "general": "Échec de l'authentification. Veuillez réessayer",
+      "requiresRecentLogin": "Pour des raisons de sécurité, déconnectez-vous puis reconnectez-vous avant de réessayer"
+    },
+    "button": {
+      "signin": "Se connecter",
+      "signingIn": "Connexion...",
+      "signup": "S'inscrire",
+      "signingUp": "Inscription...",
+      "forgotPassword": "Mot de passe oublié ?",
+      "sendResetEmail": "Envoyer l'e-mail de réinitialisation",
+      "sending": "Envoi...",
+      "backToSignIn": "Retour à la connexion",
+      "signOut": "Se déconnecter",
+      "cancel": "Annuler",
+      "delete": "Supprimer"
+    },
+    "passwordReset": {
+      "instruction": "Saisissez l'adresse e-mail associée à votre compte. Nous vous enverrons un e-mail de réinitialisation du mot de passe.",
+      "success": "E-mail de réinitialisation envoyé. Veuillez vérifier votre boîte de réception.",
+      "title": "Réinitialiser le mot de passe",
+      "newPassword": "Nouveau mot de passe",
+      "confirmNewPassword": "Confirmer le nouveau mot de passe",
+      "setNewPassword": "Réinitialiser le mot de passe",
+      "settingNewPassword": "Réinitialisation...",
+      "invalidCode": "Le lien de réinitialisation est invalide",
+      "expiredCode": "Le lien de réinitialisation a expiré",
+      "resetSuccess": "Mot de passe modifié avec succès"
+    },
+    "placeholder": {
+      "email": "exemple@email.com",
+      "password": "••••••••"
+    },
+    "signOutConfirm": {
+      "title": "Se déconnecter",
+      "message": "Voulez-vous vraiment vous déconnecter ?"
+    },
+    "deleteAccountConfirm": {
+      "title": "Supprimer le compte",
+      "message": "La suppression de votre compte supprimera définitivement toutes vos données. Cette action est irréversible. Êtes-vous sûr ?"
+    }
+  },
+  "app": {
+    "emptyState": "Aucune liste de tâches",
+    "createNew": "Créer",
+    "createTaskList": "Créer une liste de tâches",
+    "taskListName": "Nom de la liste",
+    "taskListNamePlaceholder": "Saisissez le nom de la liste",
+    "create": "Créer",
+    "cancel": "Annuler",
+    "error": "Une erreur est survenue",
+    "dragHint": "Glissez pour réorganiser",
+    "openMenu": "Ouvrir le menu",
+    "drawerTitle": "Listes de tâches",
+    "drawerNoEmail": "Aucun e-mail disponible",
+    "taskListLocator": {
+      "label": "Position de la liste",
+      "goTo": "Aller à la liste {{index}} sur {{total}}"
+    },
+    "joinList": "Rejoindre une liste",
+    "joinListTitle": "Rejoindre une liste partagée",
+    "joinListDescription": "Saisissez le code de partage pour rejoindre une liste partagée.",
+    "shareCodePlaceholder": "Saisissez le code de partage",
+    "join": "Rejoindre",
+    "joining": "Connexion en cours...",
+    "calendarCheckButton": "Voir dans le calendrier",
+    "calendarAllDates": "Toutes les dates",
+    "calendarNoDatedTasks": "Aucune tâche avec une date",
+    "calendarNoTasksOnSelectedDate": "Aucune tâche à la date sélectionnée",
+    "name": "Lightlist",
+    "creating": "Création...",
+    "save": "Enregistrer",
+    "signOut": "Se déconnecter",
+    "signOutConfirm": "Se déconnecter de cet appareil ?",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "rtlRestartTitle": "Redémarrage requis",
+    "rtlRestartMessage": "Redémarrez l'application pour appliquer la mise en page de droite à gauche."
+  },
+  "taskList": {
+    "taskCount": "{{count}} tâches",
+    "taskCount_one": "{{count}} tâche",
+    "taskCount_other": "{{count}} tâches",
+    "editDetails": "Modifier la liste",
+    "selectColor": "Choisir une couleur",
+    "backgroundNone": "Aucune (utilise la couleur du thème)",
+    "backgroundNoneShort": "Aucune",
+    "deleteList": "Retirer de mes listes",
+    "deleteListConfirm": {
+      "title": "Retirer de mes listes",
+      "message": "Cela retire la liste de vos listes. Si aucun autre utilisateur ne la conserve, la liste elle-même sera supprimée. Continuer ?"
+    },
+    "share": "Partager",
+    "shareTitle": "Partager la liste",
+    "shareCode": "Code de partage",
+    "shareDescription": "Générez un code pour permettre à d'autres de consulter et modifier cette liste.",
+    "generateShare": "Générer un code de partage",
+    "removeShare": "Arrêter le partage",
+    "shareError": "Échec de la mise à jour des paramètres de partage",
+    "addTask": "Ajouter",
+    "addTaskPlaceholder": "Saisir une tâche...",
+    "deleteConfirm": "Retirer cette liste de vos listes ?",
+    "toggleComplete": "Basculer l'état terminé",
+    "editTask": "Modifier la tâche",
+    "reorder": "Réorganiser"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "userInfo": {
+      "title": "Compte"
+    },
+    "preferences": {
+      "title": "Affichage et comportement"
+    },
+    "theme": {
+      "title": "Thème",
+      "system": "Système",
+      "light": "Clair",
+      "dark": "Sombre"
+    },
+    "language": {
+      "title": "Langue",
+      "japanese": "Japonais",
+      "english": "Anglais"
+    },
+    "taskInsertPosition": {
+      "title": "Position de la nouvelle tâche",
+      "top": "Ajouter en haut",
+      "bottom": "Ajouter en bas"
+    },
+    "autoSort": {
+      "title": "Tri automatique des tâches",
+      "enable": "Trier automatiquement les tâches"
+    },
+    "danger": {
+      "title": "Zone dangereuse",
+      "signOut": "Se déconnecter",
+      "deleteAccount": "Supprimer le compte"
+    },
+    "actions": {
+      "title": "Actions du compte"
+    },
+    "deleteAccount": "Supprimer le compte",
+    "deleteAccountConfirm": "Supprimer votre compte et toutes vos données ?",
+    "signingOut": "Déconnexion...",
+    "deletingAccount": "Suppression du compte...",
+    "emailChange": {
+      "title": "Changer l'adresse e-mail",
+      "newEmailLabel": "Nouvelle adresse e-mail",
+      "newEmailPlaceholder": "nouveau@exemple.com",
+      "submitButton": "Envoyer l'e-mail de vérification",
+      "submitting": "Envoi...",
+      "successMessage": "E-mail de vérification envoyé. Cliquez sur le lien dans la nouvelle adresse e-mail pour terminer la modification.",
+      "changeButton": "Modifier"
+    }
+  },
+  "pages": {
+    "index": {
+      "getStarted": "Commencer gratuitement",
+      "description1": "Lightlist est un service simple de liste de tâches.",
+      "description2": "Il peut être utilisé comme liste ToDo pour la gestion des tâches ou comme liste de courses. Vous pouvez partager des listes avec des personnes non inscrites."
+    },
+    "sharecode": {
+      "notFound": "Cette liste de tâches est introuvable",
+      "error": "Échec du chargement de la liste de tâches",
+      "addTaskError": "Échec de l'ajout de la tâche",
+      "updateError": "Échec de la mise à jour de la tâche",
+      "reorderError": "Échec de la réorganisation des tâches",
+      "deleteError": "Échec de la suppression des tâches terminées",
+      "addToOrderError": "Échec de l'ajout de cette liste",
+      "addToOrder": "Ajouter à mes listes",
+      "title": "Code de partage",
+      "open": "Ouvrir le code de partage",
+      "description": "Saisissez un code de partage pour ouvrir une liste partagée.",
+      "codeLabel": "Code de partage",
+      "codePlaceholder": "Saisissez le code de partage",
+      "load": "Charger",
+      "enterCode": "Veuillez saisir un code de partage.",
+      "addToOrderLoading": "Ajout..."
+    },
+    "tasklist": {
+      "addTaskPlaceholder": "Saisir une tâche...",
+      "setDate": "Définir la date",
+      "noTasks": "Aucune tâche",
+      "dragHint": "Glisser pour réorganiser",
+      "sort": "Trier",
+      "deleteCompleted": "Supprimer les tâches terminées",
+      "deleteCompletedConfirm": "Supprimer {{count}} tâches terminées ?",
+      "clearDate": "Effacer la date"
+    },
+    "passwordReset": {
+      "title": "Réinitialiser le mot de passe",
+      "subtitle": "Définissez un nouveau mot de passe pour votre compte.",
+      "newPassword": "Nouveau mot de passe",
+      "confirmPassword": "Confirmer le nouveau mot de passe",
+      "submit": "Définir un nouveau mot de passe",
+      "submitting": "Mise à jour...",
+      "success": "Mot de passe mis à jour. Veuillez vous reconnecter.",
+      "invalidCode": "Ce lien de réinitialisation est invalide.",
+      "expiredCode": "Ce lien de réinitialisation a expiré."
+    }
+  },
+  "login": {
+    "title": "Se connecter",
+    "subtitle": "Utilisez votre compte Lightlist.",
+    "signUpTitle": "Créer un compte",
+    "signUpSubtitle": "Commencez avec un compte Lightlist.",
+    "resetTitle": "Réinitialiser le mot de passe",
+    "resetSubtitle": "Nous vous enverrons un lien de réinitialisation par e-mail.",
+    "tabs": {
+      "signIn": "Se connecter",
+      "signUp": "Créer un compte"
+    },
+    "emailLabel": "E-mail",
+    "emailPlaceholder": "nom@exemple.com",
+    "passwordLabel": "Mot de passe",
+    "passwordPlaceholder": "Saisissez votre mot de passe",
+    "confirmPasswordLabel": "Confirmer le mot de passe",
+    "confirmPasswordPlaceholder": "Saisissez à nouveau votre mot de passe",
+    "submit": "Se connecter",
+    "loading": "Connexion...",
+    "signUpSubmit": "Créer un compte",
+    "signUpLoading": "Inscription...",
+    "resetSubmit": "Envoyer l'e-mail de réinitialisation",
+    "resetLoading": "Envoi...",
+    "forgotPassword": "Mot de passe oublié",
+    "backToSignIn": "Retour à la connexion",
+    "resetInstruction": "Saisissez votre e-mail et nous vous enverrons un lien de réinitialisation.",
+    "resetSuccess": "Nous avons envoyé un e-mail de réinitialisation. Vérifiez votre boîte de réception."
+  },
+  "form": {
+    "required": "Veuillez remplir tous les champs.",
+    "invalidEmail": "Veuillez saisir une adresse e-mail valide.",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 6 caractères.",
+    "passwordMismatch": "Les mots de passe ne correspondent pas."
+  },
+  "errorBoundary": {
+    "title": "Un problème est survenu",
+    "message": "Une erreur inattendue s'est produite. Veuillez réessayer en rechargeant.",
+    "reload": "Recharger"
+  }
+}

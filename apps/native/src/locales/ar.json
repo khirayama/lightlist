@@ -1,0 +1,291 @@
+{
+  "title": "Lightlist",
+  "copyright": "© 2024 Lightlist. جميع الحقوق محفوظة.",
+  "common": {
+    "loading": "جارٍ التحميل...",
+    "back": "رجوع",
+    "cancel": "إلغاء",
+    "deleting": "جارٍ الحذف...",
+    "close": "إغلاق",
+    "add": "إضافة",
+    "copy": "نسخ",
+    "copied": "تم النسخ",
+    "error": "حدث خطأ",
+    "next": "التالي",
+    "delete": "حذف",
+    "selectOption": "اختر خيارًا",
+    "selected": "تم الاختيار"
+  },
+  "auth": {
+    "tabs": {
+      "signin": "تسجيل الدخول",
+      "signup": "إنشاء حساب"
+    },
+    "form": {
+      "email": "عنوان البريد الإلكتروني",
+      "password": "كلمة المرور",
+      "confirmPassword": "تأكيد كلمة المرور"
+    },
+    "validation": {
+      "email": {
+        "required": "يرجى إدخال عنوان بريد إلكتروني",
+        "invalid": "يرجى إدخال عنوان بريد إلكتروني صالح"
+      },
+      "password": {
+        "required": "يرجى إدخال كلمة المرور",
+        "tooShort": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل"
+      },
+      "confirmPassword": {
+        "required": "يرجى إدخال تأكيد كلمة المرور",
+        "notMatch": "كلمتا المرور غير متطابقتين"
+      }
+    },
+    "error": {
+      "invalidCredential": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+      "userNotFound": "لا يوجد حساب بهذا البريد الإلكتروني",
+      "emailAlreadyInUse": "هذا البريد الإلكتروني مسجل بالفعل",
+      "weakPassword": "كلمة المرور ضعيفة جدًا (يُوصى بـ 6 أحرف أو أكثر)",
+      "invalidEmail": "تنسيق عنوان البريد الإلكتروني غير صالح",
+      "operationNotAllowed": "طريقة المصادقة هذه غير متاحة",
+      "tooManyRequests": "عدد محاولات تسجيل الدخول كبير جدًا. يرجى المحاولة لاحقًا",
+      "general": "فشلت المصادقة. يرجى المحاولة مرة أخرى",
+      "requiresRecentLogin": "لأسباب أمنية، يرجى تسجيل الخروج ثم تسجيل الدخول مرة أخرى قبل المحاولة"
+    },
+    "button": {
+      "signin": "تسجيل الدخول",
+      "signingIn": "جارٍ تسجيل الدخول...",
+      "signup": "إنشاء حساب",
+      "signingUp": "جارٍ إنشاء الحساب...",
+      "forgotPassword": "هل نسيت كلمة المرور؟",
+      "sendResetEmail": "إرسال بريد إعادة التعيين",
+      "sending": "جارٍ الإرسال...",
+      "backToSignIn": "العودة إلى تسجيل الدخول",
+      "signOut": "تسجيل الخروج",
+      "cancel": "إلغاء",
+      "delete": "حذف"
+    },
+    "passwordReset": {
+      "instruction": "أدخل عنوان البريد الإلكتروني المرتبط بحسابك. سنرسل لك رسالة لإعادة تعيين كلمة المرور.",
+      "success": "تم إرسال رسالة إعادة تعيين كلمة المرور. يرجى التحقق من بريدك الإلكتروني.",
+      "title": "إعادة تعيين كلمة المرور",
+      "newPassword": "كلمة مرور جديدة",
+      "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+      "setNewPassword": "إعادة تعيين كلمة المرور",
+      "settingNewPassword": "جارٍ إعادة التعيين...",
+      "invalidCode": "رابط إعادة تعيين كلمة المرور غير صالح",
+      "expiredCode": "انتهت صلاحية رابط إعادة تعيين كلمة المرور",
+      "resetSuccess": "تم تغيير كلمة المرور بنجاح"
+    },
+    "placeholder": {
+      "email": "مثال@بريد.كوم",
+      "password": "••••••••"
+    },
+    "signOutConfirm": {
+      "title": "تسجيل الخروج",
+      "message": "هل أنت متأكد أنك تريد تسجيل الخروج؟"
+    },
+    "deleteAccountConfirm": {
+      "title": "حذف الحساب",
+      "message": "سيؤدي حذف حسابك إلى إزالة جميع بياناتك نهائيًا. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد؟"
+    }
+  },
+  "app": {
+    "emptyState": "لا توجد قوائم مهام",
+    "createNew": "إنشاء",
+    "createTaskList": "إنشاء قائمة مهام",
+    "taskListName": "اسم قائمة المهام",
+    "taskListNamePlaceholder": "أدخل اسم قائمة المهام",
+    "create": "إنشاء",
+    "cancel": "إلغاء",
+    "error": "حدث خطأ",
+    "dragHint": "اسحب لإعادة الترتيب",
+    "openMenu": "فتح القائمة",
+    "drawerTitle": "قوائم المهام",
+    "drawerNoEmail": "لا يوجد بريد إلكتروني متاح",
+    "taskListLocator": {
+      "label": "موضع قائمة المهام",
+      "goTo": "الانتقال إلى قائمة المهام {{index}} من {{total}}"
+    },
+    "joinList": "الانضمام إلى قائمة",
+    "joinListTitle": "الانضمام إلى قائمة مشتركة",
+    "joinListDescription": "أدخل رمز المشاركة للانضمام إلى قائمة مهام مشتركة.",
+    "shareCodePlaceholder": "أدخل رمز المشاركة",
+    "join": "انضمام",
+    "joining": "جارٍ الانضمام...",
+    "calendarCheckButton": "عرض في التقويم",
+    "calendarAllDates": "كل التواريخ",
+    "calendarNoDatedTasks": "لا توجد مهام بتاريخ",
+    "calendarNoTasksOnSelectedDate": "لا توجد مهام في التاريخ المحدد",
+    "name": "Lightlist",
+    "creating": "جارٍ الإنشاء...",
+    "save": "حفظ",
+    "signOut": "تسجيل الخروج",
+    "signOutConfirm": "تسجيل الخروج من هذا الجهاز؟",
+    "moveUp": "نقل لأعلى",
+    "moveDown": "نقل لأسفل",
+    "rtlRestartTitle": "إعادة التشغيل مطلوبة",
+    "rtlRestartMessage": "أعد تشغيل التطبيق لتطبيق تغييرات التخطيط من اليمين إلى اليسار."
+  },
+  "taskList": {
+    "taskCount": "{{count}} مهمة",
+    "taskCount_one": "{{count}} مهمة",
+    "taskCount_other": "{{count}} مهام",
+    "editDetails": "تعديل القائمة",
+    "selectColor": "اختر اللون",
+    "backgroundNone": "بدون (يستخدم لون السمة)",
+    "backgroundNoneShort": "بدون",
+    "deleteList": "إزالة من قوائمي",
+    "deleteListConfirm": {
+      "title": "إزالة من قوائمي",
+      "message": "سيؤدي هذا إلى إزالة القائمة من قوائمك. إذا لم يحتفظ بها مستخدمون آخرون، فسيتم حذف القائمة نفسها. هل تريد المتابعة؟"
+    },
+    "share": "مشاركة",
+    "shareTitle": "مشاركة القائمة",
+    "shareCode": "رمز المشاركة",
+    "shareDescription": "أنشئ رمز مشاركة للسماح للآخرين بعرض هذه القائمة وتعديلها.",
+    "generateShare": "إنشاء رمز مشاركة",
+    "removeShare": "إيقاف المشاركة",
+    "shareError": "فشل تحديث إعدادات المشاركة",
+    "addTask": "إضافة",
+    "addTaskPlaceholder": "أدخل مهمة...",
+    "deleteConfirm": "إزالة هذه القائمة من قوائمك؟",
+    "toggleComplete": "تبديل حالة الإكمال",
+    "editTask": "تعديل المهمة",
+    "reorder": "إعادة الترتيب"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "userInfo": {
+      "title": "الحساب"
+    },
+    "preferences": {
+      "title": "العرض والسلوك"
+    },
+    "theme": {
+      "title": "السمة",
+      "system": "النظام",
+      "light": "فاتح",
+      "dark": "داكن"
+    },
+    "language": {
+      "title": "اللغة",
+      "japanese": "اليابانية",
+      "english": "الإنجليزية"
+    },
+    "taskInsertPosition": {
+      "title": "موضع المهمة الجديدة",
+      "top": "الإضافة إلى الأعلى",
+      "bottom": "الإضافة إلى الأسفل"
+    },
+    "autoSort": {
+      "title": "فرز المهام تلقائيًا",
+      "enable": "فرز المهام تلقائيًا"
+    },
+    "danger": {
+      "title": "منطقة الخطر",
+      "signOut": "تسجيل الخروج",
+      "deleteAccount": "حذف الحساب"
+    },
+    "actions": {
+      "title": "إجراءات الحساب"
+    },
+    "deleteAccount": "حذف الحساب",
+    "deleteAccountConfirm": "حذف حسابك وجميع بياناتك؟",
+    "signingOut": "جارٍ تسجيل الخروج...",
+    "deletingAccount": "جارٍ حذف الحساب...",
+    "emailChange": {
+      "title": "تغيير عنوان البريد الإلكتروني",
+      "newEmailLabel": "عنوان البريد الإلكتروني الجديد",
+      "newEmailPlaceholder": "جديد@بريد.كوم",
+      "submitButton": "إرسال رسالة التحقق",
+      "submitting": "جارٍ الإرسال...",
+      "successMessage": "تم إرسال رسالة التحقق. انقر على الرابط في عنوان البريد الإلكتروني الجديد لإكمال التغيير.",
+      "changeButton": "تغيير"
+    }
+  },
+  "pages": {
+    "index": {
+      "getStarted": "ابدأ مجانًا",
+      "description1": "Lightlist خدمة بسيطة لقوائم المهام.",
+      "description2": "يمكن استخدامه كقائمة مهام ToDo لإدارة المهام أو كقائمة تسوق. يمكنك مشاركة القوائم مع أشخاص غير مسجلين."
+    },
+    "sharecode": {
+      "notFound": "لم يتم العثور على قائمة المهام هذه",
+      "error": "فشل تحميل قائمة المهام",
+      "addTaskError": "فشل إضافة المهمة",
+      "updateError": "فشل تحديث المهمة",
+      "reorderError": "فشلت إعادة ترتيب المهام",
+      "deleteError": "فشل حذف المهام المكتملة",
+      "addToOrderError": "فشلت إضافة قائمة المهام هذه",
+      "addToOrder": "إضافة إلى قوائمي",
+      "title": "رمز المشاركة",
+      "open": "فتح رمز المشاركة",
+      "description": "أدخل رمز المشاركة لفتح قائمة مشتركة.",
+      "codeLabel": "رمز المشاركة",
+      "codePlaceholder": "أدخل رمز المشاركة",
+      "load": "تحميل",
+      "enterCode": "يرجى إدخال رمز المشاركة.",
+      "addToOrderLoading": "جارٍ الإضافة..."
+    },
+    "tasklist": {
+      "addTaskPlaceholder": "أدخل مهمة...",
+      "setDate": "تحديد التاريخ",
+      "noTasks": "لا توجد مهام",
+      "dragHint": "اسحب لإعادة الترتيب",
+      "sort": "فرز",
+      "deleteCompleted": "حذف المهام المكتملة",
+      "deleteCompletedConfirm": "حذف {{count}} من المهام المكتملة؟",
+      "clearDate": "مسح التاريخ"
+    },
+    "passwordReset": {
+      "title": "إعادة تعيين كلمة المرور",
+      "subtitle": "عيّن كلمة مرور جديدة لحسابك.",
+      "newPassword": "كلمة مرور جديدة",
+      "confirmPassword": "تأكيد كلمة المرور الجديدة",
+      "submit": "تعيين كلمة مرور جديدة",
+      "submitting": "جارٍ التحديث...",
+      "success": "تم تحديث كلمة المرور. يرجى تسجيل الدخول مرة أخرى.",
+      "invalidCode": "رابط إعادة التعيين هذا غير صالح.",
+      "expiredCode": "انتهت صلاحية رابط إعادة التعيين هذا."
+    }
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "استخدم حساب Lightlist الخاص بك.",
+    "signUpTitle": "إنشاء حساب",
+    "signUpSubtitle": "ابدأ بحساب Lightlist.",
+    "resetTitle": "إعادة تعيين كلمة المرور",
+    "resetSubtitle": "سنرسل لك رابط إعادة التعيين عبر البريد الإلكتروني.",
+    "tabs": {
+      "signIn": "تسجيل الدخول",
+      "signUp": "إنشاء حساب"
+    },
+    "emailLabel": "البريد الإلكتروني",
+    "emailPlaceholder": "name@مثال.com",
+    "passwordLabel": "كلمة المرور",
+    "passwordPlaceholder": "أدخل كلمة المرور",
+    "confirmPasswordLabel": "تأكيد كلمة المرور",
+    "confirmPasswordPlaceholder": "أعد إدخال كلمة المرور",
+    "submit": "تسجيل الدخول",
+    "loading": "جارٍ تسجيل الدخول...",
+    "signUpSubmit": "إنشاء حساب",
+    "signUpLoading": "جارٍ إنشاء الحساب...",
+    "resetSubmit": "إرسال بريد إعادة التعيين",
+    "resetLoading": "جارٍ الإرسال...",
+    "forgotPassword": "نسيت كلمة المرور",
+    "backToSignIn": "العودة إلى تسجيل الدخول",
+    "resetInstruction": "أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين.",
+    "resetSuccess": "لقد أرسلنا رسالة إعادة تعيين كلمة المرور. يرجى التحقق من صندوق الوارد."
+  },
+  "form": {
+    "required": "يرجى تعبئة جميع الحقول.",
+    "invalidEmail": "يرجى إدخال عنوان بريد إلكتروني صالح.",
+    "passwordTooShort": "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين."
+  },
+  "errorBoundary": {
+    "title": "حدث خطأ ما",
+    "message": "حدث خطأ غير متوقع. يرجى إعادة التحميل والمحاولة مرة أخرى.",
+    "reload": "إعادة التحميل"
+  }
+}

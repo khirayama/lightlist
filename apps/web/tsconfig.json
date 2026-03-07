@@ -15,8 +15,7 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@lightlist/sdk/*": ["../../packages/sdk/src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.mts", "**/*.ts", "**/*.tsx"],

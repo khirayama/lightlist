@@ -7,10 +7,11 @@ interface AlertProps {
   children: ReactNode;
   variant?: AlertVariant;
   className?: string;
+  announcement?: "auto" | "assertive" | "polite" | "off";
 }
 
 const VARIANT_CLASSES: Record<AlertVariant, string> = {
-  info: "border-gray-200 bg-gray-50 text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-50",
+  info: "border-border bg-background text-text dark:border-border-dark dark:bg-surface-dark dark:text-text-dark",
   success:
     "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-100",
   warning:
@@ -19,10 +20,34 @@ const VARIANT_CLASSES: Record<AlertVariant, string> = {
     "border-red-200 bg-red-50 text-red-900 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-100",
 };
 
-export function Alert({ children, variant = "info", className }: AlertProps) {
+export function Alert({
+  children,
+  variant = "info",
+  className,
+  announcement = "auto",
+}: AlertProps) {
+  const resolvedAnnouncement =
+    announcement === "auto"
+      ? variant === "error" || variant === "warning"
+        ? "assertive"
+        : "polite"
+      : announcement;
+  const role =
+    resolvedAnnouncement === "assertive"
+      ? "alert"
+      : resolvedAnnouncement === "polite"
+        ? "status"
+        : undefined;
+  const ariaLive =
+    resolvedAnnouncement === "assertive"
+      ? "assertive"
+      : resolvedAnnouncement === "polite"
+        ? "polite"
+        : undefined;
   return (
     <div
-      role="alert"
+      role={role}
+      aria-live={ariaLive}
       className={clsx(
         "rounded-xl border px-3 py-2 text-sm",
         VARIANT_CLASSES[variant],

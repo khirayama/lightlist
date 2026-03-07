@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -15,9 +16,29 @@ import type {
   TaskInsertPosition,
   Theme as ThemeMode,
 } from "@lightlist/sdk/types";
-import { appStore } from "@lightlist/sdk/store";
+import { useUserEmail } from "@lightlist/sdk/session";
+import { useSettings } from "@lightlist/sdk/settings";
 import { updateSettings } from "@lightlist/sdk/mutations/app";
-import { signOut, deleteAccount } from "@lightlist/sdk/mutations/auth";
+import {
+  signOut,
+  deleteAccount,
+  sendEmailChangeVerification,
+} from "@lightlist/sdk/mutations/auth";
+import { resolveErrorMessage } from "@lightlist/sdk/utils/errors";
+import { validateEmailChangeForm } from "@lightlist/sdk/utils/validation";
+import {
+  LANGUAGE_DISPLAY_NAMES,
+  SUPPORTED_LANGUAGES,
+} from "@lightlist/sdk/utils/language";
+import {
+  logSignOut,
+  logDeleteAccount,
+  logEmailChangeRequested,
+  logSettingsThemeChange,
+  logSettingsLanguageChange,
+  logSettingsTaskInsertPositionChange,
+  logSettingsAutoSortChange,
+} from "@lightlist/sdk/analytics";
 import { Dialog } from "../components/ui/Dialog";
 import { AppIcon } from "../components/ui/AppIcon";
 
@@ -54,14 +75,6 @@ type SelectDialogState = {
   options: SelectOption[];
   selectedValue: string;
   title: string;
-};
-
-const getSettingsSnapshot = () => {
-  return appStore.getState().settings;
-};
-
-const getUserEmailSnapshot = () => {
-  return appStore.getState().user?.email ?? "";
 };
 
 const SectionCard = ({ children, title }: SectionCardProps) => {
@@ -150,14 +163,8 @@ const ActionButton = ({
 
 export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
   const { t } = useTranslation();
-  const settings = useSyncExternalStore(
-    appStore.subscribe,
-    getSettingsSnapshot,
-  );
-  const userEmail = useSyncExternalStore(
-    appStore.subscribe,
-    getUserEmailSnapshot,
-  );
+  const settings = useSettings();
+  const userEmail = useUserEmail();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -166,6 +173,11 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
   const [selectDialog, setSelectDialog] = useState<SelectDialogState | null>(
     null,
   );
+  const [showEmailChangeDialog, setShowEmailChangeDialog] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
+  const [emailChangeSuccess, setEmailChangeSuccess] = useState(false);
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
 
   if (!settings) {
     return (
@@ -182,11 +194,7 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
     try {
       await updateSettings(next);
     } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage(t("common.error"));
-      }
+      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
     } finally {
       setIsUpdating(false);
     }
@@ -198,12 +206,9 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
     setIsSigningOut(true);
     try {
       await signOut();
+      logSignOut();
     } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage(t("common.error"));
-      }
+      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
     } finally {
       setIsSigningOut(false);
     }
@@ -215,12 +220,9 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
     setIsDeletingAccount(true);
     try {
       await deleteAccount();
+      logDeleteAccount();
     } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage(t("common.error"));
-      }
+      setErrorMessage(resolveErrorMessage(error, t, "auth.error.general"));
     } finally {
       setIsDeletingAccount(false);
     }
@@ -256,6 +258,34 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
     );
   };
 
+  const handleEmailChangeSubmit = async () => {
+    if (isChangingEmail) return;
+    const errors = validateEmailChangeForm({ newEmail }, t);
+    if (errors.email) {
+      setEmailChangeError(errors.email);
+      return;
+    }
+    setEmailChangeError(null);
+    setIsChangingEmail(true);
+    try {
+      await sendEmailChangeVerification(newEmail);
+      setEmailChangeSuccess(true);
+      setNewEmail("");
+      logEmailChangeRequested();
+    } catch (error) {
+      setEmailChangeError(resolveErrorMessage(error, t, "auth.error.general"));
+    } finally {
+      setIsChangingEmail(false);
+    }
+  };
+
+  const handleEmailChangeDialogClose = () => {
+    setShowEmailChangeDialog(false);
+    setNewEmail("");
+    setEmailChangeError(null);
+    setEmailChangeSuccess(false);
+  };
+
   const themeOptions: { value: ThemeMode; label: string }[] = useMemo(() => {
     return [
       { value: "system", label: t("settings.theme.system") },
@@ -264,12 +294,10 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
     ];
   }, [t]);
 
-  const languageOptions: { value: Language; label: string }[] = useMemo(() => {
-    return [
-      { value: "ja", label: t("settings.language.japanese") },
-      { value: "en", label: t("settings.language.english") },
-    ];
-  }, [t]);
+  const languageOptions = SUPPORTED_LANGUAGES.map((language) => ({
+    value: language,
+    label: LANGUAGE_DISPLAY_NAMES[language],
+  }));
 
   const insertPositionOptions: {
     value: TaskInsertPosition;
@@ -287,7 +315,7 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
   const deleteAccountLabel = isDeletingAccount
     ? t("settings.deletingAccount")
     : t("settings.deleteAccount");
-  const actionsDisabled = isSigningOut || isDeletingAccount;
+  const actionsDisabled = isSigningOut || isDeletingAccount || isChangingEmail;
   const settingsDisabled = isUpdating || actionsDisabled;
   const selectedLanguageLabel =
     languageOptions.find((option) => option.value === settings.language)
@@ -368,10 +396,11 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
                     t("settings.language.title"),
                     settings.language,
                     languageOptions,
-                    (value) => {
-                      void handleUpdateSettings({
+                    async (value) => {
+                      await handleUpdateSettings({
                         language: value as Language,
                       });
+                      logSettingsLanguageChange({ language: value });
                     },
                   )
                 }
@@ -387,8 +416,11 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
                     t("settings.theme.title"),
                     settings.theme,
                     themeOptions,
-                    (value) => {
-                      void handleUpdateSettings({ theme: value as ThemeMode });
+                    async (value) => {
+                      await handleUpdateSettings({ theme: value as ThemeMode });
+                      logSettingsThemeChange({
+                        theme: value as "system" | "light" | "dark",
+                      });
                     },
                   )
                 }
@@ -403,9 +435,12 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
                   t("settings.taskInsertPosition.title"),
                   settings.taskInsertPosition,
                   insertPositionOptions,
-                  (value) => {
-                    void handleUpdateSettings({
+                  async (value) => {
+                    await handleUpdateSettings({
                       taskInsertPosition: value as TaskInsertPosition,
+                    });
+                    logSettingsTaskInsertPositionChange({
+                      position: value as "top" | "bottom",
                     });
                   },
                 )
@@ -424,9 +459,11 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
             </View>
             <Switch
               value={settings.autoSort}
-              onValueChange={(value) =>
-                handleUpdateSettings({ autoSort: value })
-              }
+              onValueChange={(value) => {
+                void handleUpdateSettings({ autoSort: value }).then(() => {
+                  logSettingsAutoSortChange({ enabled: value });
+                });
+              }}
               disabled={settingsDisabled}
               accessibilityLabel={t("settings.autoSort.title")}
             />
@@ -439,9 +476,22 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
               <Text className="text-[12px] font-inter-semibold text-muted dark:text-muted-dark">
                 {t("settings.userInfo.title")}
               </Text>
-              <Text className="mt-1 text-[14px] font-inter-semibold text-text dark:text-text-dark">
-                {userEmail}
-              </Text>
+              <View className="mt-1 flex-row items-center justify-between gap-2">
+                <Text className="flex-1 text-[14px] font-inter-semibold text-text dark:text-text-dark">
+                  {userEmail}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("settings.emailChange.changeButton")}
+                  onPress={() => setShowEmailChangeDialog(true)}
+                  disabled={actionsDisabled}
+                  className={`active:opacity-90 ${actionsDisabled ? "opacity-60" : ""}`}
+                >
+                  <Text className="text-[12px] font-inter-semibold text-muted dark:text-muted-dark underline">
+                    {t("settings.emailChange.changeButton")}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
             <ActionButton
               label={signOutLabel}
@@ -536,6 +586,75 @@ export const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
             );
           })}
         </View>
+      </Dialog>
+
+      <Dialog
+        open={showEmailChangeDialog}
+        onOpenChange={(open) => {
+          if (!open) handleEmailChangeDialogClose();
+        }}
+        title={t("settings.emailChange.title")}
+        footer={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("common.cancel")}
+            onPress={handleEmailChangeDialogClose}
+            className="flex-1 rounded-[12px] border border-border dark:border-border-dark py-3 items-center active:opacity-90"
+          >
+            <Text className="text-[15px] font-inter-semibold text-text dark:text-text-dark">
+              {t("common.cancel")}
+            </Text>
+          </Pressable>
+        }
+      >
+        {emailChangeSuccess ? (
+          <View className="rounded-[12px] border border-border dark:border-border-dark bg-background dark:bg-background-dark px-3 py-2.5">
+            <Text className="text-[13px] font-inter text-text dark:text-text-dark">
+              {t("settings.emailChange.successMessage")}
+            </Text>
+          </View>
+        ) : (
+          <View className="gap-3">
+            {emailChangeError ? (
+              <View className="rounded-[12px] border border-error dark:border-error-dark bg-surface dark:bg-surface-dark px-3 py-2.5">
+                <Text
+                  accessibilityRole="alert"
+                  className="text-[13px] font-inter text-error dark:text-error-dark"
+                >
+                  {emailChangeError}
+                </Text>
+              </View>
+            ) : null}
+            <View className="gap-1.5">
+              <Text className="text-[13px] font-inter-semibold text-text dark:text-text-dark">
+                {t("settings.emailChange.newEmailLabel")}
+              </Text>
+              <TextInput
+                value={newEmail}
+                onChangeText={setNewEmail}
+                placeholder={t("settings.emailChange.newEmailPlaceholder")}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isChangingEmail}
+                className="rounded-[10px] border border-border dark:border-border-dark bg-background dark:bg-background-dark px-3 py-2.5 text-[14px] font-inter text-text dark:text-text-dark"
+                placeholderTextColor="#9ca3af"
+              />
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void handleEmailChangeSubmit()}
+              disabled={isChangingEmail || !newEmail.trim()}
+              className={`rounded-[14px] py-3 items-center active:opacity-90 bg-primary dark:bg-primary-dark ${isChangingEmail || !newEmail.trim() ? "opacity-60" : ""}`}
+            >
+              <Text className="text-[15px] font-inter-semibold text-primaryText dark:text-primaryText-dark">
+                {isChangingEmail
+                  ? t("settings.emailChange.submitting")
+                  : t("settings.emailChange.submitButton")}
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </Dialog>
     </View>
   );

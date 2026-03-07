@@ -7,9 +7,7 @@
     "format": "prettier --write .",
     "lint": "eslint . --max-warnings=0",
     "build": "next build",
-    "build:prod": "node -e \"const fs = require('fs'); fs.copyFileSync('.env.prod', '.env.production');\" && next build",
     "start": "next start",
-    "start:prod": "node -e \"const fs = require('fs'); fs.copyFileSync('.env.prod', '.env.production');\" && next start",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],

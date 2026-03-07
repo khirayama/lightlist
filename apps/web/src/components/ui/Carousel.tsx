@@ -1,69 +1,115 @@
 import React, {
   useRef,
   useEffect,
-  useState,
   useCallback,
   ReactNode,
   Children,
 } from "react";
 import clsx from "clsx";
 
-// Propsの型定義
+type CarouselDirection = "ltr" | "rtl";
+type RtlScrollMode = "positive-ascending" | "positive-descending" | "negative";
+
+let rtlScrollModeCache: RtlScrollMode | null = null;
+
+const clamp = (value: number, min: number, max: number): number => {
+  return Math.min(Math.max(value, min), max);
+};
+
+const detectRtlScrollMode = (): RtlScrollMode => {
+  if (rtlScrollModeCache) {
+    return rtlScrollModeCache;
+  }
+  if (typeof document === "undefined") {
+    rtlScrollModeCache = "positive-ascending";
+    return rtlScrollModeCache;
+  }
+
+  const container = document.createElement("div");
+  const child = document.createElement("div");
+  container.dir = "rtl";
+  container.style.width = "4px";
+  container.style.height = "1px";
+  container.style.overflow = "scroll";
+  container.style.position = "absolute";
+  container.style.top = "-9999px";
+  child.style.width = "8px";
+  child.style.height = "1px";
+  container.appendChild(child);
+  document.body.appendChild(container);
+
+  const initial = container.scrollLeft;
+  if (initial > 0) {
+    rtlScrollModeCache = "positive-descending";
+    document.body.removeChild(container);
+    return rtlScrollModeCache;
+  }
+
+  container.scrollLeft = 1;
+  rtlScrollModeCache =
+    container.scrollLeft === 0 ? "negative" : "positive-ascending";
+  document.body.removeChild(container);
+  return rtlScrollModeCache;
+};
+
+const getInlineOffsetFromScrollLeft = (
+  scrollLeft: number,
+  maxOffset: number,
+  direction: CarouselDirection,
+): number => {
+  if (direction === "ltr") {
+    return clamp(scrollLeft, 0, maxOffset);
+  }
+
+  const mode = detectRtlScrollMode();
+  if (mode === "negative") {
+    return clamp(-scrollLeft, 0, maxOffset);
+  }
+  if (mode === "positive-descending") {
+    return clamp(maxOffset - scrollLeft, 0, maxOffset);
+  }
+  return clamp(scrollLeft, 0, maxOffset);
+};
+
+const getScrollLeftFromInlineOffset = (
+  inlineOffset: number,
+  maxOffset: number,
+  direction: CarouselDirection,
+): number => {
+  const clamped = clamp(inlineOffset, 0, maxOffset);
+  if (direction === "ltr") {
+    return clamped;
+  }
+
+  const mode = detectRtlScrollMode();
+  if (mode === "negative") {
+    return -clamped;
+  }
+  if (mode === "positive-descending") {
+    return maxOffset - clamped;
+  }
+  return clamped;
+};
+
 export interface CarouselProps {
-  /**
-   * カルーセルに表示するスライド要素のリスト
-   */
   children: ReactNode;
-  /**
-   * 現在のインデックス (Optional: 指定するとControlledモードになる)
-   */
-  index?: number;
-  /**
-   * インデックスが変更された時のコールバック
-   * スクロール停止後、またはインジケータークリック時に発火
-   */
-  onIndexChange?: (index: number) => void;
-  /**
-   * コンテナの追加クラス名
-   */
+  index: number;
+  onIndexChange: (index: number) => void;
+  direction?: CarouselDirection;
   className?: string;
-  /**
-   * インジケーターを表示するかどうか
-   * @default true
-   */
   showIndicators?: boolean;
-  /**
-   * インジケーターの表示位置
-   * @default "bottom"
-   */
   indicatorPosition?: "top" | "bottom";
-  /**
-   * インジケーターのARIAラベル (全体のナビゲーション用)
-   */
   ariaLabel?: string;
-  /**
-   * 各インジケーターボタンのラベル生成関数
-   */
   getIndicatorLabel?: (index: number, total: number) => string;
-  /**
-   * スクロール操作を許可するかどうか
-   * @default true
-   */
   scrollEnabled?: boolean;
-  /**
-   * インジケーターを通常レイアウトフローで表示するかどうか
-   * @default false
-   */
   indicatorInFlow?: boolean;
 }
 
-/**
- * Web用カルーセルコンポーネント
- */
 export function Carousel({
   children,
-  index: externalIndex,
+  index,
   onIndexChange,
+  direction = "ltr",
   className,
   showIndicators = true,
   indicatorPosition = "bottom",
@@ -74,42 +120,35 @@ export function Carousel({
 }: CarouselProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentIndexRef = useRef(0);
   const skipSmoothSyncRef = useRef(false);
 
-  // 内部状態としてのindex (Uncontrolledモード用)
-  const [internalIndex, setInternalIndex] = useState(0);
-
-  // External index があればそれを優先 (Semi-controlled)
-  const isControlled = externalIndex !== undefined;
-  const currentIndex = isControlled ? externalIndex : internalIndex;
+  const count = Children.count(children);
+  const currentIndex =
+    count === 0 ? 0 : Math.max(0, Math.min(index, count - 1));
   currentIndexRef.current = currentIndex;
 
-  const count = Children.count(children);
-
-  // items.length が減って currentIndex が範囲外になった場合の補正
   useEffect(() => {
-    if (currentIndex >= count && count > 0) {
-      const newIndex = count - 1;
-      // 内部状態も更新しておく
-      if (!isControlled) {
-        setInternalIndex(newIndex);
-      }
-      // 親に通知
-      onIndexChange?.(newIndex);
-    }
-  }, [count, currentIndex, isControlled, onIndexChange]);
+    if (count === 0) return;
+    if (index === currentIndex) return;
+    onIndexChange(currentIndex);
+  }, [count, currentIndex, index, onIndexChange]);
 
-  // 外部から index が変わった場合は、スクロール位置を同期する
   useEffect(() => {
     const container = containerRef.current;
     if (!container || count === 0) return;
 
-    // コンテナの幅に基づいてターゲット位置を計算
-    const targetScrollLeft = currentIndex * container.clientWidth;
-
-    // スクロール中以外で、かつ位置が大きくズレている場合のみ移動させる
+    const maxOffset = Math.max(
+      0,
+      container.scrollWidth - container.clientWidth,
+    );
+    const targetInlineOffset = currentIndex * container.clientWidth;
+    const targetScrollLeft = getScrollLeftFromInlineOffset(
+      targetInlineOffset,
+      maxOffset,
+      direction,
+    );
     if (!isScrollingRef.current) {
       if (Math.abs(container.scrollLeft - targetScrollLeft) > 2) {
         container.scrollTo({
@@ -119,7 +158,11 @@ export function Carousel({
       }
       skipSmoothSyncRef.current = false;
     }
-  }, [currentIndex, count]);
+  }, [count, currentIndex, direction]);
+
+  useEffect(() => {
+    skipSmoothSyncRef.current = true;
+  }, [direction]);
 
   useEffect(() => {
     return () => {
@@ -129,57 +172,54 @@ export function Carousel({
     };
   }, []);
 
-  // スクロールイベントハンドラ
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // スクロール中はフラグを立てる (State更新を抑制するため)
     isScrollingRef.current = true;
-
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
 
-    // デバウンス処理: スクロール停止を検知
     scrollTimeoutRef.current = setTimeout(() => {
       isScrollingRef.current = false;
       if (container.clientWidth === 0 || count === 0) return;
 
-      // 現在のスクロール位置から最も近いスライドのインデックスを計算
-      const newIndex = Math.round(container.scrollLeft / container.clientWidth);
+      const maxOffset = Math.max(
+        0,
+        container.scrollWidth - container.clientWidth,
+      );
+      const inlineOffset = getInlineOffsetFromScrollLeft(
+        container.scrollLeft,
+        maxOffset,
+        direction,
+      );
+      const nextIndex = Math.round(inlineOffset / container.clientWidth);
+      const clampedIndex = Math.max(0, Math.min(nextIndex, count - 1));
 
-      // 範囲外へのアクセス防止
-      const clampedIndex = Math.max(0, Math.min(newIndex, count - 1));
-
-      // インデックスが変わっていたら通知
       if (clampedIndex !== currentIndexRef.current) {
         skipSmoothSyncRef.current = true;
-        if (!isControlled) {
-          setInternalIndex(clampedIndex);
-        }
-        onIndexChange?.(clampedIndex);
+        onIndexChange(clampedIndex);
       }
-    }, 150); // 150ms静止でスクロール終了とみなす
-  }, [count, isControlled, onIndexChange]);
+    }, 150);
+  }, [count, direction, onIndexChange]);
 
-  // インジケータークリック時の処理
-  const handleIndicatorClick = (idx: number) => {
-    if (idx === currentIndexRef.current) return;
-    skipSmoothSyncRef.current = false;
-    if (!isControlled) {
-      setInternalIndex(idx);
-    }
-    onIndexChange?.(idx);
-  };
+  const handleIndicatorClick = useCallback(
+    (idx: number) => {
+      if (idx === currentIndexRef.current) return;
+      skipSmoothSyncRef.current = false;
+      onIndexChange(idx);
+    },
+    [onIndexChange],
+  );
 
   const indicatorNav = (
     <nav
       aria-label={ariaLabel}
       className={clsx(
         indicatorInFlow
-          ? "flex justify-center gap-1"
-          : "absolute left-0 right-0 flex justify-center gap-1 pointer-events-none z-30",
+          ? "flex justify-center gap-0.5"
+          : "absolute left-0 right-0 flex justify-center gap-0.5 pointer-events-none z-30",
         indicatorInFlow
           ? indicatorPosition === "top"
             ? "mb-2"
@@ -197,7 +237,7 @@ export function Carousel({
           className={clsx(
             "inline-flex items-center justify-center p-2 rounded-full transition-all",
             !indicatorInFlow && "pointer-events-auto",
-            "hover:bg-gray-900/10 dark:hover:bg-gray-50/10",
+            "hover:bg-primary/10 dark:hover:bg-primary-dark/10",
           )}
           aria-label={
             getIndicatorLabel?.(idx, count) ?? `Go to slide ${idx + 1}`
@@ -208,8 +248,8 @@ export function Carousel({
             className={clsx(
               "h-2 w-2 rounded-full transition-all",
               idx === currentIndex
-                ? "bg-gray-900 dark:bg-gray-50 scale-110"
-                : "bg-gray-900/20 dark:bg-gray-50/20",
+                ? "bg-primary dark:bg-primary-dark scale-110"
+                : "bg-primary/20 dark:bg-primary-dark/20",
             )}
           />
         </button>
@@ -232,16 +272,16 @@ export function Carousel({
           scrollEnabled ? "overflow-x-auto" : "overflow-hidden",
         )}
         style={{
-          // スクロールバーを隠すスタイル
-          scrollbarWidth: "none", // Firefox
-          msOverflowStyle: "none", // IE/Edge
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          direction,
         }}
       >
         {Children.map(children, (child, idx) => (
-          // 各スライド: コンテナ幅いっぱい、縮小なし、スナップ位置は開始位置
           <div
             key={idx}
             className="w-full h-full flex-shrink-0 snap-start snap-always"
+            aria-hidden={idx === currentIndex ? undefined : true}
           >
             {child}
           </div>

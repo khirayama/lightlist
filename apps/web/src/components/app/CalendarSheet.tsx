@@ -1,7 +1,7 @@
-import type { TFunction } from "i18next";
 import type { TaskList } from "@lightlist/sdk/types";
 import { addMonths } from "date-fns";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import dynamic from "next/dynamic";
 import { DayButton as DayPickerDayButton } from "react-day-picker";
@@ -10,12 +10,13 @@ import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/Drawer";
 import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { Carousel } from "@/components/ui/Carousel";
+import { getLanguageDirection } from "@lightlist/sdk/utils/language";
 
 const Calendar = dynamic(
   () => import("@/components/ui/Calendar").then((mod) => mod.Calendar),
   {
     loading: () => (
-      <div className="h-72 w-72 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+      <div className="h-72 w-72 animate-pulse rounded-lg bg-background dark:bg-surface-dark" />
     ),
     ssr: false,
   },
@@ -39,7 +40,6 @@ type CalendarSheetProps = {
   taskLists: TaskList[];
   onSelectTaskList: (taskListId: string) => void;
   onCloseDrawer: () => void;
-  t: TFunction;
 };
 
 export function CalendarSheet({
@@ -47,17 +47,19 @@ export function CalendarSheet({
   taskLists,
   onSelectTaskList,
   onCloseDrawer,
-  t,
 }: CalendarSheetProps) {
+  const { t, i18n } = useTranslation();
   const calendarSheetStateKey = "calendar-sheet-open";
   const [calendarSheetOpen, setCalendarSheetOpen] = useState(false);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<
     Date | undefined
   >(undefined);
-  const [calendarIndex, setCalendarIndex] = useState(0);
+  const [selectedCalendarMonthKey, setSelectedCalendarMonthKey] = useState<
+    string | null
+  >(null);
   const [calendarError] = useState<string | null>(null);
   const datedTaskRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const hasInitializedCalendarIndexRef = useRef(false);
+  const lastCalendarIndexRef = useRef(0);
 
   const datedTasks = useMemo<DatedTask[]>(() => {
     const flattened: DatedTask[] = [];
@@ -175,26 +177,60 @@ export function CalendarSheet({
     return map;
   }, [datedTasksByMonth]);
 
+  const calendarMonthKeys = useMemo(() => {
+    return calendarMonths.map((month) => formatMonthKey(month));
+  }, [calendarMonths]);
+
+  const calendarIndex = useMemo(() => {
+    if (calendarMonthKeys.length === 0) return 0;
+    if (selectedCalendarMonthKey) {
+      const matchedIndex = calendarMonthKeys.indexOf(selectedCalendarMonthKey);
+      if (matchedIndex >= 0) {
+        return matchedIndex;
+      }
+    }
+    const currentMonthIndex = calendarMonthKeys.indexOf(
+      formatMonthKey(new Date()),
+    );
+    if (currentMonthIndex >= 0) {
+      return currentMonthIndex;
+    }
+    return Math.min(lastCalendarIndexRef.current, calendarMonthKeys.length - 1);
+  }, [calendarMonthKeys, selectedCalendarMonthKey]);
+
   useEffect(() => {
-    if (calendarMonths.length === 0) {
-      setCalendarIndex(0);
-      hasInitializedCalendarIndexRef.current = false;
+    if (calendarMonthKeys.length === 0) {
+      setSelectedCalendarMonthKey(null);
+      lastCalendarIndexRef.current = 0;
       return;
     }
+    if (
+      selectedCalendarMonthKey &&
+      calendarMonthKeys.includes(selectedCalendarMonthKey)
+    ) {
+      return;
+    }
+
+    const fallbackIndex = Math.min(
+      lastCalendarIndexRef.current,
+      calendarMonthKeys.length - 1,
+    );
+    const fallbackMonthKey =
+      calendarMonthKeys[Math.max(fallbackIndex, 0)] ??
+      calendarMonthKeys[0] ??
+      null;
     const currentMonthKey = formatMonthKey(new Date());
-    setCalendarIndex((currentIndex) => {
-      if (!hasInitializedCalendarIndexRef.current) {
-        hasInitializedCalendarIndexRef.current = true;
-        const currentMonthIndex = calendarMonths.findIndex(
-          (month) => formatMonthKey(month) === currentMonthKey,
-        );
-        if (currentMonthIndex >= 0) {
-          return currentMonthIndex;
-        }
-      }
-      return Math.min(currentIndex, calendarMonths.length - 1);
-    });
-  }, [calendarMonths]);
+    const nextMonthKey =
+      selectedCalendarMonthKey === null &&
+      calendarMonthKeys.includes(currentMonthKey)
+        ? currentMonthKey
+        : fallbackMonthKey;
+    setSelectedCalendarMonthKey(nextMonthKey);
+  }, [calendarMonthKeys, selectedCalendarMonthKey]);
+
+  useEffect(() => {
+    lastCalendarIndexRef.current = calendarIndex;
+  }, [calendarIndex]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -259,7 +295,11 @@ export function CalendarSheet({
   };
 
   const handleCalendarIndexChange = (nextIndex: number) => {
-    setCalendarIndex(nextIndex);
+    const monthKey = calendarMonthKeys[nextIndex];
+    if (!monthKey) return;
+    if (monthKey === selectedCalendarMonthKey) return;
+    lastCalendarIndexRef.current = nextIndex;
+    setSelectedCalendarMonthKey(monthKey);
     setSelectedCalendarDate(undefined);
   };
 
@@ -302,6 +342,10 @@ export function CalendarSheet({
     handleCalendarSheetOpenChange(false);
   };
 
+  const carouselDirection = getLanguageDirection(
+    i18n.resolvedLanguage ?? i18n.language,
+  );
+
   return (
     <Drawer
       direction="bottom"
@@ -312,7 +356,7 @@ export function CalendarSheet({
         <button
           type="button"
           data-vaul-no-drag
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text shadow-sm hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark"
         >
           <AppIcon
             name="calendar-today"
@@ -335,6 +379,7 @@ export function CalendarSheet({
             <Carousel
               className="min-h-0 flex-1"
               index={calendarIndex}
+              direction={carouselDirection}
               onIndexChange={handleCalendarIndexChange}
               showIndicators={calendarMonths.length > 1}
               indicatorPosition="top"
@@ -398,7 +443,7 @@ export function CalendarSheet({
                                       {colors.map((color, index) => (
                                         <span
                                           key={`${dateKey}-${color}-${index}`}
-                                          className="h-1.5 w-1.5 rounded-full border border-gray-900 dark:border-gray-50"
+                                          className="h-1.5 w-1.5 rounded-full border border-primary dark:border-primary-dark"
                                           style={{ backgroundColor: color }}
                                         />
                                       ))}
@@ -414,7 +459,7 @@ export function CalendarSheet({
                     <div
                       data-vaul-no-drag
                       className={clsx(
-                        "min-h-0 overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-800",
+                        "min-h-0 overflow-y-auto rounded-xl border border-border dark:border-border-dark",
                         isWideLayout ? "h-full" : "flex-1",
                       )}
                     >
@@ -442,7 +487,7 @@ export function CalendarSheet({
                           );
                         })
                       ) : (
-                        <p className="p-4 text-sm text-gray-600 dark:text-gray-300">
+                        <p className="p-4 text-sm text-muted dark:text-muted-dark">
                           {t("app.calendarNoDatedTasks")}
                         </p>
                       )}
@@ -452,7 +497,7 @@ export function CalendarSheet({
               })}
             </Carousel>
           ) : (
-            <p className="text-sm text-gray-600 dark:text-gray-300">
+            <p className="text-sm text-muted dark:text-muted-dark">
               {t("app.calendarNoDatedTasks")}
             </p>
           )}

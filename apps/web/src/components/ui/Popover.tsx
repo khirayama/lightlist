@@ -7,8 +7,6 @@ export const Popover = PopoverPrimitive.Root;
 
 export const PopoverTrigger = PopoverPrimitive.Trigger;
 
-export const PopoverAnchor = PopoverPrimitive.Anchor;
-
 export const PopoverContent = forwardRef(
   (
     {
@@ -25,8 +23,8 @@ export const PopoverContent = forwardRef(
         align={align}
         sideOffset={sideOffset}
         className={clsx(
-          "z-50 w-auto rounded-xl border border-gray-200 bg-white p-2 text-gray-900 shadow-lg outline-none",
-          "dark:border-gray-800 dark:bg-gray-900 dark:text-gray-50",
+          "z-50 w-auto rounded-xl border border-border bg-surface p-2 text-text shadow-lg outline-none",
+          "dark:border-border-dark dark:bg-surface-dark dark:text-text-dark",
           className,
         )}
         {...props}

@@ -16,7 +16,6 @@ type DrawerContentProps = ComponentPropsWithoutRef<
 };
 
 type DrawerHeaderProps = HTMLAttributes<HTMLDivElement>;
-type DrawerFooterProps = HTMLAttributes<HTMLDivElement>;
 
 function cn(...values: Array<string | undefined | null | false>): string {
   return values.filter(Boolean).join(" ");
@@ -24,8 +23,7 @@ function cn(...values: Array<string | undefined | null | false>): string {
 
 export const Drawer = DrawerPrimitive.Root;
 export const DrawerTrigger = DrawerPrimitive.Trigger;
-export const DrawerPortal = DrawerPrimitive.Portal;
-export const DrawerClose = DrawerPrimitive.Close;
+const DrawerPortal = DrawerPrimitive.Portal;
 
 const DrawerOverlay = forwardRef<
   ElementRef<typeof DrawerPrimitive.Overlay>,
@@ -47,7 +45,7 @@ const DrawerContent = forwardRef<
   ElementRef<typeof DrawerPrimitive.Content>,
   DrawerContentProps
 >(function DrawerContent(
-  { className, children, overlayClassName, ...props },
+  { className, children, overlayClassName, style, ...props },
   ref,
 ) {
   return (
@@ -56,12 +54,13 @@ const DrawerContent = forwardRef<
       <DrawerPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed inset-y-0 left-0 z-1100 w-full max-w-[460px] outline-none",
+          "fixed inset-y-0 z-1100 w-full max-w-[460px] outline-none",
           className,
         )}
+        style={{ insetInlineStart: 0, ...style }}
         {...props}
       >
-        <div className="flex h-full flex-col gap-4 overflow-y-auto bg-white p-4 text-gray-900 shadow-2xl dark:bg-gray-900 dark:text-gray-50">
+        <div className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-4 text-text shadow-2xl dark:bg-surface-dark dark:text-text-dark">
           {children}
         </div>
       </DrawerPrimitive.Content>
@@ -72,16 +71,7 @@ const DrawerContent = forwardRef<
 function DrawerHeader({ className, ...props }: DrawerHeaderProps) {
   return (
     <div
-      className={cn("flex flex-col gap-3 text-left", className)}
-      {...props}
-    />
-  );
-}
-
-function DrawerFooter({ className, ...props }: DrawerFooterProps) {
-  return (
-    <div
-      className={cn("mt-auto flex flex-wrap justify-end gap-2", className)}
+      className={cn("flex flex-col gap-3 text-start", className)}
       {...props}
     />
   );
@@ -110,17 +100,10 @@ const DrawerDescription = forwardRef<
   return (
     <DrawerPrimitive.Description
       ref={ref}
-      className={cn("text-sm text-gray-600 dark:text-gray-300", className)}
+      className={cn("text-sm text-muted dark:text-muted-dark", className)}
       {...props}
     />
   );
 });
 
-export {
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerOverlay,
-  DrawerTitle,
-};
+export { DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle };

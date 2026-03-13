@@ -1,4 +1,3 @@
-import type { TFunction } from "i18next";
 import type {
   DragEndEvent,
   SensorDescriptor,
@@ -11,7 +10,8 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import clsx from "clsx";
-import { useMemo, useRef, useState } from "react";
+import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Drawer,
@@ -32,6 +32,19 @@ import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { ColorPicker, type ColorOption } from "@/components/ui/ColorPicker";
 import { CalendarSheet } from "./CalendarSheet";
+
+const COLORS: readonly ColorOption[] = [
+  {
+    value: null,
+    preview: "var(--tasklist-theme-bg)",
+  },
+  { value: "#F87171" },
+  { value: "#FBBF24" },
+  { value: "#34D399" },
+  { value: "#38BDF8" },
+  { value: "#818CF8" },
+  { value: "#A78BFA" },
+];
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
@@ -78,14 +91,6 @@ export const createDateFromKey = (dateKey: string): Date | null => {
 export type DrawerPanelProps = {
   isWideLayout: boolean;
   userEmail: string;
-  showCreateListDialog: boolean;
-  onCreateListDialogChange: (open: boolean) => void;
-  createListInput: string;
-  onCreateListInputChange: (value: string) => void;
-  createListBackground: string | null;
-  onCreateListBackgroundChange: (color: string | null) => void;
-  colors: ColorOption[];
-  onCreateList: () => void | Promise<void>;
   hasTaskLists: boolean;
   taskLists: TaskList[];
   sensorsList: SensorDescriptor<SensorOptions>[];
@@ -97,14 +102,8 @@ export type DrawerPanelProps = {
   onSelectTaskList: (taskListId: string) => void;
   onCloseDrawer: () => void;
   onOpenSettings: () => void;
-  showJoinListDialog: boolean;
-  onJoinListDialogChange: (open: boolean) => void;
-  joinListInput: string;
-  onJoinListInputChange: (value: string) => void;
-  onJoinList: () => void | Promise<void>;
-  joinListError: string | null;
-  joiningList: boolean;
-  t: TFunction;
+  onCreateList: (name: string, background: string | null) => Promise<string>;
+  onJoinList: (code: string) => Promise<void>;
 };
 
 type SortableTaskListItemProps = {
@@ -143,7 +142,7 @@ function SortableTaskListItem({
       style={style}
       className={clsx(
         "flex items-center gap-2 rounded-[10px] p-2",
-        isActive ? "bg-gray-100 dark:bg-gray-800" : "bg-transparent",
+        isActive ? "bg-background dark:bg-surface-dark" : "bg-transparent",
       )}
     >
       <button
@@ -152,14 +151,14 @@ function SortableTaskListItem({
         title={dragHintLabel}
         aria-label={dragHintLabel}
         type="button"
-        className="flex touch-none items-center rounded-lg p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+        className="flex touch-none items-center rounded-lg p-1 text-muted hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:hover:text-text-dark dark:focus-visible:outline-muted-dark"
       >
         <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
       </button>
 
       <span
         aria-hidden="true"
-        className="h-3 w-3 rounded-full border border-gray-300 dark:border-gray-700"
+        className="h-3 w-3 rounded-full border border-border dark:border-border-dark"
         style={{
           backgroundColor: resolveTaskListBackground(taskList.background),
         }}
@@ -168,12 +167,12 @@ function SortableTaskListItem({
       <button
         type="button"
         onClick={() => onSelect(taskList.id)}
-        className="flex-1 flex flex-col items-start gap-0.5 text-left"
+        className="flex-1 flex flex-col items-start gap-0.5 text-start"
       >
         <span className={clsx(isActive ? "font-bold" : "font-medium")}>
           {taskList.name}
         </span>
-        <span className="text-xs text-gray-600 dark:text-gray-400">
+        <span className="text-xs text-muted dark:text-muted-dark">
           {taskCountLabel}
         </span>
       </button>
@@ -206,8 +205,8 @@ export function CalendarTaskItem({
     <div
       ref={itemRef}
       className={clsx(
-        "flex items-start gap-2 border-b border-gray-200 px-3 py-2 last:border-b-0 dark:border-gray-800",
-        isHighlighted && "bg-gray-100 dark:bg-gray-800",
+        "flex items-start gap-2 border-b border-border px-3 py-2 last:border-b-0 dark:border-border-dark",
+        isHighlighted && "bg-background dark:bg-surface-dark",
       )}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -215,21 +214,21 @@ export function CalendarTaskItem({
           <button
             type="button"
             onClick={() => onSelectDate(task.dateValue)}
-            className="shrink-0 rounded-md text-xs text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-300 dark:focus-visible:outline-gray-500"
+            className="shrink-0 rounded-md text-xs text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:focus-visible:outline-muted-dark"
           >
             {dateDisplayValue}
           </button>
           <button
             type="button"
             onClick={() => onOpenTaskList(task.taskListId)}
-            className="inline-flex min-w-0 items-center justify-end gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:focus-visible:outline-gray-500"
+            className="inline-flex min-w-0 items-center justify-end gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:focus-visible:outline-muted-dark"
           >
             <span
               aria-hidden="true"
-              className="h-4 w-4 shrink-0 rounded-full border border-gray-300 dark:border-gray-700"
+              className="h-4 w-4 shrink-0 rounded-full border border-border dark:border-border-dark"
               style={{ backgroundColor: task.taskListBackground }}
             />
-            <span className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+            <span className="truncate text-xs font-medium text-text dark:text-text-dark">
               {task.taskListName}
             </span>
           </button>
@@ -237,7 +236,7 @@ export function CalendarTaskItem({
         <button
           type="button"
           onClick={() => onSelectDate(task.dateValue)}
-          className="truncate rounded-md text-left font-medium leading-6 text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+          className="truncate rounded-md text-start font-medium leading-6 text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-text-dark dark:focus-visible:outline-muted-dark"
         >
           {task.task.text}
         </button>
@@ -249,14 +248,6 @@ export function CalendarTaskItem({
 export function DrawerPanel({
   isWideLayout,
   userEmail,
-  showCreateListDialog,
-  onCreateListDialogChange,
-  createListInput,
-  onCreateListInputChange,
-  createListBackground,
-  onCreateListBackgroundChange,
-  colors,
-  onCreateList,
   hasTaskLists,
   taskLists,
   sensorsList,
@@ -265,15 +256,25 @@ export function DrawerPanel({
   onSelectTaskList,
   onCloseDrawer,
   onOpenSettings,
-  showJoinListDialog,
-  onJoinListDialogChange,
-  joinListInput,
-  onJoinListInputChange,
+  onCreateList,
   onJoinList,
-  joinListError,
-  joiningList,
-  t,
 }: DrawerPanelProps) {
+  const { t } = useTranslation();
+
+  const [showCreateListDialog, setShowCreateListDialog] = useState(false);
+  const [createListInput, setCreateListInput] = useState("");
+  const [createListBackground, setCreateListBackground] = useState<
+    string | null
+  >(COLORS[0].value);
+
+  const [showJoinListDialog, setShowJoinListDialog] = useState(false);
+  const [joinListInput, setJoinListInput] = useState("");
+  const [joiningList, setJoiningList] = useState(false);
+  const [joinListError, setJoinListError] = useState<string | null>(null);
+
+  const createListInputRef = useRef(createListInput);
+  createListInputRef.current = createListInput;
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -283,6 +284,33 @@ export function DrawerPanel({
 
     if (draggedId && targetId) {
       await onReorderTaskList(draggedId, targetId);
+    }
+  };
+
+  const handleCreateList = async () => {
+    const name = createListInput.trim();
+    if (!name) return;
+    await onCreateList(name, createListBackground);
+    setCreateListInput("");
+    setCreateListBackground(COLORS[0].value);
+    setShowCreateListDialog(false);
+  };
+
+  const handleJoinList = async () => {
+    const code = joinListInput.trim();
+    if (!code) return;
+    setJoiningList(true);
+    setJoinListError(null);
+    try {
+      await onJoinList(code);
+      setJoinListInput("");
+      setShowJoinListDialog(false);
+    } catch (err) {
+      setJoinListError(
+        err instanceof Error ? err.message : t("pages.sharecode.error"),
+      );
+    } finally {
+      setJoiningList(false);
     }
   };
 
@@ -303,7 +331,7 @@ export function DrawerPanel({
             {isWideLayout ? (
               <p
                 id="drawer-task-lists-description"
-                className="m-0 min-w-0 flex-1 truncate text-sm text-gray-600 dark:text-gray-400"
+                className="m-0 min-w-0 flex-1 truncate text-sm text-muted dark:text-muted-dark"
               >
                 {userEmail}
               </p>
@@ -321,7 +349,7 @@ export function DrawerPanel({
               title={t("settings.title")}
               aria-label={t("settings.title")}
               data-vaul-no-drag
-              className="inline-flex items-center justify-center rounded-xl p-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+              className="inline-flex items-center justify-center rounded-xl p-2 text-muted hover:bg-background hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:hover:bg-surface-dark dark:hover:text-text-dark dark:focus-visible:outline-muted-dark"
             >
               <AppIcon name="settings" aria-hidden="true" focusable="false" />
             </button>
@@ -333,7 +361,7 @@ export function DrawerPanel({
               title={t("common.close")}
               aria-label={t("common.close")}
               data-vaul-no-drag
-              className="inline-flex items-center justify-center rounded-xl p-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:outline-gray-500"
+              className="inline-flex items-center justify-center rounded-xl p-2 text-muted hover:bg-background hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:hover:bg-surface-dark dark:hover:text-text-dark dark:focus-visible:outline-muted-dark"
             >
               <AppIcon name="close" aria-hidden="true" focusable="false" />
             </button>
@@ -346,7 +374,6 @@ export function DrawerPanel({
         taskLists={taskLists}
         onSelectTaskList={onSelectTaskList}
         onCloseDrawer={onCloseDrawer}
-        t={t}
       />
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
@@ -376,7 +403,7 @@ export function DrawerPanel({
             </SortableContext>
           </DndContext>
         ) : (
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-muted dark:text-muted-dark">
             {t("app.emptyState")}
           </p>
         )}
@@ -385,17 +412,17 @@ export function DrawerPanel({
           <Dialog
             open={Boolean(showCreateListDialog)}
             onOpenChange={(open: boolean) => {
-              onCreateListDialogChange(open);
+              setShowCreateListDialog(open);
               if (!open) {
-                onCreateListInputChange("");
-                onCreateListBackgroundChange(colors[0].value);
+                setCreateListInput("");
+                setCreateListBackground(COLORS[0].value);
               }
             }}
           >
             <DialogTrigger asChild>
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+                className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primaryText shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark"
               >
                 {t("app.createNew")}
               </button>
@@ -407,7 +434,7 @@ export function DrawerPanel({
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  void onCreateList();
+                  void handleCreateList();
                 }}
               >
                 <div className="mt-4 flex flex-col gap-3">
@@ -416,17 +443,17 @@ export function DrawerPanel({
                     <input
                       type="text"
                       value={createListInput}
-                      onChange={(e) => onCreateListInputChange(e.target.value)}
+                      onChange={(e) => setCreateListInput(e.target.value)}
                       placeholder={t("app.taskListNamePlaceholder")}
-                      className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+                      className="rounded-xl border border-border bg-inputBackground px-3 py-2 text-sm text-text shadow-sm focus:border-muted focus:outline-none focus:ring-2 focus:ring-border dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark"
                     />
                   </label>
                   <div className="flex flex-col gap-2">
                     <span>{t("taskList.selectColor")}</span>
                     <ColorPicker
-                      colors={colors}
+                      colors={COLORS}
                       selectedColor={createListBackground}
-                      onSelect={onCreateListBackgroundChange}
+                      onSelect={setCreateListBackground}
                       ariaLabelPrefix={t("taskList.selectColor")}
                     />
                   </div>
@@ -435,7 +462,7 @@ export function DrawerPanel({
                   <DialogClose asChild>
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+                      className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold text-text shadow-sm hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark"
                     >
                       {t("app.cancel")}
                     </button>
@@ -443,7 +470,7 @@ export function DrawerPanel({
                   <button
                     type="submit"
                     disabled={!createListInput.trim()}
-                    className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+                    className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primaryText shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark"
                   >
                     {t("app.create")}
                   </button>
@@ -455,16 +482,17 @@ export function DrawerPanel({
           <Dialog
             open={Boolean(showJoinListDialog)}
             onOpenChange={(open: boolean) => {
-              onJoinListDialogChange(open);
+              setShowJoinListDialog(open);
               if (!open) {
-                onJoinListInputChange("");
+                setJoinListInput("");
+                setJoinListError(null);
               }
             }}
           >
             <DialogTrigger asChild>
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text shadow-sm hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark"
               >
                 {t("app.joinList")}
               </button>
@@ -476,7 +504,7 @@ export function DrawerPanel({
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  void onJoinList();
+                  void handleJoinList();
                 }}
               >
                 <div className="mt-4 flex flex-col gap-3">
@@ -488,9 +516,12 @@ export function DrawerPanel({
                     <input
                       type="text"
                       value={joinListInput}
-                      onChange={(e) => onJoinListInputChange(e.target.value)}
+                      onChange={(e) => {
+                        setJoinListInput(e.target.value);
+                        setJoinListError(null);
+                      }}
                       placeholder={t("app.shareCodePlaceholder")}
-                      className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+                      className="rounded-xl border border-border bg-inputBackground px-3 py-2 text-sm text-text shadow-sm focus:border-muted focus:outline-none focus:ring-2 focus:ring-border dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark"
                     />
                   </label>
                 </div>
@@ -499,7 +530,7 @@ export function DrawerPanel({
                     <button
                       type="button"
                       disabled={joiningList}
-                      className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500"
+                      className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold text-text shadow-sm hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark"
                     >
                       {t("app.cancel")}
                     </button>
@@ -507,7 +538,7 @@ export function DrawerPanel({
                   <button
                     type="submit"
                     disabled={!joinListInput.trim() || joiningList}
-                    className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200"
+                    className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primaryText shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark"
                   >
                     {joiningList ? t("app.joining") : t("app.join")}
                   </button>
@@ -520,5 +551,3 @@ export function DrawerPanel({
     </div>
   );
 }
-
-export default DrawerPanel;

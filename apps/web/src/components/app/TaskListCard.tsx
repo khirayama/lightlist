@@ -1,4 +1,3 @@
-import type { TFunction } from "i18next";
 import {
   useEffect,
   useState,
@@ -23,6 +22,7 @@ import {
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import type { Task, TaskList } from "@lightlist/sdk/types";
 import clsx from "clsx";
+import { useTranslation } from "react-i18next";
 import { useOptimisticReorder } from "@lightlist/sdk/hooks/useOptimisticReorder";
 
 import {
@@ -31,7 +31,23 @@ import {
   sortTasks,
   deleteCompletedTasks,
   updateTasksOrder,
+  updateTaskList,
+  deleteTaskList,
+  generateShareCode,
+  removeShareCode,
 } from "@lightlist/sdk/mutations/app";
+import {
+  logTaskAdd,
+  logTaskUpdate,
+  logTaskDelete,
+  logTaskDeleteCompleted,
+  logTaskReorder,
+  logTaskSort,
+  logTaskListDelete,
+  logTaskListReorder,
+  logShareCodeGenerate,
+  logShareCodeRemove,
+} from "@lightlist/sdk/analytics";
 import { Alert } from "@/components/ui/Alert";
 import {
   Dialog,
@@ -41,10 +57,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/Dialog";
 import { AppIcon } from "@/components/ui/AppIcon";
-import { resolveErrorMessage } from "@/utils/errors";
+import { resolveErrorMessage } from "@lightlist/sdk/utils/errors";
 import { ColorPicker, type ColorOption } from "@/components/ui/ColorPicker";
 import { Command, CommandItem, CommandList } from "@/components/ui/Command";
 import { TaskItem } from "@/components/app/TaskItem";
+
+const COLORS: readonly ColorOption[] = [
+  {
+    value: null,
+    preview: "var(--tasklist-theme-bg)",
+  },
+  { value: "#F87171" },
+  { value: "#FBBF24" },
+  { value: "#34D399" },
+  { value: "#38BDF8" },
+  { value: "#818CF8" },
+  { value: "#A78BFA" },
+];
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
@@ -69,28 +98,7 @@ export type TaskListCardProps = {
   onActivate?: (taskListId: string) => void;
   sensorsList: SensorDescriptor<SensorOptions>[];
   onSortingChange?: (sorting: boolean) => void;
-  t: TFunction;
-  enableEditDialog?: boolean;
-  colors?: readonly ColorOption[];
-  showEditListDialog?: boolean;
-  onEditDialogOpenChange?: (taskList: TaskList, open: boolean) => void;
-  editListName?: string;
-  onEditListNameChange?: (value: string) => void;
-  editListBackground?: string | null;
-  onEditListBackgroundChange?: (color: string | null) => void;
-  onSaveListDetails?: () => void;
-  deletingList?: boolean;
-  onDeleteList?: () => void;
-  enableShareDialog?: boolean;
-  showShareDialog?: boolean;
-  onShareDialogOpenChange?: (taskList: TaskList, open: boolean) => void;
-  shareCode?: string | null;
-  shareCopySuccess?: boolean;
-  generatingShareCode?: boolean;
-  onGenerateShareCode?: () => void;
-  removingShareCode?: boolean;
-  onRemoveShareCode?: () => void;
-  onCopyShareLink?: () => void;
+  onDeleted?: () => void;
 };
 
 export function TaskListCard({
@@ -99,29 +107,9 @@ export function TaskListCard({
   onActivate,
   sensorsList,
   onSortingChange,
-  t,
-  enableEditDialog = false,
-  colors,
-  showEditListDialog,
-  onEditDialogOpenChange,
-  editListName,
-  onEditListNameChange,
-  editListBackground,
-  onEditListBackgroundChange,
-  onSaveListDetails,
-  deletingList,
-  onDeleteList,
-  enableShareDialog = false,
-  showShareDialog,
-  onShareDialogOpenChange,
-  shareCode,
-  shareCopySuccess,
-  generatingShareCode,
-  onGenerateShareCode,
-  removingShareCode,
-  onRemoveShareCode,
-  onCopyShareLink,
+  onDeleted,
 }: TaskListCardProps) {
+  const { t } = useTranslation();
   const reactId = useId();
   const [taskError, setTaskError] = useState<string | null>(null);
   const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
@@ -140,7 +128,31 @@ export function TaskListCard({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteCompletedPending, setDeleteCompletedPending] = useState(false);
   const newTaskInputRef = useRef<HTMLInputElement | null>(null);
-  const restoreNewTaskFocusRef = useRef(false);
+
+  // Edit dialog state
+  const [showEditListDialog, setShowEditListDialog] = useState(false);
+  const [editListName, setEditListName] = useState(taskList.name);
+  const [editListBackground, setEditListBackground] = useState<string | null>(
+    taskList.background,
+  );
+  const [deletingList, setDeletingList] = useState(false);
+
+  // Share dialog state
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareCode, setShareCode] = useState<string | null>(
+    taskList.shareCode ?? null,
+  );
+  const [generatingShareCode, setGeneratingShareCode] = useState(false);
+  const [removingShareCode, setRemovingShareCode] = useState(false);
+  const [shareCopySuccess, setShareCopySuccess] = useState(false);
+
+  const [editError, setEditError] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!showShareDialog) return;
+    setShareCode(taskList.shareCode ?? null);
+  }, [taskList.shareCode, showShareDialog]);
 
   const handleSortingChange = (sorting: boolean) => {
     onSortingChange?.(sorting);
@@ -164,6 +176,7 @@ export function TaskListCard({
     setTaskError(null);
     try {
       await reorderTask(draggedTaskId, targetTaskId);
+      logTaskReorder();
     } catch (err) {
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }
@@ -177,6 +190,7 @@ export function TaskListCard({
     setTaskError(null);
     try {
       await sortTasks(taskList.id);
+      logTaskSort();
     } catch (err) {
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }
@@ -186,6 +200,7 @@ export function TaskListCard({
     setTaskError(null);
     try {
       await deleteCompletedTasks(taskList.id);
+      logTaskDeleteCompleted({ count: completedTaskCount });
     } catch (err) {
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }
@@ -210,6 +225,7 @@ export function TaskListCard({
     try {
       await updateTask(taskList.id, task.id, { text: trimmedText });
       setEditingTaskId(null);
+      logTaskUpdate({ fields: "text" });
     } catch (err) {
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }
@@ -219,6 +235,7 @@ export function TaskListCard({
     setTaskError(null);
     try {
       await updateTask(taskList.id, task.id, { completed: !task.completed });
+      logTaskUpdate({ fields: "completed" });
     } catch (err) {
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }
@@ -228,13 +245,14 @@ export function TaskListCard({
     setTaskError(null);
     try {
       await updateTask(taskList.id, taskId, { date });
+      logTaskUpdate({ fields: "date" });
     } catch (err) {
       setTaskError(resolveErrorMessage(err, t, "common.error"));
     }
   };
 
-  const handleAddTask = async () => {
-    const trimmedText = newTaskText.trim();
+  const handleAddTask = async (text?: string) => {
+    const trimmedText = (text ?? newTaskText).trim();
     if (trimmedText === "") return;
 
     setTaskError(null);
@@ -243,11 +261,92 @@ export function TaskListCard({
 
     try {
       await addTask(taskList.id, trimmedText);
+      logTaskAdd({ has_date: false });
     } catch (err) {
       setAddTaskError(resolveErrorMessage(err, t, "common.error"));
       setNewTaskText((current) =>
         current.trim() === "" ? trimmedText : current,
       );
+    }
+  };
+
+  const handleSaveListDetails = async () => {
+    const trimmedName = editListName.trim();
+    const updates: { name?: string; background?: string | null } = {};
+
+    if (trimmedName && trimmedName !== taskList.name) {
+      updates.name = trimmedName;
+    }
+    if (editListBackground !== taskList.background) {
+      updates.background = editListBackground;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      setShowEditListDialog(false);
+      return;
+    }
+
+    setEditError(null);
+    try {
+      await updateTaskList(taskList.id, updates);
+      setShowEditListDialog(false);
+    } catch (err) {
+      setEditError(resolveErrorMessage(err, t, "common.error"));
+    }
+  };
+
+  const handleDeleteList = async () => {
+    setDeletingList(true);
+    setEditError(null);
+    try {
+      await deleteTaskList(taskList.id);
+      setShowEditListDialog(false);
+      onDeleted?.();
+      logTaskListDelete();
+    } catch (err) {
+      setEditError(resolveErrorMessage(err, t, "common.error"));
+    } finally {
+      setDeletingList(false);
+    }
+  };
+
+  const handleGenerateShareCode = async () => {
+    setGeneratingShareCode(true);
+    setShareError(null);
+    try {
+      const code = await generateShareCode(taskList.id);
+      setShareCode(code);
+      logShareCodeGenerate();
+    } catch (err) {
+      setShareError(resolveErrorMessage(err, t, "common.error"));
+    } finally {
+      setGeneratingShareCode(false);
+    }
+  };
+
+  const handleRemoveShareCode = async () => {
+    setRemovingShareCode(true);
+    setShareError(null);
+    try {
+      await removeShareCode(taskList.id);
+      setShareCode(null);
+      logShareCodeRemove();
+    } catch (err) {
+      setShareError(resolveErrorMessage(err, t, "common.error"));
+    } finally {
+      setRemovingShareCode(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!shareCode) return;
+    const shareUrl = `${window.location.origin}/sharecodes/${shareCode}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopySuccess(true);
+      setTimeout(() => setShareCopySuccess(false), 2000);
+    } catch {
+      setShareError(t("common.error"));
     }
   };
 
@@ -292,18 +391,18 @@ export function TaskListCard({
   );
 
   const inputClass =
-    "rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800";
+    "rounded-xl border border-border bg-inputBackground px-3 py-2 text-text focus:border-muted focus:outline-none focus:ring-2 focus:ring-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark";
   const primaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 font-semibold text-white hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:outline-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-200";
+    "inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 font-semibold text-primaryText hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark";
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl border-gray-300 h-12 w-12 font-semibold text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500";
+    "inline-flex items-center justify-center rounded-xl border-border h-12 w-12 font-semibold text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:text-text-dark dark:focus-visible:outline-muted-dark";
   const destructiveButtonClass =
-    "inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:bg-red-300 dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:outline-red-700 dark:disabled:bg-red-800";
+    "inline-flex items-center justify-center rounded-xl bg-error px-4 py-2 font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-50 dark:bg-error-dark dark:focus-visible:outline-error-dark";
   const iconButtonClass = clsx(secondaryButtonClass, "px-2");
 
   const listContent =
     tasks.length === 0 ? (
-      <p className="text-gray-600 dark:text-gray-300">
+      <p className="text-muted dark:text-muted-dark">
         {t("pages.tasklist.noTasks")}
       </p>
     ) : (
@@ -319,8 +418,6 @@ export function TaskListCard({
             onEditEnd={handleEditEndTask}
             onToggle={handleToggleTask}
             onDateChange={handleChangeTaskDate}
-            setDateLabel={t("pages.tasklist.setDate")}
-            dragHintLabel={t("pages.tasklist.dragHint")}
           />
         ))}
       </div>
@@ -333,15 +430,8 @@ export function TaskListCard({
         onSubmit={(e) => {
           e.preventDefault();
           if (newTaskText.trim() === "") return;
-          restoreNewTaskFocusRef.current = true;
+          setHistoryOpen(false);
           newTaskInputRef.current?.focus();
-          requestAnimationFrame(() => {
-            const input = newTaskInputRef.current;
-            if (!input) return;
-            if (!input.disabled) {
-              restoreNewTaskFocusRef.current = false;
-            }
-          });
           void handleAddTask();
         }}
       >
@@ -350,6 +440,7 @@ export function TaskListCard({
             <input
               ref={newTaskInputRef}
               type="text"
+              aria-label={t("pages.tasklist.addTaskPlaceholder")}
               role="combobox"
               aria-autocomplete="list"
               aria-haspopup="listbox"
@@ -383,12 +474,12 @@ export function TaskListCard({
                 }
               }}
               placeholder={t("pages.tasklist.addTaskPlaceholder")}
-              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+              className="w-full rounded-xl border border-border bg-inputBackground px-3 py-2 text-text shadow-sm focus:border-muted focus:outline-none focus:ring-2 focus:ring-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark"
             />
             {historyOpen && historyOptions.length > 0 ? (
               <CommandList
                 id={historyListId}
-                className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-800 dark:bg-gray-900"
+                className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-border bg-surface p-1 shadow-lg dark:border-border-dark dark:bg-surface-dark"
               >
                 {historyOptions.map((text) => (
                   <CommandItem
@@ -397,10 +488,11 @@ export function TaskListCard({
                     onMouseDown={(event: MouseEvent<HTMLDivElement>) =>
                       event.preventDefault()
                     }
-                    onSelect={(value: string) => {
-                      setNewTaskText(value);
+                    onSelect={() => {
                       setAddTaskError(null);
                       setHistoryOpen(false);
+                      newTaskInputRef.current?.focus();
+                      void handleAddTask(text);
                     }}
                   >
                     {text}
@@ -417,7 +509,7 @@ export function TaskListCard({
           aria-label={t("common.add")}
           title={t("common.add")}
           className={clsx(
-            "inline-flex h-10 shrink-0 items-center justify-center rounded-xl text-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed dark:text-gray-50 dark:focus-visible:outline-gray-500 dark:disabled:text-gray-200 transition-all duration-300 ease-in-out overflow-hidden",
+            "inline-flex h-10 shrink-0 items-center justify-center rounded-xl text-placeholder focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed dark:text-text-dark dark:focus-visible:outline-muted-dark dark:disabled:opacity-50 transition-all duration-300 ease-in-out overflow-hidden",
             isInputFocused
               ? "w-8 opacity-100 ml-2 pointer-events-auto"
               : "w-0 opacity-0 ml-0 pointer-events-none",
@@ -450,201 +542,207 @@ export function TaskListCard({
                   <h2 className="m-0 text-xl font-semibold">{taskList.name}</h2>
                 </div>
 
-                {(enableEditDialog || enableShareDialog) && (
-                  <div className="flex flex-wrap justify-end relative left-2">
-                    {enableEditDialog &&
-                      colors &&
-                      onEditDialogOpenChange &&
-                      onEditListNameChange &&
-                      onEditListBackgroundChange &&
-                      onSaveListDetails &&
-                      onDeleteList && (
-                        <Dialog
-                          open={isActive && (showEditListDialog ?? false)}
-                          onOpenChange={(open: boolean) => {
-                            onEditDialogOpenChange(taskList, open);
-                          }}
-                        >
-                          <DialogTrigger asChild>
-                            <button
-                              type="button"
-                              onClick={() => onActivate?.(taskList.id)}
-                              className={iconButtonClass}
-                              aria-label={t("taskList.editDetails")}
-                              title={t("taskList.editDetails")}
-                            >
-                              <AppIcon
-                                name="edit"
-                                aria-hidden="true"
-                                focusable="false"
-                              />
-                              <span className="sr-only">
-                                {t("taskList.editDetails")}
-                              </span>
-                            </button>
-                          </DialogTrigger>
-                          <DialogContent
-                            title={t("taskList.editDetails")}
-                            description={t("app.taskListName")}
-                          >
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                if (!(editListName ?? "").trim()) return;
-                                void onSaveListDetails();
-                              }}
-                            >
-                              <div className="mt-4 flex flex-col gap-3">
-                                <label className="flex flex-col gap-1">
-                                  <span>{t("app.taskListName")}</span>
-                                  <input
-                                    type="text"
-                                    value={editListName ?? ""}
-                                    onChange={(e) =>
-                                      onEditListNameChange(e.target.value)
-                                    }
-                                    placeholder={t(
-                                      "app.taskListNamePlaceholder",
-                                    )}
-                                    className={inputClass}
-                                  />
-                                </label>
-                                <div className="flex flex-col gap-2">
-                                  <span>{t("taskList.selectColor")}</span>
-                                  <ColorPicker
-                                    colors={colors}
-                                    selectedColor={editListBackground ?? null}
-                                    onSelect={onEditListBackgroundChange}
-                                    ariaLabelPrefix={t("taskList.selectColor")}
-                                  />
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={onDeleteList}
-                                  disabled={deletingList}
-                                  className={clsx(
-                                    destructiveButtonClass,
-                                    "mt-6 w-full",
-                                  )}
-                                >
-                                  {deletingList
-                                    ? t("common.deleting")
-                                    : t("taskList.deleteList")}
-                                </button>
-                              </div>
-                              <DialogFooter>
-                                <DialogClose asChild>
-                                  <button
-                                    type="button"
-                                    className={secondaryButtonClass}
-                                  >
-                                    {t("common.cancel")}
-                                  </button>
-                                </DialogClose>
-                                <button
-                                  type="submit"
-                                  disabled={!(editListName ?? "").trim()}
-                                  className={primaryButtonClass}
-                                >
-                                  {t("taskList.editDetails")}
-                                </button>
-                              </DialogFooter>
-                            </form>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-
-                    {enableShareDialog && onShareDialogOpenChange && (
-                      <Dialog
-                        open={isActive && (showShareDialog ?? false)}
-                        onOpenChange={(open: boolean) => {
-                          onShareDialogOpenChange(taskList, open);
+                <div className="flex flex-wrap justify-end relative left-2">
+                  <Dialog
+                    open={isActive && showEditListDialog}
+                    onOpenChange={(open: boolean) => {
+                      onActivate?.(taskList.id);
+                      setShowEditListDialog(open);
+                      if (open) {
+                        setEditListName(taskList.name);
+                        setEditListBackground(taskList.background);
+                        setEditError(null);
+                      }
+                    }}
+                  >
+                    <DialogTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => onActivate?.(taskList.id)}
+                        className={iconButtonClass}
+                        aria-label={t("taskList.editDetails")}
+                        title={t("taskList.editDetails")}
+                      >
+                        <AppIcon
+                          name="edit"
+                          aria-hidden="true"
+                          focusable="false"
+                        />
+                        <span className="sr-only">
+                          {t("taskList.editDetails")}
+                        </span>
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent
+                      title={t("taskList.editDetails")}
+                      description={t("app.taskListName")}
+                    >
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!editListName.trim()) return;
+                          void handleSaveListDetails();
                         }}
                       >
-                        <DialogTrigger asChild>
+                        <div className="mt-4 flex flex-col gap-3">
+                          {editError ? (
+                            <Alert variant="error">{editError}</Alert>
+                          ) : null}
+                          <label className="flex flex-col gap-1">
+                            <span>{t("app.taskListName")}</span>
+                            <input
+                              type="text"
+                              value={editListName}
+                              onChange={(e) => setEditListName(e.target.value)}
+                              placeholder={t("app.taskListNamePlaceholder")}
+                              className={inputClass}
+                            />
+                          </label>
+                          <div className="flex flex-col gap-2">
+                            <span>{t("taskList.selectColor")}</span>
+                            <ColorPicker
+                              colors={COLORS}
+                              selectedColor={editListBackground ?? null}
+                              onSelect={setEditListBackground}
+                              ariaLabelPrefix={t("taskList.selectColor")}
+                            />
+                          </div>
                           <button
                             type="button"
-                            onClick={() => onActivate?.(taskList.id)}
-                            className={iconButtonClass}
-                            aria-label={t("taskList.share")}
-                            title={t("taskList.share")}
+                            onClick={() => {
+                              const confirmed = window.confirm(
+                                t("taskList.deleteListConfirm.message"),
+                              );
+                              if (!confirmed) return;
+                              void handleDeleteList();
+                            }}
+                            disabled={deletingList}
+                            className={clsx(
+                              destructiveButtonClass,
+                              "mt-6 w-full",
+                            )}
                           >
-                            <AppIcon
-                              name="share"
-                              aria-hidden="true"
-                              focusable="false"
-                            />
-                            <span className="sr-only">
-                              {t("taskList.share")}
-                            </span>
+                            {deletingList
+                              ? t("common.deleting")
+                              : t("taskList.deleteList")}
                           </button>
-                        </DialogTrigger>
-                        <DialogContent
-                          title={t("taskList.shareTitle")}
-                          description={t("taskList.shareDescription")}
-                        >
-                          {shareCode ? (
-                            <div className="mt-4 flex flex-col gap-3">
-                              <label className="flex flex-col gap-1.5">
-                                <span>{t("taskList.shareCode")}</span>
-                                <div className="flex flex-wrap gap-2">
-                                  <input
-                                    type="text"
-                                    value={shareCode}
-                                    readOnly
-                                    className={clsx(inputClass, "font-mono")}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={onCopyShareLink}
-                                    className={secondaryButtonClass}
-                                  >
-                                    {shareCopySuccess
-                                      ? t("common.copied")
-                                      : t("common.copy")}
-                                  </button>
-                                </div>
-                              </label>
+                        </div>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <button
+                              type="button"
+                              className={secondaryButtonClass}
+                            >
+                              {t("common.cancel")}
+                            </button>
+                          </DialogClose>
+                          <button
+                            type="submit"
+                            disabled={!editListName.trim()}
+                            className={primaryButtonClass}
+                          >
+                            {t("taskList.editDetails")}
+                          </button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog
+                    open={isActive && showShareDialog}
+                    onOpenChange={(open: boolean) => {
+                      onActivate?.(taskList.id);
+                      setShowShareDialog(open);
+                      if (open) {
+                        setShareCode(taskList.shareCode ?? null);
+                        setShareCopySuccess(false);
+                        setShareError(null);
+                      }
+                    }}
+                  >
+                    <DialogTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => onActivate?.(taskList.id)}
+                        className={iconButtonClass}
+                        aria-label={t("taskList.share")}
+                        title={t("taskList.share")}
+                      >
+                        <AppIcon
+                          name="share"
+                          aria-hidden="true"
+                          focusable="false"
+                        />
+                        <span className="sr-only">{t("taskList.share")}</span>
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent
+                      title={t("taskList.shareTitle")}
+                      description={t("taskList.shareDescription")}
+                    >
+                      {shareError ? (
+                        <Alert variant="error">{shareError}</Alert>
+                      ) : null}
+                      {shareCode ? (
+                        <div className="mt-4 flex flex-col gap-3">
+                          <label className="flex flex-col gap-1.5">
+                            <span>{t("taskList.shareCode")}</span>
+                            <div className="flex flex-wrap gap-2">
+                              <input
+                                type="text"
+                                value={shareCode}
+                                readOnly
+                                className={clsx(inputClass, "font-mono")}
+                              />
                               <button
                                 type="button"
-                                onClick={onRemoveShareCode}
-                                disabled={removingShareCode}
-                                className={destructiveButtonClass}
-                              >
-                                {removingShareCode
-                                  ? t("common.deleting")
-                                  : t("taskList.removeShare")}
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="mt-4 flex flex-col gap-3">
-                              <button
-                                type="button"
-                                onClick={onGenerateShareCode}
-                                disabled={generatingShareCode}
-                                className={primaryButtonClass}
-                              >
-                                {generatingShareCode
-                                  ? t("common.loading")
-                                  : t("taskList.generateShare")}
-                              </button>
-                            </div>
-                          )}
-                          <DialogFooter>
-                            <DialogClose asChild>
-                              <button
-                                type="button"
+                                onClick={handleCopyShareLink}
                                 className={secondaryButtonClass}
                               >
-                                {t("common.close")}
+                                {shareCopySuccess
+                                  ? t("common.copied")
+                                  : t("common.copy")}
                               </button>
-                            </DialogClose>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                  </div>
-                )}
+                            </div>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleRemoveShareCode}
+                            disabled={removingShareCode}
+                            className={destructiveButtonClass}
+                          >
+                            {removingShareCode
+                              ? t("common.deleting")
+                              : t("taskList.removeShare")}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mt-4 flex flex-col gap-3">
+                          <button
+                            type="button"
+                            onClick={handleGenerateShareCode}
+                            disabled={generatingShareCode}
+                            className={primaryButtonClass}
+                          >
+                            {generatingShareCode
+                              ? t("common.loading")
+                              : t("taskList.generateShare")}
+                          </button>
+                        </div>
+                      )}
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <button
+                            type="button"
+                            className={secondaryButtonClass}
+                          >
+                            {t("common.close")}
+                          </button>
+                        </DialogClose>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
               {taskError ? <Alert variant="error">{taskError}</Alert> : null}
             </div>
@@ -657,7 +755,7 @@ export function TaskListCard({
                   onClick={async () => {
                     void handleSortTasks();
                   }}
-                  className="inline-flex items-center justify-center rounded-xl font-medium text-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+                  className="inline-flex items-center justify-center rounded-xl font-medium text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:text-text-dark dark:focus-visible:outline-muted-dark"
                 >
                   <AppIcon name="sort" aria-hidden="true" focusable="false" />
                   {t("pages.tasklist.sort")}
@@ -683,7 +781,7 @@ export function TaskListCard({
                       setDeleteCompletedPending(false);
                     }
                   }}
-                  className="inline-flex items-center justify-center rounded-xl font-medium text-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:outline-red-400 dark:text-gray-50"
+                  className="inline-flex items-center justify-center rounded-xl font-medium text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:outline-error-dark dark:text-text-dark"
                 >
                   {deleteCompletedPending
                     ? t("common.deleting")
@@ -720,5 +818,3 @@ export function TaskListCard({
     </section>
   );
 }
-
-export default TaskListCard;

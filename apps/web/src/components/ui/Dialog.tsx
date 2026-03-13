@@ -82,7 +82,7 @@ const DialogContent = forwardRef<
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "fixed left-1/2 top-1/2 z-1300 min-w-[320px] max-w-[min(640px,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--dialog-bg,#ffffff)] p-5 text-[var(--dialog-fg,#111111)] shadow-2xl",
+          "fixed left-1/2 top-1/2 z-1300 min-w-[320px] max-w-[min(640px,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--dialog-bg,#ffffff)] p-5 text-[var(--dialog-fg,#111827)] shadow-2xl",
           className,
         )}
       >
@@ -132,7 +132,7 @@ function DialogDescription({
     <DialogPrimitive.Description
       {...props}
       className={clsx(
-        "m-0 text-sm text-[var(--dialog-muted,#444444)]",
+        "m-0 text-sm text-[var(--dialog-muted,#4B5563)]",
         className,
       )}
     >
@@ -149,10 +149,4 @@ function DialogFooter({ children }: DialogFooterProps) {
   );
 }
 
-export {
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-};
+export { DialogContent, DialogFooter };

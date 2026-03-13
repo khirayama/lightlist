@@ -15,6 +15,11 @@ export const AppIcon = ({
 }: AppIconProps) => {
   const paths = ICON_PATHS[name];
   const isArray = Array.isArray(paths);
+  const isRtl =
+    typeof document !== "undefined" &&
+    document.documentElement.dir.toLowerCase() === "rtl";
+  const shouldMirrorArrow = name === "arrow-back" && isRtl;
+  const style = props.style as SVGProps<SVGSVGElement>["style"];
 
   return (
     <svg
@@ -26,17 +31,11 @@ export const AppIcon = ({
       style={{
         display: "inline-block",
         verticalAlign: "middle",
-        ...props.style,
+        ...(shouldMirrorArrow ? { transform: "scaleX(-1)" } : {}),
+        ...style,
       }}
     >
-      {name === "logo" ? (
-        <g transform="scale(0.046875)">
-          {" "}
-          {/* 24/512 = 0.046875 */}
-          <path d={(paths as string[])[0]} />
-          <path d={(paths as string[])[1]} fill="white" />
-        </g>
-      ) : isArray ? (
+      {isArray ? (
         (paths as string[]).map((p, i) => <path key={i} d={p} />)
       ) : (
         <path d={paths as string} />

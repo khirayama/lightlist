@@ -4,6 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import clsx from "clsx";
 import { useTranslation } from "react-i18next";
+import type { Task } from "@lightlist/sdk/types";
 import { AppIcon } from "@/components/ui/AppIcon";
 import {
   Popover,
@@ -17,31 +18,21 @@ const Calendar = dynamic(
   () => import("@/components/ui/Calendar").then((mod) => mod.Calendar),
   {
     loading: () => (
-      <div className="h-72 w-72 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+      <div className="h-72 w-72 animate-pulse rounded-lg bg-background dark:bg-surface-dark" />
     ),
     ssr: false, // Calendar in a popover doesn't need SSR
   },
 );
 
-export interface TaskForSortable {
-  id: string;
-  text: string;
-  completed: boolean;
-  date?: string;
-  order?: number;
-}
-
-export interface TaskItemProps<T extends TaskForSortable = TaskForSortable> {
-  task: T;
+interface TaskItemProps {
+  task: Task;
   isEditing: boolean;
   editingText: string;
   onEditingTextChange: (text: string) => void;
-  onEditStart: (task: T) => void;
-  onEditEnd: (task: T, text?: string) => void;
-  onToggle: (task: T) => void;
+  onEditStart: (task: Task) => void;
+  onEditEnd: (task: Task, text?: string) => void;
+  onToggle: (task: Task) => void;
   onDateChange?: (taskId: string, date: string) => void;
-  setDateLabel: string;
-  dragHintLabel: string;
 }
 
 const parseTaskDate = (value: string | undefined): Date | undefined => {
@@ -72,7 +63,7 @@ const formatTaskDate = (value: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
+function TaskItemComponent({
   task,
   isEditing,
   editingText,
@@ -81,10 +72,8 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
   onEditEnd,
   onToggle,
   onDateChange,
-  setDateLabel,
-  dragHintLabel,
-}: TaskItemProps<T>) {
-  const { i18n } = useTranslation();
+}: TaskItemProps) {
+  const { t, i18n } = useTranslation();
   const {
     attributes,
     listeners,
@@ -101,7 +90,9 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
   };
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const taskTextId = `task-item-text-${task.id}`;
   const selectedDate = parseTaskDate(task.date);
+  const setDateLabel = t("pages.tasklist.setDate");
   const dateDisplayValue = selectedDate
     ? new Intl.DateTimeFormat(i18n.language, {
         month: "short",
@@ -118,10 +109,10 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
       <button
         {...attributes}
         {...listeners}
-        title={dragHintLabel}
-        aria-label={dragHintLabel}
+        title={t("pages.tasklist.dragHint")}
+        aria-label={t("pages.tasklist.dragHint")}
         type="button"
-        className="flex items-center touch-none text-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="flex items-center touch-none text-placeholder focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         <span className="relative right-[5px]">
           <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
@@ -133,11 +124,12 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
           type="checkbox"
           checked={task.completed}
           onChange={() => onToggle(task)}
+          aria-labelledby={taskTextId}
           className="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
         />
-        <div className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white transition-colors peer-checked:border-transparent peer-checked:bg-gray-200 peer-focus-visible:ring-2 peer-focus-visible:ring-gray-400 dark:border-gray-300 dark:bg-gray-900 dark:peer-checked:bg-gray-800">
+        <div className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface transition-colors peer-checked:border-transparent peer-checked:bg-border peer-focus-visible:ring-2 peer-focus-visible:ring-muted dark:border-border-dark dark:bg-surface-dark dark:peer-checked:bg-surface">
           <svg
-            className="h-3.5 w-3.5 text-white opacity-0 transition-opacity peer-checked:opacity-100 dark:text-gray-900"
+            className="h-3.5 w-3.5 text-surface opacity-0 transition-opacity peer-checked:opacity-100 dark:text-surface-dark"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -153,12 +145,16 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
       </div>
       <div className="relative flex min-w-0 flex-1 flex-col">
         {dateDisplayValue ? (
-          <span className="absolute -top-2 left-0 text-xs leading-none text-gray-600 dark:text-gray-300">
+          <span
+            className="absolute -top-2 text-xs leading-none text-muted dark:text-muted-dark"
+            style={{ insetInlineStart: 0 }}
+          >
             {dateDisplayValue}
           </span>
         ) : null}
         {isEditing ? (
           <input
+            id={taskTextId}
             type="text"
             value={editingText}
             onChange={(e) => onEditingTextChange(e.target.value)}
@@ -174,12 +170,13 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
             className={clsx(
               "min-w-0 w-full bg-transparent p-0 font-medium leading-7 focus:outline-none",
               task.completed
-                ? "text-gray-600 line-through dark:text-gray-400"
-                : "text-gray-900 dark:text-gray-50",
+                ? "text-muted line-through dark:text-muted-dark"
+                : "text-text dark:text-text-dark",
             )}
           />
         ) : (
           <span
+            id={taskTextId}
             role="button"
             tabIndex={0}
             onClick={() => onEditStart(task)}
@@ -191,8 +188,8 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
             }}
             className={
               task.completed
-                ? "min-w-0 cursor-pointer text-left font-medium leading-7 text-gray-600 line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-400 dark:focus-visible:outline-gray-500"
-                : "min-w-0 cursor-pointer text-left font-medium leading-7 text-gray-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:text-gray-50 dark:focus-visible:outline-gray-500"
+                ? "min-w-0 cursor-pointer text-start font-medium leading-7 text-muted line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:focus-visible:outline-muted-dark"
+                : "min-w-0 cursor-pointer text-start font-medium leading-7 text-text underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-text-dark dark:focus-visible:outline-muted-dark"
             }
           >
             {task.text}
@@ -206,7 +203,7 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
             type="button"
             aria-label={setDateLabel}
             title={dateTitle}
-            className="flex items-center rounded-lg p-1 text-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:focus-visible:outline-gray-500"
+            className="flex items-center rounded-lg p-1 text-placeholder focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:focus-visible:outline-muted-dark"
           >
             <AppIcon
               name="calendar-today"
@@ -232,4 +229,4 @@ function TaskItemComponent<T extends TaskForSortable = TaskForSortable>({
 }
 
 // Memoize TaskItem to prevent unnecessary re-renders when parent state changes
-export const TaskItem = memo(TaskItemComponent) as typeof TaskItemComponent;
+export const TaskItem = memo(TaskItemComponent);

@@ -38,9 +38,9 @@ export function ColorPicker({
             title={color.label}
             onClick={() => onSelect(color.value)}
             className={clsx(
-              "flex h-8 w-8 items-center justify-center rounded-[10px] border border-gray-300 text-[10px] font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300",
+              "flex h-8 w-8 items-center justify-center rounded-[10px] border border-border text-[10px] font-semibold text-muted dark:border-border-dark dark:text-muted-dark",
               isSelected
-                ? "ring-2 ring-gray-900 ring-offset-2 ring-offset-white dark:ring-gray-50 dark:ring-offset-gray-900"
+                ? "ring-2 ring-primary ring-offset-2 ring-offset-surface dark:ring-primary-dark dark:ring-offset-surface-dark"
                 : "",
             )}
             style={{ backgroundColor: previewColor }}
@@ -52,5 +52,3 @@ export function ColorPicker({
     </div>
   );
 }
-
-export default ColorPicker;

@@ -24,7 +24,7 @@ export const FormInput = ({
   <div className="flex flex-col gap-1">
     <label
       htmlFor={id}
-      className="text-sm font-medium text-gray-900 dark:text-gray-100"
+      className="text-sm font-medium text-text dark:text-text-dark"
     >
       {label}
     </label>
@@ -37,10 +37,10 @@ export const FormInput = ({
       placeholder={placeholder}
       aria-invalid={Boolean(error)}
       aria-describedby={error ? `${id}-error` : undefined}
-      className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+      className="rounded-xl border border-border bg-inputBackground px-3 py-2 text-sm text-text shadow-sm focus:border-muted focus:outline-none focus:ring-2 focus:ring-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark"
     />
     {error && (
-      <p id={`${id}-error`} className="text-xs text-red-600 dark:text-red-400">
+      <p id={`${id}-error`} className="text-xs text-error dark:text-error-dark">
         {error}
       </p>
     )}

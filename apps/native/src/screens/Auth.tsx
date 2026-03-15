@@ -1,13 +1,24 @@
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import type { Language } from "@lightlist/sdk/types";
 import {
   signIn,
   signUp,
   sendPasswordResetEmail,
 } from "@lightlist/sdk/mutations/auth";
-import { resolveErrorMessage } from "../utils/errors";
-import { FormErrors, validateAuthForm } from "../utils/validation";
+import { resolveErrorMessage } from "@lightlist/sdk/utils/errors";
+import { FormErrors, validateAuthForm } from "@lightlist/sdk/utils/validation";
+import {
+  LANGUAGE_DISPLAY_NAMES,
+  SUPPORTED_LANGUAGES,
+  normalizeLanguage,
+} from "@lightlist/sdk/utils/language";
+import {
+  logLogin,
+  logSignUp,
+  logPasswordResetEmailSent,
+} from "@lightlist/sdk/analytics";
 
 type AuthTab = "signin" | "signup" | "reset";
 
@@ -37,6 +48,9 @@ export const AuthScreen = () => {
     password.length > 0 &&
     confirmPassword.length > 0;
   const canSendReset = !resetLoading && email.trim().length > 0;
+  const selectedLanguage = normalizeLanguage(
+    i18n.resolvedLanguage ?? i18n.language,
+  );
 
   const resetForm = () => {
     setPassword("");
@@ -63,6 +77,7 @@ export const AuthScreen = () => {
     setErrors({});
     try {
       await signIn(email, password);
+      logLogin();
     } catch (error) {
       setErrors({
         general: resolveErrorMessage(error, t, "auth.error.general"),
@@ -82,14 +97,13 @@ export const AuthScreen = () => {
       return;
     }
 
-    const resolvedLanguage = i18n.language.toLowerCase().startsWith("ja")
-      ? "ja"
-      : "en";
+    const resolvedLanguage = normalizeLanguage(i18n.language);
 
     setLoading(true);
     setErrors({});
     try {
       await signUp(email, password, resolvedLanguage);
+      logSignUp();
     } catch (error) {
       setErrors({
         general: resolveErrorMessage(error, t, "auth.error.general"),
@@ -109,8 +123,9 @@ export const AuthScreen = () => {
     setResetLoading(true);
     setErrors({});
     try {
-      await sendPasswordResetEmail(email);
+      await sendPasswordResetEmail(email, normalizeLanguage(i18n.language));
       setResetSent(true);
+      logPasswordResetEmailSent();
     } catch (error) {
       setErrors({
         general: resolveErrorMessage(error, t, "auth.error.general"),
@@ -137,6 +152,39 @@ export const AuthScreen = () => {
             {isReset ? t("auth.passwordReset.title") : t("title")}
           </Text>
         </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="mb-5 flex-row gap-2"
+        >
+          {SUPPORTED_LANGUAGES.map((language: Language) => {
+            const active = language === selectedLanguage;
+            return (
+              <Pressable
+                key={language}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                onPress={() => void i18n.changeLanguage(language)}
+                disabled={loading || resetLoading}
+                className={`rounded-full border px-3 py-1.5 ${
+                  active
+                    ? "border-primary bg-primary dark:border-primary-dark dark:bg-primary-dark"
+                    : "border-border bg-surface dark:border-border-dark dark:bg-surface-dark"
+                }`}
+              >
+                <Text
+                  className={`text-[12px] font-inter-medium ${
+                    active
+                      ? "text-primaryText dark:text-primaryText-dark"
+                      : "text-text dark:text-text-dark"
+                  }`}
+                >
+                  {LANGUAGE_DISPLAY_NAMES[language]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
         {!isReset ? (
           <View
@@ -272,7 +320,7 @@ export const AuthScreen = () => {
               <Text
                 className={`text-[16px] font-inter-semibold ${
                   canSubmitSignIn
-                    ? "text-primary-text dark:text-primary-text-dark"
+                    ? "text-primaryText dark:text-primaryText-dark"
                     : "text-muted dark:text-muted-dark"
                 }`}
               >
@@ -407,7 +455,7 @@ export const AuthScreen = () => {
               <Text
                 className={`text-[16px] font-inter-semibold ${
                   canSubmitSignUp
-                    ? "text-primary-text dark:text-primary-text-dark"
+                    ? "text-primaryText dark:text-primaryText-dark"
                     : "text-muted dark:text-muted-dark"
                 }`}
               >
@@ -481,7 +529,7 @@ export const AuthScreen = () => {
                   <Text
                     className={`text-[16px] font-inter-semibold ${
                       canSendReset
-                        ? "text-primary-text dark:text-primary-text-dark"
+                        ? "text-primaryText dark:text-primaryText-dark"
                         : "text-muted dark:text-muted-dark"
                     }`}
                   >

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -7,12 +7,16 @@ import {
   View,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import { appStore } from "@lightlist/sdk/store";
-import type { TaskList } from "@lightlist/sdk/types";
+import { useUser } from "@lightlist/sdk/session";
+import {
+  subscribeToSharedTaskList,
+  useTaskList,
+} from "@lightlist/sdk/taskLists";
 import {
   addSharedTaskListToOrder,
   fetchTaskListIdByShareCode,
 } from "@lightlist/sdk/mutations/app";
+import { logShare, logShareCodeJoin } from "@lightlist/sdk/analytics";
 import { TaskListCard } from "../components/app/TaskListCard";
 
 type ShareCodeScreenProps = {
@@ -21,17 +25,13 @@ type ShareCodeScreenProps = {
   onOpenTaskList: () => void;
 };
 
-const getUserSnapshot = () => {
-  return appStore.getState().user;
-};
-
 export const ShareCodeScreen = ({
   initialShareCode,
   onBack,
   onOpenTaskList,
 }: ShareCodeScreenProps) => {
   const { t, i18n } = useTranslation();
-  const user = useSyncExternalStore(appStore.subscribe, getUserSnapshot);
+  const user = useUser();
   const normalizedInitialShareCode =
     initialShareCode?.trim().toUpperCase() ?? "";
   const [shareCodeInput, setShareCodeInput] = useState(
@@ -78,8 +78,8 @@ export const ShareCodeScreen = ({
         }
 
         setSharedTaskListId(taskListId);
-        unsubscribeSharedTaskList =
-          appStore.subscribeToSharedTaskList(taskListId);
+        unsubscribeSharedTaskList = subscribeToSharedTaskList(taskListId);
+        logShare();
       } catch {
         setError(i18n.t("pages.sharecode.error"));
         setSharedTaskListId(null);
@@ -99,19 +99,7 @@ export const ShareCodeScreen = ({
     };
   }, [activeShareCode, i18n]);
 
-  const getTaskListSnapshot = useCallback((): TaskList | null => {
-    if (sharedTaskListId === null) return null;
-    const state = appStore.getState();
-    return (
-      state.taskLists.find((list) => list.id === sharedTaskListId) ??
-      state.sharedTaskListsById[sharedTaskListId] ??
-      null
-    );
-  }, [sharedTaskListId]);
-  const taskList: TaskList | null = useSyncExternalStore(
-    appStore.subscribe,
-    getTaskListSnapshot,
-  );
+  const taskList = useTaskList(sharedTaskListId);
 
   const handleShareCodeSubmit = () => {
     const normalized = shareCodeInput.trim().toUpperCase();
@@ -132,6 +120,7 @@ export const ShareCodeScreen = ({
     setAddToOrderError(null);
     try {
       await addSharedTaskListToOrder(taskList.id);
+      logShareCodeJoin();
       onOpenTaskList();
     } catch (err) {
       if (err instanceof Error && err.message) {
@@ -219,7 +208,7 @@ export const ShareCodeScreen = ({
           <Text
             className={`text-[16px] font-inter-semibold ${
               canLoadShareCode
-                ? "text-primary-text dark:text-primary-text-dark"
+                ? "text-primaryText dark:text-primaryText-dark"
                 : "text-muted dark:text-muted-dark"
             }`}
           >
@@ -255,13 +244,7 @@ export const ShareCodeScreen = ({
           }
           className={`flex-1 ${!taskList.background ? "bg-background dark:bg-background-dark" : ""}`}
         >
-          <TaskListCard
-            taskList={taskList}
-            isActive={true}
-            t={t}
-            enableEditDialog={false}
-            enableShareDialog={false}
-          />
+          <TaskListCard taskList={taskList} isActive={true} />
         </View>
       ) : (
         <View className="flex-1 justify-center items-center">

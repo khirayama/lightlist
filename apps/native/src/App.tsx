@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { Suspense, useCallback, lazy, useEffect, useState } from "react";
 import {
   NavigationContainer,
   DefaultTheme,
@@ -7,19 +7,18 @@ import {
   type RouteProp,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { KeyboardAvoidingView, Platform, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform } from "react-native";
 import { useColorScheme as useNWColorScheme } from "nativewind";
 import * as SplashScreen from "expo-splash-screen";
+import Constants from "expo-constants";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { AuthScreen } from "./screens/AuthScreen";
-import { PasswordResetScreen } from "./screens/PasswordResetScreen";
-import { ShareCodeScreen } from "./screens/ShareCodeScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
-import { AppScreen } from "./screens/AppScreen";
-import { themes, type ThemeMode, type ThemeName } from "./styles/theme";
-import { appStore } from "@lightlist/sdk/store";
+import { AuthScreen } from "./screens/Auth";
+import { themes } from "./styles/theme";
+import { initializeSdk } from "@lightlist/sdk/config";
+import { useSessionState } from "@lightlist/sdk/session";
+import { useSettingsState } from "@lightlist/sdk/settings";
 import {
   useFonts,
   Inter_400Regular,
@@ -27,11 +26,48 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
-import { onAuthStateChange } from "@lightlist/sdk/auth";
 import i18n from "./utils/i18n";
+import { StartupSplash } from "./components/ui/StartupSplash";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
+import { AppDirectionProvider } from "./context/appDirection";
+import {
+  getLanguageDirection,
+  normalizeLanguage,
+} from "@lightlist/sdk/utils/language";
 
-// Keep the splash screen visible while we fetch resources
-SplashScreen.preventAutoHideAsync();
+initializeSdk({
+  firebaseConfig: {
+    apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  },
+  passwordResetUrl: process.env.EXPO_PUBLIC_PASSWORD_RESET_URL,
+});
+
+void SplashScreen.preventAutoHideAsync().catch(() => {});
+
+const AppScreen = lazy(async () => {
+  const module = await import("./screens/App");
+  return { default: module.AppScreen };
+});
+
+const SettingsScreen = lazy(async () => {
+  const module = await import("./screens/Settings");
+  return { default: module.SettingsScreen };
+});
+
+const ShareCodeScreen = lazy(async () => {
+  const module = await import("./screens/ShareCode");
+  return { default: module.ShareCodeScreen };
+});
+
+const PasswordResetScreen = lazy(async () => {
+  const module = await import("./screens/PasswordReset");
+  return { default: module.PasswordResetScreen };
+});
 
 type RootStackParamList = {
   Auth: undefined;
@@ -43,8 +79,15 @@ type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
+const appEnv = String(Constants.expoConfig?.extra?.APP_ENV ?? "development");
+const appScheme =
+  appEnv === "production"
+    ? "lightlist"
+    : appEnv === "staging"
+      ? "lightlist-staging"
+      : "lightlist-dev";
 const linking = {
-  prefixes: ["lightlist://", "expo://"],
+  prefixes: [`${appScheme}://`, "expo://"],
   config: {
     screens: {
       PasswordReset: "password-reset",
@@ -53,61 +96,58 @@ const linking = {
 };
 
 export default function App() {
-  const { t } = useTranslation();
-  const appState = useSyncExternalStore(appStore.subscribe, appStore.getState);
-
-  const [isAuthReady, setIsAuthReady] = useState(false);
-  const [fontsLoaded] = useFonts({
+  const { i18n: i18nInstance } = useTranslation();
+  const { authStatus, user } = useSessionState();
+  const { settings, settingsStatus } = useSettingsState();
+  const [isRootLayoutReady, setIsRootLayoutReady] = useState(false);
+  useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const isSettingsLanguageReady =
+    !user || settingsStatus === "ready" || settingsStatus === "error";
+  const appLanguage = isSettingsLanguageReady
+    ? normalizeLanguage(
+        settings?.language ?? i18n.resolvedLanguage ?? i18n.language,
+      )
+    : null;
+  const appTheme = settings?.theme ?? "system";
+  const isAuthReady = authStatus !== "loading";
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChange(() => {
-      setIsAuthReady(true);
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    const language = appState.settings?.language;
-    const targetLanguage =
-      language === "ja" || language === "en" ? language : "ja";
-    if (i18n.language !== targetLanguage) {
-      void i18n.changeLanguage(targetLanguage);
+    if (!appLanguage) {
+      return;
     }
-  }, [appState.settings?.language]);
+    const targetLanguage = normalizeLanguage(appLanguage);
+    if (i18nInstance.language !== targetLanguage) {
+      void i18nInstance.changeLanguage(targetLanguage);
+    }
+  }, [appLanguage, i18nInstance]);
 
   useEffect(() => {
-    if (fontsLoaded && isAuthReady) {
-      void SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, isAuthReady]);
-
-  const isReady = fontsLoaded && isAuthReady;
+    if (!isAuthReady || !isRootLayoutReady) return;
+    void SplashScreen.hideAsync().catch(() => {});
+  }, [isAuthReady, isRootLayoutReady]);
 
   const [navigationReady, setNavigationReady] = useState(false);
 
   const { colorScheme, setColorScheme } = useNWColorScheme();
   const resolvedTheme = colorScheme === "dark" ? "dark" : "light";
   const theme = themes[resolvedTheme];
+  const resolvedLanguage = appLanguage
+    ? normalizeLanguage(appLanguage)
+    : normalizeLanguage(i18nInstance.resolvedLanguage ?? i18nInstance.language);
+  const uiDirection = getLanguageDirection(resolvedLanguage);
 
   useEffect(() => {
-    const storedTheme = appState.settings?.theme;
-    if (
-      storedTheme === "light" ||
-      storedTheme === "dark" ||
-      storedTheme === "system"
-    ) {
-      setColorScheme(storedTheme);
+    if (appTheme === "light" || appTheme === "dark" || appTheme === "system") {
+      setColorScheme(appTheme);
     } else {
       setColorScheme("system");
     }
-  }, [appState.settings?.theme, setColorScheme]);
+  }, [appTheme, setColorScheme]);
 
   const navigationTheme: NavigationTheme = {
     ...DefaultTheme,
@@ -125,9 +165,7 @@ export default function App() {
 
   useEffect(() => {
     if (!navigationReady) return;
-    const targetRoute: keyof RootStackParamList = appState.user
-      ? "TaskList"
-      : "Auth";
+    const targetRoute: keyof RootStackParamList = user ? "TaskList" : "Auth";
     const currentRoute = navigationRef.getCurrentRoute()?.name;
     if (currentRoute === "PasswordReset") return;
     if (currentRoute === targetRoute) return;
@@ -135,70 +173,63 @@ export default function App() {
       index: 0,
       routes: [{ name: targetRoute }],
     });
-  }, [appState.user, navigationReady]);
+  }, [user, navigationReady]);
 
-  if (!isReady) {
-    return null;
-  }
-
-  const handleOpenSettings = () => {
+  const handleOpenSettings = useCallback(() => {
     if (!navigationReady) return;
     navigationRef.navigate("Settings");
-  };
+  }, [navigationReady]);
 
-  const handleOpenShareCode = () => {
-    if (!navigationReady) return;
-    navigationRef.navigate("ShareCode");
-  };
-
-  const handleBackFromSettings = () => {
+  const handleBackFromSettings = useCallback(() => {
     if (!navigationReady) return;
     if (navigationRef.canGoBack()) {
       navigationRef.goBack();
       return;
     }
     navigationRef.navigate("TaskList");
-  };
+  }, [navigationReady]);
 
-  const handleBackFromShareCode = () => {
+  const handleBackFromShareCode = useCallback(() => {
     if (!navigationReady) return;
     if (navigationRef.canGoBack()) {
       navigationRef.goBack();
       return;
     }
-    navigationRef.navigate(appState.user ? "TaskList" : "Auth");
-  };
+    navigationRef.navigate(user ? "TaskList" : "Auth");
+  }, [navigationReady, user]);
 
-  const handleBackFromPasswordReset = () => {
+  const handleBackFromPasswordReset = useCallback(() => {
     if (!navigationReady) return;
     if (navigationRef.canGoBack()) {
       navigationRef.goBack();
       return;
     }
-    navigationRef.navigate(appState.user ? "TaskList" : "Auth");
-  };
+    navigationRef.navigate(user ? "TaskList" : "Auth");
+  }, [navigationReady, user]);
 
-  const handleOpenTaskListFromShareCode = () => {
+  const handleOpenTaskListFromShareCode = useCallback(() => {
     if (!navigationReady) return;
-    navigationRef.navigate(appState.user ? "TaskList" : "Auth");
-  };
+    navigationRef.navigate(user ? "TaskList" : "Auth");
+  }, [navigationReady, user]);
+  const handleRootLayout = useCallback(() => {
+    setIsRootLayoutReady(true);
+  }, []);
 
-  const screenMode: "auth" | "task" = appState.user ? "task" : "auth";
+  const screenMode: "auth" | "task" = user ? "task" : "auth";
+  const splashFallback = <View style={{ flex: 1 }} />;
 
-  // Render functions
-  const renderAuthScreen = () => (
-    <AuthScreen onOpenShareCode={handleOpenShareCode} />
-  );
+  const renderAuthScreen = () => <AuthScreen />;
 
   const renderAppScreen = () => (
-    <AppScreen
-      onOpenSettings={handleOpenSettings}
-      onOpenShareCode={handleOpenShareCode}
-    />
+    <Suspense fallback={splashFallback}>
+      <AppScreen onOpenSettings={handleOpenSettings} />
+    </Suspense>
   );
 
   const renderSettingsScreen = () => (
-    <SettingsScreen onBack={handleBackFromSettings} />
+    <Suspense fallback={splashFallback}>
+      <SettingsScreen onBack={handleBackFromSettings} />
+    </Suspense>
   );
 
   const renderShareCodeScreen = ({
@@ -206,11 +237,13 @@ export default function App() {
   }: {
     route: RouteProp<RootStackParamList, "ShareCode">;
   }) => (
-    <ShareCodeScreen
-      initialShareCode={route.params?.shareCode ?? null}
-      onBack={handleBackFromShareCode}
-      onOpenTaskList={handleOpenTaskListFromShareCode}
-    />
+    <Suspense fallback={splashFallback}>
+      <ShareCodeScreen
+        initialShareCode={route.params?.shareCode ?? null}
+        onBack={handleBackFromShareCode}
+        onOpenTaskList={handleOpenTaskListFromShareCode}
+      />
+    </Suspense>
   );
 
   const renderPasswordResetScreen = ({
@@ -218,57 +251,76 @@ export default function App() {
   }: {
     route: RouteProp<RootStackParamList, "PasswordReset">;
   }) => (
-    <PasswordResetScreen
-      oobCode={route.params?.oobCode ?? null}
-      onBack={handleBackFromPasswordReset}
-    />
+    <Suspense fallback={splashFallback}>
+      <PasswordResetScreen
+        oobCode={route.params?.oobCode ?? null}
+        onBack={handleBackFromPasswordReset}
+      />
+    </Suspense>
   );
 
   return (
-    <GestureHandlerRootView className="flex-1">
-      <SafeAreaProvider>
-        <SafeAreaView
-          style={{ backgroundColor: theme.background }}
-          className="flex-1"
-        >
-          <KeyboardAvoidingView
+    <ErrorBoundary>
+      <GestureHandlerRootView className="flex-1">
+        <SafeAreaProvider>
+          <SafeAreaView
+            style={{
+              backgroundColor: theme.background,
+              direction: uiDirection,
+            }}
             className="flex-1"
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            onLayout={handleRootLayout}
           >
-            <NavigationContainer
-              ref={navigationRef}
-              theme={navigationTheme}
-              linking={linking}
-              onReady={() => setNavigationReady(true)}
-            >
-              <Stack.Navigator
-                key={screenMode}
-                initialRouteName={screenMode === "task" ? "TaskList" : "Auth"}
-                screenOptions={{ headerShown: false }}
+            <AppDirectionProvider value={uiDirection}>
+              <KeyboardAvoidingView
+                className="flex-1"
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
               >
-                {screenMode === "task" ? (
-                  <>
-                    <Stack.Screen name="TaskList">
-                      {renderAppScreen}
-                    </Stack.Screen>
-                    <Stack.Screen name="Settings">
-                      {renderSettingsScreen}
-                    </Stack.Screen>
-                  </>
+                {!isAuthReady ? (
+                  <StartupSplash />
                 ) : (
-                  <Stack.Screen name="Auth">{renderAuthScreen}</Stack.Screen>
+                  <NavigationContainer
+                    ref={navigationRef}
+                    theme={navigationTheme}
+                    direction={uiDirection}
+                    linking={linking}
+                    onReady={() => setNavigationReady(true)}
+                  >
+                    <Stack.Navigator
+                      key={screenMode}
+                      initialRouteName={
+                        screenMode === "task" ? "TaskList" : "Auth"
+                      }
+                      screenOptions={{ headerShown: false }}
+                    >
+                      {screenMode === "task" ? (
+                        <>
+                          <Stack.Screen name="TaskList">
+                            {renderAppScreen}
+                          </Stack.Screen>
+                          <Stack.Screen name="Settings">
+                            {renderSettingsScreen}
+                          </Stack.Screen>
+                        </>
+                      ) : (
+                        <Stack.Screen name="Auth">
+                          {renderAuthScreen}
+                        </Stack.Screen>
+                      )}
+                      <Stack.Screen name="PasswordReset">
+                        {renderPasswordResetScreen}
+                      </Stack.Screen>
+                      <Stack.Screen name="ShareCode">
+                        {renderShareCodeScreen}
+                      </Stack.Screen>
+                    </Stack.Navigator>
+                  </NavigationContainer>
                 )}
-                <Stack.Screen name="PasswordReset">
-                  {renderPasswordResetScreen}
-                </Stack.Screen>
-                <Stack.Screen name="ShareCode">
-                  {renderShareCodeScreen}
-                </Stack.Screen>
-              </Stack.Navigator>
-            </NavigationContainer>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+              </KeyboardAvoidingView>
+            </AppDirectionProvider>
+          </SafeAreaView>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }

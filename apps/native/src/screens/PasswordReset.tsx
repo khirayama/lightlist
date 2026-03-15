@@ -12,8 +12,11 @@ import {
   confirmPasswordReset,
   verifyPasswordResetCode,
 } from "@lightlist/sdk/mutations/auth";
-import { resolveErrorMessage } from "../utils/errors";
-import { FormErrors, validatePasswordForm } from "../utils/validation";
+import { resolveErrorMessage } from "@lightlist/sdk/utils/errors";
+import {
+  FormErrors,
+  validatePasswordForm,
+} from "@lightlist/sdk/utils/validation";
 
 type PasswordResetScreenProps = {
   oobCode: string | null;
@@ -238,7 +241,7 @@ export const PasswordResetScreen = ({
           <Text
             className={`text-[16px] font-inter-semibold ${
               canSubmit
-                ? "text-primary-text dark:text-primary-text-dark"
+                ? "text-primaryText dark:text-primaryText-dark"
                 : "text-muted dark:text-muted-dark"
             }`}
           >

@@ -4,6 +4,7 @@
 
 - npm workspaces + Turbo を使います。
 - workspace は `apps/web`、`apps/native`、`packages/sdk` です。
+- iOS ネイティブ実装は `apps/ios`、Swift Package は `packages/sdk-swift` で管理します。
 
 ## コマンド
 
@@ -26,6 +27,12 @@
   - `npm run dev:local`
   - `npm run lint`
   - `npm run typecheck`
+- iOS
+  - `xcodegen generate`
+  - `xcodebuild -scheme Lightlist -destination 'platform=iOS Simulator,...'`
+- SDK-Swift
+  - `swift build`
+  - `swift test`
 - SDK
   - `npm run build`
   - `npm run dev`
@@ -55,6 +62,27 @@
 - 起動モードの比較が必要な場合だけ `dev:lan` / `dev:local` を使います。
 - `APP_ENV` で app name、bundle id、deep link scheme を切り替えます。
 - `APP_ENV` ごとの設定は [app.config.ts](/home/khirayama/Works/lightlist-poc/apps/native/app.config.ts) の typed config map で管理します。
+
+## iOS 実装上の前提
+
+- 認証済みアプリ領域のルート遷移は `RootView` が持ち、`.main` / `.settings` / `.shareCode(String?)` を切り替えます。
+- `MainView` はタスクリスト UI に専念し、Settings / ShareCode の遷移はコールバックで `RootView` へ委譲します。
+- `MainView` は `GeometryReader` の表示領域サイズを compact / regular 両レイアウトへ明示的に渡し、`TabView(.page)` 自体だけでなく各ページにも同じサイズを適用して内部の LazyView / HostingView まで画面高さいっぱいに固定します。
+- `MainView` は compact 幅では `Color(.systemBackground)` を画面全体と `TabView(.page)` コンテナ背景へ適用し、status bar 直下から下端まで白い本文面を連続させます。regular 幅では現在選択中のタスクリスト背景色を外周背景として維持します。
+- compact 幅では `SideDrawer` に `DrawerPanel` を載せるオーバーレイドロワーを使い、幅は `min(UIScreen.main.bounds.width, 420)` です。
+- compact 幅のタスクリスト表示では、`TaskListView` 自体を full screen コンテナとして描画し、最外層に `Color(.systemBackground)` を `ignoresSafeArea()` で全面へ敷きます。本体は画面いっぱいの `VStack` を同じ白背景で満たし、上部 chrome の操作 UI だけ `GeometryReader.safeAreaInsets.top` 起点で status bar を避け、タスク行は full-width の `ScrollView + LazyVStack` で edge-to-edge に描画します。
+- regular 幅では `NavigationSplitView` を使い、サイドバー列幅は `360pt` に固定します。
+- `SettingsView` と `ShareCodeView` は sheet ではなく全画面ルートとして扱い、戻るは `onBack` コールバックで制御します。
+- iOS の全画面ルートと sheet / dialog は、背景ビューだけでなくコンテンツ本体も `frame(maxWidth: .infinity, maxHeight: .infinity)` 前提の full screen コンテナとして扱います。操作 UI は safe area 内に維持し、独自ヘッダーが必要な画面は `safeAreaInset(edge: .top)` を使い、標準ナビゲーションバーに依存しません。
+- `LightlistApp` は `WindowSceneConfigurator` で attach 済み `UIWindow` を受け取り、`backgroundColor`・`additionalSafeAreaInsets`・layout margins を初期化して `UIWindowScene` 側にも余白が見えない状態を保ちます。
+- `ScrollView` ベースの全画面フォームはカード化しません。`maxWidth` 制約、外側 `padding`、`RoundedRectangle` の外枠を持たず、画面直下の full screen コンテナとして上寄せ配置します。`Spacer` による縦中央寄せで大きな上下空白を作りません。
+- custom header を `safeAreaInset(edge: .top)` で載せる画面では、本文側の大きな先頭余白を足して二重に safe area を消費しません。sheet / dialog でも本文 root を full-height に揃え、`.presentationDetents([.medium])` を使う場合は detent 内で最大化します。
+
+## iOS / Swift Package の生成物
+
+- `apps/ios` では `build/`、`DerivedData/`、`xcuserdata`、`xcuserstate` を commit しません。
+- `apps/ios/Lightlist/GoogleService-Info.plist` は Firebase コンソールから取得してローカル配置し、commit しません。
+- `packages/sdk-swift` では SwiftPM の生成物である `.build/` と `.swiftpm/` を commit しません。
 
 ## Turbo 実行順
 

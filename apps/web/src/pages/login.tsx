@@ -2,22 +2,33 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 
-import { onAuthStateChange } from "@lightlist/sdk/auth";
 import {
   signIn,
   signUp,
   sendPasswordResetEmail,
 } from "@lightlist/sdk/mutations/auth";
+import { useAuthStatus } from "@lightlist/sdk/session";
+import {
+  LANGUAGE_DISPLAY_NAMES,
+  SUPPORTED_LANGUAGES,
+  normalizeLanguage,
+} from "@lightlist/sdk/utils/language";
 import { FormInput } from "@/components/ui/FormInput";
 import { Alert } from "@/components/ui/Alert";
-import { resolveErrorMessage } from "@/utils/errors";
-import { FormErrors, validateAuthForm } from "@/utils/validation";
+import { resolveErrorMessage } from "@lightlist/sdk/utils/errors";
+import { FormErrors, validateAuthForm } from "@lightlist/sdk/utils/validation";
+import {
+  logLogin,
+  logSignUp,
+  logPasswordResetEmailSent,
+} from "@lightlist/sdk/analytics";
 
 type AuthTab = "signin" | "signup" | "reset";
 
 export default function LoginPage() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
+  const authStatus = useAuthStatus();
   const [activeTab, setActiveTab] = useState<AuthTab>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,14 +39,10 @@ export default function LoginPage() {
   const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChange((user) => {
-      if (user) {
-        router.push("/app");
-      }
-    });
-
-    return () => unsubscribe();
-  }, [router]);
+    if (authStatus === "authenticated") {
+      router.push("/app");
+    }
+  }, [authStatus, router]);
 
   const handleAuthAction = async (
     e: React.FormEvent,
@@ -68,19 +75,23 @@ export default function LoginPage() {
   const handleSignIn = (e: React.FormEvent) => {
     handleAuthAction(
       e,
-      () => signIn(email, password),
+      async () => {
+        await signIn(email, password);
+        logLogin();
+      },
       { email, password },
       setLoading,
     );
   };
 
   const handleSignUp = (e: React.FormEvent) => {
-    const resolvedLanguage = i18n.language.toLowerCase().startsWith("ja")
-      ? "ja"
-      : "en";
+    const resolvedLanguage = normalizeLanguage(i18n.language);
     handleAuthAction(
       e,
-      () => signUp(email, password, resolvedLanguage),
+      async () => {
+        await signUp(email, password, resolvedLanguage);
+        logSignUp();
+      },
       { email, password, confirmPassword, requirePasswordConfirm: true },
       setLoading,
     );
@@ -99,8 +110,9 @@ export default function LoginPage() {
     setErrors({});
 
     try {
-      await sendPasswordResetEmail(email);
+      await sendPasswordResetEmail(email, normalizeLanguage(i18n.language));
       setResetSent(true);
+      logPasswordResetEmailSent();
     } catch (error) {
       setErrors({
         general: resolveErrorMessage(error, t, "auth.error.general"),
@@ -124,30 +136,53 @@ export default function LoginPage() {
 
   const tabButtonClass = (isActive: boolean) =>
     [
-      "inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 dark:focus-visible:outline-gray-500",
+      "inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:focus-visible:outline-muted-dark",
       isActive
-        ? "bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-50"
-        : "text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-gray-900/60",
+        ? "bg-surface text-text shadow-sm dark:bg-surface-dark dark:text-text-dark"
+        : "text-muted hover:bg-surface/70 dark:text-muted-dark dark:hover:bg-surface-dark/60",
     ].join(" ");
 
   const primaryButtonClass =
-    "inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-200 dark:focus-visible:outline-gray-500";
+    "inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primaryText shadow-sm transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-70 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark";
 
   const secondaryButtonClass =
-    "inline-flex w-full items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500";
+    "inline-flex w-full items-center justify-center rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text shadow-sm transition-colors hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-70 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark";
+  const selectedLanguage = normalizeLanguage(
+    i18n.resolvedLanguage ?? i18n.language,
+  );
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
-      <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4 py-10 sm:px-6">
-        <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-8">
+    <div className="min-h-screen w-full bg-background text-text dark:bg-background-dark dark:text-text-dark">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4 py-10 sm:px-6"
+      >
+        <div className="w-full rounded-2xl border border-border bg-surface p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark sm:p-8">
           <div className="mb-6 text-center">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               {t("title")}
             </h1>
           </div>
+          <div className="mb-6 flex justify-end">
+            <select
+              value={selectedLanguage}
+              onChange={(event) =>
+                void i18n.changeLanguage(normalizeLanguage(event.target.value))
+              }
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-muted dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:focus:border-muted-dark"
+              aria-label="Language"
+            >
+              {SUPPORTED_LANGUAGES.map((language) => (
+                <option key={language} value={language}>
+                  {LANGUAGE_DISPLAY_NAMES[language]}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div
-            className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1 dark:bg-gray-800"
+            className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-background p-1 dark:bg-surface-dark"
             role="tablist"
             aria-label={t("title")}
           >
@@ -289,7 +324,7 @@ export default function LoginPage() {
                   </Alert>
                 ) : (
                   <>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                    <p className="text-sm text-muted dark:text-muted-dark">
                       {t("auth.passwordReset.instruction")}
                     </p>
                     <FormInput
@@ -328,10 +363,10 @@ export default function LoginPage() {
           )}
         </div>
 
-        <p className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-6 text-center text-xs text-muted dark:text-muted-dark">
           {t("copyright")}
         </p>
-      </div>
+      </main>
     </div>
   );
 }

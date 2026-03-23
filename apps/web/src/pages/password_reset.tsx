@@ -9,8 +9,11 @@ import {
 import { Spinner } from "@/components/ui/Spinner";
 import { FormInput } from "@/components/ui/FormInput";
 import { Alert } from "@/components/ui/Alert";
-import { resolveErrorMessage } from "@/utils/errors";
-import { FormErrors, validatePasswordForm } from "@/utils/validation";
+import { resolveErrorMessage } from "@lightlist/sdk/utils/errors";
+import {
+  FormErrors,
+  validatePasswordForm,
+} from "@lightlist/sdk/utils/validation";
 
 export default function PasswordResetPage() {
   const router = useRouter();
@@ -23,10 +26,10 @@ export default function PasswordResetPage() {
   const [resetSuccess, setResetSuccess] = useState(false);
 
   const primaryButtonClass =
-    "inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-200 dark:focus-visible:outline-gray-500";
+    "inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primaryText shadow-sm transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-70 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark";
 
   const secondaryButtonClass =
-    "inline-flex w-full items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800 dark:focus-visible:outline-gray-500";
+    "inline-flex w-full items-center justify-center rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text shadow-sm transition-colors hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-70 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark";
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -175,9 +178,13 @@ export default function PasswordResetPage() {
   })();
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
-      <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4 py-10 sm:px-6">
-        <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-8">
+    <div className="min-h-screen w-full bg-background text-text dark:bg-background-dark dark:text-text-dark">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4 py-10 sm:px-6"
+      >
+        <div className="w-full rounded-2xl border border-border bg-surface p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark sm:p-8">
           <div className="mb-6 text-center">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               {t("auth.passwordReset.title")}
@@ -185,10 +192,10 @@ export default function PasswordResetPage() {
           </div>
           {content}
         </div>
-        <p className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-6 text-center text-xs text-muted dark:text-muted-dark">
           {t("copyright")}
         </p>
-      </div>
+      </main>
     </div>
   );
 }

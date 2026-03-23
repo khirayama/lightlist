@@ -87,6 +87,14 @@
 - 共有画面は [ShareCode.tsx](/home/khirayama/Works/lightlist-poc/apps/native/src/screens/ShareCode.tsx) です。
 - タスク並び替え中だけ `Carousel.scrollEnabled` を止め、横スワイプ競合を避けます。
 
+## iOS / Android
+
+- ネイティブ実装の一覧画面は `taskListOrder` の順でタスクリストを表示し、タップ時に選択した `taskListId` を詳細画面へ渡します。
+- 詳細画面は同じ順序のまま横ページングし、一覧から開いた `taskListId` を初期ページにします。
+- iOS は `TabView(.page)`、Android は `HorizontalPager` を使い、ページ位置と選択中 `taskListId` を双方向に同期します。
+- 詳細画面の v1 は閲覧専用で、タスクリスト名、件数、task 一覧、空状態を表示します。
+- ページインジケータは 2 件以上のときだけ表示し、先頭・末尾ではそれ以上スクロールしません。
+
 ## Firestore ルール
 
 - `settings/{uid}` と `taskListOrder/{uid}` は本人のみ読み書きできます。

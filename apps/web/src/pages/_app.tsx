@@ -1,36 +1,27 @@
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import { Inter, Noto_Sans_JP } from "next/font/google";
-import { useEffect, useRef, useState } from "react";
+import {
+  Component,
+  ErrorInfo,
+  ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
+import { withTranslation, WithTranslation } from "react-i18next";
 
 import i18n from "@/utils/i18n";
-import { initializeSdk } from "@lightlist/sdk/config";
-import { getCurrentSettings, useSettings } from "@lightlist/sdk/settings";
-import { Theme } from "@lightlist/sdk/types";
-import {
-  getLanguageDirection,
-  normalizeLanguage,
-} from "@lightlist/sdk/utils/language";
-import { logException } from "@lightlist/sdk/analytics";
-
-import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { StartupSplash } from "@/components/ui/StartupSplash";
+import { getCurrentSettings, useSettings } from "@/lib/settings";
+import { Theme } from "@/lib/types";
+import { getLanguageDirection, normalizeLanguage } from "@/lib/utils/language";
+import { logException } from "@/lib/analytics";
+import { AppIcon } from "@/components/ui/AppIcon";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import "@/styles/globals.css";
 
 const MAIN_CONTENT_ID = "main-content";
-
-initializeSdk({
-  firebaseConfig: {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  },
-  passwordResetUrl: process.env.NEXT_PUBLIC_PASSWORD_RESET_URL,
-});
 
 const inter = Inter({
   subsets: ["latin"],
@@ -53,6 +44,96 @@ const applyTheme = (theme: Theme) => {
       window.matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.classList.toggle("dark", isDark);
 };
+
+const STARTUP_SPLASH_LABEL = "読み込み中";
+
+function StartupSplash() {
+  return (
+    <div className="flex h-dvh w-full items-center justify-center bg-background dark:bg-background-dark">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        aria-label={STARTUP_SPLASH_LABEL}
+        className="flex items-center justify-center"
+      >
+        <div className="animate-pulse">
+          <BrandLogo
+            alt=""
+            aria-hidden="true"
+            className="h-16 w-auto sm:h-20"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ErrorBoundaryProps extends WithTranslation {
+  children?: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundaryBase extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+  };
+
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("[ErrorBoundary] Uncaught error:", error, errorInfo);
+    logException(error.message, true);
+  }
+
+  public render() {
+    const { t, children, fallback } = this.props;
+
+    if (this.state.hasError) {
+      if (fallback) {
+        return fallback;
+      }
+
+      return (
+        <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-surface p-4 text-text dark:bg-background-dark dark:text-text-dark">
+          <div className="w-full max-w-md space-y-4 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+              <AppIcon
+                name="alert-circle"
+                className="h-6 w-6 text-red-600 dark:text-red-400"
+              />
+            </div>
+            <h2 className="text-lg font-semibold">{t("pages.error.title")}</h2>
+            <p className="text-sm text-muted dark:text-muted-dark">
+              {t("pages.error.description")}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primaryText hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:bg-primary-dark dark:text-primaryText-dark dark:hover:opacity-90"
+            >
+              {t("pages.error.reload")}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return children;
+  }
+}
+
+const ErrorBoundary = withTranslation()(ErrorBoundaryBase);
 
 export default function App({ Component, pageProps }: AppProps) {
   const [mounted, setMounted] = useState(false);

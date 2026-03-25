@@ -22,7 +22,6 @@ import {
 import { getCurrentSettings } from "../settings";
 import { deleteTaskList } from "./app";
 import { DEFAULT_LANGUAGE, normalizeLanguage } from "../utils/language";
-import { getPasswordResetUrl } from "../utils/env";
 
 const withAuthLanguage = async <T>(
   language: Language,
@@ -159,7 +158,7 @@ export async function sendPasswordResetEmail(
   const auth = getAuthInstance();
 
   const actionCodeSettings: ActionCodeSettings = {
-    url: getPasswordResetUrl(),
+    url: process.env.NEXT_PUBLIC_PASSWORD_RESET_URL!,
     handleCodeInApp: false,
   };
   const languageToUse = getPreferredLanguage(language);

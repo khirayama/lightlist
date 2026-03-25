@@ -1,5 +1,5 @@
 import type { SVGProps } from "react";
-import { ICON_PATHS, type AppIconName } from "@lightlist/sdk/icons";
+import { ICON_PATHS, type AppIconName } from "@/lib/icons";
 
 type AppIconProps = SVGProps<SVGSVGElement> & {
   name: AppIconName;

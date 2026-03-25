@@ -1,5 +1,4 @@
 const nextConfig = {
-  transpilePackages: ["@lightlist/sdk"],
   experimental: {
     optimizePackageImports: [
       "@radix-ui/react-dialog",

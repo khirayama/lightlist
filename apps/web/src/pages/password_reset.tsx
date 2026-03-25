@@ -1,19 +1,67 @@
-import { useEffect, useState } from "react";
+import { HTMLInputTypeAttribute, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 
 import {
   verifyPasswordResetCode,
   confirmPasswordReset,
-} from "@lightlist/sdk/mutations/auth";
+} from "@/lib/mutations/auth";
 import { Spinner } from "@/components/ui/Spinner";
-import { FormInput } from "@/components/ui/FormInput";
 import { Alert } from "@/components/ui/Alert";
-import { resolveErrorMessage } from "@lightlist/sdk/utils/errors";
-import {
-  FormErrors,
-  validatePasswordForm,
-} from "@lightlist/sdk/utils/validation";
+import { resolveErrorMessage } from "@/lib/utils/errors";
+import { FormErrors, validatePasswordForm } from "@/lib/utils/validation";
+
+type FormInputProps = {
+  id: string;
+  label: string;
+  type: HTMLInputTypeAttribute;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  disabled: boolean;
+  placeholder: string;
+};
+
+function FormInput({
+  id,
+  label,
+  type,
+  value,
+  onChange,
+  error,
+  disabled,
+  placeholder,
+}: FormInputProps) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label
+        htmlFor={id}
+        className="text-sm font-medium text-text dark:text-text-dark"
+      >
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        placeholder={placeholder}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className="rounded-xl border border-border bg-inputBackground px-3 py-2 text-sm text-text shadow-sm focus:border-muted focus:outline-none focus:ring-2 focus:ring-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark"
+      />
+      {error ? (
+        <p
+          id={`${id}-error`}
+          className="text-xs text-error dark:text-error-dark"
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export default function PasswordResetPage() {
   const router = useRouter();

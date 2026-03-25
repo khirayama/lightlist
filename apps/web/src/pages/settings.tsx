@@ -2,21 +2,21 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 
-import { useSessionState } from "@lightlist/sdk/session";
-import { useSettingsState } from "@lightlist/sdk/settings";
-import { Theme, Language, TaskInsertPosition } from "@lightlist/sdk/types";
-import { updateSettings } from "@lightlist/sdk/mutations/app";
+import { useSessionState } from "@/lib/session";
+import { useSettingsState } from "@/lib/settings";
+import { Theme, Language, TaskInsertPosition } from "@/lib/types";
+import { updateSettings } from "@/lib/mutations/app";
 import {
   signOut,
   deleteAccount,
   sendEmailChangeVerification,
-} from "@lightlist/sdk/mutations/auth";
-import { resolveErrorMessage } from "@lightlist/sdk/utils/errors";
-import { validateEmailChangeForm } from "@lightlist/sdk/utils/validation";
+} from "@/lib/mutations/auth";
+import { resolveErrorMessage } from "@/lib/utils/errors";
+import { validateEmailChangeForm } from "@/lib/utils/validation";
 import {
   LANGUAGE_DISPLAY_NAMES,
   SUPPORTED_LANGUAGES,
-} from "@lightlist/sdk/utils/language";
+} from "@/lib/utils/language";
 import {
   logSignOut,
   logDeleteAccount,
@@ -25,11 +25,16 @@ import {
   logSettingsLanguageChange,
   logSettingsTaskInsertPositionChange,
   logSettingsAutoSortChange,
-} from "@lightlist/sdk/analytics";
+} from "@/lib/analytics";
 import { Spinner } from "@/components/ui/Spinner";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+} from "@/components/ui/Dialog";
 
 type SelectRowProps = {
   disabled: boolean;
@@ -44,6 +49,82 @@ type SettingsSectionProps = {
   children: ReactNode;
   tone?: "default" | "danger";
 };
+
+type ConfirmDialogProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  additionalInfo?: string;
+  confirmText: string;
+  cancelText: string;
+  isDestructive?: boolean;
+  disabled?: boolean;
+};
+
+function ConfirmDialog({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  additionalInfo,
+  confirmText,
+  cancelText,
+  isDestructive = false,
+  disabled = false,
+}: ConfirmDialogProps) {
+  if (!isOpen) return null;
+
+  const primaryButtonClass =
+    "inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primaryText hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark";
+  const destructiveButtonClass =
+    "inline-flex items-center justify-center rounded-xl bg-error px-4 py-2 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-50 dark:bg-error-dark dark:focus-visible:outline-error-dark";
+  const secondaryButtonClass =
+    "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold text-text hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark";
+
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open: boolean) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+    >
+      <DialogContent title={title} description={message}>
+        {additionalInfo ? (
+          <p className="mt-2 text-sm text-muted dark:text-muted-dark">
+            {additionalInfo}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <DialogClose asChild>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={disabled}
+              className={secondaryButtonClass}
+            >
+              {cancelText}
+            </button>
+          </DialogClose>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={disabled}
+            className={
+              isDestructive ? destructiveButtonClass : primaryButtonClass
+            }
+          >
+            {confirmText}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function SettingsSection({ children, tone = "default" }: SettingsSectionProps) {
   if (tone === "danger") {

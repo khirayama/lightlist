@@ -6,12 +6,12 @@ import { useRouter } from "next/router";
 
 import i18n from "@/utils/i18n";
 import { BrandLogo } from "@/components/ui/BrandLogo";
-import type { Language } from "@lightlist/sdk/types";
+import type { Language } from "@/lib/types";
 import {
   LANGUAGE_DISPLAY_NAMES,
   SUPPORTED_LANGUAGES,
   normalizeLanguage,
-} from "@lightlist/sdk/utils/language";
+} from "@/lib/utils/language";
 
 const OG_LOCALE_BY_LANGUAGE: Record<Language, string> = {
   ja: "ja_JP",

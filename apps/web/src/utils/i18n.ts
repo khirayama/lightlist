@@ -3,10 +3,7 @@ import type { Resource } from "i18next";
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
-import {
-  DEFAULT_LANGUAGE,
-  SUPPORTED_LANGUAGES,
-} from "@lightlist/sdk/utils/language";
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/lib/utils/language";
 import ja from "@/locales/ja.json";
 import en from "@/locales/en.json";
 import es from "@/locales/es.json";

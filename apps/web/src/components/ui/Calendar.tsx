@@ -16,8 +16,8 @@ import {
   zhCN,
 } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
-import { Language } from "@lightlist/sdk/types";
-import { normalizeLanguage } from "@lightlist/sdk/utils/language";
+import { Language } from "@/lib/types";
+import { normalizeLanguage } from "@/lib/utils/language";
 
 type CalendarProps = ComponentProps<typeof DayPicker>;
 

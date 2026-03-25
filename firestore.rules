@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ユーザー設定: 本人のみアクセス可能
+    match /settings/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // タスクリスト順序: 本人のみアクセス可能
+    match /taskListOrder/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /shareCodes/{shareCode} {
+      function getUserTaskListOrderBefore() {
+        return request.auth != null
+          ? get(/databases/$(database)/documents/taskListOrder/$(request.auth.uid)).data
+          : null;
+      }
+
+      function getUserTaskListOrderAfter() {
+        return request.auth != null
+          ? getAfter(/databases/$(database)/documents/taskListOrder/$(request.auth.uid)).data
+          : null;
+      }
+
+      function canAccessTaskList(taskListId) {
+        let orderBefore = getUserTaskListOrderBefore();
+        let orderAfter = getUserTaskListOrderAfter();
+        return (orderBefore != null && taskListId in orderBefore)
+          || (orderAfter != null && taskListId in orderAfter);
+      }
+
+      // read ではなく get にすることで、一括取得(list)を禁止
+      allow get: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['taskListId', 'createdAt'])
+        && request.resource.data.taskListId is string
+        && request.resource.data.createdAt is int
+        && canAccessTaskList(request.resource.data.taskListId);
+      allow update: if false;
+      allow delete: if request.auth != null
+        && resource.data.taskListId is string
+        && canAccessTaskList(resource.data.taskListId);
+    }
+
+    // タスクリスト
+    match /taskLists/{taskListId} {
+      function allowedTaskListKeys() {
+        return ['id', 'name', 'tasks', 'history', 'shareCode', 'background', 'memberCount', 'createdAt', 'updatedAt'];
+      }
+
+      // ヘルパー関数: taskListOrderを取得
+      function getTaskListOrderBefore() {
+        return request.auth != null
+          ? get(/databases/$(database)/documents/taskListOrder/$(request.auth.uid)).data
+          : null;
+      }
+
+      function getTaskListOrderAfter() {
+        return request.auth != null
+          ? getAfter(/databases/$(database)/documents/taskListOrder/$(request.auth.uid)).data
+          : null;
+      }
+
+      function hasTaskListInOrder(orderData) {
+        return orderData != null && taskListId in orderData;
+      }
+
+      // ヘルパー関数: taskListOrderに含まれているか確認
+      function isInTaskListOrder() {
+        return request.auth != null && hasTaskListInOrder(getTaskListOrderBefore());
+      }
+
+      // ヘルパー関数: 有効な共有コード紐付けがあるか確認
+      function isValidShareCode() {
+        return resource.data.shareCode != null
+          && get(/databases/$(database)/documents/shareCodes/$(resource.data.shareCode)).data.taskListId == taskListId;
+      }
+
+      function isValidMemberCountUpdate() {
+        return request.resource.data.memberCount is int
+          && resource.data.memberCount is int
+          && request.resource.data.memberCount >= 1
+          && (
+            request.resource.data.memberCount == resource.data.memberCount
+            || (
+              request.auth != null
+              && request.resource.data.memberCount == resource.data.memberCount + 1
+              && !hasTaskListInOrder(getTaskListOrderBefore())
+              && hasTaskListInOrder(getTaskListOrderAfter())
+            )
+            || (
+              request.auth != null
+              && request.resource.data.memberCount == resource.data.memberCount - 1
+              && hasTaskListInOrder(getTaskListOrderBefore())
+              && !hasTaskListInOrder(getTaskListOrderAfter())
+            )
+          );
+      }
+
+      // 読み取り権限: taskListOrderに含まれている、または有効な共有コードが存在する
+      allow read: if isInTaskListOrder() || isValidShareCode();
+
+      // 作成権限: 認証済みユーザーであれば誰でも作成可能
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(allowedTaskListKeys())
+        && request.resource.data.id == taskListId
+        && request.resource.data.memberCount is int
+        && request.resource.data.memberCount == 1
+        && request.resource.data.createdAt is int
+        && request.resource.data.updatedAt is int;
+
+      // 更新権限: taskListOrderに含まれている、または有効な共有コードが存在する場合
+      allow update: if (isInTaskListOrder() || isValidShareCode())
+        && request.resource.data.keys().hasOnly(allowedTaskListKeys())
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt
+        && isValidMemberCountUpdate();
+
+      // 削除権限: 最後の保持者のみ実体削除可能
+      allow delete: if isInTaskListOrder()
+        && request.auth != null
+        && hasTaskListInOrder(getTaskListOrderBefore())
+        && !hasTaskListInOrder(getTaskListOrderAfter())
+        && resource.data.memberCount is int
+        && resource.data.memberCount <= 1;
+    }
+  }
+}

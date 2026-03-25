@@ -12,14 +12,11 @@ import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   fetchTaskListIdByShareCode,
   addSharedTaskListToOrder,
-} from "@lightlist/sdk/mutations/app";
-import { useUser } from "@lightlist/sdk/session";
-import {
-  subscribeToSharedTaskList,
-  useTaskList,
-} from "@lightlist/sdk/taskLists";
-import { resolveErrorMessage } from "@lightlist/sdk/utils/errors";
-import { logShare, logShareCodeJoin } from "@lightlist/sdk/analytics";
+} from "@/lib/mutations/app";
+import { useUser } from "@/lib/session";
+import { subscribeToSharedTaskList, useTaskList } from "@/lib/taskLists";
+import { resolveErrorMessage } from "@/lib/utils/errors";
+import { logShare, logShareCodeJoin } from "@/lib/analytics";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { AppIcon } from "@/components/ui/AppIcon";

@@ -3,27 +3,20 @@
 ## 概要
 
 - 認証方式は Firebase Authentication のメールアドレス + パスワードです。
-- 認証 API は `packages/sdk/src/mutations/auth.ts` に集約し、Web / Native は同じ API を使います。
+- 認証 API は `apps/web/src/lib/mutations/auth.ts` に集約します。
 - サインアップ時は認証作成に加えて、`settings`、初期タスクリスト、`taskListOrder` を同時に作成します。
 
 ## 必須環境変数
 
-- Web Firebase 初期化
+- Firebase 初期化
   - `NEXT_PUBLIC_FIREBASE_API_KEY`
   - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
   - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
   - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
   - `NEXT_PUBLIC_FIREBASE_APP_ID`
-- Native Firebase 初期化
-  - `EXPO_PUBLIC_FIREBASE_API_KEY`
-  - `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`
-  - `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
-  - `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`
-  - `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-  - `EXPO_PUBLIC_FIREBASE_APP_ID`
 - パスワードリセット
-  - `NEXT_PUBLIC_PASSWORD_RESET_URL` または `EXPO_PUBLIC_PASSWORD_RESET_URL`
+  - `NEXT_PUBLIC_PASSWORD_RESET_URL`
   - 未設定時は `sendPasswordResetEmail()` がエラーを投げます。
   - 本番設定で `localhost` は使いません。
 
@@ -64,7 +57,6 @@ Web の環境変数は Next.js 標準の `.env.production` / `.env.production.lo
 - メール言語は `language`、未指定時は `appStore.settings.language`、それもなければ `ja` を使います。
 - コード検証は `verifyPasswordResetCode(code)`、確定は `confirmPasswordReset(code, newPassword)` です。
 - Web は [password_reset.tsx](/home/khirayama/Works/lightlist-poc/apps/web/src/pages/password_reset.tsx) で `oobCode` を検証し、成功後 2 秒後に `/` へ戻します。
-- Native は `password-reset` ディープリンクを [App.tsx](/home/khirayama/Works/lightlist-poc/apps/native/src/App.tsx) で `PasswordReset` 画面にマッピングします。
 
 ## メールアドレス変更
 
@@ -79,14 +71,8 @@ Web の環境変数は Next.js 標準の `.env.production` / `.env.production.lo
 - メール入力はタブごとに分離せず共通 state で保持するため、タブ切替で保持されます。
 - `/app` と `/settings` は認証状態が `loading` のまま 10 秒続いた場合 `/` に戻します。
 
-## Native
-
-- 認証画面は [Auth.tsx](/home/khirayama/Works/lightlist-poc/apps/native/src/screens/Auth.tsx) です。
-- 画面構成は Web と同じで、sign in / sign up / password reset を切り替えます。
-- ディープリンク scheme は `APP_ENV` に応じて `lightlist` / `lightlist-staging` / `lightlist-dev` を使います。
-
 ## 固定仕様
 
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id` です。
 - `fallbackLng` は `ja` です。
-- ブランド名とパスワード伏字以外の文言は locale JSON で管理し、Web / Native は同じキー構造を維持します。
+- ブランド名とパスワード伏字以外の文言は locale JSON で管理します。

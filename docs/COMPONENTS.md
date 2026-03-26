@@ -3,33 +3,28 @@
 ## ディレクトリ
 
 - `apps/web/src/components/ui`
-  - Web の汎用 UI。`Alert`、`Dialog`、`Drawer`、`FormInput`、`Spinner`、`StartupSplash`、`Carousel` など。
+  - Web の汎用 UI。`Alert`、`Dialog`、`Drawer`、`Spinner`、`Carousel`、`Calendar`、`ColorPicker` など。
 - `apps/web/src/components/app`
-  - Web のタスクドメイン UI。`TaskListCard`、`TaskItem`、`DrawerPanel`、`CalendarSheet`。
-- `apps/native/src/components/ui`
-  - Native の汎用 UI。`Dialog`、`AppIcon`、`StartupSplash`、`Carousel`、`ErrorBoundary`。
-- `apps/native/src/components/app`
-  - Native のタスクドメイン UI。`TaskListCard`、`TaskItem`、`DrawerPanel`、`CalendarSheet`。
+  - Web のタスクドメイン UI。共有が残るものだけを置き、2026-03 時点では `TaskListCard` を主対象とする。
+- `apps/web/src/pages`
+  - 画面専用 UI はページへ近接配置する。`app.tsx` は drawer / calendar sheet を内包し、`_app.tsx` は `ErrorBoundary` と `StartupSplash` を内包する。`login.tsx` / `password_reset.tsx` / `settings.tsx` も専用入力 UI や確認 dialog をページ内に持つ。
+- `apps/web/src/lib`
+  - 共有状態・Firebase 連携・購読・mutation を置く。1 ファイル専用 utility は専用側へ戻し、2026-03 時点ではタスク追加時の日付抽出を `lib/mutations/app.ts` 内へ内包する。
 
 ## 固定ルール
 
 - Firebase や appStore に触る UI は `app` 側へ置きます。
 - 汎用 UI は `ui` 側へ置きます。
-- Web / Native で共通にしたい props 名はできるだけ揃えます。
-- 画面固有でしか使わないものは無理に切り出しません。
+- Web / iOS で共通にしたい props 名はできるだけ揃えます。
+- 画面固有、または 1〜2 箇所でしか使わない UI / helper / hook は無理に切り出さず、ページまたは直近のドメインファイルへ寄せます。
 
 ## Web
 
-- `ErrorBoundary` はクラスコンポーネントなので `withTranslation()` で i18n を注入します。
-- `StartupSplash` は固定ラベル `読み込み中` を使います。
+- `_app.tsx` 内の `ErrorBoundary` はクラスコンポーネントなので `withTranslation()` で i18n を注入します。
+- `_app.tsx` 内の `StartupSplash` は固定ラベル `読み込み中` を使います。
 - `Carousel` は `direction` を受け取り、RTL の `scrollLeft` 差分を吸収します。
-- `AppShell` はスキップリンクと `main#main-content` を前提にします。
-
-## Native
-
-- `Carousel` は `AppDirectionProvider` の `uiDirection` を使います。
-- `Pressable` ベースのカスタム操作には `accessibilityRole` と `accessibilityLabel` を付けます。
-- `Dialog` の背景スクラムは既定で読み上げ対象外です。
+- `pages/app.tsx` は app ドメインの drawer / task list index / calendar sheet をまとめて持ち、`TaskListCard` だけを共有コンポーネントとして使います。
+- `TaskListCard` はタスク行、候補ポップオーバー、日付選択 popover を内包し、`components/app` 配下で自己完結させます。
 
 ## iOS
 

@@ -7,8 +7,10 @@
 | パス | 説明 |
 |---|---|
 | `apps/web` | Next.js（Pages Router）+ Tailwind |
-| `apps/native` | Expo（React Native）+ NativeWind |
-| `packages/sdk` | Firebase Auth / Firestore 共通ロジック |
+| `apps/ios` | SwiftUI（iOS 16+） |
+| `apps/android` | Kotlin + Gradle |
+
+SDK（Firebase Auth / Firestore 共通ロジック）は `apps/web/src/lib/` に統合。
 
 ## 前提
 
@@ -36,46 +38,31 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 NEXT_PUBLIC_PASSWORD_RESET_URL=https://your-domain.com/password_reset
 ```
 
-**`apps/native/.env`**
-
-```
-EXPO_PUBLIC_FIREBASE_API_KEY=...
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=...
-EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=...
-EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-EXPO_PUBLIC_FIREBASE_APP_ID=...
-EXPO_PUBLIC_PASSWORD_RESET_URL=https://your-domain.com/password_reset
-```
-
 ## 開発
 
 ```bash
-# Web + Native 同時起動
-npm run dev
-
-# Web のみ
+# Web 起動
 cd apps/web && npm run dev
-
-# Native のみ
-cd apps/native && npm run dev
 ```
 
 ## ビルド / チェック
 
 ```bash
-npm run build        # 全パッケージビルド
-npm run typecheck    # 型チェック
-npm run lint         # Lint
-npm run format       # フォーマット
+cd apps/web && npm run build      # ビルド
+cd apps/web && npm run typecheck  # 型チェック
+cd apps/web && npm run lint       # Lint
+cd apps/web && npm run format     # フォーマット
+cd apps/web && npm run knip       # 未使用コード検査
 ```
 
 ## Firestore デプロイ
 
 ```bash
-npm run deploy:firestore        # staging
-npm run deploy:firestore:prod   # production
+just deploy-firestore        # staging
+just deploy-firestore-prod   # production
 ```
+
+`just` の deploy recipe は、PATH 上で解決できる global `firebase` CLI を前提にしています。
 
 ## ドキュメント
 

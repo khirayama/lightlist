@@ -36,7 +36,7 @@
 - `addTask()` は入力文から日付表現を解析し、本文と日付に分離します。
 - 日付解析は現在の UI 言語を基準に行います。
 - 履歴 `history` は重複を潰しながら先頭追加し、最大 300 件を保持します。
-- Web / Native ともにタスク追加入力は 2 文字以上で `history` 由来の補完候補を表示します。
+- タスク追加入力は 2 文字以上で `history` 由来の補完候補を表示します。
 - 補完候補を選ぶと入力欄へ反映するだけでなく、その場で `addTask()` を実行します。
 - `updateTask()` は `autoSort` が無効なら対象タスクだけ更新します。
 - `deleteTask()` は `autoSort` が無効なら対象タスクだけ削除します。
@@ -79,21 +79,15 @@
   - `appStore.subscribeToSharedTaskList()` で購読
   - ログイン済みなら自分の一覧へ追加可能
 
-## Native
-
-- メイン画面は [App.tsx](/home/khirayama/Works/lightlist-poc/apps/native/src/screens/App.tsx) です。
-- `DrawerPanel` が一覧、作成、参加、設定導線を持ちます。
-- `TaskListCard` が追加、編集、完了、日付変更、並び替え、完了済み削除を持ちます。
-- 共有画面は [ShareCode.tsx](/home/khirayama/Works/lightlist-poc/apps/native/src/screens/ShareCode.tsx) です。
-- タスク並び替え中だけ `Carousel.scrollEnabled` を止め、横スワイプ競合を避けます。
-
-## iOS / Android
+## iOS
 
 - ネイティブ実装の一覧画面は `taskListOrder` の順でタスクリストを表示し、タップ時に選択した `taskListId` を詳細画面へ渡します。
 - 詳細画面は同じ順序のまま横ページングし、一覧から開いた `taskListId` を初期ページにします。
-- iOS は `TabView(.page)`、Android は `HorizontalPager` を使い、ページ位置と選択中 `taskListId` を双方向に同期します。
+- iOS は `TabView(.page)` を使い、ページ位置と選択中 `taskListId` を双方向に同期します。
 - 詳細画面の v1 は閲覧専用で、タスクリスト名、件数、task 一覧、空状態を表示します。
 - ページインジケータは 2 件以上のときだけ表示し、先頭・末尾ではそれ以上スクロールしません。
+- iOS のタスクリスト並び替えとタスク並び替えは、行自身のローカル座標ではなく親 `ScrollView` の named coordinate space を基準にドラッグ量を計算します。
+- iOS の並び替え判定に使う計測値は各行の高さのみです。`frame(in:)` による位置監視は使わず、ドラッグ中の再描画ループを避けます。
 
 ## Firestore ルール
 

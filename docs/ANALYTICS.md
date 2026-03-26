@@ -2,21 +2,15 @@
 
 ## 構成
 
-- 実装は `packages/sdk/src/analytics/` に集約します。
-- apps 側は `@lightlist/sdk/analytics` だけを import します。
+- 実装は `apps/web/src/lib/analytics/` に集約します。
+- apps 側は `@/lib/analytics` で import します。
 - PII はイベント名にもパラメータにも含めません。
-- イベント API の定義は `shared.ts` に集約し、platform ごとの差分は adapter だけに閉じ込めます。
 
-## プラットフォーム別実装
+## Web 実装
 
-- Web
-  - `firebase/analytics` を使います。
-  - 開発時は `console.log` にも出します。
-  - 例外は `app_exception` を Analytics へ送ります。
-- Native
-  - Expo Go では `console.log` / `console.error` のみです。
-  - Development Build / 本番では `@react-native-firebase/analytics` と `@react-native-firebase/crashlytics` を使います。
-  - `logException()` は Crashlytics に `recordError()` します。
+- `firebase/analytics` を使います。
+- 開発時は `console.log` にも出します。
+- 例外は `app_exception` を Analytics へ送ります。
 
 ## 主なイベント
 
@@ -55,7 +49,3 @@
 
 - Web で Analytics を有効にするには `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` が必要です。
 
-## 補足
-
-- Native の Firebase plugin は `app` と `crashlytics` のみ設定します。
-- `analytics` は Expo plugin を持たないため `app.config.ts` の `plugins` へ追加しません。

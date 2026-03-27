@@ -1,40 +1,41 @@
-# Dependencies
+# OS / editor
+.DS_Store
+.Spotlight-V100
+.Trashes
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Local agent / workspace files
+.claude/
+.serena/
+.gemini/
+.worktrees/
+NOTE.md
+
+# Node / web toolchain
 node_modules/
 .pnp
 .pnp.js
-
-# Build outputs
-dist/
-build/
-.next/
-out/
-
-# Cache and temp
 .turbo/
 .cache/
+.next/
+out/
+dist/
+build/
+coverage/
+.nyc_output/
 *.tsbuildinfo
 
-# Environment variables
+# Environment files
 .env
 .env.local
 .env.*.local
 .env.production
 .env.prod
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# OS
-Thumbs.db
-
-# Testing
-coverage/
-.nyc_output/
 
 # Logs
 logs/
@@ -43,13 +44,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Firebase iOS configuration
+# Firebase local configuration
 apps/ios/Lightlist/Resources/GoogleService-Info.plist
-
-NOTE.md
-.claude
-.serena
-.gemini
-
+apps/android/app/google-services.json
 GoogleService-Info.plist
 google-services.json

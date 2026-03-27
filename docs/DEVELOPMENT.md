@@ -34,6 +34,7 @@
 
 ## iOS 実装上の前提
 
+- regular 幅では `NavigationSplitView` を使い、左 360pt サイドバーにタスクリスト一覧と主要操作、右ペインにタスクリスト詳細または設定を表示します。右ペインの詳細は `TabView(.page)` を維持し、横スワイプで選択中タスクリストを切り替えます。
 - 認証済みアプリ領域のルート遷移は `RootView` が持ち、`.main` / `.settings` / `.shareCode(String?)` を切り替えます。
 - `MainView` はタスクリスト UI に専念し、Settings / ShareCode の遷移はコールバックで `RootView` へ委譲します。
 - `MainView` は `GeometryReader` の表示領域サイズを compact / regular 両レイアウトへ明示的に渡し、`TabView(.page)` 自体だけでなく各ページにも同じサイズを適用して内部の LazyView / HostingView まで画面高さいっぱいに固定します。
@@ -46,11 +47,14 @@
 - `LightlistApp` は `WindowSceneConfigurator` で attach 済み `UIWindow` を受け取り、`backgroundColor`・`additionalSafeAreaInsets`・layout margins を初期化して `UIWindowScene` 側にも余白が見えない状態を保ちます。
 - `ScrollView` ベースの全画面フォームはカード化しません。`maxWidth` 制約、外側 `padding`、`RoundedRectangle` の外枠を持たず、画面直下の full screen コンテナとして上寄せ配置します。`Spacer` による縦中央寄せで大きな上下空白を作りません。
 - custom header を `safeAreaInset(edge: .top)` で載せる画面では、本文側の大きな先頭余白を足して二重に safe area を消費しません。sheet / dialog でも本文 root を full-height に揃え、`.presentationDetents([.medium])` を使う場合は detent 内で最大化します。
+- iOS の翻訳 JSON は `apps/ios/Lightlist/Resources/Locales/*.json` に置きますが、Xcode ビルド後は `Lightlist.app` 直下へフラット配置されます。`Translations` は app bundle 直下の `ja.json` などを直接読みます。
 
 ## iOS の生成物
 
-- `apps/ios` では `build/`、`DerivedData/`、`xcuserdata`、`xcuserstate` を commit しません。
-- `apps/ios/Lightlist/GoogleService-Info.plist` は Firebase コンソールから取得してローカル配置し、commit しません。
+- `apps/ios` では `build/`、`build-*/`、`DerivedData/`、`xcuserdata`、`xcuserstate` を commit しません。
+- `apps/ios/Lightlist/Resources/GoogleService-Info.plist` は Firebase コンソールから取得してローカル配置し、commit しません。
+- ルート `.gitignore` は OS / editor / Node / Firebase の共通ローカル生成物を管理し、`apps/web/.gitignore`、`apps/ios/.gitignore`、`apps/android/.gitignore` は各アプリ固有の生成物だけを管理します。
+- `apps/ios/Lightlist.xcodeproj/xcuserdata/` は user-specific な Xcode 状態として常に ignore し、commit しません。
 
 ## コマンド入口
 
@@ -67,4 +71,7 @@
 
 - 共有 URL を知っている未認証ユーザーの閲覧・編集を許可する認可モデルを維持します。
 - 文言は `apps/web/src/locales/*.json` で管理します。
+- iOS / Android のネイティブ翻訳も `apps/web/src/locales/*.json` を正本として同期します。
+- Android の regular 幅では一覧画面を左サイドバー、タスクリスト詳細または設定を右ペインに出す 2カラム構成にし、詳細の `HorizontalPager` と左サイドバーの選択状態を同期します。
+- Android の件数表示は hardcode や `strings.xml` の個別管理ではなく、JSON の `taskCount_one` / `taskCount_other` を `count` 付きで解決します。
 - agent ドキュメントは恒久的な運用知識だけを書き、進捗や一時メモは書きません。

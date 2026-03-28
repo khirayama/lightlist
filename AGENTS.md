@@ -39,6 +39,7 @@
 - iOS の i18n は JSON ベースの `Localizer`（`apps/ios/Lightlist/Utilities/Localizer.swift`）で、`apps/web` と同一キー構造の JSON を `Resources/Locales/` に配置して使う。String Catalog (.xcstrings) は採用しない。
 - Android の i18n も `apps/web/src/locales/*.json` を `apps/android/app/src/main/assets/locales/` へ同期して使う。件数表示やアクセシビリティ文言を含め、Android だけ `strings.xml` に分岐させず shared locale key を優先する。
 - Android の件数表示は `taskList.taskCount_one` / `taskList.taskCount_other` を `count` 付きで解決し、`"${count}個のタスク"` のような直書きを持ち込まない。
+- Android の app module は `Analytics.kt` で `BuildConfig.DEBUG` を参照するため、`apps/android/app/build.gradle.kts` の `buildFeatures.buildConfig = true` を維持する。
 - iOS の RTL 対応は `LightlistApp.swift` で `.environment(\.layoutDirection, ...)` をルートに設定し、SwiftUI の自動反転に委ねる。再起動不要。
 - iOS のディープリンクは `lightlist://password-reset?oobCode=...`（パスワードリセット）と `lightlist://sharecodes/CODE` または `https://lightlist.com/sharecodes/CODE`（共有コード）を処理する。`RootView.handleDeepLink` で分岐。
 - iOS の認証済み画面遷移は `RootView` の `AppRoute`（`.main` / `.settings` / `.shareCode(String?)`）で管理し、`MainView` はタスクリスト UI のみを担当する。compact 幅は `SideDrawer`、regular 幅は `NavigationSplitView` の 360pt サイドバーで `DrawerPanel` を使う。`SideDrawer` は本体コンテンツとドロワーを縦方向も上揃えで配置する。

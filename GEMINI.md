@@ -54,11 +54,16 @@
 3. 変更後は `docs/` を実装に合わせて仕様として更新する。
 4. 作業完了時に、恒久的に再利用できる知見（ルール、手順、コマンド、構成差分）が増えた場合は `AGENTS.md` を先に更新し、必要に応じて `GEMINI.md` / `CLAUDE.md` へ反映する。
 5. 進捗報告やタスク固有メモは agent ドキュメントに書かない。
-6. 最後に `cd apps/web && npm run format` → `cd apps/web && npm run build` → `cd apps/web && npm run typecheck` を実行する。
-7. 明示指示がない限りコミットしない。
+6. 最後に、変更があった app だけ検証する。`apps/web` は npm scripts、`apps/ios` / `apps/android` は `Justfile` を使う。
+7. `apps/web` を変更した場合は `cd apps/web && npm run format && npm run lint && npm run build && npm run typecheck` を実行する。
+8. `apps/ios` を変更した場合は `cd apps/ios && just build` を実行する。iOS の `lint` / `format` は現状未設定。
+9. `apps/android` を変更した場合は `cd apps/android && just lint && just build` を実行する。Android の `format` は現状未設定。
+10. 明示指示がない限りコミットしない。
 
 ## 5. 主要コマンド
 
 - ルート: `just deploy-firestore` / `just deploy-firestore-prod`
 - Web: `cd apps/web && npm run dev`
+- iOS: `cd apps/ios && just build`
+- Android: `cd apps/android && just lint` / `cd apps/android && just build`
 - Firestore デプロイ: `just deploy-firestore` / `just deploy-firestore-prod`

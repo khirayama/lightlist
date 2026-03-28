@@ -57,6 +57,8 @@
 
 1. 実装と `docs/` の整合を取る（進捗ではなく仕様として記述）。
 2. agent ドキュメント（少なくとも `AGENTS.md`）に恒久知見の更新が必要か確認し、必要なら反映する。
-3. `cd apps/web && npm run format` を実行する。
-4. `cd apps/web && npm run build` と `cd apps/web && npm run typecheck` を実行し、エラーなしを確認する。
-5. 明示指示がない限りコミットしない。
+3. 変更があった app だけ検証する。`apps/web` は npm scripts、`apps/ios` / `apps/android` は `Justfile` を使う。
+4. `apps/web` を変更した場合は `cd apps/web && npm run format && npm run lint && npm run build && npm run typecheck` を実行する。
+5. `apps/ios` を変更した場合は `cd apps/ios && just build` を実行する。iOS の `lint` / `format` は現状未設定。
+6. `apps/android` を変更した場合は `cd apps/android && just lint && just build` を実行する。Android の `format` は現状未設定。
+7. 明示指示がない限りコミットしない。

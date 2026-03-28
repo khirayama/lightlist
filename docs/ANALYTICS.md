@@ -1,18 +1,30 @@
 # Analytics
 
-## 構成
+## 実装配置
 
-- 実装は `apps/web/src/lib/analytics/` に集約します。
-- apps 側は `@/lib/analytics` で import します。
-- PII はイベント名にもパラメータにも含めません。
+- Web は `apps/web/src/lib/analytics.ts` に集約する。
+- iOS は `apps/ios/Lightlist/Sources/Analytics.swift` に集約する。
+- Android は `apps/android/app/src/main/java/com/example/lightlist/Analytics.kt` に集約する。
+- 3 実装ともイベント名と主要パラメータは揃える。
 
-## Web 実装
+## 基本動作
 
-- `firebase/analytics` を使います。
-- 開発時は `console.log` にも出します。
-- 例外は `app_exception` を Analytics へ送ります。
+- PII はイベント名・パラメータへ含めない。
+- 開発時はデバッグ出力を行う。
+  - Web: `console.log("[analytics]", ...)`
+  - iOS: `print(...)`
+  - Android: `Log.d("analytics", ...)`
+- Web は Firebase App が初期化済みで、かつ `firebase/analytics` が利用可能な環境でのみ送信する。
+- iOS / Android は Firebase Analytics を直接送信する。
 
-## 主なイベント
+## 例外送信
+
+- Web の `logException(description, fatal)` は `app_exception` を送信する。
+- iOS / Android の `logException(description, fatal)` は `app_exception` を送信し、あわせて Crashlytics に記録する。
+- iOS は `LightlistApp.swift` で未捕捉例外ハンドラを設定する。
+- Android は `MainActivity.kt` で `Thread.setDefaultUncaughtExceptionHandler` を設定する。
+
+## イベント一覧
 
 - 認証
   - `sign_up`
@@ -45,7 +57,15 @@
 - 例外
   - `app_exception`
 
-## 環境変数
+## パラメータ
 
-- Web で Analytics を有効にするには `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` が必要です。
-
+- `sign_up`, `login`: `method: "email"`
+- `app_task_add`: `has_date: boolean`
+- `app_task_update`: `fields: string`
+- `app_task_delete_completed`: `count: number`
+- `share`: `method: "share_code"`, `content_type: "task_list"`
+- `app_settings_theme_change`: `theme: "system" | "light" | "dark"`
+- `app_settings_language_change`: `language: string`
+- `app_settings_task_insert_position_change`: `position: "top" | "bottom"`
+- `app_settings_auto_sort_change`: `enabled: boolean`
+- `app_exception`: `description: string`, `fatal: boolean`

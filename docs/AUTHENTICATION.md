@@ -44,6 +44,7 @@ Web の環境変数は Next.js 標準の `.env.production` / `.env.production.lo
 ## サインイン / サインアウト / アカウント削除
 
 - `signIn()` は Firebase Auth のメールログインです。
+- Android は Firebase Auth の代表的な例外コード（`invalid credential`、`user not found`、`requires recent login` など）を locale JSON の翻訳キーへ変換し、生の SDK 英語メッセージはそのまま表示しません。
 - `signOut()` は Firebase Auth のセッションを破棄します。
 - `deleteAccount()` は次の順で処理します。
   - `taskListOrder/{uid}` から所属リストを列挙

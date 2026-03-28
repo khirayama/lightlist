@@ -49,6 +49,10 @@
 - custom header を `safeAreaInset(edge: .top)` で載せる画面では、本文側の大きな先頭余白を足して二重に safe area を消費しません。sheet / dialog でも本文 root を full-height に揃え、`.presentationDetents([.medium])` を使う場合は detent 内で最大化します。
 - iOS の翻訳 JSON は `apps/ios/Lightlist/Resources/Locales/*.json` に置きますが、Xcode ビルド後は `Lightlist.app` 直下へフラット配置されます。`Translations` は app bundle 直下の `ja.json` などを直接読みます。
 
+## Android 実装上の前提
+
+- `apps/android/app` は `BuildConfig.DEBUG` を使うため、module の `buildFeatures.buildConfig = true` を維持します。
+
 ## iOS の生成物
 
 - `apps/ios` では `build/`、`build-*/`、`DerivedData/`、`xcuserdata`、`xcuserstate` を commit しません。

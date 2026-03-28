@@ -2,38 +2,39 @@
 
 ## 実装範囲
 
-- Web は manifest と service worker を持つ最小構成の PWA です。
-- manifest は [manifest.webmanifest](/home/khirayama/Works/lightlist-poc/apps/web/public/manifest.webmanifest) で管理します。
-- service worker は [sw.js](/home/khirayama/Works/lightlist-poc/apps/web/public/sw.js) です。
+- Web は manifest と service worker を持つ最小構成の PWA。
+- manifest は `apps/web/public/manifest.webmanifest`。
+- service worker は `apps/web/public/sw.js`。
+- `public/` 配下のファイルは `/manifest.webmanifest` や `/sw.js` のようにルートパスで参照する。
 
 ## manifest
 
+- `name`: `Lightlist`
+- `short_name`: `Lightlist`
+- `description`: `Task list app`
 - `start_url`: `/app`
 - `scope`: `/`
 - `display`: `standalone`
+- `background_color`: `#ffffff`
+- `theme_color`: `#ffffff`
 - icons
-  - `icon-192.png`
-  - `icon-512.png`
-  - `maskable-512.png`
+  - `/icons/icon-192.png`
+  - `/icons/icon-512.png`
+  - `/icons/maskable-512.png`
 
 ## service worker
 
-- install 時に `skipWaiting()`
-- activate 時に `clients.claim()`
-- `SKIP_WAITING` message を受けたら `skipWaiting()`
+- `install` で `skipWaiting()` を呼ぶ。
+- `activate` で `clients.claim()` を呼ぶ。
+- `message` で `type === "SKIP_WAITING"` を受けたら `skipWaiting()` を呼ぶ。
 
 ## 登録
 
-- [_app.tsx](/home/khirayama/Works/lightlist-poc/apps/web/src/pages/_app.tsx) で HTTPS または localhost のときだけ `/sw.js` を登録します。
-- 登録後に `registration.update()` を呼びます。
-
-## 起動時 UI
-
-- 初回マウント前は `StartupSplash` を表示します。
-- `StartupSplash` の読み上げラベルは hydration mismatch を避けるため固定文字列 `読み込み中` です。
+- `_app.tsx` で HTTPS、`localhost`、`127.0.0.1` のときだけ `/sw.js` を登録する。
+- 登録成功後に `registration.update()` を呼ぶ。
+- 登録失敗時は握りつぶす。
 
 ## やらないこと
 
-- オフライン対応はしません。
-- キャッシュ戦略は持ちません。
-- 更新通知 UI は持ちません。
+- オフラインキャッシュ戦略は持たない。
+- 更新通知 UI は持たない。

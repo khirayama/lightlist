@@ -90,9 +90,13 @@
   - `npm run knip`
   - `npm run typecheck`
 - `apps/ios`:
+  - `just build`
   - `xcodegen generate`（`project.yml` → `.xcodeproj` 生成）
   - Xcode で開いてビルド（CLI: `xcodebuild -scheme Lightlist -destination 'platform=iOS Simulator,...'`）
   - `GoogleService-Info.plist` は `.gitignore` で除外。Firebase コンソールからダウンロードして `apps/ios/Lightlist/Resources/` に配置
+- `apps/android`:
+  - `just lint`
+  - `just build`
 
 ## セキュリティ・品質ルール
 
@@ -106,6 +110,8 @@
 1. 変更内容を見直し、無駄な変数・関数・分割がないことを確認する。
 2. `docs/` を実装に合わせて更新し、仕様として記述する。
 3. agent 向けドキュメント（`AGENTS.md` / `CLAUDE.md` / `GEMINI.md`）に恒久的な知見の追記・修正が必要か確認し、必要なら更新する。
-4. `cd apps/web && npm run format` を実行する。
-5. `cd apps/web && npm run build` と `cd apps/web && npm run typecheck` を実行し、エラーがないことを確認する。
-6. 明示指示がない限りコミットしない。
+4. 変更があった app ごとに検証を実行する。`apps/web` は `npm scripts`、`apps/ios` / `apps/android` は `Justfile` を正本として扱う。
+5. `apps/web` を変更した場合は `cd apps/web && npm run format && npm run lint && npm run build && npm run typecheck` を実行する。
+6. `apps/ios` を変更した場合は `cd apps/ios && just build` を実行する。現状 iOS 専用の `lint` / `format` は未設定のため要求しない。
+7. `apps/android` を変更した場合は `cd apps/android && just lint && just build` を実行する。現状 Android 専用の `format` は未設定のため要求しない。
+8. 明示指示がない限りコミットしない。

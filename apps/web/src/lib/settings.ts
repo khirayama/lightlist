@@ -103,7 +103,7 @@ export const subscribeSettingsStore = (listener: () => void): (() => void) => {
   };
 };
 
-export const getServerSettingsState = (): SettingsState => {
+const getServerSettingsState = (): SettingsState => {
   return serverSettingsState;
 };
 

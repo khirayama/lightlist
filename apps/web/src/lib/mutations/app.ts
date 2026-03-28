@@ -22,6 +22,7 @@ import { getCurrentSettings } from "../settings";
 import {
   getCurrentTaskListOrderStore,
   getCurrentTaskListStoreData,
+  normalizeTaskListStore,
 } from "../taskLists";
 import { DEFAULT_LANGUAGE, normalizeLanguage } from "../utils/language";
 
@@ -722,7 +723,9 @@ async function getTaskListData(taskListId: string): Promise<TaskListStore> {
 
   const snapshot = await getDoc(doc(db, "taskLists", taskListId));
   if (!snapshot.exists()) throw new Error("Task list not found");
-  return assertTaskListStore(snapshot.data(), taskListId);
+  return normalizeTaskListStore(
+    assertTaskListStore(snapshot.data(), taskListId),
+  );
 }
 
 function requireCurrentUserId(): string {

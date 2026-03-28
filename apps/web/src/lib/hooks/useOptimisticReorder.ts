@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-export const arrayMove = <T>(array: T[], from: number, to: number): T[] => {
+const arrayMove = <T>(array: T[], from: number, to: number): T[] => {
   const result = array.slice();
   const [removed] = result.splice(from, 1);
   result.splice(to, 0, removed);

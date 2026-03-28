@@ -11,7 +11,10 @@
     "add": "添加",
     "copy": "复制",
     "copied": "已复制",
-    "error": "发生错误"
+    "error": "发生错误",
+    "done": "完成",
+    "selected": "已选择",
+    "ok": "确定"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "没有设置日期的任务",
     "calendarNoTasksOnSelectedDate": "所选日期没有任务",
     "rtlRestartTitle": "需要重启",
-    "rtlRestartMessage": "请重启应用以应用从右到左布局变更。"
+    "rtlRestartMessage": "请重启应用以应用从右到左布局变更。",
+    "loadError": "无法加载任务列表。",
+    "calendar": "日历"
   },
   "taskList": {
     "taskCount": "{{count}} 个任务",
@@ -134,7 +139,16 @@
     "shareCode": "共享码",
     "shareDescription": "生成共享码，让其他人可查看和编辑此列表。",
     "generateShare": "生成共享码",
-    "removeShare": "停止共享"
+    "removeShare": "停止共享",
+    "editTitle": "编辑列表",
+    "save": "保存",
+    "colorRed": "红色",
+    "colorYellow": "黄色",
+    "colorGreen": "绿色",
+    "colorBlue": "蓝色",
+    "colorIndigo": "靛蓝色",
+    "colorPurple": "紫色",
+    "colorCustom": "自定义颜色"
   },
   "settings": {
     "title": "设置",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "输入任务...",
       "setDate": "设置日期",
+      "markComplete": "未完成，点按标记为已完成",
+      "markIncomplete": "已完成，点按标记为未完成",
       "noTasks": "暂无任务",
       "dragHint": "拖动以重新排序",
       "sort": "排序",
       "deleteCompleted": "删除已完成任务",
-      "deleteCompletedConfirm": "删除 {{count}} 个已完成任务？"
+      "deleteCompletedConfirm": "删除 {{count}} 个已完成任务？",
+      "clearDate": "清除日期",
+      "deleteCompletedConfirmTitle": "删除已完成的任务？"
     },
     "notFound": {
       "title": "页面未找到",

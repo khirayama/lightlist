@@ -236,20 +236,6 @@ export default function SettingsPage() {
     }
   }, [authStatus, router]);
 
-  useEffect(() => {
-    if (authStatus !== "loading") {
-      return;
-    }
-
-    const timerId = window.setTimeout(() => {
-      router.replace("/");
-    }, 10000);
-
-    return () => {
-      window.clearTimeout(timerId);
-    };
-  }, [authStatus, router]);
-
   const handleThemeChange = async (theme: Theme) => {
     await updateSetting({ theme });
     logSettingsThemeChange({ theme });
@@ -336,34 +322,18 @@ export default function SettingsPage() {
     setEmailChangeSuccess(false);
   };
 
-  if (authStatus === "loading" || settingsStatus === "loading") {
-    return <Spinner fullPage />;
-  }
-
   if (authStatus === "unauthenticated") {
     return <Spinner fullPage />;
   }
 
-  if (settingsStatus === "error") {
-    return (
-      <div className="min-h-full w-full bg-background text-text dark:bg-background-dark dark:text-text-dark">
-        <main
-          id="main-content"
-          tabIndex={-1}
-          className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 lg:pt-8"
-        >
-          <Alert variant="error">{t("auth.error.general")}</Alert>
-        </main>
-      </div>
-    );
-  }
-
-  if (!user || !settings) {
-    return <Spinner fullPage />;
-  }
-
-  const actionsDisabled = pendingAction !== null || isChangingEmail;
-  const settingsDisabled = isUpdating || actionsDisabled;
+  const isLoading =
+    authStatus === "loading" ||
+    settingsStatus === "loading" ||
+    (!user && settingsStatus !== "error") ||
+    (!settings && settingsStatus !== "error");
+  const actionsDisabled =
+    isLoading || pendingAction !== null || isChangingEmail;
+  const settingsDisabled = isLoading || isUpdating || actionsDisabled;
   const signOutLabel =
     pendingAction === "signOut"
       ? t("settings.signingOut")
@@ -385,6 +355,10 @@ export default function SettingsPage() {
     { value: "top", label: t("settings.taskInsertPosition.top") },
     { value: "bottom", label: t("settings.taskInsertPosition.bottom") },
   ] as const;
+
+  const skeletonSelect = (
+    <div className="h-9 w-full animate-pulse rounded-md bg-border dark:bg-border-dark" />
+  );
 
   return (
     <div className="min-h-full w-full bg-background text-text dark:bg-background-dark dark:text-text-dark">
@@ -415,188 +389,229 @@ export default function SettingsPage() {
 
         {error && <Alert variant="error">{error}</Alert>}
 
-        <SettingsSection>
-          <fieldset className="flex flex-col gap-0">
-            <legend className="text-sm font-semibold tracking-wide text-muted dark:text-muted-dark">
-              {t("settings.preferences.title")}
-            </legend>
-            <div className="mt-2 divide-y divide-border dark:divide-border-dark">
-              <SelectRow
-                id="settings-language"
-                label={t("settings.language.title")}
-                value={settings.language}
-                disabled={settingsDisabled}
-                options={[...languageOptions]}
-                onChange={(next) => void handleLanguageChange(next as Language)}
-              />
-              <SelectRow
-                id="settings-theme"
-                label={t("settings.theme.title")}
-                value={settings.theme}
-                disabled={settingsDisabled}
-                options={[...themeOptions]}
-                onChange={(next) => void handleThemeChange(next as Theme)}
-              />
-              <SelectRow
-                id="settings-task-insert-position"
-                label={t("settings.taskInsertPosition.title")}
-                value={settings.taskInsertPosition}
-                disabled={settingsDisabled}
-                options={[...taskInsertPositionOptions]}
-                onChange={(next) =>
-                  void handleTaskInsertPositionChange(
-                    next as TaskInsertPosition,
-                  )
-                }
-              />
-            </div>
-            <label
-              className={`mt-1 flex cursor-pointer items-center justify-between gap-4 border-t border-border py-3 transition focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-border dark:border-border-dark dark:focus-within:outline-border-dark ${
-                settingsDisabled ? "cursor-not-allowed opacity-60" : ""
-              }`}
-            >
-              <input
-                type="checkbox"
-                name="autoSort"
-                checked={settings.autoSort}
-                onChange={(event) => handleAutoSortChange(event.target.checked)}
-                disabled={settingsDisabled}
-                className="peer sr-only"
-              />
-              <span className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-text dark:text-text-dark">
-                  {t("settings.autoSort.title")}
-                </span>
-                <span className="text-xs text-muted dark:text-muted-dark">
-                  {t("settings.autoSort.enable")}
-                </span>
-              </span>
-              <span
-                aria-hidden="true"
-                className={`relative inline-flex h-7 w-12 items-center rounded-full border transition ${
-                  settings.autoSort
-                    ? "border-primary bg-primary dark:border-primary-dark dark:bg-primary-dark"
-                    : "border-border bg-border dark:border-border-dark dark:bg-surface-dark"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 rounded-full bg-surface shadow-sm transition dark:bg-background-dark ${
-                    settings.autoSort ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </span>
-            </label>
-          </fieldset>
-        </SettingsSection>
-
-        <SettingsSection>
-          <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold tracking-wide text-text dark:text-text-dark">
-              {t("settings.actions.title")}
-            </h2>
-            <div className="border-b border-border pb-3 dark:border-border-dark">
-              <p className="text-xs font-medium tracking-wide text-muted dark:text-muted-dark">
-                {t("settings.userInfo.title")}
-              </p>
-              <div className="mt-1 flex items-center justify-between gap-2">
-                <p className="break-all text-sm font-medium text-text dark:text-text-dark">
-                  {user.email}
-                </p>
-                {!showEmailChangeForm && (
-                  <button
-                    type="button"
-                    onClick={() => setShowEmailChangeForm(true)}
-                    disabled={actionsDisabled}
-                    className="shrink-0 text-xs text-muted underline hover:text-text disabled:cursor-not-allowed disabled:opacity-60 dark:text-muted-dark dark:hover:text-text-dark"
-                  >
-                    {t("settings.emailChange.changeButton")}
-                  </button>
-                )}
-              </div>
-              {showEmailChangeForm && (
-                <div className="mt-3 flex flex-col gap-3">
-                  {emailChangeSuccess ? (
-                    <Alert variant="success">
-                      {t("settings.emailChange.successMessage")}
-                    </Alert>
+        {settingsStatus === "error" ? (
+          <Alert variant="error">{t("auth.error.general")}</Alert>
+        ) : (
+          <>
+            <SettingsSection>
+              <fieldset className="flex flex-col gap-0">
+                <legend className="text-sm font-semibold tracking-wide text-muted dark:text-muted-dark">
+                  {t("settings.preferences.title")}
+                </legend>
+                <div className="mt-2 divide-y divide-border dark:divide-border-dark">
+                  {settings ? (
+                    <>
+                      <SelectRow
+                        id="settings-language"
+                        label={t("settings.language.title")}
+                        value={settings.language}
+                        disabled={settingsDisabled}
+                        options={[...languageOptions]}
+                        onChange={(next) =>
+                          void handleLanguageChange(next as Language)
+                        }
+                      />
+                      <SelectRow
+                        id="settings-theme"
+                        label={t("settings.theme.title")}
+                        value={settings.theme}
+                        disabled={settingsDisabled}
+                        options={[...themeOptions]}
+                        onChange={(next) =>
+                          void handleThemeChange(next as Theme)
+                        }
+                      />
+                      <SelectRow
+                        id="settings-task-insert-position"
+                        label={t("settings.taskInsertPosition.title")}
+                        value={settings.taskInsertPosition}
+                        disabled={settingsDisabled}
+                        options={[...taskInsertPositionOptions]}
+                        onChange={(next) =>
+                          void handleTaskInsertPositionChange(
+                            next as TaskInsertPosition,
+                          )
+                        }
+                      />
+                    </>
                   ) : (
                     <>
-                      {emailChangeError && (
-                        <Alert variant="error">{emailChangeError}</Alert>
-                      )}
-                      <div>
-                        <label
-                          htmlFor="new-email"
-                          className="mb-1 block text-xs font-medium text-muted dark:text-muted-dark"
-                        >
-                          {t("settings.emailChange.newEmailLabel")}
-                        </label>
-                        <input
-                          id="new-email"
-                          type="email"
-                          value={newEmail}
-                          onChange={(e) => setNewEmail(e.target.value)}
-                          disabled={isChangingEmail}
-                          placeholder={t(
-                            "settings.emailChange.newEmailPlaceholder",
-                          )}
-                          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-muted disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:focus:border-muted-dark"
-                        />
+                      <div className="grid gap-2 py-3 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] sm:items-center">
+                        <span className="text-sm font-medium text-text dark:text-text-dark">
+                          {t("settings.language.title")}
+                        </span>
+                        {skeletonSelect}
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={handleEmailChangeClose}
-                          disabled={isChangingEmail}
-                          className="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text transition hover:border-muted hover:bg-background disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:hover:border-muted-dark dark:hover:bg-surface-dark"
-                        >
-                          {t("common.cancel")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleEmailChangeSubmit()}
-                          disabled={isChangingEmail || !newEmail.trim()}
-                          className="inline-flex flex-1 items-center justify-center rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-primaryText transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark"
-                        >
-                          {isChangingEmail
-                            ? t("settings.emailChange.submitting")
-                            : t("settings.emailChange.submitButton")}
-                        </button>
+                      <div className="grid gap-2 py-3 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] sm:items-center">
+                        <span className="text-sm font-medium text-text dark:text-text-dark">
+                          {t("settings.theme.title")}
+                        </span>
+                        {skeletonSelect}
+                      </div>
+                      <div className="grid gap-2 py-3 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] sm:items-center">
+                        <span className="text-sm font-medium text-text dark:text-text-dark">
+                          {t("settings.taskInsertPosition.title")}
+                        </span>
+                        {skeletonSelect}
                       </div>
                     </>
                   )}
-                  {emailChangeSuccess && (
-                    <button
-                      type="button"
-                      onClick={handleEmailChangeClose}
-                      className="text-xs text-muted underline hover:text-text dark:text-muted-dark dark:hover:text-text-dark"
-                    >
-                      {t("common.close")}
-                    </button>
+                </div>
+                <label
+                  className={`mt-1 flex cursor-pointer items-center justify-between gap-4 border-t border-border py-3 transition focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-border dark:border-border-dark dark:focus-within:outline-border-dark ${
+                    settingsDisabled ? "cursor-not-allowed opacity-60" : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    name="autoSort"
+                    checked={settings?.autoSort ?? false}
+                    onChange={(event) =>
+                      handleAutoSortChange(event.target.checked)
+                    }
+                    disabled={settingsDisabled}
+                    className="peer sr-only"
+                  />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium text-text dark:text-text-dark">
+                      {t("settings.autoSort.title")}
+                    </span>
+                    <span className="text-xs text-muted dark:text-muted-dark">
+                      {t("settings.autoSort.enable")}
+                    </span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full border transition ${
+                      settings?.autoSort
+                        ? "border-primary bg-primary dark:border-primary-dark dark:bg-primary-dark"
+                        : "border-border bg-border dark:border-border-dark dark:bg-surface-dark"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 rounded-full bg-surface shadow-sm transition dark:bg-background-dark ${
+                        settings?.autoSort ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </span>
+                </label>
+              </fieldset>
+            </SettingsSection>
+
+            <SettingsSection>
+              <div className="flex flex-col gap-3">
+                <h2 className="text-sm font-semibold tracking-wide text-text dark:text-text-dark">
+                  {t("settings.actions.title")}
+                </h2>
+                <div className="border-b border-border pb-3 dark:border-border-dark">
+                  <p className="text-xs font-medium tracking-wide text-muted dark:text-muted-dark">
+                    {t("settings.userInfo.title")}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    {user ? (
+                      <p className="break-all text-sm font-medium text-text dark:text-text-dark">
+                        {user.email}
+                      </p>
+                    ) : (
+                      <div className="h-5 w-48 animate-pulse rounded bg-border dark:bg-border-dark" />
+                    )}
+                    {!showEmailChangeForm && (
+                      <button
+                        type="button"
+                        onClick={() => setShowEmailChangeForm(true)}
+                        disabled={actionsDisabled}
+                        className="shrink-0 text-xs text-muted underline hover:text-text disabled:cursor-not-allowed disabled:opacity-60 dark:text-muted-dark dark:hover:text-text-dark"
+                      >
+                        {t("settings.emailChange.changeButton")}
+                      </button>
+                    )}
+                  </div>
+                  {showEmailChangeForm && (
+                    <div className="mt-3 flex flex-col gap-3">
+                      {emailChangeSuccess ? (
+                        <Alert variant="success">
+                          {t("settings.emailChange.successMessage")}
+                        </Alert>
+                      ) : (
+                        <>
+                          {emailChangeError && (
+                            <Alert variant="error">{emailChangeError}</Alert>
+                          )}
+                          <div>
+                            <label
+                              htmlFor="new-email"
+                              className="mb-1 block text-xs font-medium text-muted dark:text-muted-dark"
+                            >
+                              {t("settings.emailChange.newEmailLabel")}
+                            </label>
+                            <input
+                              id="new-email"
+                              type="email"
+                              value={newEmail}
+                              onChange={(e) => setNewEmail(e.target.value)}
+                              disabled={isChangingEmail}
+                              placeholder={t(
+                                "settings.emailChange.newEmailPlaceholder",
+                              )}
+                              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-muted disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:focus:border-muted-dark"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={handleEmailChangeClose}
+                              disabled={isChangingEmail}
+                              className="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text transition hover:border-muted hover:bg-background disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:hover:border-muted-dark dark:hover:bg-surface-dark"
+                            >
+                              {t("common.cancel")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleEmailChangeSubmit()}
+                              disabled={isChangingEmail || !newEmail.trim()}
+                              className="inline-flex flex-1 items-center justify-center rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-primaryText transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark"
+                            >
+                              {isChangingEmail
+                                ? t("settings.emailChange.submitting")
+                                : t("settings.emailChange.submitButton")}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      {emailChangeSuccess && (
+                        <button
+                          type="button"
+                          onClick={handleEmailChangeClose}
+                          className="text-xs text-muted underline hover:text-text dark:text-muted-dark dark:hover:text-text-dark"
+                        >
+                          {t("common.close")}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-            <div className="grid gap-2.5">
-              <button
-                type="button"
-                onClick={() => setShowSignOutConfirm(true)}
-                disabled={actionsDisabled}
-                className="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-semibold text-text shadow-sm transition hover:border-muted hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:hover:border-muted-dark dark:hover:bg-surface-dark dark:focus-visible:outline-border-dark"
-              >
-                {signOutLabel}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={actionsDisabled}
-                className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:bg-red-950/30 dark:text-red-100 dark:hover:bg-red-900/40 dark:focus-visible:outline-red-500"
-              >
-                {deleteAccountLabel}
-              </button>
-            </div>
-          </div>
-        </SettingsSection>
+                <div className="grid gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowSignOutConfirm(true)}
+                    disabled={actionsDisabled}
+                    className="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-semibold text-text shadow-sm transition hover:border-muted hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:hover:border-muted-dark dark:hover:bg-surface-dark dark:focus-visible:outline-border-dark"
+                  >
+                    {signOutLabel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={actionsDisabled}
+                    className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:bg-red-950/30 dark:text-red-100 dark:hover:bg-red-900/40 dark:focus-visible:outline-red-500"
+                  >
+                    {deleteAccountLabel}
+                  </button>
+                </div>
+              </div>
+            </SettingsSection>
+          </>
+        )}
 
         <ConfirmDialog
           isOpen={showSignOutConfirm}

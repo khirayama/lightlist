@@ -11,7 +11,10 @@
     "add": "Agregar",
     "copy": "Copiar",
     "copied": "Copiado",
-    "error": "Ocurrió un error"
+    "error": "Ocurrió un error",
+    "done": "Listo",
+    "selected": "Seleccionado",
+    "ok": "Aceptar"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "No hay tareas con fecha",
     "calendarNoTasksOnSelectedDate": "No hay tareas en la fecha seleccionada",
     "rtlRestartTitle": "Reinicio requerido",
-    "rtlRestartMessage": "Reinicia la aplicación para aplicar los cambios de diseño de derecha a izquierda."
+    "rtlRestartMessage": "Reinicia la aplicación para aplicar los cambios de diseño de derecha a izquierda.",
+    "loadError": "Error al cargar las listas de tareas.",
+    "calendar": "Calendario"
   },
   "taskList": {
     "taskCount": "{{count}} tareas",
@@ -134,7 +139,16 @@
     "shareCode": "Código de compartición",
     "shareDescription": "Genera un código para que otros puedan ver y editar esta lista.",
     "generateShare": "Generar código",
-    "removeShare": "Dejar de compartir"
+    "removeShare": "Dejar de compartir",
+    "editTitle": "Editar lista",
+    "save": "Guardar",
+    "colorRed": "Rojo",
+    "colorYellow": "Amarillo",
+    "colorGreen": "Verde",
+    "colorBlue": "Azul",
+    "colorIndigo": "Índigo",
+    "colorPurple": "Morado",
+    "colorCustom": "Color personalizado"
   },
   "settings": {
     "title": "Configuración",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "Escribe una tarea...",
       "setDate": "Establecer fecha",
+      "markComplete": "Sin completar. Toca para marcar como completada",
+      "markIncomplete": "Completada. Toca para marcar como pendiente",
       "noTasks": "No hay tareas",
       "dragHint": "Arrastra para reordenar",
       "sort": "Ordenar",
       "deleteCompleted": "Eliminar tareas completadas",
-      "deleteCompletedConfirm": "¿Eliminar {{count}} tareas completadas?"
+      "deleteCompletedConfirm": "¿Eliminar {{count}} tareas completadas?",
+      "clearDate": "Borrar fecha",
+      "deleteCompletedConfirmTitle": "¿Eliminar tareas completadas?"
     },
     "notFound": {
       "title": "Página no encontrada",

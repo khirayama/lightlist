@@ -11,7 +11,10 @@
     "add": "إضافة",
     "copy": "نسخ",
     "copied": "تم النسخ",
-    "error": "حدث خطأ"
+    "error": "حدث خطأ",
+    "done": "تم",
+    "selected": "محدد",
+    "ok": "موافق"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "لا توجد مهام بتاريخ",
     "calendarNoTasksOnSelectedDate": "لا توجد مهام في التاريخ المحدد",
     "rtlRestartTitle": "إعادة التشغيل مطلوبة",
-    "rtlRestartMessage": "أعد تشغيل التطبيق لتطبيق تغييرات التخطيط من اليمين إلى اليسار."
+    "rtlRestartMessage": "أعد تشغيل التطبيق لتطبيق تغييرات التخطيط من اليمين إلى اليسار.",
+    "loadError": "تعذر تحميل قوائم المهام.",
+    "calendar": "التقويم"
   },
   "taskList": {
     "taskCount": "{{count}} مهمة",
@@ -134,7 +139,16 @@
     "shareCode": "رمز المشاركة",
     "shareDescription": "أنشئ رمز مشاركة للسماح للآخرين بعرض هذه القائمة وتعديلها.",
     "generateShare": "إنشاء رمز مشاركة",
-    "removeShare": "إيقاف المشاركة"
+    "removeShare": "إيقاف المشاركة",
+    "editTitle": "تعديل القائمة",
+    "save": "حفظ",
+    "colorRed": "أحمر",
+    "colorYellow": "أصفر",
+    "colorGreen": "أخضر",
+    "colorBlue": "أزرق",
+    "colorIndigo": "نيلي",
+    "colorPurple": "أرجواني",
+    "colorCustom": "لون مخصص"
   },
   "settings": {
     "title": "الإعدادات",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "أدخل مهمة...",
       "setDate": "تحديد التاريخ",
+      "markComplete": "غير مكتملة، اضغط لوضع علامة مكتملة",
+      "markIncomplete": "مكتملة، اضغط لوضع علامة غير مكتملة",
       "noTasks": "لا توجد مهام",
       "dragHint": "اسحب لإعادة الترتيب",
       "sort": "فرز",
       "deleteCompleted": "حذف المهام المكتملة",
-      "deleteCompletedConfirm": "حذف {{count}} من المهام المكتملة؟"
+      "deleteCompletedConfirm": "حذف {{count}} من المهام المكتملة؟",
+      "clearDate": "مسح التاريخ",
+      "deleteCompletedConfirmTitle": "حذف المهام المكتملة؟"
     },
     "notFound": {
       "title": "الصفحة غير موجودة",

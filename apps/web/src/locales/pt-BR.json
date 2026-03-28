@@ -11,7 +11,10 @@
     "add": "Adicionar",
     "copy": "Copiar",
     "copied": "Copiado",
-    "error": "Ocorreu um erro"
+    "error": "Ocorreu um erro",
+    "done": "Concluído",
+    "selected": "Selecionado",
+    "ok": "OK"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "Nenhuma tarefa com data",
     "calendarNoTasksOnSelectedDate": "Nenhuma tarefa na data selecionada",
     "rtlRestartTitle": "Reinicialização necessária",
-    "rtlRestartMessage": "Reinicie o app para aplicar alterações de layout da direita para a esquerda."
+    "rtlRestartMessage": "Reinicie o app para aplicar alterações de layout da direita para a esquerda.",
+    "loadError": "Falha ao carregar as listas de tarefas.",
+    "calendar": "Calendário"
   },
   "taskList": {
     "taskCount": "{{count}} tarefas",
@@ -134,7 +139,16 @@
     "shareCode": "Código de compartilhamento",
     "shareDescription": "Gere um código de compartilhamento para permitir que outras pessoas vejam e editem esta lista.",
     "generateShare": "Gerar código de compartilhamento",
-    "removeShare": "Parar compartilhamento"
+    "removeShare": "Parar compartilhamento",
+    "editTitle": "Editar lista",
+    "save": "Salvar",
+    "colorRed": "Vermelho",
+    "colorYellow": "Amarelo",
+    "colorGreen": "Verde",
+    "colorBlue": "Azul",
+    "colorIndigo": "Índigo",
+    "colorPurple": "Roxo",
+    "colorCustom": "Cor personalizada"
   },
   "settings": {
     "title": "Configurações",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "Digite uma tarefa...",
       "setDate": "Definir data",
+      "markComplete": "Não concluída, toque para marcar como concluída",
+      "markIncomplete": "Concluída, toque para marcar como não concluída",
       "noTasks": "Sem tarefas",
       "dragHint": "Arraste para reordenar",
       "sort": "Ordenar",
       "deleteCompleted": "Excluir tarefas concluídas",
-      "deleteCompletedConfirm": "Excluir {{count}} tarefas concluídas?"
+      "deleteCompletedConfirm": "Excluir {{count}} tarefas concluídas?",
+      "clearDate": "Limpar data",
+      "deleteCompletedConfirmTitle": "Excluir tarefas concluídas?"
     },
     "notFound": {
       "title": "Página não encontrada",

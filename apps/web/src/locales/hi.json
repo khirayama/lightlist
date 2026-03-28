@@ -11,7 +11,10 @@
     "add": "जोड़ें",
     "copy": "कॉपी करें",
     "copied": "कॉपी हो गया",
-    "error": "एक त्रुटि हुई"
+    "error": "एक त्रुटि हुई",
+    "done": "हो गया",
+    "selected": "चयनित",
+    "ok": "ठीक है"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "किसी भी टास्क में तिथि सेट नहीं है",
     "calendarNoTasksOnSelectedDate": "चयनित तिथि पर कोई टास्क नहीं",
     "rtlRestartTitle": "रीस्टार्ट आवश्यक",
-    "rtlRestartMessage": "दाएँ-से-बाएँ लेआउट लागू करने के लिए ऐप को पुनः प्रारंभ करें।"
+    "rtlRestartMessage": "दाएँ-से-बाएँ लेआउट लागू करने के लिए ऐप को पुनः प्रारंभ करें।",
+    "loadError": "कार्य सूचियाँ लोड नहीं हो सकीं।",
+    "calendar": "कैलेंडर"
   },
   "taskList": {
     "taskCount": "{{count}} टास्क",
@@ -134,7 +139,16 @@
     "shareCode": "शेयर कोड",
     "shareDescription": "शेयर कोड बनाएँ ताकि अन्य लोग इस सूची को देख और संपादित कर सकें।",
     "generateShare": "शेयर कोड बनाएँ",
-    "removeShare": "साझा करना बंद करें"
+    "removeShare": "साझा करना बंद करें",
+    "editTitle": "सूची संपादित करें",
+    "save": "सहेजें",
+    "colorRed": "लाल",
+    "colorYellow": "पीला",
+    "colorGreen": "हरा",
+    "colorBlue": "नीला",
+    "colorIndigo": "इंडिगो",
+    "colorPurple": "बैंगनी",
+    "colorCustom": "कस्टम रंग"
   },
   "settings": {
     "title": "सेटिंग्स",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "टास्क दर्ज करें...",
       "setDate": "तिथि सेट करें",
+      "markComplete": "अपूर्ण, पूर्ण के रूप में चिह्नित करने के लिए टैप करें",
+      "markIncomplete": "पूर्ण, अपूर्ण के रूप में चिह्नित करने के लिए टैप करें",
       "noTasks": "कोई टास्क नहीं",
       "dragHint": "क्रम बदलने के लिए खींचें",
       "sort": "क्रमबद्ध करें",
       "deleteCompleted": "पूर्ण किए गए टास्क हटाएँ",
-      "deleteCompletedConfirm": "क्या {{count}} पूर्ण किए गए टास्क हटाने हैं?"
+      "deleteCompletedConfirm": "क्या {{count}} पूर्ण किए गए टास्क हटाने हैं?",
+      "clearDate": "तारीख हटाएं",
+      "deleteCompletedConfirmTitle": "पूर्ण किए गए कार्य हटाएं?"
     },
     "notFound": {
       "title": "पेज नहीं मिला",

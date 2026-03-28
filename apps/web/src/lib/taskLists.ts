@@ -16,6 +16,7 @@ import type {
   TaskList,
   TaskListOrderStore,
   TaskListStore,
+  TaskListStoreTask,
 } from "./types";
 
 type TaskListIndexState = {
@@ -71,6 +72,28 @@ const getInitialInternalTaskListsState = (
   taskListsById: {},
 });
 
+export function normalizeTaskListStore(
+  taskListData: TaskListStore,
+): TaskListStore {
+  const tasks = taskListData.tasks;
+  let needsNormalization = false;
+  for (const taskId of Object.keys(tasks)) {
+    if (tasks[taskId].id !== taskId) {
+      needsNormalization = true;
+      break;
+    }
+  }
+  if (!needsNormalization) return taskListData;
+
+  const normalizedTasks: Record<string, TaskListStoreTask> = {};
+  for (const taskId of Object.keys(tasks)) {
+    const task = tasks[taskId];
+    normalizedTasks[taskId] =
+      task.id === taskId ? task : { ...task, id: taskId };
+  }
+  return { ...taskListData, tasks: normalizedTasks };
+}
+
 const emitTaskLists = () => {
   cachedTaskListIndexState = null;
   listeners.forEach((listener) => listener());
@@ -100,7 +123,7 @@ const resetTaskListsState = (
   emitTaskLists();
 };
 
-const getTaskListIdsFromOrder = (
+export const getTaskListIdsFromOrder = (
   taskListOrder: TaskListOrderStore | null,
 ): string[] => {
   if (!taskListOrder) {
@@ -395,7 +418,9 @@ const subscribeToTaskLists = (taskListOrder: TaskListOrderStore | null) => {
             hasChanged = true;
             return;
           }
-          const taskListData = change.doc.data() as TaskListStore;
+          const taskListData = normalizeTaskListStore(
+            change.doc.data() as TaskListStore,
+          );
           if (nextState[taskListId] === taskListData) {
             return;
           }
@@ -407,7 +432,10 @@ const subscribeToTaskLists = (taskListOrder: TaskListOrderStore | null) => {
           setTaskListsById(nextState);
         }
       },
-      (_error: FirestoreError) => {},
+      (error: FirestoreError) => {
+        console.error("taskList chunk listener error:", error);
+        setTaskListOrder(internalState.taskListOrder, "error");
+      },
     );
     taskListChunkUnsubscribers.push(unsubscribe);
   });
@@ -523,10 +551,15 @@ export const subscribeToSharedTaskList = (taskListId: string): (() => void) => {
     (snapshot) => {
       setSingleTaskListStoreData(
         taskListId,
-        snapshot.exists() ? (snapshot.data() as TaskListStore) : null,
+        snapshot.exists()
+          ? normalizeTaskListStore(snapshot.data() as TaskListStore)
+          : null,
       );
     },
-    (_error: FirestoreError) => {},
+    (error: FirestoreError) => {
+      console.error("shared taskList listener error:", error);
+      setSingleTaskListStoreData(taskListId, null);
+    },
   );
 
   const wrappedUnsubscribe = () => {

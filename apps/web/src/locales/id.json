@@ -11,7 +11,10 @@
     "add": "Tambah",
     "copy": "Salin",
     "copied": "Tersalin",
-    "error": "Terjadi kesalahan"
+    "error": "Terjadi kesalahan",
+    "done": "Selesai",
+    "selected": "Dipilih",
+    "ok": "OK"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "Tidak ada tugas bertanggal",
     "calendarNoTasksOnSelectedDate": "Tidak ada tugas pada tanggal yang dipilih",
     "rtlRestartTitle": "Perlu memulai ulang",
-    "rtlRestartMessage": "Mulai ulang aplikasi untuk menerapkan perubahan tata letak kanan ke kiri."
+    "rtlRestartMessage": "Mulai ulang aplikasi untuk menerapkan perubahan tata letak kanan ke kiri.",
+    "loadError": "Gagal memuat daftar tugas.",
+    "calendar": "Kalender"
   },
   "taskList": {
     "taskCount": "{{count}} tugas",
@@ -134,7 +139,16 @@
     "shareCode": "Kode berbagi",
     "shareDescription": "Buat kode berbagi agar orang lain dapat melihat dan mengedit daftar ini.",
     "generateShare": "Buat kode berbagi",
-    "removeShare": "Hentikan berbagi"
+    "removeShare": "Hentikan berbagi",
+    "editTitle": "Edit Daftar",
+    "save": "Simpan",
+    "colorRed": "Merah",
+    "colorYellow": "Kuning",
+    "colorGreen": "Hijau",
+    "colorBlue": "Biru",
+    "colorIndigo": "Indigo",
+    "colorPurple": "Ungu",
+    "colorCustom": "Warna kustom"
   },
   "settings": {
     "title": "Pengaturan",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "Masukkan tugas...",
       "setDate": "Atur tanggal",
+      "markComplete": "Belum selesai, ketuk untuk menandai selesai",
+      "markIncomplete": "Selesai, ketuk untuk menandai belum selesai",
       "noTasks": "Tidak ada tugas",
       "dragHint": "Seret untuk mengurutkan ulang",
       "sort": "Urutkan",
       "deleteCompleted": "Hapus tugas yang selesai",
-      "deleteCompletedConfirm": "Hapus {{count}} tugas yang selesai?"
+      "deleteCompletedConfirm": "Hapus {{count}} tugas yang selesai?",
+      "clearDate": "Hapus Tanggal",
+      "deleteCompletedConfirmTitle": "Hapus tugas yang selesai?"
     },
     "notFound": {
       "title": "Halaman tidak ditemukan",

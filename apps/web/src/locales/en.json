@@ -11,7 +11,10 @@
     "add": "Add",
     "copy": "Copy",
     "copied": "Copied",
-    "error": "An error occurred"
+    "error": "An error occurred",
+    "done": "Done",
+    "selected": "Selected",
+    "ok": "OK"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "No tasks have a date",
     "calendarNoTasksOnSelectedDate": "No tasks on the selected date",
     "rtlRestartTitle": "Restart Required",
-    "rtlRestartMessage": "Restart the app to apply right-to-left layout changes."
+    "rtlRestartMessage": "Restart the app to apply right-to-left layout changes.",
+    "loadError": "Failed to load task lists.",
+    "calendar": "Calendar"
   },
   "taskList": {
     "taskCount": "{{count}} tasks",
@@ -134,7 +139,16 @@
     "shareCode": "Share Code",
     "shareDescription": "Generate a share code to let others view and edit this list.",
     "generateShare": "Generate Share Code",
-    "removeShare": "Stop Sharing"
+    "removeShare": "Stop Sharing",
+    "editTitle": "Edit List",
+    "save": "Save",
+    "colorRed": "Red",
+    "colorYellow": "Yellow",
+    "colorGreen": "Green",
+    "colorBlue": "Blue",
+    "colorIndigo": "Indigo",
+    "colorPurple": "Purple",
+    "colorCustom": "Custom color"
   },
   "settings": {
     "title": "Settings",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "Enter task...",
       "setDate": "Set date",
+      "markComplete": "Not completed, tap to mark as completed",
+      "markIncomplete": "Completed, tap to mark as not completed",
       "noTasks": "No tasks",
       "dragHint": "Drag to reorder",
       "sort": "Sort",
       "deleteCompleted": "Delete completed tasks",
-      "deleteCompletedConfirm": "Delete {{count}} completed tasks?"
+      "deleteCompletedConfirm": "Delete {{count}} completed tasks?",
+      "clearDate": "Clear Date",
+      "deleteCompletedConfirmTitle": "Delete completed tasks?"
     },
     "notFound": {
       "title": "Page Not Found",

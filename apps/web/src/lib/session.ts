@@ -64,7 +64,7 @@ export const subscribeSessionStore = (listener: () => void): (() => void) => {
   };
 };
 
-export const getServerSessionState = (): SessionState => {
+const getServerSessionState = (): SessionState => {
   return serverSessionState;
 };
 
@@ -72,11 +72,11 @@ export const getCurrentUser = (): User | null => {
   return sessionState.user;
 };
 
-export const getCurrentUserEmail = (): string => {
+const getCurrentUserEmail = (): string => {
   return getCurrentUser()?.email ?? "";
 };
 
-export const getCurrentAuthStatus = (): AppState["authStatus"] => {
+const getCurrentAuthStatus = (): AppState["authStatus"] => {
   return sessionState.authStatus;
 };
 
@@ -135,3 +135,7 @@ export const disposeSessionStore = () => {
   cachedSessionState = serverSessionState;
   listeners.clear();
 };
+
+if (typeof window !== "undefined") {
+  ensureSessionStarted();
+}

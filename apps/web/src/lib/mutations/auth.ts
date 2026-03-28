@@ -21,6 +21,7 @@ import {
 } from "../types";
 import { getCurrentSettings } from "../settings";
 import { deleteTaskList } from "./app";
+import { getTaskListIdsFromOrder } from "../taskLists";
 import { DEFAULT_LANGUAGE, normalizeLanguage } from "../utils/language";
 
 const withAuthLanguage = async <T>(
@@ -63,14 +64,6 @@ const requireCurrentUser = (): User => {
     throw new Error("No user logged in");
   }
   return user;
-};
-
-const getTaskListIdsFromOrder = (
-  taskListOrder: TaskListOrderStore,
-): string[] => {
-  return Object.keys(taskListOrder).filter(
-    (key) => key !== "createdAt" && key !== "updatedAt",
-  );
 };
 
 const createInitialSettingsStore = (

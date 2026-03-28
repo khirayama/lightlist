@@ -11,7 +11,10 @@
     "add": "Ajouter",
     "copy": "Copier",
     "copied": "Copié",
-    "error": "Une erreur est survenue"
+    "error": "Une erreur est survenue",
+    "done": "Terminé",
+    "selected": "Sélectionné",
+    "ok": "OK"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "Aucune tâche avec une date",
     "calendarNoTasksOnSelectedDate": "Aucune tâche à la date sélectionnée",
     "rtlRestartTitle": "Redémarrage requis",
-    "rtlRestartMessage": "Redémarrez l'application pour appliquer la mise en page de droite à gauche."
+    "rtlRestartMessage": "Redémarrez l'application pour appliquer la mise en page de droite à gauche.",
+    "loadError": "Impossible de charger les listes de tâches.",
+    "calendar": "Calendrier"
   },
   "taskList": {
     "taskCount": "{{count}} tâches",
@@ -134,7 +139,16 @@
     "shareCode": "Code de partage",
     "shareDescription": "Générez un code pour permettre à d'autres de consulter et modifier cette liste.",
     "generateShare": "Générer un code de partage",
-    "removeShare": "Arrêter le partage"
+    "removeShare": "Arrêter le partage",
+    "editTitle": "Modifier la liste",
+    "save": "Enregistrer",
+    "colorRed": "Rouge",
+    "colorYellow": "Jaune",
+    "colorGreen": "Vert",
+    "colorBlue": "Bleu",
+    "colorIndigo": "Indigo",
+    "colorPurple": "Violet",
+    "colorCustom": "Couleur personnalisée"
   },
   "settings": {
     "title": "Paramètres",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "Saisir une tâche...",
       "setDate": "Définir la date",
+      "markComplete": "Non terminée. Touchez pour marquer comme terminée",
+      "markIncomplete": "Terminée. Touchez pour marquer comme non terminée",
       "noTasks": "Aucune tâche",
       "dragHint": "Glisser pour réorganiser",
       "sort": "Trier",
       "deleteCompleted": "Supprimer les tâches terminées",
-      "deleteCompletedConfirm": "Supprimer {{count}} tâches terminées ?"
+      "deleteCompletedConfirm": "Supprimer {{count}} tâches terminées ?",
+      "clearDate": "Effacer la date",
+      "deleteCompletedConfirmTitle": "Supprimer les tâches terminées ?"
     },
     "notFound": {
       "title": "Page introuvable",

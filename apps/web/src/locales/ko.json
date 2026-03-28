@@ -11,7 +11,10 @@
     "add": "추가",
     "copy": "복사",
     "copied": "복사됨",
-    "error": "오류가 발생했습니다"
+    "error": "오류가 발생했습니다",
+    "done": "완료",
+    "selected": "선택됨",
+    "ok": "확인"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "날짜가 지정된 작업이 없습니다",
     "calendarNoTasksOnSelectedDate": "선택한 날짜에 작업이 없습니다",
     "rtlRestartTitle": "재시작 필요",
-    "rtlRestartMessage": "오른쪽에서 왼쪽 레이아웃을 적용하려면 앱을 다시 시작하세요."
+    "rtlRestartMessage": "오른쪽에서 왼쪽 레이아웃을 적용하려면 앱을 다시 시작하세요.",
+    "loadError": "할 일 목록을 불러오지 못했습니다.",
+    "calendar": "캘린더"
   },
   "taskList": {
     "taskCount": "작업 {{count}}개",
@@ -134,7 +139,16 @@
     "shareCode": "공유 코드",
     "shareDescription": "다른 사용자가 이 목록을 보고 편집할 수 있도록 공유 코드를 생성합니다.",
     "generateShare": "공유 코드 생성",
-    "removeShare": "공유 중지"
+    "removeShare": "공유 중지",
+    "editTitle": "목록 편집",
+    "save": "저장",
+    "colorRed": "빨강",
+    "colorYellow": "노랑",
+    "colorGreen": "초록",
+    "colorBlue": "파랑",
+    "colorIndigo": "인디고",
+    "colorPurple": "보라",
+    "colorCustom": "사용자 지정 색상"
   },
   "settings": {
     "title": "설정",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "작업 입력...",
       "setDate": "날짜 설정",
+      "markComplete": "미완료, 탭하여 완료로 표시",
+      "markIncomplete": "완료됨, 탭하여 미완료로 표시",
       "noTasks": "작업 없음",
       "dragHint": "드래그해서 순서 변경",
       "sort": "정렬",
       "deleteCompleted": "완료한 작업 삭제",
-      "deleteCompletedConfirm": "완료한 작업 {{count}}개를 삭제할까요?"
+      "deleteCompletedConfirm": "완료한 작업 {{count}}개를 삭제할까요?",
+      "clearDate": "날짜 지우기",
+      "deleteCompletedConfirmTitle": "완료된 할 일을 삭제하시겠습니까?"
     },
     "notFound": {
       "title": "페이지를 찾을 수 없습니다",

@@ -1,6 +1,11 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from "firebase/firestore";
 
 let cachedAuth: Auth | null = null;
 let cachedDb: Firestore | null = null;
@@ -31,6 +36,10 @@ export const getDbInstance = (): Firestore => {
     return cachedDb;
   }
 
-  cachedDb = getFirestore(getApp());
+  cachedDb = initializeFirestore(getApp(), {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  });
   return cachedDb;
 };

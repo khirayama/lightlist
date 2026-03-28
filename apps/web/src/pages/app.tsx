@@ -27,7 +27,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { addMonths } from "date-fns";
 import { DayButton as DayPickerDayButton } from "react-day-picker";
 import type { Task, TaskList } from "@/lib/types";
 import clsx from "clsx";
@@ -79,8 +78,6 @@ const Calendar = dynamic(
     ssr: false,
   },
 );
-
-const AUTH_TIMEOUT_MS = 10_000;
 
 const COLORS: readonly ColorOption[] = [
   {
@@ -181,7 +178,7 @@ function AppHeader({
             >
               <AppIcon
                 className="h-6 w-6"
-                name="menu"
+                name="arrow-back"
                 aria-hidden="true"
                 focusable="false"
               />
@@ -356,12 +353,9 @@ function CalendarSheet({
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<
     Date | undefined
   >(undefined);
-  const [selectedCalendarMonthKey, setSelectedCalendarMonthKey] = useState<
-    string | null
-  >(null);
+  const [displayedMonth, setDisplayedMonth] = useState<Date>(() => new Date());
   const [calendarError] = useState<string | null>(null);
   const datedTaskRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const lastCalendarIndexRef = useRef(0);
 
   const datedTasks = useMemo<DatedTask[]>(() => {
     const flattened: DatedTask[] = [];
@@ -389,51 +383,6 @@ function CalendarSheet({
     });
     return flattened;
   }, [taskLists]);
-
-  const calendarMonths = useMemo<Date[]>(() => {
-    const firstTask = datedTasks[0];
-    const lastTask = datedTasks[datedTasks.length - 1];
-    if (!firstTask || !lastTask) return [];
-    const startMonth = addMonths(
-      new Date(
-        firstTask.dateValue.getFullYear(),
-        firstTask.dateValue.getMonth(),
-        1,
-      ),
-      -1,
-    );
-    const endMonth = addMonths(
-      new Date(
-        lastTask.dateValue.getFullYear(),
-        lastTask.dateValue.getMonth(),
-        1,
-      ),
-      1,
-    );
-    const months: Date[] = [];
-    for (
-      let currentMonth = startMonth;
-      currentMonth <= endMonth;
-      currentMonth = addMonths(currentMonth, 1)
-    ) {
-      months.push(currentMonth);
-    }
-    const currentMonth = new Date();
-    const currentMonthStart = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth(),
-      1,
-    );
-    if (
-      !months.some(
-        (month) => formatMonthKey(month) === formatMonthKey(currentMonthStart),
-      )
-    ) {
-      months.push(currentMonthStart);
-      months.sort((left, right) => left.getTime() - right.getTime());
-    }
-    return months;
-  }, [datedTasks]);
 
   const datedTasksByMonth = useMemo<Record<string, DatedTask[]>>(() => {
     const map: Record<string, DatedTask[]> = {};
@@ -478,58 +427,6 @@ function CalendarSheet({
     }
     return map;
   }, [datedTasksByMonth]);
-
-  const calendarMonthKeys = useMemo(
-    () => calendarMonths.map((month) => formatMonthKey(month)),
-    [calendarMonths],
-  );
-
-  const calendarIndex = useMemo(() => {
-    if (calendarMonthKeys.length === 0) return 0;
-    if (selectedCalendarMonthKey) {
-      const matchedIndex = calendarMonthKeys.indexOf(selectedCalendarMonthKey);
-      if (matchedIndex >= 0) return matchedIndex;
-    }
-    const currentMonthIndex = calendarMonthKeys.indexOf(
-      formatMonthKey(new Date()),
-    );
-    if (currentMonthIndex >= 0) return currentMonthIndex;
-    return Math.min(lastCalendarIndexRef.current, calendarMonthKeys.length - 1);
-  }, [calendarMonthKeys, selectedCalendarMonthKey]);
-
-  useEffect(() => {
-    if (calendarMonthKeys.length === 0) {
-      setSelectedCalendarMonthKey(null);
-      lastCalendarIndexRef.current = 0;
-      return;
-    }
-    if (
-      selectedCalendarMonthKey &&
-      calendarMonthKeys.includes(selectedCalendarMonthKey)
-    ) {
-      return;
-    }
-
-    const fallbackIndex = Math.min(
-      lastCalendarIndexRef.current,
-      calendarMonthKeys.length - 1,
-    );
-    const fallbackMonthKey =
-      calendarMonthKeys[Math.max(fallbackIndex, 0)] ??
-      calendarMonthKeys[0] ??
-      null;
-    const currentMonthKey = formatMonthKey(new Date());
-    setSelectedCalendarMonthKey(
-      selectedCalendarMonthKey === null &&
-        calendarMonthKeys.includes(currentMonthKey)
-        ? currentMonthKey
-        : fallbackMonthKey,
-    );
-  }, [calendarMonthKeys, selectedCalendarMonthKey]);
-
-  useEffect(() => {
-    lastCalendarIndexRef.current = calendarIndex;
-  }, [calendarIndex]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !calendarSheetOpen) return;
@@ -626,9 +523,10 @@ function CalendarSheet({
     handleCalendarSheetOpenChange(false);
   };
 
-  const carouselDirection = getLanguageDirection(
-    i18n.resolvedLanguage ?? i18n.language,
-  );
+  const displayedMonthKey = formatMonthKey(displayedMonth);
+  const visibleDatedTasks = datedTasksByMonth[displayedMonthKey] ?? [];
+  const calendarTaskDates = monthTaskDates[displayedMonthKey] ?? [];
+  const dateDotColors = monthDateDotColors[displayedMonthKey] ?? {};
 
   return (
     <Drawer
@@ -660,133 +558,94 @@ function CalendarSheet({
             <Alert variant="error">{calendarError}</Alert>
           ) : null}
           {datedTasks.length > 0 ? (
-            <Carousel
-              className="min-h-0 flex-1"
-              index={calendarIndex}
-              direction={carouselDirection}
-              onIndexChange={(nextIndex) => {
-                const monthKey = calendarMonthKeys[nextIndex];
-                if (!monthKey || monthKey === selectedCalendarMonthKey) return;
-                lastCalendarIndexRef.current = nextIndex;
-                setSelectedCalendarMonthKey(monthKey);
-                setSelectedCalendarDate(undefined);
-              }}
-              showIndicators={calendarMonths.length > 1}
-              indicatorPosition="top"
-              indicatorInFlow
-              ariaLabel={t("app.calendarCheckButton")}
+            <div
+              className={clsx(
+                "min-h-0 flex-1 overflow-y-auto pb-12",
+                isWideLayout
+                  ? "grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]"
+                  : "flex flex-col gap-3",
+              )}
             >
-              {calendarMonths.map((calendarMonth) => {
-                const monthKey = formatMonthKey(calendarMonth);
-                const visibleDatedTasks = datedTasksByMonth[monthKey] ?? [];
-                const calendarTaskDates = monthTaskDates[monthKey] ?? [];
-                const dateDotColors = monthDateDotColors[monthKey] ?? {};
-
-                return (
-                  <div
-                    key={monthKey}
-                    className={clsx(
-                      "h-full min-h-0 pb-12",
-                      isWideLayout
-                        ? "grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]"
-                        : "flex flex-col gap-3",
-                    )}
-                  >
-                    <div
-                      data-vaul-no-drag
-                      className={clsx(
-                        "w-full",
-                        isWideLayout && "sticky top-0 self-start",
-                      )}
-                    >
-                      <Calendar
-                        className="w-full"
-                        mode="single"
-                        selected={selectedCalendarDate}
-                        onSelect={(next) =>
-                          handleSelectCalendarDate(next, visibleDatedTasks)
-                        }
-                        month={calendarMonth}
-                        disableNavigation
-                        classNames={{
-                          nav: "hidden",
-                          nav_button: "hidden",
-                          nav_button_previous: "hidden",
-                          nav_button_next: "hidden",
-                        }}
-                        modifiers={{ hasTask: calendarTaskDates }}
-                        components={{
-                          DayButton: (props) => {
-                            const dateKey = formatTaskDate(props.day.date);
-                            const colors = dateDotColors[dateKey] ?? [];
-                            return (
-                              <DayPickerDayButton {...props}>
-                                <span className="relative flex h-full w-full items-center justify-center">
+              <div
+                data-vaul-no-drag
+                className={clsx(
+                  "w-full",
+                  isWideLayout && "sticky top-0 self-start",
+                )}
+              >
+                <Calendar
+                  className="w-full"
+                  mode="single"
+                  selected={selectedCalendarDate}
+                  onSelect={(next) =>
+                    handleSelectCalendarDate(next, visibleDatedTasks)
+                  }
+                  month={displayedMonth}
+                  onMonthChange={(newMonth) => {
+                    setDisplayedMonth(newMonth);
+                    setSelectedCalendarDate(undefined);
+                  }}
+                  modifiers={{ hasTask: calendarTaskDates }}
+                  components={{
+                    DayButton: (props) => {
+                      const dateKey = formatTaskDate(props.day.date);
+                      const colors = dateDotColors[dateKey] ?? [];
+                      return (
+                        <DayPickerDayButton {...props}>
+                          <span className="relative flex h-full w-full items-center justify-center">
+                            <span className={clsx(colors.length > 0 && "pb-2")}>
+                              {props.day.date.getDate()}
+                            </span>
+                            {colors.length > 0 ? (
+                              <span className="pointer-events-none absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-0.5">
+                                {colors.map((color, index) => (
                                   <span
-                                    className={clsx(
-                                      colors.length > 0 && "pb-2",
-                                    )}
-                                  >
-                                    {props.day.date.getDate()}
-                                  </span>
-                                  {colors.length > 0 ? (
-                                    <span className="pointer-events-none absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-0.5">
-                                      {colors.map((color, index) => (
-                                        <span
-                                          key={`${dateKey}-${color}-${index}`}
-                                          className="h-1.5 w-1.5 rounded-full border border-primary dark:border-primary-dark"
-                                          style={{ backgroundColor: color }}
-                                        />
-                                      ))}
-                                    </span>
-                                  ) : null}
-                                </span>
-                              </DayPickerDayButton>
-                            );
-                          },
+                                    key={`${dateKey}-${color}-${index}`}
+                                    className="h-1.5 w-1.5 rounded-full border border-primary dark:border-primary-dark"
+                                    style={{ backgroundColor: color }}
+                                  />
+                                ))}
+                              </span>
+                            ) : null}
+                          </span>
+                        </DayPickerDayButton>
+                      );
+                    },
+                  }}
+                />
+              </div>
+              <div
+                data-vaul-no-drag
+                className={clsx(
+                  "min-h-0 overflow-y-auto rounded-xl border border-border dark:border-border-dark",
+                  isWideLayout ? "h-full" : "flex-1",
+                )}
+              >
+                {visibleDatedTasks.length > 0 ? (
+                  visibleDatedTasks.map((task) => {
+                    const taskId = getDatedTaskId(task);
+                    return (
+                      <CalendarTaskItem
+                        key={taskId}
+                        task={task}
+                        onOpenTaskList={handleOpenTaskListFromCalendar}
+                        onSelectDate={(date) =>
+                          handleSelectCalendarDate(date, visibleDatedTasks)
+                        }
+                        isHighlighted={selectedCalendarDateKey === task.dateKey}
+                        itemRef={(element) => {
+                          datedTaskRefs.current[taskId] = element;
                         }}
                       />
-                    </div>
-                    <div
-                      data-vaul-no-drag
-                      className={clsx(
-                        "min-h-0 overflow-y-auto rounded-xl border border-border dark:border-border-dark",
-                        isWideLayout ? "h-full" : "flex-1",
-                      )}
-                    >
-                      {visibleDatedTasks.length > 0 ? (
-                        visibleDatedTasks.map((task) => {
-                          const taskId = getDatedTaskId(task);
-                          return (
-                            <CalendarTaskItem
-                              key={taskId}
-                              task={task}
-                              onOpenTaskList={handleOpenTaskListFromCalendar}
-                              onSelectDate={(date) =>
-                                handleSelectCalendarDate(
-                                  date,
-                                  visibleDatedTasks,
-                                )
-                              }
-                              isHighlighted={
-                                selectedCalendarDateKey === task.dateKey
-                              }
-                              itemRef={(element) => {
-                                datedTaskRefs.current[taskId] = element;
-                              }}
-                            />
-                          );
-                        })
-                      ) : (
-                        <p className="p-4 text-sm text-muted dark:text-muted-dark">
-                          {t("app.calendarNoDatedTasks")}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </Carousel>
+                    );
+                  })
+                ) : (
+                  <p className="p-4 text-sm text-muted dark:text-muted-dark">
+                    {t("app.calendarNoDatedTasks")}
+                  </p>
+                )}
+              </div>
+            </div>
           ) : (
             <p className="text-sm text-muted dark:text-muted-dark">
               {t("app.calendarNoDatedTasks")}
@@ -918,18 +777,6 @@ function DrawerPanel({
               <AppIcon name="settings" aria-hidden="true" focusable="false" />
             </button>
           </div>
-          {!isWideLayout && (
-            <button
-              type="button"
-              onClick={onCloseDrawer}
-              title={t("common.close")}
-              aria-label={t("common.close")}
-              data-vaul-no-drag
-              className="inline-flex items-center justify-center rounded-xl p-2 text-muted hover:bg-background hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:hover:bg-surface-dark dark:hover:text-text-dark dark:focus-visible:outline-muted-dark"
-            >
-              <AppIcon name="close" aria-hidden="true" focusable="false" />
-            </button>
-          )}
         </div>
       </DrawerHeader>
 
@@ -1156,16 +1003,6 @@ export default function AppPage() {
   }, [authStatus, router]);
 
   useEffect(() => {
-    if (authStatus !== "loading") return;
-    const timerId = window.setTimeout(() => {
-      router.replace("/");
-    }, AUTH_TIMEOUT_MS);
-    return () => {
-      window.clearTimeout(timerId);
-    };
-  }, [authStatus, router]);
-
-  useEffect(() => {
     if (taskLists.length > 0 && !selectedTaskListId) {
       setSelectedTaskListId(taskLists[0].id);
     }
@@ -1286,7 +1123,7 @@ export default function AppPage() {
     />
   );
 
-  if (isAuthLoading || authStatus === "unauthenticated") {
+  if (authStatus === "unauthenticated") {
     return <Spinner fullPage />;
   }
 
@@ -1310,7 +1147,16 @@ export default function AppPage() {
             )}
           >
             <div className="flex h-full flex-col overflow-y-auto bg-surface p-4 dark:border-border-dark dark:bg-surface-dark">
-              {drawerPanel}
+              {isAuthLoading ? (
+                <div className="flex flex-col gap-3 p-2">
+                  <div className="h-8 w-32 animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+                  <div className="h-10 w-full animate-pulse rounded-xl bg-border dark:bg-border-dark" />
+                  <div className="h-10 w-full animate-pulse rounded-xl bg-border dark:bg-border-dark" />
+                  <div className="h-10 w-full animate-pulse rounded-xl bg-border dark:bg-border-dark" />
+                </div>
+              ) : (
+                drawerPanel
+              )}
             </div>
           </aside>
         ) : null}
@@ -1345,13 +1191,28 @@ export default function AppPage() {
           ) : null}
 
           <div className="h-full overflow-hidden">
-            {hasStartupError ? (
+            {isAuthLoading ? (
+              <div className="flex h-full flex-col gap-4 p-4 pt-24">
+                <div className="h-6 w-40 animate-pulse rounded bg-border dark:bg-border-dark" />
+                <div className="flex flex-col gap-2">
+                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+                  <div className="h-10 w-3/4 animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+                </div>
+              </div>
+            ) : hasStartupError ? (
               <div className="flex h-full items-center justify-center p-4">
                 <Alert variant="error">{t("app.error")}</Alert>
               </div>
             ) : isTaskListsHydrating ? (
-              <div className="flex h-full items-center justify-center p-4">
-                <Spinner />
+              <div className="flex h-full flex-col gap-4 p-4 pt-24">
+                <div className="h-6 w-40 animate-pulse rounded bg-border dark:bg-border-dark" />
+                <div className="flex flex-col gap-2">
+                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+                </div>
               </div>
             ) : hasTaskLists ? (
               <Carousel

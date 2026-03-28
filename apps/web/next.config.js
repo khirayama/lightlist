@@ -5,6 +5,8 @@ const nextConfig = {
       "@radix-ui/react-popover",
       "@dnd-kit/core",
       "@dnd-kit/sortable",
+      "date-fns",
+      "react-day-picker",
     ],
   },
   async headers() {

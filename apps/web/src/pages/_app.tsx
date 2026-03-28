@@ -1,14 +1,7 @@
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import { Inter, Noto_Sans_JP } from "next/font/google";
-import {
-  Component,
-  ErrorInfo,
-  ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { Component, ErrorInfo, ReactNode, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { withTranslation, WithTranslation } from "react-i18next";
 
@@ -18,7 +11,6 @@ import { Theme } from "@/lib/types";
 import { getLanguageDirection, normalizeLanguage } from "@/lib/utils/language";
 import { logException } from "@/lib/analytics";
 import { AppIcon } from "@/components/ui/AppIcon";
-import { BrandLogo } from "@/components/ui/BrandLogo";
 import "@/styles/globals.css";
 
 const MAIN_CONTENT_ID = "main-content";
@@ -44,30 +36,6 @@ const applyTheme = (theme: Theme) => {
       window.matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.classList.toggle("dark", isDark);
 };
-
-const STARTUP_SPLASH_LABEL = "読み込み中";
-
-function StartupSplash() {
-  return (
-    <div className="flex h-dvh w-full items-center justify-center bg-background dark:bg-background-dark">
-      <div
-        role="status"
-        aria-live="polite"
-        aria-busy="true"
-        aria-label={STARTUP_SPLASH_LABEL}
-        className="flex items-center justify-center"
-      >
-        <div className="animate-pulse">
-          <BrandLogo
-            alt=""
-            aria-hidden="true"
-            className="h-16 w-auto sm:h-20"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 interface ErrorBoundaryProps extends WithTranslation {
   children?: ReactNode;
@@ -136,7 +104,6 @@ class ErrorBoundaryBase extends Component<
 const ErrorBoundary = withTranslation()(ErrorBoundaryBase);
 
 export default function App({ Component, pageProps }: AppProps) {
-  const [mounted, setMounted] = useState(false);
   const prevLanguageRef = useRef<string | null>(null);
   const { t } = useTranslation();
   const appTitle = t("title");
@@ -185,8 +152,6 @@ export default function App({ Component, pageProps }: AppProps) {
         .then((registration) => registration.update())
         .catch(() => {});
     }
-
-    setMounted(true);
 
     const handleWindowError = (event: ErrorEvent) => {
       logException(event.message, false);
@@ -246,19 +211,6 @@ export default function App({ Component, pageProps }: AppProps) {
     document.documentElement.lang = language;
     document.documentElement.dir = getLanguageDirection(language);
   }, [settings?.language, i18n.resolvedLanguage]);
-
-  if (!mounted) {
-    return (
-      <ErrorBoundary>
-        {pwaHead}
-        <div
-          className={`${inter.variable} ${notoSansJp.variable} h-dvh w-full overflow-hidden font-sans`}
-        >
-          <StartupSplash />
-        </div>
-      </ErrorBoundary>
-    );
-  }
 
   return (
     <ErrorBoundary>

@@ -11,7 +11,10 @@
     "add": "追加",
     "copy": "コピー",
     "copied": "コピーしました",
-    "error": "エラーが発生しました"
+    "error": "エラーが発生しました",
+    "done": "完了",
+    "selected": "選択中",
+    "ok": "OK"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "日付が設定されたタスクはありません",
     "calendarNoTasksOnSelectedDate": "選択した日付のタスクはありません",
     "rtlRestartTitle": "再起動が必要です",
-    "rtlRestartMessage": "右から左への表示を反映するにはアプリの再起動が必要です。"
+    "rtlRestartMessage": "右から左への表示を反映するにはアプリの再起動が必要です。",
+    "loadError": "タスクリストの読み込みに失敗しました",
+    "calendar": "カレンダー"
   },
   "taskList": {
     "taskCount": "{{count}}個のタスク",
@@ -134,7 +139,16 @@
     "shareCode": "共有コード",
     "shareDescription": "共有コードを発行して、このリストを他の人が閲覧・編集できるようにします。",
     "generateShare": "共有コードを生成",
-    "removeShare": "共有を停止"
+    "removeShare": "共有を停止",
+    "editTitle": "リスト編集",
+    "save": "保存",
+    "colorRed": "赤",
+    "colorYellow": "黄",
+    "colorGreen": "緑",
+    "colorBlue": "青",
+    "colorIndigo": "インディゴ",
+    "colorPurple": "紫",
+    "colorCustom": "カスタム色"
   },
   "settings": {
     "title": "設定",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "タスクを入力...",
       "setDate": "期限を設定",
+      "markComplete": "未完了、タップで完了にする",
+      "markIncomplete": "完了済み、タップで未完了にする",
       "noTasks": "タスクがありません",
       "dragHint": "ドラッグして並び替え",
       "sort": "並び替え",
       "deleteCompleted": "完了タスクを削除",
-      "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？"
+      "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？",
+      "clearDate": "日付をクリア",
+      "deleteCompletedConfirmTitle": "完了タスクを削除しますか？"
     },
     "notFound": {
       "title": "ページが見つかりません",

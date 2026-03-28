@@ -11,7 +11,10 @@
     "add": "Hinzufügen",
     "copy": "Kopieren",
     "copied": "Kopiert",
-    "error": "Ein Fehler ist aufgetreten"
+    "error": "Ein Fehler ist aufgetreten",
+    "done": "Fertig",
+    "selected": "Ausgewählt",
+    "ok": "OK"
   },
   "auth": {
     "tabs": {
@@ -114,7 +117,9 @@
     "calendarNoDatedTasks": "Keine Aufgaben mit Datum",
     "calendarNoTasksOnSelectedDate": "Keine Aufgaben am ausgewählten Datum",
     "rtlRestartTitle": "Neustart erforderlich",
-    "rtlRestartMessage": "Starte die App neu, um das Rechts-nach-Links-Layout anzuwenden."
+    "rtlRestartMessage": "Starte die App neu, um das Rechts-nach-Links-Layout anzuwenden.",
+    "loadError": "Aufgabenlisten konnten nicht geladen werden.",
+    "calendar": "Kalender"
   },
   "taskList": {
     "taskCount": "{{count}} Aufgaben",
@@ -134,7 +139,16 @@
     "shareCode": "Freigabecode",
     "shareDescription": "Erzeuge einen Code, damit andere diese Liste ansehen und bearbeiten können.",
     "generateShare": "Freigabecode erzeugen",
-    "removeShare": "Freigabe beenden"
+    "removeShare": "Freigabe beenden",
+    "editTitle": "Liste bearbeiten",
+    "save": "Speichern",
+    "colorRed": "Rot",
+    "colorYellow": "Gelb",
+    "colorGreen": "Grün",
+    "colorBlue": "Blau",
+    "colorIndigo": "Indigo",
+    "colorPurple": "Lila",
+    "colorCustom": "Benutzerdefinierte Farbe"
   },
   "settings": {
     "title": "Einstellungen",
@@ -235,11 +249,15 @@
     "tasklist": {
       "addTaskPlaceholder": "Aufgabe eingeben...",
       "setDate": "Datum festlegen",
+      "markComplete": "Nicht erledigt. Tippe, um als erledigt zu markieren",
+      "markIncomplete": "Erledigt. Tippe, um als nicht erledigt zu markieren",
       "noTasks": "Keine Aufgaben",
       "dragHint": "Zum Neuordnen ziehen",
       "sort": "Sortieren",
       "deleteCompleted": "Abgeschlossene Aufgaben löschen",
-      "deleteCompletedConfirm": "{{count}} abgeschlossene Aufgaben löschen?"
+      "deleteCompletedConfirm": "{{count}} abgeschlossene Aufgaben löschen?",
+      "clearDate": "Datum löschen",
+      "deleteCompletedConfirmTitle": "Erledigte Aufgaben löschen?"
     },
     "notFound": {
       "title": "Seite nicht gefunden",

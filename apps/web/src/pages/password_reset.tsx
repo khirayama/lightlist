@@ -6,10 +6,13 @@ import {
   verifyPasswordResetCode,
   confirmPasswordReset,
 } from "@/lib/mutations/auth";
+import {
+  FormErrors,
+  resolveErrorMessage,
+  validatePasswordForm,
+} from "@/lib/translation";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
-import { resolveErrorMessage } from "@/lib/utils/errors";
-import { FormErrors, validatePasswordForm } from "@/lib/utils/validation";
 
 type FormInputProps = {
   id: string;

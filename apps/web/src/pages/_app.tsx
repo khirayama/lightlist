@@ -5,10 +5,12 @@ import { Component, ErrorInfo, ReactNode, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { withTranslation, WithTranslation } from "react-i18next";
 
-import i18n from "@/utils/i18n";
+import i18n, {
+  getLanguageDirection,
+  normalizeLanguage,
+} from "@/lib/translation";
 import { getCurrentSettings, useSettings } from "@/lib/settings";
 import { Theme } from "@/lib/types";
-import { getLanguageDirection, normalizeLanguage } from "@/lib/utils/language";
 import { logException } from "@/lib/analytics";
 import { AppIcon } from "@/components/ui/AppIcon";
 import "@/styles/globals.css";

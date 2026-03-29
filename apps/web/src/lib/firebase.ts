@@ -1,4 +1,8 @@
-import { initializeApp, getApps } from "firebase/app";
+import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
+import {
+  ReCaptchaEnterpriseProvider,
+  initializeAppCheck,
+} from "firebase/app-check";
 import { getAuth, type Auth } from "firebase/auth";
 import {
   initializeFirestore,
@@ -9,6 +13,7 @@ import {
 
 let cachedAuth: Auth | null = null;
 let cachedDb: Firestore | null = null;
+let appCheckInitialized = false;
 
 const getApp = () =>
   getApps().length === 0
@@ -22,12 +27,43 @@ const getApp = () =>
       })
     : getApps()[0];
 
+const isLocalhost = (hostname: string) =>
+  hostname === "localhost" || hostname === "127.0.0.1";
+
+const ensureAppCheckInitialized = (app: FirebaseApp) => {
+  if (appCheckInitialized || typeof window === "undefined") {
+    return;
+  }
+
+  const siteKey = process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY;
+  if (!siteKey) {
+    return;
+  }
+
+  if (isLocalhost(window.location.hostname)) {
+    (
+      globalThis as typeof globalThis & {
+        FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string;
+      }
+    ).FIREBASE_APPCHECK_DEBUG_TOKEN =
+      process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN ?? true;
+  }
+
+  initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(siteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+  appCheckInitialized = true;
+};
+
 export const getAuthInstance = (): Auth => {
   if (cachedAuth) {
     return cachedAuth;
   }
 
-  cachedAuth = getAuth(getApp());
+  const app = getApp();
+  ensureAppCheckInitialized(app);
+  cachedAuth = getAuth(app);
   return cachedAuth;
 };
 
@@ -36,7 +72,9 @@ export const getDbInstance = (): Firestore => {
     return cachedDb;
   }
 
-  cachedDb = initializeFirestore(getApp(), {
+  const app = getApp();
+  ensureAppCheckInitialized(app);
+  cachedDb = initializeFirestore(app, {
     localCache: persistentLocalCache({
       tabManager: persistentMultipleTabManager(),
     }),

@@ -495,7 +495,7 @@ const resolveTaskList = (taskListId: string | null): TaskList | null => {
   );
 };
 
-export const subscribeTaskListsStore = (listener: () => void): (() => void) => {
+const subscribeTaskListsStore = (listener: () => void): (() => void) => {
   ensureTaskListsStarted();
   listeners.add(listener);
   return () => {
@@ -503,29 +503,26 @@ export const subscribeTaskListsStore = (listener: () => void): (() => void) => {
   };
 };
 
-export const getServerTaskListIndexState = (): TaskListIndexState => {
+const getServerTaskListIndexState = (): TaskListIndexState => {
   return serverTaskListIndexState;
 };
 
-export const getCurrentTaskLists = (): TaskList[] => {
+const getCurrentTaskLists = (): TaskList[] => {
   return getCurrentOrderedTaskLists();
 };
 
-export const getCurrentTaskListOrderStatus =
-  (): AppState["taskListOrderStatus"] => {
-    return internalState.taskListOrderStatus;
-  };
+const getCurrentTaskListOrderStatus = (): AppState["taskListOrderStatus"] => {
+  return internalState.taskListOrderStatus;
+};
 
-export const getCurrentHasStartupError = (): boolean => {
+const getCurrentHasStartupError = (): boolean => {
   return (
     getCurrentSettingsStatus() === "error" ||
     internalState.taskListOrderStatus === "error"
   );
 };
 
-export const getCurrentTaskList = (
-  taskListId: string | null,
-): TaskList | null => {
+const getCurrentTaskList = (taskListId: string | null): TaskList | null => {
   return resolveTaskList(taskListId);
 };
 
@@ -579,7 +576,7 @@ export function useTaskListIndexState(): TaskListIndexState {
   );
 }
 
-export function useTaskLists(): TaskList[] {
+function useTaskLists(): TaskList[] {
   return useSyncExternalStore(
     subscribeTaskListsStore,
     getCurrentTaskLists,
@@ -595,7 +592,7 @@ export function useTaskList(taskListId: string | null): TaskList | null {
   );
 }
 
-export const disposeTaskListsStore = () => {
+const disposeTaskListsStore = () => {
   sessionUnsubscribe?.();
   sessionUnsubscribe = null;
   settingsUnsubscribe?.();

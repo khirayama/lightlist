@@ -7,16 +7,16 @@ import { useSettingsState } from "@/lib/settings";
 import { Theme, Language, TaskInsertPosition } from "@/lib/types";
 import { updateSettings } from "@/lib/mutations/app";
 import {
-  signOut,
-  deleteAccount,
-  sendEmailChangeVerification,
-} from "@/lib/mutations/auth";
-import { resolveErrorMessage } from "@/lib/utils/errors";
-import { validateEmailChangeForm } from "@/lib/utils/validation";
-import {
   LANGUAGE_DISPLAY_NAMES,
   SUPPORTED_LANGUAGES,
-} from "@/lib/utils/language";
+  resolveErrorMessage,
+  validateEmailChangeForm,
+} from "@/lib/translation";
+import {
+  deleteAccount,
+  signOut,
+  sendEmailChangeVerification,
+} from "@/lib/mutations/auth";
 import {
   logSignOut,
   logDeleteAccount,

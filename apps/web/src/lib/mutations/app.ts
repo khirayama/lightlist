@@ -24,7 +24,7 @@ import {
   getCurrentTaskListStoreData,
   normalizeTaskListStore,
 } from "../taskLists";
-import { DEFAULT_LANGUAGE, normalizeLanguage } from "../utils/language";
+import { DEFAULT_LANGUAGE, normalizeLanguage } from "../translation";
 
 type ResolvedTaskSettings = {
   autoSort: boolean;
@@ -994,7 +994,7 @@ export async function deleteTaskList(taskListId: string) {
   });
 }
 
-export function generateTaskId(): string {
+function generateTaskId(): string {
   const db = getDbInstance();
   return doc(collection(db, "taskLists")).id;
 }
@@ -1101,7 +1101,7 @@ export async function updateTask(
   await updateDoc(taskListRef, updateData);
 }
 
-export async function deleteTask(taskListId: string, taskId: string) {
+async function deleteTask(taskListId: string, taskId: string) {
   const db = getDbInstance();
   const now = Date.now();
   const taskListRef = doc(db, "taskLists", taskListId);
@@ -1334,7 +1334,7 @@ export async function fetchTaskListIdByShareCode(
   return data?.taskListId ?? null;
 }
 
-export async function fetchTaskListByShareCode(
+async function fetchTaskListByShareCode(
   shareCode: string,
 ): Promise<TaskListStore | null> {
   const db = getDbInstance();

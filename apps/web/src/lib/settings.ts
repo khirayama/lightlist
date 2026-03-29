@@ -115,7 +115,7 @@ export const getCurrentSettingsStatus = (): AppState["settingsStatus"] => {
   return settingsState.settingsStatus;
 };
 
-export const getCurrentSettingsState = (): SettingsState => {
+const getCurrentSettingsState = (): SettingsState => {
   if (
     cachedSettingsState &&
     cachedSettingsState.settings === settingsState.settings &&
@@ -146,7 +146,7 @@ export function useSettings(): AppState["settings"] {
   );
 }
 
-export function useSettingsStatus(): AppState["settingsStatus"] {
+function useSettingsStatus(): AppState["settingsStatus"] {
   return useSyncExternalStore(
     subscribeSettingsStore,
     getCurrentSettingsStatus,
@@ -154,7 +154,7 @@ export function useSettingsStatus(): AppState["settingsStatus"] {
   );
 }
 
-export const disposeSettingsStore = () => {
+const disposeSettingsStore = () => {
   sessionUnsubscribe?.();
   sessionUnsubscribe = null;
   resetSettingsState();

@@ -68,7 +68,7 @@ const getServerSessionState = (): SessionState => {
   return serverSessionState;
 };
 
-export const getCurrentUser = (): User | null => {
+const getCurrentUser = (): User | null => {
   return sessionState.user;
 };
 
@@ -119,7 +119,7 @@ export function useUser(): User | null {
   );
 }
 
-export function useUserEmail(): string {
+function useUserEmail(): string {
   return useSyncExternalStore(
     subscribeSessionStore,
     getCurrentUserEmail,
@@ -127,7 +127,7 @@ export function useUserEmail(): string {
   );
 }
 
-export const disposeSessionStore = () => {
+const disposeSessionStore = () => {
   authUnsubscribe?.();
   authUnsubscribe = null;
   sessionStarted = false;

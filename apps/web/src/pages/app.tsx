@@ -39,8 +39,7 @@ import {
   fetchTaskListIdByShareCode,
   updateTaskListOrder,
 } from "@/lib/mutations/app";
-import { resolveErrorMessage } from "@/lib/utils/errors";
-import { getLanguageDirection } from "@/lib/utils/language";
+import { getLanguageDirection, resolveErrorMessage } from "@/lib/translation";
 import { useOptimisticReorder } from "@/lib/hooks/useOptimisticReorder";
 import {
   logShareCodeJoin,
@@ -1000,6 +999,14 @@ export default function AppPage() {
     if (authStatus === "unauthenticated") {
       router.push("/");
     }
+  }, [authStatus, router]);
+
+  useEffect(() => {
+    if (authStatus !== "authenticated") {
+      return;
+    }
+
+    void router.prefetch("/settings");
   }, [authStatus, router]);
 
   useEffect(() => {

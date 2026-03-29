@@ -3,13 +3,14 @@
 ## 実装配置
 
 - Web は `apps/web/src/lib/analytics.ts` に集約する。
-- iOS は `apps/ios/Lightlist/Sources/Analytics.swift` に集約する。
-- Android は `apps/android/app/src/main/java/com/example/lightlist/Analytics.kt` に集約する。
+- iOS は `apps/ios/Lightlist/Sources/ContentView.swift` に集約する。
+- Android は `apps/android/app/src/main/java/com/example/lightlist/ContentView.kt` に集約する。
 - 3 実装ともイベント名と主要パラメータは揃える。
 
 ## 基本動作
 
 - PII はイベント名・パラメータへ含めない。
+- このドキュメントのイベント一覧は、helper の定義数ではなく現行 UI から送信されるイベントだけを書く。
 - 開発時はデバッグ出力を行う。
   - Web: `console.log("[analytics]", ...)`
   - iOS: `print(...)`
@@ -40,7 +41,6 @@
 - タスク
   - `app_task_add`
   - `app_task_update`
-  - `app_task_delete`
   - `app_task_reorder`
   - `app_task_sort`
   - `app_task_delete_completed`
@@ -69,3 +69,14 @@
 - `app_settings_task_insert_position_change`: `position: "top" | "bottom"`
 - `app_settings_auto_sort_change`: `enabled: boolean`
 - `app_exception`: `description: string`, `fatal: boolean`
+
+## すること
+
+- 3 実装でイベント名と主要パラメータを揃える。
+- PII を送らない。
+- 例外送信は analytics と crash reporting の両方がある実装では両方へ残す。
+
+## しないこと
+
+- メールアドレスや共有コードのような識別情報をイベントパラメータに含めない。
+- Web だけ別名イベントに分岐させない。

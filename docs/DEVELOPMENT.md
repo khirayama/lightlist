@@ -1,5 +1,23 @@
 # 開発
 
+## このディレクトリの役割
+
+- `docs/` は実装を正とした仕様を置く。
+- 現在のアプリ挙動、必須設定、維持したい制約を書く。
+- 一時的な設計メモ、ファイル分割の棚卸し、進捗報告は書かない。
+
+## docs ですること
+
+- `apps/web` `apps/ios` `apps/android` の共通仕様や差分を、利用者視点と実装制約の両方から簡潔に書く。
+- 環境変数、deep link、データモデル、セキュリティヘッダのように、実装変更時に見落としやすい前提を残す。
+- ドキュメント更新時は、実装を調べて存在する画面・機能・設定だけを書く。
+
+## docs でしないこと
+
+- 現在のコンポーネント一覧や内部 import 構成を、そのまま別資料として重複管理しない。
+- 実装詳細を必要以上に列挙しない。
+- すでに `AGENTS.md` で管理している作業ルールを重複して増やさない。
+
 ## リポジトリ構成
 
 - ルートに Node の manifest は置かない。
@@ -9,61 +27,44 @@
 - Android は Kotlin + Gradle。
 - Firebase デプロイ設定はリポジトリルートに置く。
 
-## 主要ディレクトリ
+## 主要パス
 
 - `apps/web`
-  - Web アプリ本体
 - `apps/web/src/lib`
-  - Firebase 初期化、購読、mutation、analytics
 - `apps/ios/Lightlist/Sources`
-  - iOS アプリ本体
 - `apps/android/app/src/main/java/com/example/lightlist`
-  - Android アプリ本体
 - `docs`
-  - 実装を正とする仕様書
 
-## コマンド
+## Web の前提
 
-- ルート
-  - `just deploy-firestore`
-  - `just deploy-firestore-prod`
-- Web
-  - `cd apps/web && npm run dev`
-  - `cd apps/web && npm run format`
-  - `cd apps/web && npm run lint`
-  - `cd apps/web && npm run knip`
-  - `cd apps/web && npm run build`
-  - `cd apps/web && npm run typecheck`
-- iOS
-  - `cd apps/ios && just build`
-  - `cd apps/ios && xcodegen generate`
-  - `cd apps/ios && xcodebuild -scheme Lightlist -destination 'platform=iOS Simulator,...'`
-- Android
-  - `cd apps/android && just lint`
-  - `cd apps/android && just build`
+- Firebase 初期化と App Check 初期化は `apps/web/src/lib/firebase.ts` に集約する。
+- Web UI から `firebase/*` を直接 import せず、認証・設定・タスクリストは `@/lib/*` を通す。
+- i18n 初期化、対応言語、言語正規化、方向判定、翻訳依存のエラー解決とバリデーションは `apps/web/src/lib/translation.ts` に集約する。
+- 本番 build は `next build --webpack` を使う。
+- 本番レスポンスヘッダは `apps/web/next.config.js` で管理する。
 
-## Web 実装上の前提
+## Native の前提
 
-- Firebase 初期化は `apps/web/src/lib/firebase.ts` が担当する。
-- `apps/web/src/lib/firebase.ts` は `process.env.NEXT_PUBLIC_FIREBASE_*` を直接読む。
-- Firestore は `persistentLocalCache` + `persistentMultipleTabManager` を使う。
-- i18n は `apps/web/src/utils/i18n.ts` で初期化する。
-- 言語検出順は `querystring -> localStorage -> navigator -> htmlTag`。
-- `document.documentElement.lang` と `dir` は `_app.tsx` で現在言語へ同期する。
-- `public/` 配下の静的ファイルはルートパスから参照する。
+- iOS / Android は Firebase Auth / Firestore を直接使う。
+- iOS / Android は `apps/web/src/locales/*.json` と同じキー構造の locale JSON を同梱して使う。
+- iOS は `LightlistApp.swift` が app entry と Firebase 初期化、`ContentView.swift` が UI・翻訳ロード・analytics helper を持つ。
+- Android は `MainActivity.kt` が app entry と deep link 変換、`ContentView.kt` が UI・翻訳ロード・analytics helper を持つ。
+- Android app module は `BuildConfig.DEBUG` と `BuildConfig.PASSWORD_RESET_URL` を使うため `buildFeatures.buildConfig = true` を維持する。
+- iOS / Android の識別子は `com.lightlist.app` を正とする。
 
-## Native 実装上の前提
+## 主要コマンド
 
-- iOS / Android とも Firebase Auth / Firestore を直接利用する。
-- iOS / Android とも locale JSON を同梱して読み込む。
-- Android app module は `BuildConfig.DEBUG` を参照するため `buildFeatures.buildConfig = true` を維持する。
+- ルート: `just deploy-firestore` / `just deploy-firestore-prod`
+- Web: `cd apps/web && npm run dev`
+- Web: `cd apps/web && npm run format && npm run lint && npm run build && npm run typecheck`
+- iOS: `cd apps/ios && just build`
+- iOS: `cd apps/ios && xcodegen generate`
+- Android: `cd apps/android && just lint && just build`
 
-## 品質ゲート
+## 品質確認
 
-- Web の `lint` は `eslint . --max-warnings=0`。
-- 実装変更後の確認は、変更があった app のみ実行する。
-- `apps/web` を変更した場合は `npm run format` / `npm run lint` / `npm run build` / `npm run typecheck` を実行する。
-- `apps/ios` を変更した場合は `just build` を実行する。iOS 専用の `lint` / `format` は現状未設定。
-- `apps/android` を変更した場合は `just lint` / `just build` を実行する。Android 専用の `format` は現状未設定。
-- CI では `npm audit --audit-level=high` を維持する。
-- 実装変更後は `docs/` を実装に合わせて更新する。
+- 実装変更後の確認は、変更があった app だけ実行する。
+- Web は `format` `lint` `build` `typecheck` を正本とする。
+- iOS は `just build` を正本とする。
+- Android は `just lint` と `just build` を正本とする。
+- CI による品質ゲートは置かず、ローカル検証を正本とする。

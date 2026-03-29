@@ -15,7 +15,7 @@ import {
 } from "@/lib/mutations/app";
 import { useUser } from "@/lib/session";
 import { subscribeToSharedTaskList, useTaskList } from "@/lib/taskLists";
-import { resolveErrorMessage } from "@/lib/utils/errors";
+import { resolveErrorMessage } from "@/lib/translation";
 import { logShare, logShareCodeJoin } from "@/lib/analytics";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";

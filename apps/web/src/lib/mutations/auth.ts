@@ -22,7 +22,7 @@ import {
 import { getCurrentSettings } from "../settings";
 import { deleteTaskList } from "./app";
 import { getTaskListIdsFromOrder } from "../taskLists";
-import { DEFAULT_LANGUAGE, normalizeLanguage } from "../utils/language";
+import { DEFAULT_LANGUAGE, normalizeLanguage } from "../translation";
 
 const withAuthLanguage = async <T>(
   language: Language,

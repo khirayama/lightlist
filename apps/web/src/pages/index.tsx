@@ -4,14 +4,13 @@ import Head from "next/head";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 
-import i18n from "@/utils/i18n";
-import { BrandLogo } from "@/components/ui/BrandLogo";
-import type { Language } from "@/lib/types";
-import {
+import i18n, {
   LANGUAGE_DISPLAY_NAMES,
   SUPPORTED_LANGUAGES,
   normalizeLanguage,
-} from "@/lib/utils/language";
+} from "@/lib/translation";
+import { BrandLogo } from "@/components/ui/BrandLogo";
+import type { Language } from "@/lib/types";
 
 const OG_LOCALE_BY_LANGUAGE: Record<Language, string> = {
   ja: "ja_JP",

@@ -8,7 +8,7 @@
     "format": "prettier --write .",
     "lint": "eslint . --max-warnings=0",
     "knip": "knip",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit"
   },

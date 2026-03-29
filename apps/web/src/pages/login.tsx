@@ -5,13 +5,14 @@ import { useTranslation } from "react-i18next";
 import { signIn, signUp, sendPasswordResetEmail } from "@/lib/mutations/auth";
 import { useAuthStatus } from "@/lib/session";
 import {
+  FormErrors,
   LANGUAGE_DISPLAY_NAMES,
   SUPPORTED_LANGUAGES,
   normalizeLanguage,
-} from "@/lib/utils/language";
+  resolveErrorMessage,
+  validateAuthForm,
+} from "@/lib/translation";
 import { Alert } from "@/components/ui/Alert";
-import { resolveErrorMessage } from "@/lib/utils/errors";
-import { FormErrors, validateAuthForm } from "@/lib/utils/validation";
 import {
   logLogin,
   logSignUp,

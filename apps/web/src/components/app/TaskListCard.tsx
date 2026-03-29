@@ -65,7 +65,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/Dialog";
 import { AppIcon } from "@/components/ui/AppIcon";
-import { resolveErrorMessage } from "@/lib/utils/errors";
+import { resolveErrorMessage } from "@/lib/translation";
 import { ColorPicker, type ColorOption } from "@/components/ui/ColorPicker";
 
 const Calendar = dynamic(
@@ -345,7 +345,7 @@ function TaskItemComponent({
 
 const TaskItem = memo(TaskItemComponent);
 
-export type TaskListCardProps = {
+type TaskListCardProps = {
   taskList: TaskList;
   isActive: boolean;
   onActivate?: (taskListId: string) => void;

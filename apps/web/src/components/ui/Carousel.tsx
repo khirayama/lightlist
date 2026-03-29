@@ -91,7 +91,7 @@ const getScrollLeftFromInlineOffset = (
   return clamped;
 };
 
-export interface CarouselProps {
+interface CarouselProps {
   children: ReactNode;
   index: number;
   onIndexChange: (index: number) => void;

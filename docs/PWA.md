@@ -17,6 +17,10 @@
 - `display`: `standalone`
 - `background_color`: `#ffffff`
 - `theme_color`: `#ffffff`
+- screenshots
+  - wide: `/screenshots/store/wide/*.png`（`1920x1080`）
+  - narrow: `/screenshots/store/narrow/*.png`（`750x1334`）
+  - 各画像は `manifest.webmanifest` の `screenshots` member で参照する。
 - icons
   - `/icons/icon-192.png`
   - `/icons/icon-512.png`

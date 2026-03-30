@@ -74,6 +74,7 @@
 - Web の `Carousel` は `direction` prop を必須運用し、RTL 時の `scrollLeft` はブラウザ差分（positive/negative）を正規化して index を算出する。
 - Web の production build は `next build --webpack` を使う。Next 16 系のデフォルト Turbopack build は Vercel の `onBuildComplete` で `.next/output/static/404.html` を見つけられず失敗することがあるため、デプロイ互換性を優先して webpack に固定する。
 - Web の本番レスポンスヘッダは `apps/web/next.config.js` で管理し、`Content-Security-Policy`、`Referrer-Policy`、`X-Content-Type-Options`、`X-Frame-Options`、`Permissions-Policy`、`Strict-Transport-Security` を付与する。
+- 配信用スクリーンショットの元画像は `apps/ios/screenshots` / `apps/android/screenshots` / `apps/web/screenshots` に置き、生成は `cd apps/web && npm run screenshots:generate -- <target>` またはルートの `just screenshots <target>` で行う。出力は iOS が `apps/ios/screenshots/app-store/iphone-6.9`、Android が `apps/android/screenshots/google-play/phone`、Web が `apps/web/public/screenshots/store/{wide,narrow}`。変換は中央基準の cover crop を使い、iOS App Store は `1290x2796`、Google Play phone は `1080x1920`、Web manifest screenshots は wide `1920x1080` / narrow `750x1334` を正とする。現行フローは iPhone 比率の元画像だけを対象にし、iPad App Store スクリーンショットは別途 iPad 実画面の元画像追加が必要。
 - `apps/web` では画面固有、または 1〜2 箇所でしか使わない UI / helper / hook は standalone file にせず、`pages/*` または直近のドメインファイルへ近接配置する。2026-03 時点では `pages/app.tsx` が drawer / calendar sheet を内包し、`TaskListCard` が task item と候補 UI を内包する。
 - Web の主要ページ:
   - `apps/web/src/pages/index.tsx`（ランディング）

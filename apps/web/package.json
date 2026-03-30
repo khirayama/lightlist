@@ -10,7 +10,8 @@
     "knip": "knip",
     "build": "next build --webpack",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "screenshots:generate": "node scripts/generate-store-screenshots.mjs"
   },
   "keywords": [],
   "author": "",

@@ -7,6 +7,57 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
+  "screenshots": [
+    {
+      "src": "/screenshots/store/wide/01-home-detail.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Desktop task list detail view"
+    },
+    {
+      "src": "/screenshots/store/wide/02-work-detail.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Desktop work list detail view"
+    },
+    {
+      "src": "/screenshots/store/wide/03-trip-detail.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Desktop trip list detail view"
+    },
+    {
+      "src": "/screenshots/store/wide/04-shared-detail.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Desktop shared list detail view"
+    },
+    {
+      "src": "/screenshots/store/wide/05-share-modal.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Desktop share settings modal"
+    },
+    {
+      "src": "/screenshots/store/wide/06-calendar.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Desktop calendar view"
+    },
+    {
+      "src": "/screenshots/store/narrow/01-home-detail.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile task list detail view"
+    }
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",

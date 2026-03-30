@@ -1,22 +1,25 @@
 set shell := ["zsh", "-cu"]
 
-run-android:
+default:
+  @just --list
+
+android:
   cd apps/android && just build && just run
 
-run-ios:
+ios:
   cd apps/ios && just build && just run
 
-run-native:
-  just run-android
-  just run-ios
+native:
+  just android
+  just ios
 
-run-web:
+web:
   cd apps/web && npm run dev
 
 run-all:
-  just run-android
-  just run-ios
-  npm run dev
+  just android
+  just ios
+  just web
 
 deploy-firestore:
   firebase --config ./firebase.json deploy --only firestore:rules,firestore:indexes

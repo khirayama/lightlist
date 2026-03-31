@@ -1,0 +1,20 @@
+set shell := ["zsh", "-cu"]
+
+build:
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer  xcodegen generate
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Lightlist.xcodeproj -scheme Lightlist -configuration Debug -derivedDataPath build -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build
+
+run:
+  xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/Lightlist.app
+  xcrun simctl launch booted com.lightlist.app
+
+simulator-list:
+  xcrun simctl list devices available
+
+simulator target='':
+  open -a Simulator
+  xcrun simctl boot "{{target}}"
+  xcrun simctl bootstatus "{{target}}" -b
+
+screenshot target='current':
+  xcrun simctl io booted screenshot ios_{{target}}.png

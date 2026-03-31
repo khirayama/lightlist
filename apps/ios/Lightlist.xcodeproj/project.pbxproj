@@ -1,0 +1,603 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		009B6DF98373EA0744FD450F /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 5C5DD32924B56E34AB5F034C /* FirebaseAnalytics */; };
+		02A8CD1764F483434BAB7290 /* zh-CN.json in Resources */ = {isa = PBXBuildFile; fileRef = 9FE8A205C2AAE88CF596F113 /* zh-CN.json */; };
+		0A9EB02B0993FD118BDC5D62 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 61AEA985F66E533B9C565E43 /* FirebaseAuth */; };
+		178E6DEBCEC4A72419C5ADCA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 03E96005FE689A03AE608611 /* Assets.xcassets */; };
+		240F291A3913030BEBA03F2E /* fr.json in Resources */ = {isa = PBXBuildFile; fileRef = C517950CBBF9C97DB818CCC3 /* fr.json */; };
+		2802D4B40E4EF5A424DDCBE5 /* LightlistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C4AFDF92886FBDFA0EAB45 /* LightlistTests.swift */; };
+		28AB832731E6FE16B9E9B884 /* pt-BR.json in Resources */ = {isa = PBXBuildFile; fileRef = 94099F49C472526B9D95AD9E /* pt-BR.json */; };
+		3BE4A6818067FEAE2783D082 /* de.json in Resources */ = {isa = PBXBuildFile; fileRef = DC77F9A6A98B78FC813CE44B /* de.json */; };
+		4B0D68F89EE905E7BDA01D8E /* ja.json in Resources */ = {isa = PBXBuildFile; fileRef = 2B9FB28EABAA923104FCCDD2 /* ja.json */; };
+		4CA7C737938F6922C9F7C029 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 5D2FC049671012454C273F85 /* FirebaseCrashlytics */; };
+		57EA339A4021C2358789B725 /* ko.json in Resources */ = {isa = PBXBuildFile; fileRef = 25EE97C0FC4D90D795844A3A /* ko.json */; };
+		60B0C71EDE30389911242AAF /* es.json in Resources */ = {isa = PBXBuildFile; fileRef = 64B7D82F23658F3C00BBB762 /* es.json */; };
+		694587730BD9EC6646B46E94 /* id.json in Resources */ = {isa = PBXBuildFile; fileRef = E6D13823FB9A3789949A965C /* id.json */; };
+		752231066BD951B04BCD7AE0 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 85C2E8D19C38E5EC9E466233 /* FirebaseAppCheck */; };
+		89CB2AA3EC79089749AE0FDC /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */; };
+		940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */; };
+		98DCA9CE9C3F52C1DA02C226 /* hi.json in Resources */ = {isa = PBXBuildFile; fileRef = DE16CBD342A45C822E3CC543 /* hi.json */; };
+		A6770824316C099D24A28312 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */; };
+		D051C1EFF43FCB999502AE3B /* LightlistApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4AA8EC653485C236D011074 /* LightlistApp.swift */; };
+		D6E9C3E2F5E103CB881BFFD2 /* ar.json in Resources */ = {isa = PBXBuildFile; fileRef = 607F35195F531B90FDAF50D3 /* ar.json */; };
+		E253F25CA2900824ADA699A8 /* en.json in Resources */ = {isa = PBXBuildFile; fileRef = EE47AFFF5C8D1EB4263AFD31 /* en.json */; };
+		F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */; };
+		F6AEE5CF134912C7EE97AC4E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A627AA500EE83986B1828B17 /* ContentView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		E378875BF9DEAFF3AB17ADEE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 71D6841404A09679559B863C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ED9A22FCF5F5FD5C421D6FDF;
+			remoteInfo = Lightlist;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		03E96005FE689A03AE608611 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		25EE97C0FC4D90D795844A3A /* ko.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ko.json; sourceTree = "<group>"; };
+		2B9FB28EABAA923104FCCDD2 /* ja.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ja.json; sourceTree = "<group>"; };
+		5F18EECC750B7FE6A93E5288 /* LightlistTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LightlistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		607F35195F531B90FDAF50D3 /* ar.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ar.json; sourceTree = "<group>"; };
+		644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		64B7D82F23658F3C00BBB762 /* es.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = es.json; sourceTree = "<group>"; };
+		68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		94099F49C472526B9D95AD9E /* pt-BR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "pt-BR.json"; sourceTree = "<group>"; };
+		9FE8A205C2AAE88CF596F113 /* zh-CN.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "zh-CN.json"; sourceTree = "<group>"; };
+		A627AA500EE83986B1828B17 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B655550126664DF5B14E98D0 /* Lightlist.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Lightlist.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C517950CBBF9C97DB818CCC3 /* fr.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = fr.json; sourceTree = "<group>"; };
+		C7C4AFDF92886FBDFA0EAB45 /* LightlistTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightlistTests.swift; sourceTree = "<group>"; };
+		D4AA8EC653485C236D011074 /* LightlistApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightlistApp.swift; sourceTree = "<group>"; };
+		DC77F9A6A98B78FC813CE44B /* de.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = de.json; sourceTree = "<group>"; };
+		DE16CBD342A45C822E3CC543 /* hi.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = hi.json; sourceTree = "<group>"; };
+		E6D13823FB9A3789949A965C /* id.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = id.json; sourceTree = "<group>"; };
+		EE47AFFF5C8D1EB4263AFD31 /* en.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = en.json; sourceTree = "<group>"; };
+		F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F480CC513E56F1F22B952DC2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0A9EB02B0993FD118BDC5D62 /* FirebaseAuth in Frameworks */,
+				89CB2AA3EC79089749AE0FDC /* FirebaseFirestore in Frameworks */,
+				009B6DF98373EA0744FD450F /* FirebaseAnalytics in Frameworks */,
+				4CA7C737938F6922C9F7C029 /* FirebaseCrashlytics in Frameworks */,
+				752231066BD951B04BCD7AE0 /* FirebaseAppCheck in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0CBB767CA9E4D97930F04AEC = {
+			isa = PBXGroup;
+			children = (
+				794F5D9817987A08766BEC43 /* Resources */,
+				DB6A27021DE17295F5B935D5 /* Sources */,
+				D3781430FB8EF16DB27B8124 /* Tests */,
+				16F14110FC3CE2425E62E837 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		125A847C8239C7440CE0AA62 /* Locales */ = {
+			isa = PBXGroup;
+			children = (
+				607F35195F531B90FDAF50D3 /* ar.json */,
+				DC77F9A6A98B78FC813CE44B /* de.json */,
+				EE47AFFF5C8D1EB4263AFD31 /* en.json */,
+				64B7D82F23658F3C00BBB762 /* es.json */,
+				C517950CBBF9C97DB818CCC3 /* fr.json */,
+				DE16CBD342A45C822E3CC543 /* hi.json */,
+				E6D13823FB9A3789949A965C /* id.json */,
+				2B9FB28EABAA923104FCCDD2 /* ja.json */,
+				25EE97C0FC4D90D795844A3A /* ko.json */,
+				94099F49C472526B9D95AD9E /* pt-BR.json */,
+				9FE8A205C2AAE88CF596F113 /* zh-CN.json */,
+			);
+			path = Locales;
+			sourceTree = "<group>";
+		};
+		16F14110FC3CE2425E62E837 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B655550126664DF5B14E98D0 /* Lightlist.app */,
+				5F18EECC750B7FE6A93E5288 /* LightlistTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		1C627F24DFEA9370108D68BC /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		794F5D9817987A08766BEC43 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				03E96005FE689A03AE608611 /* Assets.xcassets */,
+				644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */,
+				F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */,
+				125A847C8239C7440CE0AA62 /* Locales */,
+				1C627F24DFEA9370108D68BC /* Preview Content */,
+			);
+			name = Resources;
+			path = Lightlist/Resources;
+			sourceTree = "<group>";
+		};
+		D3781430FB8EF16DB27B8124 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				C7C4AFDF92886FBDFA0EAB45 /* LightlistTests.swift */,
+			);
+			name = Tests;
+			path = Lightlist/Tests;
+			sourceTree = "<group>";
+		};
+		DB6A27021DE17295F5B935D5 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A627AA500EE83986B1828B17 /* ContentView.swift */,
+				D4AA8EC653485C236D011074 /* LightlistApp.swift */,
+			);
+			name = Sources;
+			path = Lightlist/Sources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0606C5DDB2F42747C01090BC /* LightlistTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8777677579DBE3FFCF997A8B /* Build configuration list for PBXNativeTarget "LightlistTests" */;
+			buildPhases = (
+				933ECC955F6FE09706CFA347 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6589B2AF79B68BB544513673 /* PBXTargetDependency */,
+			);
+			name = LightlistTests;
+			packageProductDependencies = (
+			);
+			productName = LightlistTests;
+			productReference = 5F18EECC750B7FE6A93E5288 /* LightlistTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		ED9A22FCF5F5FD5C421D6FDF /* Lightlist */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1AB77027168F8EDEA6B945F8 /* Build configuration list for PBXNativeTarget "Lightlist" */;
+			buildPhases = (
+				6DDBA329DCA0DE222A0C65D1 /* Sources */,
+				A1F5FC8773B87DE1F5659193 /* Resources */,
+				F480CC513E56F1F22B952DC2 /* Frameworks */,
+				3085898B266E90AFE4394C78 /* Firebase Crashlytics dSYM Upload */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Lightlist;
+			packageProductDependencies = (
+				61AEA985F66E533B9C565E43 /* FirebaseAuth */,
+				6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */,
+				5C5DD32924B56E34AB5F034C /* FirebaseAnalytics */,
+				5D2FC049671012454C273F85 /* FirebaseCrashlytics */,
+				85C2E8D19C38E5EC9E466233 /* FirebaseAppCheck */,
+			);
+			productName = Lightlist;
+			productReference = B655550126664DF5B14E98D0 /* Lightlist.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		71D6841404A09679559B863C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 86420F8A51DF68D76F532FF7 /* Build configuration list for PBXProject "Lightlist" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 0CBB767CA9E4D97930F04AEC;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 16F14110FC3CE2425E62E837 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				ED9A22FCF5F5FD5C421D6FDF /* Lightlist */,
+				0606C5DDB2F42747C01090BC /* LightlistTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A1F5FC8773B87DE1F5659193 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				178E6DEBCEC4A72419C5ADCA /* Assets.xcassets in Resources */,
+				A6770824316C099D24A28312 /* GoogleService-Info.plist in Resources */,
+				940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */,
+				F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */,
+				D6E9C3E2F5E103CB881BFFD2 /* ar.json in Resources */,
+				3BE4A6818067FEAE2783D082 /* de.json in Resources */,
+				E253F25CA2900824ADA699A8 /* en.json in Resources */,
+				60B0C71EDE30389911242AAF /* es.json in Resources */,
+				240F291A3913030BEBA03F2E /* fr.json in Resources */,
+				98DCA9CE9C3F52C1DA02C226 /* hi.json in Resources */,
+				694587730BD9EC6646B46E94 /* id.json in Resources */,
+				4B0D68F89EE905E7BDA01D8E /* ja.json in Resources */,
+				57EA339A4021C2358789B725 /* ko.json in Resources */,
+				28AB832731E6FE16B9E9B884 /* pt-BR.json in Resources */,
+				02A8CD1764F483434BAB7290 /* zh-CN.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		3085898B266E90AFE4394C78 /* Firebase Crashlytics dSYM Upload */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)",
+				"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(PRODUCT_NAME)",
+				"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Info.plist",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+				"$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)",
+			);
+			name = "Firebase Crashlytics dSYM Upload";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/firebase-crashlytics-dsym-upload",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\ntouch \"${DERIVED_FILE_DIR}/firebase-crashlytics-dsym-upload\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6DDBA329DCA0DE222A0C65D1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F6AEE5CF134912C7EE97AC4E /* ContentView.swift in Sources */,
+				D051C1EFF43FCB999502AE3B /* LightlistApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		933ECC955F6FE09706CFA347 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2802D4B40E4EF5A424DDCBE5 /* LightlistTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6589B2AF79B68BB544513673 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ED9A22FCF5F5FD5C421D6FDF /* Lightlist */;
+			targetProxy = E378875BF9DEAFF3AB17ADEE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		02AB721CDB510702F7851641 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lightlist.appTests;
+				PRODUCT_NAME = LightlistTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Lightlist.app/Lightlist";
+			};
+			name = Debug;
+		};
+		138080C737740032DC955B09 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Lightlist/Lightlist.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lightlist.app;
+				PRODUCT_NAME = Lightlist;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		1881AF7B67A8B9D700918929 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PASSWORD_RESET_URL = "https://lightlist.com/password_reset";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		44960F38F6E8572E2BE0455D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lightlist.appTests;
+				PRODUCT_NAME = LightlistTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Lightlist.app/Lightlist";
+			};
+			name = Release;
+		};
+		88F8A558B542013130816441 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PASSWORD_RESET_URL = "https://lightlist.com/password_reset";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		D993119410E7C7CD9209DC6C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Lightlist/Lightlist.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lightlist.app;
+				PRODUCT_NAME = Lightlist;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1AB77027168F8EDEA6B945F8 /* Build configuration list for PBXNativeTarget "Lightlist" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				138080C737740032DC955B09 /* Debug */,
+				D993119410E7C7CD9209DC6C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		86420F8A51DF68D76F532FF7 /* Build configuration list for PBXProject "Lightlist" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				88F8A558B542013130816441 /* Debug */,
+				1881AF7B67A8B9D700918929 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8777677579DBE3FFCF997A8B /* Build configuration list for PBXNativeTarget "LightlistTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				02AB721CDB510702F7851641 /* Debug */,
+				44960F38F6E8572E2BE0455D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5C5DD32924B56E34AB5F034C /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		5D2FC049671012454C273F85 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		61AEA985F66E533B9C565E43 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		85C2E8D19C38E5EC9E466233 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 71D6841404A09679559B863C /* Project object */;
+}

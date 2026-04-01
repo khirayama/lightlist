@@ -1,0 +1,278 @@
+{
+  "title": "Lightlist",
+  "copyright": "© 2024 Lightlist. 全著作権所有。",
+  "common": {
+    "loading": "読み込み中...",
+    "back": "戻る",
+    "cancel": "キャンセル",
+    "deleting": "削除中...",
+    "close": "閉じる",
+    "skipToMain": "メインコンテンツへ移動",
+    "add": "追加",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "error": "エラーが発生しました",
+    "done": "完了",
+    "selected": "選択中",
+    "ok": "OK"
+  },
+  "auth": {
+    "tabs": {
+      "signin": "ログイン",
+      "signup": "サインアップ"
+    },
+    "form": {
+      "email": "メールアドレス",
+      "password": "パスワード",
+      "confirmPassword": "パスワード確認"
+    },
+    "validation": {
+      "email": {
+        "required": "メールアドレスを入力してください",
+        "invalid": "有効なメールアドレスを入力してください"
+      },
+      "password": {
+        "required": "パスワードを入力してください",
+        "tooShort": "パスワードは8文字以上である必要があります"
+      },
+      "confirmPassword": {
+        "required": "パスワード確認を入力してください",
+        "notMatch": "パスワードが一致しません"
+      }
+    },
+    "error": {
+      "invalidCredential": "メールアドレスまたはパスワードが正しくありません",
+      "userNotFound": "このメールアドレスで登録されたアカウントはありません",
+      "emailAlreadyInUse": "このメールアドレスは既に登録されています",
+      "weakPassword": "パスワードが弱すぎます（8文字以上推奨）",
+      "invalidEmail": "メールアドレスの形式が正しくありません",
+      "operationNotAllowed": "この認証方法は利用できません",
+      "tooManyRequests": "ログイン試行回数が多すぎます。後でもう一度試してください",
+      "general": "認証に失敗しました。もう一度試してください",
+      "requiresRecentLogin": "セキュリティのため、一度ログアウトして再ログインしてから再試行してください"
+    },
+    "button": {
+      "signin": "ログイン",
+      "signingIn": "ログイン中...",
+      "signup": "サインアップ",
+      "signingUp": "サインアップ中...",
+      "forgotPassword": "パスワードを忘れた",
+      "sendResetEmail": "リセットメール送信",
+      "sending": "送信中...",
+      "backToSignIn": "ログインに戻る",
+      "signOut": "ログアウト",
+      "cancel": "キャンセル",
+      "delete": "削除"
+    },
+    "passwordReset": {
+      "instruction": "登録されているメールアドレスを入力してください。パスワードリセットメールを送信します。",
+      "success": "パスワードリセットメールを送信しました。メールをご確認ください。",
+      "title": "パスワード再設定",
+      "newPassword": "新しいパスワード",
+      "confirmNewPassword": "新しいパスワード確認",
+      "setNewPassword": "パスワード再設定",
+      "settingNewPassword": "再設定中...",
+      "invalidCode": "パスワードリセットリンクが無効です",
+      "expiredCode": "パスワードリセットリンクの有効期限が切れています",
+      "resetSuccess": "パスワードが正常に変更されました"
+    },
+    "placeholder": {
+      "email": "sample@example.com",
+      "password": "••••••••"
+    },
+    "signOutConfirm": {
+      "title": "ログアウト",
+      "message": "ログアウトしてもよろしいですか？"
+    },
+    "deleteAccountConfirm": {
+      "title": "アカウント削除",
+      "message": "アカウントを削除すると、すべてのデータが削除されます。この操作は取り消せません。本当に削除しますか？"
+    }
+  },
+  "app": {
+    "emptyState": "タスクリストがありません",
+    "createNew": "新規作成",
+    "createTaskList": "タスクリスト作成",
+    "taskListName": "タスクリスト名",
+    "taskListNamePlaceholder": "タスクリスト名を入力",
+    "create": "作成",
+    "cancel": "キャンセル",
+    "error": "エラーが発生しました",
+    "dragHint": "ドラッグして並び替え",
+    "openMenu": "メニューを開く",
+    "drawerTitle": "タスクリスト",
+    "drawerNoEmail": "メールアドレス未設定",
+    "taskListLocator": {
+      "label": "タスクリストの位置",
+      "goTo": "タスクリスト{{index}}（全{{total}}）へ移動"
+    },
+    "joinList": "リストに参加",
+    "joinListTitle": "共有リストに参加",
+    "joinListDescription": "共有コードを入力してリストに参加します。",
+    "shareCodePlaceholder": "共有コードを入力",
+    "join": "参加",
+    "joining": "参加中...",
+    "calendarCheckButton": "カレンダーで確認",
+    "calendarAllDates": "すべての日付",
+    "calendarNoDatedTasks": "日付が設定されたタスクはありません",
+    "calendarNoTasksOnSelectedDate": "選択した日付のタスクはありません",
+    "rtlRestartTitle": "再起動が必要です",
+    "rtlRestartMessage": "右から左への表示を反映するにはアプリの再起動が必要です。",
+    "loadError": "タスクリストの読み込みに失敗しました",
+    "calendar": "カレンダー"
+  },
+  "taskList": {
+    "taskCount": "{{count}}個のタスク",
+    "taskCount_one": "{{count}}個のタスク",
+    "taskCount_other": "{{count}}個のタスク",
+    "editDetails": "更新",
+    "selectColor": "色を選択",
+    "backgroundNone": "なし（実際はテーマカラーの色）",
+    "backgroundNoneShort": "なし",
+    "deleteList": "リストを一覧から外す",
+    "deleteListConfirm": {
+      "title": "リストを一覧から外す",
+      "message": "このリストを自分の一覧から外します。他に保持しているユーザーがいない場合はリスト自体も削除されます。よろしいですか？"
+    },
+    "share": "共有",
+    "shareTitle": "リストを共有",
+    "shareCode": "共有コード",
+    "shareDescription": "共有コードを発行して、このリストを他の人が閲覧・編集できるようにします。",
+    "generateShare": "共有コードを生成",
+    "removeShare": "共有を停止",
+    "editTitle": "リスト編集",
+    "save": "保存",
+    "colorRed": "赤",
+    "colorYellow": "黄",
+    "colorGreen": "緑",
+    "colorBlue": "青",
+    "colorIndigo": "インディゴ",
+    "colorPurple": "紫",
+    "colorCustom": "カスタム色"
+  },
+  "settings": {
+    "title": "設定",
+    "userInfo": {
+      "title": "アカウント"
+    },
+    "preferences": {
+      "title": "表示と動作"
+    },
+    "theme": {
+      "title": "テーマ",
+      "system": "システム",
+      "light": "ライト",
+      "dark": "ダーク"
+    },
+    "language": {
+      "title": "言語",
+      "japanese": "日本語",
+      "english": "英語"
+    },
+    "taskInsertPosition": {
+      "title": "追加位置",
+      "top": "上に追加",
+      "bottom": "下に追加"
+    },
+    "autoSort": {
+      "title": "自動並び替え",
+      "enable": "タスクを自動で並び替える"
+    },
+    "danger": {
+      "title": "危険な操作",
+      "signOut": "ログアウト",
+      "deleteAccount": "アカウント削除"
+    },
+    "actions": {
+      "title": "アカウント操作"
+    },
+    "deleteAccount": "アカウントを削除",
+    "deleteAccountConfirm": "アカウントと全データを削除しますか？",
+    "signingOut": "ログアウト中...",
+    "deletingAccount": "削除中...",
+    "emailChange": {
+      "title": "メールアドレスを変更",
+      "newEmailLabel": "新しいメールアドレス",
+      "newEmailPlaceholder": "new@example.jp",
+      "submitButton": "確認メールを送信",
+      "submitting": "送信中...",
+      "successMessage": "確認メールを送信しました。新しいメールアドレスのリンクをクリックすると変更が完了します。",
+      "changeButton": "変更"
+    }
+  },
+  "pages": {
+    "index": {
+      "getStarted": "無料ではじめる",
+      "headline": "タスクリストは、\nシンプルでいい。",
+      "subheadline": "タスク管理アプリに疲れたあなたへ。\n余計な機能はない。誰でも、すぐに使いはじめられる。\nそれでいて、必要なときは共有もできる。",
+      "seo": {
+        "title": "Lightlist | シンプルな共有タスクリスト・ToDoアプリ",
+        "description": "Lightlist は個人・家族・小さなチーム向けのシンプルな共有タスクリスト / ToDo アプリ。買い物リストややることをブラウザ・iPhone・Androidで同期して使えます。",
+        "keywords": "タスクリスト,ToDo,共有タスクリスト,共有リスト,買い物リスト,家族,チーム,Lightlist"
+      },
+      "features": {
+        "title": "Lightlistの3つのこと",
+        "simple": {
+          "title": "これだけでいい",
+          "description": "タスクを追加して、完了する。それだけ。説明書もチュートリアルも必要ありません。はじめてでも迷わない、ちょうどいいシンプルさです。"
+        },
+        "multidevice": {
+          "title": "どこからでも、そのまま使える",
+          "description": "ブラウザはもちろん、iOSやAndroidアプリからもアクセス可能。どのデバイスからでも同じリストをリアルタイムに確認・編集できます。"
+        },
+        "share": {
+          "title": "必要なとき、共有できる",
+          "description": "共有コードを発行するだけで、家族・友人・チームとリアルタイム共有。一人で使うだけでも、もちろん十分です。"
+        }
+      },
+      "preview": {
+        "title": "こんな感じで使います",
+        "desktopAlt": "デスクトップ画面のスクリーンショット",
+        "mobileAlt": "モバイル画面のスクリーンショット"
+      },
+      "cta": {
+        "title": "これでいい、ちょうどいい。",
+        "description": "タスク管理をもっとシンプルに。まず一つ、リストをつくってみてください。",
+        "button": "無料ではじめる"
+      }
+    },
+    "sharecode": {
+      "notFound": "タスクリストが見つかりません",
+      "error": "タスクリストの読み込みに失敗しました",
+      "addTaskError": "タスクの追加に失敗しました",
+      "updateError": "タスクの更新に失敗しました",
+      "reorderError": "タスクの順序を変更できませんでした",
+      "deleteError": "完了したタスクを削除できませんでした",
+      "addToOrderError": "リストの追加に失敗しました",
+      "addToOrder": "自分のリストに追加"
+    },
+    "tasklist": {
+      "addTaskPlaceholder": "タスクを入力...",
+      "setDate": "期限を設定",
+      "markComplete": "未完了、タップで完了にする",
+      "markIncomplete": "完了済み、タップで未完了にする",
+      "noTasks": "タスクがありません",
+      "dragHint": "ドラッグして並び替え",
+      "sort": "並び替え",
+      "deleteCompleted": "完了タスクを削除",
+      "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？",
+      "clearDate": "日付をクリア",
+      "deleteCompletedConfirmTitle": "完了タスクを削除しますか？"
+    },
+    "notFound": {
+      "title": "ページが見つかりません",
+      "description": "お探しのページは存在しません。",
+      "backHome": "ホームに戻る"
+    },
+    "serverError": {
+      "title": "サーバーエラー",
+      "description": "サーバーで予期しないエラーが発生しました。",
+      "backHome": "ホームに戻る"
+    },
+    "error": {
+      "title": "エラーが発生しました",
+      "description": "予期しないエラーが発生しました。ページを再読み込みしてください。",
+      "reload": "ページを再読み込み"
+    }
+  }
+}

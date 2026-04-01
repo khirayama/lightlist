@@ -1,0 +1,13 @@
+.DS_Store
+*.iml
+.gradle/
+.idea/
+.kotlin/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+emulator.log
+app/build/
+app/google-services.json

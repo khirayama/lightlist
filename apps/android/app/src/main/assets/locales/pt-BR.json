@@ -1,0 +1,278 @@
+{
+  "title": "Lightlist",
+  "copyright": "© 2024 Lightlist. Todos os direitos reservados.",
+  "common": {
+    "loading": "Carregando...",
+    "back": "Voltar",
+    "cancel": "Cancelar",
+    "deleting": "Excluindo...",
+    "close": "Fechar",
+    "skipToMain": "Ir para o conteúdo principal",
+    "add": "Adicionar",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "error": "Ocorreu um erro",
+    "done": "Concluído",
+    "selected": "Selecionado",
+    "ok": "OK"
+  },
+  "auth": {
+    "tabs": {
+      "signin": "Entrar",
+      "signup": "Cadastrar"
+    },
+    "form": {
+      "email": "Endereço de e-mail",
+      "password": "Senha",
+      "confirmPassword": "Confirmar senha"
+    },
+    "validation": {
+      "email": {
+        "required": "Digite um endereço de e-mail",
+        "invalid": "Digite um endereço de e-mail válido"
+      },
+      "password": {
+        "required": "Digite uma senha",
+        "tooShort": "A senha deve ter pelo menos 8 caracteres"
+      },
+      "confirmPassword": {
+        "required": "Digite a confirmação da senha",
+        "notMatch": "As senhas não coincidem"
+      }
+    },
+    "error": {
+      "invalidCredential": "E-mail ou senha incorretos",
+      "userNotFound": "Nenhuma conta encontrada com este endereço de e-mail",
+      "emailAlreadyInUse": "Este endereço de e-mail já está cadastrado",
+      "weakPassword": "A senha é muito fraca (recomendado 6 caracteres ou mais)",
+      "invalidEmail": "O formato do e-mail é inválido",
+      "operationNotAllowed": "Este método de autenticação não está disponível",
+      "tooManyRequests": "Muitas tentativas de login. Tente novamente mais tarde",
+      "general": "Falha na autenticação. Tente novamente",
+      "requiresRecentLogin": "Por segurança, saia e entre novamente antes de tentar de novo"
+    },
+    "button": {
+      "signin": "Entrar",
+      "signingIn": "Entrando...",
+      "signup": "Cadastrar",
+      "signingUp": "Cadastrando...",
+      "forgotPassword": "Esqueceu a senha?",
+      "sendResetEmail": "Enviar e-mail de redefinição",
+      "sending": "Enviando...",
+      "backToSignIn": "Voltar para entrar",
+      "signOut": "Sair",
+      "cancel": "Cancelar",
+      "delete": "Excluir"
+    },
+    "passwordReset": {
+      "instruction": "Digite o endereço de e-mail associado à sua conta. Enviaremos um e-mail para redefinir a senha.",
+      "success": "E-mail de redefinição de senha enviado. Verifique sua caixa de entrada.",
+      "title": "Redefinir senha",
+      "newPassword": "Nova senha",
+      "confirmNewPassword": "Confirmar nova senha",
+      "setNewPassword": "Redefinir senha",
+      "settingNewPassword": "Redefinindo...",
+      "invalidCode": "O link de redefinição de senha é inválido",
+      "expiredCode": "O link de redefinição de senha expirou",
+      "resetSuccess": "Senha alterada com sucesso"
+    },
+    "placeholder": {
+      "email": "exemplo@email.com",
+      "password": "••••••••"
+    },
+    "signOutConfirm": {
+      "title": "Sair",
+      "message": "Tem certeza de que deseja sair?"
+    },
+    "deleteAccountConfirm": {
+      "title": "Excluir conta",
+      "message": "Excluir sua conta removerá permanentemente todos os seus dados. Esta ação não pode ser desfeita. Tem certeza?"
+    }
+  },
+  "app": {
+    "emptyState": "Nenhuma lista de tarefas",
+    "createNew": "Criar",
+    "createTaskList": "Criar lista de tarefas",
+    "taskListName": "Nome da lista de tarefas",
+    "taskListNamePlaceholder": "Digite o nome da lista",
+    "create": "Criar",
+    "cancel": "Cancelar",
+    "error": "Ocorreu um erro",
+    "dragHint": "Arraste para reordenar",
+    "openMenu": "Abrir menu",
+    "drawerTitle": "Listas de tarefas",
+    "drawerNoEmail": "Nenhum e-mail disponível",
+    "taskListLocator": {
+      "label": "Posição da lista de tarefas",
+      "goTo": "Ir para a lista {{index}} de {{total}}"
+    },
+    "joinList": "Entrar na lista",
+    "joinListTitle": "Entrar em lista compartilhada",
+    "joinListDescription": "Digite o código de compartilhamento para entrar em uma lista compartilhada.",
+    "shareCodePlaceholder": "Digite o código de compartilhamento",
+    "join": "Entrar",
+    "joining": "Entrando...",
+    "calendarCheckButton": "Ver no calendário",
+    "calendarAllDates": "Todas as datas",
+    "calendarNoDatedTasks": "Nenhuma tarefa com data",
+    "calendarNoTasksOnSelectedDate": "Nenhuma tarefa na data selecionada",
+    "rtlRestartTitle": "Reinicialização necessária",
+    "rtlRestartMessage": "Reinicie o app para aplicar alterações de layout da direita para a esquerda.",
+    "loadError": "Falha ao carregar as listas de tarefas.",
+    "calendar": "Calendário"
+  },
+  "taskList": {
+    "taskCount": "{{count}} tarefas",
+    "taskCount_one": "{{count}} tarefa",
+    "taskCount_other": "{{count}} tarefas",
+    "editDetails": "Editar lista",
+    "selectColor": "Selecionar cor",
+    "backgroundNone": "Nenhum (usa a cor do tema)",
+    "backgroundNoneShort": "Nenhum",
+    "deleteList": "Remover das minhas listas",
+    "deleteListConfirm": {
+      "title": "Remover das minhas listas",
+      "message": "Isso remove a lista das suas listas. Se nenhum outro usuário mantiver a lista, ela será excluída. Continuar?"
+    },
+    "share": "Compartilhar",
+    "shareTitle": "Compartilhar lista",
+    "shareCode": "Código de compartilhamento",
+    "shareDescription": "Gere um código de compartilhamento para permitir que outras pessoas vejam e editem esta lista.",
+    "generateShare": "Gerar código de compartilhamento",
+    "removeShare": "Parar compartilhamento",
+    "editTitle": "Editar lista",
+    "save": "Salvar",
+    "colorRed": "Vermelho",
+    "colorYellow": "Amarelo",
+    "colorGreen": "Verde",
+    "colorBlue": "Azul",
+    "colorIndigo": "Índigo",
+    "colorPurple": "Roxo",
+    "colorCustom": "Cor personalizada"
+  },
+  "settings": {
+    "title": "Configurações",
+    "userInfo": {
+      "title": "Conta"
+    },
+    "preferences": {
+      "title": "Exibição e comportamento"
+    },
+    "theme": {
+      "title": "Tema",
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Escuro"
+    },
+    "language": {
+      "title": "Idioma",
+      "japanese": "Japonês",
+      "english": "Inglês"
+    },
+    "taskInsertPosition": {
+      "title": "Posição da nova tarefa",
+      "top": "Adicionar no topo",
+      "bottom": "Adicionar embaixo"
+    },
+    "autoSort": {
+      "title": "Ordenar tarefas automaticamente",
+      "enable": "Ordenar tarefas automaticamente"
+    },
+    "danger": {
+      "title": "Zona de perigo",
+      "signOut": "Sair",
+      "deleteAccount": "Excluir conta"
+    },
+    "actions": {
+      "title": "Ações da conta"
+    },
+    "deleteAccount": "Excluir conta",
+    "deleteAccountConfirm": "Excluir sua conta e todos os dados?",
+    "signingOut": "Saindo...",
+    "deletingAccount": "Excluindo conta...",
+    "emailChange": {
+      "title": "Alterar endereço de e-mail",
+      "newEmailLabel": "Novo endereço de e-mail",
+      "newEmailPlaceholder": "novo@exemplo.com",
+      "submitButton": "Enviar e-mail de verificação",
+      "submitting": "Enviando...",
+      "successMessage": "E-mail de verificação enviado. Clique no link no novo endereço de e-mail para concluir a alteração.",
+      "changeButton": "Alterar"
+    }
+  },
+  "pages": {
+    "index": {
+      "getStarted": "Comece grátis",
+      "headline": "Simples o suficiente.\nEsse é o ponto.",
+      "subheadline": "Para quem está cansado de apps de tarefas complexos.\nSimples o suficiente para qualquer pessoa, desde o início.\nCompartilhe com outras pessoas quando precisar.",
+      "seo": {
+        "title": "Lightlist | App simples de lista de tarefas compartilhada e ToDo",
+        "description": "Lightlist é um app simples de lista de tarefas compartilhada / ToDo para pessoas, famílias e pequenas equipes. Gerencie listas de compras e tarefas diárias na web, iPhone e Android.",
+        "keywords": "lista de tarefas,app todo,lista de tarefas compartilhada,lista de compras,tarefas da família,tarefas da equipe,Lightlist"
+      },
+      "features": {
+        "title": "Três coisas que o Lightlist faz",
+        "simple": {
+          "title": "Só o que você precisa",
+          "description": "Adicione tarefas. Marque como concluídas. Só isso. Sem tutorial, sem manual. Qualquer pessoa pode começar na hora, independentemente da experiência com tecnologia."
+        },
+        "multidevice": {
+          "title": "Qualquer dispositivo, a qualquer hora",
+          "description": "Acesse por qualquer navegador ou use os apps para iOS e Android. Suas listas ficam sincronizadas em tempo real em todos os dispositivos."
+        },
+        "share": {
+          "title": "Compartilhe quando quiser",
+          "description": "Gere um código de compartilhamento e convide qualquer pessoa para sua lista em segundos. Não é necessário conta para entrar. Fica discreto quando você não precisa."
+        }
+      },
+      "preview": {
+        "title": "Veja em ação",
+        "desktopAlt": "Captura de tela no desktop",
+        "mobileAlt": "Captura de tela no celular"
+      },
+      "cta": {
+        "title": "Simples o suficiente. Esse é o ponto.",
+        "description": "Se gerenciar tarefas parece demais, o Lightlist é para você. Comece com uma lista.",
+        "button": "Comece grátis"
+      }
+    },
+    "sharecode": {
+      "notFound": "Esta lista de tarefas não foi encontrada",
+      "error": "Falha ao carregar a lista de tarefas",
+      "addTaskError": "Falha ao adicionar tarefa",
+      "updateError": "Falha ao atualizar tarefa",
+      "reorderError": "Falha ao reordenar tarefas",
+      "deleteError": "Falha ao excluir tarefas concluídas",
+      "addToOrderError": "Falha ao adicionar esta lista de tarefas",
+      "addToOrder": "Adicionar às minhas listas"
+    },
+    "tasklist": {
+      "addTaskPlaceholder": "Digite uma tarefa...",
+      "setDate": "Definir data",
+      "markComplete": "Não concluída, toque para marcar como concluída",
+      "markIncomplete": "Concluída, toque para marcar como não concluída",
+      "noTasks": "Sem tarefas",
+      "dragHint": "Arraste para reordenar",
+      "sort": "Ordenar",
+      "deleteCompleted": "Excluir tarefas concluídas",
+      "deleteCompletedConfirm": "Excluir {{count}} tarefas concluídas?",
+      "clearDate": "Limpar data",
+      "deleteCompletedConfirmTitle": "Excluir tarefas concluídas?"
+    },
+    "notFound": {
+      "title": "Página não encontrada",
+      "description": "A página que você está procurando não existe.",
+      "backHome": "Voltar para a página inicial"
+    },
+    "serverError": {
+      "title": "Erro do servidor",
+      "description": "Ocorreu um erro inesperado no servidor.",
+      "backHome": "Voltar para a página inicial"
+    },
+    "error": {
+      "title": "Algo deu errado",
+      "description": "Ocorreu um erro inesperado. Tente recarregar a página.",
+      "reload": "Recarregar página"
+    }
+  }
+}

@@ -1,0 +1,278 @@
+{
+  "title": "Lightlist",
+  "copyright": "© 2024 Lightlist. 모든 권리 보유.",
+  "common": {
+    "loading": "로딩 중...",
+    "back": "뒤로",
+    "cancel": "취소",
+    "deleting": "삭제 중...",
+    "close": "닫기",
+    "skipToMain": "본문으로 건너뛰기",
+    "add": "추가",
+    "copy": "복사",
+    "copied": "복사됨",
+    "error": "오류가 발생했습니다",
+    "done": "완료",
+    "selected": "선택됨",
+    "ok": "확인"
+  },
+  "auth": {
+    "tabs": {
+      "signin": "로그인",
+      "signup": "회원가입"
+    },
+    "form": {
+      "email": "이메일 주소",
+      "password": "비밀번호",
+      "confirmPassword": "비밀번호 확인"
+    },
+    "validation": {
+      "email": {
+        "required": "이메일 주소를 입력해 주세요",
+        "invalid": "유효한 이메일 주소를 입력해 주세요"
+      },
+      "password": {
+        "required": "비밀번호를 입력해 주세요",
+        "tooShort": "비밀번호는 최소 8자 이상이어야 합니다"
+      },
+      "confirmPassword": {
+        "required": "비밀번호 확인을 입력해 주세요",
+        "notMatch": "비밀번호가 일치하지 않습니다"
+      }
+    },
+    "error": {
+      "invalidCredential": "이메일 또는 비밀번호가 올바르지 않습니다",
+      "userNotFound": "해당 이메일 주소의 계정을 찾을 수 없습니다",
+      "emailAlreadyInUse": "이미 등록된 이메일 주소입니다",
+      "weakPassword": "비밀번호가 너무 약합니다 (6자 이상 권장)",
+      "invalidEmail": "이메일 주소 형식이 올바르지 않습니다",
+      "operationNotAllowed": "이 인증 방식은 사용할 수 없습니다",
+      "tooManyRequests": "로그인 시도가 너무 많습니다. 나중에 다시 시도해 주세요",
+      "general": "인증에 실패했습니다. 다시 시도해 주세요",
+      "requiresRecentLogin": "보안을 위해 로그아웃 후 다시 로그인한 뒤 재시도해 주세요"
+    },
+    "button": {
+      "signin": "로그인",
+      "signingIn": "로그인 중...",
+      "signup": "회원가입",
+      "signingUp": "가입 중...",
+      "forgotPassword": "비밀번호를 잊으셨나요?",
+      "sendResetEmail": "재설정 메일 보내기",
+      "sending": "전송 중...",
+      "backToSignIn": "로그인으로 돌아가기",
+      "signOut": "로그아웃",
+      "cancel": "취소",
+      "delete": "삭제"
+    },
+    "passwordReset": {
+      "instruction": "계정에 연결된 이메일 주소를 입력해 주세요. 비밀번호 재설정 메일을 보내드립니다.",
+      "success": "비밀번호 재설정 메일을 보냈습니다. 이메일을 확인해 주세요.",
+      "title": "비밀번호 재설정",
+      "newPassword": "새 비밀번호",
+      "confirmNewPassword": "새 비밀번호 확인",
+      "setNewPassword": "비밀번호 재설정",
+      "settingNewPassword": "재설정 중...",
+      "invalidCode": "비밀번호 재설정 링크가 유효하지 않습니다",
+      "expiredCode": "비밀번호 재설정 링크가 만료되었습니다",
+      "resetSuccess": "비밀번호가 성공적으로 변경되었습니다"
+    },
+    "placeholder": {
+      "email": "example@이메일.com",
+      "password": "••••••••"
+    },
+    "signOutConfirm": {
+      "title": "로그아웃",
+      "message": "정말 로그아웃하시겠습니까?"
+    },
+    "deleteAccountConfirm": {
+      "title": "계정 삭제",
+      "message": "계정을 삭제하면 모든 데이터가 영구적으로 제거됩니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?"
+    }
+  },
+  "app": {
+    "emptyState": "작업 목록이 없습니다",
+    "createNew": "생성",
+    "createTaskList": "작업 목록 만들기",
+    "taskListName": "목록 이름",
+    "taskListNamePlaceholder": "목록 이름 입력",
+    "create": "생성",
+    "cancel": "취소",
+    "error": "오류가 발생했습니다",
+    "dragHint": "드래그해서 순서 변경",
+    "openMenu": "메뉴 열기",
+    "drawerTitle": "작업 목록",
+    "drawerNoEmail": "사용 가능한 이메일 없음",
+    "taskListLocator": {
+      "label": "작업 목록 위치",
+      "goTo": "{{total}}개 중 {{index}}번째 목록으로 이동"
+    },
+    "joinList": "목록 참가",
+    "joinListTitle": "공유 목록 참가",
+    "joinListDescription": "공유 작업 목록에 참가하려면 공유 코드를 입력하세요.",
+    "shareCodePlaceholder": "공유 코드 입력",
+    "join": "참가",
+    "joining": "참가 중...",
+    "calendarCheckButton": "캘린더에서 보기",
+    "calendarAllDates": "모든 날짜",
+    "calendarNoDatedTasks": "날짜가 지정된 작업이 없습니다",
+    "calendarNoTasksOnSelectedDate": "선택한 날짜에 작업이 없습니다",
+    "rtlRestartTitle": "재시작 필요",
+    "rtlRestartMessage": "오른쪽에서 왼쪽 레이아웃을 적용하려면 앱을 다시 시작하세요.",
+    "loadError": "할 일 목록을 불러오지 못했습니다.",
+    "calendar": "캘린더"
+  },
+  "taskList": {
+    "taskCount": "작업 {{count}}개",
+    "taskCount_one": "작업 {{count}}개",
+    "taskCount_other": "작업 {{count}}개",
+    "editDetails": "목록 편집",
+    "selectColor": "색상 선택",
+    "backgroundNone": "없음 (테마 색상 사용)",
+    "backgroundNoneShort": "없음",
+    "deleteList": "내 목록에서 제거",
+    "deleteListConfirm": {
+      "title": "내 목록에서 제거",
+      "message": "이 작업은 목록을 내 목록에서 제거합니다. 다른 사용자가 보유하지 않으면 목록 자체가 삭제됩니다. 계속할까요?"
+    },
+    "share": "공유",
+    "shareTitle": "목록 공유",
+    "shareCode": "공유 코드",
+    "shareDescription": "다른 사용자가 이 목록을 보고 편집할 수 있도록 공유 코드를 생성합니다.",
+    "generateShare": "공유 코드 생성",
+    "removeShare": "공유 중지",
+    "editTitle": "목록 편집",
+    "save": "저장",
+    "colorRed": "빨강",
+    "colorYellow": "노랑",
+    "colorGreen": "초록",
+    "colorBlue": "파랑",
+    "colorIndigo": "인디고",
+    "colorPurple": "보라",
+    "colorCustom": "사용자 지정 색상"
+  },
+  "settings": {
+    "title": "설정",
+    "userInfo": {
+      "title": "계정"
+    },
+    "preferences": {
+      "title": "표시 및 동작"
+    },
+    "theme": {
+      "title": "테마",
+      "system": "시스템",
+      "light": "라이트",
+      "dark": "다크"
+    },
+    "language": {
+      "title": "언어",
+      "japanese": "일본어",
+      "english": "영어"
+    },
+    "taskInsertPosition": {
+      "title": "새 작업 추가 위치",
+      "top": "위에 추가",
+      "bottom": "아래에 추가"
+    },
+    "autoSort": {
+      "title": "작업 자동 정렬",
+      "enable": "작업 자동 정렬"
+    },
+    "danger": {
+      "title": "위험 영역",
+      "signOut": "로그아웃",
+      "deleteAccount": "계정 삭제"
+    },
+    "actions": {
+      "title": "계정 작업"
+    },
+    "deleteAccount": "계정 삭제",
+    "deleteAccountConfirm": "계정과 모든 데이터를 삭제할까요?",
+    "signingOut": "로그아웃 중...",
+    "deletingAccount": "계정 삭제 중...",
+    "emailChange": {
+      "title": "이메일 주소 변경",
+      "newEmailLabel": "새 이메일 주소",
+      "newEmailPlaceholder": "new@예시.com",
+      "submitButton": "인증 메일 보내기",
+      "submitting": "전송 중...",
+      "successMessage": "인증 메일을 보냈습니다. 새 이메일의 링크를 클릭하면 변경이 완료됩니다.",
+      "changeButton": "변경"
+    }
+  },
+  "pages": {
+    "index": {
+      "getStarted": "무료로 시작하기",
+      "headline": "충분히 단순하게.\n그게 핵심입니다.",
+      "subheadline": "복잡한 할 일 앱에 지친 사람들을 위해.\n처음부터 누구나 쉽게 사용할 수 있게.\n필요할 때만 다른 사람과 공유하세요.",
+      "seo": {
+        "title": "Lightlist | 간단한 공유 작업 목록 및 ToDo 앱",
+        "description": "Lightlist는 개인, 가족, 소규모 팀을 위한 간단한 공유 작업 목록 / ToDo 앱입니다. 웹, iPhone, Android에서 쇼핑 목록과 일상 작업을 동기화해 관리하세요.",
+        "keywords": "작업 목록,todo 앱,공유 작업 목록,쇼핑 목록,가족 작업,팀 작업,Lightlist"
+      },
+      "features": {
+        "title": "Lightlist가 하는 세 가지",
+        "simple": {
+          "title": "필요한 것만",
+          "description": "작업을 추가하고, 완료 체크하면 끝입니다. 튜토리얼도 매뉴얼도 필요 없습니다. 기술 경험과 상관없이 누구나 바로 시작할 수 있습니다."
+        },
+        "multidevice": {
+          "title": "어떤 기기에서든 언제든",
+          "description": "어떤 브라우저에서도 접속할 수 있고 iOS/Android 앱도 사용할 수 있습니다. 목록은 모든 기기에서 실시간으로 동기화됩니다."
+        },
+        "share": {
+          "title": "원할 때만 공유",
+          "description": "공유 코드를 생성해 몇 초 만에 다른 사람을 초대하세요. 참가에 계정이 필요하지 않습니다. 필요 없을 때는 방해하지 않습니다."
+        }
+      },
+      "preview": {
+        "title": "실제 화면 보기",
+        "desktopAlt": "데스크톱 스크린샷",
+        "mobileAlt": "모바일 스크린샷"
+      },
+      "cta": {
+        "title": "충분히 단순하게, 그게 핵심입니다.",
+        "description": "작업 관리가 부담스럽게 느껴진다면 Lightlist를 사용해 보세요. 목록 하나로 시작하면 됩니다.",
+        "button": "무료로 시작하기"
+      }
+    },
+    "sharecode": {
+      "notFound": "이 작업 목록을 찾을 수 없습니다",
+      "error": "작업 목록을 불러오지 못했습니다",
+      "addTaskError": "작업 추가에 실패했습니다",
+      "updateError": "작업 업데이트에 실패했습니다",
+      "reorderError": "작업 순서 변경에 실패했습니다",
+      "deleteError": "완료한 작업 삭제에 실패했습니다",
+      "addToOrderError": "이 작업 목록을 추가하지 못했습니다",
+      "addToOrder": "내 목록에 추가"
+    },
+    "tasklist": {
+      "addTaskPlaceholder": "작업 입력...",
+      "setDate": "날짜 설정",
+      "markComplete": "미완료, 탭하여 완료로 표시",
+      "markIncomplete": "완료됨, 탭하여 미완료로 표시",
+      "noTasks": "작업 없음",
+      "dragHint": "드래그해서 순서 변경",
+      "sort": "정렬",
+      "deleteCompleted": "완료한 작업 삭제",
+      "deleteCompletedConfirm": "완료한 작업 {{count}}개를 삭제할까요?",
+      "clearDate": "날짜 지우기",
+      "deleteCompletedConfirmTitle": "완료된 할 일을 삭제하시겠습니까?"
+    },
+    "notFound": {
+      "title": "페이지를 찾을 수 없습니다",
+      "description": "요청한 페이지가 존재하지 않습니다.",
+      "backHome": "홈으로 돌아가기"
+    },
+    "serverError": {
+      "title": "서버 오류",
+      "description": "서버에서 예기치 않은 오류가 발생했습니다.",
+      "backHome": "홈으로 돌아가기"
+    },
+    "error": {
+      "title": "문제가 발생했습니다",
+      "description": "예기치 않은 오류가 발생했습니다. 페이지를 새로고침해 주세요.",
+      "reload": "페이지 새로고침"
+    }
+  }
+}

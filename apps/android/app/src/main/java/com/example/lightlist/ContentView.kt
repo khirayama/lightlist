@@ -313,6 +313,8 @@ private object TaskListDetailMetrics {
     val actionControlVerticalPadding = 2.dp
     val taskRowSpacing = 4.dp
     val taskRowVerticalPadding = 8.dp
+    val taskContentHeight = 48.dp
+    val taskDateBottomSpacing = 2.dp
     val dragHandleTopPadding = 0.dp
     val dragHandleEndPadding = 0.dp
     val dragHandleTouchWidth = 18.dp
@@ -2893,6 +2895,7 @@ private fun TaskListDetailPage(
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold
     )
+    val taskContentHeightPx = with(taskDensity) { TaskListDetailMetrics.taskContentHeight.roundToPx() }
     val taskTextStyle = MaterialTheme.typography.bodyMedium.copy(
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold
@@ -3346,10 +3349,10 @@ private fun TaskListDetailPage(
                                 scaleY = if (isDragged && !reduceMotion) 1.03f else 1f
                             }
                             .then(if (!isDragged && !reduceMotion) Modifier.animateItem() else Modifier),
-                        verticalAlignment = Alignment.Top
                     ) {
                             Box(
                                 modifier = Modifier
+                                    .alignBy { it.measuredHeight / 2 }
                                     .padding(
                                         top = TaskListDetailMetrics.dragHandleTopPadding,
                                         end = TaskListDetailMetrics.dragHandleEndPadding
@@ -3417,6 +3420,7 @@ private fun TaskListDetailPage(
                             }
                             Box(
                                 modifier = Modifier
+                                    .alignBy { it.measuredHeight / 2 }
                                     .padding(
                                         top = TaskListDetailMetrics.completionTopPadding,
                                         end = TaskListDetailMetrics.completionEndPadding
@@ -3446,7 +3450,11 @@ private fun TaskListDetailPage(
                                         .offset(x = (-3).dp)
                                 )
                             }
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .alignBy { it.measuredHeight - (taskContentHeightPx / 2) }
+                            ) {
                                 if (task.date.isNotBlank()) {
                                     val displayDate = remember(task.date) {
                                         try {
@@ -3458,52 +3466,61 @@ private fun TaskListDetailPage(
                                     Text(
                                         text = displayDate,
                                         style = taskDateTextStyle,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(bottom = TaskListDetailMetrics.taskDateBottomSpacing)
                                     )
                                 }
-                                if (isEditing) {
-                                    var hasFocused by remember { mutableStateOf(false) }
-                                    BasicTextField(
-                                        value = editingText,
-                                        onValueChange = { editingText = it },
-                                        textStyle = taskTextStyle.copy(
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        ),
-                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                        keyboardActions = KeyboardActions(onDone = {
-                                            commitEdit(task, editingText)
-                                        }),
-                                        singleLine = true,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .focusRequester(focusRequester)
-                                            .onFocusChanged { state ->
-                                                if (state.isFocused) {
-                                                    hasFocused = true
-                                                } else if (hasFocused) {
-                                                    commitEdit(task, editingText)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = TaskListDetailMetrics.taskContentHeight),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (isEditing) {
+                                        var hasFocused by remember { mutableStateOf(false) }
+                                        BasicTextField(
+                                            value = editingText,
+                                            onValueChange = { editingText = it },
+                                            textStyle = taskTextStyle.copy(
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            ),
+                                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                            keyboardActions = KeyboardActions(onDone = {
+                                                commitEdit(task, editingText)
+                                            }),
+                                            singleLine = true,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .focusRequester(focusRequester)
+                                                .onFocusChanged { state ->
+                                                    if (state.isFocused) {
+                                                        hasFocused = true
+                                                    } else if (hasFocused) {
+                                                        commitEdit(task, editingText)
+                                                    }
                                                 }
-                                            }
-                                    )
-                                    LaunchedEffect(Unit) {
-                                        focusRequester.requestFocus()
-                                    }
-                                } else {
-                                    Text(
-                                        task.text,
-                                        style = taskTextStyle,
-                                        textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
-                                        color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.clickable {
-                                            editingTaskId = task.id
-                                            editingText = task.text
+                                        )
+                                        LaunchedEffect(Unit) {
+                                            focusRequester.requestFocus()
                                         }
-                                    )
+                                    } else {
+                                        Text(
+                                            task.text,
+                                            style = taskTextStyle,
+                                            textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
+                                            color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.clickable {
+                                                editingTaskId = task.id
+                                                editingText = task.text
+                                            }
+                                        )
+                                    }
                                 }
                             }
                             IconButton(
                                 onClick = { showDatePickerForTaskId = task.id },
                                 modifier = Modifier
+                                    .alignBy { it.measuredHeight / 2 }
                                     .width(TaskListDetailMetrics.trailingDateButtonWidth)
                                     .height(48.dp)
                             ) {

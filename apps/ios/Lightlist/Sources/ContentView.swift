@@ -804,6 +804,16 @@ private enum TaskListTopChromeMetrics {
     static let horizontalPadding: CGFloat = 6
 }
 
+private extension VerticalAlignment {
+    private enum TaskRowContentCenter: AlignmentID {
+        static func defaultValue(in dimensions: ViewDimensions) -> CGFloat {
+            dimensions[VerticalAlignment.center]
+        }
+    }
+
+    static let taskRowContentCenter = VerticalAlignment(TaskRowContentCenter.self)
+}
+
 private enum TaskListDetailMetrics {
     static let headerIconButtonSize: CGFloat = 28
     static let headerIconSize: CGFloat = 16
@@ -816,6 +826,8 @@ private enum TaskListDetailMetrics {
     static let actionIconSize: CGFloat = 13
     static let taskRowSpacing: CGFloat = 8
     static let taskRowVerticalPadding: CGFloat = 8
+    static let taskContentHeight: CGFloat = 44
+    static let taskDateBottomSpacing: CGFloat = 2
     static let dragTouchHeight: CGFloat = 44
     static let dragTouchWidth: CGFloat = 20
     static let completionTouchHeight: CGFloat = 44
@@ -2565,13 +2577,15 @@ private struct TaskListDetailPage: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(displayTasks) { task in
-                        HStack(alignment: .top, spacing: TaskListDetailMetrics.taskRowSpacing) {
+                        HStack(alignment: .taskRowContentCenter, spacing: TaskListDetailMetrics.taskRowSpacing) {
                             DragHandleIcon()
                                 .foregroundStyle(.secondary)
                                 .frame(width: TaskListDetailMetrics.dragTouchWidth, height: TaskListDetailMetrics.dragTouchHeight)
+                                .alignmentGuide(.taskRowContentCenter) { dimensions in
+                                    dimensions[VerticalAlignment.center]
+                                }
                                 .contentShape(Rectangle())
                                 .accessibilityLabel(translations.t("app.dragHint"))
-                                .padding(.top, 1)
                                 .gesture(
                                     DragGesture(minimumDistance: 2, coordinateSpace: .named("taskList"))
                                         .onChanged { value in
@@ -2621,34 +2635,42 @@ private struct TaskListDetailPage: View {
                                 .frame(width: TaskListDetailMetrics.completionTouchWidth, height: TaskListDetailMetrics.completionTouchHeight)
                             }
                             .buttonStyle(.plain)
+                            .alignmentGuide(.taskRowContentCenter) { dimensions in
+                                dimensions[VerticalAlignment.center]
+                            }
                             .accessibilityLabel(task.completed ? "完了済み、タップで未完了にする" : "未完了、タップで完了にする")
-                            .padding(.top, 1)
 
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 0) {
                                 if !task.date.isEmpty {
                                     Text(formatDateDisplay(task.date))
                                         .font(.system(size: 12, weight: .medium))
                                         .foregroundStyle(.secondary)
+                                        .padding(.bottom, TaskListDetailMetrics.taskDateBottomSpacing)
                                 }
 
-                                if editingTaskId == task.id {
-                                    TextField("", text: $editingText)
-                                        .focused($isTextFieldFocused)
-                                        .onSubmit { commitEdit(task) }
-                                        .font(.system(size: 16, weight: .semibold))
-                                } else {
-                                    Button { startEdit(task) } label: {
-                                        Text(task.text)
+                                Group {
+                                    if editingTaskId == task.id {
+                                        TextField("", text: $editingText)
+                                            .focused($isTextFieldFocused)
+                                            .onSubmit { commitEdit(task) }
                                             .font(.system(size: 16, weight: .semibold))
-                                            .strikethrough(task.completed)
-                                            .foregroundStyle(task.completed ? .secondary : .primary)
+                                    } else {
+                                        Button { startEdit(task) } label: {
+                                            Text(task.text)
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .strikethrough(task.completed)
+                                                .foregroundStyle(task.completed ? .secondary : .primary)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel("タスクを編集: \(task.text)")
                                     }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("タスクを編集: \(task.text)")
                                 }
+                                .frame(maxWidth: .infinity, minHeight: TaskListDetailMetrics.taskContentHeight, alignment: .leading)
                             }
-
-                            Spacer(minLength: 0)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .alignmentGuide(.taskRowContentCenter) { dimensions in
+                                dimensions[.bottom] - (TaskListDetailMetrics.taskContentHeight / 2)
+                            }
 
                             Button {
                                 openDatePicker(task)
@@ -2659,8 +2681,10 @@ private struct TaskListDetailPage: View {
                                     .frame(width: TaskListDetailMetrics.trailingDateButtonWidth, height: TaskListDetailMetrics.trailingDateButtonHeight)
                             }
                             .buttonStyle(.plain)
+                            .alignmentGuide(.taskRowContentCenter) { dimensions in
+                                dimensions[VerticalAlignment.center]
+                            }
                             .accessibilityLabel(translations.t("pages.tasklist.setDate"))
-                            .padding(.top, 1)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, TaskListDetailMetrics.taskRowVerticalPadding)

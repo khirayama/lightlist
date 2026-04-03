@@ -115,13 +115,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.ui.platform.LocalFocusManager
 import java.util.Calendar
 import java.util.TimeZone
 import java.text.SimpleDateFormat
@@ -2862,7 +2871,7 @@ private fun TaskListDetailPage(
     var newTaskText by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
     var editingTaskId by remember { mutableStateOf<String?>(null) }
-    var editingText by remember { mutableStateOf("") }
+    var editingTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     var showDatePickerForTaskId by remember { mutableStateOf<String?>(null) }
     var showDeleteCompletedConfirm by remember { mutableStateOf(false) }
     var draggingTaskId by remember { mutableStateOf<String?>(null) }
@@ -2904,6 +2913,7 @@ private fun TaskListDetailPage(
         fontSize = 12.sp,
         fontWeight = FontWeight.Medium
     )
+    val focusManager = LocalFocusManager.current
 
     fun autoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
         return tasks
@@ -3036,6 +3046,32 @@ private fun TaskListDetailPage(
                 } catch (_: Exception) {}
             }
         }
+    }
+
+    fun finishTaskEditing(task: TaskSummary, focusManager: FocusManager) {
+        commitEdit(task, editingTextFieldValue.text)
+        focusManager.clearFocus(force = true)
+    }
+
+    fun moveInlineCaretLeft() {
+        val selection = editingTextFieldValue.selection
+        val next = if (selection.collapsed) {
+            (selection.start - 1).coerceAtLeast(0)
+        } else {
+            selection.min
+        }
+        editingTextFieldValue = editingTextFieldValue.copy(selection = TextRange(next))
+    }
+
+    fun moveInlineCaretRight() {
+        val textLength = editingTextFieldValue.text.length
+        val selection = editingTextFieldValue.selection
+        val next = if (selection.collapsed) {
+            (selection.end + 1).coerceAtMost(textLength)
+        } else {
+            selection.max
+        }
+        editingTextFieldValue = editingTextFieldValue.copy(selection = TextRange(next))
     }
 
     fun commitDate(task: TaskSummary, dateStr: String) {
@@ -3478,25 +3514,65 @@ private fun TaskListDetailPage(
                                 ) {
                                     if (isEditing) {
                                         var hasFocused by remember { mutableStateOf(false) }
+                                        var hasCommitted by remember { mutableStateOf(false) }
+                                        fun completeInlineEdit() {
+                                            if (hasCommitted) {
+                                                return
+                                            }
+                                            hasCommitted = true
+                                            finishTaskEditing(task, focusManager)
+                                        }
+                                        val inlineEditKeyModifier = Modifier
+                                            .onPreviewKeyEvent { event ->
+                                                if (event.type != KeyEventType.KeyDown && event.type != KeyEventType.KeyUp) {
+                                                    return@onPreviewKeyEvent false
+                                                }
+                                                when (event.key) {
+                                                    Key.DirectionLeft -> {
+                                                        if (event.type == KeyEventType.KeyDown) {
+                                                            moveInlineCaretLeft()
+                                                        }
+                                                        true
+                                                    }
+                                                    Key.DirectionRight -> {
+                                                        if (event.type == KeyEventType.KeyDown) {
+                                                            moveInlineCaretRight()
+                                                        }
+                                                        true
+                                                    }
+                                                    Key.DirectionUp,
+                                                    Key.DirectionDown -> true
+                                                    Key.Enter,
+                                                    Key.NumPadEnter -> {
+                                                        if (event.type == KeyEventType.KeyUp) {
+                                                            completeInlineEdit()
+                                                        }
+                                                        true
+                                                    }
+                                                    else -> false
+                                                }
+                                            }
                                         BasicTextField(
-                                            value = editingText,
-                                            onValueChange = { editingText = it },
+                                            value = editingTextFieldValue,
+                                            onValueChange = { editingTextFieldValue = it },
                                             textStyle = taskTextStyle.copy(
                                                 color = MaterialTheme.colorScheme.onSurface
                                             ),
                                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                             keyboardActions = KeyboardActions(onDone = {
-                                                commitEdit(task, editingText)
+                                                completeInlineEdit()
                                             }),
                                             singleLine = true,
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .focusRequester(focusRequester)
+                                                .then(inlineEditKeyModifier)
                                                 .onFocusChanged { state ->
                                                     if (state.isFocused) {
                                                         hasFocused = true
-                                                    } else if (hasFocused) {
-                                                        commitEdit(task, editingText)
+                                                    } else if (hasFocused && !hasCommitted) {
+                                                        hasCommitted = true
+                                                        commitEdit(task, editingTextFieldValue.text)
                                                     }
                                                 }
                                         )
@@ -3511,7 +3587,10 @@ private fun TaskListDetailPage(
                                             color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.clickable {
                                                 editingTaskId = task.id
-                                                editingText = task.text
+                                                editingTextFieldValue = TextFieldValue(
+                                                    text = task.text,
+                                                    selection = TextRange(task.text.length)
+                                                )
                                             }
                                         )
                                     }

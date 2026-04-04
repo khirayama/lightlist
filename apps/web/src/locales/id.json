@@ -119,7 +119,9 @@
     "rtlRestartTitle": "Perlu memulai ulang",
     "rtlRestartMessage": "Mulai ulang aplikasi untuk menerapkan perubahan tata letak kanan ke kiri.",
     "loadError": "Gagal memuat daftar tugas.",
-    "calendar": "Kalender"
+    "calendar": "Kalender",
+    "calendarPreviousMonth": "Bulan sebelumnya",
+    "calendarNextMonth": "Bulan berikutnya"
   },
   "taskList": {
     "taskCount": "{{count}} tugas",

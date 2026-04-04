@@ -119,7 +119,9 @@
     "rtlRestartTitle": "Reinicio requerido",
     "rtlRestartMessage": "Reinicia la aplicación para aplicar los cambios de diseño de derecha a izquierda.",
     "loadError": "Error al cargar las listas de tareas.",
-    "calendar": "Calendario"
+    "calendar": "Calendario",
+    "calendarPreviousMonth": "Mes anterior",
+    "calendarNextMonth": "Mes siguiente"
   },
   "taskList": {
     "taskCount": "{{count}} tareas",

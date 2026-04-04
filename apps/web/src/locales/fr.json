@@ -119,7 +119,9 @@
     "rtlRestartTitle": "Redémarrage requis",
     "rtlRestartMessage": "Redémarrez l'application pour appliquer la mise en page de droite à gauche.",
     "loadError": "Impossible de charger les listes de tâches.",
-    "calendar": "Calendrier"
+    "calendar": "Calendrier",
+    "calendarPreviousMonth": "Mois précédent",
+    "calendarNextMonth": "Mois suivant"
   },
   "taskList": {
     "taskCount": "{{count}} tâches",

@@ -119,7 +119,9 @@
     "rtlRestartTitle": "Restart Required",
     "rtlRestartMessage": "Restart the app to apply right-to-left layout changes.",
     "loadError": "Failed to load task lists.",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "calendarPreviousMonth": "Previous month",
+    "calendarNextMonth": "Next month"
   },
   "taskList": {
     "taskCount": "{{count}} tasks",

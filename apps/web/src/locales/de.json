@@ -119,7 +119,9 @@
     "rtlRestartTitle": "Neustart erforderlich",
     "rtlRestartMessage": "Starte die App neu, um das Rechts-nach-Links-Layout anzuwenden.",
     "loadError": "Aufgabenlisten konnten nicht geladen werden.",
-    "calendar": "Kalender"
+    "calendar": "Kalender",
+    "calendarPreviousMonth": "Vorheriger Monat",
+    "calendarNextMonth": "Nächster Monat"
   },
   "taskList": {
     "taskCount": "{{count}} Aufgaben",

@@ -119,7 +119,9 @@
     "rtlRestartTitle": "रीस्टार्ट आवश्यक",
     "rtlRestartMessage": "दाएँ-से-बाएँ लेआउट लागू करने के लिए ऐप को पुनः प्रारंभ करें।",
     "loadError": "कार्य सूचियाँ लोड नहीं हो सकीं।",
-    "calendar": "कैलेंडर"
+    "calendar": "कैलेंडर",
+    "calendarPreviousMonth": "पिछला महीना",
+    "calendarNextMonth": "अगला महीना"
   },
   "taskList": {
     "taskCount": "{{count}} टास्क",

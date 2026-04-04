@@ -119,7 +119,9 @@
     "rtlRestartTitle": "إعادة التشغيل مطلوبة",
     "rtlRestartMessage": "أعد تشغيل التطبيق لتطبيق تغييرات التخطيط من اليمين إلى اليسار.",
     "loadError": "تعذر تحميل قوائم المهام.",
-    "calendar": "التقويم"
+    "calendar": "التقويم",
+    "calendarPreviousMonth": "الشهر السابق",
+    "calendarNextMonth": "الشهر التالي"
   },
   "taskList": {
     "taskCount": "{{count}} مهمة",

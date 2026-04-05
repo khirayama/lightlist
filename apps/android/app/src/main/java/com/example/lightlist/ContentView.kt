@@ -2,6 +2,7 @@ package com.example.lightlist
 
 import android.content.Context
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.util.Log
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,7 +38,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,6 +74,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -97,6 +99,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.rememberScrollState
@@ -107,7 +111,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.rememberCoroutineScope
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.delay
@@ -145,22 +148,25 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.IconButton
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import com.google.firebase.firestore.FieldValue
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import java.text.DateFormatSymbols
 import org.json.JSONObject
 
 class Translations {
     private var dict: JSONObject = JSONObject()
+    private var currentLanguage = "ja"
 
     companion object {
         private val supported = listOf("ja","en","es","de","fr","ko","zh-CN","hi","ar","pt-BR","id")
@@ -168,6 +174,7 @@ class Translations {
 
     fun load(context: Context, language: String) {
         val lang = if (supported.contains(language)) language else "ja"
+        currentLanguage = lang
         try {
             val json = context.assets.open("locales/$lang.json").bufferedReader().readText()
             dict = JSONObject(json)
@@ -175,6 +182,8 @@ class Translations {
             dict = JSONObject()
         }
     }
+
+    fun languageTag(): String = currentLanguage
 
     fun t(key: String, vars: Map<String, String> = emptyMap()): String {
         val parts = key.split(".")
@@ -303,12 +312,11 @@ private const val TASK_LIST_ORDER_NOT_FOUND_ERROR = "TASK_LIST_ORDER_NOT_FOUND"
 private const val TASK_LIST_ALREADY_ADDED_ERROR = "TASK_LIST_ALREADY_ADDED"
 private const val TABLET_MIN_WIDTH_DP = 840
 private object TaskListDetailMetrics {
-    val topBarHeight = 44.dp
+    val topBarHeight = 48.dp
     val indicatorTopOffset = 4.dp
     val indicatorContentInset = 42.dp
     val indicatorTouchSize = 24.dp
     val indicatorDotSize = 7.dp
-    val sectionSpacing = 14.dp
     val headerActionIconButtonSize = 28.dp
     val headerActionIconSize = 16.dp
     val headerActionSpacing = 10.dp
@@ -320,8 +328,10 @@ private object TaskListDetailMetrics {
     val addActionIconSize = 16.dp
     val actionRowVerticalPadding = 2.dp
     val actionControlVerticalPadding = 2.dp
+    val sectionBottomSpacing = 14.dp
+    val actionsBottomSpacing = 8.dp
     val taskRowSpacing = 4.dp
-    val taskRowVerticalPadding = 8.dp
+    val taskRowVerticalPadding = 6.dp
     val taskContentHeight = 48.dp
     val taskDateBottomSpacing = 2.dp
     val dragHandleTopPadding = 0.dp
@@ -1176,6 +1186,42 @@ private fun parseHexColor(hex: String): Color {
     }
 }
 
+private fun localeForLanguage(languageTag: String): Locale {
+    return when (languageTag) {
+        "zh-CN" -> Locale.SIMPLIFIED_CHINESE
+        "pt-BR" -> Locale.Builder().setLanguage("pt").setRegion("BR").build()
+        else -> Locale.forLanguageTag(languageTag).takeIf { it.language.isNotBlank() } ?: Locale.JAPANESE
+    }
+}
+
+private fun formatDateForLocale(
+    dateKey: String,
+    languageTag: String,
+    skeleton: String
+): String {
+    return try {
+        val locale = localeForLanguage(languageTag)
+        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.parse(dateKey) ?: return dateKey
+        val pattern = DateFormat.getBestDateTimePattern(locale, skeleton)
+        SimpleDateFormat(pattern, locale).format(date)
+    } catch (_: Exception) {
+        dateKey
+    }
+}
+
+private fun settingsThemeLabel(t: Translations, theme: String): String = when (theme) {
+    "light" -> t.t("settings.theme.light")
+    "dark" -> t.t("settings.theme.dark")
+    else -> t.t("settings.theme.system")
+}
+
+private fun settingsTaskInsertPositionLabel(t: Translations, position: String): String = when (position) {
+    "top" -> t.t("settings.taskInsertPosition.top")
+    else -> t.t("settings.taskInsertPosition.bottom")
+}
+
 @Composable
 private fun resolveTaskListBackgroundColor(background: String?): Color {
     return background?.let(::parseHexColor) ?: MaterialTheme.colorScheme.background
@@ -1231,28 +1277,41 @@ private fun DetailScreenScaffold(
     Scaffold(
         topBar = if (showTopBar) {
             {
-                CenterAlignedTopAppBar(
-                    title = { Text(title) },
-                    navigationIcon = {
-                        if (onBack != null) {
-                            IconButton(
-                                onClick = onBack,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = t.t("common.back"),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                            )
+                        )
+                        .height(topBarHeight)
+                ) {
+                    if (onBack != null) {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .size(48.dp)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = t.t("common.back"),
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
-                    },
-                    modifier = Modifier.height(topBarHeight),
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent
+                    }
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .fillMaxWidth()
+                            .padding(horizontal = 56.dp)
                     )
-                )
+                }
             }
         } else {
             {}
@@ -1703,10 +1762,9 @@ private fun ResetPasswordView(
 @Composable
 private fun CalendarDayCell(
     dayNum: Int,
-    dateKey: String,
     isToday: Boolean,
     isSelected: Boolean,
-    dots: List<String>,
+    dots: List<String?>,
     onTap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1743,7 +1801,17 @@ private fun CalendarDayCell(
                     Box(
                         modifier = Modifier
                             .size(4.dp)
-                            .background(parseHexColor(hexColor), CircleShape)
+                            .then(
+                                if (hexColor == null) {
+                                    Modifier.border(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        shape = CircleShape
+                                    )
+                                } else {
+                                    Modifier.background(parseHexColor(hexColor), CircleShape)
+                                }
+                            )
                     )
                 }
             }
@@ -1757,9 +1825,10 @@ private fun CalendarDayCell(
 private fun CalendarGrid(
     month: java.util.Date,
     selectedDateKey: String?,
-    dotColorsByDate: Map<String, List<String>>,
+    dotColorsByDate: Map<String, List<String?>>,
     onSelectDate: (String) -> Unit
 ) {
+    val t = LocalTranslations.current
     val cal = Calendar.getInstance().apply { time = month }
     val year = cal.get(Calendar.YEAR)
     val monthNum = cal.get(Calendar.MONTH)
@@ -1772,8 +1841,13 @@ private fun CalendarGrid(
     }.format(java.util.Date())
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        val weekDays = remember(t.languageTag()) {
+            DateFormatSymbols(localeForLanguage(t.languageTag())).shortWeekdays
+                .drop(1)
+                .map { it.trimEnd('.') }
+        }
         Row(modifier = Modifier.fillMaxWidth()) {
-            listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach { label ->
+            weekDays.forEach { label ->
                 Text(
                     label,
                     modifier = Modifier.weight(1f),
@@ -1795,7 +1869,6 @@ private fun CalendarGrid(
                         val dateKey = String.format(Locale.US, "%04d-%02d-%02d", year, monthNum + 1, dayNum)
                         CalendarDayCell(
                             dayNum = dayNum,
-                            dateKey = dateKey,
                             isToday = dateKey == todayKey,
                             isSelected = selectedDateKey == dateKey,
                             dots = dotColorsByDate[dateKey] ?: emptyList(),
@@ -1813,22 +1886,17 @@ private fun CalendarGrid(
 }
 
 @Composable
-private fun CalendarTaskRow(task: CalendarTask, isHighlighted: Boolean) {
-    val dateLabel = remember(task.dateKey) {
-        try {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-                timeZone = TimeZone.getTimeZone("UTC")
-            }.parse(task.dateKey)
-            SimpleDateFormat("EEE, MMM d", Locale.ENGLISH).format(date!!)
-        } catch (e: Exception) {
-            task.dateKey
-        }
+private fun CalendarTaskRow(task: CalendarTask, isHighlighted: Boolean, onClick: () -> Unit) {
+    val t = LocalTranslations.current
+    val dateLabel = remember(task.dateKey, t.languageTag()) {
+        formatDateForLocale(task.dateKey, t.languageTag(), "MMM d EEE")
     }
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(if (isHighlighted) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
+                .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.Top
@@ -1847,10 +1915,16 @@ private fun CalendarTaskRow(task: CalendarTask, isHighlighted: Boolean) {
                 Box(
                     modifier = Modifier
                         .size(8.dp)
-                        .background(
-                            task.taskListBackground?.let { parseHexColor(it) }
-                                ?: MaterialTheme.colorScheme.primary,
-                            CircleShape
+                        .then(
+                            if (task.taskListBackground == null) {
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    shape = CircleShape
+                                )
+                            } else {
+                                Modifier.background(parseHexColor(task.taskListBackground), CircleShape)
+                            }
                         )
                 )
                 Text(
@@ -1903,20 +1977,30 @@ private fun CalendarBottomSheet(
         calendarTasks.filter { it.dateKey.startsWith(monthKey) }
     }
     val dotColorsByDate = remember(tasksInMonth) {
-        val map = mutableMapOf<String, MutableList<String>>()
+        val map = mutableMapOf<String, MutableList<String?>>()
         for (task in tasksInMonth) {
-            if (task.taskListBackground != null) {
-                val colors = map.getOrPut(task.dateKey) { mutableListOf() }
-                if (!colors.contains(task.taskListBackground) && colors.size < 3) {
-                    colors.add(task.taskListBackground)
-                }
+            val colors = map.getOrPut(task.dateKey) { mutableListOf() }
+            if (!colors.contains(task.taskListBackground) && colors.size < 3) {
+                colors.add(task.taskListBackground)
             }
         }
-        map as Map<String, List<String>>
+        map as Map<String, List<String?>>
     }
 
-    val monthTitle = remember(displayedMonth) {
-        SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).format(displayedMonth)
+    val monthTitle = remember(displayedMonth, t.languageTag()) {
+        val locale = localeForLanguage(t.languageTag())
+        val pattern = DateFormat.getBestDateTimePattern(locale, "yMMMM")
+        SimpleDateFormat(pattern, locale).format(displayedMonth)
+    }
+
+    fun selectDate(dateKey: String?) {
+        selectedDateKey = dateKey
+        if (dateKey != null) {
+            val targetIndex = tasksInMonth.indexOfFirst { it.dateKey == dateKey }
+            if (targetIndex >= 0) {
+                scope.launch { listState.animateScrollToItem(targetIndex) }
+            }
+        }
     }
 
     ModalBottomSheet(
@@ -1934,6 +2018,11 @@ private fun CalendarBottomSheet(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                        )
+                    )
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Surface(
@@ -1969,9 +2058,12 @@ private fun CalendarBottomSheet(
                         add(Calendar.MONTH, -1)
                         set(Calendar.DAY_OF_MONTH, 1)
                     }.time
-                    selectedDateKey = null
+                    selectDate(null)
                 }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "前の月")
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        contentDescription = t.t("app.calendarPreviousMonth")
+                    )
                 }
                 Text(monthTitle, style = MaterialTheme.typography.titleLarge)
                 IconButton(onClick = {
@@ -1980,9 +2072,12 @@ private fun CalendarBottomSheet(
                         add(Calendar.MONTH, 1)
                         set(Calendar.DAY_OF_MONTH, 1)
                     }.time
-                    selectedDateKey = null
+                    selectDate(null)
                 }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "次の月")
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = t.t("app.calendarNextMonth")
+                    )
                 }
             }
 
@@ -1991,13 +2086,7 @@ private fun CalendarBottomSheet(
                 selectedDateKey = selectedDateKey,
                 dotColorsByDate = dotColorsByDate,
                 onSelectDate = { dateKey ->
-                    selectedDateKey = if (selectedDateKey == dateKey) null else dateKey
-                    if (selectedDateKey != null) {
-                        val targetIndex = tasksInMonth.indexOfFirst { it.dateKey == selectedDateKey }
-                        if (targetIndex >= 0) {
-                            scope.launch { listState.animateScrollToItem(targetIndex) }
-                        }
-                    }
+                    selectDate(if (selectedDateKey == dateKey) null else dateKey)
                 }
             )
 
@@ -2025,7 +2114,8 @@ private fun CalendarBottomSheet(
                         items(tasksInMonth, key = { it.id }) { task ->
                             CalendarTaskRow(
                                 task = task,
-                                isHighlighted = selectedDateKey == task.dateKey
+                                isHighlighted = selectedDateKey == task.dateKey,
+                                onClick = { selectDate(task.dateKey) }
                             )
                         }
                     }
@@ -2095,7 +2185,7 @@ private fun TaskListsView(
     var joinListInput by remember { mutableStateOf("") }
     var joiningList by remember { mutableStateOf(false) }
     var joinListError by remember { mutableStateOf<String?>(null) }
-    val displayedUserEmail = userEmail.ifBlank { t.t("drawerNoEmail") }
+    val displayedUserEmail = userEmail.ifBlank { t.t("app.drawerNoEmail") }
 
     val displayTaskLists = dragOrderedTaskLists ?: uiState.taskLists
     val density = LocalDensity.current
@@ -2170,6 +2260,11 @@ private fun TaskListsView(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.only(
+                    WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                )
+            )
             .padding(horizontal = 16.dp)
     ) {
         Row(
@@ -2869,7 +2964,6 @@ private fun TaskListDetailPage(
     val scope = rememberCoroutineScope()
     val db = Firebase.firestore
     var newTaskText by remember { mutableStateOf("") }
-    val keyboardController = LocalSoftwareKeyboardController.current
     var editingTaskId by remember { mutableStateOf<String?>(null) }
     var editingTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     var showDatePickerForTaskId by remember { mutableStateOf<String?>(null) }
@@ -3133,7 +3227,6 @@ private fun TaskListDetailPage(
         if (trimmed.isEmpty()) return
         logTaskAdd(hasDate = false)
         newTaskText = ""
-        keyboardController?.hide()
         val taskId = java.util.UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         val tasks = taskList.tasks
@@ -3208,12 +3301,13 @@ private fun TaskListDetailPage(
             top = topInset,
             end = 16.dp,
             bottom = 16.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(TaskListDetailMetrics.sectionSpacing)
+        )
     ) {
         item(key = "taskListHeader") {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = TaskListDetailMetrics.sectionBottomSpacing),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -3252,7 +3346,9 @@ private fun TaskListDetailPage(
         }
         item(key = "taskListInput") {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = TaskListDetailMetrics.sectionBottomSpacing),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BasicTextField(
@@ -3309,51 +3405,53 @@ private fun TaskListDetailPage(
             }
         }
         item(key = "taskListActions") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = TaskListDetailMetrics.actionRowVerticalPadding),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Column(modifier = Modifier.padding(bottom = TaskListDetailMetrics.actionsBottomSpacing)) {
                 Row(
                     modifier = Modifier
-                        .clickable(enabled = taskList.tasks.size >= 2) { sortTasks() }
-                        .padding(vertical = TaskListDetailMetrics.actionControlVerticalPadding),
+                        .fillMaxWidth()
+                        .padding(vertical = TaskListDetailMetrics.actionRowVerticalPadding),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.FilterList,
-                        contentDescription = t.t("pages.tasklist.sort"),
-                        modifier = Modifier.size(14.dp),
-                        tint = if (taskList.tasks.size >= 2) chromeColor else chromeColor.copy(alpha = 0.45f)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        t.t("pages.tasklist.sort"),
-                        style = actionTextStyle,
-                        color = if (taskList.tasks.size >= 2) chromeColor else chromeColor.copy(alpha = 0.45f)
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .clickable(enabled = taskList.tasks.any { it.completed }) { showDeleteCompletedConfirm = true }
-                        .padding(vertical = TaskListDetailMetrics.actionControlVerticalPadding),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val deleteEnabled = taskList.tasks.any { it.completed }
-                    Text(
-                        t.t("pages.tasklist.deleteCompleted"),
-                        style = actionTextStyle,
-                        color = if (deleteEnabled) chromeColor else chromeColor.copy(alpha = 0.45f)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = t.t("pages.tasklist.deleteCompleted"),
-                        modifier = Modifier.size(14.dp),
-                        tint = if (deleteEnabled) chromeColor else chromeColor.copy(alpha = 0.45f)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .clickable(enabled = taskList.tasks.size >= 2) { sortTasks() }
+                            .padding(vertical = TaskListDetailMetrics.actionControlVerticalPadding),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.FilterList,
+                            contentDescription = t.t("pages.tasklist.sort"),
+                            modifier = Modifier.size(14.dp),
+                            tint = if (taskList.tasks.size >= 2) chromeColor else chromeColor.copy(alpha = 0.45f)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            t.t("pages.tasklist.sort"),
+                            style = actionTextStyle,
+                            color = if (taskList.tasks.size >= 2) chromeColor else chromeColor.copy(alpha = 0.45f)
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .clickable(enabled = taskList.tasks.any { it.completed }) { showDeleteCompletedConfirm = true }
+                            .padding(vertical = TaskListDetailMetrics.actionControlVerticalPadding),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val deleteEnabled = taskList.tasks.any { it.completed }
+                        Text(
+                            t.t("pages.tasklist.deleteCompleted"),
+                            style = actionTextStyle,
+                            color = if (deleteEnabled) chromeColor else chromeColor.copy(alpha = 0.45f)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = t.t("pages.tasklist.deleteCompleted"),
+                            modifier = Modifier.size(14.dp),
+                            tint = if (deleteEnabled) chromeColor else chromeColor.copy(alpha = 0.45f)
+                        )
+                    }
                 }
             }
         }
@@ -3369,14 +3467,17 @@ private fun TaskListDetailPage(
                 }
             }
         } else {
-            items(displayTasks, key = { it.id }) { task ->
+            itemsIndexed(displayTasks, key = { _, task -> task.id }) { index, task ->
                     val isEditing = editingTaskId == task.id
                     val focusRequester = remember { FocusRequester() }
                     val isDragged = draggingTaskId == task.id
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = TaskListDetailMetrics.taskRowVerticalPadding)
+                            .padding(
+                                top = if (index == 0) 0.dp else TaskListDetailMetrics.taskRowSpacing,
+                                bottom = TaskListDetailMetrics.taskRowVerticalPadding
+                            )
                             .offset { IntOffset(0, if (isDragged) taskDragOffset.toInt() else 0) }
                             .zIndex(if (isDragged) 1f else 0f)
                             .alpha(if (isDragged && !reduceMotion) 0.8f else 1f)
@@ -3492,12 +3593,8 @@ private fun TaskListDetailPage(
                                     .alignBy { it.measuredHeight - (taskContentHeightPx / 2) }
                             ) {
                                 if (task.date.isNotBlank()) {
-                                    val displayDate = remember(task.date) {
-                                        try {
-                                            val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(task.date)
-                                            if (parsed != null) SimpleDateFormat("M月d日(E)", Locale.JAPAN).format(parsed)
-                                            else task.date
-                                        } catch (_: Exception) { task.date }
+                                    val displayDate = remember(task.date, t.languageTag()) {
+                                        formatDateForLocale(task.date, t.languageTag(), "MMM d EEE")
                                     }
                                     Text(
                                         text = displayDate,
@@ -3897,7 +3994,7 @@ private fun SettingsSelectRow(label: String, value: String, onClick: () -> Unit)
             Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "選択",
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -3934,7 +4031,7 @@ private fun SettingsView(
     }
 
     DetailScreenScaffold(
-        title = AppRoute.Settings.title,
+        title = t.t("settings.title"),
         onBack = if (navController != null) ({ navController.navigateUp() }) else null,
         showTopBar = showTopBar
     ) {
@@ -3957,9 +4054,12 @@ private fun SettingsView(
                         value = supportedLanguages.firstOrNull { it.first == uiState.language }?.second ?: uiState.language
                     ) { showLanguageDialog = true }
                     HorizontalDivider()
-                    SettingsSelectRow(t.t("settings.theme.title"), uiState.theme) { showThemeDialog = true }
+                    SettingsSelectRow(t.t("settings.theme.title"), settingsThemeLabel(t, uiState.theme)) { showThemeDialog = true }
                     HorizontalDivider()
-                    SettingsSelectRow(t.t("settings.taskInsertPosition.title"), uiState.taskInsertPosition) { showPositionDialog = true }
+                    SettingsSelectRow(
+                        t.t("settings.taskInsertPosition.title"),
+                        settingsTaskInsertPositionLabel(t, uiState.taskInsertPosition)
+                    ) { showPositionDialog = true }
                     HorizontalDivider()
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 12.dp),

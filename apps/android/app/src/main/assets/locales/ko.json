@@ -119,7 +119,9 @@
     "rtlRestartTitle": "재시작 필요",
     "rtlRestartMessage": "오른쪽에서 왼쪽 레이아웃을 적용하려면 앱을 다시 시작하세요.",
     "loadError": "할 일 목록을 불러오지 못했습니다.",
-    "calendar": "캘린더"
+    "calendar": "캘린더",
+    "calendarPreviousMonth": "이전 달",
+    "calendarNextMonth": "다음 달"
   },
   "taskList": {
     "taskCount": "작업 {{count}}개",

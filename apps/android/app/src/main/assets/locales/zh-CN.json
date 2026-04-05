@@ -119,7 +119,9 @@
     "rtlRestartTitle": "需要重启",
     "rtlRestartMessage": "请重启应用以应用从右到左布局变更。",
     "loadError": "无法加载任务列表。",
-    "calendar": "日历"
+    "calendar": "日历",
+    "calendarPreviousMonth": "上个月",
+    "calendarNextMonth": "下个月"
   },
   "taskList": {
     "taskCount": "{{count}} 个任务",

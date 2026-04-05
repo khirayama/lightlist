@@ -119,7 +119,9 @@
     "rtlRestartTitle": "再起動が必要です",
     "rtlRestartMessage": "右から左への表示を反映するにはアプリの再起動が必要です。",
     "loadError": "タスクリストの読み込みに失敗しました",
-    "calendar": "カレンダー"
+    "calendar": "カレンダー",
+    "calendarPreviousMonth": "前の月",
+    "calendarNextMonth": "次の月"
   },
   "taskList": {
     "taskCount": "{{count}}個のタスク",

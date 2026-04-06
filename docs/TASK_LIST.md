@@ -52,7 +52,7 @@
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白と、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰め、一覧密度を上げても各操作の `48dp` タップ領域は維持する。
 - Android のタスクリスト一覧ヘッダー、詳細ヘッダー、設定ヘッダーは `WindowInsets.safeDrawing` を考慮して上端へ配置し、メールアドレス、設定導線、戻るボタン、タイトルがステータスバーにかからず、ヘッダー本体の固定高さ内でクリップされないようにする。
 - Android の inline task 編集中は、hardware keyboard の矢印キーと Enter を編集欄内で完結させる。`←` / `→` は caret 移動だけを行い、`↑` / `↓` は no-op として consume し、pager 切替や近傍要素への focus 移動を起こさない。Enter は task を確定して編集終了するだけで、一覧表示や戻る導線を発火させない。
-- iOS / Android の task row は、drag handle・完了トグル・本文の縦方向中心を揃える。日付がある場合も `task.text` / 編集中の入力欄の縦位置は変えず、補助ラベルとしてその上に表示する。
+- iOS / Android の task row は、drag handle・完了トグル・本文の縦方向中心を揃える。日付がある場合も `task.text` / 編集中の入力欄の縦位置は変えず、補助ラベルとして同じ本文領域内の直上へ近接配置する。
 - `updateTaskListOrder()` は並び替え後に `1.0` 始まりの連番へ振り直す。
 - `deleteTaskList()` は次を transaction で行う。
   - 自分の `taskListOrder` から対象を外す。

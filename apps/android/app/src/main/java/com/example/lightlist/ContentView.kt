@@ -333,7 +333,7 @@ private object TaskListDetailMetrics {
     val taskRowSpacing = 4.dp
     val taskRowVerticalPadding = 6.dp
     val taskContentHeight = 48.dp
-    val taskDateBottomSpacing = 2.dp
+    val taskDateTopInset = 0.dp
     val dragHandleTopPadding = 0.dp
     val dragHandleEndPadding = 0.dp
     val dragHandleTouchWidth = 18.dp
@@ -3587,10 +3587,13 @@ private fun TaskListDetailPage(
                                         .offset(x = (-3).dp)
                                 )
                             }
-                            Column(
+                            Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .alignBy { it.measuredHeight - (taskContentHeightPx / 2) }
+                                    .alignBy { it.measuredHeight / 2 }
+                                    .fillMaxWidth()
+                                    .heightIn(min = TaskListDetailMetrics.taskContentHeight),
+                                contentAlignment = Alignment.CenterStart
                             ) {
                                 if (task.date.isNotBlank()) {
                                     val displayDate = remember(task.date, t.languageTag()) {
@@ -3600,97 +3603,95 @@ private fun TaskListDetailPage(
                                         text = displayDate,
                                         style = taskDateTextStyle,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(bottom = TaskListDetailMetrics.taskDateBottomSpacing)
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .padding(top = TaskListDetailMetrics.taskDateTopInset)
                                     )
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(min = TaskListDetailMetrics.taskContentHeight),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    if (isEditing) {
-                                        var hasFocused by remember { mutableStateOf(false) }
-                                        var hasCommitted by remember { mutableStateOf(false) }
-                                        fun completeInlineEdit() {
-                                            if (hasCommitted) {
-                                                return
-                                            }
-                                            hasCommitted = true
-                                            finishTaskEditing(task, focusManager)
+                                if (isEditing) {
+                                    var hasFocused by remember { mutableStateOf(false) }
+                                    var hasCommitted by remember { mutableStateOf(false) }
+                                    fun completeInlineEdit() {
+                                        if (hasCommitted) {
+                                            return
                                         }
-                                        val inlineEditKeyModifier = Modifier
-                                            .onPreviewKeyEvent { event ->
-                                                if (event.type != KeyEventType.KeyDown && event.type != KeyEventType.KeyUp) {
-                                                    return@onPreviewKeyEvent false
+                                        hasCommitted = true
+                                        finishTaskEditing(task, focusManager)
+                                    }
+                                    val inlineEditKeyModifier = Modifier
+                                        .onPreviewKeyEvent { event ->
+                                            if (event.type != KeyEventType.KeyDown && event.type != KeyEventType.KeyUp) {
+                                                return@onPreviewKeyEvent false
+                                            }
+                                            when (event.key) {
+                                                Key.DirectionLeft -> {
+                                                    if (event.type == KeyEventType.KeyDown) {
+                                                        moveInlineCaretLeft()
+                                                    }
+                                                    true
                                                 }
-                                                when (event.key) {
-                                                    Key.DirectionLeft -> {
-                                                        if (event.type == KeyEventType.KeyDown) {
-                                                            moveInlineCaretLeft()
-                                                        }
-                                                        true
+                                                Key.DirectionRight -> {
+                                                    if (event.type == KeyEventType.KeyDown) {
+                                                        moveInlineCaretRight()
                                                     }
-                                                    Key.DirectionRight -> {
-                                                        if (event.type == KeyEventType.KeyDown) {
-                                                            moveInlineCaretRight()
-                                                        }
-                                                        true
+                                                    true
+                                                }
+                                                Key.DirectionUp,
+                                                Key.DirectionDown -> true
+                                                Key.Enter,
+                                                Key.NumPadEnter -> {
+                                                    if (event.type == KeyEventType.KeyUp) {
+                                                        completeInlineEdit()
                                                     }
-                                                    Key.DirectionUp,
-                                                    Key.DirectionDown -> true
-                                                    Key.Enter,
-                                                    Key.NumPadEnter -> {
-                                                        if (event.type == KeyEventType.KeyUp) {
-                                                            completeInlineEdit()
-                                                        }
-                                                        true
-                                                    }
-                                                    else -> false
+                                                    true
+                                                }
+                                                else -> false
+                                            }
+                                        }
+                                    BasicTextField(
+                                        value = editingTextFieldValue,
+                                        onValueChange = { editingTextFieldValue = it },
+                                        textStyle = taskTextStyle.copy(
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                        keyboardActions = KeyboardActions(onDone = {
+                                            completeInlineEdit()
+                                        }),
+                                        singleLine = true,
+                                        modifier = Modifier
+                                            .align(Alignment.CenterStart)
+                                            .fillMaxWidth()
+                                            .focusRequester(focusRequester)
+                                            .then(inlineEditKeyModifier)
+                                            .onFocusChanged { state ->
+                                                if (state.isFocused) {
+                                                    hasFocused = true
+                                                } else if (hasFocused && !hasCommitted) {
+                                                    hasCommitted = true
+                                                    commitEdit(task, editingTextFieldValue.text)
                                                 }
                                             }
-                                        BasicTextField(
-                                            value = editingTextFieldValue,
-                                            onValueChange = { editingTextFieldValue = it },
-                                            textStyle = taskTextStyle.copy(
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            ),
-                                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                            keyboardActions = KeyboardActions(onDone = {
-                                                completeInlineEdit()
-                                            }),
-                                            singleLine = true,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .focusRequester(focusRequester)
-                                                .then(inlineEditKeyModifier)
-                                                .onFocusChanged { state ->
-                                                    if (state.isFocused) {
-                                                        hasFocused = true
-                                                    } else if (hasFocused && !hasCommitted) {
-                                                        hasCommitted = true
-                                                        commitEdit(task, editingTextFieldValue.text)
-                                                    }
-                                                }
-                                        )
-                                        LaunchedEffect(Unit) {
-                                            focusRequester.requestFocus()
-                                        }
-                                    } else {
-                                        Text(
-                                            task.text,
-                                            style = taskTextStyle,
-                                            textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
-                                            color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.clickable {
+                                    )
+                                    LaunchedEffect(Unit) {
+                                        focusRequester.requestFocus()
+                                    }
+                                } else {
+                                    Text(
+                                        task.text,
+                                        style = taskTextStyle,
+                                        textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
+                                        color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier
+                                            .align(Alignment.CenterStart)
+                                            .clickable {
                                                 editingTaskId = task.id
                                                 editingTextFieldValue = TextFieldValue(
                                                     text = task.text,
                                                     selection = TextRange(task.text.length)
                                                 )
                                             }
-                                        )
-                                    }
+                                    )
                                 }
                             }
                             IconButton(

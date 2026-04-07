@@ -333,14 +333,15 @@ private object TaskListDetailMetrics {
     val taskRowSpacing = 4.dp
     val taskRowVerticalPadding = 6.dp
     val taskContentHeight = 48.dp
-    val taskDateTopInset = 0.dp
+    val taskDateTopInset = (-3).dp
     val dragHandleTopPadding = 0.dp
     val dragHandleEndPadding = 0.dp
-    val dragHandleTouchWidth = 18.dp
+    val dragHandleTouchWidth = 16.dp
     val completionTopPadding = 1.dp
     val completionEndPadding = 0.dp
-    val completionTouchWidth = 24.dp
+    val completionTouchWidth = 26.dp
     val completionDotSize = 18.dp
+    val taskTextStartPadding = 3.dp
     val trailingDateButtonWidth = 22.dp
     val trailingDateIconSize = 17.dp
 }
@@ -3605,7 +3606,7 @@ private fun TaskListDetailPage(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier
                                             .align(Alignment.TopStart)
-                                            .padding(top = TaskListDetailMetrics.taskDateTopInset)
+                                            .offset(y = TaskListDetailMetrics.taskDateTopInset)
                                     )
                                 }
                                 if (isEditing) {
@@ -3662,6 +3663,7 @@ private fun TaskListDetailPage(
                                         modifier = Modifier
                                             .align(Alignment.CenterStart)
                                             .fillMaxWidth()
+                                            .padding(start = TaskListDetailMetrics.taskTextStartPadding)
                                             .focusRequester(focusRequester)
                                             .then(inlineEditKeyModifier)
                                             .onFocusChanged { state ->
@@ -3684,6 +3686,7 @@ private fun TaskListDetailPage(
                                         color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier
                                             .align(Alignment.CenterStart)
+                                            .padding(start = TaskListDetailMetrics.taskTextStartPadding)
                                             .clickable {
                                                 editingTaskId = task.id
                                                 editingTextFieldValue = TextFieldValue(

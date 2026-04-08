@@ -158,6 +158,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.window.DialogProperties
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
@@ -3924,6 +3925,7 @@ private fun TaskListDetailPage(
             val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
             DatePickerDialog(
                 onDismissRequest = { showDatePickerForTaskId = null },
+                modifier = Modifier.widthIn(max = 360.dp),
                 confirmButton = {
                     TextButton(onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
@@ -3949,9 +3951,17 @@ private fun TaskListDetailPage(
                             Text(t.t("common.cancel"))
                         }
                     }
-                }
+                },
+                properties = DialogProperties(usePlatformDefaultWidth = true)
             ) {
-                DatePicker(state = datePickerState)
+                DatePicker(
+                    state = datePickerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 480.dp)
+                        .verticalScroll(rememberScrollState()),
+                    showModeToggle = false
+                )
             }
         }
     }

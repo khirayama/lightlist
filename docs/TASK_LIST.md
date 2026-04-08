@@ -54,6 +54,7 @@
 - Android の inline task 編集中は、hardware keyboard の矢印キーと Enter を編集欄内で完結させる。`←` / `→` は caret 移動だけを行い、`↑` / `↓` は no-op として consume し、pager 切替や近傍要素への focus 移動を起こさない。Enter は task を確定して編集終了するだけで、一覧表示や戻る導線を発火させない。
 - iOS / Android の task row は、drag handle・完了トグル・本文の縦方向中心を揃える。日付がある場合も `task.text` / 編集中の入力欄の縦位置は変えず、補助ラベルとして同じ本文領域内の直上へ近接配置する。
 - Android の task row は、drag handle と完了トグルの間隔をやや詰め、完了トグルと本文開始位置の間隔はそれより少し広く取る。日付表示がある行でも `drag handle`・完了トグル・`task.text` の中心軸は揃えたまま、日付ラベル側をわずかに上へ寄せて `task.text` との視覚間隔を広げる。
+- Android の task 日付設定ダイアログは `DatePickerDialog` の platform default width を使い、dialog surface の最大幅を `360dp` に制限する。`DatePicker` 本体は mode toggle を出さず、最大高 `480dp` の縦スクロールで収める。
 - `updateTaskListOrder()` は並び替え後に `1.0` 始まりの連番へ振り直す。
 - `deleteTaskList()` は次を transaction で行う。
   - 自分の `taskListOrder` から対象を外す。

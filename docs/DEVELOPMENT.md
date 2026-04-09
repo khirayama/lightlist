@@ -60,6 +60,7 @@
 - iOS: `cd apps/ios && just build`
 - iOS: `cd apps/ios && xcodegen generate`
 - Android: `cd apps/android && just lint && just build`
+- Android: `just android` は `apps/android` の debug build を端末へ再インストールして起動する。既存の `com.lightlist.app` が別署名でも、先にアンインストールしてから debug APK を入れ直す。
 
 ## 品質確認
 

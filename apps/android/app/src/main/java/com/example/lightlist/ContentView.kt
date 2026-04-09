@@ -330,7 +330,7 @@ private object TaskListDetailMetrics {
     val actionRowVerticalPadding = 2.dp
     val actionControlVerticalPadding = 2.dp
     val sectionBottomSpacing = 14.dp
-    val actionsBottomSpacing = 8.dp
+    val actionsBottomSpacing = 24.dp
     val taskRowSpacing = 4.dp
     val taskRowVerticalPadding = 6.dp
     val taskContentHeight = 48.dp

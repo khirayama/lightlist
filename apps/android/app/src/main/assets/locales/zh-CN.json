@@ -251,6 +251,7 @@
     "tasklist": {
       "addTaskPlaceholder": "输入任务...",
       "setDate": "设置日期",
+      "setDateShort": "设置",
       "markComplete": "未完成，点按标记为已完成",
       "markIncomplete": "已完成，点按标记为未完成",
       "noTasks": "暂无任务",
@@ -259,6 +260,7 @@
       "deleteCompleted": "删除已完成任务",
       "deleteCompletedConfirm": "删除 {{count}} 个已完成任务？",
       "clearDate": "清除日期",
+      "clearDateShort": "清除",
       "deleteCompletedConfirmTitle": "删除已完成的任务？"
     },
     "notFound": {

@@ -251,6 +251,7 @@
     "tasklist": {
       "addTaskPlaceholder": "Masukkan tugas...",
       "setDate": "Atur tanggal",
+      "setDateShort": "Atur",
       "markComplete": "Belum selesai, ketuk untuk menandai selesai",
       "markIncomplete": "Selesai, ketuk untuk menandai belum selesai",
       "noTasks": "Tidak ada tugas",
@@ -259,6 +260,7 @@
       "deleteCompleted": "Hapus tugas yang selesai",
       "deleteCompletedConfirm": "Hapus {{count}} tugas yang selesai?",
       "clearDate": "Hapus Tanggal",
+      "clearDateShort": "Hapus",
       "deleteCompletedConfirmTitle": "Hapus tugas yang selesai?"
     },
     "notFound": {

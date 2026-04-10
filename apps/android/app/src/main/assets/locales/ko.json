@@ -251,6 +251,7 @@
     "tasklist": {
       "addTaskPlaceholder": "작업 입력...",
       "setDate": "날짜 설정",
+      "setDateShort": "설정",
       "markComplete": "미완료, 탭하여 완료로 표시",
       "markIncomplete": "완료됨, 탭하여 미완료로 표시",
       "noTasks": "작업 없음",
@@ -259,6 +260,7 @@
       "deleteCompleted": "완료한 작업 삭제",
       "deleteCompletedConfirm": "완료한 작업 {{count}}개를 삭제할까요?",
       "clearDate": "날짜 지우기",
+      "clearDateShort": "지우기",
       "deleteCompletedConfirmTitle": "완료된 할 일을 삭제하시겠습니까?"
     },
     "notFound": {

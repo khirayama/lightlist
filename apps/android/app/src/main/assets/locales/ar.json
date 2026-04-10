@@ -251,6 +251,7 @@
     "tasklist": {
       "addTaskPlaceholder": "أدخل مهمة...",
       "setDate": "تحديد التاريخ",
+      "setDateShort": "تعيين",
       "markComplete": "غير مكتملة، اضغط لوضع علامة مكتملة",
       "markIncomplete": "مكتملة، اضغط لوضع علامة غير مكتملة",
       "noTasks": "لا توجد مهام",
@@ -259,6 +260,7 @@
       "deleteCompleted": "حذف المهام المكتملة",
       "deleteCompletedConfirm": "حذف {{count}} من المهام المكتملة؟",
       "clearDate": "مسح التاريخ",
+      "clearDateShort": "مسح",
       "deleteCompletedConfirmTitle": "حذف المهام المكتملة؟"
     },
     "notFound": {

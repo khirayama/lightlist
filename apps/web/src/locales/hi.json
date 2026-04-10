@@ -251,6 +251,7 @@
     "tasklist": {
       "addTaskPlaceholder": "टास्क दर्ज करें...",
       "setDate": "तिथि सेट करें",
+      "setDateShort": "सेट",
       "markComplete": "अपूर्ण, पूर्ण के रूप में चिह्नित करने के लिए टैप करें",
       "markIncomplete": "पूर्ण, अपूर्ण के रूप में चिह्नित करने के लिए टैप करें",
       "noTasks": "कोई टास्क नहीं",
@@ -259,6 +260,7 @@
       "deleteCompleted": "पूर्ण किए गए टास्क हटाएँ",
       "deleteCompletedConfirm": "क्या {{count}} पूर्ण किए गए टास्क हटाने हैं?",
       "clearDate": "तारीख हटाएं",
+      "clearDateShort": "हटाएं",
       "deleteCompletedConfirmTitle": "पूर्ण किए गए कार्य हटाएं?"
     },
     "notFound": {

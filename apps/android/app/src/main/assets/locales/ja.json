@@ -251,6 +251,7 @@
     "tasklist": {
       "addTaskPlaceholder": "タスクを入力...",
       "setDate": "期限を設定",
+      "setDateShort": "設定",
       "markComplete": "未完了、タップで完了にする",
       "markIncomplete": "完了済み、タップで未完了にする",
       "noTasks": "タスクがありません",
@@ -259,6 +260,7 @@
       "deleteCompleted": "完了タスクを削除",
       "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？",
       "clearDate": "日付をクリア",
+      "clearDateShort": "クリア",
       "deleteCompletedConfirmTitle": "完了タスクを削除しますか？"
     },
     "notFound": {

@@ -251,6 +251,7 @@
     "tasklist": {
       "addTaskPlaceholder": "Aufgabe eingeben...",
       "setDate": "Datum festlegen",
+      "setDateShort": "Setzen",
       "markComplete": "Nicht erledigt. Tippe, um als erledigt zu markieren",
       "markIncomplete": "Erledigt. Tippe, um als nicht erledigt zu markieren",
       "noTasks": "Keine Aufgaben",
@@ -259,6 +260,7 @@
       "deleteCompleted": "Abgeschlossene Aufgaben löschen",
       "deleteCompletedConfirm": "{{count}} abgeschlossene Aufgaben löschen?",
       "clearDate": "Datum löschen",
+      "clearDateShort": "Löschen",
       "deleteCompletedConfirmTitle": "Erledigte Aufgaben löschen?"
     },
     "notFound": {

@@ -251,6 +251,7 @@
     "tasklist": {
       "addTaskPlaceholder": "Enter task...",
       "setDate": "Set date",
+      "setDateShort": "Set",
       "markComplete": "Not completed, tap to mark as completed",
       "markIncomplete": "Completed, tap to mark as not completed",
       "noTasks": "No tasks",
@@ -259,6 +260,7 @@
       "deleteCompleted": "Delete completed tasks",
       "deleteCompletedConfirm": "Delete {{count}} completed tasks?",
       "clearDate": "Clear Date",
+      "clearDateShort": "Clear",
       "deleteCompletedConfirmTitle": "Delete completed tasks?"
     },
     "notFound": {

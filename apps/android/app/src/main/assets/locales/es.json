@@ -251,6 +251,7 @@
     "tasklist": {
       "addTaskPlaceholder": "Escribe una tarea...",
       "setDate": "Establecer fecha",
+      "setDateShort": "Fijar",
       "markComplete": "Sin completar. Toca para marcar como completada",
       "markIncomplete": "Completada. Toca para marcar como pendiente",
       "noTasks": "No hay tareas",
@@ -259,6 +260,7 @@
       "deleteCompleted": "Eliminar tareas completadas",
       "deleteCompletedConfirm": "¿Eliminar {{count}} tareas completadas?",
       "clearDate": "Borrar fecha",
+      "clearDateShort": "Borrar",
       "deleteCompletedConfirmTitle": "¿Eliminar tareas completadas?"
     },
     "notFound": {

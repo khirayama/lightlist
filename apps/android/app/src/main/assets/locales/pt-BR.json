@@ -251,6 +251,7 @@
     "tasklist": {
       "addTaskPlaceholder": "Digite uma tarefa...",
       "setDate": "Definir data",
+      "setDateShort": "Definir",
       "markComplete": "Não concluída, toque para marcar como concluída",
       "markIncomplete": "Concluída, toque para marcar como não concluída",
       "noTasks": "Sem tarefas",
@@ -259,6 +260,7 @@
       "deleteCompleted": "Excluir tarefas concluídas",
       "deleteCompletedConfirm": "Excluir {{count}} tarefas concluídas?",
       "clearDate": "Limpar data",
+      "clearDateShort": "Limpar",
       "deleteCompletedConfirmTitle": "Excluir tarefas concluídas?"
     },
     "notFound": {

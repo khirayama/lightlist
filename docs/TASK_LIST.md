@@ -38,6 +38,7 @@
 
 - `createTaskList(name, background)` は `taskLists` 実体の作成と `taskListOrder` への追加を同時に行う。
 - `updateTaskList()` は `name` と `background` を更新する。
+- Android のリスト編集ダイアログには `taskList.deleteList` 導線を含め、確認ダイアログを経由して「一覧から外す」を実行できる。
 - `background` は Web / iOS / Android で、選択中タスクリスト詳細の背景として使う。compact 幅は画面全体、regular 幅は右ペインの外周と本文にだけ適用し、左ペインと split 境界線には影響させない。未設定時は各プラットフォームの通常背景色へフォールバックする。
 - Web / iOS / Android のタスクリスト詳細画面は、ページャーのインジケータだけを固定表示し、タスクリスト名、タスク追加欄、並び替え・完了済み削除操作、タスク一覧は同じスクロール領域に含める。
 - Web を基準に、タスクリスト一覧のサイドバーは外周 `16pt/dp` の余白を持つコンテナとして扱い、メール行、カレンダーボタン、一覧、作成/参加ボタンの順に積む。選択中行のハイライトは行自身の角丸背景にだけ付与し、外側コンテナへ広げない。
@@ -71,6 +72,7 @@
 - `taskInsertPosition` が `top` の場合は先頭、`bottom` の場合は末尾へ追加する。
 - Android のタスク追加後は、自動スクロールで追加位置へ移動しない。追加前のスクロール位置を維持する。
 - Android のタスク追加後は入力欄の focus を維持したまま IME を閉じない。
+- Android のタスク入力欄の送信アイコンは Web と同様に入力欄 focus 中だけ横方向アニメーションで表示し、入力文字が空の間は disabled のまま保つ。
 - `autoSort` 有効時は `未完了 -> date -> order` の順で並べ直す。
 - iOS / Android の `TaskListDetailPage` でも `autoSort` 有効時は、タスク追加、完了切替、本文編集、日付変更、完了済み削除のたびに同じ順序で再採番して Firestore へ保存する。
 - `history` は重複を除きつつ先頭追加し、最大 300 件を保持する。

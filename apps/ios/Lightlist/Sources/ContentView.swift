@@ -757,19 +757,23 @@ struct ContentView: View {
 
     private func startListening() {
         authHandle = Auth.auth().addStateDidChangeListener { _, user in
-            settingsListener?.remove()
-            guard let uid = user?.uid else {
-                theme = "system"
-                Task { translations.load(language: "ja") }
-                return
-            }
-            settingsListener = Firestore.firestore()
-                .collection("settings").document(uid)
-                .addSnapshotListener { snapshot, _ in
-                    theme = snapshot?.data()?["theme"] as? String ?? "system"
-                    let language = snapshot?.data()?["language"] as? String ?? "ja"
-                    Task { translations.load(language: language) }
+            Task { @MainActor in
+                settingsListener?.remove()
+                guard let uid = user?.uid else {
+                    theme = "system"
+                    Task { translations.load(language: "ja") }
+                    return
                 }
+                settingsListener = Firestore.firestore()
+                    .collection("settings").document(uid)
+                    .addSnapshotListener { snapshot, _ in
+                        Task { @MainActor in
+                            theme = snapshot?.data()?["theme"] as? String ?? "system"
+                            let language = snapshot?.data()?["language"] as? String ?? "ja"
+                            Task { translations.load(language: language) }
+                        }
+                    }
+            }
         }
     }
 
@@ -814,28 +818,40 @@ private extension VerticalAlignment {
     static let taskRowContentCenter = VerticalAlignment(TaskRowContentCenter.self)
 }
 
+private enum AppIconMetrics {
+    static let standardActionIconSize: CGFloat = 22
+    static let navigationIconSize: CGFloat = 22
+    static let compactActionIconSize: CGFloat = 20
+    static let inlineActionIconSize: CGFloat = 18
+    static let dragHandleDotSize: CGFloat = 4.5
+    static let dragHandleDotSpacing: CGFloat = 3
+    static let listColorDotSize: CGFloat = 16
+    static let calendarTaskColorDotSize: CGFloat = 10
+}
+
 private enum TaskListDetailMetrics {
     static let headerIconButtonSize: CGFloat = 28
-    static let headerIconSize: CGFloat = 16
+    static let headerIconSize: CGFloat = AppIconMetrics.compactActionIconSize
     static let headerActionSpacing: CGFloat = 10
     static let inputCornerRadius: CGFloat = 14
     static let inputHorizontalPadding: CGFloat = 14
     static let inputVerticalPadding: CGFloat = 10
     static let inputBorderWidth: CGFloat = 1
     static let actionRowTopPadding: CGFloat = 2
-    static let actionIconSize: CGFloat = 13
+    static let actionIconSize: CGFloat = AppIconMetrics.inlineActionIconSize
+    static let addActionIconSize: CGFloat = AppIconMetrics.compactActionIconSize
     static let taskRowSpacing: CGFloat = 8
     static let taskRowVerticalPadding: CGFloat = 8
     static let taskContentHeight: CGFloat = 44
-    static let taskDateBottomSpacing: CGFloat = 2
+    static let taskDateBottomSpacing: CGFloat = -2
     static let dragTouchHeight: CGFloat = 44
     static let dragTouchWidth: CGFloat = 20
     static let completionTouchHeight: CGFloat = 44
     static let completionTouchWidth: CGFloat = 26
-    static let completionDotSize: CGFloat = 18
+    static let completionDotSize: CGFloat = 20
     static let trailingDateButtonWidth: CGFloat = 28
     static let trailingDateButtonHeight: CGFloat = 44
-    static let trailingDateIconSize: CGFloat = 17
+    static let trailingDateIconSize: CGFloat = AppIconMetrics.compactActionIconSize
     static let titleBottomPadding: CGFloat = 2
     static let contentHorizontalPadding: CGFloat = 16
     static let contentBottomPadding: CGFloat = 8
@@ -917,7 +933,7 @@ private struct TaskListTopChrome: View {
                         if let onBack {
                             Button(action: onBack) {
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 22, weight: .semibold))
+                                    .font(.system(size: AppIconMetrics.navigationIconSize, weight: .semibold))
                                     .foregroundStyle(.primary)
                                     .frame(width: 32, height: 32)
                             }
@@ -1062,12 +1078,16 @@ private struct SignInView: View {
 
         isLoading = true
         errorMessage = nil
-        Auth.auth().signIn(withEmail: trimmedEmail, password: password) { _, error in
-            isLoading = false
-            if let error {
-                errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
-            } else {
-                logLogin()
+        Auth.auth().signIn(withEmail: trimmedEmail, password: password) { result, error in
+            Task { @MainActor in
+                isLoading = false
+                if let error {
+                    errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
+                } else if result == nil {
+                    errorMessage = translations.t("auth.error.general")
+                } else {
+                    logLogin()
+                }
             }
         }
     }
@@ -1148,51 +1168,55 @@ private struct SignUpView: View {
         let auth = Auth.auth()
         let db = Firestore.firestore()
         auth.createUser(withEmail: trimmedEmail, password: password) { result, error in
-            if let error {
-                isLoading = false
-                errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
-                return
-            }
+            Task { @MainActor in
+                if let error {
+                    isLoading = false
+                    errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
+                    return
+                }
 
-            guard let uid = result?.user.uid else {
-                isLoading = false
-                errorMessage = translations.t("auth.error.general")
-                return
-            }
+                guard let uid = result?.user.uid else {
+                    isLoading = false
+                    errorMessage = translations.t("auth.error.general")
+                    return
+                }
 
-            let now = Date().timeIntervalSince1970 * 1000
-            let taskListId = db.collection("taskLists").document().documentID
-            let batch = db.batch()
-            batch.setData([
-                "theme": "system",
-                "language": normalizedLanguage,
-                "taskInsertPosition": "top",
-                "autoSort": false,
-                "createdAt": now,
-                "updatedAt": now,
-            ], forDocument: db.collection("settings").document(uid))
-            batch.setData([
-                "id": taskListId,
-                "name": initialTaskListNameByLanguage[normalizedLanguage] ?? initialTaskListNameByLanguage["ja"] ?? "📒個人",
-                "tasks": [:],
-                "history": [],
-                "shareCode": NSNull(),
-                "background": NSNull(),
-                "memberCount": 1,
-                "createdAt": now,
-                "updatedAt": now,
-            ], forDocument: db.collection("taskLists").document(taskListId))
-            batch.setData([
-                taskListId: ["order": 1.0],
-                "createdAt": now,
-                "updatedAt": now,
-            ], forDocument: db.collection("taskListOrder").document(uid))
-            batch.commit { commitError in
-                isLoading = false
-                if let commitError {
-                    errorMessage = resolveAuthErrorMessage(translations: translations, error: commitError)
-                } else {
-                    logSignUp()
+                let now = Date().timeIntervalSince1970 * 1000
+                let taskListId = db.collection("taskLists").document().documentID
+                let batch = db.batch()
+                batch.setData([
+                    "theme": "system",
+                    "language": normalizedLanguage,
+                    "taskInsertPosition": "top",
+                    "autoSort": false,
+                    "createdAt": now,
+                    "updatedAt": now,
+                ], forDocument: db.collection("settings").document(uid))
+                batch.setData([
+                    "id": taskListId,
+                    "name": initialTaskListNameByLanguage[normalizedLanguage] ?? initialTaskListNameByLanguage["ja"] ?? "📒個人",
+                    "tasks": [:],
+                    "history": [],
+                    "shareCode": NSNull(),
+                    "background": NSNull(),
+                    "memberCount": 1,
+                    "createdAt": now,
+                    "updatedAt": now,
+                ], forDocument: db.collection("taskLists").document(taskListId))
+                batch.setData([
+                    taskListId: ["order": 1.0],
+                    "createdAt": now,
+                    "updatedAt": now,
+                ], forDocument: db.collection("taskListOrder").document(uid))
+                batch.commit { commitError in
+                    Task { @MainActor in
+                        isLoading = false
+                        if let commitError {
+                            errorMessage = resolveAuthErrorMessage(translations: translations, error: commitError)
+                        } else {
+                            logSignUp()
+                        }
+                    }
                 }
             }
         }
@@ -1270,12 +1294,14 @@ private struct PasswordResetRequestView: View {
         actionCodeSettings.url = URL(string: passwordResetURLString())
         actionCodeSettings.handleCodeInApp = false
         auth.sendPasswordReset(withEmail: trimmedEmail, actionCodeSettings: actionCodeSettings) { error in
-            isLoading = false
-            if let error {
-                errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
-            } else {
-                logPasswordResetEmailSent()
-                successMessage = translations.t("auth.passwordReset.success")
+            Task { @MainActor in
+                isLoading = false
+                if let error {
+                    errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
+                } else {
+                    logPasswordResetEmailSent()
+                    successMessage = translations.t("auth.passwordReset.success")
+                }
             }
         }
     }
@@ -1349,9 +1375,11 @@ private struct PasswordResetView: View {
         isVerifying = true
         errorMessage = nil
         Auth.auth().verifyPasswordResetCode(code) { _, error in
-            isVerifying = false
-            if let error {
-                errorMessage = resolvePasswordResetErrorMessage(translations: translations, error: error)
+            Task { @MainActor in
+                isVerifying = false
+                if let error {
+                    errorMessage = resolvePasswordResetErrorMessage(translations: translations, error: error)
+                }
             }
         }
     }
@@ -1380,31 +1408,33 @@ private struct PasswordResetView: View {
         isSubmitting = true
         errorMessage = nil
         Auth.auth().confirmPasswordReset(withCode: code, newPassword: newPassword) { error in
-            isSubmitting = false
-            if let error {
-                errorMessage = resolvePasswordResetErrorMessage(translations: translations, error: error)
-                return
-            }
+            Task { @MainActor in
+                isSubmitting = false
+                if let error {
+                    errorMessage = resolvePasswordResetErrorMessage(translations: translations, error: error)
+                    return
+                }
 
-            successMessage = translations.t("auth.passwordReset.resetSuccess")
+                successMessage = translations.t("auth.passwordReset.resetSuccess")
+            }
         }
     }
 }
 
 private struct DragHandleIcon: View {
     var body: some View {
-        VStack(spacing: 3) {
-            HStack(spacing: 3) {
-                Circle().frame(width: 4, height: 4)
-                Circle().frame(width: 4, height: 4)
+        VStack(spacing: AppIconMetrics.dragHandleDotSpacing) {
+            HStack(spacing: AppIconMetrics.dragHandleDotSpacing) {
+                Circle().frame(width: AppIconMetrics.dragHandleDotSize, height: AppIconMetrics.dragHandleDotSize)
+                Circle().frame(width: AppIconMetrics.dragHandleDotSize, height: AppIconMetrics.dragHandleDotSize)
             }
-            HStack(spacing: 3) {
-                Circle().frame(width: 4, height: 4)
-                Circle().frame(width: 4, height: 4)
+            HStack(spacing: AppIconMetrics.dragHandleDotSpacing) {
+                Circle().frame(width: AppIconMetrics.dragHandleDotSize, height: AppIconMetrics.dragHandleDotSize)
+                Circle().frame(width: AppIconMetrics.dragHandleDotSize, height: AppIconMetrics.dragHandleDotSize)
             }
-            HStack(spacing: 3) {
-                Circle().frame(width: 4, height: 4)
-                Circle().frame(width: 4, height: 4)
+            HStack(spacing: AppIconMetrics.dragHandleDotSpacing) {
+                Circle().frame(width: AppIconMetrics.dragHandleDotSize, height: AppIconMetrics.dragHandleDotSize)
+                Circle().frame(width: AppIconMetrics.dragHandleDotSize, height: AppIconMetrics.dragHandleDotSize)
             }
         }
     }
@@ -1563,7 +1593,7 @@ private struct TaskListsView: View {
                     if let onOpenSettings {
                         Button(action: onOpenSettings) {
                             Image(systemName: "gearshape")
-                                .font(.title3)
+                                .font(.system(size: AppIconMetrics.standardActionIconSize, weight: .semibold))
                                 .foregroundStyle(.primary)
                         }
                         .buttonStyle(.plain)
@@ -1571,7 +1601,7 @@ private struct TaskListsView: View {
                     } else {
                         NavigationLink(value: AppRoute.settings) {
                             Image(systemName: "gearshape")
-                                .font(.title3)
+                                .font(.system(size: AppIconMetrics.standardActionIconSize, weight: .semibold))
                                 .foregroundStyle(.primary)
                         }
                         .accessibilityLabel(translations.t("settings.title"))
@@ -1586,7 +1616,7 @@ private struct TaskListsView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "calendar")
-                            .font(.body)
+                            .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .medium))
                         Text(translations.t("app.calendarCheckButton"))
                             .font(.body)
                     }
@@ -1665,7 +1695,7 @@ private struct TaskListsView: View {
 
                                     Circle()
                                         .fill(taskList.background.flatMap { Color(hex: $0) } ?? Color(.systemGray4))
-                                        .frame(width: 14, height: 14)
+                                        .frame(width: AppIconMetrics.listColorDotSize, height: AppIconMetrics.listColorDotSize)
                                         .overlay(
                                             Circle()
                                                 .stroke(Color(.separator), lineWidth: taskList.background == nil ? 1 : 0)
@@ -1760,9 +1790,11 @@ private struct TaskListsView: View {
         .navigationBarHidden(true)
         .onAppear {
             authStateHandle = Auth.auth().addStateDidChangeListener { _, user in
-                isLoggedIn = user != nil
-                viewModel.bind(uid: user?.uid)
-                calendarViewModel.bind(uid: user?.uid)
+                Task { @MainActor in
+                    isLoggedIn = user != nil
+                    viewModel.bind(uid: user?.uid)
+                    calendarViewModel.bind(uid: user?.uid)
+                }
             }
         }
         .onDisappear {
@@ -2084,8 +2116,10 @@ private struct TaskListView: View {
         }
         .onAppear {
             authStateHandle = Auth.auth().addStateDidChangeListener { _, user in
-                viewModel.bind(uid: user?.uid)
-                settingsViewModel.bind(uid: user?.uid)
+                Task { @MainActor in
+                    viewModel.bind(uid: user?.uid)
+                    settingsViewModel.bind(uid: user?.uid)
+                }
             }
         }
         .onDisappear {
@@ -2186,8 +2220,10 @@ private struct RegularTaskListView: View {
         }
         .onAppear {
             authStateHandle = Auth.auth().addStateDidChangeListener { _, user in
-                viewModel.bind(uid: user?.uid)
-                settingsViewModel.bind(uid: user?.uid)
+                Task { @MainActor in
+                    viewModel.bind(uid: user?.uid)
+                    settingsViewModel.bind(uid: user?.uid)
+                }
             }
         }
         .onDisappear {
@@ -2542,7 +2578,7 @@ private struct TaskListDetailPage: View {
                     if !newTaskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Button { addTask() } label: {
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.system(size: TaskListDetailMetrics.addActionIconSize, weight: .semibold))
                                 .foregroundStyle(.primary)
                                 .frame(width: 24, height: 24)
                         }
@@ -2553,8 +2589,12 @@ private struct TaskListDetailPage: View {
 
                 HStack {
                     Button { handleSortTasks() } label: {
-                        Label(translations.t("pages.tasklist.sort"), systemImage: "line.3.horizontal.decrease")
-                            .font(.system(size: 15, weight: .semibold))
+                        HStack(spacing: 4) {
+                            Image(systemName: "line.3.horizontal.decrease")
+                                .font(.system(size: TaskListDetailMetrics.actionIconSize, weight: .semibold))
+                            Text(translations.t("pages.tasklist.sort"))
+                                .font(.system(size: 15, weight: .semibold))
+                        }
                     }
                     .disabled(taskList.tasks.count < 2)
                     Spacer()
@@ -3374,7 +3414,9 @@ private struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             authStateHandle = Auth.auth().addStateDidChangeListener { _, user in
-                viewModel.bind(uid: user?.uid)
+                Task { @MainActor in
+                    viewModel.bind(uid: user?.uid)
+                }
             }
         }
         .onDisappear {
@@ -3458,7 +3500,7 @@ private struct SettingsView: View {
                 Spacer()
                 Text(value).foregroundStyle(.secondary)
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                    .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
             .padding(.vertical, 4)
@@ -3482,6 +3524,7 @@ private struct SettingsView: View {
                                 Spacer()
                                 if viewModel.settings?.language == supportedLanguages[i].code {
                                     Image(systemName: "checkmark")
+                                        .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
                                         .foregroundStyle(Color.accentColor)
                                 }
                             }
@@ -3636,7 +3679,7 @@ private struct CalendarTaskRow: View {
                 HStack(spacing: 4) {
                     Circle()
                         .fill(task.taskListBackground.flatMap { Color(hex: $0) } ?? Color.accentColor)
-                        .frame(width: 8, height: 8)
+                        .frame(width: AppIconMetrics.calendarTaskColorDotSize, height: AppIconMetrics.calendarTaskColorDotSize)
                     Text(task.taskListName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -3738,7 +3781,7 @@ private struct CalendarSheetView: View {
             HStack {
                 Button { shiftMonth(by: -1) } label: {
                     Image(systemName: "chevron.left")
-                        .font(.body.weight(.semibold))
+                        .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
                         .padding(8)
                 }
                 .accessibilityLabel("前の月")
@@ -3748,7 +3791,7 @@ private struct CalendarSheetView: View {
                 Spacer()
                 Button { shiftMonth(by: 1) } label: {
                     Image(systemName: "chevron.right")
-                        .font(.body.weight(.semibold))
+                        .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
                         .padding(8)
                 }
                 .accessibilityLabel("次の月")

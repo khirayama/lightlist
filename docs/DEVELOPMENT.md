@@ -40,6 +40,7 @@
 - Firebase 初期化と App Check 初期化は `apps/web/src/lib/firebase.ts` に集約する。
 - Web UI から `firebase/*` を直接 import せず、認証・設定・タスクリストは `@/lib/*` を通す。
 - i18n 初期化、対応言語、言語正規化、方向判定、翻訳依存のエラー解決とバリデーションは `apps/web/src/lib/translation.ts` に集約する。
+- Web の認証後シェルは `apps/web/src/pages/app.tsx` を単一入口とし、`/app#/task-lists` を stack root、`/app#/task-lists/:taskListId` を task list 詳細、`/app#/settings` を設定画面として扱う。`/app` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。mobile では tasklists root・detail・settings を同じシェル内の stack と横スライドで扱う。
 - 本番 build は `next build --webpack` を使う。
 - 本番レスポンスヘッダは `apps/web/next.config.js` で管理する。
 

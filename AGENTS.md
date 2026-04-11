@@ -57,17 +57,23 @@
 - Android の `TaskListView` は選択中タスクリストの `background` を詳細ペイン背景として使う。compact 幅は画面全体、regular 幅は右ペインだけに適用し、左ペインと split 境界線は `MaterialTheme.colorScheme.background` / `outlineVariant` で固定する。`TaskListDetailPage` はページャーのインジケータだけを固定表示し、タスクリスト名、タスク追加欄、並び替え・完了済み削除操作、タスク一覧を同じ `LazyColumn` に含める。
 - Android の一覧ヘッダー、詳細ヘッダー、設定ヘッダー、カレンダー確認シートの上部クロームは `WindowInsets.safeDrawing` を反映し、ステータスバーと重ねない。詳細/設定の共通ヘッダーは safe area 分を外側コンテナで確保し、戻るボタンやタイトルの固定高さを inset と共有しない。
 - Android のタスクリスト詳細の密度調整は global typography ではなく `TaskListDetailPage` ローカルの metrics で行い、iOS に近い視覚バランスへ寄せつつ edit/share/add/date/complete/drag の `48dp` タップ領域は維持する。
+- Android の task 日付設定ダイアログは platform `DatePickerDialog` を使い、positive button は `pages.tasklist.setDateShort`、neutral button は `pages.tasklist.clearDateShort` を使って 3 ボタンを横並びに収める。Compose Material3 `DatePicker` と custom 月間カレンダーは使わない。
+- iOS のアプリ内アイコンは `ContentView.swift` の metrics を正とし、標準アクションとナビゲーション `22pt`、テキスト横の補助アクション `18pt`、詳細画面の小型アクション `20pt` を基準に目視サイズを揃える。AppIcon 資産とは分けて扱う。
+- Android のアプリ内アイコンは `ContentView.kt` の metrics を正とし、標準アクション `24dp`、テキスト横の補助アクション `18dp`、詳細画面の小型アクション `20dp` を基準に目視サイズを揃える。launcher icon 資産とは分けて扱う。
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白と、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰める。
 - iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を分離し、入力欄の追加ボタンは入力文字がある時だけ表示する。未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で描画し、参考画面に近い密度へ寄せる。
-- iOS / Android の task row は drag handle・完了トグル・本文の縦方向中心を揃え、日付ラベルは本文や編集欄の縦位置を押し下げず、同じ本文領域内の直上へ近接表示する。
+- iOS / Android の task row は drag handle・完了トグル・本文の縦方向中心を揃え、日付ラベルは本文や編集欄の縦位置を押し下げず、同じ本文領域内の直上へ近接表示する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
 - iOS / Android の `TaskListDetailPage` は `autoSort` 有効時、タスク追加・完了切替・本文編集・日付変更・完了済み削除ごとに `未完了 -> date -> order` で再採番した `tasks.*` 全体を Firestore へ保存する。
 - iOS の SwiftUI 並び替えドラッグは、移動中の行の local 座標系ではなく親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で収集した行高さだけを使う。`frame(in:)` の位置監視を drag state に戻さない。
 - iOS の全画面ルートと sheet / dialog は `frame(maxWidth: .infinity, maxHeight: .infinity)` を維持しつつ、背景ビュー側だけで safe area を無視する。標準ナビゲーションバーを使わない iPhone ヘッダーは `SafeAreaNavigationHeader` と `safeAreaInset(edge: .top)` を使う。`LightlistApp` は hidden `UIViewRepresentable` の `WindowSceneConfigurator` で attach 済み `UIWindow` を初期化し、window 背景色と root view controller の safe area / layout margins も全画面前提に揃える。`ScrollView` ベースの全画面フォームはカードラッパーを持たず、外側 `maxWidth` 制約や `RoundedRectangle` でカード化しない。
 - iOS の custom header 付き画面と sheet / dialog は、header を `safeAreaInset(edge: .top)` に載せ、本文 root も `frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)` で画面高または detent 高いっぱいまで広げる。header inset と重複する大きな `padding(.top)` は本文側で足さず、追加の視覚余白は最小限に留める。
 - iOS の VoiceOver 対応はアイコンのみのボタンに `accessibilityLabel`、タスク完了トグルに `accessibilityHint`、ヘッダーに `.isHeader` trait を設定する。
 - iOS の Firebase Analytics は `FirebaseApp.configure()` で自動有効化し、Crashlytics / App Check も `LightlistApp.swift` で初期化する。
+- iOS の Firebase Auth callback と auth state listener から SwiftUI state を更新する処理は MainActor 上で行い、ログイン completion で `error` と `result` がともに空の場合も汎用認証エラーを表示する。
 - iOS の App Store 提出: Release ビルドは `PASSWORD_RESET_URL=https://lightlist.com/password_reset`。`ITSAppUsesNonExemptEncryption: NO` で暗号化輸出規制を申告し、`Lightlist/Resources/PrivacyInfo.xcprivacy` で Privacy Manifest を宣言する（メールアドレス、クラッシュデータ、Product Interaction、UserDefaults API）。
 - iOS の bundle identifier と Android の applicationId は `com.lightlist.app` を正とする。
+- iOS の AppIcon は `apps/web/public/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。
+- Android の launcher icon は `apps/web/public/icons/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
 - タスクリストは `taskLists.memberCount` で保持ユーザー数を管理し、削除操作は「`taskListOrder` から外す」を基本とする。`memberCount` が 0 になった場合のみ `taskLists` 実体を削除する。
 - 共有権限モデルは「共有URLを知っているユーザーは未認証でも閲覧・編集可」を仕様として固定する。production readiness 評価で挙がった認可モデル再設計（item1）は 2026-03 時点で対応不要とする。
 - パスワードリセットURLは `NEXT_PUBLIC_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
@@ -76,15 +82,15 @@
 - Web は言語切替時に `document.documentElement.lang` と `dir` を同期する。`ar` は RTL、それ以外は LTR。
 - Web の `StartupSplash` は hydration mismatch を避けるため、読み上げラベルを i18n の初期言語解決に依存させず固定文字列（`読み込み中`）で扱う。
 - Web の `Carousel` は `direction` prop を必須運用し、RTL 時の `scrollLeft` はブラウザ差分（positive/negative）を正規化して index を算出する。
+- Web の認証後シェルは `apps/web/src/pages/app.tsx` を単一入口とし、`/app#/task-lists` を stack root、`/app#/task-lists/:taskListId` を task list 詳細、`/app#/settings` を設定画面として扱う。`/app` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。
 - Web の production build は `next build --webpack` を使う。Next 16 系のデフォルト Turbopack build は Vercel の `onBuildComplete` で `.next/output/static/404.html` を見つけられず失敗することがあるため、デプロイ互換性を優先して webpack に固定する。
 - Web の本番レスポンスヘッダは `apps/web/next.config.js` で管理し、`Content-Security-Policy`、`Referrer-Policy`、`X-Content-Type-Options`、`X-Frame-Options`、`Permissions-Policy`、`Strict-Transport-Security` を付与する。
 - 配信用スクリーンショットの元画像は `apps/ios/screenshots` / `apps/android/screenshots` / `apps/web/screenshots` に置き、生成は `cd apps/web && npm run screenshots:generate -- <target>` またはルートの `just screenshots <target>` で行う。出力は iOS が `apps/ios/screenshots/app-store/iphone-6.9`、Android が `apps/android/screenshots/google-play/phone`、Web が `apps/web/public/screenshots/store/{wide,narrow}`。変換は中央基準の cover crop を使い、iOS App Store は `1290x2796`、Google Play phone は `1080x1920`、Web manifest screenshots は wide `1920x1080` / narrow `750x1334` を正とする。現行フローは iPhone 比率の元画像だけを対象にし、iPad App Store スクリーンショットは別途 iPad 実画面の元画像追加が必要。
-- `apps/web` では画面固有、または 1〜2 箇所でしか使わない UI / helper / hook は standalone file にせず、`pages/*` または直近のドメインファイルへ近接配置する。2026-03 時点では `pages/app.tsx` が drawer / calendar sheet を内包し、`TaskListCard` が task item と候補 UI を内包する。
+- `apps/web` では画面固有、または 1〜2 箇所でしか使わない UI / helper / hook は standalone file にせず、`pages/*` または直近のドメインファイルへ近接配置する。2026-03 時点では `pages/app.tsx` が tasklists root / detail / settings の stack と calendar sheet を内包し、`TaskListCard` が task item と候補 UI を内包する。
 - Web の主要ページ:
   - `apps/web/src/pages/index.tsx`（ランディング）
   - `apps/web/src/pages/login.tsx`（サインイン/サインアップ/リセット依頼）
   - `apps/web/src/pages/app.tsx`
-  - `apps/web/src/pages/settings.tsx`
   - `apps/web/src/pages/password_reset.tsx`
   - `apps/web/src/pages/sharecodes/[sharecode].tsx`
   - `apps/web/src/pages/404.tsx`（カスタム404ページ）
@@ -114,6 +120,8 @@
 - `apps/android`:
   - `just lint`
   - `just build`
+  - `just run`（通常は上書きインストールで Firebase Auth セッションを保持し、失敗時のみアンインストールして入れ直す）
+  - `just run-clean`（明示的なクリーン再インストール用。アプリデータとログイン状態は消える）
 
 ## セキュリティ・品質ルール
 

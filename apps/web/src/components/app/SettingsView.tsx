@@ -1,5 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
-import { useRouter } from "next/router";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useSessionState } from "@/lib/session";
@@ -35,6 +34,11 @@ import {
   DialogContent,
   DialogFooter,
 } from "@/components/ui/Dialog";
+
+type SettingsViewProps = {
+  onBack?: () => void;
+  showBackButton?: boolean;
+};
 
 type SelectRowProps = {
   disabled: boolean;
@@ -177,8 +181,10 @@ function SelectRow({
   );
 }
 
-export default function SettingsPage() {
-  const router = useRouter();
+export function SettingsView({
+  onBack,
+  showBackButton = false,
+}: SettingsViewProps) {
   const { t } = useTranslation();
   const { authStatus, user } = useSessionState();
   const { settings, settingsStatus } = useSettingsState();
@@ -216,26 +222,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleBack = () => {
-    if (typeof window === "undefined") {
-      router.push("/app");
-      return;
-    }
-
-    if (window.history.length > 1) {
-      router.back();
-      return;
-    }
-
-    router.push("/app");
-  };
-
-  useEffect(() => {
-    if (authStatus === "unauthenticated") {
-      router.push("/");
-    }
-  }, [authStatus, router]);
-
   const handleThemeChange = async (theme: Theme) => {
     await updateSetting({ theme });
     logSettingsThemeChange({ theme });
@@ -269,7 +255,9 @@ export default function SettingsPage() {
     try {
       await signOut();
       logSignOut();
-      router.push("/");
+      if (typeof window !== "undefined") {
+        window.location.assign("/");
+      }
     } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
       setPendingAction(null);
@@ -287,7 +275,9 @@ export default function SettingsPage() {
     try {
       await deleteAccount();
       logDeleteAccount();
-      router.push("/");
+      if (typeof window !== "undefined") {
+        window.location.assign("/");
+      }
     } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
       setPendingAction(null);
@@ -362,26 +352,24 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-full w-full bg-background text-text dark:bg-background-dark dark:text-text-dark">
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-10 pt-6 sm:px-6 lg:pt-8"
-      >
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-10 pt-6 sm:px-6 lg:pt-8">
         <header className="flex items-center gap-3 px-1">
-          <button
-            type="button"
-            onClick={handleBack}
-            title={t("common.back")}
-            aria-label={t("common.back")}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted transition hover:bg-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border dark:text-muted-dark dark:hover:bg-surface-dark dark:focus-visible:outline-border-dark"
-          >
-            <AppIcon
-              name="arrow-back"
-              className="h-5 w-5"
-              aria-hidden="true"
-              focusable="false"
-            />
-          </button>
+          {showBackButton ? (
+            <button
+              type="button"
+              onClick={onBack}
+              title={t("common.back")}
+              aria-label={t("common.back")}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted transition hover:bg-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border dark:text-muted-dark dark:hover:bg-surface-dark dark:focus-visible:outline-border-dark"
+            >
+              <AppIcon
+                name="arrow-back"
+                className="h-5 w-5"
+                aria-hidden="true"
+                focusable="false"
+              />
+            </button>
+          ) : null}
           <h1 className="min-w-0 flex-1 text-2xl font-semibold tracking-tight">
             {t("settings.title")}
           </h1>
@@ -467,7 +455,7 @@ export default function SettingsPage() {
                     name="autoSort"
                     checked={settings?.autoSort ?? false}
                     onChange={(event) =>
-                      handleAutoSortChange(event.target.checked)
+                      void handleAutoSortChange(event.target.checked)
                     }
                     disabled={settingsDisabled}
                     className="peer sr-only"
@@ -641,7 +629,7 @@ export default function SettingsPage() {
           isDestructive={true}
           disabled={actionsDisabled}
         />
-      </main>
+      </div>
     </div>
   );
 }

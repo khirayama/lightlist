@@ -1,6 +1,7 @@
 import {
   ComponentPropsWithoutRef,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -59,13 +60,12 @@ import {
 import {
   Drawer,
   DrawerContent,
-  DrawerDescription,
   DrawerHeader,
-  DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/Drawer";
 import { Spinner } from "@/components/ui/Spinner";
 import { Carousel } from "@/components/ui/Carousel";
+import { SettingsView } from "@/components/app/SettingsView";
 import { TaskListCard } from "@/components/app/TaskListCard";
 
 const Calendar = dynamic(
@@ -126,6 +126,8 @@ type DrawerPanelContent = ComponentPropsWithoutRef<
   typeof DrawerContent
 >["children"];
 
+type AppView = "taskLists" | "detail" | "settings";
+
 type DatedTask = {
   taskListId: string;
   taskListName: string;
@@ -138,63 +140,120 @@ type DatedTask = {
 const getDatedTaskId = (task: DatedTask): string =>
   `${task.taskListId}:${task.task.id}`;
 
-type AppHeaderProps = {
-  isWideLayout: boolean;
-  isRtl: boolean;
-  isDrawerOpen: boolean;
-  onDrawerOpenChange: (open: boolean) => void;
-  drawerPanel: DrawerPanelContent;
-  openMenuLabel: string;
+const TASK_LISTS_ROUTE = "/task-lists";
+const SETTINGS_ROUTE = "/settings";
+
+type AppHashRoute =
+  | { view: "taskLists" }
+  | { view: "detail"; taskListId: string }
+  | { view: "settings" }
+  | { view: "unknown" };
+
+type KnownAppHashRoute = Exclude<AppHashRoute, { view: "unknown" }>;
+
+const parseAppHashRoute = (hash: string): AppHashRoute => {
+  const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
+  if (!normalizedHash) {
+    return { view: "unknown" };
+  }
+
+  if (normalizedHash === TASK_LISTS_ROUTE) {
+    return { view: "taskLists" };
+  }
+
+  if (normalizedHash === SETTINGS_ROUTE) {
+    return { view: "settings" };
+  }
+
+  const detailPrefix = `${TASK_LISTS_ROUTE}/`;
+  if (normalizedHash.startsWith(detailPrefix)) {
+    const encodedTaskListId = normalizedHash.slice(detailPrefix.length);
+    if (!encodedTaskListId) {
+      return { view: "unknown" };
+    }
+
+    try {
+      return {
+        view: "detail",
+        taskListId: decodeURIComponent(encodedTaskListId),
+      };
+    } catch {
+      return { view: "unknown" };
+    }
+  }
+
+  return { view: "unknown" };
 };
 
-function AppHeader({
-  isWideLayout,
-  isRtl,
-  isDrawerOpen,
-  onDrawerOpenChange,
-  drawerPanel,
-  openMenuLabel,
-}: AppHeaderProps) {
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+type AppHeaderProps = {
+  backLabel: string;
+  onBack: () => void;
+};
+
+function AppHeader({ backLabel, onBack }: AppHeaderProps) {
   return (
-    <header
-      className={clsx(
-        "flex flex-wrap items-center px-1 py-1.5",
-        isWideLayout ? "justify-start" : "justify-between",
-      )}
-    >
-      {!isWideLayout && (
-        <Drawer
-          direction={isRtl ? "right" : "left"}
-          open={isDrawerOpen}
-          onOpenChange={onDrawerOpenChange}
-        >
-          <DrawerTrigger asChild>
-            <button
-              type="button"
-              aria-label={openMenuLabel}
-              title={openMenuLabel}
-              className="inline-flex items-center justify-center rounded p-3 text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:text-text-dark dark:focus-visible:outline-muted-dark"
-            >
-              <AppIcon
-                className="h-6 w-6"
-                name="arrow-back"
-                aria-hidden="true"
-                focusable="false"
-              />
-              <span className="sr-only">{openMenuLabel}</span>
-            </button>
-          </DrawerTrigger>
-          <DrawerContent
-            aria-labelledby="drawer-task-lists-title"
-            aria-describedby="drawer-task-lists-description"
-          >
-            {drawerPanel}
-          </DrawerContent>
-        </Drawer>
-      )}
+    <header className="flex items-center px-1 py-1.5">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label={backLabel}
+        title={backLabel}
+        className="inline-flex items-center justify-center rounded p-3 text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:text-text-dark dark:focus-visible:outline-muted-dark"
+      >
+        <AppIcon
+          className="h-6 w-6"
+          name="arrow-back"
+          aria-hidden="true"
+          focusable="false"
+        />
+        <span className="sr-only">{backLabel}</span>
+      </button>
     </header>
   );
 }
+
+const toAppUrl = (route: KnownAppHashRoute): string => {
+  if (typeof window === "undefined") {
+    return "/app";
+  }
+
+  const baseUrl = `${window.location.pathname}${window.location.search}`;
+  if (route.view === "taskLists") {
+    return `${baseUrl}#${TASK_LISTS_ROUTE}`;
+  }
+
+  if (route.view === "detail") {
+    return `${baseUrl}#${TASK_LISTS_ROUTE}/${encodeURIComponent(
+      route.taskListId,
+    )}`;
+  }
+
+  if (route.view === "settings") {
+    return `${baseUrl}#${SETTINGS_ROUTE}`;
+  }
+
+  return `${baseUrl}#${TASK_LISTS_ROUTE}`;
+};
+
+const buildAppHistoryState = (
+  route: KnownAppHashRoute,
+  currentState: unknown,
+): Record<string, unknown> => {
+  const baseState =
+    currentState && typeof currentState === "object"
+      ? (currentState as Record<string, unknown>)
+      : {};
+
+  return {
+    ...baseState,
+    lightlistMobileStackInitialized: true,
+    lightlistAppView: route.view,
+    lightlistTaskListId: route.view === "detail" ? route.taskListId : null,
+  };
+};
 
 type SortableTaskListItemProps = {
   taskList: TaskList;
@@ -739,32 +798,17 @@ function DrawerPanel({
   return (
     <div className="flex h-full flex-col gap-4">
       <DrawerHeader>
-        {isWideLayout ? (
-          <h2 id="drawer-task-lists-title" className="sr-only">
-            {t("app.drawerTitle")}
-          </h2>
-        ) : (
-          <DrawerTitle id="drawer-task-lists-title" className="sr-only">
-            {t("app.drawerTitle")}
-          </DrawerTitle>
-        )}
+        <h2 id="drawer-task-lists-title" className="sr-only">
+          {t("app.drawerTitle")}
+        </h2>
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            {isWideLayout ? (
-              <p
-                id="drawer-task-lists-description"
-                className="m-0 min-w-0 flex-1 truncate text-sm text-muted dark:text-muted-dark"
-              >
-                {userEmail}
-              </p>
-            ) : (
-              <DrawerDescription
-                id="drawer-task-lists-description"
-                className="min-w-0 flex-1 truncate"
-              >
-                {userEmail}
-              </DrawerDescription>
-            )}
+            <p
+              id="drawer-task-lists-description"
+              className="m-0 min-w-0 flex-1 truncate text-sm text-muted dark:text-muted-dark"
+            >
+              {userEmail}
+            </p>
             <button
               type="button"
               onClick={onOpenSettings}
@@ -980,9 +1024,12 @@ export default function AppPage() {
     stateTaskLists,
     updateTaskListOrder,
   );
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isWideLayout, setIsWideLayout] = useState(false);
   const [isTaskSorting, setIsTaskSorting] = useState(false);
+  const [currentView, setCurrentView] = useState<AppView>("detail");
+  const [isViewAnimationReady, setIsViewAnimationReady] = useState(false);
+  const [pendingInitialTaskListRoute, setPendingInitialTaskListRoute] =
+    useState(false);
 
   const sensorsList = useSensors(
     useSensor(PointerSensor, {
@@ -1001,13 +1048,35 @@ export default function AppPage() {
     }
   }, [authStatus, router]);
 
-  useEffect(() => {
-    if (authStatus !== "authenticated") {
+  useIsomorphicLayoutEffect(() => {
+    if (typeof window === "undefined") {
       return;
     }
 
-    void router.prefetch("/settings");
-  }, [authStatus, router]);
+    const syncView = () => {
+      const route = parseAppHashRoute(window.location.hash);
+      if (route.view === "unknown") {
+        return;
+      }
+
+      setCurrentView(route.view);
+      if (route.view === "detail") {
+        setSelectedTaskListId(route.taskListId);
+      }
+    };
+
+    syncView();
+    const animationFrameId = window.requestAnimationFrame(() => {
+      setIsViewAnimationReady(true);
+    });
+    window.addEventListener("hashchange", syncView);
+    window.addEventListener("popstate", syncView);
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("hashchange", syncView);
+      window.removeEventListener("popstate", syncView);
+    };
+  }, []);
 
   useEffect(() => {
     if (taskLists.length > 0 && !selectedTaskListId) {
@@ -1028,34 +1097,81 @@ export default function AppPage() {
   }, []);
 
   useEffect(() => {
-    if (isWideLayout) {
-      setIsDrawerOpen(false);
-    }
-  }, [isWideLayout]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || isWideLayout || !isDrawerOpen) return;
-
-    const drawerStateKey = "drawer-open";
-    const currentState = window.history.state;
-    if (currentState?.drawer !== drawerStateKey) {
-      window.history.pushState({ ...currentState, drawer: drawerStateKey }, "");
+    if (typeof window === "undefined" || authStatus !== "authenticated") {
+      return;
     }
 
-    const handlePopState = (event: PopStateEvent) => {
-      if (event.state?.drawer === drawerStateKey) return;
-      setIsDrawerOpen(false);
-    };
+    const currentState =
+      window.history.state && typeof window.history.state === "object"
+        ? (window.history.state as Record<string, unknown>)
+        : null;
+    if (currentState?.lightlistMobileStackInitialized === true) {
+      return;
+    }
 
-    window.addEventListener("popstate", handlePopState);
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [isDrawerOpen, isWideLayout]);
+    const routeFromLocation = parseAppHashRoute(window.location.hash);
+
+    if (routeFromLocation.view === "taskLists") {
+      window.history.replaceState(
+        buildAppHistoryState({ view: "taskLists" }, currentState),
+        "",
+        toAppUrl({ view: "taskLists" }),
+      );
+      setCurrentView("taskLists");
+      setPendingInitialTaskListRoute(false);
+      return;
+    }
+
+    if (routeFromLocation.view === "settings") {
+      window.history.replaceState(
+        buildAppHistoryState({ view: "taskLists" }, currentState),
+        "",
+        toAppUrl({ view: "taskLists" }),
+      );
+      window.history.pushState(
+        buildAppHistoryState({ view: "settings" }, currentState),
+        "",
+        toAppUrl({ view: "settings" }),
+      );
+      setCurrentView("settings");
+      setPendingInitialTaskListRoute(false);
+      return;
+    }
+
+    if (routeFromLocation.view === "detail") {
+      window.history.replaceState(
+        buildAppHistoryState({ view: "taskLists" }, currentState),
+        "",
+        toAppUrl({ view: "taskLists" }),
+      );
+      window.history.pushState(
+        buildAppHistoryState(routeFromLocation, currentState),
+        "",
+        toAppUrl(routeFromLocation),
+      );
+      setCurrentView("detail");
+      setSelectedTaskListId(routeFromLocation.taskListId);
+      setPendingInitialTaskListRoute(false);
+      return;
+    }
+
+    window.history.replaceState(
+      buildAppHistoryState({ view: "taskLists" }, currentState),
+      "",
+      toAppUrl({ view: "taskLists" }),
+    );
+    setCurrentView("taskLists");
+    setPendingInitialTaskListRoute(true);
+  }, [authStatus]);
 
   const isAuthLoading = authStatus === "loading";
-  const isTaskListsHydrating = taskListOrderStatus === "loading";
+  const isTaskListsHydrating = taskListOrderStatus !== "ready";
+  const hasResolvedTaskLists = taskListOrderStatus === "ready";
   const hasTaskLists = taskLists.length > 0;
+  const selectedTaskList = taskLists.find(
+    (taskList) => taskList.id === selectedTaskListId,
+  );
+  const firstTaskListId = taskLists[0]?.id ?? null;
   const userEmail = user?.email || t("app.drawerNoEmail");
   const selectedTaskListIndex = Math.max(
     0,
@@ -1065,16 +1181,116 @@ export default function AppPage() {
     i18n.resolvedLanguage ?? i18n.language,
   );
   const isRtl = carouselDirection === "rtl";
+  const isTaskListsRootView = currentView === "taskLists";
+  const isDetailView = currentView === "detail";
+  const isSettingsView = currentView === "settings";
 
-  const handleCloseDrawer = () => {
-    const drawerStateKey = "drawer-open";
-    const currentState = window.history.state;
-    if (currentState?.drawer === drawerStateKey) {
-      window.history.back();
-    } else {
-      setIsDrawerOpen(false);
+  const setViewState = (route: KnownAppHashRoute, mode: "push" | "replace") => {
+    setCurrentView(route.view);
+    if (route.view === "detail") {
+      setSelectedTaskListId(route.taskListId);
     }
+    setPendingInitialTaskListRoute(false);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextState = buildAppHistoryState(route, window.history.state);
+    if (mode === "push") {
+      window.history.pushState(nextState, "", toAppUrl(route));
+      return;
+    }
+
+    window.history.replaceState(nextState, "", toAppUrl(route));
   };
+
+  const showTaskListsRootView = (mode: "push" | "replace" = "replace") => {
+    setViewState({ view: "taskLists" }, mode);
+  };
+
+  const showDetailView = (
+    taskListId: string,
+    mode: "push" | "replace" = "replace",
+  ) => {
+    setViewState({ view: "detail", taskListId }, mode);
+  };
+
+  const showSettingsView = (mode: "push" | "replace" = "replace") => {
+    setViewState({ view: "settings" }, mode);
+  };
+
+  const handleBackToTaskLists = () => {
+    if (
+      typeof window !== "undefined" &&
+      window.history.length > 1 &&
+      (currentView === "detail" || currentView === "settings")
+    ) {
+      window.history.back();
+      return;
+    }
+
+    showTaskListsRootView("replace");
+  };
+
+  const handleOpenTaskList = (
+    taskListId: string,
+    mode: "push" | "replace" = "replace",
+  ) => {
+    showDetailView(taskListId, isWideLayout ? "replace" : mode);
+  };
+
+  useEffect(() => {
+    if (!pendingInitialTaskListRoute || !hasResolvedTaskLists) {
+      return;
+    }
+
+    if (!hasTaskLists || !firstTaskListId) {
+      setPendingInitialTaskListRoute(false);
+      showTaskListsRootView("replace");
+      return;
+    }
+
+    handleOpenTaskList(selectedTaskListId ?? firstTaskListId, "push");
+  }, [
+    firstTaskListId,
+    handleOpenTaskList,
+    hasResolvedTaskLists,
+    hasTaskLists,
+    pendingInitialTaskListRoute,
+    selectedTaskListId,
+    showTaskListsRootView,
+  ]);
+
+  useEffect(() => {
+    if (!hasResolvedTaskLists || currentView !== "detail") {
+      return;
+    }
+
+    if (!hasTaskLists) {
+      showTaskListsRootView("replace");
+      return;
+    }
+
+    if (selectedTaskList) {
+      return;
+    }
+
+    if (!firstTaskListId) {
+      showTaskListsRootView("replace");
+      return;
+    }
+
+    handleOpenTaskList(firstTaskListId, "replace");
+  }, [
+    currentView,
+    firstTaskListId,
+    hasResolvedTaskLists,
+    hasTaskLists,
+    handleOpenTaskList,
+    selectedTaskList,
+    showTaskListsRootView,
+  ]);
 
   const drawerPanel: DrawerPanelContent = (
     <DrawerPanel
@@ -1093,20 +1309,22 @@ export default function AppPage() {
         }
       }}
       selectedTaskListId={selectedTaskListId}
-      onSelectTaskList={(taskListId) => setSelectedTaskListId(taskListId)}
-      onCloseDrawer={handleCloseDrawer}
+      onSelectTaskList={(taskListId) => {
+        handleOpenTaskList(taskListId, isWideLayout ? "replace" : "push");
+      }}
+      onCloseDrawer={() => {}}
       onOpenSettings={() => {
-        setIsDrawerOpen(false);
-        const currentState = window.history.state;
-        if (currentState?.drawer === "drawer-open") {
-          window.history.replaceState({ ...currentState, drawer: null }, "");
+        if (isWideLayout) {
+          showSettingsView("replace");
+          return;
         }
-        router.push("/settings");
+
+        showSettingsView("push");
       }}
       onCreateList={async (name, background) => {
         setError(null);
         const newTaskListId = await createTaskList(name, background);
-        setSelectedTaskListId(newTaskListId);
+        handleOpenTaskList(newTaskListId, isWideLayout ? "replace" : "push");
         logTaskListCreate();
         return newTaskListId;
       }}
@@ -1119,15 +1337,149 @@ export default function AppPage() {
         }
 
         if (stateTaskLists.some((taskList) => taskList.id === taskListId)) {
-          setSelectedTaskListId(taskListId);
+          handleOpenTaskList(taskListId, isWideLayout ? "replace" : "push");
           return;
         }
 
         await addSharedTaskListToOrder(taskListId);
-        setSelectedTaskListId(taskListId);
+        handleOpenTaskList(taskListId, isWideLayout ? "replace" : "push");
         logShareCodeJoin();
       }}
     />
+  );
+
+  const mobileSlideTransitionClass = isViewAnimationReady
+    ? "motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:duration-0"
+    : "transition-none";
+  const compactForwardTransform = isRtl
+    ? "translateX(-100%)"
+    : "translateX(100%)";
+  const compactBackTransform = isRtl ? "translateX(100%)" : "translateX(-100%)";
+  const getCompactPanelTransform = (view: AppView) => {
+    if (currentView === view) {
+      return "translateX(0%)";
+    }
+
+    if (view === "taskLists") {
+      return compactBackTransform;
+    }
+
+    return compactForwardTransform;
+  };
+
+  const detailContent = (
+    <div className="h-full overflow-hidden">
+      {isAuthLoading ? (
+        <div className="flex h-full flex-col gap-4 p-4 pt-24">
+          <div className="h-6 w-40 animate-pulse rounded bg-border dark:bg-border-dark" />
+          <div className="flex flex-col gap-2">
+            <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+            <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+            <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+            <div className="h-10 w-3/4 animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+          </div>
+        </div>
+      ) : hasStartupError ? (
+        <div className="flex h-full items-center justify-center p-4">
+          <Alert variant="error">{t("app.error")}</Alert>
+        </div>
+      ) : isTaskListsHydrating ? (
+        <div className="flex h-full flex-col gap-4 p-4 pt-24">
+          <div className="h-6 w-40 animate-pulse rounded bg-border dark:bg-border-dark" />
+          <div className="flex flex-col gap-2">
+            <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+            <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+            <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+          </div>
+        </div>
+      ) : hasTaskLists ? (
+        <Carousel
+          className="h-full"
+          index={selectedTaskListIndex}
+          direction={carouselDirection}
+          scrollEnabled={!isTaskSorting}
+          onIndexChange={(index) => {
+            const taskList = taskLists[index];
+            if (taskList) {
+              handleOpenTaskList(taskList.id, "replace");
+            }
+          }}
+          showIndicators={true}
+          indicatorPosition="top"
+          ariaLabel={t("app.taskListLocator.label")}
+          getIndicatorLabel={(index, total) =>
+            t("app.taskListLocator.goTo", {
+              index: index + 1,
+              total,
+            })
+          }
+        >
+          {taskLists.map((taskList) => (
+            <div
+              key={taskList.id}
+              className="flex h-full w-full flex-col"
+              style={{
+                backgroundColor: resolveTaskListBackground(taskList.background),
+              }}
+            >
+              <div className="h-[88px]" />
+              <div
+                className={clsx(
+                  "h-full overflow-y-auto",
+                  isWideLayout && "mx-auto max-w-3xl min-w-[480px]",
+                )}
+              >
+                <TaskListCard
+                  taskList={taskList}
+                  isActive={selectedTaskListId === taskList.id}
+                  onActivate={(taskListId) => {
+                    handleOpenTaskList(taskListId, "replace");
+                  }}
+                  sensorsList={sensorsList}
+                  onSortingChange={setIsTaskSorting}
+                  onDeleted={() => {
+                    const remainingLists = stateTaskLists.filter(
+                      (currentTaskList) =>
+                        currentTaskList.id !== selectedTaskListId,
+                    );
+                    const nextTaskListId = remainingLists[0]?.id ?? null;
+                    if (nextTaskListId) {
+                      handleOpenTaskList(nextTaskListId, "replace");
+                      return;
+                    }
+
+                    setSelectedTaskListId(null);
+                    showTaskListsRootView("replace");
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </Carousel>
+      ) : (
+        <div className="flex h-full items-center justify-center p-4">
+          <p className="text-muted dark:text-muted-dark">
+            {t("app.emptyState")}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  const taskListsRootContent = (
+    <div className="h-full overflow-y-auto bg-surface p-4 dark:bg-surface-dark">
+      {error ? <Alert variant="error">{error}</Alert> : null}
+      {isAuthLoading ? (
+        <div className="flex flex-col gap-3 p-2">
+          <div className="h-8 w-32 animate-pulse rounded-lg bg-border dark:bg-border-dark" />
+          <div className="h-10 w-full animate-pulse rounded-xl bg-border dark:bg-border-dark" />
+          <div className="h-10 w-full animate-pulse rounded-xl bg-border dark:bg-border-dark" />
+          <div className="h-10 w-full animate-pulse rounded-xl bg-border dark:bg-border-dark" />
+        </div>
+      ) : (
+        drawerPanel
+      )}
+    </div>
   );
 
   if (authStatus === "unauthenticated") {
@@ -1173,125 +1525,66 @@ export default function AppPage() {
           tabIndex={-1}
           className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col"
         >
-          {!isWideLayout ? (
-            <div className="absolute z-20 w-full">
-              <AppHeader
-                isWideLayout={isWideLayout}
-                isRtl={isRtl}
-                isDrawerOpen={isDrawerOpen}
-                onDrawerOpenChange={(open) => {
-                  if (open) {
-                    setIsDrawerOpen(true);
-                  } else if (isDrawerOpen) {
-                    handleCloseDrawer();
-                  }
-                }}
-                drawerPanel={drawerPanel}
-                openMenuLabel={t("app.openMenu")}
-              />
-              {error ? (
-                <div className="px-1">
-                  <Alert variant="error">{error}</Alert>
+          {isWideLayout ? (
+            <div className="h-full overflow-hidden">
+              {isSettingsView ? (
+                <div className="h-full overflow-y-auto">
+                  <SettingsView showBackButton={false} />
                 </div>
-              ) : null}
+              ) : (
+                detailContent
+              )}
             </div>
-          ) : null}
-
-          <div className="h-full overflow-hidden">
-            {isAuthLoading ? (
-              <div className="flex h-full flex-col gap-4 p-4 pt-24">
-                <div className="h-6 w-40 animate-pulse rounded bg-border dark:bg-border-dark" />
-                <div className="flex flex-col gap-2">
-                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
-                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
-                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
-                  <div className="h-10 w-3/4 animate-pulse rounded-lg bg-border dark:bg-border-dark" />
-                </div>
-              </div>
-            ) : hasStartupError ? (
-              <div className="flex h-full items-center justify-center p-4">
-                <Alert variant="error">{t("app.error")}</Alert>
-              </div>
-            ) : isTaskListsHydrating ? (
-              <div className="flex h-full flex-col gap-4 p-4 pt-24">
-                <div className="h-6 w-40 animate-pulse rounded bg-border dark:bg-border-dark" />
-                <div className="flex flex-col gap-2">
-                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
-                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
-                  <div className="h-10 w-full animate-pulse rounded-lg bg-border dark:bg-border-dark" />
-                </div>
-              </div>
-            ) : hasTaskLists ? (
-              <Carousel
-                className="h-full"
-                index={selectedTaskListIndex}
-                direction={carouselDirection}
-                scrollEnabled={!isTaskSorting}
-                onIndexChange={(index) => {
-                  const taskList = taskLists[index];
-                  if (taskList) {
-                    setSelectedTaskListId(taskList.id);
-                  }
-                }}
-                showIndicators={true}
-                indicatorPosition="top"
-                ariaLabel={t("app.taskListLocator.label")}
-                getIndicatorLabel={(index, total) =>
-                  t("app.taskListLocator.goTo", {
-                    index: index + 1,
-                    total,
-                  })
-                }
+          ) : (
+            <div className="relative h-full overflow-hidden">
+              <div
+                aria-hidden={!isTaskListsRootView}
+                className={clsx(
+                  "absolute inset-0 h-full overflow-hidden will-change-transform",
+                  mobileSlideTransitionClass,
+                  isTaskListsRootView ? "z-20" : "pointer-events-none z-10",
+                )}
+                style={{ transform: getCompactPanelTransform("taskLists") }}
               >
-                {taskLists.map((taskList) => (
-                  <div
-                    key={taskList.id}
-                    className="flex h-full w-full flex-col"
-                    style={{
-                      backgroundColor: resolveTaskListBackground(
-                        taskList.background,
-                      ),
-                    }}
-                  >
-                    <div className="h-[88px]" />
-                    <div
-                      className={clsx(
-                        "h-full overflow-y-auto",
-                        isWideLayout && "mx-auto max-w-3xl min-w-[480px]",
-                      )}
-                    >
-                      <TaskListCard
-                        taskList={taskList}
-                        isActive={selectedTaskListId === taskList.id}
-                        onActivate={(taskListId) =>
-                          setSelectedTaskListId(taskListId)
-                        }
-                        sensorsList={sensorsList}
-                        onSortingChange={setIsTaskSorting}
-                        onDeleted={() => {
-                          const remainingLists = stateTaskLists.filter(
-                            (currentTaskList) =>
-                              currentTaskList.id !== selectedTaskListId,
-                          );
-                          setSelectedTaskListId(
-                            remainingLists.length > 0
-                              ? remainingLists[0].id
-                              : null,
-                          );
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </Carousel>
-            ) : (
-              <div className="flex h-full items-center justify-center p-4">
-                <p className="text-muted dark:text-muted-dark">
-                  {t("app.emptyState")}
-                </p>
+                {taskListsRootContent}
               </div>
-            )}
-          </div>
+
+              <div
+                aria-hidden={!isDetailView}
+                className={clsx(
+                  "absolute inset-0 h-full overflow-hidden will-change-transform",
+                  mobileSlideTransitionClass,
+                  isDetailView ? "z-20" : "pointer-events-none z-10",
+                )}
+                style={{ transform: getCompactPanelTransform("detail") }}
+              >
+                <div className="absolute z-20 w-full">
+                  <AppHeader
+                    backLabel={t("common.back")}
+                    onBack={handleBackToTaskLists}
+                  />
+                </div>
+                {detailContent}
+              </div>
+
+              <div
+                aria-hidden={!isSettingsView}
+                className={clsx(
+                  "absolute inset-0 h-full overflow-hidden bg-background dark:bg-background-dark will-change-transform",
+                  mobileSlideTransitionClass,
+                  isSettingsView ? "z-20" : "pointer-events-none z-10",
+                )}
+                style={{ transform: getCompactPanelTransform("settings") }}
+              >
+                <div className="h-full overflow-y-auto">
+                  <SettingsView
+                    onBack={handleBackToTaskLists}
+                    showBackButton={true}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

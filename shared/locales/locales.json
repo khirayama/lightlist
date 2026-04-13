@@ -1,0 +1,3104 @@
+{
+  "ar": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist. جميع الحقوق محفوظة.",
+    "common": {
+      "loading": "جارٍ التحميل...",
+      "back": "رجوع",
+      "cancel": "إلغاء",
+      "deleting": "جارٍ الحذف...",
+      "close": "إغلاق",
+      "skipToMain": "تخطَّ إلى المحتوى الرئيسي",
+      "add": "إضافة",
+      "copy": "نسخ",
+      "copied": "تم النسخ",
+      "error": "حدث خطأ",
+      "done": "تم",
+      "selected": "محدد",
+      "ok": "موافق"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "تسجيل الدخول",
+        "signup": "إنشاء حساب"
+      },
+      "form": {
+        "email": "عنوان البريد الإلكتروني",
+        "password": "كلمة المرور",
+        "confirmPassword": "تأكيد كلمة المرور"
+      },
+      "validation": {
+        "email": {
+          "required": "يرجى إدخال عنوان بريد إلكتروني",
+          "invalid": "يرجى إدخال عنوان بريد إلكتروني صالح"
+        },
+        "password": {
+          "required": "يرجى إدخال كلمة المرور",
+          "tooShort": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل"
+        },
+        "confirmPassword": {
+          "required": "يرجى إدخال تأكيد كلمة المرور",
+          "notMatch": "كلمتا المرور غير متطابقتين"
+        }
+      },
+      "error": {
+        "invalidCredential": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+        "userNotFound": "لا يوجد حساب بهذا البريد الإلكتروني",
+        "emailAlreadyInUse": "هذا البريد الإلكتروني مسجل بالفعل",
+        "weakPassword": "كلمة المرور ضعيفة جدًا (يُوصى بـ 6 أحرف أو أكثر)",
+        "invalidEmail": "تنسيق عنوان البريد الإلكتروني غير صالح",
+        "operationNotAllowed": "طريقة المصادقة هذه غير متاحة",
+        "tooManyRequests": "عدد محاولات تسجيل الدخول كبير جدًا. يرجى المحاولة لاحقًا",
+        "general": "فشلت المصادقة. يرجى المحاولة مرة أخرى",
+        "requiresRecentLogin": "لأسباب أمنية، يرجى تسجيل الخروج ثم تسجيل الدخول مرة أخرى قبل المحاولة"
+      },
+      "button": {
+        "signin": "تسجيل الدخول",
+        "signingIn": "جارٍ تسجيل الدخول...",
+        "signup": "إنشاء حساب",
+        "signingUp": "جارٍ إنشاء الحساب...",
+        "forgotPassword": "هل نسيت كلمة المرور؟",
+        "sendResetEmail": "إرسال بريد إعادة التعيين",
+        "sending": "جارٍ الإرسال...",
+        "backToSignIn": "العودة إلى تسجيل الدخول",
+        "signOut": "تسجيل الخروج",
+        "cancel": "إلغاء",
+        "delete": "حذف"
+      },
+      "passwordReset": {
+        "instruction": "أدخل عنوان البريد الإلكتروني المرتبط بحسابك. سنرسل لك رسالة لإعادة تعيين كلمة المرور.",
+        "success": "تم إرسال رسالة إعادة تعيين كلمة المرور. يرجى التحقق من بريدك الإلكتروني.",
+        "title": "إعادة تعيين كلمة المرور",
+        "newPassword": "كلمة مرور جديدة",
+        "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+        "setNewPassword": "إعادة تعيين كلمة المرور",
+        "settingNewPassword": "جارٍ إعادة التعيين...",
+        "invalidCode": "رابط إعادة تعيين كلمة المرور غير صالح",
+        "expiredCode": "انتهت صلاحية رابط إعادة تعيين كلمة المرور",
+        "resetSuccess": "تم تغيير كلمة المرور بنجاح"
+      },
+      "placeholder": {
+        "email": "مثال@بريد.كوم",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "تسجيل الخروج",
+        "message": "هل أنت متأكد أنك تريد تسجيل الخروج؟"
+      },
+      "deleteAccountConfirm": {
+        "title": "حذف الحساب",
+        "message": "سيؤدي حذف حسابك إلى إزالة جميع بياناتك نهائيًا. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد؟"
+      }
+    },
+    "app": {
+      "emptyState": "لا توجد قوائم مهام",
+      "createNew": "إنشاء",
+      "createTaskList": "إنشاء قائمة مهام",
+      "taskListName": "اسم قائمة المهام",
+      "taskListNamePlaceholder": "أدخل اسم قائمة المهام",
+      "create": "إنشاء",
+      "cancel": "إلغاء",
+      "error": "حدث خطأ",
+      "dragHint": "اسحب لإعادة الترتيب",
+      "openMenu": "فتح القائمة",
+      "drawerTitle": "قوائم المهام",
+      "drawerNoEmail": "لا يوجد بريد إلكتروني متاح",
+      "taskListLocator": {
+        "label": "موضع قائمة المهام",
+        "goTo": "الانتقال إلى قائمة المهام {{index}} من {{total}}"
+      },
+      "joinList": "الانضمام إلى قائمة",
+      "joinListTitle": "الانضمام إلى قائمة مشتركة",
+      "joinListDescription": "أدخل رمز المشاركة للانضمام إلى قائمة مهام مشتركة.",
+      "shareCodePlaceholder": "أدخل رمز المشاركة",
+      "join": "انضمام",
+      "joining": "جارٍ الانضمام...",
+      "calendarCheckButton": "عرض في التقويم",
+      "calendarAllDates": "كل التواريخ",
+      "calendarNoDatedTasks": "لا توجد مهام بتاريخ",
+      "calendarNoTasksOnSelectedDate": "لا توجد مهام في التاريخ المحدد",
+      "rtlRestartTitle": "إعادة التشغيل مطلوبة",
+      "rtlRestartMessage": "أعد تشغيل التطبيق لتطبيق تغييرات التخطيط من اليمين إلى اليسار.",
+      "loadError": "تعذر تحميل قوائم المهام.",
+      "calendar": "التقويم",
+      "calendarPreviousMonth": "الشهر السابق",
+      "calendarNextMonth": "الشهر التالي"
+    },
+    "taskList": {
+      "taskCount": "{{count}} مهمة",
+      "taskCount_one": "{{count}} مهمة",
+      "taskCount_other": "{{count}} مهام",
+      "editDetails": "تعديل القائمة",
+      "selectColor": "اختر اللون",
+      "backgroundNone": "بدون (يستخدم لون السمة)",
+      "backgroundNoneShort": "بدون",
+      "deleteList": "إزالة من قوائمي",
+      "deleteListConfirm": {
+        "title": "إزالة من قوائمي",
+        "message": "سيؤدي هذا إلى إزالة القائمة من قوائمك. إذا لم يحتفظ بها مستخدمون آخرون، فسيتم حذف القائمة نفسها. هل تريد المتابعة؟"
+      },
+      "share": "مشاركة",
+      "shareTitle": "مشاركة القائمة",
+      "shareCode": "رمز المشاركة",
+      "shareDescription": "أنشئ رمز مشاركة للسماح للآخرين بعرض هذه القائمة وتعديلها.",
+      "generateShare": "إنشاء رمز مشاركة",
+      "removeShare": "إيقاف المشاركة",
+      "editTitle": "تعديل القائمة",
+      "save": "حفظ",
+      "colorRed": "أحمر",
+      "colorYellow": "أصفر",
+      "colorGreen": "أخضر",
+      "colorBlue": "أزرق",
+      "colorIndigo": "نيلي",
+      "colorPurple": "أرجواني",
+      "colorCustom": "لون مخصص"
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "userInfo": {
+        "title": "الحساب"
+      },
+      "preferences": {
+        "title": "العرض والسلوك"
+      },
+      "theme": {
+        "title": "السمة",
+        "system": "النظام",
+        "light": "فاتح",
+        "dark": "داكن"
+      },
+      "language": {
+        "title": "اللغة",
+        "japanese": "اليابانية",
+        "english": "الإنجليزية"
+      },
+      "taskInsertPosition": {
+        "title": "موضع المهمة الجديدة",
+        "top": "الإضافة إلى الأعلى",
+        "bottom": "الإضافة إلى الأسفل"
+      },
+      "autoSort": {
+        "title": "فرز المهام تلقائيًا",
+        "enable": "فرز المهام تلقائيًا"
+      },
+      "danger": {
+        "title": "منطقة الخطر",
+        "signOut": "تسجيل الخروج",
+        "deleteAccount": "حذف الحساب"
+      },
+      "actions": {
+        "title": "إجراءات الحساب"
+      },
+      "deleteAccount": "حذف الحساب",
+      "deleteAccountConfirm": "حذف حسابك وجميع بياناتك؟",
+      "signingOut": "جارٍ تسجيل الخروج...",
+      "deletingAccount": "جارٍ حذف الحساب...",
+      "emailChange": {
+        "title": "تغيير عنوان البريد الإلكتروني",
+        "newEmailLabel": "عنوان البريد الإلكتروني الجديد",
+        "newEmailPlaceholder": "جديد@بريد.كوم",
+        "submitButton": "إرسال رسالة التحقق",
+        "submitting": "جارٍ الإرسال...",
+        "successMessage": "تم إرسال رسالة التحقق. انقر على الرابط في عنوان البريد الإلكتروني الجديد لإكمال التغيير.",
+        "changeButton": "تغيير"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "ابدأ مجانًا",
+        "headline": "بسيط بما يكفي.\nهذا هو الهدف.",
+        "subheadline": "لمن سئموا تطبيقات المهام المعقدة.\nبسيط بما يكفي للجميع منذ البداية.\nشارك مع الآخرين عند الحاجة.",
+        "seo": {
+          "title": "Lightlist | تطبيق قائمة مهام ومهام مشتركة بسيط",
+          "description": "Lightlist هو تطبيق بسيط لقائمة مهام مشتركة / ToDo للأفراد والعائلات والفرق الصغيرة. أدِر قوائم التسوق والمهام اليومية عبر الويب وiPhone وAndroid.",
+          "keywords": "قائمة مهام,تطبيق todo,قائمة مهام مشتركة,قائمة تسوق,مهام العائلة,مهام الفريق,Lightlist"
+        },
+        "features": {
+          "title": "ثلاثة أشياء يقدمها Lightlist",
+          "simple": {
+            "title": "كل ما تحتاجه",
+            "description": "أضف المهام. ضع علامة الإتمام. هذا كل شيء. لا حاجة إلى شرح أو دليل. يمكن لأي شخص البدء فورًا مهما كانت خبرته التقنية."
+          },
+          "multidevice": {
+            "title": "أي جهاز، في أي وقت",
+            "description": "استخدمه من أي متصفح أو من تطبيقات iOS وAndroid. تبقى قوائمك متزامنة على جميع الأجهزة في الوقت الفعلي."
+          },
+          "share": {
+            "title": "شارك عندما تريد",
+            "description": "أنشئ رمز مشاركة وادعُ أي شخص إلى قائمتك خلال ثوانٍ. لا حاجة إلى حساب للانضمام. ويختفي عندما لا تحتاجه."
+          }
+        },
+        "preview": {
+          "title": "شاهده أثناء العمل",
+          "desktopAlt": "لقطة شاشة لسطح المكتب",
+          "mobileAlt": "لقطة شاشة للهاتف"
+        },
+        "cta": {
+          "title": "بسيط بما يكفي. هذا هو الهدف.",
+          "description": "إذا كان تنظيم المهام يبدو مرهقًا، فـ Lightlist مناسب لك. ابدأ بقائمة واحدة.",
+          "button": "ابدأ مجانًا"
+        }
+      },
+      "sharecode": {
+        "notFound": "لم يتم العثور على قائمة المهام هذه",
+        "error": "فشل تحميل قائمة المهام",
+        "addTaskError": "فشل إضافة المهمة",
+        "updateError": "فشل تحديث المهمة",
+        "reorderError": "فشلت إعادة ترتيب المهام",
+        "deleteError": "فشل حذف المهام المكتملة",
+        "addToOrderError": "فشلت إضافة قائمة المهام هذه",
+        "addToOrder": "إضافة إلى قوائمي"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "أدخل مهمة...",
+        "setDate": "تحديد التاريخ",
+        "setDateShort": "تعيين",
+        "markComplete": "غير مكتملة، اضغط لوضع علامة مكتملة",
+        "markIncomplete": "مكتملة، اضغط لوضع علامة غير مكتملة",
+        "noTasks": "لا توجد مهام",
+        "dragHint": "اسحب لإعادة الترتيب",
+        "sort": "فرز",
+        "deleteCompleted": "حذف المهام المكتملة",
+        "deleteCompletedConfirm": "حذف {{count}} من المهام المكتملة؟",
+        "clearDate": "مسح التاريخ",
+        "clearDateShort": "مسح",
+        "deleteCompletedConfirmTitle": "حذف المهام المكتملة؟"
+      },
+      "notFound": {
+        "title": "الصفحة غير موجودة",
+        "description": "الصفحة التي تبحث عنها غير موجودة.",
+        "backHome": "العودة إلى الصفحة الرئيسية"
+      },
+      "serverError": {
+        "title": "خطأ في الخادم",
+        "description": "حدث خطأ غير متوقع في الخادم.",
+        "backHome": "العودة إلى الصفحة الرئيسية"
+      },
+      "error": {
+        "title": "حدث خطأ ما",
+        "description": "حدث خطأ غير متوقع. يرجى إعادة تحميل الصفحة.",
+        "reload": "إعادة تحميل الصفحة"
+      }
+    }
+  },
+  "de": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist. Alle Rechte vorbehalten.",
+    "common": {
+      "loading": "Wird geladen...",
+      "back": "Zurück",
+      "cancel": "Abbrechen",
+      "deleting": "Wird gelöscht...",
+      "close": "Schließen",
+      "skipToMain": "Zum Hauptinhalt springen",
+      "add": "Hinzufügen",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "error": "Ein Fehler ist aufgetreten",
+      "done": "Fertig",
+      "selected": "Ausgewählt",
+      "ok": "OK"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "Anmelden",
+        "signup": "Registrieren"
+      },
+      "form": {
+        "email": "E-Mail-Adresse",
+        "password": "Passwort",
+        "confirmPassword": "Passwort bestätigen"
+      },
+      "validation": {
+        "email": {
+          "required": "Bitte gib eine E-Mail-Adresse ein",
+          "invalid": "Bitte gib eine gültige E-Mail-Adresse ein"
+        },
+        "password": {
+          "required": "Bitte gib ein Passwort ein",
+          "tooShort": "Das Passwort muss mindestens 8 Zeichen lang sein"
+        },
+        "confirmPassword": {
+          "required": "Bitte bestätige dein Passwort",
+          "notMatch": "Die Passwörter stimmen nicht überein"
+        }
+      },
+      "error": {
+        "invalidCredential": "E-Mail oder Passwort ist falsch",
+        "userNotFound": "Kein Konto mit dieser E-Mail-Adresse gefunden",
+        "emailAlreadyInUse": "Diese E-Mail-Adresse ist bereits registriert",
+        "weakPassword": "Das Passwort ist zu schwach (6 oder mehr Zeichen empfohlen)",
+        "invalidEmail": "Das Format der E-Mail-Adresse ist ungültig",
+        "operationNotAllowed": "Diese Anmeldemethode ist nicht verfügbar",
+        "tooManyRequests": "Zu viele Anmeldeversuche. Bitte versuche es später erneut",
+        "general": "Anmeldung fehlgeschlagen. Bitte versuche es erneut",
+        "requiresRecentLogin": "Aus Sicherheitsgründen bitte abmelden und erneut anmelden, bevor du es erneut versuchst"
+      },
+      "button": {
+        "signin": "Anmelden",
+        "signingIn": "Wird angemeldet...",
+        "signup": "Registrieren",
+        "signingUp": "Wird registriert...",
+        "forgotPassword": "Passwort vergessen?",
+        "sendResetEmail": "E-Mail zum Zurücksetzen senden",
+        "sending": "Wird gesendet...",
+        "backToSignIn": "Zurück zur Anmeldung",
+        "signOut": "Abmelden",
+        "cancel": "Abbrechen",
+        "delete": "Löschen"
+      },
+      "passwordReset": {
+        "instruction": "Gib die E-Mail-Adresse ein, die mit deinem Konto verknüpft ist. Wir senden dir eine E-Mail zum Zurücksetzen des Passworts.",
+        "success": "E-Mail zum Zurücksetzen gesendet. Bitte prüfe deinen Posteingang.",
+        "title": "Passwort zurücksetzen",
+        "newPassword": "Neues Passwort",
+        "confirmNewPassword": "Neues Passwort bestätigen",
+        "setNewPassword": "Passwort zurücksetzen",
+        "settingNewPassword": "Wird zurückgesetzt...",
+        "invalidCode": "Der Link zum Zurücksetzen ist ungültig",
+        "expiredCode": "Der Link zum Zurücksetzen ist abgelaufen",
+        "resetSuccess": "Passwort erfolgreich geändert"
+      },
+      "placeholder": {
+        "email": "beispiel@email.de",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "Abmelden",
+        "message": "Möchtest du dich wirklich abmelden?"
+      },
+      "deleteAccountConfirm": {
+        "title": "Konto löschen",
+        "message": "Beim Löschen deines Kontos werden alle deine Daten dauerhaft entfernt. Diese Aktion kann nicht rückgängig gemacht werden. Bist du sicher?"
+      }
+    },
+    "app": {
+      "emptyState": "Keine Aufgabenlisten",
+      "createNew": "Erstellen",
+      "createTaskList": "Aufgabenliste erstellen",
+      "taskListName": "Listenname",
+      "taskListNamePlaceholder": "Namen der Liste eingeben",
+      "create": "Erstellen",
+      "cancel": "Abbrechen",
+      "error": "Ein Fehler ist aufgetreten",
+      "dragHint": "Zum Neuordnen ziehen",
+      "openMenu": "Menü öffnen",
+      "drawerTitle": "Aufgabenlisten",
+      "drawerNoEmail": "Keine E-Mail verfügbar",
+      "taskListLocator": {
+        "label": "Position der Aufgabenliste",
+        "goTo": "Zur Liste {{index}} von {{total}} wechseln"
+      },
+      "joinList": "Liste beitreten",
+      "joinListTitle": "Geteilter Liste beitreten",
+      "joinListDescription": "Gib den Freigabecode ein, um einer geteilten Liste beizutreten.",
+      "shareCodePlaceholder": "Freigabecode eingeben",
+      "join": "Beitreten",
+      "joining": "Wird beigetreten...",
+      "calendarCheckButton": "Im Kalender anzeigen",
+      "calendarAllDates": "Alle Daten",
+      "calendarNoDatedTasks": "Keine Aufgaben mit Datum",
+      "calendarNoTasksOnSelectedDate": "Keine Aufgaben am ausgewählten Datum",
+      "rtlRestartTitle": "Neustart erforderlich",
+      "rtlRestartMessage": "Starte die App neu, um das Rechts-nach-Links-Layout anzuwenden.",
+      "loadError": "Aufgabenlisten konnten nicht geladen werden.",
+      "calendar": "Kalender",
+      "calendarPreviousMonth": "Vorheriger Monat",
+      "calendarNextMonth": "Nächster Monat"
+    },
+    "taskList": {
+      "taskCount": "{{count}} Aufgaben",
+      "taskCount_one": "{{count}} Aufgabe",
+      "taskCount_other": "{{count}} Aufgaben",
+      "editDetails": "Liste bearbeiten",
+      "selectColor": "Farbe wählen",
+      "backgroundNone": "Keine (verwendet Themenfarbe)",
+      "backgroundNoneShort": "Keine",
+      "deleteList": "Aus meinen Listen entfernen",
+      "deleteListConfirm": {
+        "title": "Aus meinen Listen entfernen",
+        "message": "Dadurch wird die Liste aus deinen Listen entfernt. Wenn sie kein anderer Benutzer behält, wird die Liste selbst gelöscht. Fortfahren?"
+      },
+      "share": "Teilen",
+      "shareTitle": "Liste teilen",
+      "shareCode": "Freigabecode",
+      "shareDescription": "Erzeuge einen Code, damit andere diese Liste ansehen und bearbeiten können.",
+      "generateShare": "Freigabecode erzeugen",
+      "removeShare": "Freigabe beenden",
+      "editTitle": "Liste bearbeiten",
+      "save": "Speichern",
+      "colorRed": "Rot",
+      "colorYellow": "Gelb",
+      "colorGreen": "Grün",
+      "colorBlue": "Blau",
+      "colorIndigo": "Indigo",
+      "colorPurple": "Lila",
+      "colorCustom": "Benutzerdefinierte Farbe"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "userInfo": {
+        "title": "Konto"
+      },
+      "preferences": {
+        "title": "Anzeige & Verhalten"
+      },
+      "theme": {
+        "title": "Design",
+        "system": "Systemstandard",
+        "light": "Hell",
+        "dark": "Dunkel"
+      },
+      "language": {
+        "title": "Sprache",
+        "japanese": "Japanisch",
+        "english": "Englisch"
+      },
+      "taskInsertPosition": {
+        "title": "Position neuer Aufgabe",
+        "top": "Oben einfügen",
+        "bottom": "Unten einfügen"
+      },
+      "autoSort": {
+        "title": "Aufgaben automatisch sortieren",
+        "enable": "Aufgaben automatisch sortieren"
+      },
+      "danger": {
+        "title": "Gefahrenbereich",
+        "signOut": "Abmelden",
+        "deleteAccount": "Konto löschen"
+      },
+      "actions": {
+        "title": "Kontoaktionen"
+      },
+      "deleteAccount": "Konto löschen",
+      "deleteAccountConfirm": "Konto und alle Daten löschen?",
+      "signingOut": "Wird abgemeldet...",
+      "deletingAccount": "Konto wird gelöscht...",
+      "emailChange": {
+        "title": "E-Mail-Adresse ändern",
+        "newEmailLabel": "Neue E-Mail-Adresse",
+        "newEmailPlaceholder": "neu@beispiel.de",
+        "submitButton": "Bestätigungs-E-Mail senden",
+        "submitting": "Wird gesendet...",
+        "successMessage": "Bestätigungs-E-Mail gesendet. Klicke den Link in der neuen E-Mail-Adresse, um die Änderung abzuschließen.",
+        "changeButton": "Ändern"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "Kostenlos starten",
+        "headline": "Einfach genug.\nGenau das ist der Punkt.",
+        "subheadline": "Für alle, die komplexe Aufgaben-Apps satt haben.\nEinfach genug für jeden, von Anfang an.\nTeile es mit anderen, wenn du möchtest.",
+        "seo": {
+          "title": "Lightlist | Einfache geteilte Aufgabenliste & ToDo-App",
+          "description": "Lightlist ist eine einfache geteilte Aufgabenliste / ToDo-App für Einzelpersonen, Familien und kleine Teams. Verwalte Einkaufslisten und tägliche Aufgaben auf Web, iPhone und Android.",
+          "keywords": "aufgabenliste,todo app,geteilte aufgabenliste,einkaufsliste,familienaufgaben,teamaufgaben,Lightlist"
+        },
+        "features": {
+          "title": "Drei Dinge, die Lightlist kann",
+          "simple": {
+            "title": "Genau das, was du brauchst",
+            "description": "Aufgaben hinzufügen. Abhaken. Das ist alles. Kein Tutorial, kein Handbuch nötig. Jeder kann sofort loslegen – unabhängig von der Technik-Erfahrung."
+          },
+          "multidevice": {
+            "title": "Jedes Gerät, jederzeit",
+            "description": "Greife über jeden Browser zu oder nutze die iOS- und Android-Apps. Deine Listen bleiben auf allen Geräten in Echtzeit synchron."
+          },
+          "share": {
+            "title": "Teile, wenn du willst",
+            "description": "Erstelle einen Freigabecode und lade in Sekunden andere ein. Für den Beitritt ist kein Konto nötig. Unauffällig, wenn du es nicht brauchst."
+          }
+        },
+        "preview": {
+          "title": "So sieht es aus",
+          "desktopAlt": "Desktop-Screenshot",
+          "mobileAlt": "Mobiler Screenshot"
+        },
+        "cta": {
+          "title": "Einfach genug. Genau das ist der Punkt.",
+          "description": "Wenn Aufgabenverwaltung zu viel ist, ist Lightlist für dich. Starte mit nur einer Liste.",
+          "button": "Kostenlos starten"
+        }
+      },
+      "sharecode": {
+        "notFound": "Diese Aufgabenliste wurde nicht gefunden",
+        "error": "Aufgabenliste konnte nicht geladen werden",
+        "addTaskError": "Aufgabe konnte nicht hinzugefügt werden",
+        "updateError": "Aufgabe konnte nicht aktualisiert werden",
+        "reorderError": "Aufgaben konnten nicht neu sortiert werden",
+        "deleteError": "Abgeschlossene Aufgaben konnten nicht gelöscht werden",
+        "addToOrderError": "Diese Aufgabenliste konnte nicht hinzugefügt werden",
+        "addToOrder": "Zu meinen Listen hinzufügen"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "Aufgabe eingeben...",
+        "setDate": "Datum festlegen",
+        "setDateShort": "Setzen",
+        "markComplete": "Nicht erledigt. Tippe, um als erledigt zu markieren",
+        "markIncomplete": "Erledigt. Tippe, um als nicht erledigt zu markieren",
+        "noTasks": "Keine Aufgaben",
+        "dragHint": "Zum Neuordnen ziehen",
+        "sort": "Sortieren",
+        "deleteCompleted": "Abgeschlossene Aufgaben löschen",
+        "deleteCompletedConfirm": "{{count}} abgeschlossene Aufgaben löschen?",
+        "clearDate": "Datum löschen",
+        "clearDateShort": "Löschen",
+        "deleteCompletedConfirmTitle": "Erledigte Aufgaben löschen?"
+      },
+      "notFound": {
+        "title": "Seite nicht gefunden",
+        "description": "Die gesuchte Seite existiert nicht.",
+        "backHome": "Zur Startseite"
+      },
+      "serverError": {
+        "title": "Serverfehler",
+        "description": "Auf dem Server ist ein unerwarteter Fehler aufgetreten.",
+        "backHome": "Zur Startseite"
+      },
+      "error": {
+        "title": "Etwas ist schiefgelaufen",
+        "description": "Ein unerwarteter Fehler ist aufgetreten. Bitte lade die Seite neu.",
+        "reload": "Seite neu laden"
+      }
+    }
+  },
+  "en": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "common": {
+      "loading": "Loading...",
+      "back": "Back",
+      "cancel": "Cancel",
+      "deleting": "Deleting...",
+      "close": "Close",
+      "skipToMain": "Skip to main content",
+      "add": "Add",
+      "copy": "Copy",
+      "copied": "Copied",
+      "error": "An error occurred",
+      "done": "Done",
+      "selected": "Selected",
+      "ok": "OK"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "Sign In",
+        "signup": "Sign Up"
+      },
+      "form": {
+        "email": "Email Address",
+        "password": "Password",
+        "confirmPassword": "Confirm Password"
+      },
+      "validation": {
+        "email": {
+          "required": "Please enter an email address",
+          "invalid": "Please enter a valid email address"
+        },
+        "password": {
+          "required": "Please enter a password",
+          "tooShort": "Password must be at least 8 characters"
+        },
+        "confirmPassword": {
+          "required": "Please enter a confirmation password",
+          "notMatch": "Passwords do not match"
+        }
+      },
+      "error": {
+        "invalidCredential": "Email or password is incorrect",
+        "userNotFound": "No account found with this email address",
+        "emailAlreadyInUse": "This email address is already registered",
+        "weakPassword": "Password is too weak (6 characters or more recommended)",
+        "invalidEmail": "Email address format is invalid",
+        "operationNotAllowed": "This authentication method is not available",
+        "tooManyRequests": "Too many login attempts. Please try again later",
+        "general": "Authentication failed. Please try again",
+        "requiresRecentLogin": "For security reasons, please sign out and sign in again before retrying"
+      },
+      "button": {
+        "signin": "Sign In",
+        "signingIn": "Signing in...",
+        "signup": "Sign Up",
+        "signingUp": "Signing up...",
+        "forgotPassword": "Forgot Password?",
+        "sendResetEmail": "Send Reset Email",
+        "sending": "Sending...",
+        "backToSignIn": "Back to Sign In",
+        "signOut": "Sign Out",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "passwordReset": {
+        "instruction": "Enter the email address associated with your account. We will send you a password reset email.",
+        "success": "Password reset email sent. Please check your email.",
+        "title": "Reset Password",
+        "newPassword": "New Password",
+        "confirmNewPassword": "Confirm New Password",
+        "setNewPassword": "Reset Password",
+        "settingNewPassword": "Resetting...",
+        "invalidCode": "Password reset link is invalid",
+        "expiredCode": "Password reset link has expired",
+        "resetSuccess": "Password changed successfully"
+      },
+      "placeholder": {
+        "email": "example@email.com",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "Sign Out",
+        "message": "Are you sure you want to sign out?"
+      },
+      "deleteAccountConfirm": {
+        "title": "Delete Account",
+        "message": "Deleting your account will permanently remove all your data. This action cannot be undone. Are you sure?"
+      }
+    },
+    "app": {
+      "emptyState": "No task lists",
+      "createNew": "Create",
+      "createTaskList": "Create Task List",
+      "taskListName": "Task List Name",
+      "taskListNamePlaceholder": "Enter task list name",
+      "create": "Create",
+      "cancel": "Cancel",
+      "error": "An error occurred",
+      "dragHint": "Drag to reorder",
+      "openMenu": "Open Menu",
+      "drawerTitle": "Task Lists",
+      "drawerNoEmail": "No email available",
+      "taskListLocator": {
+        "label": "Task list position",
+        "goTo": "Go to task list {{index}} of {{total}}"
+      },
+      "joinList": "Join List",
+      "joinListTitle": "Join Shared List",
+      "joinListDescription": "Enter the share code to join a shared task list.",
+      "shareCodePlaceholder": "Enter share code",
+      "join": "Join",
+      "joining": "Joining...",
+      "calendarCheckButton": "View in Calendar",
+      "calendarAllDates": "All dates",
+      "calendarNoDatedTasks": "No tasks have a date",
+      "calendarNoTasksOnSelectedDate": "No tasks on the selected date",
+      "rtlRestartTitle": "Restart Required",
+      "rtlRestartMessage": "Restart the app to apply right-to-left layout changes.",
+      "loadError": "Failed to load task lists.",
+      "calendar": "Calendar",
+      "calendarPreviousMonth": "Previous month",
+      "calendarNextMonth": "Next month"
+    },
+    "taskList": {
+      "taskCount": "{{count}} tasks",
+      "taskCount_one": "{{count}} task",
+      "taskCount_other": "{{count}} tasks",
+      "editDetails": "Edit List",
+      "selectColor": "Select Color",
+      "backgroundNone": "None (uses theme color)",
+      "backgroundNoneShort": "None",
+      "deleteList": "Remove From My Lists",
+      "deleteListConfirm": {
+        "title": "Remove From My Lists",
+        "message": "This removes the list from your lists. If no other users keep it, the list itself will be deleted. Continue?"
+      },
+      "share": "Share",
+      "shareTitle": "Share List",
+      "shareCode": "Share Code",
+      "shareDescription": "Generate a share code to let others view and edit this list.",
+      "generateShare": "Generate Share Code",
+      "removeShare": "Stop Sharing",
+      "editTitle": "Edit List",
+      "save": "Save",
+      "colorRed": "Red",
+      "colorYellow": "Yellow",
+      "colorGreen": "Green",
+      "colorBlue": "Blue",
+      "colorIndigo": "Indigo",
+      "colorPurple": "Purple",
+      "colorCustom": "Custom color"
+    },
+    "settings": {
+      "title": "Settings",
+      "userInfo": {
+        "title": "Account"
+      },
+      "preferences": {
+        "title": "Display & behavior"
+      },
+      "theme": {
+        "title": "Theme",
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "language": {
+        "title": "Language",
+        "japanese": "Japanese",
+        "english": "English"
+      },
+      "taskInsertPosition": {
+        "title": "New task position",
+        "top": "Add to top",
+        "bottom": "Add to bottom"
+      },
+      "autoSort": {
+        "title": "Auto sort tasks",
+        "enable": "Auto sort tasks"
+      },
+      "danger": {
+        "title": "Danger Zone",
+        "signOut": "Sign Out",
+        "deleteAccount": "Delete Account"
+      },
+      "actions": {
+        "title": "Account actions"
+      },
+      "deleteAccount": "Delete account",
+      "deleteAccountConfirm": "Delete your account and all data?",
+      "signingOut": "Signing out...",
+      "deletingAccount": "Deleting account...",
+      "emailChange": {
+        "title": "Change Email Address",
+        "newEmailLabel": "New Email Address",
+        "newEmailPlaceholder": "new@example.com",
+        "submitButton": "Send Verification Email",
+        "submitting": "Sending...",
+        "successMessage": "Verification email sent. Click the link in the new email address to complete the change.",
+        "changeButton": "Change"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "Get started for free",
+        "headline": "Simple enough.\nThat's the point.",
+        "subheadline": "For anyone tired of complex task apps.\nSimple enough for everyone, right from the start.\nShare with others when you need to.",
+        "seo": {
+          "title": "Lightlist | Simple Shared Task List & ToDo App",
+          "description": "Lightlist is a simple shared task list / ToDo app for individuals, families, and small teams. Manage shopping lists and daily tasks across web, iPhone, and Android.",
+          "keywords": "task list,todo app,shared task list,shopping list,family tasks,team tasks,Lightlist"
+        },
+        "features": {
+          "title": "Three things Lightlist does",
+          "simple": {
+            "title": "Just what you need",
+            "description": "Add tasks. Check them off. That's it. No tutorial, no manual needed. Anyone can start right away — no matter their experience with technology."
+          },
+          "multidevice": {
+            "title": "Any device, anytime",
+            "description": "Access from any browser, or use the iOS and Android apps. Your lists stay in sync across all devices in real time."
+          },
+          "share": {
+            "title": "Share when you want to",
+            "description": "Generate a share code and invite anyone to your list in seconds. No account required to join. Out of the way when you don't need it."
+          }
+        },
+        "preview": {
+          "title": "See it in action",
+          "desktopAlt": "Desktop screenshot",
+          "mobileAlt": "Mobile screenshot"
+        },
+        "cta": {
+          "title": "Simple enough. That's the point.",
+          "description": "If task management feels like too much, Lightlist is for you. Start with one list.",
+          "button": "Get started for free"
+        }
+      },
+      "sharecode": {
+        "notFound": "This task list not found",
+        "error": "Failed to load task list",
+        "addTaskError": "Failed to add task",
+        "updateError": "Failed to update task",
+        "reorderError": "Failed to reorder tasks",
+        "deleteError": "Failed to delete completed tasks",
+        "addToOrderError": "Failed to add this task list",
+        "addToOrder": "Add to My Lists"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "Enter task...",
+        "setDate": "Set date",
+        "setDateShort": "Set",
+        "markComplete": "Not completed, tap to mark as completed",
+        "markIncomplete": "Completed, tap to mark as not completed",
+        "noTasks": "No tasks",
+        "dragHint": "Drag to reorder",
+        "sort": "Sort",
+        "deleteCompleted": "Delete completed tasks",
+        "deleteCompletedConfirm": "Delete {{count}} completed tasks?",
+        "clearDate": "Clear Date",
+        "clearDateShort": "Clear",
+        "deleteCompletedConfirmTitle": "Delete completed tasks?"
+      },
+      "notFound": {
+        "title": "Page Not Found",
+        "description": "The page you're looking for doesn't exist.",
+        "backHome": "Back to Home"
+      },
+      "serverError": {
+        "title": "Server Error",
+        "description": "An unexpected error occurred on the server.",
+        "backHome": "Back to Home"
+      },
+      "error": {
+        "title": "Something went wrong",
+        "description": "An unexpected error occurred. Please try reloading the page.",
+        "reload": "Reload Page"
+      }
+    }
+  },
+  "es": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist. Todos los derechos reservados.",
+    "common": {
+      "loading": "Cargando...",
+      "back": "Atrás",
+      "cancel": "Cancelar",
+      "deleting": "Eliminando...",
+      "close": "Cerrar",
+      "skipToMain": "Saltar al contenido principal",
+      "add": "Agregar",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "error": "Ocurrió un error",
+      "done": "Listo",
+      "selected": "Seleccionado",
+      "ok": "Aceptar"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "Iniciar sesión",
+        "signup": "Crear cuenta"
+      },
+      "form": {
+        "email": "Correo electrónico",
+        "password": "Contraseña",
+        "confirmPassword": "Confirmar contraseña"
+      },
+      "validation": {
+        "email": {
+          "required": "Ingresa una dirección de correo electrónico",
+          "invalid": "Ingresa una dirección de correo válida"
+        },
+        "password": {
+          "required": "Ingresa una contraseña",
+          "tooShort": "La contraseña debe tener al menos 8 caracteres"
+        },
+        "confirmPassword": {
+          "required": "Ingresa la confirmación de la contraseña",
+          "notMatch": "Las contraseñas no coinciden"
+        }
+      },
+      "error": {
+        "invalidCredential": "El correo o la contraseña son incorrectos",
+        "userNotFound": "No existe una cuenta con este correo electrónico",
+        "emailAlreadyInUse": "Este correo electrónico ya está registrado",
+        "weakPassword": "La contraseña es demasiado débil (se recomiendan 6 caracteres o más)",
+        "invalidEmail": "El formato del correo electrónico no es válido",
+        "operationNotAllowed": "Este método de autenticación no está disponible",
+        "tooManyRequests": "Demasiados intentos de inicio de sesión. Inténtalo más tarde",
+        "general": "Error de autenticación. Vuelve a intentarlo",
+        "requiresRecentLogin": "Por motivos de seguridad, cierra sesión e inicia sesión de nuevo antes de reintentar"
+      },
+      "button": {
+        "signin": "Iniciar sesión",
+        "signingIn": "Iniciando sesión...",
+        "signup": "Crear cuenta",
+        "signingUp": "Creando cuenta...",
+        "forgotPassword": "¿Olvidaste tu contraseña?",
+        "sendResetEmail": "Enviar correo de restablecimiento",
+        "sending": "Enviando...",
+        "backToSignIn": "Volver a iniciar sesión",
+        "signOut": "Cerrar sesión",
+        "cancel": "Cancelar",
+        "delete": "Eliminar"
+      },
+      "passwordReset": {
+        "instruction": "Ingresa la dirección de correo asociada a tu cuenta. Te enviaremos un correo para restablecer la contraseña.",
+        "success": "Correo de restablecimiento enviado. Revisa tu bandeja de entrada.",
+        "title": "Restablecer contraseña",
+        "newPassword": "Nueva contraseña",
+        "confirmNewPassword": "Confirmar nueva contraseña",
+        "setNewPassword": "Restablecer contraseña",
+        "settingNewPassword": "Restableciendo...",
+        "invalidCode": "El enlace de restablecimiento no es válido",
+        "expiredCode": "El enlace de restablecimiento ha caducado",
+        "resetSuccess": "La contraseña se cambió correctamente"
+      },
+      "placeholder": {
+        "email": "ejemplo@correo.com",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "Cerrar sesión",
+        "message": "¿Seguro que quieres cerrar sesión?"
+      },
+      "deleteAccountConfirm": {
+        "title": "Eliminar cuenta",
+        "message": "Al eliminar tu cuenta, se borrarán permanentemente todos tus datos. Esta acción no se puede deshacer. ¿Seguro?"
+      }
+    },
+    "app": {
+      "emptyState": "No hay listas de tareas",
+      "createNew": "Crear",
+      "createTaskList": "Crear lista de tareas",
+      "taskListName": "Nombre de la lista",
+      "taskListNamePlaceholder": "Ingresa el nombre de la lista",
+      "create": "Crear",
+      "cancel": "Cancelar",
+      "error": "Ocurrió un error",
+      "dragHint": "Arrastra para reordenar",
+      "openMenu": "Abrir menú",
+      "drawerTitle": "Listas de tareas",
+      "drawerNoEmail": "No hay correo disponible",
+      "taskListLocator": {
+        "label": "Posición de la lista",
+        "goTo": "Ir a la lista {{index}} de {{total}}"
+      },
+      "joinList": "Unirse a una lista",
+      "joinListTitle": "Unirse a lista compartida",
+      "joinListDescription": "Ingresa el código para unirte a una lista compartida.",
+      "shareCodePlaceholder": "Ingresa el código",
+      "join": "Unirse",
+      "joining": "Uniéndose...",
+      "calendarCheckButton": "Ver en calendario",
+      "calendarAllDates": "Todas las fechas",
+      "calendarNoDatedTasks": "No hay tareas con fecha",
+      "calendarNoTasksOnSelectedDate": "No hay tareas en la fecha seleccionada",
+      "rtlRestartTitle": "Reinicio requerido",
+      "rtlRestartMessage": "Reinicia la aplicación para aplicar los cambios de diseño de derecha a izquierda.",
+      "loadError": "Error al cargar las listas de tareas.",
+      "calendar": "Calendario",
+      "calendarPreviousMonth": "Mes anterior",
+      "calendarNextMonth": "Mes siguiente"
+    },
+    "taskList": {
+      "taskCount": "{{count}} tareas",
+      "taskCount_one": "{{count}} tarea",
+      "taskCount_other": "{{count}} tareas",
+      "editDetails": "Editar lista",
+      "selectColor": "Seleccionar color",
+      "backgroundNone": "Ninguno (usa el color del tema)",
+      "backgroundNoneShort": "Ninguno",
+      "deleteList": "Quitar de mis listas",
+      "deleteListConfirm": {
+        "title": "Quitar de mis listas",
+        "message": "Esto quitará la lista de tus listas. Si ningún otro usuario la conserva, la lista se eliminará por completo. ¿Continuar?"
+      },
+      "share": "Compartir",
+      "shareTitle": "Compartir lista",
+      "shareCode": "Código de compartición",
+      "shareDescription": "Genera un código para que otros puedan ver y editar esta lista.",
+      "generateShare": "Generar código",
+      "removeShare": "Dejar de compartir",
+      "editTitle": "Editar lista",
+      "save": "Guardar",
+      "colorRed": "Rojo",
+      "colorYellow": "Amarillo",
+      "colorGreen": "Verde",
+      "colorBlue": "Azul",
+      "colorIndigo": "Índigo",
+      "colorPurple": "Morado",
+      "colorCustom": "Color personalizado"
+    },
+    "settings": {
+      "title": "Configuración",
+      "userInfo": {
+        "title": "Cuenta"
+      },
+      "preferences": {
+        "title": "Visualización y comportamiento"
+      },
+      "theme": {
+        "title": "Tema",
+        "system": "Sistema",
+        "light": "Claro",
+        "dark": "Oscuro"
+      },
+      "language": {
+        "title": "Idioma",
+        "japanese": "Japonés",
+        "english": "Inglés"
+      },
+      "taskInsertPosition": {
+        "title": "Posición de nueva tarea",
+        "top": "Agregar arriba",
+        "bottom": "Agregar abajo"
+      },
+      "autoSort": {
+        "title": "Ordenar tareas automáticamente",
+        "enable": "Ordenar tareas automáticamente"
+      },
+      "danger": {
+        "title": "Zona de riesgo",
+        "signOut": "Cerrar sesión",
+        "deleteAccount": "Eliminar cuenta"
+      },
+      "actions": {
+        "title": "Acciones de cuenta"
+      },
+      "deleteAccount": "Eliminar cuenta",
+      "deleteAccountConfirm": "¿Eliminar tu cuenta y todos tus datos?",
+      "signingOut": "Cerrando sesión...",
+      "deletingAccount": "Eliminando cuenta...",
+      "emailChange": {
+        "title": "Cambiar correo electrónico",
+        "newEmailLabel": "Nuevo correo electrónico",
+        "newEmailPlaceholder": "nuevo@ejemplo.com",
+        "submitButton": "Enviar correo de verificación",
+        "submitting": "Enviando...",
+        "successMessage": "Correo de verificación enviado. Haz clic en el enlace del nuevo correo para completar el cambio.",
+        "changeButton": "Cambiar"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "Comienza gratis",
+        "headline": "Suficientemente simple.\nEse es el punto.",
+        "subheadline": "Para quienes están cansados de apps de tareas complejas.\nLo bastante simple para cualquiera desde el inicio.\nCompártelo con otros cuando lo necesites.",
+        "seo": {
+          "title": "Lightlist | App simple de tareas compartidas y ToDo",
+          "description": "Lightlist es una app simple de lista de tareas compartida / ToDo para personas, familias y equipos pequeños. Gestiona listas de compras y tareas diarias en web, iPhone y Android.",
+          "keywords": "lista de tareas,app todo,lista compartida,lista de compras,tareas familiares,tareas de equipo,Lightlist"
+        },
+        "features": {
+          "title": "Tres cosas que hace Lightlist",
+          "simple": {
+            "title": "Solo lo que necesitas",
+            "description": "Añade tareas. Márcalas como hechas. Eso es todo. Sin tutoriales ni manuales. Cualquiera puede empezar de inmediato, sin importar su experiencia tecnológica."
+          },
+          "multidevice": {
+            "title": "Cualquier dispositivo, en cualquier momento",
+            "description": "Accede desde cualquier navegador o usa las apps de iOS y Android. Tus listas se sincronizan en tiempo real entre todos tus dispositivos."
+          },
+          "share": {
+            "title": "Comparte cuando quieras",
+            "description": "Genera un código y comparte tu lista en segundos. No se requiere cuenta para unirse. No molesta cuando no lo necesitas."
+          }
+        },
+        "preview": {
+          "title": "Míralo en acción",
+          "desktopAlt": "Captura de pantalla de escritorio",
+          "mobileAlt": "Captura de pantalla móvil"
+        },
+        "cta": {
+          "title": "Suficientemente simple. Ese es el punto.",
+          "description": "Si la gestión de tareas te resulta demasiado, Lightlist es para ti. Empieza con una sola lista.",
+          "button": "Comienza gratis"
+        }
+      },
+      "sharecode": {
+        "notFound": "No se encontró esta lista",
+        "error": "No se pudo cargar la lista",
+        "addTaskError": "No se pudo añadir la tarea",
+        "updateError": "No se pudo actualizar la tarea",
+        "reorderError": "No se pudieron reordenar las tareas",
+        "deleteError": "No se pudieron eliminar las tareas completadas",
+        "addToOrderError": "No se pudo agregar esta lista",
+        "addToOrder": "Agregar a mis listas"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "Escribe una tarea...",
+        "setDate": "Establecer fecha",
+        "setDateShort": "Fijar",
+        "markComplete": "Sin completar. Toca para marcar como completada",
+        "markIncomplete": "Completada. Toca para marcar como pendiente",
+        "noTasks": "No hay tareas",
+        "dragHint": "Arrastra para reordenar",
+        "sort": "Ordenar",
+        "deleteCompleted": "Eliminar tareas completadas",
+        "deleteCompletedConfirm": "¿Eliminar {{count}} tareas completadas?",
+        "clearDate": "Borrar fecha",
+        "clearDateShort": "Borrar",
+        "deleteCompletedConfirmTitle": "¿Eliminar tareas completadas?"
+      },
+      "notFound": {
+        "title": "Página no encontrada",
+        "description": "La página que buscas no existe.",
+        "backHome": "Volver al inicio"
+      },
+      "serverError": {
+        "title": "Error del servidor",
+        "description": "Ocurrió un error inesperado en el servidor.",
+        "backHome": "Volver al inicio"
+      },
+      "error": {
+        "title": "Algo salió mal",
+        "description": "Ocurrió un error inesperado. Intenta recargar la página.",
+        "reload": "Recargar página"
+      }
+    }
+  },
+  "fr": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist. Tous droits réservés.",
+    "common": {
+      "loading": "Chargement...",
+      "back": "Retour",
+      "cancel": "Annuler",
+      "deleting": "Suppression...",
+      "close": "Fermer",
+      "skipToMain": "Aller au contenu principal",
+      "add": "Ajouter",
+      "copy": "Copier",
+      "copied": "Copié",
+      "error": "Une erreur est survenue",
+      "done": "Terminé",
+      "selected": "Sélectionné",
+      "ok": "OK"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "Se connecter",
+        "signup": "S'inscrire"
+      },
+      "form": {
+        "email": "Adresse e-mail",
+        "password": "Mot de passe",
+        "confirmPassword": "Confirmer le mot de passe"
+      },
+      "validation": {
+        "email": {
+          "required": "Veuillez saisir une adresse e-mail",
+          "invalid": "Veuillez saisir une adresse e-mail valide"
+        },
+        "password": {
+          "required": "Veuillez saisir un mot de passe",
+          "tooShort": "Le mot de passe doit contenir au moins 8 caractères"
+        },
+        "confirmPassword": {
+          "required": "Veuillez confirmer le mot de passe",
+          "notMatch": "Les mots de passe ne correspondent pas"
+        }
+      },
+      "error": {
+        "invalidCredential": "L'e-mail ou le mot de passe est incorrect",
+        "userNotFound": "Aucun compte trouvé avec cette adresse e-mail",
+        "emailAlreadyInUse": "Cette adresse e-mail est déjà enregistrée",
+        "weakPassword": "Le mot de passe est trop faible (6 caractères ou plus recommandés)",
+        "invalidEmail": "Le format de l'adresse e-mail est invalide",
+        "operationNotAllowed": "Cette méthode d'authentification n'est pas disponible",
+        "tooManyRequests": "Trop de tentatives de connexion. Veuillez réessayer plus tard",
+        "general": "Échec de l'authentification. Veuillez réessayer",
+        "requiresRecentLogin": "Pour des raisons de sécurité, déconnectez-vous puis reconnectez-vous avant de réessayer"
+      },
+      "button": {
+        "signin": "Se connecter",
+        "signingIn": "Connexion...",
+        "signup": "S'inscrire",
+        "signingUp": "Inscription...",
+        "forgotPassword": "Mot de passe oublié ?",
+        "sendResetEmail": "Envoyer l'e-mail de réinitialisation",
+        "sending": "Envoi...",
+        "backToSignIn": "Retour à la connexion",
+        "signOut": "Se déconnecter",
+        "cancel": "Annuler",
+        "delete": "Supprimer"
+      },
+      "passwordReset": {
+        "instruction": "Saisissez l'adresse e-mail associée à votre compte. Nous vous enverrons un e-mail de réinitialisation du mot de passe.",
+        "success": "E-mail de réinitialisation envoyé. Veuillez vérifier votre boîte de réception.",
+        "title": "Réinitialiser le mot de passe",
+        "newPassword": "Nouveau mot de passe",
+        "confirmNewPassword": "Confirmer le nouveau mot de passe",
+        "setNewPassword": "Réinitialiser le mot de passe",
+        "settingNewPassword": "Réinitialisation...",
+        "invalidCode": "Le lien de réinitialisation est invalide",
+        "expiredCode": "Le lien de réinitialisation a expiré",
+        "resetSuccess": "Mot de passe modifié avec succès"
+      },
+      "placeholder": {
+        "email": "exemple@email.com",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "Se déconnecter",
+        "message": "Voulez-vous vraiment vous déconnecter ?"
+      },
+      "deleteAccountConfirm": {
+        "title": "Supprimer le compte",
+        "message": "La suppression de votre compte supprimera définitivement toutes vos données. Cette action est irréversible. Êtes-vous sûr ?"
+      }
+    },
+    "app": {
+      "emptyState": "Aucune liste de tâches",
+      "createNew": "Créer",
+      "createTaskList": "Créer une liste de tâches",
+      "taskListName": "Nom de la liste",
+      "taskListNamePlaceholder": "Saisissez le nom de la liste",
+      "create": "Créer",
+      "cancel": "Annuler",
+      "error": "Une erreur est survenue",
+      "dragHint": "Glissez pour réorganiser",
+      "openMenu": "Ouvrir le menu",
+      "drawerTitle": "Listes de tâches",
+      "drawerNoEmail": "Aucun e-mail disponible",
+      "taskListLocator": {
+        "label": "Position de la liste",
+        "goTo": "Aller à la liste {{index}} sur {{total}}"
+      },
+      "joinList": "Rejoindre une liste",
+      "joinListTitle": "Rejoindre une liste partagée",
+      "joinListDescription": "Saisissez le code de partage pour rejoindre une liste partagée.",
+      "shareCodePlaceholder": "Saisissez le code de partage",
+      "join": "Rejoindre",
+      "joining": "Connexion en cours...",
+      "calendarCheckButton": "Voir dans le calendrier",
+      "calendarAllDates": "Toutes les dates",
+      "calendarNoDatedTasks": "Aucune tâche avec une date",
+      "calendarNoTasksOnSelectedDate": "Aucune tâche à la date sélectionnée",
+      "rtlRestartTitle": "Redémarrage requis",
+      "rtlRestartMessage": "Redémarrez l'application pour appliquer la mise en page de droite à gauche.",
+      "loadError": "Impossible de charger les listes de tâches.",
+      "calendar": "Calendrier",
+      "calendarPreviousMonth": "Mois précédent",
+      "calendarNextMonth": "Mois suivant"
+    },
+    "taskList": {
+      "taskCount": "{{count}} tâches",
+      "taskCount_one": "{{count}} tâche",
+      "taskCount_other": "{{count}} tâches",
+      "editDetails": "Modifier la liste",
+      "selectColor": "Choisir une couleur",
+      "backgroundNone": "Aucune (utilise la couleur du thème)",
+      "backgroundNoneShort": "Aucune",
+      "deleteList": "Retirer de mes listes",
+      "deleteListConfirm": {
+        "title": "Retirer de mes listes",
+        "message": "Cela retire la liste de vos listes. Si aucun autre utilisateur ne la conserve, la liste elle-même sera supprimée. Continuer ?"
+      },
+      "share": "Partager",
+      "shareTitle": "Partager la liste",
+      "shareCode": "Code de partage",
+      "shareDescription": "Générez un code pour permettre à d'autres de consulter et modifier cette liste.",
+      "generateShare": "Générer un code de partage",
+      "removeShare": "Arrêter le partage",
+      "editTitle": "Modifier la liste",
+      "save": "Enregistrer",
+      "colorRed": "Rouge",
+      "colorYellow": "Jaune",
+      "colorGreen": "Vert",
+      "colorBlue": "Bleu",
+      "colorIndigo": "Indigo",
+      "colorPurple": "Violet",
+      "colorCustom": "Couleur personnalisée"
+    },
+    "settings": {
+      "title": "Paramètres",
+      "userInfo": {
+        "title": "Compte"
+      },
+      "preferences": {
+        "title": "Affichage et comportement"
+      },
+      "theme": {
+        "title": "Thème",
+        "system": "Système",
+        "light": "Clair",
+        "dark": "Sombre"
+      },
+      "language": {
+        "title": "Langue",
+        "japanese": "Japonais",
+        "english": "Anglais"
+      },
+      "taskInsertPosition": {
+        "title": "Position de la nouvelle tâche",
+        "top": "Ajouter en haut",
+        "bottom": "Ajouter en bas"
+      },
+      "autoSort": {
+        "title": "Tri automatique des tâches",
+        "enable": "Trier automatiquement les tâches"
+      },
+      "danger": {
+        "title": "Zone dangereuse",
+        "signOut": "Se déconnecter",
+        "deleteAccount": "Supprimer le compte"
+      },
+      "actions": {
+        "title": "Actions du compte"
+      },
+      "deleteAccount": "Supprimer le compte",
+      "deleteAccountConfirm": "Supprimer votre compte et toutes vos données ?",
+      "signingOut": "Déconnexion...",
+      "deletingAccount": "Suppression du compte...",
+      "emailChange": {
+        "title": "Changer l'adresse e-mail",
+        "newEmailLabel": "Nouvelle adresse e-mail",
+        "newEmailPlaceholder": "nouveau@exemple.com",
+        "submitButton": "Envoyer l'e-mail de vérification",
+        "submitting": "Envoi...",
+        "successMessage": "E-mail de vérification envoyé. Cliquez sur le lien dans la nouvelle adresse e-mail pour terminer la modification.",
+        "changeButton": "Modifier"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "Commencer gratuitement",
+        "headline": "Assez simple.\nC'est tout l'objectif.",
+        "subheadline": "Pour celles et ceux qui en ont assez des applications de tâches complexes.\nAssez simple pour tout le monde, dès le départ.\nPartagez avec d'autres quand vous en avez besoin.",
+        "seo": {
+          "title": "Lightlist | Application simple de liste de tâches partagée et ToDo",
+          "description": "Lightlist est une application simple de liste de tâches partagée / ToDo pour les particuliers, les familles et les petites équipes. Gérez vos listes de courses et tâches quotidiennes sur le web, iPhone et Android.",
+          "keywords": "liste de tâches,application todo,liste partagée,liste de courses,tâches famille,tâches équipe,Lightlist"
+        },
+        "features": {
+          "title": "Trois choses que fait Lightlist",
+          "simple": {
+            "title": "Juste ce qu'il faut",
+            "description": "Ajoutez des tâches. Cochez-les. C'est tout. Aucun tutoriel, aucun manuel nécessaire. Tout le monde peut commencer immédiatement, quel que soit son niveau en technologie."
+          },
+          "multidevice": {
+            "title": "N'importe quel appareil, à tout moment",
+            "description": "Accédez-y depuis n'importe quel navigateur, ou utilisez les applications iOS et Android. Vos listes restent synchronisées en temps réel sur tous vos appareils."
+          },
+          "share": {
+            "title": "Partagez quand vous voulez",
+            "description": "Générez un code de partage et invitez n'importe qui en quelques secondes. Aucun compte requis pour rejoindre. Discret quand vous n'en avez pas besoin."
+          }
+        },
+        "preview": {
+          "title": "Voir en action",
+          "desktopAlt": "Capture d'écran sur ordinateur",
+          "mobileAlt": "Capture d'écran mobile"
+        },
+        "cta": {
+          "title": "Assez simple. C'est tout l'objectif.",
+          "description": "Si la gestion des tâches vous semble trop compliquée, Lightlist est pour vous. Commencez avec une seule liste.",
+          "button": "Commencer gratuitement"
+        }
+      },
+      "sharecode": {
+        "notFound": "Cette liste de tâches est introuvable",
+        "error": "Échec du chargement de la liste de tâches",
+        "addTaskError": "Échec de l'ajout de la tâche",
+        "updateError": "Échec de la mise à jour de la tâche",
+        "reorderError": "Échec de la réorganisation des tâches",
+        "deleteError": "Échec de la suppression des tâches terminées",
+        "addToOrderError": "Échec de l'ajout de cette liste",
+        "addToOrder": "Ajouter à mes listes"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "Saisir une tâche...",
+        "setDate": "Définir la date",
+        "setDateShort": "Définir",
+        "markComplete": "Non terminée. Touchez pour marquer comme terminée",
+        "markIncomplete": "Terminée. Touchez pour marquer comme non terminée",
+        "noTasks": "Aucune tâche",
+        "dragHint": "Glisser pour réorganiser",
+        "sort": "Trier",
+        "deleteCompleted": "Supprimer les tâches terminées",
+        "deleteCompletedConfirm": "Supprimer {{count}} tâches terminées ?",
+        "clearDate": "Effacer la date",
+        "clearDateShort": "Effacer",
+        "deleteCompletedConfirmTitle": "Supprimer les tâches terminées ?"
+      },
+      "notFound": {
+        "title": "Page introuvable",
+        "description": "La page que vous recherchez n'existe pas.",
+        "backHome": "Retour à l'accueil"
+      },
+      "serverError": {
+        "title": "Erreur serveur",
+        "description": "Une erreur inattendue est survenue sur le serveur.",
+        "backHome": "Retour à l'accueil"
+      },
+      "error": {
+        "title": "Un problème est survenu",
+        "description": "Une erreur inattendue est survenue. Veuillez recharger la page.",
+        "reload": "Recharger la page"
+      }
+    }
+  },
+  "hi": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist. सर्वाधिकार सुरक्षित।",
+    "common": {
+      "loading": "लोड हो रहा है...",
+      "back": "वापस",
+      "cancel": "रद्द करें",
+      "deleting": "हटाया जा रहा है...",
+      "close": "बंद करें",
+      "skipToMain": "मुख्य सामग्री पर जाएँ",
+      "add": "जोड़ें",
+      "copy": "कॉपी करें",
+      "copied": "कॉपी हो गया",
+      "error": "एक त्रुटि हुई",
+      "done": "हो गया",
+      "selected": "चयनित",
+      "ok": "ठीक है"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "साइन इन",
+        "signup": "साइन अप"
+      },
+      "form": {
+        "email": "ईमेल पता",
+        "password": "पासवर्ड",
+        "confirmPassword": "पासवर्ड की पुष्टि करें"
+      },
+      "validation": {
+        "email": {
+          "required": "कृपया ईमेल पता दर्ज करें",
+          "invalid": "कृपया मान्य ईमेल पता दर्ज करें"
+        },
+        "password": {
+          "required": "कृपया पासवर्ड दर्ज करें",
+          "tooShort": "पासवर्ड कम से कम 8 अक्षरों का होना चाहिए"
+        },
+        "confirmPassword": {
+          "required": "कृपया पुष्टि पासवर्ड दर्ज करें",
+          "notMatch": "पासवर्ड मेल नहीं खाते"
+        }
+      },
+      "error": {
+        "invalidCredential": "ईमेल या पासवर्ड गलत है",
+        "userNotFound": "इस ईमेल पते से कोई खाता नहीं मिला",
+        "emailAlreadyInUse": "यह ईमेल पता पहले से पंजीकृत है",
+        "weakPassword": "पासवर्ड बहुत कमजोर है (6 या अधिक अक्षर सुझाए जाते हैं)",
+        "invalidEmail": "ईमेल पते का प्रारूप अमान्य है",
+        "operationNotAllowed": "यह प्रमाणीकरण तरीका उपलब्ध नहीं है",
+        "tooManyRequests": "बहुत अधिक लॉगिन प्रयास। कृपया बाद में फिर प्रयास करें",
+        "general": "प्रमाणीकरण विफल रहा। कृपया पुनः प्रयास करें",
+        "requiresRecentLogin": "सुरक्षा कारणों से, कृपया साइन आउट करके फिर से साइन इन करें और फिर प्रयास करें"
+      },
+      "button": {
+        "signin": "साइन इन",
+        "signingIn": "साइन इन हो रहा है...",
+        "signup": "साइन अप",
+        "signingUp": "साइन अप हो रहा है...",
+        "forgotPassword": "पासवर्ड भूल गए?",
+        "sendResetEmail": "रीसेट ईमेल भेजें",
+        "sending": "भेजा जा रहा है...",
+        "backToSignIn": "साइन इन पर वापस जाएँ",
+        "signOut": "साइन आउट",
+        "cancel": "रद्द करें",
+        "delete": "हटाएँ"
+      },
+      "passwordReset": {
+        "instruction": "अपने खाते से जुड़ा ईमेल पता दर्ज करें। हम आपको पासवर्ड रीसेट ईमेल भेजेंगे।",
+        "success": "पासवर्ड रीसेट ईमेल भेज दिया गया है। कृपया अपना ईमेल देखें।",
+        "title": "पासवर्ड रीसेट करें",
+        "newPassword": "नया पासवर्ड",
+        "confirmNewPassword": "नए पासवर्ड की पुष्टि करें",
+        "setNewPassword": "पासवर्ड रीसेट करें",
+        "settingNewPassword": "रीसेट किया जा रहा है...",
+        "invalidCode": "पासवर्ड रीसेट लिंक अमान्य है",
+        "expiredCode": "पासवर्ड रीसेट लिंक की अवधि समाप्त हो गई है",
+        "resetSuccess": "पासवर्ड सफलतापूर्वक बदल दिया गया"
+      },
+      "placeholder": {
+        "email": "udaharan@email.com",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "साइन आउट",
+        "message": "क्या आप वाकई साइन आउट करना चाहते हैं?"
+      },
+      "deleteAccountConfirm": {
+        "title": "खाता हटाएँ",
+        "message": "आपका खाता हटाने पर आपका सारा डेटा स्थायी रूप से हट जाएगा। यह कार्रवाई वापस नहीं की जा सकती। क्या आप सुनिश्चित हैं?"
+      }
+    },
+    "app": {
+      "emptyState": "कोई टास्क सूची नहीं",
+      "createNew": "बनाएँ",
+      "createTaskList": "टास्क सूची बनाएँ",
+      "taskListName": "टास्क सूची का नाम",
+      "taskListNamePlaceholder": "टास्क सूची का नाम दर्ज करें",
+      "create": "बनाएँ",
+      "cancel": "रद्द करें",
+      "error": "एक त्रुटि हुई",
+      "dragHint": "क्रम बदलने के लिए खींचें",
+      "openMenu": "मेनू खोलें",
+      "drawerTitle": "टास्क सूचियाँ",
+      "drawerNoEmail": "कोई ईमेल उपलब्ध नहीं",
+      "taskListLocator": {
+        "label": "टास्क सूची की स्थिति",
+        "goTo": "{{total}} में से {{index}}वीं सूची पर जाएँ"
+      },
+      "joinList": "सूची में शामिल हों",
+      "joinListTitle": "साझा सूची में शामिल हों",
+      "joinListDescription": "साझा टास्क सूची में शामिल होने के लिए शेयर कोड दर्ज करें।",
+      "shareCodePlaceholder": "शेयर कोड दर्ज करें",
+      "join": "शामिल हों",
+      "joining": "शामिल हो रहे हैं...",
+      "calendarCheckButton": "कैलेंडर में देखें",
+      "calendarAllDates": "सभी तिथियाँ",
+      "calendarNoDatedTasks": "किसी भी टास्क में तिथि सेट नहीं है",
+      "calendarNoTasksOnSelectedDate": "चयनित तिथि पर कोई टास्क नहीं",
+      "rtlRestartTitle": "रीस्टार्ट आवश्यक",
+      "rtlRestartMessage": "दाएँ-से-बाएँ लेआउट लागू करने के लिए ऐप को पुनः प्रारंभ करें।",
+      "loadError": "कार्य सूचियाँ लोड नहीं हो सकीं।",
+      "calendar": "कैलेंडर",
+      "calendarPreviousMonth": "पिछला महीना",
+      "calendarNextMonth": "अगला महीना"
+    },
+    "taskList": {
+      "taskCount": "{{count}} टास्क",
+      "taskCount_one": "{{count}} टास्क",
+      "taskCount_other": "{{count}} टास्क",
+      "editDetails": "सूची संपादित करें",
+      "selectColor": "रंग चुनें",
+      "backgroundNone": "कोई नहीं (थीम रंग का उपयोग)",
+      "backgroundNoneShort": "कोई नहीं",
+      "deleteList": "मेरी सूचियों से हटाएँ",
+      "deleteListConfirm": {
+        "title": "मेरी सूचियों से हटाएँ",
+        "message": "इससे यह सूची आपकी सूचियों से हट जाएगी। यदि कोई अन्य उपयोगकर्ता इसे नहीं रखता, तो सूची स्वयं भी हट जाएगी। जारी रखें?"
+      },
+      "share": "साझा करें",
+      "shareTitle": "सूची साझा करें",
+      "shareCode": "शेयर कोड",
+      "shareDescription": "शेयर कोड बनाएँ ताकि अन्य लोग इस सूची को देख और संपादित कर सकें।",
+      "generateShare": "शेयर कोड बनाएँ",
+      "removeShare": "साझा करना बंद करें",
+      "editTitle": "सूची संपादित करें",
+      "save": "सहेजें",
+      "colorRed": "लाल",
+      "colorYellow": "पीला",
+      "colorGreen": "हरा",
+      "colorBlue": "नीला",
+      "colorIndigo": "इंडिगो",
+      "colorPurple": "बैंगनी",
+      "colorCustom": "कस्टम रंग"
+    },
+    "settings": {
+      "title": "सेटिंग्स",
+      "userInfo": {
+        "title": "खाता"
+      },
+      "preferences": {
+        "title": "दृश्य और व्यवहार"
+      },
+      "theme": {
+        "title": "थीम",
+        "system": "सिस्टम",
+        "light": "लाइट",
+        "dark": "डार्क"
+      },
+      "language": {
+        "title": "भाषा",
+        "japanese": "जापानी",
+        "english": "अंग्रेज़ी"
+      },
+      "taskInsertPosition": {
+        "title": "नई टास्क की स्थिति",
+        "top": "ऊपर जोड़ें",
+        "bottom": "नीचे जोड़ें"
+      },
+      "autoSort": {
+        "title": "टास्क स्वतः क्रमबद्ध करें",
+        "enable": "टास्क स्वतः क्रमबद्ध करें"
+      },
+      "danger": {
+        "title": "खतरे का क्षेत्र",
+        "signOut": "साइन आउट",
+        "deleteAccount": "खाता हटाएँ"
+      },
+      "actions": {
+        "title": "खाता क्रियाएँ"
+      },
+      "deleteAccount": "खाता हटाएँ",
+      "deleteAccountConfirm": "क्या आपका खाता और सारा डेटा हटाना है?",
+      "signingOut": "साइन आउट हो रहा है...",
+      "deletingAccount": "खाता हटाया जा रहा है...",
+      "emailChange": {
+        "title": "ईमेल पता बदलें",
+        "newEmailLabel": "नया ईमेल पता",
+        "newEmailPlaceholder": "naya@udaharan.com",
+        "submitButton": "सत्यापन ईमेल भेजें",
+        "submitting": "भेजा जा रहा है...",
+        "successMessage": "सत्यापन ईमेल भेज दिया गया है। परिवर्तन पूरा करने के लिए नए ईमेल पते में लिंक पर क्लिक करें।",
+        "changeButton": "बदलें"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "मुफ़्त में शुरू करें",
+        "headline": "इतना सरल कि बस काम हो जाए।\nयही मकसद है।",
+        "subheadline": "उन लोगों के लिए जो जटिल टास्क ऐप्स से थक चुके हैं।\nशुरू से ही हर किसी के लिए पर्याप्त सरल।\nजब ज़रूरत हो, तब दूसरों के साथ साझा करें।",
+        "seo": {
+          "title": "Lightlist | सरल साझा टास्क सूची और ToDo ऐप",
+          "description": "Lightlist व्यक्तियों, परिवारों और छोटे टीमों के लिए एक सरल साझा टास्क सूची / ToDo ऐप है। वेब, iPhone और Android पर खरीदारी सूची और दैनिक कार्य सिंक करके प्रबंधित करें।",
+          "keywords": "टास्क सूची,todo ऐप,साझा टास्क सूची,खरीदारी सूची,परिवार कार्य,टीम कार्य,Lightlist"
+        },
+        "features": {
+          "title": "Lightlist की तीन खास बातें",
+          "simple": {
+            "title": "बस जितना ज़रूरी है",
+            "description": "टास्क जोड़ें। पूरा होने पर टिक करें। बस इतना ही। कोई ट्यूटोरियल या मैनुअल नहीं चाहिए। तकनीकी अनुभव चाहे जैसा हो, कोई भी तुरंत शुरू कर सकता है।"
+          },
+          "multidevice": {
+            "title": "किसी भी डिवाइस पर, कभी भी",
+            "description": "किसी भी ब्राउज़र से उपयोग करें या iOS और Android ऐप्स का इस्तेमाल करें। आपकी सूचियाँ सभी डिवाइसों पर रीयल-टाइम में सिंक रहती हैं।"
+          },
+          "share": {
+            "title": "जब चाहें तब साझा करें",
+            "description": "शेयर कोड बनाएँ और कुछ ही सेकंड में किसी को भी आमंत्रित करें। जुड़ने के लिए खाते की ज़रूरत नहीं। जब आवश्यकता न हो, तो बिल्कुल बाधा नहीं।"
+          }
+        },
+        "preview": {
+          "title": "इसे काम करते देखें",
+          "desktopAlt": "डेस्कटॉप स्क्रीनशॉट",
+          "mobileAlt": "मोबाइल स्क्रीनशॉट"
+        },
+        "cta": {
+          "title": "इतना सरल कि बस काम हो जाए। यही मकसद है।",
+          "description": "अगर टास्क मैनेजमेंट बहुत भारी लगता है, तो Lightlist आपके लिए है। एक सूची से शुरुआत करें।",
+          "button": "मुफ़्त में शुरू करें"
+        }
+      },
+      "sharecode": {
+        "notFound": "यह टास्क सूची नहीं मिली",
+        "error": "टास्क सूची लोड नहीं हो सकी",
+        "addTaskError": "टास्क जोड़ने में विफल",
+        "updateError": "टास्क अपडेट करने में विफल",
+        "reorderError": "टास्क क्रम बदलने में विफल",
+        "deleteError": "पूर्ण किए गए टास्क हटाने में विफल",
+        "addToOrderError": "इस टास्क सूची को जोड़ने में विफल",
+        "addToOrder": "मेरी सूचियों में जोड़ें"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "टास्क दर्ज करें...",
+        "setDate": "तिथि सेट करें",
+        "setDateShort": "सेट",
+        "markComplete": "अपूर्ण, पूर्ण के रूप में चिह्नित करने के लिए टैप करें",
+        "markIncomplete": "पूर्ण, अपूर्ण के रूप में चिह्नित करने के लिए टैप करें",
+        "noTasks": "कोई टास्क नहीं",
+        "dragHint": "क्रम बदलने के लिए खींचें",
+        "sort": "क्रमबद्ध करें",
+        "deleteCompleted": "पूर्ण किए गए टास्क हटाएँ",
+        "deleteCompletedConfirm": "क्या {{count}} पूर्ण किए गए टास्क हटाने हैं?",
+        "clearDate": "तारीख हटाएं",
+        "clearDateShort": "हटाएं",
+        "deleteCompletedConfirmTitle": "पूर्ण किए गए कार्य हटाएं?"
+      },
+      "notFound": {
+        "title": "पेज नहीं मिला",
+        "description": "आप जिस पेज को खोज रहे हैं वह मौजूद नहीं है।",
+        "backHome": "होम पर वापस जाएँ"
+      },
+      "serverError": {
+        "title": "सर्वर त्रुटि",
+        "description": "सर्वर पर एक अप्रत्याशित त्रुटि हुई।",
+        "backHome": "होम पर वापस जाएँ"
+      },
+      "error": {
+        "title": "कुछ गलत हो गया",
+        "description": "एक अप्रत्याशित त्रुटि हुई। कृपया पेज रीलोड करें।",
+        "reload": "पेज रीलोड करें"
+      }
+    }
+  },
+  "id": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist. Hak cipta dilindungi.",
+    "common": {
+      "loading": "Memuat...",
+      "back": "Kembali",
+      "cancel": "Batal",
+      "deleting": "Menghapus...",
+      "close": "Tutup",
+      "skipToMain": "Lewati ke konten utama",
+      "add": "Tambah",
+      "copy": "Salin",
+      "copied": "Tersalin",
+      "error": "Terjadi kesalahan",
+      "done": "Selesai",
+      "selected": "Dipilih",
+      "ok": "OK"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "Masuk",
+        "signup": "Daftar"
+      },
+      "form": {
+        "email": "Alamat email",
+        "password": "Kata sandi",
+        "confirmPassword": "Konfirmasi kata sandi"
+      },
+      "validation": {
+        "email": {
+          "required": "Silakan masukkan alamat email",
+          "invalid": "Silakan masukkan alamat email yang valid"
+        },
+        "password": {
+          "required": "Silakan masukkan kata sandi",
+          "tooShort": "Kata sandi harus minimal 8 karakter"
+        },
+        "confirmPassword": {
+          "required": "Silakan masukkan konfirmasi kata sandi",
+          "notMatch": "Kata sandi tidak cocok"
+        }
+      },
+      "error": {
+        "invalidCredential": "Email atau kata sandi salah",
+        "userNotFound": "Akun dengan alamat email ini tidak ditemukan",
+        "emailAlreadyInUse": "Alamat email ini sudah terdaftar",
+        "weakPassword": "Kata sandi terlalu lemah (disarankan 6 karakter atau lebih)",
+        "invalidEmail": "Format alamat email tidak valid",
+        "operationNotAllowed": "Metode autentikasi ini tidak tersedia",
+        "tooManyRequests": "Terlalu banyak percobaan masuk. Silakan coba lagi nanti",
+        "general": "Autentikasi gagal. Silakan coba lagi",
+        "requiresRecentLogin": "Untuk keamanan, silakan keluar lalu masuk lagi sebelum mencoba"
+      },
+      "button": {
+        "signin": "Masuk",
+        "signingIn": "Sedang masuk...",
+        "signup": "Daftar",
+        "signingUp": "Sedang mendaftar...",
+        "forgotPassword": "Lupa kata sandi?",
+        "sendResetEmail": "Kirim email reset",
+        "sending": "Mengirim...",
+        "backToSignIn": "Kembali ke masuk",
+        "signOut": "Keluar",
+        "cancel": "Batal",
+        "delete": "Hapus"
+      },
+      "passwordReset": {
+        "instruction": "Masukkan alamat email yang terhubung dengan akun Anda. Kami akan mengirim email reset kata sandi.",
+        "success": "Email reset kata sandi telah dikirim. Silakan periksa email Anda.",
+        "title": "Reset kata sandi",
+        "newPassword": "Kata sandi baru",
+        "confirmNewPassword": "Konfirmasi kata sandi baru",
+        "setNewPassword": "Reset kata sandi",
+        "settingNewPassword": "Sedang mereset...",
+        "invalidCode": "Tautan reset kata sandi tidak valid",
+        "expiredCode": "Tautan reset kata sandi telah kedaluwarsa",
+        "resetSuccess": "Kata sandi berhasil diubah"
+      },
+      "placeholder": {
+        "email": "contoh@email.com",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "Keluar",
+        "message": "Apakah Anda yakin ingin keluar?"
+      },
+      "deleteAccountConfirm": {
+        "title": "Hapus akun",
+        "message": "Menghapus akun Anda akan menghapus semua data secara permanen. Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin?"
+      }
+    },
+    "app": {
+      "emptyState": "Tidak ada daftar tugas",
+      "createNew": "Buat",
+      "createTaskList": "Buat daftar tugas",
+      "taskListName": "Nama daftar tugas",
+      "taskListNamePlaceholder": "Masukkan nama daftar tugas",
+      "create": "Buat",
+      "cancel": "Batal",
+      "error": "Terjadi kesalahan",
+      "dragHint": "Seret untuk mengurutkan ulang",
+      "openMenu": "Buka menu",
+      "drawerTitle": "Daftar tugas",
+      "drawerNoEmail": "Email tidak tersedia",
+      "taskListLocator": {
+        "label": "Posisi daftar tugas",
+        "goTo": "Pergi ke daftar tugas {{index}} dari {{total}}"
+      },
+      "joinList": "Gabung daftar",
+      "joinListTitle": "Gabung daftar bersama",
+      "joinListDescription": "Masukkan kode berbagi untuk bergabung ke daftar tugas bersama.",
+      "shareCodePlaceholder": "Masukkan kode berbagi",
+      "join": "Gabung",
+      "joining": "Sedang bergabung...",
+      "calendarCheckButton": "Lihat di kalender",
+      "calendarAllDates": "Semua tanggal",
+      "calendarNoDatedTasks": "Tidak ada tugas bertanggal",
+      "calendarNoTasksOnSelectedDate": "Tidak ada tugas pada tanggal yang dipilih",
+      "rtlRestartTitle": "Perlu memulai ulang",
+      "rtlRestartMessage": "Mulai ulang aplikasi untuk menerapkan perubahan tata letak kanan ke kiri.",
+      "loadError": "Gagal memuat daftar tugas.",
+      "calendar": "Kalender",
+      "calendarPreviousMonth": "Bulan sebelumnya",
+      "calendarNextMonth": "Bulan berikutnya"
+    },
+    "taskList": {
+      "taskCount": "{{count}} tugas",
+      "taskCount_one": "{{count}} tugas",
+      "taskCount_other": "{{count}} tugas",
+      "editDetails": "Edit daftar",
+      "selectColor": "Pilih warna",
+      "backgroundNone": "Tidak ada (menggunakan warna tema)",
+      "backgroundNoneShort": "Tidak ada",
+      "deleteList": "Hapus dari daftar saya",
+      "deleteListConfirm": {
+        "title": "Hapus dari daftar saya",
+        "message": "Ini akan menghapus daftar dari daftar Anda. Jika tidak ada pengguna lain yang menyimpannya, daftar tersebut akan dihapus. Lanjutkan?"
+      },
+      "share": "Bagikan",
+      "shareTitle": "Bagikan daftar",
+      "shareCode": "Kode berbagi",
+      "shareDescription": "Buat kode berbagi agar orang lain dapat melihat dan mengedit daftar ini.",
+      "generateShare": "Buat kode berbagi",
+      "removeShare": "Hentikan berbagi",
+      "editTitle": "Edit Daftar",
+      "save": "Simpan",
+      "colorRed": "Merah",
+      "colorYellow": "Kuning",
+      "colorGreen": "Hijau",
+      "colorBlue": "Biru",
+      "colorIndigo": "Indigo",
+      "colorPurple": "Ungu",
+      "colorCustom": "Warna kustom"
+    },
+    "settings": {
+      "title": "Pengaturan",
+      "userInfo": {
+        "title": "Akun"
+      },
+      "preferences": {
+        "title": "Tampilan & perilaku"
+      },
+      "theme": {
+        "title": "Tema",
+        "system": "Sistem",
+        "light": "Terang",
+        "dark": "Gelap"
+      },
+      "language": {
+        "title": "Bahasa",
+        "japanese": "Jepang",
+        "english": "Inggris"
+      },
+      "taskInsertPosition": {
+        "title": "Posisi tugas baru",
+        "top": "Tambah ke atas",
+        "bottom": "Tambah ke bawah"
+      },
+      "autoSort": {
+        "title": "Urutkan tugas otomatis",
+        "enable": "Urutkan tugas otomatis"
+      },
+      "danger": {
+        "title": "Zona bahaya",
+        "signOut": "Keluar",
+        "deleteAccount": "Hapus akun"
+      },
+      "actions": {
+        "title": "Tindakan akun"
+      },
+      "deleteAccount": "Hapus akun",
+      "deleteAccountConfirm": "Hapus akun dan semua data Anda?",
+      "signingOut": "Sedang keluar...",
+      "deletingAccount": "Menghapus akun...",
+      "emailChange": {
+        "title": "Ubah alamat email",
+        "newEmailLabel": "Alamat email baru",
+        "newEmailPlaceholder": "baru@contoh.com",
+        "submitButton": "Kirim email verifikasi",
+        "submitting": "Mengirim...",
+        "successMessage": "Email verifikasi telah dikirim. Klik tautan pada alamat email baru untuk menyelesaikan perubahan.",
+        "changeButton": "Ubah"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "Mulai gratis",
+        "headline": "Cukup sederhana.\nItulah intinya.",
+        "subheadline": "Untuk siapa pun yang lelah dengan aplikasi tugas yang rumit.\nCukup sederhana untuk semua orang sejak awal.\nBagikan dengan orang lain saat Anda membutuhkannya.",
+        "seo": {
+          "title": "Lightlist | Aplikasi daftar tugas bersama & ToDo yang sederhana",
+          "description": "Lightlist adalah aplikasi daftar tugas bersama / ToDo yang sederhana untuk individu, keluarga, dan tim kecil. Kelola daftar belanja dan tugas harian di web, iPhone, dan Android.",
+          "keywords": "daftar tugas,aplikasi todo,daftar tugas bersama,daftar belanja,tugas keluarga,tugas tim,Lightlist"
+        },
+        "features": {
+          "title": "Tiga hal yang dilakukan Lightlist",
+          "simple": {
+            "title": "Hanya yang Anda butuhkan",
+            "description": "Tambahkan tugas. Tandai selesai. Itu saja. Tanpa tutorial, tanpa manual. Siapa pun bisa langsung mulai, apa pun pengalaman teknologinya."
+          },
+          "multidevice": {
+            "title": "Perangkat apa pun, kapan saja",
+            "description": "Akses dari browser apa pun, atau gunakan aplikasi iOS dan Android. Daftar Anda tetap sinkron di semua perangkat secara real-time."
+          },
+          "share": {
+            "title": "Bagikan saat Anda mau",
+            "description": "Buat kode berbagi dan undang siapa saja ke daftar Anda dalam hitungan detik. Tidak perlu akun untuk bergabung. Tetap tidak mengganggu saat tidak dibutuhkan."
+          }
+        },
+        "preview": {
+          "title": "Lihat cara kerjanya",
+          "desktopAlt": "Tangkapan layar desktop",
+          "mobileAlt": "Tangkapan layar ponsel"
+        },
+        "cta": {
+          "title": "Cukup sederhana. Itulah intinya.",
+          "description": "Jika pengelolaan tugas terasa terlalu rumit, Lightlist cocok untuk Anda. Mulai dengan satu daftar.",
+          "button": "Mulai gratis"
+        }
+      },
+      "sharecode": {
+        "notFound": "Daftar tugas ini tidak ditemukan",
+        "error": "Gagal memuat daftar tugas",
+        "addTaskError": "Gagal menambahkan tugas",
+        "updateError": "Gagal memperbarui tugas",
+        "reorderError": "Gagal mengurutkan ulang tugas",
+        "deleteError": "Gagal menghapus tugas yang selesai",
+        "addToOrderError": "Gagal menambahkan daftar tugas ini",
+        "addToOrder": "Tambahkan ke daftar saya"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "Masukkan tugas...",
+        "setDate": "Atur tanggal",
+        "setDateShort": "Atur",
+        "markComplete": "Belum selesai, ketuk untuk menandai selesai",
+        "markIncomplete": "Selesai, ketuk untuk menandai belum selesai",
+        "noTasks": "Tidak ada tugas",
+        "dragHint": "Seret untuk mengurutkan ulang",
+        "sort": "Urutkan",
+        "deleteCompleted": "Hapus tugas yang selesai",
+        "deleteCompletedConfirm": "Hapus {{count}} tugas yang selesai?",
+        "clearDate": "Hapus Tanggal",
+        "clearDateShort": "Hapus",
+        "deleteCompletedConfirmTitle": "Hapus tugas yang selesai?"
+      },
+      "notFound": {
+        "title": "Halaman tidak ditemukan",
+        "description": "Halaman yang Anda cari tidak ada.",
+        "backHome": "Kembali ke beranda"
+      },
+      "serverError": {
+        "title": "Kesalahan server",
+        "description": "Terjadi kesalahan tak terduga pada server.",
+        "backHome": "Kembali ke beranda"
+      },
+      "error": {
+        "title": "Terjadi kesalahan",
+        "description": "Terjadi kesalahan tak terduga. Silakan muat ulang halaman.",
+        "reload": "Muat ulang halaman"
+      }
+    }
+  },
+  "ja": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist. 全著作権所有。",
+    "common": {
+      "loading": "読み込み中...",
+      "back": "戻る",
+      "cancel": "キャンセル",
+      "deleting": "削除中...",
+      "close": "閉じる",
+      "skipToMain": "メインコンテンツへ移動",
+      "add": "追加",
+      "copy": "コピー",
+      "copied": "コピーしました",
+      "error": "エラーが発生しました",
+      "done": "完了",
+      "selected": "選択中",
+      "ok": "OK"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "ログイン",
+        "signup": "サインアップ"
+      },
+      "form": {
+        "email": "メールアドレス",
+        "password": "パスワード",
+        "confirmPassword": "パスワード確認"
+      },
+      "validation": {
+        "email": {
+          "required": "メールアドレスを入力してください",
+          "invalid": "有効なメールアドレスを入力してください"
+        },
+        "password": {
+          "required": "パスワードを入力してください",
+          "tooShort": "パスワードは8文字以上である必要があります"
+        },
+        "confirmPassword": {
+          "required": "パスワード確認を入力してください",
+          "notMatch": "パスワードが一致しません"
+        }
+      },
+      "error": {
+        "invalidCredential": "メールアドレスまたはパスワードが正しくありません",
+        "userNotFound": "このメールアドレスで登録されたアカウントはありません",
+        "emailAlreadyInUse": "このメールアドレスは既に登録されています",
+        "weakPassword": "パスワードが弱すぎます（8文字以上推奨）",
+        "invalidEmail": "メールアドレスの形式が正しくありません",
+        "operationNotAllowed": "この認証方法は利用できません",
+        "tooManyRequests": "ログイン試行回数が多すぎます。後でもう一度試してください",
+        "general": "認証に失敗しました。もう一度試してください",
+        "requiresRecentLogin": "セキュリティのため、一度ログアウトして再ログインしてから再試行してください"
+      },
+      "button": {
+        "signin": "ログイン",
+        "signingIn": "ログイン中...",
+        "signup": "サインアップ",
+        "signingUp": "サインアップ中...",
+        "forgotPassword": "パスワードを忘れた",
+        "sendResetEmail": "リセットメール送信",
+        "sending": "送信中...",
+        "backToSignIn": "ログインに戻る",
+        "signOut": "ログアウト",
+        "cancel": "キャンセル",
+        "delete": "削除"
+      },
+      "passwordReset": {
+        "instruction": "登録されているメールアドレスを入力してください。パスワードリセットメールを送信します。",
+        "success": "パスワードリセットメールを送信しました。メールをご確認ください。",
+        "title": "パスワード再設定",
+        "newPassword": "新しいパスワード",
+        "confirmNewPassword": "新しいパスワード確認",
+        "setNewPassword": "パスワード再設定",
+        "settingNewPassword": "再設定中...",
+        "invalidCode": "パスワードリセットリンクが無効です",
+        "expiredCode": "パスワードリセットリンクの有効期限が切れています",
+        "resetSuccess": "パスワードが正常に変更されました"
+      },
+      "placeholder": {
+        "email": "sample@example.com",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "ログアウト",
+        "message": "ログアウトしてもよろしいですか？"
+      },
+      "deleteAccountConfirm": {
+        "title": "アカウント削除",
+        "message": "アカウントを削除すると、すべてのデータが削除されます。この操作は取り消せません。本当に削除しますか？"
+      }
+    },
+    "app": {
+      "emptyState": "タスクリストがありません",
+      "createNew": "新規作成",
+      "createTaskList": "タスクリスト作成",
+      "taskListName": "タスクリスト名",
+      "taskListNamePlaceholder": "タスクリスト名を入力",
+      "create": "作成",
+      "cancel": "キャンセル",
+      "error": "エラーが発生しました",
+      "dragHint": "ドラッグして並び替え",
+      "openMenu": "メニューを開く",
+      "drawerTitle": "タスクリスト",
+      "drawerNoEmail": "メールアドレス未設定",
+      "taskListLocator": {
+        "label": "タスクリストの位置",
+        "goTo": "タスクリスト{{index}}（全{{total}}）へ移動"
+      },
+      "joinList": "リストに参加",
+      "joinListTitle": "共有リストに参加",
+      "joinListDescription": "共有コードを入力してリストに参加します。",
+      "shareCodePlaceholder": "共有コードを入力",
+      "join": "参加",
+      "joining": "参加中...",
+      "calendarCheckButton": "カレンダーで確認",
+      "calendarAllDates": "すべての日付",
+      "calendarNoDatedTasks": "日付が設定されたタスクはありません",
+      "calendarNoTasksOnSelectedDate": "選択した日付のタスクはありません",
+      "rtlRestartTitle": "再起動が必要です",
+      "rtlRestartMessage": "右から左への表示を反映するにはアプリの再起動が必要です。",
+      "loadError": "タスクリストの読み込みに失敗しました",
+      "calendar": "カレンダー",
+      "calendarPreviousMonth": "前の月",
+      "calendarNextMonth": "次の月"
+    },
+    "taskList": {
+      "taskCount": "{{count}}個のタスク",
+      "taskCount_one": "{{count}}個のタスク",
+      "taskCount_other": "{{count}}個のタスク",
+      "editDetails": "更新",
+      "selectColor": "色を選択",
+      "backgroundNone": "なし（実際はテーマカラーの色）",
+      "backgroundNoneShort": "なし",
+      "deleteList": "リストを一覧から外す",
+      "deleteListConfirm": {
+        "title": "リストを一覧から外す",
+        "message": "このリストを自分の一覧から外します。他に保持しているユーザーがいない場合はリスト自体も削除されます。よろしいですか？"
+      },
+      "share": "共有",
+      "shareTitle": "リストを共有",
+      "shareCode": "共有コード",
+      "shareDescription": "共有コードを発行して、このリストを他の人が閲覧・編集できるようにします。",
+      "generateShare": "共有コードを生成",
+      "removeShare": "共有を停止",
+      "editTitle": "リスト編集",
+      "save": "保存",
+      "colorRed": "赤",
+      "colorYellow": "黄",
+      "colorGreen": "緑",
+      "colorBlue": "青",
+      "colorIndigo": "インディゴ",
+      "colorPurple": "紫",
+      "colorCustom": "カスタム色"
+    },
+    "settings": {
+      "title": "設定",
+      "userInfo": {
+        "title": "アカウント"
+      },
+      "preferences": {
+        "title": "表示と動作"
+      },
+      "theme": {
+        "title": "テーマ",
+        "system": "システム",
+        "light": "ライト",
+        "dark": "ダーク"
+      },
+      "language": {
+        "title": "言語",
+        "japanese": "日本語",
+        "english": "英語"
+      },
+      "taskInsertPosition": {
+        "title": "追加位置",
+        "top": "上に追加",
+        "bottom": "下に追加"
+      },
+      "autoSort": {
+        "title": "自動並び替え",
+        "enable": "タスクを自動で並び替える"
+      },
+      "danger": {
+        "title": "危険な操作",
+        "signOut": "ログアウト",
+        "deleteAccount": "アカウント削除"
+      },
+      "actions": {
+        "title": "アカウント操作"
+      },
+      "deleteAccount": "アカウントを削除",
+      "deleteAccountConfirm": "アカウントと全データを削除しますか？",
+      "signingOut": "ログアウト中...",
+      "deletingAccount": "削除中...",
+      "emailChange": {
+        "title": "メールアドレスを変更",
+        "newEmailLabel": "新しいメールアドレス",
+        "newEmailPlaceholder": "new@example.jp",
+        "submitButton": "確認メールを送信",
+        "submitting": "送信中...",
+        "successMessage": "確認メールを送信しました。新しいメールアドレスのリンクをクリックすると変更が完了します。",
+        "changeButton": "変更"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "無料ではじめる",
+        "headline": "タスクリストは、\nシンプルでいい。",
+        "subheadline": "タスク管理アプリに疲れたあなたへ。\n余計な機能はない。誰でも、すぐに使いはじめられる。\nそれでいて、必要なときは共有もできる。",
+        "seo": {
+          "title": "Lightlist | シンプルな共有タスクリスト・ToDoアプリ",
+          "description": "Lightlist は個人・家族・小さなチーム向けのシンプルな共有タスクリスト / ToDo アプリ。買い物リストややることをブラウザ・iPhone・Androidで同期して使えます。",
+          "keywords": "タスクリスト,ToDo,共有タスクリスト,共有リスト,買い物リスト,家族,チーム,Lightlist"
+        },
+        "features": {
+          "title": "Lightlistの3つのこと",
+          "simple": {
+            "title": "これだけでいい",
+            "description": "タスクを追加して、完了する。それだけ。説明書もチュートリアルも必要ありません。はじめてでも迷わない、ちょうどいいシンプルさです。"
+          },
+          "multidevice": {
+            "title": "どこからでも、そのまま使える",
+            "description": "ブラウザはもちろん、iOSやAndroidアプリからもアクセス可能。どのデバイスからでも同じリストをリアルタイムに確認・編集できます。"
+          },
+          "share": {
+            "title": "必要なとき、共有できる",
+            "description": "共有コードを発行するだけで、家族・友人・チームとリアルタイム共有。一人で使うだけでも、もちろん十分です。"
+          }
+        },
+        "preview": {
+          "title": "こんな感じで使います",
+          "desktopAlt": "デスクトップ画面のスクリーンショット",
+          "mobileAlt": "モバイル画面のスクリーンショット"
+        },
+        "cta": {
+          "title": "これでいい、ちょうどいい。",
+          "description": "タスク管理をもっとシンプルに。まず一つ、リストをつくってみてください。",
+          "button": "無料ではじめる"
+        }
+      },
+      "sharecode": {
+        "notFound": "タスクリストが見つかりません",
+        "error": "タスクリストの読み込みに失敗しました",
+        "addTaskError": "タスクの追加に失敗しました",
+        "updateError": "タスクの更新に失敗しました",
+        "reorderError": "タスクの順序を変更できませんでした",
+        "deleteError": "完了したタスクを削除できませんでした",
+        "addToOrderError": "リストの追加に失敗しました",
+        "addToOrder": "自分のリストに追加"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "タスクを入力...",
+        "setDate": "期限を設定",
+        "setDateShort": "設定",
+        "markComplete": "未完了、タップで完了にする",
+        "markIncomplete": "完了済み、タップで未完了にする",
+        "noTasks": "タスクがありません",
+        "dragHint": "ドラッグして並び替え",
+        "sort": "並び替え",
+        "deleteCompleted": "完了タスクを削除",
+        "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？",
+        "clearDate": "日付をクリア",
+        "clearDateShort": "クリア",
+        "deleteCompletedConfirmTitle": "完了タスクを削除しますか？"
+      },
+      "notFound": {
+        "title": "ページが見つかりません",
+        "description": "お探しのページは存在しません。",
+        "backHome": "ホームに戻る"
+      },
+      "serverError": {
+        "title": "サーバーエラー",
+        "description": "サーバーで予期しないエラーが発生しました。",
+        "backHome": "ホームに戻る"
+      },
+      "error": {
+        "title": "エラーが発生しました",
+        "description": "予期しないエラーが発生しました。ページを再読み込みしてください。",
+        "reload": "ページを再読み込み"
+      }
+    }
+  },
+  "ko": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist. 모든 권리 보유.",
+    "common": {
+      "loading": "로딩 중...",
+      "back": "뒤로",
+      "cancel": "취소",
+      "deleting": "삭제 중...",
+      "close": "닫기",
+      "skipToMain": "본문으로 건너뛰기",
+      "add": "추가",
+      "copy": "복사",
+      "copied": "복사됨",
+      "error": "오류가 발생했습니다",
+      "done": "완료",
+      "selected": "선택됨",
+      "ok": "확인"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "로그인",
+        "signup": "회원가입"
+      },
+      "form": {
+        "email": "이메일 주소",
+        "password": "비밀번호",
+        "confirmPassword": "비밀번호 확인"
+      },
+      "validation": {
+        "email": {
+          "required": "이메일 주소를 입력해 주세요",
+          "invalid": "유효한 이메일 주소를 입력해 주세요"
+        },
+        "password": {
+          "required": "비밀번호를 입력해 주세요",
+          "tooShort": "비밀번호는 최소 8자 이상이어야 합니다"
+        },
+        "confirmPassword": {
+          "required": "비밀번호 확인을 입력해 주세요",
+          "notMatch": "비밀번호가 일치하지 않습니다"
+        }
+      },
+      "error": {
+        "invalidCredential": "이메일 또는 비밀번호가 올바르지 않습니다",
+        "userNotFound": "해당 이메일 주소의 계정을 찾을 수 없습니다",
+        "emailAlreadyInUse": "이미 등록된 이메일 주소입니다",
+        "weakPassword": "비밀번호가 너무 약합니다 (6자 이상 권장)",
+        "invalidEmail": "이메일 주소 형식이 올바르지 않습니다",
+        "operationNotAllowed": "이 인증 방식은 사용할 수 없습니다",
+        "tooManyRequests": "로그인 시도가 너무 많습니다. 나중에 다시 시도해 주세요",
+        "general": "인증에 실패했습니다. 다시 시도해 주세요",
+        "requiresRecentLogin": "보안을 위해 로그아웃 후 다시 로그인한 뒤 재시도해 주세요"
+      },
+      "button": {
+        "signin": "로그인",
+        "signingIn": "로그인 중...",
+        "signup": "회원가입",
+        "signingUp": "가입 중...",
+        "forgotPassword": "비밀번호를 잊으셨나요?",
+        "sendResetEmail": "재설정 메일 보내기",
+        "sending": "전송 중...",
+        "backToSignIn": "로그인으로 돌아가기",
+        "signOut": "로그아웃",
+        "cancel": "취소",
+        "delete": "삭제"
+      },
+      "passwordReset": {
+        "instruction": "계정에 연결된 이메일 주소를 입력해 주세요. 비밀번호 재설정 메일을 보내드립니다.",
+        "success": "비밀번호 재설정 메일을 보냈습니다. 이메일을 확인해 주세요.",
+        "title": "비밀번호 재설정",
+        "newPassword": "새 비밀번호",
+        "confirmNewPassword": "새 비밀번호 확인",
+        "setNewPassword": "비밀번호 재설정",
+        "settingNewPassword": "재설정 중...",
+        "invalidCode": "비밀번호 재설정 링크가 유효하지 않습니다",
+        "expiredCode": "비밀번호 재설정 링크가 만료되었습니다",
+        "resetSuccess": "비밀번호가 성공적으로 변경되었습니다"
+      },
+      "placeholder": {
+        "email": "example@이메일.com",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "로그아웃",
+        "message": "정말 로그아웃하시겠습니까?"
+      },
+      "deleteAccountConfirm": {
+        "title": "계정 삭제",
+        "message": "계정을 삭제하면 모든 데이터가 영구적으로 제거됩니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?"
+      }
+    },
+    "app": {
+      "emptyState": "작업 목록이 없습니다",
+      "createNew": "생성",
+      "createTaskList": "작업 목록 만들기",
+      "taskListName": "목록 이름",
+      "taskListNamePlaceholder": "목록 이름 입력",
+      "create": "생성",
+      "cancel": "취소",
+      "error": "오류가 발생했습니다",
+      "dragHint": "드래그해서 순서 변경",
+      "openMenu": "메뉴 열기",
+      "drawerTitle": "작업 목록",
+      "drawerNoEmail": "사용 가능한 이메일 없음",
+      "taskListLocator": {
+        "label": "작업 목록 위치",
+        "goTo": "{{total}}개 중 {{index}}번째 목록으로 이동"
+      },
+      "joinList": "목록 참가",
+      "joinListTitle": "공유 목록 참가",
+      "joinListDescription": "공유 작업 목록에 참가하려면 공유 코드를 입력하세요.",
+      "shareCodePlaceholder": "공유 코드 입력",
+      "join": "참가",
+      "joining": "참가 중...",
+      "calendarCheckButton": "캘린더에서 보기",
+      "calendarAllDates": "모든 날짜",
+      "calendarNoDatedTasks": "날짜가 지정된 작업이 없습니다",
+      "calendarNoTasksOnSelectedDate": "선택한 날짜에 작업이 없습니다",
+      "rtlRestartTitle": "재시작 필요",
+      "rtlRestartMessage": "오른쪽에서 왼쪽 레이아웃을 적용하려면 앱을 다시 시작하세요.",
+      "loadError": "할 일 목록을 불러오지 못했습니다.",
+      "calendar": "캘린더",
+      "calendarPreviousMonth": "이전 달",
+      "calendarNextMonth": "다음 달"
+    },
+    "taskList": {
+      "taskCount": "작업 {{count}}개",
+      "taskCount_one": "작업 {{count}}개",
+      "taskCount_other": "작업 {{count}}개",
+      "editDetails": "목록 편집",
+      "selectColor": "색상 선택",
+      "backgroundNone": "없음 (테마 색상 사용)",
+      "backgroundNoneShort": "없음",
+      "deleteList": "내 목록에서 제거",
+      "deleteListConfirm": {
+        "title": "내 목록에서 제거",
+        "message": "이 작업은 목록을 내 목록에서 제거합니다. 다른 사용자가 보유하지 않으면 목록 자체가 삭제됩니다. 계속할까요?"
+      },
+      "share": "공유",
+      "shareTitle": "목록 공유",
+      "shareCode": "공유 코드",
+      "shareDescription": "다른 사용자가 이 목록을 보고 편집할 수 있도록 공유 코드를 생성합니다.",
+      "generateShare": "공유 코드 생성",
+      "removeShare": "공유 중지",
+      "editTitle": "목록 편집",
+      "save": "저장",
+      "colorRed": "빨강",
+      "colorYellow": "노랑",
+      "colorGreen": "초록",
+      "colorBlue": "파랑",
+      "colorIndigo": "인디고",
+      "colorPurple": "보라",
+      "colorCustom": "사용자 지정 색상"
+    },
+    "settings": {
+      "title": "설정",
+      "userInfo": {
+        "title": "계정"
+      },
+      "preferences": {
+        "title": "표시 및 동작"
+      },
+      "theme": {
+        "title": "테마",
+        "system": "시스템",
+        "light": "라이트",
+        "dark": "다크"
+      },
+      "language": {
+        "title": "언어",
+        "japanese": "일본어",
+        "english": "영어"
+      },
+      "taskInsertPosition": {
+        "title": "새 작업 추가 위치",
+        "top": "위에 추가",
+        "bottom": "아래에 추가"
+      },
+      "autoSort": {
+        "title": "작업 자동 정렬",
+        "enable": "작업 자동 정렬"
+      },
+      "danger": {
+        "title": "위험 영역",
+        "signOut": "로그아웃",
+        "deleteAccount": "계정 삭제"
+      },
+      "actions": {
+        "title": "계정 작업"
+      },
+      "deleteAccount": "계정 삭제",
+      "deleteAccountConfirm": "계정과 모든 데이터를 삭제할까요?",
+      "signingOut": "로그아웃 중...",
+      "deletingAccount": "계정 삭제 중...",
+      "emailChange": {
+        "title": "이메일 주소 변경",
+        "newEmailLabel": "새 이메일 주소",
+        "newEmailPlaceholder": "new@예시.com",
+        "submitButton": "인증 메일 보내기",
+        "submitting": "전송 중...",
+        "successMessage": "인증 메일을 보냈습니다. 새 이메일의 링크를 클릭하면 변경이 완료됩니다.",
+        "changeButton": "변경"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "무료로 시작하기",
+        "headline": "충분히 단순하게.\n그게 핵심입니다.",
+        "subheadline": "복잡한 할 일 앱에 지친 사람들을 위해.\n처음부터 누구나 쉽게 사용할 수 있게.\n필요할 때만 다른 사람과 공유하세요.",
+        "seo": {
+          "title": "Lightlist | 간단한 공유 작업 목록 및 ToDo 앱",
+          "description": "Lightlist는 개인, 가족, 소규모 팀을 위한 간단한 공유 작업 목록 / ToDo 앱입니다. 웹, iPhone, Android에서 쇼핑 목록과 일상 작업을 동기화해 관리하세요.",
+          "keywords": "작업 목록,todo 앱,공유 작업 목록,쇼핑 목록,가족 작업,팀 작업,Lightlist"
+        },
+        "features": {
+          "title": "Lightlist가 하는 세 가지",
+          "simple": {
+            "title": "필요한 것만",
+            "description": "작업을 추가하고, 완료 체크하면 끝입니다. 튜토리얼도 매뉴얼도 필요 없습니다. 기술 경험과 상관없이 누구나 바로 시작할 수 있습니다."
+          },
+          "multidevice": {
+            "title": "어떤 기기에서든 언제든",
+            "description": "어떤 브라우저에서도 접속할 수 있고 iOS/Android 앱도 사용할 수 있습니다. 목록은 모든 기기에서 실시간으로 동기화됩니다."
+          },
+          "share": {
+            "title": "원할 때만 공유",
+            "description": "공유 코드를 생성해 몇 초 만에 다른 사람을 초대하세요. 참가에 계정이 필요하지 않습니다. 필요 없을 때는 방해하지 않습니다."
+          }
+        },
+        "preview": {
+          "title": "실제 화면 보기",
+          "desktopAlt": "데스크톱 스크린샷",
+          "mobileAlt": "모바일 스크린샷"
+        },
+        "cta": {
+          "title": "충분히 단순하게, 그게 핵심입니다.",
+          "description": "작업 관리가 부담스럽게 느껴진다면 Lightlist를 사용해 보세요. 목록 하나로 시작하면 됩니다.",
+          "button": "무료로 시작하기"
+        }
+      },
+      "sharecode": {
+        "notFound": "이 작업 목록을 찾을 수 없습니다",
+        "error": "작업 목록을 불러오지 못했습니다",
+        "addTaskError": "작업 추가에 실패했습니다",
+        "updateError": "작업 업데이트에 실패했습니다",
+        "reorderError": "작업 순서 변경에 실패했습니다",
+        "deleteError": "완료한 작업 삭제에 실패했습니다",
+        "addToOrderError": "이 작업 목록을 추가하지 못했습니다",
+        "addToOrder": "내 목록에 추가"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "작업 입력...",
+        "setDate": "날짜 설정",
+        "setDateShort": "설정",
+        "markComplete": "미완료, 탭하여 완료로 표시",
+        "markIncomplete": "완료됨, 탭하여 미완료로 표시",
+        "noTasks": "작업 없음",
+        "dragHint": "드래그해서 순서 변경",
+        "sort": "정렬",
+        "deleteCompleted": "완료한 작업 삭제",
+        "deleteCompletedConfirm": "완료한 작업 {{count}}개를 삭제할까요?",
+        "clearDate": "날짜 지우기",
+        "clearDateShort": "지우기",
+        "deleteCompletedConfirmTitle": "완료된 할 일을 삭제하시겠습니까?"
+      },
+      "notFound": {
+        "title": "페이지를 찾을 수 없습니다",
+        "description": "요청한 페이지가 존재하지 않습니다.",
+        "backHome": "홈으로 돌아가기"
+      },
+      "serverError": {
+        "title": "서버 오류",
+        "description": "서버에서 예기치 않은 오류가 발생했습니다.",
+        "backHome": "홈으로 돌아가기"
+      },
+      "error": {
+        "title": "문제가 발생했습니다",
+        "description": "예기치 않은 오류가 발생했습니다. 페이지를 새로고침해 주세요.",
+        "reload": "페이지 새로고침"
+      }
+    }
+  },
+  "pt-BR": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist. Todos os direitos reservados.",
+    "common": {
+      "loading": "Carregando...",
+      "back": "Voltar",
+      "cancel": "Cancelar",
+      "deleting": "Excluindo...",
+      "close": "Fechar",
+      "skipToMain": "Ir para o conteúdo principal",
+      "add": "Adicionar",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "error": "Ocorreu um erro",
+      "done": "Concluído",
+      "selected": "Selecionado",
+      "ok": "OK"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "Entrar",
+        "signup": "Cadastrar"
+      },
+      "form": {
+        "email": "Endereço de e-mail",
+        "password": "Senha",
+        "confirmPassword": "Confirmar senha"
+      },
+      "validation": {
+        "email": {
+          "required": "Digite um endereço de e-mail",
+          "invalid": "Digite um endereço de e-mail válido"
+        },
+        "password": {
+          "required": "Digite uma senha",
+          "tooShort": "A senha deve ter pelo menos 8 caracteres"
+        },
+        "confirmPassword": {
+          "required": "Digite a confirmação da senha",
+          "notMatch": "As senhas não coincidem"
+        }
+      },
+      "error": {
+        "invalidCredential": "E-mail ou senha incorretos",
+        "userNotFound": "Nenhuma conta encontrada com este endereço de e-mail",
+        "emailAlreadyInUse": "Este endereço de e-mail já está cadastrado",
+        "weakPassword": "A senha é muito fraca (recomendado 6 caracteres ou mais)",
+        "invalidEmail": "O formato do e-mail é inválido",
+        "operationNotAllowed": "Este método de autenticação não está disponível",
+        "tooManyRequests": "Muitas tentativas de login. Tente novamente mais tarde",
+        "general": "Falha na autenticação. Tente novamente",
+        "requiresRecentLogin": "Por segurança, saia e entre novamente antes de tentar de novo"
+      },
+      "button": {
+        "signin": "Entrar",
+        "signingIn": "Entrando...",
+        "signup": "Cadastrar",
+        "signingUp": "Cadastrando...",
+        "forgotPassword": "Esqueceu a senha?",
+        "sendResetEmail": "Enviar e-mail de redefinição",
+        "sending": "Enviando...",
+        "backToSignIn": "Voltar para entrar",
+        "signOut": "Sair",
+        "cancel": "Cancelar",
+        "delete": "Excluir"
+      },
+      "passwordReset": {
+        "instruction": "Digite o endereço de e-mail associado à sua conta. Enviaremos um e-mail para redefinir a senha.",
+        "success": "E-mail de redefinição de senha enviado. Verifique sua caixa de entrada.",
+        "title": "Redefinir senha",
+        "newPassword": "Nova senha",
+        "confirmNewPassword": "Confirmar nova senha",
+        "setNewPassword": "Redefinir senha",
+        "settingNewPassword": "Redefinindo...",
+        "invalidCode": "O link de redefinição de senha é inválido",
+        "expiredCode": "O link de redefinição de senha expirou",
+        "resetSuccess": "Senha alterada com sucesso"
+      },
+      "placeholder": {
+        "email": "exemplo@email.com",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "Sair",
+        "message": "Tem certeza de que deseja sair?"
+      },
+      "deleteAccountConfirm": {
+        "title": "Excluir conta",
+        "message": "Excluir sua conta removerá permanentemente todos os seus dados. Esta ação não pode ser desfeita. Tem certeza?"
+      }
+    },
+    "app": {
+      "emptyState": "Nenhuma lista de tarefas",
+      "createNew": "Criar",
+      "createTaskList": "Criar lista de tarefas",
+      "taskListName": "Nome da lista de tarefas",
+      "taskListNamePlaceholder": "Digite o nome da lista",
+      "create": "Criar",
+      "cancel": "Cancelar",
+      "error": "Ocorreu um erro",
+      "dragHint": "Arraste para reordenar",
+      "openMenu": "Abrir menu",
+      "drawerTitle": "Listas de tarefas",
+      "drawerNoEmail": "Nenhum e-mail disponível",
+      "taskListLocator": {
+        "label": "Posição da lista de tarefas",
+        "goTo": "Ir para a lista {{index}} de {{total}}"
+      },
+      "joinList": "Entrar na lista",
+      "joinListTitle": "Entrar em lista compartilhada",
+      "joinListDescription": "Digite o código de compartilhamento para entrar em uma lista compartilhada.",
+      "shareCodePlaceholder": "Digite o código de compartilhamento",
+      "join": "Entrar",
+      "joining": "Entrando...",
+      "calendarCheckButton": "Ver no calendário",
+      "calendarAllDates": "Todas as datas",
+      "calendarNoDatedTasks": "Nenhuma tarefa com data",
+      "calendarNoTasksOnSelectedDate": "Nenhuma tarefa na data selecionada",
+      "rtlRestartTitle": "Reinicialização necessária",
+      "rtlRestartMessage": "Reinicie o app para aplicar alterações de layout da direita para a esquerda.",
+      "loadError": "Falha ao carregar as listas de tarefas.",
+      "calendar": "Calendário",
+      "calendarPreviousMonth": "Mês anterior",
+      "calendarNextMonth": "Próximo mês"
+    },
+    "taskList": {
+      "taskCount": "{{count}} tarefas",
+      "taskCount_one": "{{count}} tarefa",
+      "taskCount_other": "{{count}} tarefas",
+      "editDetails": "Editar lista",
+      "selectColor": "Selecionar cor",
+      "backgroundNone": "Nenhum (usa a cor do tema)",
+      "backgroundNoneShort": "Nenhum",
+      "deleteList": "Remover das minhas listas",
+      "deleteListConfirm": {
+        "title": "Remover das minhas listas",
+        "message": "Isso remove a lista das suas listas. Se nenhum outro usuário mantiver a lista, ela será excluída. Continuar?"
+      },
+      "share": "Compartilhar",
+      "shareTitle": "Compartilhar lista",
+      "shareCode": "Código de compartilhamento",
+      "shareDescription": "Gere um código de compartilhamento para permitir que outras pessoas vejam e editem esta lista.",
+      "generateShare": "Gerar código de compartilhamento",
+      "removeShare": "Parar compartilhamento",
+      "editTitle": "Editar lista",
+      "save": "Salvar",
+      "colorRed": "Vermelho",
+      "colorYellow": "Amarelo",
+      "colorGreen": "Verde",
+      "colorBlue": "Azul",
+      "colorIndigo": "Índigo",
+      "colorPurple": "Roxo",
+      "colorCustom": "Cor personalizada"
+    },
+    "settings": {
+      "title": "Configurações",
+      "userInfo": {
+        "title": "Conta"
+      },
+      "preferences": {
+        "title": "Exibição e comportamento"
+      },
+      "theme": {
+        "title": "Tema",
+        "system": "Sistema",
+        "light": "Claro",
+        "dark": "Escuro"
+      },
+      "language": {
+        "title": "Idioma",
+        "japanese": "Japonês",
+        "english": "Inglês"
+      },
+      "taskInsertPosition": {
+        "title": "Posição da nova tarefa",
+        "top": "Adicionar no topo",
+        "bottom": "Adicionar embaixo"
+      },
+      "autoSort": {
+        "title": "Ordenar tarefas automaticamente",
+        "enable": "Ordenar tarefas automaticamente"
+      },
+      "danger": {
+        "title": "Zona de perigo",
+        "signOut": "Sair",
+        "deleteAccount": "Excluir conta"
+      },
+      "actions": {
+        "title": "Ações da conta"
+      },
+      "deleteAccount": "Excluir conta",
+      "deleteAccountConfirm": "Excluir sua conta e todos os dados?",
+      "signingOut": "Saindo...",
+      "deletingAccount": "Excluindo conta...",
+      "emailChange": {
+        "title": "Alterar endereço de e-mail",
+        "newEmailLabel": "Novo endereço de e-mail",
+        "newEmailPlaceholder": "novo@exemplo.com",
+        "submitButton": "Enviar e-mail de verificação",
+        "submitting": "Enviando...",
+        "successMessage": "E-mail de verificação enviado. Clique no link no novo endereço de e-mail para concluir a alteração.",
+        "changeButton": "Alterar"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "Comece grátis",
+        "headline": "Simples o suficiente.\nEsse é o ponto.",
+        "subheadline": "Para quem está cansado de apps de tarefas complexos.\nSimples o suficiente para qualquer pessoa, desde o início.\nCompartilhe com outras pessoas quando precisar.",
+        "seo": {
+          "title": "Lightlist | App simples de lista de tarefas compartilhada e ToDo",
+          "description": "Lightlist é um app simples de lista de tarefas compartilhada / ToDo para pessoas, famílias e pequenas equipes. Gerencie listas de compras e tarefas diárias na web, iPhone e Android.",
+          "keywords": "lista de tarefas,app todo,lista de tarefas compartilhada,lista de compras,tarefas da família,tarefas da equipe,Lightlist"
+        },
+        "features": {
+          "title": "Três coisas que o Lightlist faz",
+          "simple": {
+            "title": "Só o que você precisa",
+            "description": "Adicione tarefas. Marque como concluídas. Só isso. Sem tutorial, sem manual. Qualquer pessoa pode começar na hora, independentemente da experiência com tecnologia."
+          },
+          "multidevice": {
+            "title": "Qualquer dispositivo, a qualquer hora",
+            "description": "Acesse por qualquer navegador ou use os apps para iOS e Android. Suas listas ficam sincronizadas em tempo real em todos os dispositivos."
+          },
+          "share": {
+            "title": "Compartilhe quando quiser",
+            "description": "Gere um código de compartilhamento e convide qualquer pessoa para sua lista em segundos. Não é necessário conta para entrar. Fica discreto quando você não precisa."
+          }
+        },
+        "preview": {
+          "title": "Veja em ação",
+          "desktopAlt": "Captura de tela no desktop",
+          "mobileAlt": "Captura de tela no celular"
+        },
+        "cta": {
+          "title": "Simples o suficiente. Esse é o ponto.",
+          "description": "Se gerenciar tarefas parece demais, o Lightlist é para você. Comece com uma lista.",
+          "button": "Comece grátis"
+        }
+      },
+      "sharecode": {
+        "notFound": "Esta lista de tarefas não foi encontrada",
+        "error": "Falha ao carregar a lista de tarefas",
+        "addTaskError": "Falha ao adicionar tarefa",
+        "updateError": "Falha ao atualizar tarefa",
+        "reorderError": "Falha ao reordenar tarefas",
+        "deleteError": "Falha ao excluir tarefas concluídas",
+        "addToOrderError": "Falha ao adicionar esta lista de tarefas",
+        "addToOrder": "Adicionar às minhas listas"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "Digite uma tarefa...",
+        "setDate": "Definir data",
+        "setDateShort": "Definir",
+        "markComplete": "Não concluída, toque para marcar como concluída",
+        "markIncomplete": "Concluída, toque para marcar como não concluída",
+        "noTasks": "Sem tarefas",
+        "dragHint": "Arraste para reordenar",
+        "sort": "Ordenar",
+        "deleteCompleted": "Excluir tarefas concluídas",
+        "deleteCompletedConfirm": "Excluir {{count}} tarefas concluídas?",
+        "clearDate": "Limpar data",
+        "clearDateShort": "Limpar",
+        "deleteCompletedConfirmTitle": "Excluir tarefas concluídas?"
+      },
+      "notFound": {
+        "title": "Página não encontrada",
+        "description": "A página que você está procurando não existe.",
+        "backHome": "Voltar para a página inicial"
+      },
+      "serverError": {
+        "title": "Erro do servidor",
+        "description": "Ocorreu um erro inesperado no servidor.",
+        "backHome": "Voltar para a página inicial"
+      },
+      "error": {
+        "title": "Algo deu errado",
+        "description": "Ocorreu um erro inesperado. Tente recarregar a página.",
+        "reload": "Recarregar página"
+      }
+    }
+  },
+  "zh-CN": {
+    "title": "Lightlist",
+    "copyright": "© 2024 Lightlist。保留所有权利。",
+    "common": {
+      "loading": "加载中...",
+      "back": "返回",
+      "cancel": "取消",
+      "deleting": "删除中...",
+      "close": "关闭",
+      "skipToMain": "跳转到主要内容",
+      "add": "添加",
+      "copy": "复制",
+      "copied": "已复制",
+      "error": "发生错误",
+      "done": "完成",
+      "selected": "已选择",
+      "ok": "确定"
+    },
+    "auth": {
+      "tabs": {
+        "signin": "登录",
+        "signup": "注册"
+      },
+      "form": {
+        "email": "电子邮箱",
+        "password": "密码",
+        "confirmPassword": "确认密码"
+      },
+      "validation": {
+        "email": {
+          "required": "请输入电子邮箱地址",
+          "invalid": "请输入有效的电子邮箱地址"
+        },
+        "password": {
+          "required": "请输入密码",
+          "tooShort": "密码至少需要 8 个字符"
+        },
+        "confirmPassword": {
+          "required": "请输入确认密码",
+          "notMatch": "两次输入的密码不一致"
+        }
+      },
+      "error": {
+        "invalidCredential": "邮箱或密码不正确",
+        "userNotFound": "未找到使用该邮箱的账户",
+        "emailAlreadyInUse": "该邮箱已被注册",
+        "weakPassword": "密码强度太弱（建议至少 6 个字符）",
+        "invalidEmail": "邮箱格式无效",
+        "operationNotAllowed": "该认证方式不可用",
+        "tooManyRequests": "登录尝试次数过多，请稍后再试",
+        "general": "认证失败，请重试",
+        "requiresRecentLogin": "出于安全原因，请先退出并重新登录后再试"
+      },
+      "button": {
+        "signin": "登录",
+        "signingIn": "登录中...",
+        "signup": "注册",
+        "signingUp": "注册中...",
+        "forgotPassword": "忘记密码？",
+        "sendResetEmail": "发送重置邮件",
+        "sending": "发送中...",
+        "backToSignIn": "返回登录",
+        "signOut": "退出登录",
+        "cancel": "取消",
+        "delete": "删除"
+      },
+      "passwordReset": {
+        "instruction": "请输入与你账户关联的电子邮箱地址。我们会发送密码重置邮件。",
+        "success": "密码重置邮件已发送，请检查邮箱。",
+        "title": "重置密码",
+        "newPassword": "新密码",
+        "confirmNewPassword": "确认新密码",
+        "setNewPassword": "重置密码",
+        "settingNewPassword": "重置中...",
+        "invalidCode": "密码重置链接无效",
+        "expiredCode": "密码重置链接已过期",
+        "resetSuccess": "密码修改成功"
+      },
+      "placeholder": {
+        "email": "example@邮箱.com",
+        "password": "••••••••"
+      },
+      "signOutConfirm": {
+        "title": "退出登录",
+        "message": "确定要退出登录吗？"
+      },
+      "deleteAccountConfirm": {
+        "title": "删除账户",
+        "message": "删除账户将永久清除你的所有数据，此操作无法撤销。确定继续吗？"
+      }
+    },
+    "app": {
+      "emptyState": "暂无任务列表",
+      "createNew": "创建",
+      "createTaskList": "创建任务列表",
+      "taskListName": "任务列表名称",
+      "taskListNamePlaceholder": "输入任务列表名称",
+      "create": "创建",
+      "cancel": "取消",
+      "error": "发生错误",
+      "dragHint": "拖动以重新排序",
+      "openMenu": "打开菜单",
+      "drawerTitle": "任务列表",
+      "drawerNoEmail": "无可用邮箱",
+      "taskListLocator": {
+        "label": "任务列表位置",
+        "goTo": "跳转到第 {{index}} / {{total}} 个列表"
+      },
+      "joinList": "加入列表",
+      "joinListTitle": "加入共享列表",
+      "joinListDescription": "输入共享码以加入共享任务列表。",
+      "shareCodePlaceholder": "输入共享码",
+      "join": "加入",
+      "joining": "加入中...",
+      "calendarCheckButton": "在日历中查看",
+      "calendarAllDates": "全部日期",
+      "calendarNoDatedTasks": "没有设置日期的任务",
+      "calendarNoTasksOnSelectedDate": "所选日期没有任务",
+      "rtlRestartTitle": "需要重启",
+      "rtlRestartMessage": "请重启应用以应用从右到左布局变更。",
+      "loadError": "无法加载任务列表。",
+      "calendar": "日历",
+      "calendarPreviousMonth": "上个月",
+      "calendarNextMonth": "下个月"
+    },
+    "taskList": {
+      "taskCount": "{{count}} 个任务",
+      "taskCount_one": "{{count}} 个任务",
+      "taskCount_other": "{{count}} 个任务",
+      "editDetails": "编辑列表",
+      "selectColor": "选择颜色",
+      "backgroundNone": "无（使用主题色）",
+      "backgroundNoneShort": "无",
+      "deleteList": "从我的列表中移除",
+      "deleteListConfirm": {
+        "title": "从我的列表中移除",
+        "message": "这会将该列表从你的列表中移除。如果没有其他用户保留，该列表本体也会被删除。是否继续？"
+      },
+      "share": "共享",
+      "shareTitle": "共享列表",
+      "shareCode": "共享码",
+      "shareDescription": "生成共享码，让其他人可查看和编辑此列表。",
+      "generateShare": "生成共享码",
+      "removeShare": "停止共享",
+      "editTitle": "编辑列表",
+      "save": "保存",
+      "colorRed": "红色",
+      "colorYellow": "黄色",
+      "colorGreen": "绿色",
+      "colorBlue": "蓝色",
+      "colorIndigo": "靛蓝色",
+      "colorPurple": "紫色",
+      "colorCustom": "自定义颜色"
+    },
+    "settings": {
+      "title": "设置",
+      "userInfo": {
+        "title": "账户"
+      },
+      "preferences": {
+        "title": "显示与行为"
+      },
+      "theme": {
+        "title": "主题",
+        "system": "系统",
+        "light": "浅色",
+        "dark": "深色"
+      },
+      "language": {
+        "title": "语言",
+        "japanese": "日语",
+        "english": "英语"
+      },
+      "taskInsertPosition": {
+        "title": "新任务插入位置",
+        "top": "添加到顶部",
+        "bottom": "添加到底部"
+      },
+      "autoSort": {
+        "title": "自动排序任务",
+        "enable": "自动排序任务"
+      },
+      "danger": {
+        "title": "危险区域",
+        "signOut": "退出登录",
+        "deleteAccount": "删除账户"
+      },
+      "actions": {
+        "title": "账户操作"
+      },
+      "deleteAccount": "删除账户",
+      "deleteAccountConfirm": "删除你的账户及所有数据？",
+      "signingOut": "正在退出...",
+      "deletingAccount": "正在删除账户...",
+      "emailChange": {
+        "title": "修改邮箱地址",
+        "newEmailLabel": "新邮箱地址",
+        "newEmailPlaceholder": "new@示例.com",
+        "submitButton": "发送验证邮件",
+        "submitting": "发送中...",
+        "successMessage": "验证邮件已发送。请点击新邮箱中的链接完成修改。",
+        "changeButton": "修改"
+      }
+    },
+    "pages": {
+      "index": {
+        "getStarted": "免费开始",
+        "headline": "足够简单。\n这正是重点。",
+        "subheadline": "给那些厌倦复杂任务应用的人。\n从一开始就足够简单，任何人都能上手。\n需要时再与他人共享。",
+        "seo": {
+          "title": "Lightlist | 简洁的共享任务清单与 ToDo 应用",
+          "description": "Lightlist 是一款面向个人、家庭和小团队的简洁共享任务清单 / ToDo 应用。可在网页、iPhone 和 Android 上同步管理购物清单和日常任务。",
+          "keywords": "任务清单,todo应用,共享任务清单,购物清单,家庭任务,团队任务,Lightlist"
+        },
+        "features": {
+          "title": "Lightlist 的三件事",
+          "simple": {
+            "title": "只做你需要的",
+            "description": "添加任务，勾选完成，就这么简单。无需教程或说明书。无论技术经验如何，任何人都能立刻开始。"
+          },
+          "multidevice": {
+            "title": "任意设备，随时可用",
+            "description": "可在任何浏览器访问，也可使用 iOS 和 Android 应用。你的列表会在所有设备间实时同步。"
+          },
+          "share": {
+            "title": "想共享时再共享",
+            "description": "生成共享码，几秒内即可邀请他人加入列表。加入无需账号。不需要时也不会打扰你。"
+          }
+        },
+        "preview": {
+          "title": "查看实际效果",
+          "desktopAlt": "桌面端截图",
+          "mobileAlt": "移动端截图"
+        },
+        "cta": {
+          "title": "足够简单，这才是重点。",
+          "description": "如果任务管理让你觉得负担太大，Lightlist 就是为你准备的。先从一个列表开始。",
+          "button": "免费开始"
+        }
+      },
+      "sharecode": {
+        "notFound": "未找到该任务列表",
+        "error": "加载任务列表失败",
+        "addTaskError": "添加任务失败",
+        "updateError": "更新任务失败",
+        "reorderError": "任务重排失败",
+        "deleteError": "删除已完成任务失败",
+        "addToOrderError": "添加该任务列表失败",
+        "addToOrder": "添加到我的列表"
+      },
+      "tasklist": {
+        "addTaskPlaceholder": "输入任务...",
+        "setDate": "设置日期",
+        "setDateShort": "设置",
+        "markComplete": "未完成，点按标记为已完成",
+        "markIncomplete": "已完成，点按标记为未完成",
+        "noTasks": "暂无任务",
+        "dragHint": "拖动以重新排序",
+        "sort": "排序",
+        "deleteCompleted": "删除已完成任务",
+        "deleteCompletedConfirm": "删除 {{count}} 个已完成任务？",
+        "clearDate": "清除日期",
+        "clearDateShort": "清除",
+        "deleteCompletedConfirmTitle": "删除已完成的任务？"
+      },
+      "notFound": {
+        "title": "页面未找到",
+        "description": "你访问的页面不存在。",
+        "backHome": "返回首页"
+      },
+      "serverError": {
+        "title": "服务器错误",
+        "description": "服务器发生了意外错误。",
+        "backHome": "返回首页"
+      },
+      "error": {
+        "title": "出了点问题",
+        "description": "发生了意外错误。请尝试重新加载页面。",
+        "reload": "重新加载页面"
+      }
+    }
+  }
+}

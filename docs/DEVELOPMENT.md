@@ -37,24 +37,23 @@
 
 ## Web の前提
 
-- Firebase 初期化と App Check 初期化は `apps/web/src/lib/firebase.ts` に集約する。
-- Web UI から `firebase/*` を直接 import せず、認証・設定・タスクリストは `@/lib/*` を通す。
-- i18n 初期化、対応言語、言語正規化、方向判定、翻訳依存のエラー解決とバリデーションは `apps/web/src/lib/translation.ts` に集約する。
+- Firebase 初期化、App Check 初期化、i18n、認証・設定・タスクリスト関連の Web 共通コードは `apps/web/src/common.tsx` に集約する。
+- Web UI から `firebase/*` を直接 import せず、共通実装は `@/common` を通す。
 - Web の認証後シェルは `apps/web/src/pages/app.tsx` を単一入口とし、`/app#/task-lists` を stack root、`/app#/task-lists/:taskListId` を task list 詳細、`/app#/settings` を設定画面として扱う。`/app` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。mobile では tasklists root・detail・settings を同じシェル内の stack と横スライドで扱う。
-- 本番 build は `next build --webpack` を使う。
+- 開発サーバーと本番 build は `next dev --webpack` / `next build --webpack` を使う。
 - 本番レスポンスヘッダは `apps/web/next.config.js` で管理する。
 
 ## Native の前提
 
 - iOS / Android は Firebase Auth / Firestore を直接使う。
 - iOS の Firebase Auth callback と auth state listener から SwiftUI state を更新する処理は MainActor 上で行い、ログイン completion で `error` と `result` がともに空の場合も汎用認証エラーを表示する。
-- iOS / Android は `apps/web/src/locales/*.json` と同じキー構造の locale JSON を同梱して使う。
-- iOS は `LightlistApp.swift` が app entry と Firebase 初期化、`ContentView.swift` が UI・翻訳ロード・analytics helper を持つ。
-- Android は `MainActivity.kt` が app entry と deep link 変換、`ContentView.kt` が UI・翻訳ロード・analytics helper を持つ。
+- locale の正本は `shared/locales/locales.json` とし、Web / iOS / Android はそれを各 app の local resource へ同期して参照する。
+- iOS は `ContentView.swift` に app entry、Firebase 初期化、UI、翻訳ロード、analytics helper を集約する。
+- Android は `ContentView.kt` に `MainActivity`、UI、翻訳ロード、analytics helper を同居させる。
 - Android app module は `BuildConfig.DEBUG` と `BuildConfig.PASSWORD_RESET_URL` を使うため `buildFeatures.buildConfig = true` を維持する。
 - iOS / Android の識別子は `com.lightlist.app` を正とする。
-- iOS の AppIcon は `apps/web/public/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。
-- Android の launcher icon は `apps/web/public/icons/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
+- iOS の AppIcon は `shared/assets/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。
+- Android の launcher icon は `shared/assets/brand/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
 
 ## 主要コマンド
 

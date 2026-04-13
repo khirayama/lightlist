@@ -4,9 +4,9 @@
 
 - 認証方式は Firebase Authentication のメールアドレス + パスワード。
 - アカウント状態は Firebase Auth のセッションを正とする。
-- Web の認証ロジックは `apps/web/src/lib/mutations/auth.ts` に集約する。
+- Web の認証ロジックは `apps/web/src/lib/session.ts` に集約する。
 - iOS / Android は画面側から Firebase Auth と Firestore を直接呼ぶ。
-- iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持つ。
+- iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。
 
 ## Web の必須環境変数
 
@@ -28,7 +28,7 @@
 - Web は `apps/web/src/lib/firebase.ts` で Firebase App 初期化時に App Check を有効化する。
 - Web の provider は `ReCaptchaEnterpriseProvider` を使い、`NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` を必須とする。
 - Web の localhost / `127.0.0.1` では `FIREBASE_APPCHECK_DEBUG_TOKEN` を自動設定し、`NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN` があればその値を使い、未設定時は debug token 自動発行モードを使う。
-- iOS は `LightlistApp.swift` で App Check provider factory を設定し、simulator / Debug では debug provider、本番デバイスでは App Attest 優先・DeviceCheck フォールバックで初期化する。
+- iOS は `ContentView.swift` 内の `LightlistApp` で App Check provider factory を設定し、simulator / Debug では debug provider、本番デバイスでは App Attest 優先・DeviceCheck フォールバックで初期化する。
 - Android は `MainActivity.kt` で App Check provider factory を設定し、Debug では debug provider、release では Play Integrity provider を使う。
 - Firebase Console 側で Web / iOS / Android app を App Check 登録し、Firestore / Auth の enforcement を有効化する前提とする。
 
@@ -96,9 +96,9 @@
 
 - Web の認証画面は `apps/web/src/pages/login.tsx`。
 - iOS のパスワードリセット deep link は `lightlist://password-reset?oobCode=...` を受け、`ContentView` の full screen cover で新しいパスワード入力画面を表示する。
-- iOS の共有コード deep link は `lightlist://sharecodes/CODE` と `https://lightlist.com/sharecodes/CODE` を受け、ログイン後に該当タスクリストを `taskListOrder` へ追加して開く。
+- iOS の共有コード deep link は `lightlist://sharecodes/CODE` と `https://lightlist.com/sharecodes/CODE` を受け、未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - Android の deep link は `lightlist://password-reset?oobCode=...`、`lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`、`https://lightlist.com/password_reset?oobCode=...` を処理する。
-- Android の共有コード deep link はログイン後に該当タスクリストを `taskListOrder` へ追加して開く。
+- Android の共有コード deep link は未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - iOS / Android のサインイン画面は、Web と同様に全画面背景の中央へ最大幅約 `480pt/dp` のフォームサーフェスを置く。余白は外周側で確保し、カード背景はフォーム本文だけに付与する。
 - タブは `signin` / `signup` / `reset` の 3 つ。
 - `email` state はタブ間で共有し、切り替えても保持する。

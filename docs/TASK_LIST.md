@@ -66,9 +66,12 @@
 ## タスク操作
 
 - `tasks` は `id`, `text`, `completed`, `date`, `order` を持つ。
-- Web の `addTask()` は入力先頭の日付表現を解析し、`text` と `date` に分離する。
+- Web / iOS / Android の `addTask()` は入力先頭の日付表現を解析し、`text` と `date` に分離する。
 - 日付解析は `yyyy-mm-dd` / `mm-dd` / `mm/dd` / `mm.dd` と各言語の相対表現を扱う。
 - 数字はアラビア数字に加えてアラビア語、ペルシャ語、デーヴァナーガリー数字を正規化する。
+- Web の parser 仕様を正本とし、iOS / Android も対応言語・先頭一致ルール・解釈順序を揃える。
+- Web / iOS / Android の本文編集確定時も同じ parser を通し、先頭日付表現を認識できた場合だけ `date` を更新する。
+- 本文編集で日付表現を取り除いた結果 `text` が空になる場合は、既存 `text` を維持したまま `date` だけ更新する。
 - `taskInsertPosition` が `top` の場合は先頭、`bottom` の場合は末尾へ追加する。
 - Android のタスク追加後は、自動スクロールで追加位置へ移動しない。追加前のスクロール位置を維持する。
 - Android のタスク追加後は入力欄の focus を維持したまま IME を閉じない。

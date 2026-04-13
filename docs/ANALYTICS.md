@@ -22,7 +22,7 @@
 
 - Web の `logException(description, fatal)` は `app_exception` を送信する。
 - iOS / Android の `logException(description, fatal)` は `app_exception` を送信し、あわせて Crashlytics に記録する。
-- iOS は `LightlistApp.swift` で未捕捉例外ハンドラを設定する。
+- iOS は `ContentView.swift` 内の `LightlistApp` で未捕捉例外ハンドラを設定する。
 - Android は `MainActivity.kt` で `Thread.setDefaultUncaughtExceptionHandler` を設定する。
 
 ## イベント一覧

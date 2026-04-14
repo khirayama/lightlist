@@ -38,6 +38,8 @@
 - `.gitignore` はルートで共通ローカル生成物（OS / editor / Node / Firebase 設定）を管理し、`apps/web/.gitignore` / `apps/ios/.gitignore` / `apps/android/.gitignore` は各アプリ固有の生成物だけを管理する。
 - `apps/ios` の commit 対象は `project.yml` と `Lightlist/` 配下のソースを基本とし、`xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` は含めない。`GoogleService-Info.plist` は `apps/ios/Lightlist/Resources/` にローカル配置して `.gitignore` で除外する。entitlements は `apps/ios/Lightlist/Lightlist.entitlements` を使う。
 - Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/common.tsx` に集約する。
+- Web の Auth / settings / taskLists の状態購読は `apps/web/src/common.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
+- Web の task 更新系は Firestore `tasks` map の列挙順を順序根拠に使わず、必ず `order` 昇順の配列へ直してから追加・自動並び替え・D&D 並び替え・完了済み削除を計算する。
 - タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/common.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。
 - locale の正本は `shared/locales/locales.json` 1 ファイルとし、Web / iOS / Android はその JSON を各 app 起動前または build 時にローカル resource へ同期して読む。String Catalog (.xcstrings) は採用しない。
 - Android の件数表示は `taskList.taskCount_one` / `taskList.taskCount_other` を `count` 付きで解決し、`"${count}個のタスク"` のような直書きを持ち込まない。

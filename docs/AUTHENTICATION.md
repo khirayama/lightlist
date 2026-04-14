@@ -4,7 +4,7 @@
 
 - 認証方式は Firebase Authentication のメールアドレス + パスワード。
 - アカウント状態は Firebase Auth のセッションを正とする。
-- Web の認証ロジックは `apps/web/src/lib/session.ts` に集約する。
+- Web の認証状態、settings 購読、taskList 購読は `apps/web/src/common.tsx` の `AppStateProvider` と関連 hook に集約する。
 - iOS / Android は画面側から Firebase Auth と Firestore を直接呼ぶ。
 - iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。
 
@@ -25,7 +25,7 @@
 
 ## App Check
 
-- Web は `apps/web/src/lib/firebase.ts` で Firebase App 初期化時に App Check を有効化する。
+- Web は `apps/web/src/common.tsx` で Firebase App 初期化時に App Check を有効化する。
 - Web の provider は `ReCaptchaEnterpriseProvider` を使い、`NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` を必須とする。
 - Web の localhost / `127.0.0.1` では `FIREBASE_APPCHECK_DEBUG_TOKEN` を自動設定し、`NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN` があればその値を使い、未設定時は debug token 自動発行モードを使う。
 - iOS は `ContentView.swift` 内の `LightlistApp` で App Check provider factory を設定し、simulator / Debug では debug provider、本番デバイスでは App Attest 優先・DeviceCheck フォールバックで初期化する。

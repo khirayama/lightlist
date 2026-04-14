@@ -4,6 +4,7 @@
 
 - 配信用スクリーンショットの元画像は `apps/ios/screenshots`、`apps/android/screenshots`、`apps/web/screenshots` に置く。
 - 配信用の整形は `cd apps/web && npm run screenshots:generate -- <target>` またはルートの `just screenshots <target>` で行う。
+- 生成スクリプトは `apps/web` の devDependencies に含まれる `sharp` を使うため、`apps/web` の依存解決済み環境で実行する。
 - `target` は `all` / `ios` / `android` / `web` を受け付ける。
 - 生成時は各出力ディレクトリを一度空にしてから、連番ファイル名で再生成する。
 - 生成時のリサイズは中央基準の `cover` で行い、余剰部分はトリミングする。余白追加やデバイスフレーム合成は行わない。

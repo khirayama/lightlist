@@ -6,13 +6,14 @@ import { useTranslation } from "react-i18next";
 import { withTranslation, WithTranslation } from "react-i18next";
 
 import i18n, {
+  AppStateProvider,
+  AppIcon,
   getLanguageDirection,
   normalizeLanguage,
-} from "@/lib/translation";
-import { getCurrentSettings, useSettings } from "@/lib/settings";
-import { Theme } from "@/lib/types";
-import { logException } from "@/lib/analytics";
-import { AppIcon } from "@/components/ui/AppIcon";
+  useSettings,
+} from "@/common";
+import { Theme } from "@/common";
+import { logException } from "@/common";
 import "@/styles/globals.css";
 
 const MAIN_CONTENT_ID = "main-content";
@@ -105,11 +106,13 @@ class ErrorBoundaryBase extends Component<
 
 const ErrorBoundary = withTranslation()(ErrorBoundaryBase);
 
-export default function App({ Component, pageProps }: AppProps) {
+function AppBody({ Component, pageProps }: AppProps) {
   const prevLanguageRef = useRef<string | null>(null);
+  const settingsRef = useRef<ReturnType<typeof useSettings>>(null);
   const { t } = useTranslation();
   const appTitle = t("title");
   const settings = useSettings();
+  settingsRef.current = settings;
 
   const pwaHead = (
     <Head>
@@ -175,7 +178,7 @@ export default function App({ Component, pageProps }: AppProps) {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
     const handleMediaChange = () => {
-      if (getCurrentSettings()?.theme === "system") {
+      if (settingsRef.current?.theme === "system") {
         applyTheme("system");
       }
     };
@@ -232,5 +235,13 @@ export default function App({ Component, pageProps }: AppProps) {
         </div>
       </div>
     </ErrorBoundary>
+  );
+}
+
+export default function App(props: AppProps) {
+  return (
+    <AppStateProvider>
+      <AppBody {...props} />
+    </AppStateProvider>
   );
 }

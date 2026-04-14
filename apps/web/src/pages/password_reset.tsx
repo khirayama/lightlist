@@ -2,17 +2,13 @@ import { HTMLInputTypeAttribute, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 
-import {
-  verifyPasswordResetCode,
-  confirmPasswordReset,
-} from "@/lib/mutations/auth";
+import { confirmPasswordReset, verifyPasswordResetCode } from "@/common";
 import {
   FormErrors,
   resolveErrorMessage,
   validatePasswordForm,
-} from "@/lib/translation";
-import { Spinner } from "@/components/ui/Spinner";
-import { Alert } from "@/components/ui/Alert";
+} from "@/common";
+import { Alert, Spinner } from "@/common";
 
 type FormInputProps = {
   id: string;

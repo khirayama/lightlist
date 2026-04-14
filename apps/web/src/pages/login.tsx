@@ -2,8 +2,12 @@ import { HTMLInputTypeAttribute, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 
-import { signIn, signUp, sendPasswordResetEmail } from "@/lib/mutations/auth";
-import { useAuthStatus } from "@/lib/session";
+import {
+  sendPasswordResetEmail,
+  signIn,
+  signUp,
+  useAuthStatus,
+} from "@/common";
 import {
   FormErrors,
   LANGUAGE_DISPLAY_NAMES,
@@ -11,13 +15,9 @@ import {
   normalizeLanguage,
   resolveErrorMessage,
   validateAuthForm,
-} from "@/lib/translation";
-import { Alert } from "@/components/ui/Alert";
-import {
-  logLogin,
-  logSignUp,
-  logPasswordResetEmailSent,
-} from "@/lib/analytics";
+} from "@/common";
+import { Alert } from "@/common";
+import { logLogin, logSignUp, logPasswordResetEmailSent } from "@/common";
 
 type AuthTab = "signin" | "signup" | "reset";
 

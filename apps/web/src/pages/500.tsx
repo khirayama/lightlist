@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import Link from "next/link";
 import Head from "next/head";
 
-import { AppIcon } from "@/components/ui/AppIcon";
+import { AppIcon } from "@/common";
 
 export default function ServerErrorPage() {
   const { t } = useTranslation();

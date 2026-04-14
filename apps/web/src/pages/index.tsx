@@ -8,9 +8,8 @@ import i18n, {
   LANGUAGE_DISPLAY_NAMES,
   SUPPORTED_LANGUAGES,
   normalizeLanguage,
-} from "@/lib/translation";
-import { BrandLogo } from "@/components/ui/BrandLogo";
-import type { Language } from "@/lib/types";
+} from "@/common";
+import type { Language } from "@/common";
 
 const OG_LOCALE_BY_LANGUAGE: Record<Language, string> = {
   ja: "ja_JP",
@@ -185,10 +184,11 @@ export default function IndexPage() {
         >
           <div className="mx-auto max-w-3xl">
             <div className="flex justify-center py-2 sm:py-4">
-              <BrandLogo
+              <img
+                src="/brand/logo.svg"
                 alt=""
                 aria-hidden="true"
-                className="h-12 w-auto sm:h-16 lg:h-20"
+                className="block h-12 w-auto sm:h-16 lg:h-20"
               />
             </div>
             <h1

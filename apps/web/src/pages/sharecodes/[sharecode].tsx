@@ -9,18 +9,12 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
-import {
-  fetchTaskListIdByShareCode,
-  addSharedTaskListToOrder,
-} from "@/lib/mutations/app";
-import { useUser } from "@/lib/session";
-import { subscribeToSharedTaskList, useTaskList } from "@/lib/taskLists";
-import { resolveErrorMessage } from "@/lib/translation";
-import { logShare, logShareCodeJoin } from "@/lib/analytics";
-import { Spinner } from "@/components/ui/Spinner";
-import { Alert } from "@/components/ui/Alert";
-import { AppIcon } from "@/components/ui/AppIcon";
-import { TaskListCard } from "@/components/app/TaskListCard";
+import { addSharedTaskListToOrder, fetchTaskListIdByShareCode } from "@/common";
+import { useUser } from "@/common";
+import { useTaskList } from "@/common";
+import { resolveErrorMessage } from "@/common";
+import { logShare, logShareCodeJoin } from "@/common";
+import { Alert, AppIcon, Spinner, TaskListCard } from "@/common";
 
 export default function ShareCodePage() {
   const router = useRouter();
@@ -48,11 +42,6 @@ export default function ShareCodePage() {
     if (!sharecode || typeof sharecode !== "string") return;
 
     let cancelled = false;
-    let unsubscribeSharedTaskList: (() => void) | null = null;
-    const cleanupSubscription = () => {
-      unsubscribeSharedTaskList?.();
-      unsubscribeSharedTaskList = null;
-    };
 
     const loadTaskList = async () => {
       try {
@@ -63,18 +52,14 @@ export default function ShareCodePage() {
         if (!taskListId) {
           setSharedTaskListId(null);
           setError(t("pages.sharecode.notFound"));
-          cleanupSubscription();
           return;
         }
 
         setSharedTaskListId(taskListId);
-        cleanupSubscription();
-        unsubscribeSharedTaskList = subscribeToSharedTaskList(taskListId);
         logShare();
       } catch (err) {
         setError(resolveErrorMessage(err, t, "pages.sharecode.error"));
         setSharedTaskListId(null);
-        cleanupSubscription();
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -85,7 +70,6 @@ export default function ShareCodePage() {
     void loadTaskList();
     return () => {
       cancelled = true;
-      cleanupSubscription();
     };
   }, [sharecode, t]);
 

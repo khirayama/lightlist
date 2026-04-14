@@ -29,54 +29,50 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DayButton as DayPickerDayButton } from "react-day-picker";
-import type { Task, TaskList } from "@/lib/types";
+import type { Task, TaskList } from "@/common";
 import clsx from "clsx";
 
-import { useSessionState, useUser } from "@/lib/session";
-import { useTaskListIndexState } from "@/lib/taskLists";
+import { useSessionState, useUser } from "@/common";
 import {
   addSharedTaskListToOrder,
   createTaskList,
   fetchTaskListIdByShareCode,
   updateTaskListOrder,
-} from "@/lib/mutations/app";
-import { getLanguageDirection, resolveErrorMessage } from "@/lib/translation";
-import { useOptimisticReorder } from "@/lib/hooks/useOptimisticReorder";
+  useTaskListIndexState,
+} from "@/common";
+import { SettingsView } from "@/common";
+import { getLanguageDirection, resolveErrorMessage } from "@/common";
 import {
   logShareCodeJoin,
   logTaskListCreate,
   logTaskListReorder,
-} from "@/lib/analytics";
-import { Alert } from "@/components/ui/Alert";
-import { AppIcon } from "@/components/ui/AppIcon";
-import { ColorPicker, type ColorOption } from "@/components/ui/ColorPicker";
+} from "@/common";
 import {
+  Alert,
+  AppIcon,
+  Carousel,
+  ColorPicker,
+  type ColorOption,
   Dialog,
   DialogClose,
   DialogContent,
   DialogFooter,
   DialogTrigger,
-} from "@/components/ui/Dialog";
-import {
   Drawer,
   DrawerContent,
   DrawerHeader,
   DrawerTrigger,
-} from "@/components/ui/Drawer";
-import { Spinner } from "@/components/ui/Spinner";
-import { Carousel } from "@/components/ui/Carousel";
-import { SettingsView } from "@/components/app/SettingsView";
-import { TaskListCard } from "@/components/app/TaskListCard";
+  Spinner,
+  TaskListCard,
+  useOptimisticReorder,
+} from "@/common";
 
-const Calendar = dynamic(
-  () => import("@/components/ui/Calendar").then((mod) => mod.Calendar),
-  {
-    loading: () => (
-      <div className="h-72 w-72 animate-pulse rounded-lg bg-background dark:bg-surface-dark" />
-    ),
-    ssr: false,
-  },
-);
+const Calendar = dynamic(() => import("@/common").then((mod) => mod.Calendar), {
+  loading: () => (
+    <div className="h-72 w-72 animate-pulse rounded-lg bg-background dark:bg-surface-dark" />
+  ),
+  ssr: false,
+});
 
 const COLORS: readonly ColorOption[] = [
   {
@@ -1022,10 +1018,30 @@ export default function AppPage() {
   const [error, setError] = useState<string | null>(null);
   const { items: taskLists, reorder: reorderTaskList } = useOptimisticReorder(
     stateTaskLists,
-    updateTaskListOrder,
+    async (draggedId, targetId) => {
+      const sourceItems = [...stateTaskLists];
+      const oldIndex = sourceItems.findIndex(
+        (taskList) => taskList.id === draggedId,
+      );
+      const newIndex = sourceItems.findIndex(
+        (taskList) => taskList.id === targetId,
+      );
+      if (oldIndex === -1 || newIndex === -1) {
+        return;
+      }
+      const [draggedTaskList] = sourceItems.splice(oldIndex, 1);
+      sourceItems.splice(newIndex, 0, draggedTaskList);
+      await updateTaskListOrder(
+        sourceItems.map((taskList, index) => ({
+          taskListId: taskList.id,
+          order: index + 1,
+        })),
+      );
+    },
   );
   const [isWideLayout, setIsWideLayout] = useState(false);
   const [isTaskSorting, setIsTaskSorting] = useState(false);
+  const [isTaskDragInteracting, setIsTaskDragInteracting] = useState(false);
   const [currentView, setCurrentView] = useState<AppView>("detail");
   const [isViewAnimationReady, setIsViewAnimationReady] = useState(false);
   const [pendingInitialTaskListRoute, setPendingInitialTaskListRoute] =
@@ -1397,7 +1413,7 @@ export default function AppPage() {
           className="h-full"
           index={selectedTaskListIndex}
           direction={carouselDirection}
-          scrollEnabled={!isTaskSorting}
+          scrollEnabled={!isTaskSorting && !isTaskDragInteracting}
           onIndexChange={(index) => {
             const taskList = taskLists[index];
             if (taskList) {
@@ -1437,6 +1453,7 @@ export default function AppPage() {
                   }}
                   sensorsList={sensorsList}
                   onSortingChange={setIsTaskSorting}
+                  onDragInteractionChange={setIsTaskDragInteracting}
                   onDeleted={() => {
                     const remainingLists = stateTaskLists.filter(
                       (currentTaskList) =>

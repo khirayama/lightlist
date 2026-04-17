@@ -1,5 +1,4 @@
 import { HTMLInputTypeAttribute, useEffect, useState } from "react";
-import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -74,7 +73,6 @@ function FormInput({
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const { t, i18n } = useTranslation();
   const authStatus = useAuthStatus();
   const [activeTab, setActiveTab] = useState<AuthTab>("signin");
@@ -88,9 +86,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (authStatus === "authenticated") {
-      router.push("/app");
+      window.location.replace("/app");
     }
-  }, [authStatus, router]);
+  }, [authStatus]);
 
   const handleAuthAction = async (
     e: React.FormEvent,

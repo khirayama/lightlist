@@ -1,5 +1,4 @@
 import { HTMLInputTypeAttribute, useEffect, useState } from "react";
-import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 
 import { confirmPasswordReset, verifyPasswordResetCode } from "@/common";
@@ -63,7 +62,6 @@ function FormInput({
 }
 
 export default function PasswordResetPage() {
-  const router = useRouter();
   const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -79,11 +77,9 @@ export default function PasswordResetPage() {
     "inline-flex w-full items-center justify-center rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text shadow-sm transition-colors hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-70 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark";
 
   useEffect(() => {
-    if (!router.isReady) return;
+    const oobCode = new URLSearchParams(window.location.search).get("oobCode");
 
-    const { oobCode } = router.query;
-
-    if (!oobCode || typeof oobCode !== "string") {
+    if (!oobCode) {
       setCodeValid(false);
       return;
     }
@@ -101,7 +97,7 @@ export default function PasswordResetPage() {
     };
 
     verifyCode();
-  }, [router.isReady, router.query, t]);
+  }, [t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,9 +116,11 @@ export default function PasswordResetPage() {
     setLoading(true);
 
     try {
-      const { oobCode } = router.query;
+      const oobCode = new URLSearchParams(window.location.search).get(
+        "oobCode",
+      );
 
-      if (!oobCode || typeof oobCode !== "string") {
+      if (!oobCode) {
         throw new Error(t("auth.passwordReset.invalidCode"));
       }
 
@@ -130,7 +128,7 @@ export default function PasswordResetPage() {
       setResetSuccess(true);
 
       setTimeout(() => {
-        router.push("/");
+        window.location.replace("/");
       }, 2000);
     } catch (err) {
       setErrors({
@@ -139,10 +137,6 @@ export default function PasswordResetPage() {
       setLoading(false);
     }
   };
-
-  if (!router.isReady) {
-    return <Spinner fullPage />;
-  }
 
   const content = (() => {
     if (codeValid === false) {
@@ -153,7 +147,7 @@ export default function PasswordResetPage() {
           </Alert>
           <button
             type="button"
-            onClick={() => router.push("/")}
+            onClick={() => window.location.assign("/")}
             className={secondaryButtonClass}
           >
             {t("auth.button.backToSignIn")}
@@ -215,7 +209,7 @@ export default function PasswordResetPage() {
 
         <button
           type="button"
-          onClick={() => router.push("/")}
+          onClick={() => window.location.assign("/")}
           className={secondaryButtonClass}
         >
           {t("auth.button.backToSignIn")}

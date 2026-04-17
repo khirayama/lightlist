@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
   KeyboardSensor,
@@ -16,11 +15,10 @@ import { resolveErrorMessage } from "@/common";
 import { logShare, logShareCodeJoin } from "@/common";
 import { Alert, AppIcon, Spinner, TaskListCard } from "@/common";
 
-export default function ShareCodePage() {
-  const router = useRouter();
+export default function SharecodesPage() {
   const { t } = useTranslation();
-  const { sharecode } = router.query;
   const user = useUser();
+  const [sharecode, setSharecode] = useState<string | null>(null);
   const [sharedTaskListId, setSharedTaskListId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +37,16 @@ export default function ShareCodePage() {
   );
 
   useEffect(() => {
-    if (!sharecode || typeof sharecode !== "string") return;
+    const code = new URL(window.location.href).searchParams.get("code");
+    setSharecode(code);
+    if (!code) {
+      setError(t("pages.sharecode.notFound"));
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    if (!sharecode) return;
 
     let cancelled = false;
 
@@ -83,7 +90,7 @@ export default function ShareCodePage() {
       setAddToOrderError(null);
       await addSharedTaskListToOrder(taskList.id);
       logShareCodeJoin();
-      router.push("/app");
+      window.location.assign("/app");
     } catch (err) {
       setAddToOrderError(
         resolveErrorMessage(err, t, "pages.sharecode.addToOrderError"),
@@ -100,7 +107,7 @@ export default function ShareCodePage() {
       <div className="flex h-full flex-col bg-background dark:bg-background-dark">
         <div className="bg-surface p-4 shadow-sm dark:bg-surface-dark">
           <button
-            onClick={() => router.back()}
+            onClick={() => window.history.back()}
             className="rounded-full p-2 text-muted hover:bg-background dark:text-muted-dark dark:hover:bg-surface-dark"
             aria-label={t("common.back")}
           >
@@ -121,7 +128,7 @@ export default function ShareCodePage() {
       <div className="flex h-full flex-col bg-background dark:bg-background-dark">
         <div className="bg-surface p-4 shadow-sm dark:bg-surface-dark">
           <button
-            onClick={() => router.back()}
+            onClick={() => window.history.back()}
             className="rounded-full p-2 text-muted hover:bg-background dark:text-muted-dark dark:hover:bg-surface-dark"
             aria-label={t("common.back")}
           >
@@ -141,7 +148,7 @@ export default function ShareCodePage() {
     <div className="flex h-full flex-col bg-background dark:bg-background-dark">
       <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 dark:border-border-dark dark:bg-surface-dark">
         <button
-          onClick={() => router.back()}
+          onClick={() => window.history.back()}
           className="rounded-full p-2 text-muted hover:bg-background dark:text-muted-dark dark:hover:bg-surface-dark"
           aria-label={t("common.back")}
         >
@@ -167,7 +174,7 @@ export default function ShareCodePage() {
           </div>
         )}
 
-        <div className="h-full mx-auto w-full max-w-3xl">
+        <div className="mx-auto h-full w-full max-w-3xl">
           <TaskListCard
             taskList={taskList}
             isActive={true}

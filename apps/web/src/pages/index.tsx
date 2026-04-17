@@ -1,8 +1,5 @@
 import { useTranslation } from "react-i18next";
-import Link from "next/link";
-import Head from "next/head";
 import { useEffect } from "react";
-import { useRouter } from "next/router";
 
 import i18n, {
   LANGUAGE_DISPLAY_NAMES,
@@ -25,36 +22,79 @@ const OG_LOCALE_BY_LANGUAGE: Record<Language, string> = {
   id: "id_ID",
 };
 
+const setHeadValue = (
+  selector: string,
+  attribute: "content" | "href",
+  value: string,
+) => {
+  const element = document.querySelector(selector);
+  if (
+    element instanceof HTMLMetaElement ||
+    element instanceof HTMLLinkElement
+  ) {
+    element.setAttribute(attribute, value);
+  }
+};
+
 export default function IndexPage() {
-  const router = useRouter();
   const { t } = useTranslation();
   const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
-  const pageUrl = currentLang === "ja" ? "/" : `/?lang=${currentLang}`;
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const pageUrl =
+    currentLang === "ja" ? `${origin}/` : `${origin}/?lang=${currentLang}`;
   const pageTitle = t("pages.index.seo.title");
   const pageDescription = t("pages.index.seo.description");
 
   useEffect(() => {
-    if (!router.isReady) return;
-    const queryLang = router.query.lang;
-    if (typeof queryLang !== "string") return;
+    const queryLang = new URLSearchParams(window.location.search).get("lang");
+    if (!queryLang) return;
     const normalizedLanguage = normalizeLanguage(queryLang);
     if (i18n.language !== normalizedLanguage) {
       void i18n.changeLanguage(normalizedLanguage);
     }
-  }, [router.isReady, router.query.lang]);
+  }, []);
+
+  useEffect(() => {
+    document.title = pageTitle;
+    setHeadValue('meta[name="description"]', "content", pageDescription);
+    setHeadValue(
+      'meta[name="keywords"]',
+      "content",
+      t("pages.index.seo.keywords"),
+    );
+    setHeadValue('link[rel="canonical"]', "href", pageUrl);
+    setHeadValue('meta[property="og:title"]', "content", pageTitle);
+    setHeadValue('meta[property="og:description"]', "content", pageDescription);
+    setHeadValue('meta[property="og:url"]', "content", pageUrl);
+    setHeadValue(
+      'meta[property="og:locale"]',
+      "content",
+      OG_LOCALE_BY_LANGUAGE[currentLang],
+    );
+    setHeadValue(
+      'meta[property="og:image:alt"]',
+      "content",
+      t("pages.index.preview.desktopAlt"),
+    );
+    setHeadValue('meta[name="twitter:title"]', "content", pageTitle);
+    setHeadValue(
+      'meta[name="twitter:description"]',
+      "content",
+      pageDescription,
+    );
+  }, [currentLang, pageDescription, pageTitle, pageUrl, t]);
 
   const handleLangChange = (newLang: Language) => {
     if (i18n.language !== newLang) {
       void i18n.changeLanguage(newLang);
     }
-    void router.replace(
-      {
-        pathname: "/",
-        query: newLang === "ja" ? {} : { lang: newLang },
-      },
-      undefined,
-      { shallow: true },
-    );
+    const url = new URL(window.location.href);
+    if (newLang === "ja") {
+      url.searchParams.delete("lang");
+    } else {
+      url.searchParams.set("lang", newLang);
+    }
+    window.history.replaceState(window.history.state, "", url.toString());
   };
 
   const features = [
@@ -122,41 +162,6 @@ export default function IndexPage() {
 
   return (
     <div className="min-h-screen bg-surface text-text dark:bg-background-dark dark:text-text-dark">
-      <Head>
-        <title>{pageTitle}</title>
-        <meta name="description" content={pageDescription} />
-        <meta name="keywords" content={t("pages.index.seo.keywords")} />
-        <meta name="robots" content="index,follow" />
-        <link rel="canonical" href={pageUrl} />
-        {SUPPORTED_LANGUAGES.map((language) => (
-          <link
-            key={language}
-            rel="alternate"
-            hrefLang={language}
-            href={language === "ja" ? "/" : `/?lang=${language}`}
-          />
-        ))}
-        <link rel="alternate" hrefLang="x-default" href="/" />
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content={t("title")} />
-        <meta property="og:title" content={pageTitle} />
-        <meta property="og:description" content={pageDescription} />
-        <meta property="og:url" content={pageUrl} />
-        <meta
-          property="og:locale"
-          content={OG_LOCALE_BY_LANGUAGE[currentLang]}
-        />
-        <meta property="og:image" content="/screenshot_ja_desktop.png" />
-        <meta
-          property="og:image:alt"
-          content={t("pages.index.preview.desktopAlt")}
-        />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={pageTitle} />
-        <meta name="twitter:description" content={pageDescription} />
-        <meta name="twitter:image" content="/screenshot_ja_desktop.png" />
-      </Head>
-
       <header className="mx-auto flex max-w-5xl justify-end px-6 py-4">
         <label className="inline-flex items-center gap-2 text-sm">
           <span className="sr-only">Language</span>
@@ -201,12 +206,12 @@ export default function IndexPage() {
               {t("pages.index.subheadline")}
             </p>
             <div className="mt-10">
-              <Link
+              <a
                 href="/login"
                 className="inline-block rounded-full bg-primary px-10 py-4 text-lg font-semibold text-primaryText transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:bg-primary-dark dark:text-primaryText-dark dark:hover:opacity-90"
               >
                 {t("pages.index.getStarted")}
-              </Link>
+              </a>
             </div>
           </div>
         </section>
@@ -290,12 +295,12 @@ export default function IndexPage() {
               {t("pages.index.cta.description")}
             </p>
             <div className="mt-10">
-              <Link
+              <a
                 href="/login"
                 className="inline-block rounded-full bg-primary px-10 py-4 text-lg font-semibold text-primaryText transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:bg-primary-dark dark:text-primaryText-dark dark:hover:opacity-90"
               >
                 {t("pages.index.cta.button")}
-              </Link>
+              </a>
             </div>
           </div>
         </section>

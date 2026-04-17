@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync } from "node:fs";
+import { copyFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,4 +16,4 @@ const sourcePath = path.join(
 const targetPath = path.join(webRoot, "src", "locales.json");
 
 mkdirSync(path.dirname(targetPath), { recursive: true });
-cpSync(sourcePath, targetPath);
+copyFileSync(sourcePath, targetPath);

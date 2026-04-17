@@ -228,12 +228,12 @@ let appCheckInitialized = false;
 const getApp = () =>
   getApps().length === 0
     ? initializeApp({
-        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+        appId: import.meta.env.VITE_FIREBASE_APP_ID,
       })
     : getApps()[0];
 
@@ -245,7 +245,7 @@ const ensureAppCheckInitialized = (app: FirebaseApp) => {
     return;
   }
 
-  const siteKey = process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY;
+  const siteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
   if (!siteKey) {
     return;
   }
@@ -256,7 +256,7 @@ const ensureAppCheckInitialized = (app: FirebaseApp) => {
         FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string;
       }
     ).FIREBASE_APPCHECK_DEBUG_TOKEN =
-      process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN ?? true;
+      import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN ?? true;
   }
 
   initializeAppCheck(app, {
@@ -311,7 +311,7 @@ const getAnalyticsInstance = async (): Promise<Analytics | null> => {
 };
 
 const log = async (eventName: string, params?: Record<string, unknown>) => {
-  if (process.env.NODE_ENV !== "production") {
+  if (import.meta.env.DEV) {
     console.log("[analytics]", eventName, params ?? {});
   }
   const analytics = await getAnalyticsInstance();
@@ -513,14 +513,32 @@ const hasMessage = (error: unknown): error is { message: string } =>
     typeof (error as { message?: unknown }).message === "string",
   );
 
+const isAbortError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const name = "name" in error ? (error as { name?: unknown }).name : undefined;
+  const code = "code" in error ? (error as { code?: unknown }).code : undefined;
+  const message =
+    "message" in error ? (error as { message?: unknown }).message : undefined;
+
+  return (
+    name === "AbortError" ||
+    code === "aborted" ||
+    (typeof message === "string" &&
+      message.toLowerCase().includes("aborted a request"))
+  );
+};
+
 const getErrorMessage = (
   errorCode: string,
   t: TFunction<"translation">,
-): string => {
+): string | null => {
   if (isAuthErrorCode(errorCode)) {
     return t(ERROR_KEY_MAP[errorCode]);
   }
-  return t("auth.error.general");
+  return null;
 };
 
 const validateEmail = (email: string): boolean => {
@@ -537,14 +555,20 @@ export const resolveErrorMessage = (
   }
 
   if (isCodedError(error)) {
-    return getErrorMessage(error.code, t);
+    return getErrorMessage(error.code, t) ?? t(fallbackKey as never);
   }
 
   if (error instanceof Error && error.message) {
+    if (isAbortError(error)) {
+      return t(fallbackKey as never);
+    }
     return error.message;
   }
 
   if (hasMessage(error)) {
+    if (isAbortError(error)) {
+      return t(fallbackKey as never);
+    }
     return error.message;
   }
 
@@ -617,6 +641,187 @@ const validateEmailChangeForm = (
 };
 
 export default i18next;
+
+const MAIN_CONTENT_ID = "main-content";
+
+const applyTheme = (theme: Theme) => {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+  const isDark =
+    theme === "dark" ||
+    (theme === "system" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.classList.toggle("dark", isDark);
+};
+
+interface ErrorBoundaryProps extends WithTranslation {
+  children?: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundaryBase extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+  };
+
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("[ErrorBoundary] Uncaught error:", error, errorInfo);
+    logException(error.message, true);
+  }
+
+  public render() {
+    const { t, children, fallback } = this.props;
+
+    if (this.state.hasError) {
+      if (fallback) {
+        return fallback;
+      }
+
+      return (
+        <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-surface p-4 text-text dark:bg-background-dark dark:text-text-dark">
+          <div className="w-full max-w-md space-y-4 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+              <AppIcon
+                name="alert-circle"
+                className="h-6 w-6 text-red-600 dark:text-red-400"
+              />
+            </div>
+            <h2 className="text-lg font-semibold">{t("pages.error.title")}</h2>
+            <p className="text-sm text-muted dark:text-muted-dark">
+              {t("pages.error.description")}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primaryText hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:bg-primary-dark dark:text-primaryText-dark dark:hover:opacity-90"
+            >
+              {t("pages.error.reload")}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return children;
+  }
+}
+
+const ErrorBoundary = withTranslation()(ErrorBoundaryBase);
+
+function AppWrapperBody({ children }: { children: ReactNode }) {
+  const prevLanguageRef = useRef<string | null>(null);
+  const settingsRef = useRef<ReturnType<typeof useSettings> | null>(null);
+  const { t } = useTranslation();
+  const settings = useSettings();
+  settingsRef.current = settings;
+
+  useEffect(() => {
+    const isSecureOrLocalhost =
+      window.location.protocol === "https:" ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    if (isSecureOrLocalhost && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => registration.update())
+        .catch(() => {});
+    }
+
+    const handleWindowError = (event: ErrorEvent) => {
+      if (isAbortError(event.error ?? event)) {
+        return;
+      }
+      logException(event.message, false);
+    };
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (isAbortError(event.reason)) {
+        event.preventDefault();
+        return;
+      }
+      const msg =
+        event.reason instanceof Error
+          ? event.reason.message
+          : String(event.reason);
+      logException(msg, false);
+    };
+    window.addEventListener("error", handleWindowError);
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const handleMediaChange = () => {
+      if (settingsRef.current?.theme === "system") {
+        applyTheme("system");
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleMediaChange);
+
+    return () => {
+      window.removeEventListener("error", handleWindowError);
+      window.removeEventListener(
+        "unhandledrejection",
+        handleUnhandledRejection,
+      );
+      mediaQuery.removeEventListener("change", handleMediaChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (settings) {
+      applyTheme(settings.theme);
+      if (prevLanguageRef.current !== settings.language) {
+        prevLanguageRef.current = settings.language;
+        void i18next.changeLanguage(settings.language);
+      }
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const language = normalizeLanguage(
+      settings?.language ?? i18next.resolvedLanguage,
+    );
+    document.documentElement.lang = language;
+    document.documentElement.dir = getLanguageDirection(language);
+  }, [settings?.language]);
+
+  return (
+    <ErrorBoundary>
+      <div className="h-dvh w-full overflow-hidden font-sans">
+        <div className="h-full w-full overflow-y-auto">
+          <a
+            href={`#${MAIN_CONTENT_ID}`}
+            className="pointer-events-none absolute top-2 z-[2000] -translate-y-16 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primaryText opacity-0 shadow-lg transition focus:pointer-events-auto focus:translate-y-0 focus:opacity-100 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-muted dark:bg-primary-dark dark:text-primaryText-dark dark:focus:outline-muted-dark"
+            style={{ insetInlineStart: "1rem" }}
+          >
+            {t("common.skipToMain")}
+          </a>
+          {children}
+        </div>
+      </div>
+    </ErrorBoundary>
+  );
+}
+
+export function AppWrapper({ children }: { children: ReactNode }) {
+  return (
+    <AppStateProvider>
+      <AppWrapperBody>{children}</AppWrapperBody>
+    </AppStateProvider>
+  );
+}
 
 declare module "i18next" {
   interface CustomTypeOptions {
@@ -1371,7 +1576,7 @@ export async function sendPasswordResetEmail(
 ) {
   const auth = getAuthInstance();
   const actionCodeSettings: ActionCodeSettings = {
-    url: process.env.NEXT_PUBLIC_PASSWORD_RESET_URL!,
+    url: import.meta.env.VITE_PASSWORD_RESET_URL,
     handleCodeInApp: false,
   };
   const languageToUse = await getPreferredLanguage(language);
@@ -2544,18 +2749,28 @@ function generateRandomShareCode() {
 async function generateShareCode(taskListId: string): Promise<string> {
   const db = getDbInstance();
   for (let attempt = 0; attempt < MAX_SHARE_CODE_ATTEMPTS; attempt += 1) {
-    const shareCode = generateRandomShareCode();
-    const shareCodeRef = doc(db, "shareCodes", shareCode);
-    const shareCodeSnapshot = await getDoc(shareCodeRef);
-    if (shareCodeSnapshot.exists()) continue;
-    const batch = writeBatch(db);
-    batch.set(shareCodeRef, { taskListId });
-    batch.update(doc(db, "taskLists", taskListId), {
-      shareCode,
-      updatedAt: Date.now(),
-    });
-    await batch.commit();
-    return shareCode;
+    try {
+      const shareCode = generateRandomShareCode();
+      const shareCodeRef = doc(db, "shareCodes", shareCode);
+      const shareCodeSnapshot = await getDoc(shareCodeRef);
+      if (shareCodeSnapshot.exists()) continue;
+      const batch = writeBatch(db);
+      batch.set(shareCodeRef, {
+        taskListId,
+        createdAt: Date.now(),
+      });
+      batch.update(doc(db, "taskLists", taskListId), {
+        shareCode,
+        updatedAt: Date.now(),
+      });
+      await batch.commit();
+      return shareCode;
+    } catch (error) {
+      if (isAbortError(error) && attempt + 1 < MAX_SHARE_CODE_ATTEMPTS) {
+        continue;
+      }
+      throw error;
+    }
   }
   throw new Error("Failed to generate share code");
 }
@@ -2819,57 +3034,6 @@ const DialogOverlay = forwardRef<
   );
 });
 
-function DialogHeader({
-  title,
-  description,
-  children,
-}: {
-  title?: ComponentPropsWithoutRef<typeof DialogPrimitive.Title>["children"];
-  description?: ComponentPropsWithoutRef<
-    typeof DialogPrimitive.Description
-  >["children"];
-  children?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      {title}
-      {description}
-      {children}
-    </div>
-  );
-}
-
-function DialogTitle(
-  props: ComponentPropsWithoutRef<typeof DialogPrimitive.Title>,
-) {
-  const { children, className, ...rest } = props;
-  return (
-    <DialogPrimitive.Title
-      {...rest}
-      className={clsx("m-0 text-lg font-semibold", className)}
-    >
-      {children}
-    </DialogPrimitive.Title>
-  );
-}
-
-function DialogDescription(
-  props: ComponentPropsWithoutRef<typeof DialogPrimitive.Description>,
-) {
-  const { children, className, ...rest } = props;
-  return (
-    <DialogPrimitive.Description
-      {...rest}
-      className={clsx(
-        "m-0 text-sm text-[var(--dialog-muted,#4B5563)]",
-        className,
-      )}
-    >
-      {children}
-    </DialogPrimitive.Description>
-  );
-}
-
 export const DialogContent = forwardRef<
   ElementRef<typeof DialogPrimitive.Content>,
   ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
@@ -2903,16 +3067,22 @@ export const DialogContent = forwardRef<
           className,
         )}
       >
-        <DialogHeader
-          title={<DialogTitle id={generatedTitleId}>{title}</DialogTitle>}
-          description={
-            description !== undefined ? (
-              <DialogDescription id={generatedDescriptionId}>
-                {description}
-              </DialogDescription>
-            ) : undefined
-          }
-        />
+        <div className="flex flex-col gap-2">
+          <DialogPrimitive.Title
+            id={generatedTitleId}
+            className="m-0 text-lg font-semibold"
+          >
+            {title}
+          </DialogPrimitive.Title>
+          {description !== undefined ? (
+            <DialogPrimitive.Description
+              id={generatedDescriptionId}
+              className="m-0 text-sm text-[var(--dialog-muted,#4B5563)]"
+            >
+              {description}
+            </DialogPrimitive.Description>
+          ) : null}
+        </div>
         {children}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
@@ -4050,7 +4220,7 @@ export function TaskListCard({
                                 onClick={async () => {
                                   try {
                                     await navigator.clipboard.writeText(
-                                      `${window.location.origin}/sharecodes/${shareCode}`,
+                                      `${window.location.origin}/sharecodes?code=${shareCode}`,
                                     );
                                     setShareCopySuccess(true);
                                     setTimeout(

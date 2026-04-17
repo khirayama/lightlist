@@ -6,8 +6,6 @@ import {
   useRef,
   useState,
 } from "react";
-import dynamic from "next/dynamic";
-import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import {
   DndContext,
@@ -50,6 +48,7 @@ import {
 import {
   Alert,
   AppIcon,
+  Calendar,
   Carousel,
   ColorPicker,
   type ColorOption,
@@ -66,13 +65,6 @@ import {
   TaskListCard,
   useOptimisticReorder,
 } from "@/common";
-
-const Calendar = dynamic(() => import("@/common").then((mod) => mod.Calendar), {
-  loading: () => (
-    <div className="h-72 w-72 animate-pulse rounded-lg bg-background dark:bg-surface-dark" />
-  ),
-  ssr: false,
-});
 
 const COLORS: readonly ColorOption[] = [
   {
@@ -1003,7 +995,6 @@ function DrawerPanel({
 }
 
 export default function AppPage() {
-  const router = useRouter();
   const { t, i18n } = useTranslation();
   const { authStatus } = useSessionState();
   const user = useUser();
@@ -1060,9 +1051,9 @@ export default function AppPage() {
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
-      router.push("/");
+      window.location.replace("/");
     }
-  }, [authStatus, router]);
+  }, [authStatus]);
 
   useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") {

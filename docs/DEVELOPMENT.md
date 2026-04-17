@@ -43,6 +43,7 @@
 - Web UI から `firebase/*` を直接 import せず、共通実装は `@/common` を通す。
 - Web の Vite root は `apps/web/html` とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
 - Web の各 HTML entry から `src/entries/*` を読む script は、その HTML ファイル自身の配置位置を基準に相対参照する。`apps/web/html/index.html` と `apps/web/html/404.html` / `500.html` は `../src/entries/*.tsx`、`apps/web/html/*/index.html` は `../../src/entries/*.tsx` を使う。dev server では `/src/*` へ正規化された参照も `apps/web/src/*` へ解決できるように Vite alias を維持する。
+- Web 直下で管理対象にする route source は `html/*` と `src/pages/*` / `src/entries/*` で、`apps/web/app` `apps/web/login` `apps/web/password_reset` `apps/web/sharecodes` のような直下 route 名ディレクトリは置かない。`dist` `.next` `node_modules` `*.tsbuildinfo` はローカル生成物として保持しない。
 - Web の認証後シェルは `apps/web/src/pages/app.tsx` を単一入口とし、`/app#/task-lists` を stack root、`/app#/task-lists/:taskListId` を task list 詳細、`/app#/settings` を設定画面として扱う。`/app` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。mobile では tasklists root・detail・settings を同じシェル内の stack と横スライドで扱う。
 - 開発サーバーと本番 build は `vite` / `vite build` を使う。
 - 本番レスポンスヘッダは配信基盤側で管理する。

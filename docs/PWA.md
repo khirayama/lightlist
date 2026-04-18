@@ -12,7 +12,7 @@
 - `name`: `Lightlist`
 - `short_name`: `Lightlist`
 - `description`: `Task list app`
-- `start_url`: `/app#/task-lists`
+- `start_url`: `/app/#/task-lists`
 - `scope`: `/`
 - `display`: `standalone`
 - `background_color`: `#ffffff`
@@ -34,7 +34,7 @@
 
 ## 登録
 
-- `apps/web/src/common.tsx` の `AppWrapper` で HTTPS、`localhost`、`127.0.0.1` のときだけ `/sw.js` を登録する。
+- `apps/web/src/entry.tsx` の `AppWrapper` で HTTPS、`localhost`、`127.0.0.1` のときだけ `/sw.js` を登録する。
 - 登録成功後に `registration.update()` を呼ぶ。
 - 登録失敗時は握りつぶす。
 

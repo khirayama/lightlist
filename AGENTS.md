@@ -33,17 +33,18 @@
 - iOS: `apps/ios`（SwiftUI, iOS 17+）— XcodeGen (`project.yml`) でプロジェクト生成
 - Android: `apps/android`（Kotlin + Gradle）
 - SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/lib/` に統合済み。独立パッケージ (`packages/sdk`) は廃止。
-- Firebase 初期化は `apps/web/src/common.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。Web の App Check も同ファイルで初期化し、`VITE_FIREBASE_APPCHECK_SITE_KEY` を使う。別途の初期化呼び出しは不要。
-- pages は `firebase/*` を直接 import しない。Web 共通コードは `apps/web/src/common.tsx` へ集約し、page 側は `@/common` を使う。
+- Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。Web の App Check も同ファイルで初期化し、`VITE_FIREBASE_APPCHECK_SITE_KEY` を使う。別途の初期化呼び出しは不要。
+- Web UI は `firebase/*` を直接 import しない。Web の runtime TS/TSX 実装は `apps/web/src/entry.tsx` に集約する。
 - Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
-- Web の HTML entry から `src/entries/*` を読む script path は、必ず各 HTML ファイル自身の配置位置を基準に相対指定する。`apps/web/html/index.html` と `apps/web/html/404.html` / `500.html` は `../src/entries/*.tsx`、`apps/web/html/*/index.html` は `../../src/entries/*.tsx` を使う。Vite 設定の `/src` alias も維持し、dev server の正規化後パスを `apps/web/src/*` へ解決させる。
+- Web の本番静的配信は Cloudflare Pages を正とし、root path 配信を前提に Vite `base` は `/` を維持する。build 出力は `apps/web/dist`、Cloudflare Pages 用 response headers は `apps/web/public/_headers` に置く。
+- Web の HTML entry は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。script path は各 HTML 自身の配置位置を基準に相対指定し、`apps/web/html/index.html` と `apps/web/html/404.html` / `500.html` は `../src/entry.tsx`、`apps/web/html/*/index.html` は `../../src/entry.tsx` を使う。Vite 設定の `/src` alias も維持する。
 - Firebase デプロイ設定（`firestore.rules`, `firebase.json`, `.firebaserc`, `firestore.indexes.json`）はリポジトリルートに配置。
 - `.gitignore` はルートで共通ローカル生成物（OS / editor / Node / Firebase 設定）を管理し、`apps/web/.gitignore` / `apps/ios/.gitignore` / `apps/android/.gitignore` は各アプリ固有の生成物だけを管理する。
 - `apps/ios` の commit 対象は `project.yml` と `Lightlist/` 配下のソースを基本とし、`xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` は含めない。`GoogleService-Info.plist` は `apps/ios/Lightlist/Resources/` にローカル配置して `.gitignore` で除外する。entitlements は `apps/ios/Lightlist/Lightlist.entitlements` を使う。
-- Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/common.tsx` に集約する。
-- Web の Auth / settings / taskLists の状態購読は `apps/web/src/common.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
+- Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/entry.tsx` に集約する。
+- Web の Auth / settings / taskLists の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
 - Web の task 更新系は Firestore `tasks` map の列挙順を順序根拠に使わず、必ず `order` 昇順の配列へ直してから追加・自動並び替え・D&D 並び替え・完了済み削除を計算する。
-- タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/common.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。
+- タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/entry.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。
 - locale の正本は `shared/locales/locales.json` 1 ファイルとし、Web / iOS / Android はその JSON を各 app 起動前または build 時にローカル resource へ同期して読む。String Catalog (.xcstrings) は採用しない。
 - Android の件数表示は `taskList.taskCount_one` / `taskList.taskCount_other` を `count` 付きで解決し、`"${count}個のタスク"` のような直書きを持ち込まない。
 - Android の設定値表示やアクセシビリティ文言も shared locale key を正とし、`system` / `top` / `Settings` / 固定曜日名のような raw value や固定言語文字列を直接表示しない。
@@ -87,22 +88,21 @@
 - Web は言語切替時に `document.documentElement.lang` と `dir` を同期する。`ar` は RTL、それ以外は LTR。
 - Web の `StartupSplash` は hydration mismatch を避けるため、読み上げラベルを i18n の初期言語解決に依存させず固定文字列（`読み込み中`）で扱う。
 - Web の `Carousel` は `direction` prop を必須運用し、RTL 時の `scrollLeft` はブラウザ差分（positive/negative）を正規化して index を算出する。
-- Web の認証後シェルは `apps/web/src/pages/app.tsx` を単一入口とし、`/app#/task-lists` を stack root、`/app#/task-lists/:taskListId` を task list 詳細、`/app#/settings` を設定画面として扱う。`/app` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。
+- Web の認証後シェルは `apps/web/src/entry.tsx` 内の app page 実装を単一入口とし、`/app/#/task-lists` を stack root、`/app/#/task-lists/:taskListId` を task list 詳細、`/app/#/settings` を設定画面として扱う。`/app/` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。
 - Web の開発サーバーと production build は `vite` / `vite build` を使う。
 - Web の本番レスポンスヘッダはアプリ内では持たず、配信基盤側で `Content-Security-Policy`、`Referrer-Policy`、`X-Content-Type-Options`、`X-Frame-Options`、`Permissions-Policy`、`Strict-Transport-Security` を付与する。
 - 配信用スクリーンショットの元画像は `apps/ios/screenshots` / `apps/android/screenshots` / `apps/web/screenshots` に置き、生成は `cd apps/web && npm run screenshots:generate -- <target>` またはルートの `just screenshots <target>` で行う。出力は iOS が `apps/ios/screenshots/app-store/iphone-6.9`、Android が `apps/android/screenshots/google-play/phone`、Web が `apps/web/public/screenshots/store/{wide,narrow}`。変換は中央基準の cover crop を使い、iOS App Store は `1290x2796`、Google Play phone は `1080x1920`、Web manifest screenshots は wide `1920x1080` / narrow `750x1334` を正とする。現行フローは iPhone 比率の元画像だけを対象にし、iPad App Store スクリーンショットは別途 iPad 実画面の元画像追加が必要。
-- `apps/web` では `pages/*` 以外の共通 TS/TSX は `apps/web/src/common.tsx` 1 ファイルへ集約し、route file 側は page 固有ロジックだけを持つ。
+- `apps/web` では runtime TS/TSX 実装を `apps/web/src/entry.tsx` 1 ファイルへ集約し、各 HTML entry は `body[data-page]` で同ファイル内の page component を切り替える。
 - Web の主要ページ:
-  - `apps/web/src/pages/index.tsx`（ランディング）
-  - `apps/web/src/pages/login.tsx`（サインイン/サインアップ/リセット依頼）
-  - `apps/web/src/pages/app.tsx`
-  - `apps/web/src/pages/password_reset.tsx`
-  - `apps/web/src/pages/sharecodes.tsx`
-  - `apps/web/src/pages/404.tsx`（カスタム404ページ）
-  - `apps/web/src/pages/500.tsx`（カスタム500ページ）
+  - `apps/web/html/index.html`（ランディング, `data-page="index"`）
+  - `apps/web/html/login/index.html`（サインイン/サインアップ/リセット依頼, `data-page="login"`）
+  - `apps/web/html/app/index.html`（認証後シェル, `data-page="app"`）
+  - `apps/web/html/password_reset/index.html`（`data-page="password_reset"`）
+  - `apps/web/html/sharecodes/index.html`（`data-page="sharecodes"`）
+  - `apps/web/html/404.html`（カスタム404ページ, `data-page="404"`）
+  - `apps/web/html/500.html`（カスタム500ページ, `data-page="500"`）
 - 共通 import:
   - Web アプリ内: `@/*`
-  - Web 共通コード: `@/common`
 - Analytics の実装は `apps/web/src/lib/analytics.ts` に集約。PII をパラメータに含めない。イベント設計は `docs/ANALYTICS.md` を参照。
 
 ## 主要コマンド
@@ -113,6 +113,8 @@
 - `apps/web`:
   - `npm run dev`
   - `npm run build`
+  - `npm run cf:preview`
+  - `npm run cf:deploy`
   - `npm run format`
   - `npm run lint`
   - `npm run knip`

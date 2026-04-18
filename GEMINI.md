@@ -21,11 +21,11 @@
 - `apps/web`（Vite multi-page app）/ `apps/ios`（SwiftUI）/ `apps/android`（Kotlin）
 - Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
 - SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/lib/` に統合済み。独立パッケージは廃止。
-- Firebase 初期化は `apps/web/src/common.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。Web の App Check も同ファイルで初期化し、`VITE_FIREBASE_APPCHECK_SITE_KEY` を使う。
+- Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。Web の App Check も同ファイルで初期化し、`VITE_FIREBASE_APPCHECK_SITE_KEY` を使う。
 - Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
-- Web の HTML entry から `src/entries/*` を読む script path は、各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。
-- pages は `firebase/*` を直接 import しない。Web 共通コードは `apps/web/src/common.tsx` へ集約し、page 側は `@/common` を使う。
-- タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/common.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。
+- Web の HTML entry は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。script path は各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。
+- Web UI は `firebase/*` を直接 import しない。Web の runtime TS/TSX 実装は `apps/web/src/entry.tsx` に集約する。
+- タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/entry.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。
 - Firebase デプロイ設定（`firestore.rules`, `firebase.json`, `.firebaserc`）はリポジトリルートに配置。
 - `.gitignore` はルートで共通ローカル生成物を管理し、`apps/web` / `apps/ios` / `apps/android` 配下は各アプリ固有の生成物だけを管理する。
 - `apps/ios` では `xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` と `apps/ios/Lightlist/Resources/GoogleService-Info.plist` を commit しない。
@@ -62,10 +62,11 @@
 - Web の翻訳資産は `shared/locales/locales.json` を `apps/web/scripts/sync-shared-locales.mjs` で `apps/web/src/locales.json` へ同期して使う。
 - Android の翻訳資産は `shared/locales/locales.json` を build 時に asset 化して使い、件数表示は `taskList.taskCount_one` / `taskList.taskCount_other` を `count` 付きで解決する。
 - Android の設定値表示やアクセシビリティ文言も shared locale key を正とし、`system` / `top` / `Settings` / 固定曜日名のような raw value や固定言語文字列を直接表示しない。
-- Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/common.tsx` に集約する。
-- Web の Auth / settings / taskLists の状態購読は `apps/web/src/common.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
+- Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/entry.tsx` に集約する。
+- Web の Auth / settings / taskLists の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
 - Web の task 更新系は Firestore `tasks` map の列挙順を順序根拠に使わず、必ず `order` 昇順の配列へ直してから追加・自動並び替え・D&D 並び替え・完了済み削除を計算する。
-- Web の認証後シェルは `apps/web/src/pages/app.tsx` を単一入口とし、`/app#/task-lists` を stack root、`/app#/task-lists/:taskListId` を task list 詳細、`/app#/settings` を設定画面として扱う。`/app` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。
+- Web の認証後シェルは `apps/web/src/entry.tsx` 内の app page 実装を単一入口とし、`/app/#/task-lists` を stack root、`/app/#/task-lists/:taskListId` を task list 詳細、`/app/#/settings` を設定画面として扱う。`/app/` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。
+- Web の本番静的配信は Cloudflare Pages を正とし、root path 配信を前提に Vite `base` は `/` を維持する。build 出力は `apps/web/dist`、Cloudflare Pages 用 response headers は `apps/web/public/_headers` に置く。
 - iOS / Android の translation loader と analytics helper は `ContentView.swift` / `ContentView.kt` に同居させる。
 - Android の app module は `ContentView.kt` 内の analytics helper が `BuildConfig.DEBUG` を参照するため、`apps/android/app/build.gradle.kts` の `buildFeatures.buildConfig = true` を維持する。
 - Android の `just run` は通常上書きインストールで Firebase Auth セッションを保持し、失敗時のみアンインストールして入れ直す。明示的なクリーン再インストールは `just run-clean` を使う。
@@ -76,10 +77,10 @@
 - Web の開発サーバーと production build は `vite` / `vite build` を使う。
 - iOS / Android の task row は drag handle・完了トグル・本文の縦方向中心を揃え、日付ラベルは本文や編集欄の縦位置を押し下げず、同じ本文領域内の直上へ近接表示する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
 - 配信用スクリーンショットの元画像は `apps/ios/screenshots` / `apps/android/screenshots` / `apps/web/screenshots` に置き、生成は `cd apps/web && npm run screenshots:generate -- <target>` または `just screenshots <target>` で行う。出力は iOS が `apps/ios/screenshots/app-store/iphone-6.9`、Android が `apps/android/screenshots/google-play/phone`、Web が `apps/web/public/screenshots/store/{wide,narrow}`。中央基準の cover crop を使い、iOS は `1290x2796`、Android phone は `1080x1920`、Web manifest screenshots は wide `1920x1080` / narrow `750x1334` を正とする。iPad App Store スクリーンショットは別途 iPad 実画面の元画像追加が必要。
-- `apps/web` では画面固有、または 1〜2 箇所でしか使わない UI / helper / hook は standalone file にせず、`pages/*` または直近のドメインファイルへ近接配置する。
+- `apps/web` では画面固有、または 1〜2 箇所でしか使わない UI / helper / hook も含めて runtime TS/TSX を `apps/web/src/entry.tsx` に集約する。
 - `apps/web`: Vite multi-page app
-  - 認証: `apps/web/src/pages/login.tsx`
-  - 共有: `apps/web/src/pages/sharecodes.tsx`
+  - 認証: `apps/web/src/entry.tsx`（HTML entry は `apps/web/html/login/index.html`）
+  - 共有: `apps/web/src/entry.tsx`（HTML entry は `apps/web/html/sharecodes/index.html`）
 - Web の本番 env は Vite の `.env.production` / `.env.production.local` または deploy 環境変数で供給し、build 前に `.env` をコピーしない。
 
 ## 4. 作業フロー
@@ -99,6 +100,8 @@
 
 - ルート: `just deploy-firestore` / `just deploy-firestore-prod`
 - Web: `cd apps/web && npm run dev`
+- Web: `cd apps/web && npm run cf:preview`
+- Web: `cd apps/web && npm run cf:deploy`
 - iOS: `cd apps/ios && just build`
 - Android: `cd apps/android && just lint` / `cd apps/android && just build`
 - Firestore デプロイ: `just deploy-firestore` / `just deploy-firestore-prod`

@@ -4,7 +4,7 @@
 
 - 認証方式は Firebase Authentication のメールアドレス + パスワード。
 - アカウント状態は Firebase Auth のセッションを正とする。
-- Web の認証状態、settings 購読、taskList 購読は `apps/web/src/common.tsx` の `AppStateProvider` と関連 hook に集約する。
+- Web の認証状態、settings 購読、taskList 購読は `apps/web/src/entry.tsx` の `AppStateProvider` と関連 hook に集約する。
 - iOS / Android は画面側から Firebase Auth と Firestore を直接呼ぶ。
 - iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。
 
@@ -23,9 +23,14 @@
 - App Check 開発トークン
   - `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`（localhost で App Check debug token を固定したい場合のみ）
 
+## Cloudflare Pages 配信時の前提
+
+- Firebase Authentication の authorized domains には Cloudflare Pages の `*.pages.dev` または運用 custom domain を追加する。
+- `VITE_PASSWORD_RESET_URL` は Cloudflare Pages で実際に配信する `/password_reset` URL に合わせる。
+
 ## App Check
 
-- Web は `apps/web/src/common.tsx` で Firebase App 初期化時に App Check を有効化する。
+- Web は `apps/web/src/entry.tsx` で Firebase App 初期化時に App Check を有効化する。
 - Web の provider は `ReCaptchaEnterpriseProvider` を使い、`VITE_FIREBASE_APPCHECK_SITE_KEY` を必須とする。
 - Web の localhost / `127.0.0.1` では `FIREBASE_APPCHECK_DEBUG_TOKEN` を自動設定し、`VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` があればその値を使い、未設定時は debug token 自動発行モードを使う。
 - iOS は `ContentView.swift` 内の `LightlistApp` で App Check provider factory を設定し、simulator / Debug では debug provider、本番デバイスでは App Attest 優先・DeviceCheck フォールバックで初期化する。
@@ -68,7 +73,7 @@
 - `ActionCodeSettings` は `url: VITE_PASSWORD_RESET_URL`、`handleCodeInApp: false`。
 - メール送信時の言語は、明示引数、現在設定、`ja` の順で解決する。
 - コード検証は `verifyPasswordResetCode(code)`、確定は `confirmPasswordReset(code, newPassword)`。
-- `apps/web/src/pages/password_reset.tsx` は `oobCode` を検証し、成功時は 2 秒後に `/` へ遷移する。
+- Web の `/password_reset/` page は `oobCode` を検証し、成功時は 2 秒後に `/` へ遷移する。実装は `apps/web/src/entry.tsx` に集約する。
 
 ## Native のサインアップ
 
@@ -94,9 +99,9 @@
 
 ## 画面仕様
 
-- Web の認証画面は `apps/web/src/pages/login.tsx`。
+- Web の認証画面は `/login/` で提供し、実装は `apps/web/src/entry.tsx` に集約する。
 - iOS のパスワードリセット deep link は `lightlist://password-reset?oobCode=...` を受け、`ContentView` の full screen cover で新しいパスワード入力画面を表示する。
-- Web の共有コードページは `/sharecodes?code=CODE` を受け、未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
+- Web の共有コードページは `/sharecodes/?code=CODE` を受け、未認証でも共有リストの軽量プレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - iOS の共有コード deep link は `lightlist://sharecodes/CODE` と `https://lightlist.com/sharecodes/CODE` を受け、未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - Android の deep link は `lightlist://password-reset?oobCode=...`、`lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`、`https://lightlist.com/password_reset?oobCode=...` を処理する。
 - Android の共有コード deep link は未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。

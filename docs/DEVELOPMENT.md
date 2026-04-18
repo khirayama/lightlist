@@ -38,13 +38,14 @@
 
 ## Web の前提
 
-- Firebase 初期化、App Check 初期化、i18n、認証・設定・タスクリスト関連の Web 共通コードは `apps/web/src/common.tsx` に集約する。
-- Web の状態購読は `apps/web/src/common.tsx` の `AppStateProvider` を正とし、Auth / settings / taskLists は `Context + useEffect` で購読する。
-- Web UI から `firebase/*` を直接 import せず、共通実装は `@/common` を通す。
+- Firebase 初期化、App Check 初期化、i18n、認証・設定・タスクリスト関連の Web runtime 実装は `apps/web/src/entry.tsx` に集約する。
+- Web の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` を正とし、Auth / settings / taskLists は `Context + useEffect` で購読する。
+- Web UI から `firebase/*` を直接 import せず、共通実装は `apps/web/src/entry.tsx` に集約する。
 - Web の Vite root は `apps/web/html` とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
-- Web の各 HTML entry から `src/entries/*` を読む script は、その HTML ファイル自身の配置位置を基準に相対参照する。`apps/web/html/index.html` と `apps/web/html/404.html` / `500.html` は `../src/entries/*.tsx`、`apps/web/html/*/index.html` は `../../src/entries/*.tsx` を使う。dev server では `/src/*` へ正規化された参照も `apps/web/src/*` へ解決できるように Vite alias を維持する。
-- Web 直下で管理対象にする route source は `html/*` と `src/pages/*` / `src/entries/*` で、`apps/web/app` `apps/web/login` `apps/web/password_reset` `apps/web/sharecodes` のような直下 route 名ディレクトリは置かない。`dist` `.next` `node_modules` `*.tsbuildinfo` はローカル生成物として保持しない。
-- Web の認証後シェルは `apps/web/src/pages/app.tsx` を単一入口とし、`/app#/task-lists` を stack root、`/app#/task-lists/:taskListId` を task list 詳細、`/app#/settings` を設定画面として扱う。`/app` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。mobile では tasklists root・detail・settings を同じシェル内の stack と横スライドで扱う。
+- Web の本番静的配信は Cloudflare Pages を正とし、Vite の `base` は `/`、build 出力は `apps/web/dist` を使う。
+- Web の HTML entry は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画する page を切り替える。`apps/web/html/index.html` と `apps/web/html/404.html` / `500.html` は `../src/entry.tsx`、`apps/web/html/*/index.html` は `../../src/entry.tsx` を使う。Vite 設定の `/src` alias は維持する。
+- Web 直下で管理対象にする route source は `html/*` と `src/entry.tsx` で、runtime `TS/TSX` は `entry.tsx` 1 ファイルに集約する。`apps/web/app` `apps/web/login` `apps/web/password_reset` `apps/web/sharecodes` のような直下 route 名ディレクトリは置かない。`dist` `.next` `node_modules` `*.tsbuildinfo` はローカル生成物として保持しない。
+- Web の認証後シェルは `apps/web/src/entry.tsx` 内の app page 実装を単一入口とし、`/app/#/task-lists` を stack root、`/app/#/task-lists/:taskListId` を task list 詳細、`/app/#/settings` を設定画面として扱う。`/app/` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。mobile では tasklists root・detail・settings を同じシェル内の stack と横スライドで扱う。
 - 開発サーバーと本番 build は `vite` / `vite build` を使う。
 - 本番レスポンスヘッダは配信基盤側で管理する。
 
@@ -65,6 +66,8 @@
 - ルート: `just deploy-firestore` / `just deploy-firestore-prod`
 - Web: `cd apps/web && npm run dev`
 - Web: `cd apps/web && npm run format && npm run lint && npm run build && npm run typecheck`
+- Web: `cd apps/web && npm run cf:preview`
+- Web: `cd apps/web && npm run cf:deploy`
 - iOS: `cd apps/ios && just build`
 - iOS: `cd apps/ios && xcodegen generate`
 - Android: `cd apps/android && just lint && just build`

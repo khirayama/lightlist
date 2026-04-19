@@ -1,7 +1,7 @@
 {
   "ar": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. جميع الحقوق محفوظة.",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
     "common": {
       "loading": "جارٍ التحميل...",
       "back": "رجوع",
@@ -283,7 +283,7 @@
   },
   "de": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. Alle Rechte vorbehalten.",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
     "common": {
       "loading": "Wird geladen...",
       "back": "Zurück",
@@ -847,7 +847,7 @@
   },
   "es": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. Todos los derechos reservados.",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
     "common": {
       "loading": "Cargando...",
       "back": "Atrás",
@@ -1129,7 +1129,7 @@
   },
   "fr": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. Tous droits réservés.",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
     "common": {
       "loading": "Chargement...",
       "back": "Retour",
@@ -1411,7 +1411,7 @@
   },
   "hi": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. सर्वाधिकार सुरक्षित।",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
     "common": {
       "loading": "लोड हो रहा है...",
       "back": "वापस",
@@ -1693,7 +1693,7 @@
   },
   "id": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. Hak cipta dilindungi.",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
     "common": {
       "loading": "Memuat...",
       "back": "Kembali",
@@ -1975,7 +1975,7 @@
   },
   "ja": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. 全著作権所有。",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
     "common": {
       "loading": "読み込み中...",
       "back": "戻る",
@@ -2257,7 +2257,7 @@
   },
   "ko": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. 모든 권리 보유.",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
     "common": {
       "loading": "로딩 중...",
       "back": "뒤로",
@@ -2539,7 +2539,7 @@
   },
   "pt-BR": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. Todos os direitos reservados.",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
     "common": {
       "loading": "Carregando...",
       "back": "Voltar",
@@ -2821,7 +2821,7 @@
   },
   "zh-CN": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist。保留所有权利。",
+    "copyright": "© 2024 Lightlist. All rights reserved.",
     "common": {
       "loading": "加载中...",
       "back": "返回",

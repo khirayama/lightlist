@@ -46,6 +46,7 @@
 - Web の HTML entry は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画する page を切り替える。`apps/web/html/index.html` と `apps/web/html/404.html` / `500.html` は `../src/entry.tsx`、`apps/web/html/*/index.html` は `../../src/entry.tsx` を使う。Vite 設定の `/src` alias は維持する。
 - Web 直下で管理対象にする route source は `html/*` と `src/entry.tsx` で、runtime `TS/TSX` は `entry.tsx` 1 ファイルに集約する。`apps/web/app` `apps/web/login` `apps/web/password_reset` `apps/web/sharecodes` のような直下 route 名ディレクトリは置かない。`dist` `.next` `node_modules` `*.tsbuildinfo` はローカル生成物として保持しない。
 - Web の認証後シェルは `apps/web/src/entry.tsx` 内の app page 実装を単一入口とし、`/app/#/task-lists` を stack root、`/app/#/task-lists/:taskListId` を task list 詳細、`/app/#/settings` を設定画面として扱う。`/app/` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。mobile では tasklists root・detail・settings を同じシェル内の stack と横スライドで扱う。
+- Web のトップページ（`/`）は `IndexPage` を正とし、`apps/web/public/brand/logo.svg` をブランドロゴに使う。旧ロゴは `apps/web/public/brand/logo_legacy.svg` と `shared/assets/brand/logo_legacy.svg` に退避する。LP は白背景を基調に、sticky header 内のロゴ・言語選択・`Login` ボタン、センター配置のヒーローコピー、大きいデスクトップ screenshot と重ねたモバイル screenshot、3 つの feature card、単色 CTA で構成する。
 - 開発サーバーと本番 build は `vite` / `vite build` を使う。
 - 本番レスポンスヘッダは配信基盤側で管理する。
 

@@ -6691,7 +6691,7 @@ function IndexPage() {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="mx-auto mb-4 h-10 w-10 text-muted dark:text-muted-dark"
+          className="h-7 w-7 text-[#4d4d4d] dark:text-[#d7d7d7]"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -6711,7 +6711,7 @@ function IndexPage() {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="mx-auto mb-4 h-10 w-10 text-muted dark:text-muted-dark"
+          className="h-7 w-7 text-[#4d4d4d] dark:text-[#d7d7d7]"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -6731,7 +6731,7 @@ function IndexPage() {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="mx-auto mb-4 h-10 w-10 text-muted dark:text-muted-dark"
+          className="h-7 w-7 text-[#4d4d4d] dark:text-[#d7d7d7]"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -6749,116 +6749,134 @@ function IndexPage() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-surface text-text dark:bg-background-dark dark:text-text-dark">
-      <header className="mx-auto flex max-w-5xl justify-end px-6 py-4">
-        <label className="inline-flex items-center gap-2 text-sm">
-          <span className="sr-only">Language</span>
-          <select
-            value={currentLang}
-            onChange={(event) =>
-              handleLangChange(normalizeLanguage(event.target.value))
-            }
-            className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-muted dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:focus:border-muted-dark"
-          >
-            {SUPPORTED_LANGUAGES.map((language) => (
-              <option key={language} value={language}>
-                {LANGUAGE_DISPLAY_NAMES[language]}
-              </option>
-            ))}
-          </select>
-        </label>
+    <div className="min-h-screen bg-white text-text dark:bg-[#111111] dark:text-text-dark">
+      <header className="sticky top-0 z-40 border-b border-black/10 bg-white/92 backdrop-blur dark:border-white/10 dark:bg-[#111111]/92">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-3.5">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <img
+              src="/brand/logo.svg"
+              alt=""
+              aria-hidden="true"
+              className="block h-9 w-auto sm:h-12"
+            />
+            <p className="text-base font-semibold tracking-[0.16em] text-[#1a1a1a] dark:text-[#f2f2f2] sm:text-lg sm:tracking-[0.18em]">
+              Lightlist
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-3 sm:justify-end">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <span className="sr-only">Language</span>
+              <select
+                value={currentLang}
+                onChange={(event) =>
+                  handleLangChange(normalizeLanguage(event.target.value))
+                }
+                className="max-w-[calc(100vw-8.5rem)] rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm text-text outline-none transition focus:border-[#666666] dark:border-white/10 dark:bg-[#171717] dark:text-text-dark dark:focus:border-white/30 sm:max-w-none sm:px-4 sm:py-2"
+              >
+                {SUPPORTED_LANGUAGES.map((language) => (
+                  <option key={language} value={language}>
+                    {LANGUAGE_DISPLAY_NAMES[language]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <a
+              href="/login/"
+              className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#171717] px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-[#2d2d2d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#171717] dark:bg-[#f2f2f2] dark:text-[#111111] dark:hover:bg-[#dedede] dark:focus-visible:outline-[#f2f2f2] sm:px-5 sm:py-2"
+            >
+              Login
+            </a>
+          </div>
+        </div>
       </header>
 
       <main id="main-content" tabIndex={-1}>
-        {/* Hero */}
         <section
           aria-labelledby="landing-hero-title"
-          className="px-6 pt-16 pb-20 text-center sm:pt-24 sm:pb-28"
+          className="px-6 pb-20 pt-6 sm:pb-24 sm:pt-10"
         >
-          <div className="mx-auto max-w-3xl">
-            <div className="flex justify-center py-2 sm:py-4">
-              <img
-                src="/brand/logo.svg"
-                alt=""
-                aria-hidden="true"
-                className="block h-12 w-auto sm:h-16 lg:h-20"
-              />
-            </div>
-            <h1
-              id="landing-hero-title"
-              className="mt-4 whitespace-pre-line text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl"
-            >
-              {t("pages.index.headline")}
-            </h1>
-            <p className="mx-auto mt-6 max-w-xl whitespace-pre-line text-lg text-muted dark:text-muted-dark">
-              {t("pages.index.subheadline")}
-            </p>
-            <div className="mt-10">
-              <a
-                href="/login/"
-                className="inline-block rounded-full bg-primary px-10 py-4 text-lg font-semibold text-primaryText transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:bg-primary-dark dark:text-primaryText-dark dark:hover:opacity-90"
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-3xl text-center">
+              <h1
+                id="landing-hero-title"
+                className="whitespace-pre-line text-[2.6rem] font-semibold tracking-[-0.05em] text-[#121212] dark:text-[#f5f5f5] sm:text-6xl lg:text-7xl"
               >
-                {t("pages.index.getStarted")}
-              </a>
+                {t("pages.index.headline")}
+              </h1>
+              <p className="mx-auto mt-6 max-w-2xl whitespace-pre-line text-lg leading-8 text-[#5d5d5d] dark:text-[#c9c9c9] sm:text-xl">
+                {t("pages.index.subheadline")}
+              </p>
+              <div className="mt-10 flex flex-col items-center gap-4">
+                <a
+                  href="/login/"
+                  className="inline-flex items-center justify-center rounded-full bg-[#171717] px-8 py-4 text-base font-semibold text-white transition hover:bg-[#2d2d2d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#171717] dark:bg-[#f2f2f2] dark:text-[#111111] dark:hover:bg-[#dedede] dark:focus-visible:outline-[#f2f2f2]"
+                >
+                  {t("pages.index.getStarted")}
+                </a>
+              </div>
+            </div>
+
+            <div className="mx-auto mt-16 max-w-5xl">
+              <div className="relative mx-auto max-w-[920px] pt-8 sm:pt-4">
+                <div className="mx-auto w-[88%] overflow-hidden rounded-[30px] border border-black/10 bg-white p-3 shadow-[0_26px_70px_rgba(17,17,17,0.1)] dark:border-white/10 dark:bg-[#171717] dark:shadow-[0_26px_70px_rgba(0,0,0,0.34)] sm:w-[78%] sm:p-4">
+                  <div className="overflow-hidden rounded-[24px] border border-black/10 bg-[#fafafa] dark:border-white/10 dark:bg-[#121212]">
+                    <img
+                      src="/screenshot_ja_desktop.png"
+                      alt={t("pages.index.preview.desktopAlt")}
+                      width={1280}
+                      height={800}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                <div className="absolute right-0 top-0 z-20 w-[34%] min-w-[150px] max-w-[220px] sm:right-[8%] sm:top-[8%] sm:w-[24%]">
+                  <div className="overflow-hidden rounded-[24px] border border-black/10 bg-white p-2.5 shadow-[0_18px_40px_rgba(17,17,17,0.12)] dark:border-white/10 dark:bg-[#171717] dark:shadow-[0_18px_40px_rgba(0,0,0,0.3)] sm:rounded-[28px] sm:p-3">
+                    <div className="overflow-hidden rounded-[18px] border border-black/10 bg-[#fafafa] dark:border-white/10 dark:bg-[#121212] sm:rounded-[22px]">
+                      <img
+                        src="/screenshot_ja_mobile.png"
+                        alt={t("pages.index.preview.mobileAlt")}
+                        width={720}
+                        height={1560}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Screenshot Preview */}
-        <section aria-labelledby="landing-preview-title" className="px-6 pb-20">
-          <div className="mx-auto max-w-5xl">
-            <h2
-              id="landing-preview-title"
-              className="mb-10 text-center text-2xl font-bold sm:text-3xl"
-            >
-              {t("pages.index.preview.title")}
-            </h2>
-            <div className="relative">
-              <div className="overflow-hidden rounded-2xl shadow-2xl ring-1 ring-border dark:ring-border-dark">
-                <img
-                  src="/screenshot_ja_desktop.png"
-                  alt={t("pages.index.preview.desktopAlt")}
-                  width={1280}
-                  height={800}
-                  className="w-full"
-                />
-              </div>
-              <div className="absolute -right-4 -bottom-6 w-1/4 min-w-[120px] max-w-[200px] overflow-hidden rounded-2xl shadow-2xl ring-1 ring-border sm:-right-6 sm:-bottom-8 dark:ring-border-dark py-3">
-                <img
-                  src="/screenshot_ja_mobile.png"
-                  alt={t("pages.index.preview.mobileAlt")}
-                  width={720}
-                  height={1560}
-                  className="w-full"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Features */}
         <section
           aria-labelledby="landing-features-title"
-          className="bg-background pt-16 pb-20 dark:bg-surface-dark"
+          className="border-t border-black/10 px-6 py-20 dark:border-white/10 sm:py-24"
         >
-          <div className="mx-auto max-w-5xl px-6">
-            <h2
-              id="landing-features-title"
-              className="mb-12 text-center text-2xl font-bold sm:text-3xl"
-            >
-              {t("pages.index.features.title")}
-            </h2>
-            <div className="grid gap-8 sm:grid-cols-3">
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2
+                id="landing-features-title"
+                className="text-3xl font-semibold tracking-[-0.04em] text-[#151515] dark:text-[#f2f2f2] sm:text-4xl"
+              >
+                {t("pages.index.features.title")}
+              </h2>
+              <p className="mt-4 text-base leading-7 text-[#666666] dark:text-[#bbbbbb]">
+                {t("pages.index.preview.title")}
+              </p>
+            </div>
+            <div className="mt-10 grid gap-4 lg:grid-cols-3">
               {features.map(({ key, icon }) => (
                 <div
                   key={key}
-                  className="rounded-2xl bg-surface p-8 text-center shadow-sm dark:bg-surface-dark"
+                  className="rounded-[28px] border border-black/10 bg-white p-7 dark:border-white/10 dark:bg-[#171717]"
                 >
-                  {icon}
-                  <h3 className="mb-3 text-lg font-semibold">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f5f5f5] dark:bg-white/5">
+                    {icon}
+                  </div>
+                  <h3 className="mt-5 text-xl font-semibold text-[#1c1c1c] dark:text-[#f2f2f2]">
                     {t(`pages.index.features.${key}.title`)}
                   </h3>
-                  <p className="text-sm leading-relaxed text-muted dark:text-muted-dark">
+                  <p className="mt-3 text-sm leading-7 text-[#666666] dark:text-[#b8b8b8]">
                     {t(`pages.index.features.${key}.description`)}
                   </p>
                 </div>
@@ -6867,25 +6885,30 @@ function IndexPage() {
           </div>
         </section>
 
-        {/* CTA */}
         <section
           aria-labelledby="landing-cta-title"
-          className="px-6 py-24 text-center"
+          className="border-t border-black/10 px-6 py-20 dark:border-white/10 sm:py-24"
         >
-          <div className="mx-auto max-w-2xl">
+          <div className="mx-auto max-w-4xl text-center">
+            <img
+              src="/brand/logo.svg"
+              alt=""
+              aria-hidden="true"
+              className="mx-auto h-20 w-auto sm:h-24"
+            />
             <h2
               id="landing-cta-title"
-              className="text-3xl font-bold sm:text-4xl"
+              className="mt-8 text-3xl font-semibold tracking-[-0.04em] text-[#121212] dark:text-[#f5f5f5] sm:text-5xl"
             >
               {t("pages.index.cta.title")}
             </h2>
-            <p className="mt-4 text-lg text-muted dark:text-muted-dark">
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#666666] dark:text-[#bbbbbb] sm:text-lg">
               {t("pages.index.cta.description")}
             </p>
             <div className="mt-10">
               <a
                 href="/login/"
-                className="inline-block rounded-full bg-primary px-10 py-4 text-lg font-semibold text-primaryText transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:bg-primary-dark dark:text-primaryText-dark dark:hover:opacity-90"
+                className="inline-flex items-center justify-center rounded-full bg-[#171717] px-8 py-4 text-base font-semibold text-white transition hover:bg-[#2d2d2d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#171717] dark:bg-[#f2f2f2] dark:text-[#111111] dark:hover:bg-[#dedede] dark:focus-visible:outline-[#f2f2f2]"
               >
                 {t("pages.index.cta.button")}
               </a>
@@ -6894,7 +6917,7 @@ function IndexPage() {
         </section>
       </main>
 
-      <footer className="border-t border-border px-6 py-10 text-center dark:border-border-dark">
+      <footer className="border-t border-black/10 px-6 py-10 text-center dark:border-white/10">
         <p className="text-sm text-muted dark:text-muted-dark">
           {t("copyright")}
         </p>

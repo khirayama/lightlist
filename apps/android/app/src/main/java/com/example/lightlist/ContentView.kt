@@ -1,13 +1,25 @@
 package com.example.lightlist
 
+import android.app.DatePickerDialog
 import android.content.Context
+import android.content.DialogInterface
+import android.content.Intent
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.util.Log
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
-import com.example.lightlist.ui.theme.LightlistTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -37,7 +49,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,6 +85,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -109,6 +126,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.rememberCoroutineScope
@@ -130,14 +152,12 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.ui.platform.LocalFocusManager
 import java.util.Calendar
-import java.util.TimeZone
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.Date
+import java.util.TimeZone
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalDensity
@@ -158,12 +178,60 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.ui.window.DialogProperties
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.appCheck
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import java.text.DateFormatSymbols
+
 import org.json.JSONObject
+
+private val DarkColorScheme = darkColorScheme(
+    primary = Color(0xFFD0BCFF),
+    secondary = Color(0xFFCCC2DC),
+    tertiary = Color(0xFFEFB8C8),
+)
+
+private val LightColorScheme = lightColorScheme(
+    primary = Color(0xFF6650A4),
+    secondary = Color(0xFF625B71),
+    tertiary = Color(0xFF7D5260),
+)
+
+private val LightlistTypography = Typography(
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp,
+    )
+)
+
+@Composable
+private fun LightlistTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    val colorScheme = when {
+        dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = LightlistTypography,
+        content = content,
+    )
+}
 
 class Translations {
     private var dict: JSONObject = JSONObject()
@@ -177,8 +245,9 @@ class Translations {
         val lang = if (supported.contains(language)) language else "ja"
         currentLanguage = lang
         try {
-            val json = context.assets.open("locales/$lang.json").bufferedReader().readText()
-            dict = JSONObject(json)
+            val json = context.assets.open("locales.json").bufferedReader().readText()
+            val allLocales = JSONObject(json)
+            dict = allLocales.optJSONObject(lang) ?: JSONObject()
         } catch (_: Exception) {
             dict = JSONObject()
         }
@@ -264,6 +333,81 @@ sealed class PendingDeepLink {
     data class ShareCode(val shareCode: String) : PendingDeepLink()
 }
 
+class MainActivity : ComponentActivity() {
+    private var pendingDeepLink by mutableStateOf(parseDeepLink(intent))
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        FirebaseApp.initializeApp(this)
+        Firebase.appCheck.installAppCheckProviderFactory(
+            if (BuildConfig.DEBUG) {
+                DebugAppCheckProviderFactory.getInstance()
+            } else {
+                PlayIntegrityAppCheckProviderFactory.getInstance()
+            }
+        )
+
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            logException(throwable.message ?: "Unknown error", fatal = true)
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+
+        enableEdgeToEdge()
+        setContent {
+            ContentView(
+                pendingDeepLink = pendingDeepLink,
+                onPendingDeepLinkConsumed = { pendingDeepLink = null }
+            )
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingDeepLink = parseDeepLink(intent)
+    }
+
+    private fun parseDeepLink(intent: Intent?): PendingDeepLink? {
+        val data = intent?.data ?: return null
+        val scheme = data.scheme?.lowercase()
+        val host = data.host?.lowercase()
+        val pathSegments = data.pathSegments
+
+        if (scheme == "lightlist") {
+            if (host == "password-reset") {
+                val code = data.getQueryParameter("oobCode")
+                if (!code.isNullOrBlank()) {
+                    return PendingDeepLink.PasswordReset(code)
+                }
+            }
+
+            if (host == "sharecodes") {
+                val shareCode = pathSegments.firstOrNull()
+                if (!shareCode.isNullOrBlank()) {
+                    return PendingDeepLink.ShareCode(shareCode.uppercase())
+                }
+            }
+        }
+
+        if ((scheme == "https" || scheme == "http") && host == "lightlist.com") {
+            if (pathSegments.size >= 2 && pathSegments[0].equals("sharecodes", ignoreCase = true)) {
+                return PendingDeepLink.ShareCode(pathSegments[1].uppercase())
+            }
+
+            if (pathSegments.firstOrNull().equals("password_reset", ignoreCase = true)) {
+                val code = data.getQueryParameter("oobCode")
+                if (!code.isNullOrBlank()) {
+                    return PendingDeepLink.PasswordReset(code)
+                }
+            }
+        }
+
+        return null
+    }
+}
+
 private enum class AuthScreen {
     SignIn,
     SignUp,
@@ -295,6 +439,14 @@ private data class TaskListDetail(
     val shareCode: String? = null
 )
 
+private data class SharedTaskListPreviewUiState(
+    val taskListId: String? = null,
+    val taskList: TaskListDetail? = null,
+    val isLoading: Boolean = false,
+    val isAdded: Boolean = false,
+    val errorMessage: String? = null
+)
+
 private data class CalendarTask(
     val id: String,
     val taskListId: String,
@@ -312,6 +464,14 @@ private const val SHARE_CODE_GENERATION_FAILED_ERROR = "SHARE_CODE_GENERATION_FA
 private const val TASK_LIST_ORDER_NOT_FOUND_ERROR = "TASK_LIST_ORDER_NOT_FOUND"
 private const val TASK_LIST_ALREADY_ADDED_ERROR = "TASK_LIST_ALREADY_ADDED"
 private const val TABLET_MIN_WIDTH_DP = 840
+private object AppIconMetrics {
+    val standardActionIconSize = 24.dp
+    val leadingButtonIconSize = 22.dp
+    val compactActionIconSize = 20.dp
+    val inlineActionIconSize = 18.dp
+    val dragHandleDotSize = 3.5.dp
+    val dragHandleDotSpacing = 2.5.dp
+}
 private object TaskListDetailMetrics {
     val topBarHeight = 48.dp
     val indicatorTopOffset = 4.dp
@@ -319,14 +479,14 @@ private object TaskListDetailMetrics {
     val indicatorTouchSize = 24.dp
     val indicatorDotSize = 7.dp
     val headerActionIconButtonSize = 28.dp
-    val headerActionIconSize = 16.dp
+    val headerActionIconSize = AppIconMetrics.compactActionIconSize
     val headerActionSpacing = 10.dp
     val inputCornerRadius = 14.dp
     val inputHorizontalPadding = 14.dp
     val inputVerticalPadding = 10.dp
     val inputActionSpacing = 8.dp
     val addActionIconButtonSize = 32.dp
-    val addActionIconSize = 16.dp
+    val addActionIconSize = AppIconMetrics.compactActionIconSize
     val actionRowVerticalPadding = 2.dp
     val actionControlVerticalPadding = 2.dp
     val sectionBottomSpacing = 14.dp
@@ -344,7 +504,7 @@ private object TaskListDetailMetrics {
     val completionDotSize = 18.dp
     val taskTextStartPadding = 3.dp
     val trailingDateButtonWidth = 22.dp
-    val trailingDateIconSize = 17.dp
+    val trailingDateIconSize = AppIconMetrics.compactActionIconSize
 }
 
 private val AUTH_ERROR_KEY_MAP = mapOf(
@@ -536,6 +696,85 @@ private data class SettingsUiState(
     val isLoading: Boolean = true
 )
 
+private fun removeTaskListListeners(listeners: List<ListenerRegistration>) {
+    listeners.forEach { it.remove() }
+}
+
+private fun <T> subscribeToOrderedTaskLists(
+    userId: String,
+    mapDocument: (String, Map<String, Any>) -> T,
+    onPublish: (List<T>) -> Unit,
+    onError: (() -> Unit)? = null
+): () -> Unit {
+    val db = Firebase.firestore
+    var orderedTaskListIds = emptyList<String>()
+    var taskListIdsKey = ""
+    var taskListsById = emptyMap<String, T>()
+    var taskListChunkListeners = emptyList<ListenerRegistration>()
+
+    fun publish() {
+        onPublish(orderedTaskListIds.mapNotNull { taskListsById[it] })
+    }
+
+    fun subscribeToTaskLists(taskListIds: List<String>) {
+        val nextKey = taskListIds.sorted().joinToString("|")
+        if (taskListIdsKey == nextKey) {
+            publish()
+            return
+        }
+        taskListIdsKey = nextKey
+        removeTaskListListeners(taskListChunkListeners)
+        taskListChunkListeners = emptyList()
+        taskListsById = taskListsById.filterKeys { taskListIds.contains(it) }
+
+        if (taskListIds.isEmpty()) {
+            publish()
+            return
+        }
+
+        taskListChunkListeners = taskListIds.chunked(10).map { chunk ->
+            db.collection("taskLists")
+                .whereIn(FieldPath.documentId(), chunk)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        onError?.invoke()
+                        return@addSnapshotListener
+                    }
+
+                    val nextTaskListsById = taskListsById.toMutableMap()
+                    snapshot?.documentChanges?.forEach { change ->
+                        val taskListId = change.document.id
+                        if (change.type.name == "REMOVED") {
+                            nextTaskListsById.remove(taskListId)
+                        } else {
+                            nextTaskListsById[taskListId] =
+                                mapDocument(taskListId, change.document.data)
+                        }
+                    }
+                    taskListsById = nextTaskListsById
+                    publish()
+                }
+        }
+    }
+
+    val taskListOrderListener = db.collection("taskListOrder")
+        .document(userId)
+        .addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                onError?.invoke()
+                return@addSnapshotListener
+            }
+
+            orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap<String, Any>())
+            subscribeToTaskLists(orderedTaskListIds)
+        }
+
+    return {
+        taskListOrderListener.remove()
+        removeTaskListListeners(taskListChunkListeners)
+    }
+}
+
 @Composable
 fun ContentView(
     pendingDeepLink: PendingDeepLink?,
@@ -546,7 +785,7 @@ fun ContentView(
     var currentUserId by remember { mutableStateOf(Firebase.auth.currentUser?.uid) }
     var authScreen by rememberSaveable { mutableStateOf(AuthScreen.SignIn) }
     var pendingPasswordResetCode by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingShareCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingSharePreviewCode by rememberSaveable { mutableStateOf<String?>(null) }
     var requestedTaskListId by rememberSaveable { mutableStateOf<String?>(null) }
 
     DisposableEffect(Unit) {
@@ -578,33 +817,12 @@ fun ContentView(
                 authScreen = AuthScreen.Reset
             }
             is PendingDeepLink.ShareCode -> {
-                pendingShareCode = pendingDeepLink.shareCode
+                pendingSharePreviewCode = pendingDeepLink.shareCode
             }
             null -> Unit
         }
         if (pendingDeepLink != null) {
             onPendingDeepLinkConsumed()
-        }
-    }
-
-    LaunchedEffect(isLoggedIn, pendingShareCode) {
-        if (!isLoggedIn) {
-            return@LaunchedEffect
-        }
-
-        val normalized = pendingShareCode?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }
-            ?: return@LaunchedEffect
-        pendingShareCode = null
-
-        try {
-            val taskListId = fetchTaskListIdByShareCode(normalized) ?: return@LaunchedEffect
-            try {
-                addSharedTaskListToOrder(taskListId)
-                logShareCodeJoin()
-            } catch (_: Exception) {
-            }
-            requestedTaskListId = taskListId
-        } catch (_: Exception) {
         }
     }
 
@@ -616,6 +834,16 @@ fun ContentView(
             ResetPasswordView(
                 code = pendingPasswordResetCode!!,
                 onDismiss = { pendingPasswordResetCode = null }
+            )
+        } else if (pendingSharePreviewCode != null) {
+            SharedTaskListPreviewScreen(
+                shareCode = pendingSharePreviewCode!!,
+                userId = currentUserId,
+                onDismiss = { pendingSharePreviewCode = null },
+                onAdded = { taskListId ->
+                    pendingSharePreviewCode = null
+                    requestedTaskListId = taskListId
+                }
             )
         } else {
             val isTabletLayout = isLoggedIn && maxWidth >= TABLET_MIN_WIDTH_DP.dp
@@ -696,10 +924,116 @@ fun ContentView(
 }
 
 @Composable
-private fun rememberTaskListsUiState(userId: String?): TaskListsUiState {
+private fun SharedTaskListPreviewScreen(
+    shareCode: String,
+    userId: String?,
+    onDismiss: () -> Unit,
+    onAdded: (String) -> Unit
+) {
+    val t = LocalTranslations.current
+    val uiState = rememberSharedTaskListPreviewState(shareCode, userId)
+    val settingsUiState = rememberSettingsUiState(userId)
+    val scope = rememberCoroutineScope()
+    var isJoining by remember { mutableStateOf(false) }
+    var addToOrderError by remember { mutableStateOf<String?>(null) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(resolveTaskListBackgroundColor(uiState.taskList?.background))
+    ) {
+        when {
+            uiState.isLoading -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            uiState.taskList != null -> {
+                TaskListDetailPage(
+                    taskList = uiState.taskList,
+                    taskInsertPosition = settingsUiState.taskInsertPosition,
+                    autoSort = settingsUiState.autoSort,
+                    topInset = 56.dp
+                )
+            }
+            else -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        uiState.errorMessage ?: t.t("pages.sharecode.error"),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = t.t("common.back"),
+                        modifier = Modifier.size(AppIconMetrics.leadingButtonIconSize)
+                    )
+                }
+            }
+
+            if (userId != null && !uiState.isAdded && uiState.taskListId != null) {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isJoining = true
+                            addToOrderError = null
+                            try {
+                                addSharedTaskListToOrder(uiState.taskListId)
+                                logShareCodeJoin()
+                                onAdded(uiState.taskListId)
+                            } catch (_: Exception) {
+                                addToOrderError = t.t("pages.sharecode.addToOrderError")
+                            } finally {
+                                isJoining = false
+                            }
+                        }
+                    },
+                    enabled = !isJoining
+                ) {
+                    Text(if (isJoining) t.t("common.loading") else t.t("pages.sharecode.addToOrder"))
+                }
+            }
+        }
+
+        if (addToOrderError != null) {
+            Text(
+                addToOrderError!!,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 72.dp, start = 16.dp, end = 16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun <T> rememberOrderedTaskListsState(
+    userId: String?,
+    mapDocument: (String, Map<String, Any>) -> T
+): OrderedTaskListsUiState<T> {
     var uiState by remember(userId) {
         mutableStateOf(
-            TaskListsUiState(
+            OrderedTaskListsUiState<T>(
                 isLoading = userId != null,
                 hasError = false
             )
@@ -708,181 +1042,26 @@ private fun rememberTaskListsUiState(userId: String?): TaskListsUiState {
 
     DisposableEffect(userId) {
         if (userId == null) {
-            uiState = TaskListsUiState()
+            uiState = OrderedTaskListsUiState()
             onDispose {}
         } else {
-            val db = Firebase.firestore
-            var orderedTaskListIds = emptyList<String>()
-            var taskListIdsKey = ""
-            var taskListsById = emptyMap<String, TaskListSummary>()
-            var taskListChunkListeners = emptyList<ListenerRegistration>()
-
-            fun publish() {
-                uiState = TaskListsUiState(
-                    taskLists = orderedTaskListIds.mapNotNull { taskListsById[it] },
-                    isLoading = false,
-                    hasError = false
-                )
-            }
-
-            fun subscribeToTaskLists(taskListIds: List<String>) {
-                val nextKey = taskListIds.sorted().joinToString("|")
-                if (taskListIdsKey == nextKey) {
-                    publish()
-                    return
+            uiState = OrderedTaskListsUiState(isLoading = true, hasError = false)
+            val dispose = subscribeToOrderedTaskLists(
+                userId = userId,
+                mapDocument = mapDocument,
+                onPublish = { taskLists ->
+                    uiState = OrderedTaskListsUiState<T>(
+                        taskLists = taskLists,
+                        isLoading = false,
+                        hasError = false
+                    )
+                },
+                onError = {
+                    uiState = OrderedTaskListsUiState<T>(isLoading = false, hasError = true)
                 }
-                taskListIdsKey = nextKey
-                taskListChunkListeners.forEach { it.remove() }
-                taskListChunkListeners = emptyList()
-                taskListsById = taskListsById.filterKeys { taskListIds.contains(it) }
-
-                if (taskListIds.isEmpty()) {
-                    publish()
-                    return
-                }
-
-                val listeners = mutableListOf<ListenerRegistration>()
-                taskListIds.chunked(10).forEach { chunk ->
-                    val listener = db.collection("taskLists")
-                        .whereIn(FieldPath.documentId(), chunk)
-                        .addSnapshotListener { snapshot, error ->
-                            if (error != null) {
-                                uiState = uiState.copy(isLoading = false, hasError = true)
-                                return@addSnapshotListener
-                            }
-
-                            val nextTaskListsById = taskListsById.toMutableMap()
-                            snapshot?.documentChanges?.forEach { change ->
-                                val taskListId = change.document.id
-                                if (change.type.name == "REMOVED") {
-                                    nextTaskListsById.remove(taskListId)
-                                } else {
-                                    nextTaskListsById[taskListId] =
-                                        parseTaskListSummary(taskListId, change.document.data)
-                                }
-                            }
-                            taskListsById = nextTaskListsById
-                            publish()
-                        }
-                    listeners += listener
-                }
-                taskListChunkListeners = listeners
-            }
-
-            uiState = TaskListsUiState(isLoading = true, hasError = false)
-            val taskListOrderListener = db.collection("taskListOrder")
-                .document(userId)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        uiState = TaskListsUiState(isLoading = false, hasError = true)
-                        return@addSnapshotListener
-                    }
-
-                    orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap<String, Any>())
-                    subscribeToTaskLists(orderedTaskListIds)
-                }
-
-            onDispose {
-                taskListOrderListener.remove()
-                taskListChunkListeners.forEach { it.remove() }
-            }
-        }
-    }
-
-    return uiState
-}
-
-@Composable
-private fun rememberTaskListDetailsUiState(userId: String?): TaskListDetailsUiState {
-    var uiState by remember(userId) {
-        mutableStateOf(
-            TaskListDetailsUiState(
-                isLoading = userId != null,
-                hasError = false
             )
-        )
-    }
 
-    DisposableEffect(userId) {
-        if (userId == null) {
-            uiState = TaskListDetailsUiState()
-            onDispose {}
-        } else {
-            val db = Firebase.firestore
-            var orderedTaskListIds = emptyList<String>()
-            var taskListIdsKey = ""
-            var taskListsById = emptyMap<String, TaskListDetail>()
-            var taskListChunkListeners = emptyList<ListenerRegistration>()
-
-            fun publish() {
-                uiState = TaskListDetailsUiState(
-                    taskLists = orderedTaskListIds.mapNotNull { taskListsById[it] },
-                    isLoading = false,
-                    hasError = false
-                )
-            }
-
-            fun subscribeToTaskLists(taskListIds: List<String>) {
-                val nextKey = taskListIds.sorted().joinToString("|")
-                if (taskListIdsKey == nextKey) {
-                    publish()
-                    return
-                }
-                taskListIdsKey = nextKey
-                taskListChunkListeners.forEach { it.remove() }
-                taskListChunkListeners = emptyList()
-                taskListsById = taskListsById.filterKeys { taskListIds.contains(it) }
-
-                if (taskListIds.isEmpty()) {
-                    publish()
-                    return
-                }
-
-                val listeners = mutableListOf<ListenerRegistration>()
-                taskListIds.chunked(10).forEach { chunk ->
-                    val listener = db.collection("taskLists")
-                        .whereIn(FieldPath.documentId(), chunk)
-                        .addSnapshotListener { snapshot, error ->
-                            if (error != null) {
-                                uiState = uiState.copy(isLoading = false, hasError = true)
-                                return@addSnapshotListener
-                            }
-
-                            val nextTaskListsById = taskListsById.toMutableMap()
-                            snapshot?.documentChanges?.forEach { change ->
-                                val taskListId = change.document.id
-                                if (change.type.name == "REMOVED") {
-                                    nextTaskListsById.remove(taskListId)
-                                } else {
-                                    nextTaskListsById[taskListId] =
-                                        parseTaskListDetail(taskListId, change.document.data)
-                                }
-                            }
-                            taskListsById = nextTaskListsById
-                            publish()
-                        }
-                    listeners += listener
-                }
-                taskListChunkListeners = listeners
-            }
-
-            uiState = TaskListDetailsUiState(isLoading = true, hasError = false)
-            val taskListOrderListener = db.collection("taskListOrder")
-                .document(userId)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        uiState = TaskListDetailsUiState(isLoading = false, hasError = true)
-                        return@addSnapshotListener
-                    }
-
-                    orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap<String, Any>())
-                    subscribeToTaskLists(orderedTaskListIds)
-                }
-
-            onDispose {
-                taskListOrderListener.remove()
-                taskListChunkListeners.forEach { it.remove() }
-            }
+            onDispose { dispose() }
         }
     }
 
@@ -890,72 +1069,15 @@ private fun rememberTaskListDetailsUiState(userId: String?): TaskListDetailsUiSt
 }
 
 @Composable
-private fun rememberCalendarTaskLists(userId: String?): List<TaskListDetail> {
-    var taskLists by remember(userId) { mutableStateOf(emptyList<TaskListDetail>()) }
-
-    DisposableEffect(userId) {
-        if (userId == null) {
-            taskLists = emptyList()
-            onDispose {}
-        } else {
-            val db = Firebase.firestore
-            var orderedTaskListIds = emptyList<String>()
-            var taskListIdsKey = ""
-            var taskListsById = emptyMap<String, TaskListDetail>()
-            var taskListChunkListeners = emptyList<ListenerRegistration>()
-
-            fun publish() {
-                taskLists = orderedTaskListIds.mapNotNull { taskListsById[it] }
-            }
-
-            fun subscribeToTaskLists(taskListIds: List<String>) {
-                val nextKey = taskListIds.sorted().joinToString("|")
-                if (taskListIdsKey == nextKey) { publish(); return }
-                taskListIdsKey = nextKey
-                taskListChunkListeners.forEach { it.remove() }
-                taskListChunkListeners = emptyList()
-                taskListsById = taskListsById.filterKeys { taskListIds.contains(it) }
-                if (taskListIds.isEmpty()) { publish(); return }
-                val listeners = mutableListOf<ListenerRegistration>()
-                taskListIds.chunked(10).forEach { chunk ->
-                    val listener = db.collection("taskLists")
-                        .whereIn(FieldPath.documentId(), chunk)
-                        .addSnapshotListener { snapshot, error ->
-                            if (error != null) return@addSnapshotListener
-                            val next = taskListsById.toMutableMap()
-                            snapshot?.documentChanges?.forEach { change ->
-                                val id = change.document.id
-                                if (change.type.name == "REMOVED") {
-                                    next.remove(id)
-                                } else {
-                                    next[id] = parseTaskListDetail(id, change.document.data)
-                                }
-                            }
-                            taskListsById = next
-                            publish()
-                        }
-                    listeners += listener
-                }
-                taskListChunkListeners = listeners
-            }
-
-            val taskListOrderListener = db.collection("taskListOrder")
-                .document(userId)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) return@addSnapshotListener
-                    orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap())
-                    subscribeToTaskLists(orderedTaskListIds)
-                }
-
-            onDispose {
-                taskListOrderListener.remove()
-                taskListChunkListeners.forEach { it.remove() }
-            }
-        }
-    }
-
-    return taskLists
+private fun <T> rememberOrderedTaskLists(userId: String?, mapDocument: (String, Map<String, Any>) -> T): List<T> {
+    return rememberOrderedTaskListsState(userId, mapDocument).taskLists
 }
+
+private data class OrderedTaskListsUiState<T>(
+    val taskLists: List<T> = emptyList(),
+    val isLoading: Boolean = false,
+    val hasError: Boolean = false
+)
 
 @Composable
 private fun rememberSettingsUiState(userId: String?): SettingsUiState {
@@ -1029,6 +1151,102 @@ private fun parseTaskListDetail(taskListId: String, data: Map<String, Any>): Tas
         background = background,
         shareCode = shareCode
     )
+}
+
+@Composable
+private fun rememberSharedTaskListPreviewState(
+    shareCode: String,
+    userId: String?
+): SharedTaskListPreviewUiState {
+    val t = LocalTranslations.current
+    val db = Firebase.firestore
+    var uiState by remember(shareCode) {
+        mutableStateOf(SharedTaskListPreviewUiState(isLoading = true))
+    }
+
+    LaunchedEffect(shareCode) {
+        val normalized = shareCode.trim().uppercase()
+        if (normalized.isEmpty()) {
+            uiState = SharedTaskListPreviewUiState(
+                isLoading = false,
+                errorMessage = t.t("pages.sharecode.notFound")
+            )
+            return@LaunchedEffect
+        }
+
+        uiState = SharedTaskListPreviewUiState(isLoading = true)
+        try {
+            val taskListId = fetchTaskListIdByShareCode(normalized)
+            if (taskListId == null) {
+                uiState = SharedTaskListPreviewUiState(
+                    isLoading = false,
+                    errorMessage = t.t("pages.sharecode.notFound")
+                )
+            } else {
+                uiState = uiState.copy(taskListId = taskListId, isLoading = true, errorMessage = null)
+                logShare()
+            }
+        } catch (_: Exception) {
+            uiState = SharedTaskListPreviewUiState(
+                isLoading = false,
+                errorMessage = t.t("pages.sharecode.error")
+            )
+        }
+    }
+
+    DisposableEffect(uiState.taskListId) {
+        val taskListId = uiState.taskListId
+        if (taskListId == null) {
+            onDispose {}
+        } else {
+            val listener = db.collection("taskLists").document(taskListId)
+                .addSnapshotListener { snapshot, error ->
+                    uiState = if (error != null) {
+                        uiState.copy(
+                            taskList = null,
+                            isLoading = false,
+                            errorMessage = t.t("pages.sharecode.error")
+                        )
+                    } else {
+                        val data = snapshot?.data
+                        if (data == null) {
+                            uiState.copy(
+                                taskList = null,
+                                isLoading = false,
+                                errorMessage = t.t("pages.sharecode.notFound")
+                            )
+                        } else {
+                            uiState.copy(
+                                taskList = parseTaskListDetail(taskListId, data),
+                                isLoading = false,
+                                errorMessage = null
+                            )
+                        }
+                    }
+                }
+            onDispose { listener.remove() }
+        }
+    }
+
+    DisposableEffect(userId, uiState.taskListId) {
+        val taskListId = uiState.taskListId
+        if (userId == null || taskListId == null) {
+            uiState = uiState.copy(isAdded = false)
+            onDispose {}
+        } else {
+            val listener = db.collection("taskListOrder").document(userId)
+                .addSnapshotListener { snapshot, _ ->
+                    val isAdded = snapshot?.data
+                        ?.let(::parseOrderedTaskListIds)
+                        ?.contains(taskListId)
+                        ?: false
+                    uiState = uiState.copy(isAdded = isAdded)
+                }
+            onDispose { listener.remove() }
+        }
+    }
+
+    return uiState
 }
 
 private fun parseTasks(rawTasks: Map<*, *>): List<TaskSummary> {
@@ -1213,6 +1431,250 @@ private fun formatDateForLocale(
     }
 }
 
+private data class ParsedTaskInput(
+    val text: String,
+    val date: String?
+)
+
+private data class TaskDatePattern(
+    val regex: Regex,
+    val resolveDate: (MatchResult) -> Date?
+)
+
+private val TASK_DATE_DIGIT_MAP = mapOf(
+    '٠' to '0', '١' to '1', '٢' to '2', '٣' to '3', '٤' to '4',
+    '٥' to '5', '٦' to '6', '٧' to '7', '٨' to '8', '٩' to '9',
+    '۰' to '0', '۱' to '1', '۲' to '2', '۳' to '3', '۴' to '4',
+    '۵' to '5', '۶' to '6', '۷' to '7', '۸' to '8', '۹' to '9',
+    '०' to '0', '१' to '1', '२' to '2', '३' to '3', '४' to '4',
+    '५' to '5', '६' to '6', '७' to '7', '८' to '8', '९' to '9',
+)
+
+private const val TASK_DATE_SPACE_OR_END = """(?:[\s\u3000]|$)"""
+
+private fun normalizeTaskDateDigits(value: String): String =
+    buildString(value.length) {
+        value.forEach { append(TASK_DATE_DIGIT_MAP[it] ?: it) }
+    }
+
+private fun formatTaskInputDate(date: Date): String =
+    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(date)
+
+private fun taskInputDateFrom(year: Int, month: Int, day: Int): Date? {
+    val calendar = Calendar.getInstance()
+    calendar.isLenient = false
+    calendar.set(Calendar.YEAR, year)
+    calendar.set(Calendar.MONTH, month - 1)
+    calendar.set(Calendar.DAY_OF_MONTH, day)
+    calendar.set(Calendar.HOUR_OF_DAY, 0)
+    calendar.set(Calendar.MINUTE, 0)
+    calendar.set(Calendar.SECOND, 0)
+    calendar.set(Calendar.MILLISECOND, 0)
+    return try {
+        calendar.time
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun nextTaskWeekdayOffset(targetDay: Int, currentDay: Int): Int {
+    val diff = targetDay - currentDay
+    return if (diff >= 0) diff else diff + 7
+}
+
+private fun makeTaskOffsetDate(offset: Int): Date {
+    return Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+        add(Calendar.DAY_OF_MONTH, offset)
+    }.time
+}
+
+private fun taskRelativePatterns(languageTag: String): List<TaskDatePattern> {
+    return when (normalizeLanguageCode(languageTag)) {
+        "en" -> listOf(
+            TaskDatePattern(Regex("""^today$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^tomorrow$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^day after tomorrow$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^in\s+(\d+)\s+days?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(\d+)\s+days?\s+later$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(mon|tue|wed|thu|fri|sat|sun)(?:day)?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
+                val map = mapOf("sun" to Calendar.SUNDAY, "mon" to Calendar.MONDAY, "tue" to Calendar.TUESDAY, "wed" to Calendar.WEDNESDAY, "thu" to Calendar.THURSDAY, "fri" to Calendar.FRIDAY, "sat" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+        "es" -> listOf(
+            TaskDatePattern(Regex("""^hoy$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^mañana$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^pasado\s+mañana$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^(?:en|dentro\s+de)\s+(\d+)\s+d[ií]as?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
+                val map = mapOf("domingo" to Calendar.SUNDAY, "dom" to Calendar.SUNDAY, "lunes" to Calendar.MONDAY, "lun" to Calendar.MONDAY, "martes" to Calendar.TUESDAY, "mar" to Calendar.TUESDAY, "miércoles" to Calendar.WEDNESDAY, "miercoles" to Calendar.WEDNESDAY, "mié" to Calendar.WEDNESDAY, "mie" to Calendar.WEDNESDAY, "jueves" to Calendar.THURSDAY, "jue" to Calendar.THURSDAY, "viernes" to Calendar.FRIDAY, "vie" to Calendar.FRIDAY, "sábado" to Calendar.SATURDAY, "sabado" to Calendar.SATURDAY, "sáb" to Calendar.SATURDAY, "sab" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+        "de" -> listOf(
+            TaskDatePattern(Regex("""^heute$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^morgen$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^übermorgen$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^in\s+(\d+)\s+tagen?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
+                val map = mapOf("sonntag" to Calendar.SUNDAY, "so" to Calendar.SUNDAY, "montag" to Calendar.MONDAY, "mo" to Calendar.MONDAY, "dienstag" to Calendar.TUESDAY, "di" to Calendar.TUESDAY, "mittwoch" to Calendar.WEDNESDAY, "mi" to Calendar.WEDNESDAY, "donnerstag" to Calendar.THURSDAY, "do" to Calendar.THURSDAY, "freitag" to Calendar.FRIDAY, "fr" to Calendar.FRIDAY, "samstag" to Calendar.SATURDAY, "sa" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+        "fr" -> listOf(
+            TaskDatePattern(Regex("""^aujourd(?:'|’)hui$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^demain$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^apr[eè]s[- ]demain$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^dans\s+(\d+)\s+jours?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
+                val map = mapOf("dimanche" to Calendar.SUNDAY, "dim" to Calendar.SUNDAY, "lundi" to Calendar.MONDAY, "lun" to Calendar.MONDAY, "mardi" to Calendar.TUESDAY, "mar" to Calendar.TUESDAY, "mercredi" to Calendar.WEDNESDAY, "mer" to Calendar.WEDNESDAY, "jeudi" to Calendar.THURSDAY, "jeu" to Calendar.THURSDAY, "vendredi" to Calendar.FRIDAY, "ven" to Calendar.FRIDAY, "samedi" to Calendar.SATURDAY, "sam" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+        "ko" -> listOf(
+            TaskDatePattern(Regex("""^오늘$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^내일$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^모레$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^(\d+)\s*일\s*후$TASK_DATE_SPACE_OR_END""")) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)$TASK_DATE_SPACE_OR_END""")) { match ->
+                val map = mapOf("일요일" to Calendar.SUNDAY, "일" to Calendar.SUNDAY, "월요일" to Calendar.MONDAY, "월" to Calendar.MONDAY, "화요일" to Calendar.TUESDAY, "화" to Calendar.TUESDAY, "수요일" to Calendar.WEDNESDAY, "수" to Calendar.WEDNESDAY, "목요일" to Calendar.THURSDAY, "목" to Calendar.THURSDAY, "금요일" to Calendar.FRIDAY, "금" to Calendar.FRIDAY, "토요일" to Calendar.SATURDAY, "토" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1]] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+        "zh-CN" -> listOf(
+            TaskDatePattern(Regex("""^今天$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^明天$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^后天$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^(\d+)\s*天后$TASK_DATE_SPACE_OR_END""")) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(星期[一二三四五六日天]|周[一二三四五六日天])$TASK_DATE_SPACE_OR_END""")) { match ->
+                val map = mapOf("星期日" to Calendar.SUNDAY, "星期天" to Calendar.SUNDAY, "周日" to Calendar.SUNDAY, "周天" to Calendar.SUNDAY, "星期一" to Calendar.MONDAY, "周一" to Calendar.MONDAY, "星期二" to Calendar.TUESDAY, "周二" to Calendar.TUESDAY, "星期三" to Calendar.WEDNESDAY, "周三" to Calendar.WEDNESDAY, "星期四" to Calendar.THURSDAY, "周四" to Calendar.THURSDAY, "星期五" to Calendar.FRIDAY, "周五" to Calendar.FRIDAY, "星期六" to Calendar.SATURDAY, "周六" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1]] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+        "hi" -> listOf(
+            TaskDatePattern(Regex("""^आज$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^कल$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^परसों$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^(\d+)\s*दिन\s*बाद$TASK_DATE_SPACE_OR_END""")) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)$TASK_DATE_SPACE_OR_END""")) { match ->
+                val map = mapOf("रविवार" to Calendar.SUNDAY, "सोमवार" to Calendar.MONDAY, "मंगलवार" to Calendar.TUESDAY, "बुधवार" to Calendar.WEDNESDAY, "गुरुवार" to Calendar.THURSDAY, "शुक्रवार" to Calendar.FRIDAY, "शनिवार" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1]] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+        "ar" -> listOf(
+            TaskDatePattern(Regex("""^اليوم$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^غد(?:ا|ًا)?$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^بعد\s+غد$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^بعد\s+(\d+)\s+أيام?$TASK_DATE_SPACE_OR_END""")) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)$TASK_DATE_SPACE_OR_END""")) { match ->
+                val map = mapOf("الأحد" to Calendar.SUNDAY, "الاثنين" to Calendar.MONDAY, "الإثنين" to Calendar.MONDAY, "الثلاثاء" to Calendar.TUESDAY, "الأربعاء" to Calendar.WEDNESDAY, "الخميس" to Calendar.THURSDAY, "الجمعة" to Calendar.FRIDAY, "السبت" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1]] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+        "pt-BR" -> listOf(
+            TaskDatePattern(Regex("""^hoje$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^amanh[ãa]$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^depois\s+de\s+amanh[ãa]$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^em\s+(\d+)\s+dias?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
+                val map = mapOf("domingo" to Calendar.SUNDAY, "dom" to Calendar.SUNDAY, "segunda" to Calendar.MONDAY, "segunda-feira" to Calendar.MONDAY, "seg" to Calendar.MONDAY, "terça" to Calendar.TUESDAY, "terca" to Calendar.TUESDAY, "terça-feira" to Calendar.TUESDAY, "terca-feira" to Calendar.TUESDAY, "ter" to Calendar.TUESDAY, "quarta" to Calendar.WEDNESDAY, "quarta-feira" to Calendar.WEDNESDAY, "qua" to Calendar.WEDNESDAY, "quinta" to Calendar.THURSDAY, "quinta-feira" to Calendar.THURSDAY, "qui" to Calendar.THURSDAY, "sexta" to Calendar.FRIDAY, "sexta-feira" to Calendar.FRIDAY, "sex" to Calendar.FRIDAY, "sábado" to Calendar.SATURDAY, "sabado" to Calendar.SATURDAY, "sáb" to Calendar.SATURDAY, "sab" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+        "id" -> listOf(
+            TaskDatePattern(Regex("""^hari\s+ini$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^besok$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^lusa$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^dalam\s+(\d+)\s+hari$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
+                val map = mapOf("minggu" to Calendar.SUNDAY, "senin" to Calendar.MONDAY, "selasa" to Calendar.TUESDAY, "rabu" to Calendar.WEDNESDAY, "kamis" to Calendar.THURSDAY, "jumat" to Calendar.FRIDAY, "jum'at" to Calendar.FRIDAY, "sabtu" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+        else -> listOf(
+            TaskDatePattern(Regex("""^今日$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(0) },
+            TaskDatePattern(Regex("""^明日$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(1) },
+            TaskDatePattern(Regex("""^明後日$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(2) },
+            TaskDatePattern(Regex("""^(\d+)日後(?:に)?$TASK_DATE_SPACE_OR_END""")) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
+            TaskDatePattern(Regex("""^([月火水木金土日])曜?$TASK_DATE_SPACE_OR_END""")) { match ->
+                val map = mapOf("日" to Calendar.SUNDAY, "月" to Calendar.MONDAY, "火" to Calendar.TUESDAY, "水" to Calendar.WEDNESDAY, "木" to Calendar.THURSDAY, "金" to Calendar.FRIDAY, "土" to Calendar.SATURDAY)
+                val target = map[match.groupValues[1]] ?: return@TaskDatePattern null
+                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
+            },
+        )
+    }
+}
+
+private fun parseDateFromTaskInput(text: String, languageTag: String): ParsedTaskInput {
+    val source = text.trim()
+    if (source.isEmpty()) return ParsedTaskInput(text = source, date = null)
+
+    val normalized = normalizeTaskDateDigits(source)
+    val numericPatterns = listOf(
+        TaskDatePattern(Regex("""^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$TASK_DATE_SPACE_OR_END""")) { match ->
+            val year = match.groupValues[1].toInt()
+            val month = match.groupValues[2].toInt()
+            val day = match.groupValues[3].toInt()
+            val date = taskInputDateFrom(year, month, day) ?: return@TaskDatePattern null
+            val calendar = Calendar.getInstance().apply { time = date }
+            if (calendar.get(Calendar.YEAR) == year && calendar.get(Calendar.MONTH) == month - 1 && calendar.get(Calendar.DAY_OF_MONTH) == day) date else null
+        },
+        TaskDatePattern(Regex("""^(\d{1,2})[-/.](\d{1,2})$TASK_DATE_SPACE_OR_END""")) { match ->
+            val month = match.groupValues[1].toInt()
+            val day = match.groupValues[2].toInt()
+            val now = Calendar.getInstance()
+            val currentYear = now.get(Calendar.YEAR)
+            val date = taskInputDateFrom(currentYear, month, day) ?: return@TaskDatePattern null
+            val today = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.time
+            if (date.before(today)) taskInputDateFrom(currentYear + 1, month, day) else date
+        },
+    )
+
+    (numericPatterns + taskRelativePatterns(languageTag)).forEach { pattern ->
+        val match = pattern.regex.find(normalized) ?: return@forEach
+        if (match.range.first != 0) return@forEach
+        val date = pattern.resolveDate(match) ?: return@forEach
+        val stripped = source.substring(match.value.length).trimStart()
+        return ParsedTaskInput(text = stripped, date = formatTaskInputDate(date))
+    }
+
+    return ParsedTaskInput(text = source, date = null)
+}
+
+private fun resolveTaskInput(text: String, languageTag: String, currentTask: TaskSummary? = null): ParsedTaskInput {
+    val parsed = parseDateFromTaskInput(text, languageTag)
+    return if (currentTask != null) {
+        ParsedTaskInput(
+            text = if (parsed.text.isEmpty()) currentTask.text else parsed.text,
+            date = parsed.date ?: currentTask.date
+        )
+    } else {
+        ParsedTaskInput(
+            text = parsed.text,
+            date = parsed.date ?: ""
+        )
+    }
+}
+
 private fun settingsThemeLabel(t: Translations, theme: String): String = when (theme) {
     "light" -> t.t("settings.theme.light")
     "dark" -> t.t("settings.theme.dark")
@@ -1299,7 +1761,7 @@ private fun DetailScreenScaffold(
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = t.t("common.back"),
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(AppIconMetrics.standardActionIconSize)
                             )
                         }
                     }
@@ -1344,12 +1806,19 @@ private fun AuthView(
     onScreenChange: (AuthScreen) -> Unit
 ) {
     var selectedScreen by rememberSaveable { mutableStateOf(initialScreen) }
+    var selectedLanguage by rememberSaveable { mutableStateOf(language) }
+    var showLanguageMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(initialScreen) {
         selectedScreen = initialScreen
     }
 
     val t = LocalTranslations.current
+    val context = LocalContext.current
+
+    LaunchedEffect(language) {
+        selectedLanguage = language
+    }
 
     ScreenScaffold(
         title = when (selectedScreen) {
@@ -1358,6 +1827,34 @@ private fun AuthView(
             AuthScreen.Reset -> t.t("auth.passwordReset.title")
         }
     ) {
+        Box(Modifier.fillMaxWidth()) {
+            TextButton(
+                onClick = { showLanguageMenu = true },
+                modifier = Modifier.align(Alignment.CenterEnd)
+            ) {
+                Icon(Icons.Default.Language, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text(supportedLanguages.firstOrNull { it.first == selectedLanguage }?.second ?: selectedLanguage)
+            }
+            DropdownMenu(
+                expanded = showLanguageMenu,
+                onDismissRequest = { showLanguageMenu = false },
+                modifier = Modifier.heightIn(max = 320.dp)
+            ) {
+                supportedLanguages.forEach { (code, name) ->
+                    DropdownMenuItem(
+                        text = { Text(name) },
+                        onClick = {
+                            selectedLanguage = code
+                            t.load(context, code)
+                            logSettingsLanguageChange(code)
+                            showLanguageMenu = false
+                        }
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
         TabRow(selectedTabIndex = selectedScreen.ordinal, modifier = Modifier.fillMaxWidth()) {
             listOf(
                 AuthScreen.SignIn to t.t("auth.tabs.signin"),
@@ -1383,14 +1880,14 @@ private fun AuthView(
                 }
             )
             AuthScreen.SignUp -> SignUpView(
-                language = language,
+                language = selectedLanguage,
                 onShowSignIn = {
                     selectedScreen = AuthScreen.SignIn
                     onScreenChange(AuthScreen.SignIn)
                 }
             )
             AuthScreen.Reset -> PasswordResetRequestView(
-                language = language,
+                language = selectedLanguage,
                 onBackToSignIn = {
                     selectedScreen = AuthScreen.SignIn
                     onScreenChange(AuthScreen.SignIn)
@@ -2064,7 +2561,8 @@ private fun CalendarBottomSheet(
                 }) {
                     Icon(
                         Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = t.t("app.calendarPreviousMonth")
+                        contentDescription = t.t("app.calendarPreviousMonth"),
+                        modifier = Modifier.size(AppIconMetrics.standardActionIconSize)
                     )
                 }
                 Text(monthTitle, style = MaterialTheme.typography.titleLarge)
@@ -2078,7 +2576,8 @@ private fun CalendarBottomSheet(
                 }) {
                     Icon(
                         Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = t.t("app.calendarNextMonth")
+                        contentDescription = t.t("app.calendarNextMonth"),
+                        modifier = Modifier.size(AppIconMetrics.standardActionIconSize)
                     )
                 }
             }
@@ -2131,14 +2630,14 @@ private fun CalendarBottomSheet(
 private fun DragHandleIcon(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        verticalArrangement = Arrangement.spacedBy(AppIconMetrics.dragHandleDotSpacing)
     ) {
         repeat(3) {
-            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(AppIconMetrics.dragHandleDotSpacing)) {
                 repeat(2) {
                     Box(
                         Modifier
-                            .size(3.dp)
+                            .size(AppIconMetrics.dragHandleDotSize)
                             .background(
                                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 CircleShape
@@ -2167,8 +2666,8 @@ private fun TaskListsView(
             1f
         ) == 0f
     }
-    val uiState = rememberTaskListsUiState(userId)
-    val calendarTaskLists = rememberCalendarTaskLists(userId)
+    val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListSummary)
+    val calendarTaskLists = rememberOrderedTaskLists(userId, ::parseTaskListDetail)
     var showCalendarSheet by remember { mutableStateOf(false) }
     val userEmail = Firebase.auth.currentUser?.email ?: ""
 
@@ -2294,6 +2793,7 @@ private fun TaskListsView(
                 Icon(
                     Icons.Outlined.Settings,
                     contentDescription = t.t("settings.title"),
+                    modifier = Modifier.size(AppIconMetrics.standardActionIconSize),
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -2309,7 +2809,7 @@ private fun TaskListsView(
             Icon(
                 Icons.Filled.CalendarToday,
                 contentDescription = t.t("app.calendar"),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(AppIconMetrics.leadingButtonIconSize)
             )
             Spacer(Modifier.width(8.dp))
             Text(t.t("app.calendarCheckButton"))
@@ -2757,7 +3257,7 @@ private fun TaskListView(
     onEmpty: (() -> Unit)? = if (navController != null) ({ navController.navigateUp() }) else null
 ) {
     val t = LocalTranslations.current
-    val uiState = rememberTaskListDetailsUiState(userId)
+    val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
     val settingsUiState = rememberSettingsUiState(userId)
     var internalSelectedTaskListId by rememberSaveable(initialTaskListId) {
         mutableStateOf(initialTaskListId)
@@ -2966,6 +3466,7 @@ private fun TaskListDetailPage(
     val scope = rememberCoroutineScope()
     val db = Firebase.firestore
     var newTaskText by remember { mutableStateOf("") }
+    var isNewTaskInputFocused by remember { mutableStateOf(false) }
     var editingTaskId by remember { mutableStateOf<String?>(null) }
     var editingTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     var showDatePickerForTaskId by remember { mutableStateOf<String?>(null) }
@@ -2977,11 +3478,17 @@ private fun TaskListDetailPage(
     var taskAutoScrollSpeed by remember { mutableFloatStateOf(0f) }
     val lazyListState = rememberLazyListState()
     var showShareDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showRemoveListConfirm by remember { mutableStateOf(false) }
     var currentShareCode by remember { mutableStateOf(taskList.shareCode) }
+    var editName by remember { mutableStateOf("") }
+    var editBackground by remember { mutableStateOf<String?>(null) }
     var generatingShareCode by remember { mutableStateOf(false) }
     var removingShareCode by remember { mutableStateOf(false) }
+    var removingList by remember { mutableStateOf(false) }
     var shareCopySuccess by remember { mutableStateOf(false) }
     var shareError by remember { mutableStateOf<String?>(null) }
+    val newTaskFocusRequester = remember { FocusRequester() }
 
     val displayTasks = dragOrderedTasks ?: taskList.tasks
     val taskDensity = LocalDensity.current
@@ -3047,6 +3554,26 @@ private fun TaskListDetailPage(
         return updates
     }
 
+    fun launchTaskListUpdate(updates: Map<String, Any>) {
+        scope.launch {
+            try {
+                db.collection("taskLists").document(taskList.id).update(updates).await()
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun persistNormalizedTasks(
+        tasks: List<TaskSummary>,
+        deletedTaskIds: List<String> = emptyList()
+    ) {
+        launchTaskListUpdate(
+            taskUpdates(
+                tasks = if (autoSort) autoSortedTasks(tasks) else renumberedTasks(tasks),
+                deletedTaskIds = deletedTaskIds
+            )
+        )
+    }
+
     fun checkTaskSwap() {
         val ordered = dragOrderedTasks?.toMutableList() ?: return
         val draggingId = draggingTaskId ?: return
@@ -3081,7 +3608,7 @@ private fun TaskListDetailPage(
         logTaskReorder()
         val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
         ids.forEachIndexed { i, id -> updates["tasks.$id.order"] = (i + 1).toDouble() }
-        scope.launch { try { db.collection("taskLists").document(taskList.id).update(updates).await() } catch (_: Exception) {} }
+        launchTaskListUpdate(updates)
     }
 
     fun toggleCompletion(task: TaskSummary) {
@@ -3090,57 +3617,47 @@ private fun TaskListDetailPage(
             val updatedTasks = taskList.tasks.map { current ->
                 if (current.id == task.id) current.copy(completed = !current.completed) else current
             }
-            scope.launch {
-                try {
-                    db.collection("taskLists").document(taskList.id)
-                        .update(taskUpdates(autoSortedTasks(updatedTasks)))
-                        .await()
-                } catch (_: Exception) {}
-            }
+            persistNormalizedTasks(updatedTasks)
             return
         }
 
-        scope.launch {
-            try {
-                db.collection("taskLists").document(taskList.id).update(
-                    mapOf(
-                        "tasks.${task.id}.completed" to !task.completed,
-                        "updatedAt" to System.currentTimeMillis()
-                    )
-                ).await()
-            } catch (_: Exception) {}
-        }
+        launchTaskListUpdate(
+            mapOf(
+                "tasks.${task.id}.completed" to !task.completed,
+                "updatedAt" to System.currentTimeMillis()
+            )
+        )
     }
 
     fun commitEdit(task: TaskSummary, text: String) {
         val trimmed = text.trim()
+        val resolved = resolveTaskInput(text, t.languageTag(), task)
+        val textChanged = resolved.text != task.text
+        val dateChanged = (resolved.date ?: task.date) != task.date
         editingTaskId = null
-        if (trimmed.isNotEmpty() && trimmed != task.text) {
-            logTaskUpdate(fields = "text")
+        if (!(trimmed.isEmpty() && !dateChanged) && (textChanged || dateChanged)) {
+            val changedFields = if (textChanged && dateChanged) "text,date" else if (textChanged) "text" else "date"
+            logTaskUpdate(fields = changedFields)
             if (autoSort) {
                 val updatedTasks = taskList.tasks.map { current ->
-                    if (current.id == task.id) current.copy(text = trimmed) else current
+                    if (current.id == task.id) {
+                        current.copy(
+                            text = resolved.text,
+                            date = resolved.date ?: current.date
+                        )
+                    } else current
                 }
-                scope.launch {
-                    try {
-                        db.collection("taskLists").document(taskList.id)
-                            .update(taskUpdates(autoSortedTasks(updatedTasks)))
-                            .await()
-                    } catch (_: Exception) {}
-                }
+                persistNormalizedTasks(updatedTasks)
                 return
             }
 
-            scope.launch {
-                try {
-                    db.collection("taskLists").document(taskList.id).update(
-                        mapOf(
-                            "tasks.${task.id}.text" to trimmed,
-                            "updatedAt" to System.currentTimeMillis()
-                        )
-                    ).await()
-                } catch (_: Exception) {}
-            }
+            launchTaskListUpdate(
+                mapOf(
+                    "tasks.${task.id}.text" to resolved.text,
+                    "tasks.${task.id}.date" to (resolved.date ?: task.date),
+                    "updatedAt" to System.currentTimeMillis()
+                )
+            )
         }
     }
 
@@ -3177,26 +3694,16 @@ private fun TaskListDetailPage(
             val updatedTasks = taskList.tasks.map { current ->
                 if (current.id == task.id) current.copy(date = dateStr) else current
             }
-            scope.launch {
-                try {
-                    db.collection("taskLists").document(taskList.id)
-                        .update(taskUpdates(autoSortedTasks(updatedTasks)))
-                        .await()
-                } catch (_: Exception) {}
-            }
+            persistNormalizedTasks(updatedTasks)
             return
         }
 
-        scope.launch {
-            try {
-                db.collection("taskLists").document(taskList.id).update(
-                    mapOf(
-                        "tasks.${task.id}.date" to dateStr,
-                        "updatedAt" to System.currentTimeMillis()
-                    )
-                ).await()
-            } catch (_: Exception) {}
-        }
+        launchTaskListUpdate(
+            mapOf(
+                "tasks.${task.id}.date" to dateStr,
+                "updatedAt" to System.currentTimeMillis()
+            )
+        )
     }
 
     fun sortTasks() {
@@ -3209,25 +3716,86 @@ private fun TaskListDetailPage(
         )
         val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
         sorted.forEachIndexed { i, task -> updates["tasks.${task.id}.order"] = (i + 1).toDouble() }
-        scope.launch { try { db.collection("taskLists").document(taskList.id).update(updates).await() } catch (_: Exception) {} }
+        launchTaskListUpdate(updates)
     }
 
     fun deleteCompletedTasks() {
         val completed = taskList.tasks.filter { it.completed }
         logTaskDeleteCompleted(count = completed.size)
         val remaining = taskList.tasks.filter { !it.completed }
-        val updates = taskUpdates(
-            tasks = if (autoSort) autoSortedTasks(remaining) else renumberedTasks(remaining),
-            deletedTaskIds = completed.map { it.id }
-        )
-        scope.launch { try { db.collection("taskLists").document(taskList.id).update(updates).await() } catch (_: Exception) {} }
+        persistNormalizedTasks(remaining, completed.map { it.id })
+    }
+
+    fun removeTaskList() {
+        if (removingList) return
+        removingList = true
+        scope.launch {
+            try {
+                val user = Firebase.auth.currentUser ?: return@launch
+                val uid = user.uid
+                val now = System.currentTimeMillis()
+                val taskListId = taskList.id
+                db.runTransaction { transaction ->
+                    val taskListOrderRef = db.collection("taskListOrder").document(uid)
+                    val taskListOrderSnapshot = transaction.get(taskListOrderRef)
+                    if (!taskListOrderSnapshot.exists()) {
+                        throw IllegalStateException("TaskListOrder not found")
+                    }
+                    if (!taskListOrderSnapshot.contains(taskListId)) {
+                        return@runTransaction null
+                    }
+
+                    val taskListRef = db.collection("taskLists").document(taskListId)
+                    val taskListSnapshot = transaction.get(taskListRef)
+
+                    transaction.update(
+                        taskListOrderRef,
+                        mapOf(
+                            taskListId to FieldValue.delete(),
+                            "updatedAt" to now
+                        )
+                    )
+
+                    if (!taskListSnapshot.exists()) {
+                        return@runTransaction null
+                    }
+
+                    val currentMemberCount = (taskListSnapshot.getLong("memberCount") ?: 1L).toInt()
+                    val nextMemberCount = currentMemberCount - 1
+                    if (nextMemberCount <= 0) {
+                        taskListSnapshot.getString("shareCode")
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { shareCode ->
+                                transaction.delete(db.collection("shareCodes").document(shareCode))
+                            }
+                        transaction.delete(taskListRef)
+                        return@runTransaction null
+                    }
+
+                    transaction.update(
+                        taskListRef,
+                        mapOf(
+                            "memberCount" to nextMemberCount,
+                            "updatedAt" to now
+                        )
+                    )
+                    null
+                }.await()
+                showRemoveListConfirm = false
+                showEditDialog = false
+            } catch (_: Exception) {
+            } finally {
+                removingList = false
+            }
+        }
     }
 
 
     fun addTask() {
         val trimmed = newTaskText.trim()
         if (trimmed.isEmpty()) return
-        logTaskAdd(hasDate = false)
+        val parsed = resolveTaskInput(trimmed, t.languageTag())
+        logTaskAdd(hasDate = !parsed.date.isNullOrEmpty())
         newTaskText = ""
         val taskId = java.util.UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
@@ -3239,45 +3807,30 @@ private fun TaskListDetailPage(
         if (autoSort) {
             val insertedTask = TaskSummary(
                 id = taskId,
-                text = trimmed,
+                text = parsed.text,
                 completed = false,
-                date = "",
+                date = parsed.date ?: "",
                 order = order
             )
             val insertIndex = if (taskInsertPosition == "top") 0 else taskList.tasks.size
             val reorderedTasks = taskList.tasks.toMutableList().apply {
                 add(insertIndex, insertedTask)
             }
-            scope.launch {
-                try {
-                    db.collection("taskLists").document(taskList.id)
-                        .update(taskUpdates(autoSortedTasks(reorderedTasks)))
-                        .await()
-                } catch (_: Exception) {}
-            }
+            persistNormalizedTasks(reorderedTasks)
             return
         }
 
-        scope.launch {
-            try {
-                db.collection("taskLists").document(taskList.id).update(
-                    mapOf(
-                        "tasks.$taskId.id" to taskId,
-                        "tasks.$taskId.text" to trimmed,
-                        "tasks.$taskId.completed" to false,
-                        "tasks.$taskId.date" to "",
-                        "tasks.$taskId.order" to order,
-                        "updatedAt" to now
-                    )
-                ).await()
-            } catch (_: Exception) {}
-        }
+        launchTaskListUpdate(
+            mapOf(
+                "tasks.$taskId.id" to taskId,
+                "tasks.$taskId.text" to parsed.text,
+                "tasks.$taskId.completed" to false,
+                "tasks.$taskId.date" to (parsed.date ?: ""),
+                "tasks.$taskId.order" to order,
+                "updatedAt" to now
+            )
+        )
     }
-
-    var showEditDialog by remember { mutableStateOf(false) }
-    var editName by remember { mutableStateOf("") }
-    var editBackground by remember { mutableStateOf<String?>(null) }
-
     LaunchedEffect(draggingTaskId) {
         if (draggingTaskId == null) return@LaunchedEffect
         while (draggingTaskId != null) {
@@ -3365,6 +3918,10 @@ private fun TaskListDetailPage(
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
                     modifier = Modifier
                         .weight(1f)
+                        .focusRequester(newTaskFocusRequester)
+                        .onFocusChanged { state ->
+                            isNewTaskInputFocused = state.isFocused
+                        }
                         .background(inputBackgroundColor, RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius))
                         .border(
                             width = 1.dp,
@@ -3391,17 +3948,42 @@ private fun TaskListDetailPage(
                         }
                     }
                 )
-                if (newTaskText.trim().isNotEmpty()) {
-                    Spacer(Modifier.width(TaskListDetailMetrics.inputActionSpacing))
-                    IconButton(
-                        onClick = { addTask() },
-                        modifier = Modifier.size(TaskListDetailMetrics.addActionIconButtonSize)
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = t.t("common.add"),
-                            modifier = Modifier.size(TaskListDetailMetrics.addActionIconSize)
-                        )
+                AnimatedVisibility(
+                    visible = isNewTaskInputFocused,
+                    enter = if (reduceMotion) {
+                        EnterTransition.None
+                    } else {
+                        fadeIn(animationSpec = tween(durationMillis = 180)) +
+                            expandHorizontally(
+                                expandFrom = Alignment.Start,
+                                animationSpec = tween(durationMillis = 240)
+                            )
+                    },
+                    exit = if (reduceMotion) {
+                        ExitTransition.None
+                    } else {
+                        fadeOut(animationSpec = tween(durationMillis = 120)) +
+                            shrinkHorizontally(
+                                shrinkTowards = Alignment.Start,
+                                animationSpec = tween(durationMillis = 180)
+                            )
+                    }
+                ) {
+                    Box(modifier = Modifier.padding(start = TaskListDetailMetrics.inputActionSpacing)) {
+                        IconButton(
+                            onClick = {
+                                addTask()
+                                newTaskFocusRequester.requestFocus()
+                            },
+                            enabled = newTaskText.trim().isNotEmpty(),
+                            modifier = Modifier.size(TaskListDetailMetrics.addActionIconButtonSize)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = t.t("common.add"),
+                                modifier = Modifier.size(TaskListDetailMetrics.addActionIconSize)
+                            )
+                        }
                     }
                 }
             }
@@ -3424,7 +4006,7 @@ private fun TaskListDetailPage(
                         Icon(
                             Icons.Default.FilterList,
                             contentDescription = t.t("pages.tasklist.sort"),
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(AppIconMetrics.inlineActionIconSize),
                             tint = if (taskList.tasks.size >= 2) chromeColor else chromeColor.copy(alpha = 0.45f)
                         )
                         Spacer(Modifier.width(4.dp))
@@ -3450,7 +4032,7 @@ private fun TaskListDetailPage(
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = t.t("pages.tasklist.deleteCompleted"),
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(AppIconMetrics.inlineActionIconSize),
                             tint = if (deleteEnabled) chromeColor else chromeColor.copy(alpha = 0.45f)
                         )
                     }
@@ -3722,7 +4304,11 @@ private fun TaskListDetailPage(
     if (showEditDialog) {
         val colorOptions = listOf(null, "#F87171", "#FBBF24", "#34D399", "#38BDF8", "#818CF8", "#A78BFA")
         AlertDialog(
-            onDismissRequest = { showEditDialog = false },
+            onDismissRequest = {
+                if (!removingList) {
+                    showEditDialog = false
+                }
+            },
             title = { Text(t.t("taskList.editTitle")) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -3731,7 +4317,8 @@ private fun TaskListDetailPage(
                         onValueChange = { editName = it },
                         label = { Text(t.t("app.taskListName")) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !removingList
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(t.t("taskList.selectColor"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -3754,10 +4341,22 @@ private fun TaskListDetailPage(
                                             contentDescription = colorLabel(t, color)
                                             role = Role.Button
                                         }
-                                        .clickable { editBackground = color }
+                                        .clickable(enabled = !removingList) { editBackground = color }
                                 )
                             }
                         }
+                    }
+                    Button(
+                        onClick = { showRemoveListConfirm = true },
+                        enabled = !removingList,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (removingList) t.t("common.deleting") else t.t("taskList.deleteList"))
                     }
                 }
             },
@@ -3781,11 +4380,43 @@ private fun TaskListDetailPage(
                             showEditDialog = false
                         }
                     },
-                    enabled = editName.trim().isNotEmpty()
+                    enabled = editName.trim().isNotEmpty() && !removingList
                 ) { Text(t.t("taskList.save")) }
             },
             dismissButton = {
-                TextButton(onClick = { showEditDialog = false }) { Text(t.t("common.cancel")) }
+                TextButton(
+                    onClick = { showEditDialog = false },
+                    enabled = !removingList
+                ) { Text(t.t("common.cancel")) }
+            }
+        )
+    }
+
+    if (showRemoveListConfirm) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!removingList) {
+                    showRemoveListConfirm = false
+                }
+            },
+            title = { Text(t.t("taskList.deleteListConfirm.title")) },
+            text = { Text(t.t("taskList.deleteListConfirm.message")) },
+            confirmButton = {
+                TextButton(
+                    onClick = { removeTaskList() },
+                    enabled = !removingList
+                ) {
+                    Text(
+                        if (removingList) t.t("common.deleting") else t.t("auth.button.delete"),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showRemoveListConfirm = false },
+                    enabled = !removingList
+                ) { Text(t.t("common.cancel")) }
             }
         )
     }
@@ -3911,57 +4542,68 @@ private fun TaskListDetailPage(
     if (showDatePickerForTaskId != null) {
         val task = taskList.tasks.firstOrNull { it.id == showDatePickerForTaskId }
         if (task != null) {
-            val initialMillis = if (task.date.isNotBlank()) {
-                try {
-                    SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-                        timeZone = TimeZone.getTimeZone("UTC")
-                    }.parse(task.date)?.time ?: System.currentTimeMillis()
-                } catch (e: Exception) {
+            DisposableEffect(task.id, task.date, t.languageTag()) {
+                val initialMillis = if (task.date.isNotBlank()) {
+                    try {
+                        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                            timeZone = TimeZone.getTimeZone("UTC")
+                        }.parse(task.date)?.time ?: System.currentTimeMillis()
+                    } catch (e: Exception) {
+                        System.currentTimeMillis()
+                    }
+                } else {
                     System.currentTimeMillis()
                 }
-            } else {
-                System.currentTimeMillis()
-            }
-            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
-            DatePickerDialog(
-                onDismissRequest = { showDatePickerForTaskId = null },
-                modifier = Modifier.widthIn(max = 360.dp),
-                confirmButton = {
-                    TextButton(onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-                            cal.timeInMillis = millis
-                            val dateStr = String.format(
-                                Locale.US, "%04d-%02d-%02d",
-                                cal.get(Calendar.YEAR),
-                                cal.get(Calendar.MONTH) + 1,
-                                cal.get(Calendar.DAY_OF_MONTH)
-                            )
-                            commitDate(task, dateStr)
-                        } ?: run { showDatePickerForTaskId = null }
-                    }) { Text(t.t("common.ok")) }
-                },
-                dismissButton = {
-                    Row {
-                        TextButton(
-                            onClick = { commitDate(task, "") },
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) { Text(t.t("pages.tasklist.clearDate")) }
-                        TextButton(onClick = { showDatePickerForTaskId = null }) {
-                            Text(t.t("common.cancel"))
-                        }
-                    }
-                },
-                properties = DialogProperties(usePlatformDefaultWidth = true)
-            ) {
-                DatePicker(
-                    state = datePickerState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 480.dp)
-                        .verticalScroll(rememberScrollState()),
-                    showModeToggle = false
+                val initialDate = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                    timeInMillis = initialMillis
+                }
+                var handled = false
+                val dialog = DatePickerDialog(
+                    context,
+                    { _, year, month, dayOfMonth ->
+                        handled = true
+                        commitDate(task, String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, dayOfMonth))
+                    },
+                    initialDate.get(Calendar.YEAR),
+                    initialDate.get(Calendar.MONTH),
+                    initialDate.get(Calendar.DAY_OF_MONTH)
                 )
+                dialog.setButton(DialogInterface.BUTTON_POSITIVE, t.t("pages.tasklist.setDateShort")) { _, _ ->
+                    val picker = dialog.datePicker
+                    handled = true
+                    commitDate(
+                        task,
+                        String.format(
+                            Locale.US, "%04d-%02d-%02d",
+                            picker.year,
+                            picker.month + 1,
+                            picker.dayOfMonth
+                        )
+                    )
+                }
+                dialog.setButton(DialogInterface.BUTTON_NEUTRAL, t.t("pages.tasklist.clearDateShort")) { _, _ ->
+                    handled = true
+                    commitDate(task, "")
+                }
+                dialog.setButton(DialogInterface.BUTTON_NEGATIVE, t.t("common.cancel")) { _, _ ->
+                    handled = true
+                    showDatePickerForTaskId = null
+                }
+                dialog.setOnCancelListener {
+                    handled = true
+                    showDatePickerForTaskId = null
+                }
+                dialog.setOnDismissListener {
+                    if (!handled) {
+                        showDatePickerForTaskId = null
+                    }
+                }
+                dialog.show()
+
+                onDispose {
+                    dialog.setOnDismissListener(null)
+                    dialog.dismiss()
+                }
             }
         }
     }
@@ -4009,6 +4651,7 @@ private fun SettingsSelectRow(label: String, value: String, onClick: () -> Unit)
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
+                modifier = Modifier.size(AppIconMetrics.standardActionIconSize),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -4218,7 +4861,11 @@ private fun SettingsView(
                         ) {
                             Text(label, Modifier.weight(1f))
                             if (uiState.theme == option) {
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = t.t("common.selected"))
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = t.t("common.selected"),
+                                    modifier = Modifier.size(AppIconMetrics.standardActionIconSize)
+                                )
                             }
                         }
                     }
@@ -4248,7 +4895,11 @@ private fun SettingsView(
                         ) {
                             Text(label, Modifier.weight(1f))
                             if (uiState.taskInsertPosition == option) {
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = t.t("common.selected"))
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = t.t("common.selected"),
+                                    modifier = Modifier.size(AppIconMetrics.standardActionIconSize)
+                                )
                             }
                         }
                     }
@@ -4275,7 +4926,11 @@ private fun SettingsView(
                         ) {
                             Text(name, Modifier.weight(1f))
                             if (uiState.language == code) {
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = t.t("common.selected"))
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = t.t("common.selected"),
+                                    modifier = Modifier.size(AppIconMetrics.standardActionIconSize)
+                                )
                             }
                         }
                     }

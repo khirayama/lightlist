@@ -5,6 +5,12 @@ plugins {
     alias(libs.plugins.firebase.crashlytics)
 }
 
+val generatedSharedAssetsDir = layout.buildDirectory.dir("generated/assets/shared/main").get().asFile
+val syncSharedLocales by tasks.registering(Copy::class) {
+    from(rootProject.file("../../shared/locales/locales.json"))
+    into(generatedSharedAssetsDir)
+}
+
 val lightlistApplicationId =
     providers.gradleProperty("LIGHTLIST_APPLICATION_ID").orElse("com.lightlist.app").get()
 val passwordResetUrl =
@@ -48,6 +54,12 @@ android {
         buildConfig = true
         compose = true
     }
+
+    sourceSets.getByName("main").assets.srcDir(generatedSharedAssetsDir.path)
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(syncSharedLocales)
 }
 
 dependencies {

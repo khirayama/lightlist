@@ -21,6 +21,8 @@ targets:
       - path: Lightlist/Sources
       - path: Lightlist/Resources
         buildPhase: resources
+      - path: ../../shared/locales/locales.json
+        buildPhase: resources
     dependencies:
       - package: FirebaseSDK
         product: FirebaseAuth

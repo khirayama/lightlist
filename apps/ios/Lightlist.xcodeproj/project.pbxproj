@@ -8,26 +8,15 @@
 
 /* Begin PBXBuildFile section */
 		009B6DF98373EA0744FD450F /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 5C5DD32924B56E34AB5F034C /* FirebaseAnalytics */; };
-		02A8CD1764F483434BAB7290 /* zh-CN.json in Resources */ = {isa = PBXBuildFile; fileRef = 9FE8A205C2AAE88CF596F113 /* zh-CN.json */; };
 		0A9EB02B0993FD118BDC5D62 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 61AEA985F66E533B9C565E43 /* FirebaseAuth */; };
 		178E6DEBCEC4A72419C5ADCA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 03E96005FE689A03AE608611 /* Assets.xcassets */; };
-		240F291A3913030BEBA03F2E /* fr.json in Resources */ = {isa = PBXBuildFile; fileRef = C517950CBBF9C97DB818CCC3 /* fr.json */; };
 		2802D4B40E4EF5A424DDCBE5 /* LightlistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C4AFDF92886FBDFA0EAB45 /* LightlistTests.swift */; };
-		28AB832731E6FE16B9E9B884 /* pt-BR.json in Resources */ = {isa = PBXBuildFile; fileRef = 94099F49C472526B9D95AD9E /* pt-BR.json */; };
-		3BE4A6818067FEAE2783D082 /* de.json in Resources */ = {isa = PBXBuildFile; fileRef = DC77F9A6A98B78FC813CE44B /* de.json */; };
-		4B0D68F89EE905E7BDA01D8E /* ja.json in Resources */ = {isa = PBXBuildFile; fileRef = 2B9FB28EABAA923104FCCDD2 /* ja.json */; };
 		4CA7C737938F6922C9F7C029 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 5D2FC049671012454C273F85 /* FirebaseCrashlytics */; };
-		57EA339A4021C2358789B725 /* ko.json in Resources */ = {isa = PBXBuildFile; fileRef = 25EE97C0FC4D90D795844A3A /* ko.json */; };
-		60B0C71EDE30389911242AAF /* es.json in Resources */ = {isa = PBXBuildFile; fileRef = 64B7D82F23658F3C00BBB762 /* es.json */; };
-		694587730BD9EC6646B46E94 /* id.json in Resources */ = {isa = PBXBuildFile; fileRef = E6D13823FB9A3789949A965C /* id.json */; };
 		752231066BD951B04BCD7AE0 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 85C2E8D19C38E5EC9E466233 /* FirebaseAppCheck */; };
+		7860014FD9954EA01343DE72 /* locales.json in Resources */ = {isa = PBXBuildFile; fileRef = 5615019F3DBD2986C21F8B42 /* locales.json */; };
 		89CB2AA3EC79089749AE0FDC /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */; };
 		940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */; };
-		98DCA9CE9C3F52C1DA02C226 /* hi.json in Resources */ = {isa = PBXBuildFile; fileRef = DE16CBD342A45C822E3CC543 /* hi.json */; };
 		A6770824316C099D24A28312 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */; };
-		D051C1EFF43FCB999502AE3B /* LightlistApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4AA8EC653485C236D011074 /* LightlistApp.swift */; };
-		D6E9C3E2F5E103CB881BFFD2 /* ar.json in Resources */ = {isa = PBXBuildFile; fileRef = 607F35195F531B90FDAF50D3 /* ar.json */; };
-		E253F25CA2900824ADA699A8 /* en.json in Resources */ = {isa = PBXBuildFile; fileRef = EE47AFFF5C8D1EB4263AFD31 /* en.json */; };
 		F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */; };
 		F6AEE5CF134912C7EE97AC4E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A627AA500EE83986B1828B17 /* ContentView.swift */; };
 /* End PBXBuildFile section */
@@ -44,24 +33,13 @@
 
 /* Begin PBXFileReference section */
 		03E96005FE689A03AE608611 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		25EE97C0FC4D90D795844A3A /* ko.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ko.json; sourceTree = "<group>"; };
-		2B9FB28EABAA923104FCCDD2 /* ja.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ja.json; sourceTree = "<group>"; };
+		5615019F3DBD2986C21F8B42 /* locales.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = locales.json; sourceTree = "<group>"; };
 		5F18EECC750B7FE6A93E5288 /* LightlistTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LightlistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		607F35195F531B90FDAF50D3 /* ar.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ar.json; sourceTree = "<group>"; };
 		644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
-		64B7D82F23658F3C00BBB762 /* es.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = es.json; sourceTree = "<group>"; };
 		68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		94099F49C472526B9D95AD9E /* pt-BR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "pt-BR.json"; sourceTree = "<group>"; };
-		9FE8A205C2AAE88CF596F113 /* zh-CN.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "zh-CN.json"; sourceTree = "<group>"; };
 		A627AA500EE83986B1828B17 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B655550126664DF5B14E98D0 /* Lightlist.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Lightlist.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		C517950CBBF9C97DB818CCC3 /* fr.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = fr.json; sourceTree = "<group>"; };
 		C7C4AFDF92886FBDFA0EAB45 /* LightlistTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightlistTests.swift; sourceTree = "<group>"; };
-		D4AA8EC653485C236D011074 /* LightlistApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightlistApp.swift; sourceTree = "<group>"; };
-		DC77F9A6A98B78FC813CE44B /* de.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = de.json; sourceTree = "<group>"; };
-		DE16CBD342A45C822E3CC543 /* hi.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = hi.json; sourceTree = "<group>"; };
-		E6D13823FB9A3789949A965C /* id.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = id.json; sourceTree = "<group>"; };
-		EE47AFFF5C8D1EB4263AFD31 /* en.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = en.json; sourceTree = "<group>"; };
 		F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -84,29 +62,12 @@
 		0CBB767CA9E4D97930F04AEC = {
 			isa = PBXGroup;
 			children = (
+				45CF26A86FDC418DCF71DBA5 /* locales */,
 				794F5D9817987A08766BEC43 /* Resources */,
 				DB6A27021DE17295F5B935D5 /* Sources */,
 				D3781430FB8EF16DB27B8124 /* Tests */,
 				16F14110FC3CE2425E62E837 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		125A847C8239C7440CE0AA62 /* Locales */ = {
-			isa = PBXGroup;
-			children = (
-				607F35195F531B90FDAF50D3 /* ar.json */,
-				DC77F9A6A98B78FC813CE44B /* de.json */,
-				EE47AFFF5C8D1EB4263AFD31 /* en.json */,
-				64B7D82F23658F3C00BBB762 /* es.json */,
-				C517950CBBF9C97DB818CCC3 /* fr.json */,
-				DE16CBD342A45C822E3CC543 /* hi.json */,
-				E6D13823FB9A3789949A965C /* id.json */,
-				2B9FB28EABAA923104FCCDD2 /* ja.json */,
-				25EE97C0FC4D90D795844A3A /* ko.json */,
-				94099F49C472526B9D95AD9E /* pt-BR.json */,
-				9FE8A205C2AAE88CF596F113 /* zh-CN.json */,
-			);
-			path = Locales;
 			sourceTree = "<group>";
 		};
 		16F14110FC3CE2425E62E837 /* Products */ = {
@@ -126,13 +87,21 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
+		45CF26A86FDC418DCF71DBA5 /* locales */ = {
+			isa = PBXGroup;
+			children = (
+				5615019F3DBD2986C21F8B42 /* locales.json */,
+			);
+			name = locales;
+			path = ../../shared/locales;
+			sourceTree = "<group>";
+		};
 		794F5D9817987A08766BEC43 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 				03E96005FE689A03AE608611 /* Assets.xcassets */,
 				644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */,
 				F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */,
-				125A847C8239C7440CE0AA62 /* Locales */,
 				1C627F24DFEA9370108D68BC /* Preview Content */,
 			);
 			name = Resources;
@@ -152,7 +121,6 @@
 			isa = PBXGroup;
 			children = (
 				A627AA500EE83986B1828B17 /* ContentView.swift */,
-				D4AA8EC653485C236D011074 /* LightlistApp.swift */,
 			);
 			name = Sources;
 			path = Lightlist/Sources;
@@ -247,17 +215,7 @@
 				A6770824316C099D24A28312 /* GoogleService-Info.plist in Resources */,
 				940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */,
 				F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */,
-				D6E9C3E2F5E103CB881BFFD2 /* ar.json in Resources */,
-				3BE4A6818067FEAE2783D082 /* de.json in Resources */,
-				E253F25CA2900824ADA699A8 /* en.json in Resources */,
-				60B0C71EDE30389911242AAF /* es.json in Resources */,
-				240F291A3913030BEBA03F2E /* fr.json in Resources */,
-				98DCA9CE9C3F52C1DA02C226 /* hi.json in Resources */,
-				694587730BD9EC6646B46E94 /* id.json in Resources */,
-				4B0D68F89EE905E7BDA01D8E /* ja.json in Resources */,
-				57EA339A4021C2358789B725 /* ko.json in Resources */,
-				28AB832731E6FE16B9E9B884 /* pt-BR.json in Resources */,
-				02A8CD1764F483434BAB7290 /* zh-CN.json in Resources */,
+				7860014FD9954EA01343DE72 /* locales.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -296,7 +254,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				F6AEE5CF134912C7EE97AC4E /* ContentView.swift in Sources */,
-				D051C1EFF43FCB999502AE3B /* LightlistApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -346,7 +303,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleTypeRole\": \"Editor\", \"CFBundleURLSchemes\": [\"lightlist\"]]]";
+				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -513,7 +470,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleTypeRole\": \"Editor\", \"CFBundleURLSchemes\": [\"lightlist\"]]]";
+				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

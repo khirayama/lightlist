@@ -1,9 +1,63 @@
 import SwiftUI
 import Foundation
+import FirebaseAppCheck
 import FirebaseAuth
 import FirebaseAnalytics
+import FirebaseCore
 import FirebaseCrashlytics
 import FirebaseFirestore
+
+enum PendingDeepLink: Equatable {
+    case passwordReset(code: String)
+    case shareCode(String)
+}
+
+private final class LightlistAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
+    func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
+        #if targetEnvironment(simulator)
+        return AppCheckDebugProvider(app: app)
+        #elseif DEBUG
+        return AppCheckDebugProvider(app: app)
+        #else
+        if #available(iOS 14.0, *), !ProcessInfo.processInfo.isiOSAppOnMac {
+            return AppAttestProvider(app: app)
+        }
+        return DeviceCheckProvider(app: app)
+        #endif
+    }
+}
+
+private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
+    let scheme = url.scheme?.lowercased()
+    let host = url.host?.lowercased()
+    let pathComponents = url.pathComponents.filter { $0 != "/" }
+
+    if scheme == "lightlist" {
+        if host == "password-reset" {
+            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let code = components.queryItems?.first(where: { $0.name == "oobCode" })?.value,
+                  !code.isEmpty else {
+                return nil
+            }
+            return .passwordReset(code: code)
+        }
+
+        if host == "sharecodes",
+           let shareCode = pathComponents.first,
+           !shareCode.isEmpty {
+            return .shareCode(shareCode.uppercased())
+        }
+    }
+
+    if (scheme == "https" || scheme == "http"),
+       host == "lightlist.com",
+       pathComponents.count >= 2,
+       pathComponents[0].lowercased() == "sharecodes" {
+        return .shareCode(pathComponents[1].uppercased())
+    }
+
+    return nil
+}
 
 @MainActor
 final class Translations: ObservableObject {
@@ -14,14 +68,15 @@ final class Translations: ObservableObject {
 
     func load(language: String) {
         let lang = Self.supported.contains(language) ? language : "ja"
-        guard let url = Bundle.main.url(forResource: lang, withExtension: "json"),
+        guard let url = Bundle.main.url(forResource: "locales", withExtension: "json"),
               let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let locale = json[lang] as? [String: Any]
         else {
             dict = [:]
             return
         }
-        dict = json
+        dict = locale
         self.language = lang
     }
 
@@ -135,24 +190,119 @@ private struct CalendarTask: Identifiable {
     let dateValue: Date
 }
 
-private final class TaskListsViewModel: ObservableObject {
-    enum Status {
-        case idle
-        case loading
-        case ready
-        case error
+private enum LoadStatus {
+    case idle
+    case loading
+    case ready
+    case error
+}
+
+private func orderedTaskListIds(from data: [String: Any]?) -> [String] {
+    guard let data else {
+        return []
     }
 
-    @Published private(set) var taskLists: [TaskListSummary] = []
-    @Published private(set) var status: Status = .idle
+    let orderedEntries: [(taskListId: String, order: Double)] = data.compactMap { entry in
+        let key = entry.key
+        let value = entry.value
+        guard key != "createdAt", key != "updatedAt" else {
+            return nil
+        }
+        guard let value = value as? [String: Any] else {
+            return nil
+        }
+        guard let order = value["order"] as? NSNumber else {
+            return nil
+        }
+        return (taskListId: key, order: order.doubleValue)
+    }
+
+    return orderedEntries
+        .sorted { $0.order < $1.order }
+        .map { $0.taskListId }
+}
+
+private func taskListIdChunks(_ taskListIds: [String]) -> [[String]] {
+    stride(from: 0, to: taskListIds.count, by: 10).map { startIndex in
+        Array(taskListIds[startIndex..<min(startIndex + 10, taskListIds.count)])
+    }
+}
+
+private func removeListeners(_ listeners: inout [ListenerRegistration]) {
+    listeners.forEach { $0.remove() }
+    listeners = []
+}
+
+private func mapTaskListSummary(id: String, data: [String: Any]) -> TaskListSummary {
+    let tasks = data["tasks"] as? [String: Any] ?? [:]
+    let memberCount = (data["memberCount"] as? NSNumber)?.intValue ?? 1
+    let name = (data["name"] as? String ?? "").precomposedStringWithCanonicalMapping
+    let background = data["background"] as? String
+
+    return TaskListSummary(
+        id: id,
+        name: name,
+        taskCount: tasks.count,
+        memberCount: memberCount,
+        background: background
+    )
+}
+
+private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetail {
+    let name = (data["name"] as? String ?? "").precomposedStringWithCanonicalMapping
+    let memberCount = (data["memberCount"] as? NSNumber)?.intValue ?? 1
+    let background = data["background"] as? String
+    let rawTasks = data["tasks"] as? [String: Any] ?? [:]
+
+    let tasks = rawTasks.compactMap { entry -> TaskSummary? in
+        let taskId = entry.key
+        guard let value = entry.value as? [String: Any] else {
+            return nil
+        }
+
+        return TaskSummary(
+            id: taskId,
+            text: value["text"] as? String ?? "",
+            completed: value["completed"] as? Bool ?? false,
+            date: value["date"] as? String ?? "",
+            order: (value["order"] as? NSNumber)?.doubleValue ?? 0
+        )
+    }
+    .sorted {
+        if $0.order == $1.order {
+            return $0.id < $1.id
+        }
+        return $0.order < $1.order
+    }
+
+    let shareCode = data["shareCode"] as? String
+
+    return TaskListDetail(
+        id: id,
+        name: name,
+        tasks: tasks,
+        memberCount: memberCount,
+        background: background,
+        shareCode: shareCode
+    )
+}
+
+private class OrderedTaskListViewModel<Item>: ObservableObject {
+    @Published private(set) var taskLists: [Item] = []
+    @Published private(set) var status: LoadStatus = .idle
 
     private let db = Firestore.firestore()
+    private let mapper: (String, [String: Any]) -> Item
     private var taskListOrderListener: ListenerRegistration?
     private var taskListChunkListeners: [ListenerRegistration] = []
     private var currentUid: String?
-    private var orderedTaskListIds: [String] = []
-    private var taskListsById: [String: TaskListSummary] = [:]
+    private var orderedIds: [String] = []
+    private var taskListsById: [String: Item] = [:]
     private var taskListIdsKey = ""
+
+    init(mapper: @escaping (String, [String: Any]) -> Item) {
+        self.mapper = mapper
+    }
 
     func bind(uid: String?) {
         guard currentUid != uid else {
@@ -178,10 +328,9 @@ private final class TaskListsViewModel: ObservableObject {
                 return
             }
 
-            let nextOrderedTaskListIds = Self.getOrderedTaskListIds(from: snapshot?.data())
-            self.orderedTaskListIds = nextOrderedTaskListIds
+            self.orderedIds = orderedTaskListIds(from: snapshot?.data())
             self.status = .ready
-            self.subscribeToTaskLists(taskListIds: nextOrderedTaskListIds)
+            self.subscribeToTaskLists(taskListIds: self.orderedIds)
             self.publishTaskLists()
         }
     }
@@ -189,10 +338,9 @@ private final class TaskListsViewModel: ObservableObject {
     func reset() {
         taskListOrderListener?.remove()
         taskListOrderListener = nil
-        taskListChunkListeners.forEach { $0.remove() }
-        taskListChunkListeners = []
+        removeListeners(&taskListChunkListeners)
         currentUid = nil
-        orderedTaskListIds = []
+        orderedIds = []
         taskListsById = [:]
         taskListIdsKey = ""
         taskLists = []
@@ -206,8 +354,7 @@ private final class TaskListsViewModel: ObservableObject {
         }
         taskListIdsKey = nextKey
 
-        taskListChunkListeners.forEach { $0.remove() }
-        taskListChunkListeners = []
+        removeListeners(&taskListChunkListeners)
         taskListsById = taskListsById.filter { taskListIds.contains($0.key) }
 
         guard !taskListIds.isEmpty else {
@@ -215,8 +362,7 @@ private final class TaskListsViewModel: ObservableObject {
             return
         }
 
-        stride(from: 0, to: taskListIds.count, by: 10).forEach { startIndex in
-            let chunk = Array(taskListIds[startIndex..<min(startIndex + 10, taskListIds.count)])
+        taskListIdChunks(taskListIds).forEach { chunk in
             let listener = db.collection("taskLists")
                 .whereField(FieldPath.documentID(), in: chunk)
                 .addSnapshotListener { [weak self] snapshot, error in
@@ -235,9 +381,9 @@ private final class TaskListsViewModel: ObservableObject {
                             self.taskListsById.removeValue(forKey: taskListId)
                             return
                         }
-                        self.taskListsById[taskListId] = Self.mapTaskListSummary(
-                            id: taskListId,
-                            data: change.document.data()
+                        self.taskListsById[taskListId] = self.mapper(
+                            taskListId,
+                            change.document.data()
                         )
                     }
 
@@ -248,217 +394,11 @@ private final class TaskListsViewModel: ObservableObject {
     }
 
     private func publishTaskLists() {
-        taskLists = orderedTaskListIds.compactMap { taskListsById[$0] }
-    }
-
-    fileprivate static func getOrderedTaskListIds(from data: [String: Any]?) -> [String] {
-        guard let data else {
-            return []
-        }
-
-        let orderedEntries: [(taskListId: String, order: Double)] = data.compactMap { entry in
-            let key = entry.key
-            let value = entry.value
-            guard key != "createdAt", key != "updatedAt" else {
-                return nil
-            }
-            guard let value = value as? [String: Any] else {
-                return nil
-            }
-            guard let order = value["order"] as? NSNumber else {
-                return nil
-            }
-            return (taskListId: key, order: order.doubleValue)
-        }
-
-        return orderedEntries
-            .sorted { $0.order < $1.order }
-            .map { $0.taskListId }
-    }
-
-    private static func mapTaskListSummary(id: String, data: [String: Any]) -> TaskListSummary {
-        let tasks = data["tasks"] as? [String: Any] ?? [:]
-        let memberCount = (data["memberCount"] as? NSNumber)?.intValue ?? 1
-        let name = (data["name"] as? String ?? "").precomposedStringWithCanonicalMapping
-        let background = data["background"] as? String
-
-        return TaskListSummary(
-            id: id,
-            name: name,
-            taskCount: tasks.count,
-            memberCount: memberCount,
-            background: background
-        )
+        taskLists = orderedIds.compactMap { taskListsById[$0] }
     }
 }
 
-private final class TaskListDetailsViewModel: ObservableObject {
-    enum Status {
-        case idle
-        case loading
-        case ready
-        case error
-    }
-
-    @Published private(set) var taskLists: [TaskListDetail] = []
-    @Published private(set) var status: Status = .idle
-
-    private let db = Firestore.firestore()
-    private var taskListOrderListener: ListenerRegistration?
-    private var taskListChunkListeners: [ListenerRegistration] = []
-    private var currentUid: String?
-    private var orderedTaskListIds: [String] = []
-    private var taskListsById: [String: TaskListDetail] = [:]
-    private var taskListIdsKey = ""
-
-    func bind(uid: String?) {
-        guard currentUid != uid else {
-            return
-        }
-
-        reset()
-        currentUid = uid
-
-        guard let uid else {
-            status = .idle
-            return
-        }
-
-        status = .loading
-        taskListOrderListener = db.collection("taskListOrder").document(uid).addSnapshotListener { [weak self] snapshot, error in
-            guard let self else {
-                return
-            }
-
-            if error != nil {
-                self.status = .error
-                return
-            }
-
-            let nextOrderedTaskListIds = TaskListsViewModel.getOrderedTaskListIds(from: snapshot?.data())
-            self.orderedTaskListIds = nextOrderedTaskListIds
-            self.status = .ready
-            self.subscribeToTaskLists(taskListIds: nextOrderedTaskListIds)
-            self.publishTaskLists()
-        }
-    }
-
-    func reset() {
-        taskListOrderListener?.remove()
-        taskListOrderListener = nil
-        taskListChunkListeners.forEach { $0.remove() }
-        taskListChunkListeners = []
-        currentUid = nil
-        orderedTaskListIds = []
-        taskListsById = [:]
-        taskListIdsKey = ""
-        taskLists = []
-        status = .idle
-    }
-
-    private func subscribeToTaskLists(taskListIds: [String]) {
-        let nextKey = taskListIds.sorted().joined(separator: "|")
-        if taskListIdsKey == nextKey {
-            return
-        }
-        taskListIdsKey = nextKey
-
-        taskListChunkListeners.forEach { $0.remove() }
-        taskListChunkListeners = []
-        taskListsById = taskListsById.filter { taskListIds.contains($0.key) }
-
-        guard !taskListIds.isEmpty else {
-            publishTaskLists()
-            return
-        }
-
-        stride(from: 0, to: taskListIds.count, by: 10).forEach { startIndex in
-            let chunk = Array(taskListIds[startIndex..<min(startIndex + 10, taskListIds.count)])
-            let listener = db.collection("taskLists")
-                .whereField(FieldPath.documentID(), in: chunk)
-                .addSnapshotListener { [weak self] snapshot, error in
-                    guard let self else {
-                        return
-                    }
-
-                    if error != nil {
-                        self.status = .error
-                        return
-                    }
-
-                    snapshot?.documentChanges.forEach { change in
-                        let taskListId = change.document.documentID
-                        if change.type == .removed {
-                            self.taskListsById.removeValue(forKey: taskListId)
-                            return
-                        }
-                        self.taskListsById[taskListId] = Self.mapTaskListDetail(
-                            id: taskListId,
-                            data: change.document.data()
-                        )
-                    }
-
-                    self.publishTaskLists()
-                }
-            taskListChunkListeners.append(listener)
-        }
-    }
-
-    private func publishTaskLists() {
-        taskLists = orderedTaskListIds.compactMap { taskListsById[$0] }
-    }
-
-    fileprivate static func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetail {
-        let name = (data["name"] as? String ?? "").precomposedStringWithCanonicalMapping
-        let memberCount = (data["memberCount"] as? NSNumber)?.intValue ?? 1
-        let background = data["background"] as? String
-        let rawTasks = data["tasks"] as? [String: Any] ?? [:]
-
-        let tasks = rawTasks.compactMap { entry -> TaskSummary? in
-            let taskId = entry.key
-            guard let value = entry.value as? [String: Any] else {
-                return nil
-            }
-
-            return TaskSummary(
-                id: taskId,
-                text: value["text"] as? String ?? "",
-                completed: value["completed"] as? Bool ?? false,
-                date: value["date"] as? String ?? "",
-                order: (value["order"] as? NSNumber)?.doubleValue ?? 0
-            )
-        }
-        .sorted {
-            if $0.order == $1.order {
-                return $0.id < $1.id
-            }
-            return $0.order < $1.order
-        }
-
-        let shareCode = data["shareCode"] as? String
-
-        return TaskListDetail(
-            id: id,
-            name: name,
-            tasks: tasks,
-            memberCount: memberCount,
-            background: background,
-            shareCode: shareCode
-        )
-    }
-}
-
-private final class CalendarViewModel: ObservableObject {
-    enum Status {
-        case idle
-        case loading
-        case ready
-        case error
-    }
-
-    @Published private(set) var taskLists: [TaskListDetail] = []
-    @Published private(set) var status: Status = .idle
-
+private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> {
     private static let isoFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
@@ -466,6 +406,10 @@ private final class CalendarViewModel: ObservableObject {
         f.timeZone = TimeZone(identifier: "UTC")
         return f
     }()
+
+    init() {
+        super.init(mapper: mapTaskListDetail)
+    }
 
     var calendarTasks: [CalendarTask] {
         taskLists
@@ -489,79 +433,6 @@ private final class CalendarViewModel: ObservableObject {
             .sorted { $0.dateValue < $1.dateValue }
     }
 
-    private let db = Firestore.firestore()
-    private var taskListOrderListener: ListenerRegistration?
-    private var taskListChunkListeners: [ListenerRegistration] = []
-    private var currentUid: String?
-    private var orderedTaskListIds: [String] = []
-    private var taskListsById: [String: TaskListDetail] = [:]
-    private var taskListIdsKey = ""
-
-    func bind(uid: String?) {
-        guard currentUid != uid else { return }
-        reset()
-        currentUid = uid
-        guard let uid else { status = .idle; return }
-        status = .loading
-        taskListOrderListener = db.collection("taskListOrder").document(uid).addSnapshotListener { [weak self] snapshot, error in
-            guard let self else { return }
-            if error != nil { self.status = .error; return }
-            let nextOrderedTaskListIds = TaskListsViewModel.getOrderedTaskListIds(from: snapshot?.data())
-            self.orderedTaskListIds = nextOrderedTaskListIds
-            self.status = .ready
-            self.subscribeToTaskLists(taskListIds: nextOrderedTaskListIds)
-            self.publishTaskLists()
-        }
-    }
-
-    func reset() {
-        taskListOrderListener?.remove()
-        taskListOrderListener = nil
-        taskListChunkListeners.forEach { $0.remove() }
-        taskListChunkListeners = []
-        currentUid = nil
-        orderedTaskListIds = []
-        taskListsById = [:]
-        taskListIdsKey = ""
-        taskLists = []
-        status = .idle
-    }
-
-    private func subscribeToTaskLists(taskListIds: [String]) {
-        let nextKey = taskListIds.sorted().joined(separator: "|")
-        if taskListIdsKey == nextKey { return }
-        taskListIdsKey = nextKey
-        taskListChunkListeners.forEach { $0.remove() }
-        taskListChunkListeners = []
-        taskListsById = taskListsById.filter { taskListIds.contains($0.key) }
-        guard !taskListIds.isEmpty else { publishTaskLists(); return }
-        stride(from: 0, to: taskListIds.count, by: 10).forEach { startIndex in
-            let chunk = Array(taskListIds[startIndex..<min(startIndex + 10, taskListIds.count)])
-            let listener = db.collection("taskLists")
-                .whereField(FieldPath.documentID(), in: chunk)
-                .addSnapshotListener { [weak self] snapshot, error in
-                    guard let self else { return }
-                    if error != nil { self.status = .error; return }
-                    snapshot?.documentChanges.forEach { change in
-                        let taskListId = change.document.documentID
-                        if change.type == .removed {
-                            self.taskListsById.removeValue(forKey: taskListId)
-                            return
-                        }
-                        self.taskListsById[taskListId] = TaskListDetailsViewModel.mapTaskListDetail(
-                            id: taskListId,
-                            data: change.document.data()
-                        )
-                    }
-                    self.publishTaskLists()
-                }
-            taskListChunkListeners.append(listener)
-        }
-    }
-
-    private func publishTaskLists() {
-        taskLists = orderedTaskListIds.compactMap { taskListsById[$0] }
-    }
 }
 
 @MainActor
@@ -601,6 +472,302 @@ private enum AuthScreen: Int, CaseIterable, Identifiable {
 
 private func normalizeLanguageCode(_ language: String) -> String {
     supportedLanguages.first(where: { $0.code == language })?.code ?? "ja"
+}
+
+private func localeIdentifier(for language: String) -> String {
+    switch normalizeLanguageCode(language) {
+    case "en":
+        return "en_US"
+    case "es":
+        return "es_ES"
+    case "de":
+        return "de_DE"
+    case "fr":
+        return "fr_FR"
+    case "ko":
+        return "ko_KR"
+    case "zh-CN":
+        return "zh_CN"
+    case "hi":
+        return "hi_IN"
+    case "ar":
+        return "ar"
+    case "pt-BR":
+        return "pt_BR"
+    case "id":
+        return "id_ID"
+    default:
+        return "ja_JP"
+    }
+}
+
+private struct ParsedTaskInput {
+    let text: String
+    let date: String?
+}
+
+private struct TaskDatePattern {
+    let pattern: String
+    let options: NSRegularExpression.Options
+    let resolveDate: ([String]) -> Date?
+}
+
+private let taskDateSpaceOrEndPattern = #"(?:[\s　]|$)"#
+
+private let taskDateDigitMap: [Character: Character] = [
+    "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
+    "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
+    "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4",
+    "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9",
+    "०": "0", "१": "1", "२": "2", "३": "3", "४": "4",
+    "५": "5", "६": "6", "७": "7", "८": "8", "९": "9",
+]
+
+private func normalizeTaskDateDigits(_ value: String) -> String {
+    String(value.map { taskDateDigitMap[$0] ?? $0 })
+}
+
+private func formatTaskInputDate(_ date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter.string(from: date)
+}
+
+private func taskInputDateFrom(year: Int, month: Int, day: Int) -> Date? {
+    var components = DateComponents()
+    components.year = year
+    components.month = month
+    components.day = day
+    return Calendar.current.date(from: components)
+}
+
+private func nextTaskWeekdayOffset(targetDay: Int, currentDay: Int) -> Int {
+    let diff = targetDay - currentDay
+    return diff >= 0 ? diff : diff + 7
+}
+
+private func makeTaskOffsetDate(_ offset: Int) -> Date? {
+    Calendar.current.date(byAdding: .day, value: offset, to: Date())
+}
+
+private func taskRelativePatterns(language: String) -> [TaskDatePattern] {
+    switch normalizeLanguageCode(language) {
+    case "en":
+        return [
+            .init(pattern: #"^today\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^tomorrow\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^day after tomorrow\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^in\s+(\d+)\s+days?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(\d+)\s+days?\s+later\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(mon|tue|wed|thu|fri|sat|sun)(?:day)?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
+                let map = ["sun": 1, "mon": 2, "tue": 3, "wed": 4, "thu": 5, "fri": 6, "sat": 7]
+                guard let target = map[groups[1].lowercased()] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    case "es":
+        return [
+            .init(pattern: #"^hoy\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^mañana\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^pasado\s+mañana\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^(?:en|dentro\s+de)\s+(\d+)\s+d[ií]as?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
+                let map = ["domingo": 1, "dom": 1, "lunes": 2, "lun": 2, "martes": 3, "mar": 3, "miércoles": 4, "miercoles": 4, "mié": 4, "mie": 4, "jueves": 5, "jue": 5, "viernes": 6, "vie": 6, "sábado": 7, "sabado": 7, "sáb": 7, "sab": 7]
+                guard let target = map[groups[1].lowercased()] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    case "de":
+        return [
+            .init(pattern: #"^heute\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^morgen\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^übermorgen\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^in\s+(\d+)\s+tagen?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
+                let map = ["sonntag": 1, "so": 1, "montag": 2, "mo": 2, "dienstag": 3, "di": 3, "mittwoch": 4, "mi": 4, "donnerstag": 5, "do": 5, "freitag": 6, "fr": 6, "samstag": 7, "sa": 7]
+                guard let target = map[groups[1].lowercased()] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    case "fr":
+        return [
+            .init(pattern: #"^aujourd(?:'|’)hui\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^demain\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^apr[eè]s[- ]demain\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^dans\s+(\d+)\s+jours?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
+                let map = ["dimanche": 1, "dim": 1, "lundi": 2, "lun": 2, "mardi": 3, "mar": 3, "mercredi": 4, "mer": 4, "jeudi": 5, "jeu": 5, "vendredi": 6, "ven": 6, "samedi": 7, "sam": 7]
+                guard let target = map[groups[1].lowercased()] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    case "ko":
+        return [
+            .init(pattern: #"^오늘\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^내일\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^모레\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^(\d+)\s*일\s*후\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
+                let map = ["일요일": 1, "일": 1, "월요일": 2, "월": 2, "화요일": 3, "화": 3, "수요일": 4, "수": 4, "목요일": 5, "목": 5, "금요일": 6, "금": 6, "토요일": 7, "토": 7]
+                guard let target = map[groups[1]] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    case "zh-CN":
+        return [
+            .init(pattern: #"^今天\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^明天\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^后天\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^(\d+)\s*天后\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(星期[一二三四五六日天]|周[一二三四五六日天])\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
+                let map = ["星期日": 1, "星期天": 1, "周日": 1, "周天": 1, "星期一": 2, "周一": 2, "星期二": 3, "周二": 3, "星期三": 4, "周三": 4, "星期四": 5, "周四": 5, "星期五": 6, "周五": 6, "星期六": 7, "周六": 7]
+                guard let target = map[groups[1]] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    case "hi":
+        return [
+            .init(pattern: #"^आज\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^कल\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^परसों\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^(\d+)\s*दिन\s*बाद\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
+                let map = ["रविवार": 1, "सोमवार": 2, "मंगलवार": 3, "बुधवार": 4, "गुरुवार": 5, "शुक्रवार": 6, "शनिवार": 7]
+                guard let target = map[groups[1]] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    case "ar":
+        return [
+            .init(pattern: #"^اليوم\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^غد(?:ا|ًا)?\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^بعد\s+غد\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^بعد\s+(\d+)\s+أيام?\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
+                let map = ["الأحد": 1, "الاثنين": 2, "الإثنين": 2, "الثلاثاء": 3, "الأربعاء": 4, "الخميس": 5, "الجمعة": 6, "السبت": 7]
+                guard let target = map[groups[1]] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    case "pt-BR":
+        return [
+            .init(pattern: #"^hoje\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^amanh[ãa]\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^depois\s+de\s+amanh[ãa]\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^em\s+(\d+)\s+dias?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
+                let map = ["domingo": 1, "dom": 1, "segunda": 2, "segunda-feira": 2, "seg": 2, "terça": 3, "terca": 3, "terça-feira": 3, "terca-feira": 3, "ter": 3, "quarta": 4, "quarta-feira": 4, "qua": 4, "quinta": 5, "quinta-feira": 5, "qui": 5, "sexta": 6, "sexta-feira": 6, "sex": 6, "sábado": 7, "sabado": 7, "sáb": 7, "sab": 7]
+                guard let target = map[groups[1].lowercased()] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    case "id":
+        return [
+            .init(pattern: #"^hari\s+ini\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^besok\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^lusa\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^dalam\s+(\d+)\s+hari\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
+                let map = ["minggu": 1, "senin": 2, "selasa": 3, "rabu": 4, "kamis": 5, "jumat": 6, "jum'at": 6, "sabtu": 7]
+                guard let target = map[groups[1].lowercased()] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    default:
+        return [
+            .init(pattern: #"^今日\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(0) },
+            .init(pattern: #"^明日\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(1) },
+            .init(pattern: #"^明後日\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(2) },
+            .init(pattern: #"^(\d+)日後(?:に)?\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
+            .init(pattern: #"^([月火水木金土日])曜?\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
+                let map = ["日": 1, "月": 2, "火": 3, "水": 4, "木": 5, "金": 6, "土": 7]
+                guard let target = map[groups[1]] else { return nil }
+                let current = Calendar.current.component(.weekday, from: Date())
+                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
+            },
+        ]
+    }
+}
+
+private func resolveTaskDate(from source: String, patterns: [TaskDatePattern]) -> (date: Date, matchedLength: Int)? {
+    let nsSource = source as NSString
+    for pattern in patterns {
+        guard let regex = try? NSRegularExpression(pattern: pattern.pattern, options: pattern.options) else { continue }
+        let range = NSRange(location: 0, length: nsSource.length)
+        guard let match = regex.firstMatch(in: source, options: [], range: range), match.range.location == 0 else { continue }
+        var groups: [String] = []
+        for index in 0..<match.numberOfRanges {
+            let groupRange = match.range(at: index)
+            groups.append(groupRange.location == NSNotFound ? "" : nsSource.substring(with: groupRange))
+        }
+        if let date = pattern.resolveDate(groups) {
+            return (date, match.range.length)
+        }
+    }
+    return nil
+}
+
+private func parseDateFromTaskInput(_ text: String, language: String) -> ParsedTaskInput {
+    let source = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    if source.isEmpty {
+        return ParsedTaskInput(text: source, date: nil)
+    }
+
+    let normalized = normalizeTaskDateDigits(source)
+    let numericPatterns: [TaskDatePattern] = [
+        .init(pattern: #"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
+            guard let year = Int(groups[1]), let month = Int(groups[2]), let day = Int(groups[3]) else { return nil }
+            guard let date = taskInputDateFrom(year: year, month: month, day: day) else { return nil }
+            let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+            return components.year == year && components.month == month && components.day == day ? date : nil
+        },
+        .init(pattern: #"^(\d{1,2})[-/.](\d{1,2})\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
+            guard let month = Int(groups[1]), let day = Int(groups[2]) else { return nil }
+            let currentYear = Calendar.current.component(.year, from: Date())
+            guard let date = taskInputDateFrom(year: currentYear, month: month, day: day) else { return nil }
+            let components = Calendar.current.dateComponents([.month, .day], from: date)
+            guard components.month == month && components.day == day else { return nil }
+            let today = Calendar.current.startOfDay(for: Date())
+            if date < today {
+                return taskInputDateFrom(year: currentYear + 1, month: month, day: day)
+            }
+            return date
+        },
+    ]
+
+    if let resolved = resolveTaskDate(from: normalized, patterns: numericPatterns) {
+        let stripped = (source as NSString).substring(from: resolved.matchedLength).trimmingCharacters(in: .whitespacesAndNewlines)
+        return ParsedTaskInput(text: stripped, date: formatTaskInputDate(resolved.date))
+    }
+
+    if let resolved = resolveTaskDate(from: normalized, patterns: taskRelativePatterns(language: language)) {
+        let stripped = (source as NSString).substring(from: resolved.matchedLength).trimmingCharacters(in: .whitespacesAndNewlines)
+        return ParsedTaskInput(text: stripped, date: formatTaskInputDate(resolved.date))
+    }
+
+    return ParsedTaskInput(text: source, date: nil)
+}
+
+private func resolveTaskInput(_ text: String, language: String, currentTask: TaskSummary? = nil) -> ParsedTaskInput {
+    let parsed = parseDateFromTaskInput(text, language: language)
+    if let currentTask {
+        return ParsedTaskInput(
+            text: parsed.text.isEmpty ? currentTask.text : parsed.text,
+            date: parsed.date ?? currentTask.date
+        )
+    }
+    return ParsedTaskInput(text: parsed.text, date: parsed.date ?? "")
 }
 
 private func passwordResetURLString() -> String {
@@ -654,6 +821,7 @@ struct ContentView: View {
     @State private var splitVisibility: NavigationSplitViewVisibility = .all
     @State private var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
     @State private var pendingPasswordResetCode: String?
+    @State private var pendingSharePreviewCode: String?
     @State private var pendingShareCode: String?
     @StateObject private var translations = Translations()
     @Binding private var pendingDeepLink: PendingDeepLink?
@@ -699,6 +867,36 @@ struct ContentView: View {
                     PasswordResetView(
                         code: pendingPasswordResetCode,
                         onDismiss: { self.pendingPasswordResetCode = nil }
+                    )
+                }
+                .environmentObject(translations)
+            }
+        }
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { pendingSharePreviewCode != nil },
+                set: { presented in
+                    if !presented {
+                        pendingSharePreviewCode = nil
+                    }
+                }
+            )
+        ) {
+            if let pendingSharePreviewCode {
+                NavigationStack {
+                    SharedTaskListPreviewView(
+                        shareCode: pendingSharePreviewCode,
+                        onDismiss: { self.pendingSharePreviewCode = nil },
+                        onAdded: { taskListId in
+                            self.pendingSharePreviewCode = nil
+                            if horizontalSizeClass == .regular {
+                                selectedTaskListId = taskListId
+                                selectedRegularPane = .taskList
+                            } else {
+                                path = AppRoute.initialPath
+                                path.append(.taskList(taskListId: taskListId))
+                            }
+                        }
                     )
                 }
                 .environmentObject(translations)
@@ -791,8 +989,7 @@ struct ContentView: View {
         case .passwordReset(let code):
             pendingPasswordResetCode = code
         case .shareCode(let shareCode):
-            pendingShareCode = shareCode
-            selectedRegularPane = .taskList
+            pendingSharePreviewCode = shareCode
         }
 
         pendingDeepLink = nil
@@ -978,10 +1175,39 @@ private struct AuthView: View {
     let language: String
     @EnvironmentObject var translations: Translations
     @State private var selectedScreen: AuthScreen = .signIn
+    @State private var selectedLanguage = "ja"
 
     var body: some View {
         ScreenScaffold(title: title) {
             VStack(spacing: 16) {
+                HStack {
+                    Spacer()
+                    Menu {
+                        ForEach(supportedLanguages.indices, id: \.self) { index in
+                            let option = supportedLanguages[index]
+                            Button {
+                                let normalized = normalizeLanguageCode(option.code)
+                                selectedLanguage = normalized
+                                logSettingsLanguageChange(language: normalized)
+                                translations.load(language: normalized)
+                            } label: {
+                                if selectedLanguage == option.code {
+                                    Label(option.name, systemImage: "checkmark")
+                                } else {
+                                    Text(option.name)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "globe")
+                            Text(supportedLanguages.first(where: { $0.code == selectedLanguage })?.name ?? selectedLanguage)
+                        }
+                        .font(.subheadline.weight(.medium))
+                    }
+                    .accessibilityLabel(translations.t("settings.language.title"))
+                }
+
                 Picker("", selection: $selectedScreen) {
                     Text(translations.t("auth.tabs.signin")).tag(AuthScreen.signIn)
                     Text(translations.t("auth.tabs.signup")).tag(AuthScreen.signUp)
@@ -995,16 +1221,22 @@ private struct AuthView: View {
                         selectedScreen = .reset
                     }
                 case .signUp:
-                    SignUpView(language: language) {
+                    SignUpView(language: selectedLanguage) {
                         selectedScreen = .signIn
                     }
                 case .reset:
-                    PasswordResetRequestView(language: language) {
+                    PasswordResetRequestView(language: selectedLanguage) {
                         selectedScreen = .signIn
                     }
                 }
             }
             .frame(maxWidth: .infinity)
+        }
+        .onAppear {
+            selectedLanguage = normalizeLanguageCode(language)
+        }
+        .onChange(of: language) { _, newLanguage in
+            selectedLanguage = normalizeLanguageCode(newLanguage)
         }
     }
 
@@ -1445,7 +1677,7 @@ private struct TaskListsView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isLoggedIn = Auth.auth().currentUser != nil
     @State private var authStateHandle: AuthStateDidChangeListenerHandle?
-    @StateObject private var viewModel = TaskListsViewModel()
+    @StateObject private var viewModel = OrderedTaskListViewModel<TaskListSummary>(mapper: mapTaskListSummary)
     @StateObject private var calendarViewModel = CalendarViewModel()
     @State private var showCalendarSheet = false
     @State private var draggingTaskListId: String? = nil
@@ -2068,7 +2300,7 @@ private struct TaskListView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var authStateHandle: AuthStateDidChangeListenerHandle?
     @State private var selectedTaskListId: String
-    @StateObject private var viewModel = TaskListDetailsViewModel()
+    @StateObject private var viewModel = OrderedTaskListViewModel<TaskListDetail>(mapper: mapTaskListDetail)
     @StateObject private var settingsViewModel = SettingsViewModel()
 
     init(initialTaskListId: String) {
@@ -2178,7 +2410,7 @@ private struct RegularTaskListView: View {
     @EnvironmentObject var translations: Translations
     @Binding var selectedTaskListId: String?
     @State private var authStateHandle: AuthStateDidChangeListenerHandle?
-    @StateObject private var viewModel = TaskListDetailsViewModel()
+    @StateObject private var viewModel = OrderedTaskListViewModel<TaskListDetail>(mapper: mapTaskListDetail)
     @StateObject private var settingsViewModel = SettingsViewModel()
 
     var body: some View {
@@ -2453,16 +2685,12 @@ private struct TaskListDetailPage: View {
         return f
     }()
 
-    private static let displayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "ja_JP")
-        f.dateFormat = "M月d日(E)"
-        return f
-    }()
-
     private func formatDateDisplay(_ dateStr: String) -> String {
         guard let date = Self.isoFormatter.date(from: dateStr) else { return dateStr }
-        return Self.displayFormatter.string(from: date)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: localeIdentifier(for: translations.language))
+        formatter.setLocalizedDateFormatFromTemplate("MMMEd")
+        return formatter.string(from: date)
     }
 
     private func autoSortedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
@@ -2519,6 +2747,82 @@ private struct TaskListDetailPage: View {
         return updates
     }
 
+    private func normalizedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
+        autoSort ? autoSortedTasks(tasks) : renumberedTasks(tasks)
+    }
+
+    private func updateTaskList(_ updates: [String: Any]) {
+        db.collection("taskLists").document(taskList.id).updateData(updates)
+    }
+
+    private func persistTasks(_ tasks: [TaskSummary], deletedTaskIds: [String] = []) {
+        updateTaskList(taskUpdates(normalizedTasks(tasks), deletedTaskIds: deletedTaskIds))
+    }
+
+    private func deleteTaskList() {
+        guard !removingList, let user = Auth.auth().currentUser else { return }
+        removingList = true
+        let uid = user.uid
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+
+        Task {
+            do {
+                _ = try await db.runTransaction { transaction, errorPointer in
+                    let taskListOrderRef = self.db.collection("taskListOrder").document(uid)
+                    let taskListRef = self.db.collection("taskLists").document(taskList.id)
+                    let orderSnapshot: DocumentSnapshot
+                    let taskListSnapshot: DocumentSnapshot
+
+                    do {
+                        orderSnapshot = try transaction.getDocument(taskListOrderRef)
+                        taskListSnapshot = try transaction.getDocument(taskListRef)
+                    } catch {
+                        errorPointer?.pointee = error as NSError
+                        return nil
+                    }
+
+                    if orderSnapshot.exists {
+                        transaction.updateData([
+                            taskList.id: FieldValue.delete(),
+                            "updatedAt": now,
+                        ], forDocument: taskListOrderRef)
+                    }
+
+                    guard taskListSnapshot.exists else {
+                        return nil
+                    }
+
+                    let currentMemberCount = (taskListSnapshot.data()?["memberCount"] as? NSNumber)?.intValue ?? 1
+                    let nextMemberCount = currentMemberCount - 1
+                    if nextMemberCount <= 0 {
+                        if let currentCode = taskListSnapshot.data()?["shareCode"] as? String,
+                           !currentCode.isEmpty {
+                            transaction.deleteDocument(self.db.collection("shareCodes").document(currentCode))
+                        }
+                        transaction.deleteDocument(taskListRef)
+                    } else {
+                        transaction.updateData([
+                            "memberCount": nextMemberCount,
+                            "updatedAt": now,
+                        ], forDocument: taskListRef)
+                    }
+                    return nil
+                }
+
+                await MainActor.run {
+                    logTaskListDelete()
+                    showDeleteListAlert = false
+                    showEditSheet = false
+                    removingList = false
+                }
+            } catch {
+                await MainActor.run {
+                    removingList = false
+                }
+            }
+        }
+    }
+
     @State private var showEditSheet = false
     @State private var editName = ""
     @State private var editBackground: String? = nil
@@ -2526,6 +2830,8 @@ private struct TaskListDetailPage: View {
     @State private var currentShareCode: String? = nil
     @State private var generatingShareCode = false
     @State private var removingShareCode = false
+    @State private var removingList = false
+    @State private var showDeleteListAlert = false
     @State private var shareCopySuccess = false
     @State private var shareError: String? = nil
 
@@ -2765,6 +3071,15 @@ private struct TaskListDetailPage: View {
             Button(translations.t("auth.button.delete"), role: .destructive) { confirmDeleteCompleted() }
             Button(translations.t("common.cancel"), role: .cancel) {}
         }
+        .alert(translations.t("taskList.deleteListConfirm.title"), isPresented: $showDeleteListAlert) {
+            Button(removingList ? translations.t("common.deleting") : translations.t("auth.button.delete"), role: .destructive) {
+                deleteTaskList()
+            }
+            .disabled(removingList)
+            Button(translations.t("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(translations.t("taskList.deleteListConfirm.message"))
+        }
         .sheet(isPresented: $showEditSheet) {
             NavigationStack {
                 let colorOptions: [String?] = [nil, "#F87171", "#FBBF24", "#34D399", "#38BDF8", "#818CF8", "#A78BFA"]
@@ -2802,6 +3117,15 @@ private struct TaskListDetailPage: View {
                     }
 
                     Spacer()
+
+                    Button(role: .destructive) {
+                        showDeleteListAlert = true
+                    } label: {
+                        Text(removingList ? translations.t("common.deleting") : translations.t("taskList.deleteList"))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(removingList)
                 }
                 .padding(.top, 24)
                 .navigationTitle(translations.t("taskList.editTitle"))
@@ -2969,11 +3293,11 @@ private struct TaskListDetailPage: View {
                     order: current.order
                 )
             }
-            db.collection("taskLists").document(taskList.id).updateData(taskUpdates(autoSortedTasks(updatedTasks)))
+            persistTasks(updatedTasks)
             return
         }
 
-        db.collection("taskLists").document(taskList.id).updateData([
+        updateTaskList([
             "tasks.\(task.id).completed": !task.completed,
             "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
         ])
@@ -2988,25 +3312,30 @@ private struct TaskListDetailPage: View {
     private func commitEdit(_ task: TaskSummary) {
         guard editingTaskId == task.id else { return }
         let trimmed = editingText.trimmingCharacters(in: .whitespaces)
+        let resolved = resolveTaskInput(editingText, language: translations.language, currentTask: task)
+        let textChanged = resolved.text != task.text
+        let dateChanged = resolved.date != task.date
         editingTaskId = nil
-        guard !trimmed.isEmpty, trimmed != task.text else { return }
-        logTaskUpdate(fields: "text")
+        guard !(trimmed.isEmpty && !dateChanged), textChanged || dateChanged else { return }
+        let changedFields = textChanged && dateChanged ? "text,date" : textChanged ? "text" : "date"
+        logTaskUpdate(fields: changedFields)
         if autoSort {
             let updatedTasks = taskList.tasks.map { current in
                 TaskSummary(
                     id: current.id,
-                    text: current.id == task.id ? trimmed : current.text,
+                    text: current.id == task.id ? resolved.text : current.text,
                     completed: current.completed,
-                    date: current.date,
+                    date: current.id == task.id ? resolved.date ?? current.date : current.date,
                     order: current.order
                 )
             }
-            db.collection("taskLists").document(taskList.id).updateData(taskUpdates(autoSortedTasks(updatedTasks)))
+            persistTasks(updatedTasks)
             return
         }
 
-        db.collection("taskLists").document(taskList.id).updateData([
-            "tasks.\(task.id).text": trimmed,
+        updateTaskList([
+            "tasks.\(task.id).text": resolved.text,
+            "tasks.\(task.id).date": resolved.date ?? task.date,
             "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
         ])
     }
@@ -3028,12 +3357,12 @@ private struct TaskListDetailPage: View {
                     order: current.order
                 )
             }
-            db.collection("taskLists").document(taskList.id).updateData(taskUpdates(autoSortedTasks(updatedTasks)))
+            persistTasks(updatedTasks)
             datePickerTaskId = nil
             return
         }
 
-        db.collection("taskLists").document(taskList.id).updateData([
+        updateTaskList([
             "tasks.\(task.id).date": dateStr,
             "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
         ])
@@ -3043,7 +3372,8 @@ private struct TaskListDetailPage: View {
     private func addTask() {
         let trimmed = newTaskText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        logTaskAdd(hasDate: false)
+        let parsed = resolveTaskInput(trimmed, language: translations.language)
+        logTaskAdd(hasDate: !(parsed.date ?? "").isEmpty)
         newTaskText = ""
         isNewTaskFocused = true
         let taskId = UUID().uuidString
@@ -3055,23 +3385,23 @@ private struct TaskListDetailPage: View {
         if autoSort {
             let insertedTask = TaskSummary(
                 id: taskId,
-                text: trimmed,
+                text: parsed.text,
                 completed: false,
-                date: "",
+                date: parsed.date ?? "",
                 order: order
             )
             var reorderedTasks = taskList.tasks
             let insertIndex = taskInsertPosition == "top" ? 0 : reorderedTasks.count
             reorderedTasks.insert(insertedTask, at: insertIndex)
-            db.collection("taskLists").document(taskList.id).updateData(taskUpdates(autoSortedTasks(reorderedTasks)))
+            persistTasks(reorderedTasks)
             return
         }
 
-        db.collection("taskLists").document(taskList.id).updateData([
+        updateTaskList([
             "tasks.\(taskId).id": taskId,
-            "tasks.\(taskId).text": trimmed,
+            "tasks.\(taskId).text": parsed.text,
             "tasks.\(taskId).completed": false,
-            "tasks.\(taskId).date": "",
+            "tasks.\(taskId).date": parsed.date ?? "",
             "tasks.\(taskId).order": order,
             "updatedAt": now
         ])
@@ -3090,17 +3420,14 @@ private struct TaskListDetailPage: View {
         for (i, task) in sorted.enumerated() {
             updates["tasks.\(task.id).order"] = Double(i + 1)
         }
-        db.collection("taskLists").document(taskList.id).updateData(updates)
+        updateTaskList(updates)
     }
 
     private func confirmDeleteCompleted() {
         let completed = taskList.tasks.filter { $0.completed }
         logTaskDeleteCompleted(count: completed.count)
         let remaining = taskList.tasks.filter { !$0.completed }
-        let normalizedRemainingTasks = autoSort ? autoSortedTasks(remaining) : renumberedTasks(remaining)
-        db.collection("taskLists").document(taskList.id).updateData(
-            taskUpdates(normalizedRemainingTasks, deletedTaskIds: completed.map(\.id))
-        )
+        persistTasks(remaining, deletedTaskIds: completed.map(\.id))
     }
 
     private func persistTaskOrder(_ ids: [String]) {
@@ -3109,7 +3436,7 @@ private struct TaskListDetailPage: View {
         for (i, id) in ids.enumerated() {
             updates["tasks.\(id).order"] = Double(i + 1)
         }
-        db.collection("taskLists").document(taskList.id).updateData(updates)
+        updateTaskList(updates)
     }
 
     private func generateShareCode(taskListId: String) async throws -> String {
@@ -3223,6 +3550,262 @@ private func addSharedTaskListToOrder(taskListId: String) async throws {
         } catch let err as NSError {
             errorPointer?.pointee = err
             return nil
+        }
+    }
+}
+
+@MainActor
+private final class SharedTaskListPreviewViewModel: ObservableObject {
+    @Published private(set) var taskList: TaskListDetail?
+    @Published private(set) var isLoading = false
+    @Published private(set) var isJoining = false
+    @Published private(set) var isAdded = false
+    @Published private(set) var errorMessage: String?
+
+    private let db = Firestore.firestore()
+    private var taskListListener: ListenerRegistration?
+    private var orderListener: ListenerRegistration?
+    private var currentTaskListId: String?
+
+    func bind(shareCode: String, uid: String?, translations: Translations) {
+        let normalizedCode = shareCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !normalizedCode.isEmpty else {
+            taskList = nil
+            errorMessage = translations.t("pages.sharecode.notFound")
+            isLoading = false
+            isAdded = false
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+        updateOrderSubscription(uid: uid, taskListId: currentTaskListId)
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                guard let taskListId = try await fetchTaskListIdByShareCode(normalizedCode) else {
+                    self.resetTaskListListener()
+                    self.currentTaskListId = nil
+                    self.taskList = nil
+                    self.isAdded = false
+                    self.errorMessage = translations.t("pages.sharecode.notFound")
+                    self.isLoading = false
+                    self.updateOrderSubscription(uid: uid, taskListId: nil)
+                    return
+                }
+
+                self.subscribeToTaskList(taskListId: taskListId, translations: translations)
+                self.updateOrderSubscription(uid: uid, taskListId: taskListId)
+                logShare()
+            } catch {
+                self.resetTaskListListener()
+                self.currentTaskListId = nil
+                self.taskList = nil
+                self.isAdded = false
+                self.errorMessage = translations.t("pages.sharecode.error")
+                self.isLoading = false
+                self.updateOrderSubscription(uid: uid, taskListId: nil)
+            }
+        }
+    }
+
+    func reset() {
+        resetTaskListListener()
+        resetOrderListener()
+        currentTaskListId = nil
+        taskList = nil
+        isLoading = false
+        isJoining = false
+        isAdded = false
+        errorMessage = nil
+    }
+
+    func joinCurrentTaskList() async throws -> String {
+        guard let taskListId = currentTaskListId else {
+            throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
+        }
+
+        await MainActor.run {
+            isJoining = true
+            errorMessage = nil
+        }
+
+        do {
+            try await addSharedTaskListToOrder(taskListId: taskListId)
+            await MainActor.run {
+                isAdded = true
+                isJoining = false
+            }
+            logShareCodeJoin()
+            return taskListId
+        } catch {
+            await MainActor.run {
+                isJoining = false
+            }
+            throw error
+        }
+    }
+
+    private func subscribeToTaskList(taskListId: String, translations: Translations) {
+        guard currentTaskListId != taskListId else {
+            return
+        }
+
+        resetTaskListListener()
+        currentTaskListId = taskListId
+        taskListListener = db.collection("taskLists").document(taskListId).addSnapshotListener { [weak self] snapshot, error in
+            guard let self else { return }
+
+            Task { @MainActor in
+                if error != nil {
+                    self.taskList = nil
+                    self.errorMessage = translations.t("pages.sharecode.error")
+                    self.isLoading = false
+                    return
+                }
+
+                guard let data = snapshot?.data() else {
+                    self.taskList = nil
+                    self.errorMessage = translations.t("pages.sharecode.notFound")
+                    self.isLoading = false
+                    return
+                }
+
+                self.taskList = mapTaskListDetail(id: taskListId, data: data)
+                self.errorMessage = nil
+                self.isLoading = false
+            }
+        }
+    }
+
+    private func updateOrderSubscription(uid: String?, taskListId: String?) {
+        resetOrderListener()
+
+        guard let uid, let taskListId else {
+            isAdded = false
+            return
+        }
+
+        orderListener = db.collection("taskListOrder").document(uid).addSnapshotListener { [weak self] snapshot, _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.isAdded = orderedTaskListIds(from: snapshot?.data()).contains(taskListId)
+            }
+        }
+    }
+
+    private func resetTaskListListener() {
+        taskListListener?.remove()
+        taskListListener = nil
+    }
+
+    private func resetOrderListener() {
+        orderListener?.remove()
+        orderListener = nil
+    }
+}
+
+private struct SharedTaskListPreviewView: View {
+    @EnvironmentObject var translations: Translations
+    let shareCode: String
+    let onDismiss: () -> Void
+    let onAdded: (String) -> Void
+
+    @StateObject private var viewModel = SharedTaskListPreviewViewModel()
+    @StateObject private var settingsViewModel = SettingsViewModel()
+    @State private var authStateHandle: AuthStateDidChangeListenerHandle?
+    @State private var currentUid = Auth.auth().currentUser?.uid
+    @State private var addToOrderError: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if viewModel.isLoading {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+            } else if let taskList = viewModel.taskList {
+                TaskListDetailPage(
+                    taskList: taskList,
+                    taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "bottom",
+                    autoSort: settingsViewModel.settings?.autoSort ?? false
+                )
+            } else {
+                VStack {
+                    Spacer()
+                    Text(viewModel.errorMessage ?? translations.t("pages.sharecode.error"))
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                    Spacer()
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(resolveTaskListBackgroundColor(viewModel.taskList?.background).ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack(spacing: 12) {
+                Button(action: onDismiss) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: AppIconMetrics.navigationIconSize, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(translations.t("common.back"))
+
+                Spacer()
+
+                if currentUid != nil, !viewModel.isAdded, viewModel.taskList != nil {
+                    Button(viewModel.isJoining ? translations.t("common.loading") : translations.t("pages.sharecode.addToOrder")) {
+                        Task {
+                            do {
+                                addToOrderError = nil
+                                let taskListId = try await viewModel.joinCurrentTaskList()
+                                onAdded(taskListId)
+                            } catch {
+                                addToOrderError = translations.t("pages.sharecode.addToOrderError")
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.isJoining)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color(.systemBackground).opacity(0.92))
+        }
+        .overlay(alignment: .top) {
+            if let addToOrderError {
+                Text(addToOrderError)
+                    .foregroundStyle(.red)
+                    .font(.subheadline)
+                    .padding(.top, 72)
+                    .padding(.horizontal, 16)
+            }
+        }
+        .onAppear {
+            authStateHandle = Auth.auth().addStateDidChangeListener { _, user in
+                Task { @MainActor in
+                    currentUid = user?.uid
+                    settingsViewModel.bind(uid: user?.uid)
+                    viewModel.bind(shareCode: shareCode, uid: user?.uid, translations: translations)
+                }
+            }
+        }
+        .onDisappear {
+            if let handle = authStateHandle {
+                Auth.auth().removeStateDidChangeListener(handle)
+            }
+            settingsViewModel.reset()
+            viewModel.reset()
+        }
+        .onChange(of: translations.language) { _, _ in
+            viewModel.bind(shareCode: shareCode, uid: currentUid, translations: translations)
         }
     }
 }
@@ -3722,16 +4305,35 @@ private struct CalendarSheetView: View {
         return f
     }()
 
-    private static let monthTitleFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMMM yyyy"
-        return f
-    }()
-
     private var currentMonthKey: String {
         let c = Self.cal.dateComponents([.year, .month], from: displayedMonth)
         guard let year = c.year, let month = c.month else { return "" }
         return String(format: "%04d-%02d", year, month)
+    }
+
+    private var locale: Locale {
+        Locale(identifier: localeIdentifier(for: translations.language))
+    }
+
+    private var weekdaySymbols: [String] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = locale
+        return calendar.shortStandaloneWeekdaySymbols
+    }
+
+    private var monthTitle: String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.setLocalizedDateFormatFromTemplate("yMMMM")
+        return formatter.string(from: displayedMonth)
+    }
+
+    private var visibleTasks: [CalendarTask] {
+        guard let selectedDate else {
+            return tasksInMonth
+        }
+        let key = dateKey(selectedDate)
+        return tasksInMonth.filter { $0.date == key }
     }
 
     private var tasksInMonth: [CalendarTask] {
@@ -3784,9 +4386,9 @@ private struct CalendarSheetView: View {
                         .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
                         .padding(8)
                 }
-                .accessibilityLabel("前の月")
+                .accessibilityLabel(translations.t("app.calendarPreviousMonth"))
                 Spacer()
-                Text(Self.monthTitleFormatter.string(from: displayedMonth))
+                Text(monthTitle)
                     .font(.headline)
                 Spacer()
                 Button { shiftMonth(by: 1) } label: {
@@ -3794,7 +4396,7 @@ private struct CalendarSheetView: View {
                         .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
                         .padding(8)
                 }
-                .accessibilityLabel("次の月")
+                .accessibilityLabel(translations.t("app.calendarNextMonth"))
             }
             .padding(.horizontal, 8)
             .padding(.top, 8)
@@ -3804,7 +4406,7 @@ private struct CalendarSheetView: View {
 
             VStack(spacing: 4) {
                 LazyVGrid(columns: columns, spacing: 0) {
-                    ForEach(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], id: \.self) { d in
+                    ForEach(weekdaySymbols, id: \.self) { d in
                         Text(d)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -3835,17 +4437,23 @@ private struct CalendarSheetView: View {
 
             Divider()
 
-            if tasksInMonth.isEmpty {
-                Spacer()
-                Text(translations.t("app.calendarNoDatedTasks"))
-                    .foregroundStyle(.secondary)
-                    .font(.subheadline)
-                Spacer()
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(tasksInMonth) { task in
+                if tasksInMonth.isEmpty {
+                    Spacer()
+                    Text(translations.t("app.calendarNoDatedTasks"))
+                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                    Spacer()
+                } else if visibleTasks.isEmpty {
+                    Spacer()
+                    Text(translations.t("app.calendarNoTasksOnSelectedDate"))
+                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                    Spacer()
+                } else {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                            ForEach(visibleTasks) { task in
                                 CalendarTaskRow(
                                     task: task,
                                     isHighlighted: selectedDate.map { dateKey($0) == task.date } ?? false
@@ -3857,7 +4465,7 @@ private struct CalendarSheetView: View {
                     .onChange(of: selectedDate) { _, date in
                         guard let date else { return }
                         let key = dateKey(date)
-                        if let first = tasksInMonth.first(where: { $0.date == key }) {
+                        if let first = visibleTasks.first(where: { $0.date == key }) {
                             withAnimation(reduceMotion ? .none : .default) {
                                 proxy.scrollTo(first.id, anchor: .top)
                             }
@@ -3879,6 +4487,31 @@ private func colorLabel(_ hex: String?) -> String {
     case "#818CF8": return "インディゴ"
     case "#A78BFA": return "紫"
     default: return "カスタム色"
+    }
+}
+
+@main
+struct LightlistApp: App {
+    @State private var pendingDeepLink: PendingDeepLink?
+
+    init() {
+        AppCheck.setAppCheckProviderFactory(LightlistAppCheckProviderFactory())
+        FirebaseApp.configure()
+        _ = Auth.auth().addStateDidChangeListener { _, user in
+            Crashlytics.crashlytics().setUserID(user?.uid ?? "")
+        }
+        NSSetUncaughtExceptionHandler { exception in
+            logException(description: "\(exception.name.rawValue): \(exception.reason ?? "")", fatal: true)
+        }
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView(pendingDeepLink: $pendingDeepLink)
+                .onOpenURL { url in
+                    pendingDeepLink = parseDeepLink(url)
+                }
+        }
     }
 }
 

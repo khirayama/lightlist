@@ -100,7 +100,7 @@
 ## 画面仕様
 
 - Web の認証画面は `/login/` で提供し、実装は `apps/web/src/entry.tsx` に集約する。
-- iOS のパスワードリセット deep link は `lightlist://password-reset?oobCode=...` を受け、`ContentView` の full screen cover で新しいパスワード入力画面を表示する。
+- iOS のパスワードリセット deep link は `lightlist://password-reset?oobCode=...` を受け、`RootView` の full screen cover で新しいパスワード入力画面を表示する。
 - Web の共有コードページは `/sharecodes/?code=CODE` を受け、未認証でも共有リストの軽量プレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - iOS の共有コード deep link は `lightlist://sharecodes/CODE` と `https://lightlist.com/sharecodes/CODE` を受け、未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - Android の deep link は `lightlist://password-reset?oobCode=...`、`lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`、`https://lightlist.com/password_reset?oobCode=...` を処理する。

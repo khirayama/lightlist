@@ -61,7 +61,7 @@
 
 - `sign_up`, `login`: `method: "email"`
 - `app_task_add`: `has_date: boolean`
-- `app_task_update`: `fields: string`
+- `app_task_update`: `fields: string`。タスクのピン留め切替は `fields: "pinned"` を送る。
 - `app_task_delete_completed`: `count: number`
 - `share`: `method: "share_code"`, `content_type: "task_list"`
 - `app_settings_theme_change`: `theme: "system" | "light" | "dark"`

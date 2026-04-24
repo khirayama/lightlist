@@ -51,7 +51,8 @@
 - iOS / Android のページャー内の各タスクリスト詳細ページは背景を持たず透過とする。背景色は選択中タスクリストに応じた親コンテナだけが保持し、横スクロール中にページ単位で色面が切り替わらないようにする。
 - iOS / Android のタスクリスト詳細ヘッダーとページャーインジケータは、背景を持たない前景レイヤーとして重ねる。タスクリスト背景は画面上端から塗り、本文スクロール領域側でその前景分の上余白を確保して見た目位置を維持する。
 - iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を縦に分け、タイトル行・入力欄・操作列・タスク行までの余白を詰めて単票リファレンスに近い密度で配置する。入力欄の追加ボタンは入力文字がある時だけ表示し、未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で表現する。
-- iOS / Android の compact/regular 共通タスクリスト詳細は、本文の文字サイズと視覚余白を iOS に近い密度へ寄せつつ、編集・共有・追加・日付・完了・ドラッグ操作のタップ領域は iOS `44pt` 前後、Android `48dp` を維持する。global theme は変えず、詳細画面ローカルの metrics で調整する。iOS のアプリ内アイコンの視覚サイズは `ContentView.swift` の metrics で用途別に統一し、標準アクションとナビゲーションは `22pt`、テキスト横の補助アクションは `18pt`、詳細画面の小型アクションは `20pt` を基準とする。Android のアプリ内アイコンの視覚サイズは `ContentView.kt` の metrics で用途別に統一し、標準アクションは `24dp`、テキスト横の補助アクションは `18dp`、詳細画面の小型アクションは `20dp` を基準とする。
+- iOS / Android の compact/regular 共通タスクリスト詳細は、本文の文字サイズと視覚余白を iOS に近い密度へ寄せつつ、編集・共有・追加・日付・完了・ドラッグ操作のタップ領域は iOS `44pt` 前後、Android `48dp` を維持する。global theme は変えず、`TaskListDetailPage` ローカルの metrics で調整する。iOS のアプリ内アイコンの視覚サイズは `ContentView.swift` の metrics で用途別に統一し、標準アクションとナビゲーションは `22pt`、テキスト横の補助アクションは `18pt`、詳細画面の小型アクションは `20pt` を基準とする。Android のアプリ内アイコンの視覚サイズは `ContentView.kt` の metrics で用途別に統一し、標準アクションは `24dp`、テキスト横の補助アクションは `18dp`、詳細画面の小型アクションは `20dp` を基準とする。
+- Web / iOS / Android の完了 task row は、打ち消し線と muted 色に加えて行全体へ標準強度の透明度を掛け、日付ラベル・完了トグル・本文・日付ボタン・ドラッグハンドルをまとめて減衰させる。共有コードプレビューの task 行も同じ完了表現に揃える。
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白、操作列とタスク一覧の区切り余白、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰め、一覧密度を上げても各操作の `48dp` タップ領域は維持する。
 - Android のタスクリスト一覧ヘッダー、詳細ヘッダー、設定ヘッダーは `WindowInsets.safeDrawing` を考慮して上端へ配置し、メールアドレス、設定導線、戻るボタン、タイトルがステータスバーにかからず、ヘッダー本体の固定高さ内でクリップされないようにする。
 - Android の inline task 編集中は、hardware keyboard の矢印キーと Enter を編集欄内で完結させる。`←` / `→` は caret 移動だけを行い、`↑` / `↓` は no-op として consume し、pager 切替や近傍要素への focus 移動を起こさない。Enter は task を確定して編集終了するだけで、一覧表示や戻る導線を発火させない。
@@ -67,23 +68,31 @@
 
 ## タスク操作
 
-- `tasks` は `id`, `text`, `completed`, `date`, `order` を持つ。
-- Web / iOS / Android の `addTask()` は入力先頭の日付表現を解析し、`text` と `date` に分離する。
-- 日付解析は `yyyy-mm-dd` / `mm-dd` / `mm/dd` / `mm.dd` と各言語の相対表現を扱う。
+- `tasks` は `id`, `text`, `completed`, `date`, `order`, `pinned` を持つ。
+- `pinned` 未設定の既存 task は `false` として扱う。`pinOrder` のような別順序フィールドは持たず、`order` を task 順序の唯一の正本にする。
+- Web / iOS / Android の `addTask()` は入力先頭の日付表現と pin prefix を解析し、`text` / `date` / `pinned` に分離する。
+- pin prefix は各言語の短い代表語（`ja: ピン`, `es: fijar`, `de: anheften`, `fr: epingler/épingler`, `ko: 고정`, `zh-CN: 置顶`, `hi: पिन`, `ar: تثبيت`, `pt-BR: fixar`, `id: sematkan`）に加え、全言語で `pin` / `pinned` を許可する。
+- 日付解析は `yyyy-mm-dd` / `mm-dd` / `mm/dd` / `mm.dd` と各言語の相対表現を扱い、全言語で英語の相対表現（`today` / `tomorrow` / `day after tomorrow` / `in N days` / `N days later` / 英語曜日名）も併用許可する。
 - 数字はアラビア数字に加えてアラビア語、ペルシャ語、デーヴァナーガリー数字を正規化する。
 - Web の parser 仕様を正本とし、iOS / Android も対応言語・先頭一致ルール・解釈順序を揃える。
-- Web / iOS / Android の本文編集確定時も同じ parser を通し、先頭日付表現を認識できた場合だけ `date` を更新する。
+- parser は先頭から最大 2 つの修飾子を順不同で剥がし、`pin-prefix -> date -> text` と `date -> pin-prefix -> text` の両方を許可する。
+- Web / iOS / Android の本文編集確定時も同じ parser を通し、先頭日付表現を認識できた場合だけ `date` を更新する。pin prefix を認識できた場合だけ `pinned` を `true` に更新し、prefix がないことを理由に自動解除しない。
 - 本文編集で日付表現を取り除いた結果 `text` が空になる場合は、既存 `text` を維持したまま `date` だけ更新する。
 - `taskInsertPosition` が `top` の場合は先頭、`bottom` の場合は末尾へ追加する。
 - Android のタスク追加後は、自動スクロールで追加位置へ移動しない。追加前のスクロール位置を維持する。
 - Android のタスク追加後は入力欄の focus を維持したまま IME を閉じない。
 - Android のタスク入力欄の送信アイコンは Web と同様に入力欄 focus 中だけ横方向アニメーションで表示し、入力文字が空の間は disabled のまま保つ。
-- `autoSort` 有効時は `未完了 -> date -> order` の順で並べ直す。
+- 表示順は `未完了 pinned -> 未完了 unpinned -> 完了` とし、各グループ内は `order` 昇順を使う。
+- pinned task は Web / iOS / Android のタスク行で強めの本文 weight を使って通常 task と区別する。右端の task action はカレンダーアイコンではなくピンアイコンを表示し、同じ操作からピン解除と日付設定を開く。
+- pinned 内や unpinned 内の D&D は `order` を更新する。異なる表示グループをまたぐ D&D は行わず、グループ移動はピン切替または完了切替で行う。
+- iOS の task ハンドル D&D は、ドラッグ開始前の表示順とドロップ後の表示順を比較し、差分がある場合だけ `tasks.*.order` を保存する。
+- `autoSort` 有効時は `未完了 pinned -> date -> order`、`未完了 unpinned -> date -> order`、`完了 -> date -> order` の順で並べ直す。
+- `autoSort` 無効時に pinned を解除した task は、未完了 unpinned グループの先頭へ入るよう `order` を再採番する。`autoSort` 有効時は通常の自動並び替えルールに従う。
 - Web の task 更新系は Firestore の `tasks` map の列挙順を信用せず、常に `order` 昇順の配列へ直してから追加・並び替え・自動並び替え・完了済み削除を計算する。
 - iOS / Android の `TaskListDetailPage` でも `autoSort` 有効時は、タスク追加、完了切替、本文編集、日付変更、完了済み削除のたびに同じ順序で再採番して Firestore へ保存する。
 - `history` は重複を除きつつ先頭追加し、最大 300 件を保持する。
 - Web の `sortTasks()` と `updateTasksOrder()` は順序系操作のたびに全 task を連番で再採番して保存し、既存の `order` 不整合もその操作時に補正する。
-- `updateTask()` は `autoSort: false` では対象 task の項目だけを更新し、`autoSort: true` のときだけ `未完了 -> date -> order` 順で task 集合を再構成して保存する。
+- `updateTask()` は `autoSort: false` では対象 task の項目だけを更新する。ただし pinned 解除時は未完了 unpinned 先頭へ入るよう task 集合を再構成して保存する。`autoSort: true` のときは自動並び替え順で task 集合を再構成して保存する。
 - `deleteCompletedTasks()` は完了済み task を削除し、残りを再採番する。
 
 ## 共有
@@ -113,7 +122,7 @@
 
 - タスクリスト仕様を変える時は `taskListOrder` と `taskLists` を別管理する前提を崩さない。
 - 削除仕様は「一覧から外す」を基本にし、`memberCount` が 0 になった時だけ実体削除する。
-- `autoSort` 有効時は Web / iOS / Android で `未完了 -> date -> order` を揃える。
+- `autoSort` 有効時は Web / iOS / Android で `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内の `date -> order` を揃える。
 - 背景色は選択中タスクリスト詳細の背景として扱い、一覧ペインや split 境界線へ広げない。
 
 ## しないこと

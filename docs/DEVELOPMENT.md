@@ -55,8 +55,8 @@
 - iOS / Android は Firebase Auth / Firestore を直接使う。
 - iOS の Firebase Auth callback と auth state listener から SwiftUI state を更新する処理は MainActor 上で行い、ログイン completion で `error` と `result` がともに空の場合も汎用認証エラーを表示する。
 - locale の正本は `shared/locales/locales.json` とし、Web / iOS / Android はそれを各 app の local resource へ同期して参照する。
-- iOS は `ContentView.swift` に app entry、Firebase 初期化、UI、翻訳ロード、analytics helper を集約する。
-- Android は `ContentView.kt` に `MainActivity`、UI、翻訳ロード、analytics helper を同居させる。
+- iOS は `ContentView.swift` に `LightlistApp` / `RootView`、Firebase 初期化、UI、翻訳ロード、analytics helper を集約する。
+- Android は `ContentView.kt` に `MainActivity` / `RootScreen`、UI、翻訳ロード、analytics helper を同居させる。
 - Android app module は `BuildConfig.DEBUG` と `BuildConfig.PASSWORD_RESET_URL` を使うため `buildFeatures.buildConfig = true` を維持する。
 - iOS / Android の識別子は `com.lightlist.app` を正とする。
 - iOS の AppIcon は `shared/assets/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。

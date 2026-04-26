@@ -166,6 +166,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.draw.alpha
@@ -188,6 +189,8 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 import java.text.DateFormatSymbols
 
 import org.json.JSONObject
+
+private const val COMPLETED_TASK_ALPHA = 0.64f
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFD0BCFF),
@@ -356,7 +359,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            ContentView(
+            RootScreen(
                 pendingDeepLink = pendingDeepLink,
                 onPendingDeepLinkConsumed = { pendingDeepLink = null }
             )
@@ -419,7 +422,8 @@ private data class TaskSummary(
     val text: String,
     val completed: Boolean,
     val date: String,
-    val order: Double
+    val order: Double,
+    val pinned: Boolean
 )
 
 private data class TaskListSummary(
@@ -503,7 +507,7 @@ private object TaskListDetailMetrics {
     val completionTouchWidth = 26.dp
     val completionDotSize = 18.dp
     val taskTextStartPadding = 3.dp
-    val trailingDateButtonWidth = 22.dp
+    val trailingDateButtonWidth = 48.dp
     val trailingDateIconSize = AppIconMetrics.compactActionIconSize
 }
 
@@ -776,7 +780,7 @@ private fun <T> subscribeToOrderedTaskLists(
 }
 
 @Composable
-fun ContentView(
+fun RootScreen(
     pendingDeepLink: PendingDeepLink?,
     onPendingDeepLinkConsumed: () -> Unit
 ) {
@@ -849,7 +853,7 @@ fun ContentView(
             val isTabletLayout = isLoggedIn && maxWidth >= TABLET_MIN_WIDTH_DP.dp
 
             if (isTabletLayout) {
-                TabletContentView(
+                TabletRootScreen(
                     userId = currentUserId,
                     initialSelectedTaskListId = requestedTaskListId,
                     onSelectedTaskListHandled = { requestedTaskListId = null }
@@ -879,7 +883,7 @@ fun ContentView(
                         ) { backStackEntry ->
                             val initialTaskListId =
                                 backStackEntry.arguments?.getString(AppRoute.TaskList.argumentName).orEmpty()
-                            TaskListView(navController, currentUserId, initialTaskListId)
+                            TaskListDetailPagerScreen(navController, currentUserId, initialTaskListId)
                         }
                         composable(AppRoute.Settings.route) { SettingsView(navController = navController) }
                     }
@@ -1258,7 +1262,8 @@ private fun parseTasks(rawTasks: Map<*, *>): List<TaskSummary> {
             text = value["text"] as? String ?: "",
             completed = value["completed"] as? Boolean ?: false,
             date = value["date"] as? String ?: "",
-            order = (value["order"] as? Number)?.toDouble() ?: 0.0
+            order = (value["order"] as? Number)?.toDouble() ?: 0.0,
+            pinned = value["pinned"] as? Boolean ?: false
         )
     }.sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
 }
@@ -1433,7 +1438,8 @@ private fun formatDateForLocale(
 
 private data class ParsedTaskInput(
     val text: String,
-    val date: String?
+    val date: String?,
+    val pinnedFromInput: Boolean
 )
 
 private data class TaskDatePattern(
@@ -1619,9 +1625,39 @@ private fun taskRelativePatterns(languageTag: String): List<TaskDatePattern> {
     }
 }
 
-private fun parseDateFromTaskInput(text: String, languageTag: String): ParsedTaskInput {
+private fun localizedPinPrefixes(languageTag: String): List<String> {
+    val localized = when (normalizeLanguageCode(languageTag)) {
+        "en" -> listOf("pin", "pinned")
+        "es" -> listOf("fijar")
+        "de" -> listOf("anheften")
+        "fr" -> listOf("epingler", "épingler")
+        "ko" -> listOf("고정")
+        "zh-CN" -> listOf("置顶")
+        "hi" -> listOf("पिन")
+        "ar" -> listOf("تثبيت")
+        "pt-BR" -> listOf("fixar")
+        "id" -> listOf("sematkan")
+        else -> listOf("ピン")
+    }
+    return (listOf("pin", "pinned") + localized).distinct().sortedByDescending { it.length }
+}
+
+private fun parsePinPrefix(text: String, languageTag: String): Pair<String, Boolean> {
     val source = text.trim()
-    if (source.isEmpty()) return ParsedTaskInput(text = source, date = null)
+    if (source.isEmpty()) return source to false
+
+    for (token in localizedPinPrefixes(languageTag)) {
+        if (!source.startsWith(token, ignoreCase = true)) continue
+        if (source.length > token.length && !source[token.length].isWhitespace()) continue
+        return source.substring(token.length).trimStart() to true
+    }
+
+    return source to false
+}
+
+private fun parseDateFromTaskInput(text: String, languageTag: String): Pair<String, String?> {
+    val source = text.trim()
+    if (source.isEmpty()) return source to null
 
     val normalized = normalizeTaskDateDigits(source)
     val numericPatterns = listOf(
@@ -1649,28 +1685,64 @@ private fun parseDateFromTaskInput(text: String, languageTag: String): ParsedTas
         },
     )
 
-    (numericPatterns + taskRelativePatterns(languageTag)).forEach { pattern ->
-        val match = pattern.regex.find(normalized) ?: return@forEach
-        if (match.range.first != 0) return@forEach
-        val date = pattern.resolveDate(match) ?: return@forEach
-        val stripped = source.substring(match.value.length).trimStart()
-        return ParsedTaskInput(text = stripped, date = formatTaskInputDate(date))
+    val relativePatternSets = buildList {
+        add(taskRelativePatterns(languageTag))
+        if (normalizeLanguageCode(languageTag) != "en") {
+            add(taskRelativePatterns("en"))
+        }
     }
 
-    return ParsedTaskInput(text = source, date = null)
+    (listOf(numericPatterns) + relativePatternSets).forEach { patterns ->
+        patterns.forEach { pattern ->
+            val match = pattern.regex.find(normalized) ?: return@forEach
+            if (match.range.first != 0) return@forEach
+            val date = pattern.resolveDate(match) ?: return@forEach
+            val stripped = source.substring(match.value.length).trimStart()
+            return stripped to formatTaskInputDate(date)
+        }
+    }
+
+    return source to null
 }
 
 private fun resolveTaskInput(text: String, languageTag: String, currentTask: TaskSummary? = null): ParsedTaskInput {
-    val parsed = parseDateFromTaskInput(text, languageTag)
+    var remaining = text.trim()
+    var parsedDate: String? = null
+    var pinnedFromInput = false
+    var parsedPin = false
+    var parsedDateValue = false
+
+    repeat(2) {
+        if (!parsedPin) {
+            val (pinText, matchedPin) = parsePinPrefix(remaining, languageTag)
+            if (matchedPin) {
+                remaining = pinText
+                pinnedFromInput = true
+                parsedPin = true
+                return@repeat
+            }
+        }
+        if (!parsedDateValue) {
+            val (dateText, dateValue) = parseDateFromTaskInput(remaining, languageTag)
+            if (dateValue != null) {
+                remaining = dateText
+                parsedDate = dateValue
+                parsedDateValue = true
+                return@repeat
+            }
+        }
+    }
     return if (currentTask != null) {
         ParsedTaskInput(
-            text = if (parsed.text.isEmpty()) currentTask.text else parsed.text,
-            date = parsed.date ?: currentTask.date
+            text = if (remaining.isEmpty()) currentTask.text else remaining,
+            date = parsedDate ?: currentTask.date,
+            pinnedFromInput = pinnedFromInput
         )
     } else {
         ParsedTaskInput(
-            text = parsed.text,
-            date = parsed.date ?: ""
+            text = remaining,
+            date = parsedDate ?: "",
+            pinnedFromInput = pinnedFromInput
         )
     }
 }
@@ -2449,7 +2521,7 @@ private fun CalendarTaskRow(task: CalendarTask, isHighlighted: Boolean, onClick:
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CalendarBottomSheet(
+private fun CalendarTaskBottomSheet(
     calendarTasks: List<CalendarTask>,
     onDismiss: () -> Unit
 ) {
@@ -3173,7 +3245,7 @@ private fun TaskListsView(
     }
 
     if (showCalendarSheet) {
-        CalendarBottomSheet(
+        CalendarTaskBottomSheet(
             calendarTasks = flattenCalendarTasks(calendarTaskLists),
             onDismiss = { showCalendarSheet = false }
         )
@@ -3181,7 +3253,7 @@ private fun TaskListsView(
 }
 
 @Composable
-private fun TabletContentView(
+private fun TabletRootScreen(
     userId: String?,
     initialSelectedTaskListId: String?,
     onSelectedTaskListHandled: () -> Unit
@@ -3235,7 +3307,7 @@ private fun TabletContentView(
             if (selectedPane == TabletPane.Settings) {
                 SettingsView(showTopBar = false)
             } else {
-                TaskListView(
+                TaskListDetailPagerScreen(
                     navController = null,
                     userId = userId,
                     selectedTaskListIdState = selectedTaskListState,
@@ -3248,7 +3320,7 @@ private fun TabletContentView(
 }
 
 @Composable
-private fun TaskListView(
+private fun TaskListDetailPagerScreen(
     navController: NavController?,
     userId: String?,
     initialTaskListId: String = "__initial__",
@@ -3470,6 +3542,7 @@ private fun TaskListDetailPage(
     var editingTaskId by remember { mutableStateOf<String?>(null) }
     var editingTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     var showDatePickerForTaskId by remember { mutableStateOf<String?>(null) }
+    var showTaskActionsForTaskId by remember { mutableStateOf<String?>(null) }
     var showDeleteCompletedConfirm by remember { mutableStateOf(false) }
     var draggingTaskId by remember { mutableStateOf<String?>(null) }
     var taskDragOffset by remember { mutableFloatStateOf(0f) }
@@ -3490,7 +3563,15 @@ private fun TaskListDetailPage(
     var shareError by remember { mutableStateOf<String?>(null) }
     val newTaskFocusRequester = remember { FocusRequester() }
 
-    val displayTasks = dragOrderedTasks ?: taskList.tasks
+    fun taskDisplayGroup(task: TaskSummary): Int {
+        return if (task.completed) 2 else if (task.pinned) 0 else 1
+    }
+
+    fun getDisplayOrderedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
+        return tasks.sortedWith(compareBy<TaskSummary> { taskDisplayGroup(it) }.thenBy { it.order })
+    }
+
+    val displayTasks = dragOrderedTasks ?: getDisplayOrderedTasks(taskList.tasks)
     val taskDensity = LocalDensity.current
     val taskSpacingPx = with(taskDensity) { TaskListDetailMetrics.taskRowSpacing.toPx() }
     val chromeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
@@ -3518,10 +3599,10 @@ private fun TaskListDetailPage(
     )
     val focusManager = LocalFocusManager.current
 
-    fun autoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
+    fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
         return tasks
             .sortedWith(
-                compareBy<TaskSummary> { it.completed }
+                compareBy<TaskSummary> { taskDisplayGroup(it) }
                     .thenBy { if (it.date.isBlank()) "9999-12-31" else it.date }
                     .thenBy { it.order }
             )
@@ -3530,13 +3611,13 @@ private fun TaskListDetailPage(
             }
     }
 
-    fun renumberedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
+    fun renumberTasks(tasks: List<TaskSummary>): List<TaskSummary> {
         return tasks.mapIndexed { index, task ->
             task.copy(order = (index + 1).toDouble())
         }
     }
 
-    fun taskUpdates(
+    fun buildTaskUpdateData(
         tasks: List<TaskSummary>,
         deletedTaskIds: List<String> = emptyList()
     ): Map<String, Any> {
@@ -3550,11 +3631,12 @@ private fun TaskListDetailPage(
             updates["tasks.${task.id}.completed"] = task.completed
             updates["tasks.${task.id}.date"] = task.date
             updates["tasks.${task.id}.order"] = task.order
+            updates["tasks.${task.id}.pinned"] = task.pinned
         }
         return updates
     }
 
-    fun launchTaskListUpdate(updates: Map<String, Any>) {
+    fun persistTaskListUpdate(updates: Map<String, Any>) {
         scope.launch {
             try {
                 db.collection("taskLists").document(taskList.id).update(updates).await()
@@ -3566,9 +3648,9 @@ private fun TaskListDetailPage(
         tasks: List<TaskSummary>,
         deletedTaskIds: List<String> = emptyList()
     ) {
-        launchTaskListUpdate(
-            taskUpdates(
-                tasks = if (autoSort) autoSortedTasks(tasks) else renumberedTasks(tasks),
+        persistTaskListUpdate(
+            buildTaskUpdateData(
+                tasks = if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks),
                 deletedTaskIds = deletedTaskIds
             )
         )
@@ -3584,7 +3666,7 @@ private fun TaskListDetailPage(
             val nextId = ordered[currentIdx + 1].id
             val nextHeight = taskItemHeights[nextId] ?: currentHeight
             val threshold = currentHeight / 2 + taskSpacingPx + nextHeight / 2
-            if (taskDragOffset > threshold) {
+            if (taskDisplayGroup(ordered[currentIdx]) == taskDisplayGroup(ordered[currentIdx + 1]) && taskDragOffset > threshold) {
                 ordered[currentIdx] = ordered[currentIdx + 1].also { ordered[currentIdx + 1] = ordered[currentIdx] }
                 dragOrderedTasks = ordered.toList()
                 taskDragOffset -= (nextHeight + taskSpacingPx)
@@ -3596,7 +3678,7 @@ private fun TaskListDetailPage(
             val prevId = ordered[currentIdx - 1].id
             val prevHeight = taskItemHeights[prevId] ?: currentHeight
             val threshold = prevHeight / 2 + taskSpacingPx + currentHeight / 2
-            if (taskDragOffset < -threshold) {
+            if (taskDisplayGroup(ordered[currentIdx]) == taskDisplayGroup(ordered[currentIdx - 1]) && taskDragOffset < -threshold) {
                 ordered[currentIdx] = ordered[currentIdx - 1].also { ordered[currentIdx - 1] = ordered[currentIdx] }
                 dragOrderedTasks = ordered.toList()
                 taskDragOffset += (prevHeight + taskSpacingPx)
@@ -3608,7 +3690,7 @@ private fun TaskListDetailPage(
         logTaskReorder()
         val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
         ids.forEachIndexed { i, id -> updates["tasks.$id.order"] = (i + 1).toDouble() }
-        launchTaskListUpdate(updates)
+        persistTaskListUpdate(updates)
     }
 
     fun toggleCompletion(task: TaskSummary) {
@@ -3621,7 +3703,7 @@ private fun TaskListDetailPage(
             return
         }
 
-        launchTaskListUpdate(
+        persistTaskListUpdate(
             mapOf(
                 "tasks.${task.id}.completed" to !task.completed,
                 "updatedAt" to System.currentTimeMillis()
@@ -3634,16 +3716,22 @@ private fun TaskListDetailPage(
         val resolved = resolveTaskInput(text, t.languageTag(), task)
         val textChanged = resolved.text != task.text
         val dateChanged = (resolved.date ?: task.date) != task.date
+        val pinnedChanged = resolved.pinnedFromInput && !task.pinned
         editingTaskId = null
-        if (!(trimmed.isEmpty() && !dateChanged) && (textChanged || dateChanged)) {
-            val changedFields = if (textChanged && dateChanged) "text,date" else if (textChanged) "text" else "date"
+        if (!(trimmed.isEmpty() && !dateChanged) && (textChanged || dateChanged || pinnedChanged)) {
+            val changedFields = listOfNotNull(
+                if (textChanged) "text" else null,
+                if (dateChanged) "date" else null,
+                if (pinnedChanged) "pinned" else null,
+            ).joinToString(",")
             logTaskUpdate(fields = changedFields)
             if (autoSort) {
                 val updatedTasks = taskList.tasks.map { current ->
                     if (current.id == task.id) {
                         current.copy(
                             text = resolved.text,
-                            date = resolved.date ?: current.date
+                            date = resolved.date ?: current.date,
+                            pinned = if (resolved.pinnedFromInput) true else current.pinned
                         )
                     } else current
                 }
@@ -3651,12 +3739,13 @@ private fun TaskListDetailPage(
                 return
             }
 
-            launchTaskListUpdate(
-                mapOf(
-                    "tasks.${task.id}.text" to resolved.text,
-                    "tasks.${task.id}.date" to (resolved.date ?: task.date),
-                    "updatedAt" to System.currentTimeMillis()
-                )
+            persistTaskListUpdate(
+                buildMap {
+                    put("tasks.${task.id}.text", resolved.text)
+                    put("tasks.${task.id}.date", resolved.date ?: task.date)
+                    if (pinnedChanged) put("tasks.${task.id}.pinned", true)
+                    put("updatedAt", System.currentTimeMillis())
+                }
             )
         }
     }
@@ -3698,9 +3787,41 @@ private fun TaskListDetailPage(
             return
         }
 
-        launchTaskListUpdate(
+        persistTaskListUpdate(
             mapOf(
                 "tasks.${task.id}.date" to dateStr,
+                "updatedAt" to System.currentTimeMillis()
+            )
+        )
+    }
+
+    fun togglePinned(task: TaskSummary) {
+        logTaskUpdate(fields = "pinned")
+        val nextPinned = !task.pinned
+        if (autoSort) {
+            val updatedTasks = taskList.tasks.map { current ->
+                if (current.id == task.id) current.copy(pinned = nextPinned) else current
+            }
+            persistNormalizedTasks(updatedTasks)
+            return
+        }
+
+        if (task.pinned && !nextPinned && !task.completed) {
+            val updatedTasks = taskList.tasks.map { current ->
+                if (current.id == task.id) current.copy(pinned = false) else current
+            }
+            val reorderedTasks =
+                updatedTasks.filter { taskDisplayGroup(it) == 0 } +
+                    updatedTasks.filter { it.id == task.id } +
+                    updatedTasks.filter { taskDisplayGroup(it) == 1 && it.id != task.id } +
+                    updatedTasks.filter { taskDisplayGroup(it) == 2 }
+            persistTaskListUpdate(buildTaskUpdateData(renumberTasks(reorderedTasks)))
+            return
+        }
+
+        persistTaskListUpdate(
+            mapOf(
+                "tasks.${task.id}.pinned" to nextPinned,
                 "updatedAt" to System.currentTimeMillis()
             )
         )
@@ -3709,14 +3830,14 @@ private fun TaskListDetailPage(
     fun sortTasks() {
         logTaskSort()
         val sorted = taskList.tasks.sortedWith(
-            compareBy<TaskSummary> { it.completed }
+            compareBy<TaskSummary> { taskDisplayGroup(it) }
                 .thenBy { it.date.isEmpty() }
                 .thenBy { if (it.date.isEmpty()) "" else it.date }
                 .thenBy { it.order }
         )
         val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
         sorted.forEachIndexed { i, task -> updates["tasks.${task.id}.order"] = (i + 1).toDouble() }
-        launchTaskListUpdate(updates)
+        persistTaskListUpdate(updates)
     }
 
     fun deleteCompletedTasks() {
@@ -3810,7 +3931,8 @@ private fun TaskListDetailPage(
                 text = parsed.text,
                 completed = false,
                 date = parsed.date ?: "",
-                order = order
+                order = order,
+                pinned = parsed.pinnedFromInput
             )
             val insertIndex = if (taskInsertPosition == "top") 0 else taskList.tasks.size
             val reorderedTasks = taskList.tasks.toMutableList().apply {
@@ -3820,13 +3942,14 @@ private fun TaskListDetailPage(
             return
         }
 
-        launchTaskListUpdate(
+        persistTaskListUpdate(
             mapOf(
                 "tasks.$taskId.id" to taskId,
                 "tasks.$taskId.text" to parsed.text,
                 "tasks.$taskId.completed" to false,
                 "tasks.$taskId.date" to (parsed.date ?: ""),
                 "tasks.$taskId.order" to order,
+                "tasks.$taskId.pinned" to parsed.pinnedFromInput,
                 "updatedAt" to now
             )
         )
@@ -4064,7 +4187,7 @@ private fun TaskListDetailPage(
                             )
                             .offset { IntOffset(0, if (isDragged) taskDragOffset.toInt() else 0) }
                             .zIndex(if (isDragged) 1f else 0f)
-                            .alpha(if (isDragged && !reduceMotion) 0.8f else 1f)
+                            .alpha((if (isDragged && !reduceMotion) 0.8f else 1f) * if (task.completed) COMPLETED_TASK_ALPHA else 1f)
                             .graphicsLayer {
                                 scaleX = if (isDragged && !reduceMotion) 1.03f else 1f
                                 scaleY = if (isDragged && !reduceMotion) 1.03f else 1f
@@ -4084,7 +4207,7 @@ private fun TaskListDetailPage(
                                         detectDragGestures(
                                             onDragStart = { _ ->
                                                 draggingTaskId = task.id
-                                                dragOrderedTasks = taskList.tasks
+                                                dragOrderedTasks = displayTasks
                                                 taskItemHeights = lazyListState.layoutInfo.visibleItemsInfo
                                                     .filter { it.key is String }
                                                     .associate { (it.key as String) to it.size.toFloat() }
@@ -4093,7 +4216,7 @@ private fun TaskListDetailPage(
                                             onDragEnd = {
                                                 taskAutoScrollSpeed = 0f
                                                 val ordered = dragOrderedTasks
-                                                if (ordered != null && ordered.map { it.id } != taskList.tasks.map { it.id }) {
+                                                if (ordered != null && ordered.map { it.id } != displayTasks.map { it.id }) {
                                                     persistTaskOrder(ordered.map { it.id })
                                                 }
                                                 draggingTaskId = null
@@ -4267,6 +4390,7 @@ private fun TaskListDetailPage(
                                         style = taskTextStyle,
                                         textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
                                         color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = if (task.pinned && !task.completed) FontWeight.Bold else FontWeight.SemiBold,
                                         modifier = Modifier
                                             .align(Alignment.CenterStart)
                                             .padding(start = TaskListDetailMetrics.taskTextStartPadding)
@@ -4281,16 +4405,16 @@ private fun TaskListDetailPage(
                                 }
                             }
                             IconButton(
-                                onClick = { showDatePickerForTaskId = task.id },
+                                onClick = { showTaskActionsForTaskId = task.id },
                                 modifier = Modifier
                                     .alignBy { it.measuredHeight / 2 }
                                     .width(TaskListDetailMetrics.trailingDateButtonWidth)
                                     .height(48.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.CalendarToday,
+                                    imageVector = if (task.pinned) Icons.Default.PushPin else Icons.Default.CalendarToday,
                                     contentDescription = t.t("pages.tasklist.setDate"),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                    tint = if (task.pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                     modifier = Modifier
                                         .size(TaskListDetailMetrics.trailingDateIconSize)
                                         .offset(x = 2.dp)
@@ -4537,6 +4661,54 @@ private fun TaskListDetailPage(
                 TextButton(onClick = { showShareDialog = false }) { Text(t.t("common.close")) }
             }
         )
+    }
+
+    if (showTaskActionsForTaskId != null) {
+        val task = taskList.tasks.firstOrNull { it.id == showTaskActionsForTaskId }
+        if (task != null) {
+            AlertDialog(
+                onDismissRequest = { showTaskActionsForTaskId = null },
+                title = { Text(task.text) },
+                text = {
+                    Column {
+                        TextButton(
+                            onClick = {
+                                togglePinned(task)
+                                showTaskActionsForTaskId = null
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.PushPin, contentDescription = null)
+                            Text(t.t(if (task.pinned) "pages.tasklist.unpinTask" else "pages.tasklist.pinTask"))
+                        }
+                        TextButton(
+                            onClick = {
+                                showTaskActionsForTaskId = null
+                                showDatePickerForTaskId = task.id
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.CalendarToday, contentDescription = null)
+                            Text(t.t("pages.tasklist.setDate"))
+                        }
+                        TextButton(
+                            onClick = {
+                                commitDate(task, "")
+                                showTaskActionsForTaskId = null
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(t.t("pages.tasklist.clearDate"))
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showTaskActionsForTaskId = null }) {
+                        Text(t.t("common.close"))
+                    }
+                }
+            )
+        }
     }
 
     if (showDatePickerForTaskId != null) {

@@ -175,6 +175,7 @@ type TaskListStoreTask = {
   completed: boolean;
   date: string;
   order: number;
+  pinned: boolean;
 };
 
 type TaskListStore = {
@@ -205,6 +206,7 @@ type Task = {
   text: string;
   completed: boolean;
   date: string;
+  pinned: boolean;
 };
 
 type TaskList = {
@@ -896,7 +898,10 @@ function normalizeTaskListStore(taskListData: TaskListStore): TaskListStore {
   const tasks = taskListData.tasks;
   let needsNormalization = false;
   for (const taskId of Object.keys(tasks)) {
-    if (tasks[taskId].id !== taskId) {
+    if (
+      tasks[taskId].id !== taskId ||
+      typeof tasks[taskId].pinned !== "boolean"
+    ) {
       needsNormalization = true;
       break;
     }
@@ -907,7 +912,9 @@ function normalizeTaskListStore(taskListData: TaskListStore): TaskListStore {
   for (const taskId of Object.keys(tasks)) {
     const task = tasks[taskId];
     normalizedTasks[taskId] =
-      task.id === taskId ? task : { ...task, id: taskId };
+      task.id === taskId && typeof task.pinned === "boolean"
+        ? task
+        : { ...task, id: taskId, pinned: Boolean(task.pinned) };
   }
   return { ...taskListData, tasks: normalizedTasks };
 }
@@ -932,7 +939,7 @@ const mapTaskListStoreToTaskList = (
 ): TaskList => ({
   id: taskListId,
   name: taskListData.name,
-  tasks: Object.values(taskListData.tasks).sort((a, b) => a.order - b.order),
+  tasks: getDisplayOrderedTasks(taskListData),
   history: taskListData.history,
   shareCode: taskListData.shareCode,
   background: taskListData.background,
@@ -1673,6 +1680,12 @@ type DatePattern = {
   getDate?: (match: RegExpMatchArray) => Date | null;
 };
 
+type ParsedTaskInput = {
+  text: string;
+  date: string | null;
+  pinnedFromInput: boolean;
+};
+
 const normalizeDigits = (value: string): string =>
   value.replace(/[٠-٩۰-۹०-९]/g, (char) => DIGIT_MAP[char] ?? char);
 
@@ -2192,6 +2205,52 @@ const RELATIVE_PATTERNS: Record<Language, DatePattern[]> = {
   ],
 };
 
+const LOCALIZED_PIN_PREFIXES: Record<Language, readonly string[]> = {
+  ja: ["ピン"],
+  en: ["pin", "pinned"],
+  es: ["fijar"],
+  de: ["anheften"],
+  fr: ["epingler", "épingler"],
+  ko: ["고정"],
+  "zh-CN": ["置顶"],
+  hi: ["पिन"],
+  ar: ["تثبيت"],
+  "pt-BR": ["fixar"],
+  id: ["sematkan"],
+};
+
+const GLOBAL_PIN_PREFIXES = ["pin", "pinned"] as const;
+
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+
+const getPinPrefixRegex = (language: Language): RegExp => {
+  const tokens = Array.from(
+    new Set([
+      ...GLOBAL_PIN_PREFIXES,
+      ...(LOCALIZED_PIN_PREFIXES[normalizeLanguage(language)] ?? []),
+    ]),
+  ).sort((left, right) => right.length - left.length);
+  return new RegExp(
+    String.raw`^(?:${tokens.map(escapeRegex).join("|")})(?=\s|$)`,
+    "iu",
+  );
+};
+
+const parsePinPrefix = (
+  text: string,
+  language: Language,
+): { text: string; pinnedFromInput: boolean } => {
+  const source = text.trimStart();
+  if (!source) return { text: source, pinnedFromInput: false };
+  const match = source.match(getPinPrefixRegex(language));
+  if (!match) return { text: source, pinnedFromInput: false };
+  return {
+    text: source.substring(match[0].length).trimStart(),
+    pinnedFromInput: true,
+  };
+};
+
 const resolveDateFromPattern = (
   source: string,
   patterns: DatePattern[],
@@ -2234,11 +2293,17 @@ function parseDateFromText(
       text: source.substring(numericParsed.matchedLength).trimStart(),
     };
   }
-  const languageParsed = resolveDateFromPattern(
-    normalized,
+  const relativePatternSets: DatePattern[][] = [
     RELATIVE_PATTERNS[resolvedLanguage] ?? RELATIVE_PATTERNS.ja,
-  );
-  if (languageParsed) {
+  ];
+  if (resolvedLanguage !== "en") {
+    relativePatternSets.push(RELATIVE_PATTERNS.en);
+  }
+  for (const patterns of relativePatternSets) {
+    const languageParsed = resolveDateFromPattern(normalized, patterns);
+    if (!languageParsed) {
+      continue;
+    }
     return {
       date: formatDate(languageParsed.targetDate),
       text: source.substring(languageParsed.matchedLength).trimStart(),
@@ -2247,22 +2312,56 @@ function parseDateFromText(
   return { date: null, text };
 }
 
-function resolveTaskTextAndDateFromInput(
+function resolveTaskInput(
   text: string,
   language: Language,
-  currentTask?: Pick<Task, "text" | "date">,
-): { text: string; date: string } {
-  const parsed = parseDateFromText(text, language);
-  const parsedText = parsed.text.trim();
+  currentTask?: Pick<Task, "text" | "date" | "pinned">,
+): { text: string; date: string; pinned: boolean; pinnedChanged: boolean } {
+  let remaining = text.trimStart();
+  let date: string | null = null;
+  let pinnedFromInput = false;
+  let parsedPin = false;
+  let parsedDate = false;
+
+  for (let index = 0; index < 2; index += 1) {
+    if (!parsedPin) {
+      const pinParsed = parsePinPrefix(remaining, language);
+      if (pinParsed.pinnedFromInput) {
+        remaining = pinParsed.text;
+        pinnedFromInput = true;
+        parsedPin = true;
+        continue;
+      }
+    }
+
+    if (!parsedDate) {
+      const dateParsed = parseDateFromText(remaining, language);
+      if (dateParsed.date !== null) {
+        remaining = dateParsed.text;
+        date = dateParsed.date;
+        parsedDate = true;
+        continue;
+      }
+    }
+
+    break;
+  }
+
+  const parsedText = remaining.trim();
   if (currentTask) {
+    const pinned = pinnedFromInput ? true : currentTask.pinned;
     return {
       text: parsedText || currentTask.text,
-      date: parsed.date ?? currentTask.date,
+      date: date ?? currentTask.date,
+      pinned,
+      pinnedChanged: pinned !== currentTask.pinned,
     };
   }
   return {
     text: parsedText,
-    date: parsed.date ?? "",
+    date: date ?? "",
+    pinned: pinnedFromInput,
+    pinnedChanged: pinnedFromInput,
   };
 }
 
@@ -2312,8 +2411,10 @@ function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
 
   return [...tasks]
     .sort((a, b) => {
-      if (a.completed !== b.completed) {
-        return Number(a.completed) - Number(b.completed);
+      const aGroup = getTaskDisplayGroup(a);
+      const bGroup = getTaskDisplayGroup(b);
+      if (aGroup !== bGroup) {
+        return aGroup - bGroup;
       }
       const aDate = getDateValue(a);
       const bDate = getDateValue(b);
@@ -2365,10 +2466,28 @@ function renumberTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
   return tasks.map((task, index) => ({ ...task, order: (index + 1) * 1.0 }));
 }
 
+function getTaskDisplayGroup(
+  task: Pick<TaskListStoreTask, "completed" | "pinned">,
+) {
+  if (task.completed) return 2;
+  return task.pinned ? 0 : 1;
+}
+
 function getOrderedTasks(
   taskList: Pick<TaskListStore, "tasks">,
 ): TaskListStoreTask[] {
   return Object.values(taskList.tasks).sort((a, b) => a.order - b.order);
+}
+
+function getDisplayOrderedTasks(
+  taskList: Pick<TaskListStore, "tasks">,
+): TaskListStoreTask[] {
+  return getOrderedTasks(taskList).sort((a, b) => {
+    const aGroup = getTaskDisplayGroup(a);
+    const bGroup = getTaskDisplayGroup(b);
+    if (aGroup !== bGroup) return aGroup - bGroup;
+    return a.order - b.order;
+  });
 }
 
 function getSortedTasks(
@@ -2505,7 +2624,7 @@ export async function updateTaskListOrder(
 export async function addTask(taskListId: string, rawText: string) {
   const taskList = await getTaskListData(taskListId);
   const settings = await getResolvedTaskSettings();
-  const parsed = resolveTaskTextAndDateFromInput(rawText, settings.language);
+  const parsed = resolveTaskInput(rawText, settings.language);
   const now = Date.now();
   const tasks = getOrderedTasks(taskList);
   const nextOrder =
@@ -2518,6 +2637,7 @@ export async function addTask(taskListId: string, rawText: string) {
     completed: false,
     date: parsed.date,
     order: nextOrder,
+    pinned: parsed.pinned,
   };
   const nextTasks = getSortedTasks(
     [
@@ -2540,11 +2660,13 @@ export async function addTask(taskListId: string, rawText: string) {
 export async function updateTask(
   taskListId: string,
   taskId: string,
-  updates: Partial<Pick<Task, "completed" | "date" | "text">>,
+  updates: Partial<Pick<Task, "completed" | "date" | "pinned" | "text">>,
 ) {
   const settings = await getResolvedTaskSettings();
   const needsTaskListRead =
-    settings.autoSort || typeof updates.text === "string";
+    settings.autoSort ||
+    typeof updates.text === "string" ||
+    typeof updates.pinned === "boolean";
   const taskList = needsTaskListRead ? await getTaskListData(taskListId) : null;
   const currentTask = taskList?.tasks[taskId];
   if (needsTaskListRead && !currentTask) {
@@ -2552,20 +2674,20 @@ export async function updateTask(
   }
   const resolvedTextAndDate =
     typeof updates.text === "string" && currentTask
-      ? resolveTaskTextAndDateFromInput(
-          updates.text,
-          settings.language,
-          currentTask,
-        )
+      ? resolveTaskInput(updates.text, settings.language, currentTask)
       : null;
-  const normalizedUpdates: Partial<Pick<Task, "completed" | "date" | "text">> =
-    {
-      ...updates,
-    };
+  const normalizedUpdates: Partial<
+    Pick<Task, "completed" | "date" | "pinned" | "text">
+  > = {
+    ...updates,
+  };
   if (resolvedTextAndDate) {
     normalizedUpdates.text = resolvedTextAndDate.text;
     if (!("date" in updates)) {
       normalizedUpdates.date = resolvedTextAndDate.date;
+    }
+    if (!("pinned" in updates) && resolvedTextAndDate.pinnedChanged) {
+      normalizedUpdates.pinned = resolvedTextAndDate.pinned;
     }
   }
   if (normalizedUpdates.text !== undefined && normalizedUpdates.text === "") {
@@ -2573,7 +2695,7 @@ export async function updateTask(
   }
   const now = Date.now();
 
-  if (!settings.autoSort) {
+  if (!settings.autoSort && typeof normalizedUpdates.pinned !== "boolean") {
     const nextUpdates: Record<string, unknown> = {
       updatedAt: now,
     };
@@ -2601,17 +2723,28 @@ export async function updateTask(
   }
 
   const tasks = getOrderedTasks(taskList);
-  const nextTasks = getSortedTasks(
-    tasks.map((task) => {
-      if (task.id !== taskId) return task;
-      const nextTask: TaskListStoreTask = {
-        ...task,
-        ...normalizedUpdates,
-      };
-      return nextTask;
-    }),
-    settings,
-  );
+  const updatedTasks = tasks.map((task) => {
+    if (task.id !== taskId) return task;
+    const nextTask: TaskListStoreTask = {
+      ...task,
+      ...normalizedUpdates,
+    };
+    return nextTask;
+  });
+  const nextTasks =
+    !settings.autoSort &&
+    currentTask.pinned &&
+    !currentTask.completed &&
+    normalizedUpdates.pinned === false
+      ? renumberTasks([
+          ...updatedTasks.filter((task) => getTaskDisplayGroup(task) === 0),
+          ...updatedTasks.filter((task) => task.id === taskId),
+          ...updatedTasks.filter(
+            (task) => getTaskDisplayGroup(task) === 1 && task.id !== taskId,
+          ),
+          ...updatedTasks.filter((task) => getTaskDisplayGroup(task) === 2),
+        ])
+      : getSortedTasks(updatedTasks, settings);
   const nextUpdates: Record<string, unknown> = {
     ...buildTaskUpdateData({ tasks: nextTasks }),
     updatedAt: now,
@@ -2656,7 +2789,7 @@ export async function deleteCompletedTasks(taskListId: string) {
 
 export async function sortTasks(taskListId: string) {
   const taskList = await getTaskListData(taskListId);
-  const sortedTasks = getAutoSortedTasks(getOrderedTasks(taskList));
+  const sortedTasks = getAutoSortedTasks(getDisplayOrderedTasks(taskList));
   await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
     ...buildTaskUpdateData({ tasks: sortedTasks }),
     updatedAt: Date.now(),
@@ -2669,7 +2802,11 @@ export async function updateTasksOrder(
   targetId: string,
 ) {
   const taskList = await getTaskListData(taskListId);
-  const tasks = getOrderedTasks(taskList);
+  const tasks = getDisplayOrderedTasks(taskList);
+  const dragged = taskList.tasks[draggedId];
+  const target = taskList.tasks[targetId];
+  if (!dragged || !target) return;
+  if (getTaskDisplayGroup(dragged) !== getTaskDisplayGroup(target)) return;
   const oldIndex = tasks.findIndex((task) => task.id === draggedId);
   const newIndex = tasks.findIndex((task) => task.id === targetId);
   if (oldIndex === -1 || newIndex === -1) return;
@@ -2797,6 +2934,7 @@ type AppIconName =
   | "edit"
   | "share"
   | "calendar-today"
+  | "push-pin"
   | "drag-indicator"
   | "settings"
   | "close"
@@ -2814,6 +2952,7 @@ const ICON_PATHS: Record<AppIconName, string | string[]> = {
     "M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z",
   "calendar-today":
     "M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z",
+  "push-pin": "M16 9V4l1-1V2H7v1l1 1v5l-2 2v2h5.2v7h1.6v-7H18v-2l-2-2z",
   "drag-indicator":
     "M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
   settings:
@@ -4383,6 +4522,7 @@ function TaskItemComponent({
   onEditEnd,
   onToggle,
   onDateChange,
+  onPinnedChange,
   onDragInteractionChange,
 }: {
   task: Task;
@@ -4393,8 +4533,10 @@ function TaskItemComponent({
   onEditEnd: (task: Task, text?: string) => void;
   onToggle: (task: Task) => void;
   onDateChange?: (taskId: string, date: string) => void;
+  onPinnedChange?: (taskId: string, pinned: boolean) => void;
   onDragInteractionChange?: (active: boolean) => void;
 }) {
+  const completedTaskOpacity = 0.5;
   const { t, i18n } = useTranslation();
   const {
     attributes,
@@ -4404,10 +4546,12 @@ function TaskItemComponent({
     transition,
     isDragging,
   } = useSortable({ id: task.id });
+  const rowOpacity =
+    (isDragging ? 0.5 : 1) * (task.completed ? completedTaskOpacity : 1);
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: rowOpacity,
   };
   const [isHandlePointerDown, setIsHandlePointerDown] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -4424,6 +4568,9 @@ function TaskItemComponent({
   const dateTitle = dateDisplayValue
     ? `${setDateLabel}: ${dateDisplayValue}`
     : setDateLabel;
+  const pinLabel = task.pinned
+    ? t("pages.tasklist.unpinTask")
+    : t("pages.tasklist.pinTask");
 
   useEffect(() => {
     if (!isHandlePointerDown) return;
@@ -4534,7 +4681,10 @@ function TaskItemComponent({
             className={
               task.completed
                 ? "min-w-0 cursor-pointer text-start font-medium leading-7 text-muted line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:focus-visible:outline-muted-dark"
-                : "min-w-0 cursor-pointer text-start font-medium leading-7 text-text underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-text-dark dark:focus-visible:outline-muted-dark"
+                : clsx(
+                    "min-w-0 cursor-pointer text-start leading-7 text-text underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-text-dark dark:focus-visible:outline-muted-dark",
+                    task.pinned ? "font-semibold" : "font-medium",
+                  )
             }
           >
             {task.text}
@@ -4552,15 +4702,33 @@ function TaskItemComponent({
             title={dateTitle}
             className="flex items-center rounded-lg p-1 text-placeholder focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:focus-visible:outline-muted-dark"
           >
-            <AppIcon
-              name="calendar-today"
-              aria-hidden="true"
-              focusable="false"
-            />
+            <span className="relative inline-flex">
+              <AppIcon
+                name={task.pinned ? "push-pin" : "calendar-today"}
+                aria-hidden="true"
+                focusable="false"
+              />
+            </span>
             <span className="sr-only">{setDateLabel}</span>
           </button>
         </PopoverPrimitive.Trigger>
         <PopoverContent align="end" className="p-0">
+          <button
+            type="button"
+            onClick={() => {
+              onPinnedChange?.(task.id, !task.pinned);
+              setDatePickerOpen(false);
+            }}
+            className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-start text-sm font-medium text-text hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-muted dark:border-border-dark dark:text-text-dark dark:hover:bg-background-dark"
+          >
+            <AppIcon
+              name="push-pin"
+              size={18}
+              aria-hidden="true"
+              focusable="false"
+            />
+            {pinLabel}
+          </button>
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -5176,6 +5344,18 @@ function TaskListCard({
                 typeof active.id === "string" ? active.id : null;
               const targetTaskId = typeof over.id === "string" ? over.id : null;
               if (!draggedTaskId || !targetTaskId) return;
+              const draggedTask = tasks.find(
+                (task) => task.id === draggedTaskId,
+              );
+              const targetTask = tasks.find((task) => task.id === targetTaskId);
+              if (
+                !draggedTask ||
+                !targetTask ||
+                getTaskDisplayGroup(draggedTask) !==
+                  getTaskDisplayGroup(targetTask)
+              ) {
+                return;
+              }
               setTaskError(null);
               try {
                 await reorderTask(draggedTaskId, targetTaskId);
@@ -5215,13 +5395,20 @@ function TaskListCard({
                           setEditingTaskId(null);
                           return;
                         }
+                        const resolved = resolveTaskInput(
+                          currentText,
+                          normalizeLanguage(i18n.language),
+                          task,
+                        );
                         setTaskError(null);
                         void updateTask(taskList.id, task.id, {
                           text: currentText,
                         })
                           .then(() => {
                             setEditingTaskId(null);
-                            logTaskUpdate({ fields: "text,date" });
+                            const fields = ["text", "date"];
+                            if (resolved.pinnedChanged) fields.push("pinned");
+                            logTaskUpdate({ fields: fields.join(",") });
                           })
                           .catch((error) =>
                             setTaskError(
@@ -5252,6 +5439,16 @@ function TaskListCard({
                         setTaskError(null);
                         void updateTask(taskList.id, taskId, { date })
                           .then(() => logTaskUpdate({ fields: "date" }))
+                          .catch((error) =>
+                            setTaskError(
+                              resolveErrorMessage(error, t, "common.error"),
+                            ),
+                          );
+                      }}
+                      onPinnedChange={(taskId, pinned) => {
+                        setTaskError(null);
+                        void updateTask(taskList.id, taskId, { pinned })
+                          .then(() => logTaskUpdate({ fields: "pinned" }))
                           .catch((error) =>
                             setTaskError(
                               resolveErrorMessage(error, t, "common.error"),
@@ -5427,19 +5624,19 @@ function CalendarTaskItem({
   );
 }
 
-type CalendarSheetProps = {
+type CalendarTaskSheetProps = {
   isWideLayout: boolean;
   taskLists: TaskList[];
   onSelectTaskList: (taskListId: string) => void;
   onCloseDrawer: () => void;
 };
 
-function CalendarSheet({
+function CalendarTaskSheet({
   isWideLayout,
   taskLists,
   onSelectTaskList,
   onCloseDrawer,
-}: CalendarSheetProps) {
+}: CalendarTaskSheetProps) {
   const { t, i18n } = useTranslation();
   const calendarSheetStateKey = "calendar-sheet-open";
   const [calendarSheetOpen, setCalendarSheetOpen] = useState(false);
@@ -5750,7 +5947,7 @@ function CalendarSheet({
   );
 }
 
-type DrawerPanelProps = {
+type TaskListSidebarPanelProps = {
   isWideLayout: boolean;
   userEmail: string;
   hasTaskLists: boolean;
@@ -5768,7 +5965,7 @@ type DrawerPanelProps = {
   onJoinList: (code: string) => Promise<void>;
 };
 
-function DrawerPanel({
+function TaskListSidebarPanel({
   isWideLayout,
   userEmail,
   hasTaskLists,
@@ -5781,7 +5978,7 @@ function DrawerPanel({
   onOpenSettings,
   onCreateList,
   onJoinList,
-}: DrawerPanelProps) {
+}: TaskListSidebarPanelProps) {
   const { t } = useTranslation();
   const [showCreateListDialog, setShowCreateListDialog] = useState(false);
   const [createListInput, setCreateListInput] = useState("");
@@ -5863,7 +6060,7 @@ function DrawerPanel({
         </div>
       </DrawerHeader>
 
-      <CalendarSheet
+      <CalendarTaskSheet
         isWideLayout={isWideLayout}
         taskLists={taskLists}
         onSelectTaskList={onSelectTaskList}
@@ -6040,7 +6237,7 @@ function DrawerPanel({
   );
 }
 
-function AppPage() {
+function AppShellPage() {
   const { t, i18n } = useTranslation();
   const { authStatus } = useSessionState();
   const user = useUser();
@@ -6327,7 +6524,7 @@ function AppPage() {
   ]);
 
   const drawerPanel = (
-    <DrawerPanel
+    <TaskListSidebarPanel
       isWideLayout={isWideLayout}
       userEmail={userEmail}
       hasTaskLists={!isTaskListsHydrating && hasTaskLists}
@@ -7560,7 +7757,7 @@ function PasswordResetPage() {
 }
 
 // pages/sharecodes.tsx
-function SharecodesPage() {
+function ShareCodePreviewPage() {
   const { t } = useTranslation();
   const user = useUser();
   const [sharecode, setSharecode] = useState<string | null>(null);
@@ -7728,6 +7925,7 @@ function SharecodesPage() {
                   <li
                     key={task.id}
                     className="rounded-xl border border-border/70 bg-surface/80 px-3 py-2 dark:border-border-dark/70 dark:bg-surface-dark/80"
+                    style={{ opacity: task.completed ? 0.5 : 1 }}
                   >
                     {task.date ? (
                       <div className="text-xs text-muted dark:text-muted-dark">
@@ -7757,11 +7955,11 @@ function SharecodesPage() {
 const PAGE_COMPONENTS = {
   "404": NotFoundPage,
   "500": ServerErrorPage,
-  app: AppPage,
+  app: AppShellPage,
   index: IndexPage,
   login: LoginPage,
   password_reset: PasswordResetPage,
-  sharecodes: SharecodesPage,
+  sharecodes: ShareCodePreviewPage,
 } as const;
 
 const pageKey = document.body.dataset.page;

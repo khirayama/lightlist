@@ -159,6 +159,7 @@ private struct TaskSummary: Identifiable, Hashable {
     let completed: Bool
     let date: String
     let order: Double
+    let pinned: Bool
 }
 
 private struct TaskListSummary: Identifiable, Hashable {
@@ -265,7 +266,8 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
             text: value["text"] as? String ?? "",
             completed: value["completed"] as? Bool ?? false,
             date: value["date"] as? String ?? "",
-            order: (value["order"] as? NSNumber)?.doubleValue ?? 0
+            order: (value["order"] as? NSNumber)?.doubleValue ?? 0,
+            pinned: value["pinned"] as? Bool ?? false
         )
     }
     .sorted {
@@ -504,6 +506,7 @@ private func localeIdentifier(for language: String) -> String {
 private struct ParsedTaskInput {
     let text: String
     let date: String?
+    let pinnedFromInput: Bool
 }
 
 private struct TaskDatePattern {
@@ -718,10 +721,59 @@ private func resolveTaskDate(from source: String, patterns: [TaskDatePattern]) -
     return nil
 }
 
-private func parseDateFromTaskInput(_ text: String, language: String) -> ParsedTaskInput {
+private func localizedPinPrefixes(language: String) -> [String] {
+    let localized: [String]
+    switch normalizeLanguageCode(language) {
+    case "en":
+        localized = ["pin", "pinned"]
+    case "es":
+        localized = ["fijar"]
+    case "de":
+        localized = ["anheften"]
+    case "fr":
+        localized = ["epingler", "épingler"]
+    case "ko":
+        localized = ["고정"]
+    case "zh-CN":
+        localized = ["置顶"]
+    case "hi":
+        localized = ["पिन"]
+    case "ar":
+        localized = ["تثبيت"]
+    case "pt-BR":
+        localized = ["fixar"]
+    case "id":
+        localized = ["sematkan"]
+    default:
+        localized = ["ピン"]
+    }
+    return Array(Set(["pin", "pinned"] + localized)).sorted { $0.count > $1.count }
+}
+
+private func parsePinPrefix(_ text: String, language: String) -> (text: String, pinnedFromInput: Bool) {
     let source = text.trimmingCharacters(in: .whitespacesAndNewlines)
     if source.isEmpty {
-        return ParsedTaskInput(text: source, date: nil)
+        return (source, false)
+    }
+
+    for token in localizedPinPrefixes(language: language) {
+        guard source.count >= token.count else { continue }
+        let endIndex = source.index(source.startIndex, offsetBy: token.count)
+        let candidate = String(source[..<endIndex])
+        guard candidate.compare(token, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame else { continue }
+        if endIndex < source.endIndex, !source[endIndex].isWhitespace {
+            continue
+        }
+        return (String(source[endIndex...]).trimmingCharacters(in: .whitespacesAndNewlines), true)
+    }
+
+    return (source, false)
+}
+
+private func parseDateFromTaskInput(_ text: String, language: String) -> (text: String, date: String?) {
+    let source = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    if source.isEmpty {
+        return (source, nil)
     }
 
     let normalized = normalizeTaskDateDigits(source)
@@ -748,26 +800,61 @@ private func parseDateFromTaskInput(_ text: String, language: String) -> ParsedT
 
     if let resolved = resolveTaskDate(from: normalized, patterns: numericPatterns) {
         let stripped = (source as NSString).substring(from: resolved.matchedLength).trimmingCharacters(in: .whitespacesAndNewlines)
-        return ParsedTaskInput(text: stripped, date: formatTaskInputDate(resolved.date))
+        return (stripped, formatTaskInputDate(resolved.date))
     }
 
-    if let resolved = resolveTaskDate(from: normalized, patterns: taskRelativePatterns(language: language)) {
-        let stripped = (source as NSString).substring(from: resolved.matchedLength).trimmingCharacters(in: .whitespacesAndNewlines)
-        return ParsedTaskInput(text: stripped, date: formatTaskInputDate(resolved.date))
+    var relativePatternSets = [taskRelativePatterns(language: language)]
+    if normalizeLanguageCode(language) != "en" {
+        relativePatternSets.append(taskRelativePatterns(language: "en"))
     }
 
-    return ParsedTaskInput(text: source, date: nil)
+    for patterns in relativePatternSets {
+        if let resolved = resolveTaskDate(from: normalized, patterns: patterns) {
+            let stripped = (source as NSString).substring(from: resolved.matchedLength).trimmingCharacters(in: .whitespacesAndNewlines)
+            return (stripped, formatTaskInputDate(resolved.date))
+        }
+    }
+
+    return (source, nil)
 }
 
 private func resolveTaskInput(_ text: String, language: String, currentTask: TaskSummary? = nil) -> ParsedTaskInput {
-    let parsed = parseDateFromTaskInput(text, language: language)
+    var remaining = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    var parsedDate: String?
+    var pinnedFromInput = false
+    var parsedPin = false
+    var parsedDateValue = false
+
+    for _ in 0..<2 {
+        if !parsedPin {
+            let pinParsed = parsePinPrefix(remaining, language: language)
+            if pinParsed.pinnedFromInput {
+                remaining = pinParsed.text
+                pinnedFromInput = true
+                parsedPin = true
+                continue
+            }
+        }
+        if !parsedDateValue {
+            let dateParsed = parseDateFromTaskInput(remaining, language: language)
+            if dateParsed.date != nil {
+                remaining = dateParsed.text
+                parsedDate = dateParsed.date
+                parsedDateValue = true
+                continue
+            }
+        }
+        break
+    }
+
     if let currentTask {
         return ParsedTaskInput(
-            text: parsed.text.isEmpty ? currentTask.text : parsed.text,
-            date: parsed.date ?? currentTask.date
+            text: remaining.isEmpty ? currentTask.text : remaining,
+            date: parsedDate ?? currentTask.date,
+            pinnedFromInput: pinnedFromInput
         )
     }
-    return ParsedTaskInput(text: parsed.text, date: parsed.date ?? "")
+    return ParsedTaskInput(text: remaining, date: parsedDate ?? "", pinnedFromInput: pinnedFromInput)
 }
 
 private func passwordResetURLString() -> String {
@@ -805,7 +892,7 @@ private func resolveAuthErrorMessage(translations: Translations, error: Error) -
     }
 }
 
-struct ContentView: View {
+struct RootView: View {
     private enum RegularPane {
         case taskList
         case settings
@@ -913,7 +1000,7 @@ struct ContentView: View {
                     case .taskLists:
                         TaskListsView(path: $path, pendingShareCode: $pendingShareCode)
                     case .taskList(let taskListId):
-                        TaskListView(initialTaskListId: taskListId)
+                        TaskListDetailPagerView(initialTaskListId: taskListId)
                     case .settings:
                         SettingsView()
                     }
@@ -945,7 +1032,7 @@ struct ContentView: View {
                 if selectedRegularPane == .settings {
                     SettingsView()
                 } else {
-                    RegularTaskListView(selectedTaskListId: $selectedTaskListId)
+                    RegularTaskListDetailPagerView(selectedTaskListId: $selectedTaskListId)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1046,8 +1133,8 @@ private enum TaskListDetailMetrics {
     static let completionTouchHeight: CGFloat = 44
     static let completionTouchWidth: CGFloat = 26
     static let completionDotSize: CGFloat = 20
-    static let trailingDateButtonWidth: CGFloat = 28
-    static let trailingDateButtonHeight: CGFloat = 44
+    static let trailingDateButtonWidth: CGFloat = 48
+    static let trailingDateButtonHeight: CGFloat = 48
     static let trailingDateIconSize: CGFloat = AppIconMetrics.compactActionIconSize
     static let titleBottomPadding: CGFloat = 2
     static let contentHorizontalPadding: CGFloat = 16
@@ -2294,7 +2381,7 @@ private struct TaskListsView: View {
     }
 }
 
-private struct TaskListView: View {
+private struct TaskListDetailPagerView: View {
     @EnvironmentObject var translations: Translations
     let initialTaskListId: String
     @Environment(\.dismiss) private var dismiss
@@ -2406,7 +2493,7 @@ private struct TaskListView: View {
     }
 }
 
-private struct RegularTaskListView: View {
+private struct RegularTaskListDetailPagerView: View {
     @EnvironmentObject var translations: Translations
     @Binding var selectedTaskListId: String?
     @State private var authStateHandle: AuthStateDidChangeListenerHandle?
@@ -2565,6 +2652,7 @@ private struct TaskListRowFrameKey: PreferenceKey {
 }
 
 private struct TaskListDetailPage: View {
+    private let completedTaskOpacity = 0.64
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let taskList: TaskListDetail
@@ -2589,7 +2677,21 @@ private struct TaskListDetailPage: View {
     private let db = Firestore.firestore()
 
     private var displayTasks: [TaskSummary] {
-        dragOrderedTasks ?? taskList.tasks
+        dragOrderedTasks ?? getDisplayOrderedTasks(taskList.tasks)
+    }
+
+    private func taskDisplayGroup(_ task: TaskSummary) -> Int {
+        if task.completed { return 2 }
+        return task.pinned ? 0 : 1
+    }
+
+    private func getDisplayOrderedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
+        tasks.sorted { lhs, rhs in
+            let lhsGroup = taskDisplayGroup(lhs)
+            let rhsGroup = taskDisplayGroup(rhs)
+            if lhsGroup != rhsGroup { return lhsGroup < rhsGroup }
+            return lhs.order < rhs.order
+        }
     }
 
     private func checkTaskSwap() -> CGFloat {
@@ -2604,7 +2706,8 @@ private struct TaskListDetailPage: View {
             let nextId = ordered[currentIdx + 1].id
             let nextHeight = taskItemHeights[nextId] ?? currentHeight
             let threshold = currentHeight / 2 + spacing + nextHeight / 2
-            if taskDragOffset > threshold {
+            if taskDisplayGroup(ordered[currentIdx]) == taskDisplayGroup(ordered[currentIdx + 1]),
+               taskDragOffset > threshold {
                 ordered.swapAt(currentIdx, currentIdx + 1)
                 dragOrderedTasks = ordered
                 let correction = -(nextHeight + spacing)
@@ -2617,7 +2720,8 @@ private struct TaskListDetailPage: View {
             let prevId = ordered[currentIdx - 1].id
             let prevHeight = taskItemHeights[prevId] ?? currentHeight
             let threshold = prevHeight / 2 + spacing + currentHeight / 2
-            if taskDragOffset < -threshold {
+            if taskDisplayGroup(ordered[currentIdx]) == taskDisplayGroup(ordered[currentIdx - 1]),
+               taskDragOffset < -threshold {
                 ordered.swapAt(currentIdx - 1, currentIdx)
                 dragOrderedTasks = ordered
                 let correction = prevHeight + spacing
@@ -2693,11 +2797,13 @@ private struct TaskListDetailPage: View {
         return formatter.string(from: date)
     }
 
-    private func autoSortedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
+    private func getAutoSortedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
         tasks
             .sorted { lhs, rhs in
-                if lhs.completed != rhs.completed {
-                    return !lhs.completed && rhs.completed
+                let lhsGroup = taskDisplayGroup(lhs)
+                let rhsGroup = taskDisplayGroup(rhs)
+                if lhsGroup != rhsGroup {
+                    return lhsGroup < rhsGroup
                 }
 
                 let lhsDate = lhs.date.isEmpty ? "9999-12-31" : lhs.date
@@ -2715,24 +2821,26 @@ private struct TaskListDetailPage: View {
                     text: task.text,
                     completed: task.completed,
                     date: task.date,
-                    order: Double(index + 1)
+                    order: Double(index + 1),
+                    pinned: task.pinned
                 )
             }
     }
 
-    private func renumberedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
+    private func renumberTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
         tasks.enumerated().map { index, task in
             TaskSummary(
                 id: task.id,
                 text: task.text,
                 completed: task.completed,
                 date: task.date,
-                order: Double(index + 1)
+                order: Double(index + 1),
+                pinned: task.pinned
             )
         }
     }
 
-    private func taskUpdates(_ tasks: [TaskSummary], deletedTaskIds: [String] = []) -> [String: Any] {
+    private func buildTaskUpdateData(_ tasks: [TaskSummary], deletedTaskIds: [String] = []) -> [String: Any] {
         var updates: [String: Any] = ["updatedAt": Int64(Date().timeIntervalSince1970 * 1000)]
         for taskId in deletedTaskIds {
             updates["tasks.\(taskId)"] = FieldValue.delete()
@@ -2743,12 +2851,13 @@ private struct TaskListDetailPage: View {
             updates["tasks.\(task.id).completed"] = task.completed
             updates["tasks.\(task.id).date"] = task.date
             updates["tasks.\(task.id).order"] = task.order
+            updates["tasks.\(task.id).pinned"] = task.pinned
         }
         return updates
     }
 
     private func normalizedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
-        autoSort ? autoSortedTasks(tasks) : renumberedTasks(tasks)
+        autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks)
     }
 
     private func updateTaskList(_ updates: [String: Any]) {
@@ -2756,7 +2865,7 @@ private struct TaskListDetailPage: View {
     }
 
     private func persistTasks(_ tasks: [TaskSummary], deletedTaskIds: [String] = []) {
-        updateTaskList(taskUpdates(normalizedTasks(tasks), deletedTaskIds: deletedTaskIds))
+        updateTaskList(buildTaskUpdateData(normalizedTasks(tasks), deletedTaskIds: deletedTaskIds))
     }
 
     private func deleteTaskList() {
@@ -2938,7 +3047,7 @@ private struct TaskListDetailPage: View {
                                             if draggingTaskId == nil {
                                                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                                 draggingTaskId = task.id
-                                                dragOrderedTasks = taskList.tasks
+                                                dragOrderedTasks = displayTasks
                                                 taskDragStartLocationY = value.location.y
                                             }
                                             guard let startY = taskDragStartLocationY else { return }
@@ -2952,8 +3061,9 @@ private struct TaskListDetailPage: View {
                                         }
                                         .onEnded { _ in
                                             stopTaskAutoScroll()
+                                            let originalTaskIds = getDisplayOrderedTasks(taskList.tasks).map(\.id)
                                             if let ordered = dragOrderedTasks,
-                                               ordered.map(\.id) != taskList.tasks.map(\.id) {
+                                               ordered.map(\.id) != originalTaskIds {
                                                 persistTaskOrder(ordered.map(\.id))
                                             }
                                             withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.15)) {
@@ -3003,7 +3113,7 @@ private struct TaskListDetailPage: View {
                                     } else {
                                         Button { startEdit(task) } label: {
                                             Text(task.text)
-                                                .font(.system(size: 16, weight: .semibold))
+                                                .font(.system(size: 16, weight: task.pinned && !task.completed ? .bold : .semibold))
                                                 .strikethrough(task.completed)
                                                 .foregroundStyle(task.completed ? .secondary : .primary)
                                         }
@@ -3021,10 +3131,10 @@ private struct TaskListDetailPage: View {
                             Button {
                                 openDatePicker(task)
                             } label: {
-                                Image(systemName: "calendar")
+                                Image(systemName: task.pinned ? "pin.fill" : "calendar")
                                     .font(.system(size: TaskListDetailMetrics.trailingDateIconSize, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: TaskListDetailMetrics.trailingDateButtonWidth, height: TaskListDetailMetrics.trailingDateButtonHeight)
+                                .foregroundStyle(task.pinned ? Color.accentColor : Color.secondary)
+                                .frame(width: TaskListDetailMetrics.trailingDateButtonWidth, height: TaskListDetailMetrics.trailingDateButtonHeight)
                             }
                             .buttonStyle(.plain)
                             .alignmentGuide(.taskRowContentCenter) { dimensions in
@@ -3036,7 +3146,7 @@ private struct TaskListDetailPage: View {
                         .padding(.vertical, TaskListDetailMetrics.taskRowVerticalPadding)
                         .offset(y: draggingTaskId == task.id ? taskDragOffset : 0)
                         .zIndex(draggingTaskId == task.id ? 1 : 0)
-                        .opacity(draggingTaskId == task.id ? 0.8 : 1.0)
+                        .opacity((draggingTaskId == task.id ? 0.8 : 1.0) * (task.completed ? completedTaskOpacity : 1.0))
                         .scaleEffect(draggingTaskId == task.id ? 1.03 : 1.0)
                         .animation(draggingTaskId == task.id || reduceMotion ? nil : .easeInOut(duration: 0.2),
                                    value: displayTasks.map(\.id))
@@ -3164,15 +3274,32 @@ private struct TaskListDetailPage: View {
             if let taskId = datePickerTaskId,
                let task = taskList.tasks.first(where: { $0.id == taskId }) {
                 NavigationStack {
-                    VStack {
+                    VStack(spacing: 12) {
                         DatePicker("", selection: $datePickerDate, displayedComponents: .date)
                             .datePickerStyle(.graphical)
-                            .padding()
-                        Button(translations.t("pages.tasklist.clearDate")) {
-                            commitDate(task, dateStr: "")
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                        HStack(spacing: 12) {
+                            Button(translations.t("pages.tasklist.clearDate")) {
+                                commitDate(task, dateStr: "")
+                            }
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .buttonStyle(.bordered)
+
+                            Button {
+                                togglePinned(task)
+                            } label: {
+                                Label(
+                                    translations.t(task.pinned ? "pages.tasklist.unpinTask" : "pages.tasklist.pinTask"),
+                                    systemImage: task.pinned ? "pin.slash" : "pin"
+                                )
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .foregroundStyle(.red)
-                        .padding(.bottom)
+                        .padding(.horizontal)
+                        .padding(.bottom, 16)
                     }
                     .navigationTitle(translations.t("pages.tasklist.setDate"))
                     .navigationBarTitleDisplayMode(.inline)
@@ -3187,7 +3314,7 @@ private struct TaskListDetailPage: View {
                         }
                     }
                 }
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.large])
             }
         }
         .sheet(isPresented: $showShareSheet) {
@@ -3290,7 +3417,8 @@ private struct TaskListDetailPage: View {
                     text: current.text,
                     completed: current.id == task.id ? !current.completed : current.completed,
                     date: current.date,
-                    order: current.order
+                    order: current.order,
+                    pinned: current.pinned
                 )
             }
             persistTasks(updatedTasks)
@@ -3315,9 +3443,12 @@ private struct TaskListDetailPage: View {
         let resolved = resolveTaskInput(editingText, language: translations.language, currentTask: task)
         let textChanged = resolved.text != task.text
         let dateChanged = resolved.date != task.date
+        let pinnedChanged = resolved.pinnedFromInput && !task.pinned
         editingTaskId = nil
-        guard !(trimmed.isEmpty && !dateChanged), textChanged || dateChanged else { return }
-        let changedFields = textChanged && dateChanged ? "text,date" : textChanged ? "text" : "date"
+        guard !(trimmed.isEmpty && !dateChanged), textChanged || dateChanged || pinnedChanged else { return }
+        let changedFields = [textChanged ? "text" : nil, dateChanged ? "date" : nil, pinnedChanged ? "pinned" : nil]
+            .compactMap { $0 }
+            .joined(separator: ",")
         logTaskUpdate(fields: changedFields)
         if autoSort {
             let updatedTasks = taskList.tasks.map { current in
@@ -3326,18 +3457,23 @@ private struct TaskListDetailPage: View {
                     text: current.id == task.id ? resolved.text : current.text,
                     completed: current.completed,
                     date: current.id == task.id ? resolved.date ?? current.date : current.date,
-                    order: current.order
+                    order: current.order,
+                    pinned: current.id == task.id && resolved.pinnedFromInput ? true : current.pinned
                 )
             }
             persistTasks(updatedTasks)
             return
         }
 
-        updateTaskList([
+        var updates: [String: Any] = [
             "tasks.\(task.id).text": resolved.text,
             "tasks.\(task.id).date": resolved.date ?? task.date,
             "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
-        ])
+        ]
+        if pinnedChanged {
+            updates["tasks.\(task.id).pinned"] = true
+        }
+        updateTaskList(updates)
     }
 
     private func openDatePicker(_ task: TaskSummary) {
@@ -3354,7 +3490,8 @@ private struct TaskListDetailPage: View {
                     text: current.text,
                     completed: current.completed,
                     date: current.id == task.id ? dateStr : current.date,
-                    order: current.order
+                    order: current.order,
+                    pinned: current.pinned
                 )
             }
             persistTasks(updatedTasks)
@@ -3367,6 +3504,51 @@ private struct TaskListDetailPage: View {
             "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
         ])
         datePickerTaskId = nil
+    }
+
+    private func togglePinned(_ task: TaskSummary) {
+        logTaskUpdate(fields: "pinned")
+        let nextPinned = !task.pinned
+        if autoSort {
+            let updatedTasks = taskList.tasks.map { current in
+                TaskSummary(
+                    id: current.id,
+                    text: current.text,
+                    completed: current.completed,
+                    date: current.date,
+                    order: current.order,
+                    pinned: current.id == task.id ? nextPinned : current.pinned
+                )
+            }
+            persistTasks(updatedTasks)
+            return
+        }
+
+        if task.pinned && !nextPinned && !task.completed {
+            let updatedTasks = taskList.tasks.map { current in
+                TaskSummary(
+                    id: current.id,
+                    text: current.text,
+                    completed: current.completed,
+                    date: current.date,
+                    order: current.order,
+                    pinned: current.id == task.id ? false : current.pinned
+                )
+            }
+            let reorderedTasks = [
+                updatedTasks.filter { taskDisplayGroup($0) == 0 },
+                updatedTasks.filter { $0.id == task.id },
+                updatedTasks.filter { taskDisplayGroup($0) == 1 && $0.id != task.id },
+                updatedTasks.filter { taskDisplayGroup($0) == 2 }
+            ].flatMap { $0 }
+            updateTaskList(buildTaskUpdateData(renumberTasks(reorderedTasks)))
+            return
+        }
+
+        updateTaskList([
+            "tasks.\(task.id).pinned": nextPinned,
+            "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
+        ])
     }
 
     private func addTask() {
@@ -3388,7 +3570,8 @@ private struct TaskListDetailPage: View {
                 text: parsed.text,
                 completed: false,
                 date: parsed.date ?? "",
-                order: order
+                order: order,
+                pinned: parsed.pinnedFromInput
             )
             var reorderedTasks = taskList.tasks
             let insertIndex = taskInsertPosition == "top" ? 0 : reorderedTasks.count
@@ -3403,6 +3586,7 @@ private struct TaskListDetailPage: View {
             "tasks.\(taskId).completed": false,
             "tasks.\(taskId).date": parsed.date ?? "",
             "tasks.\(taskId).order": order,
+            "tasks.\(taskId).pinned": parsed.pinnedFromInput,
             "updatedAt": now
         ])
     }
@@ -3410,7 +3594,9 @@ private struct TaskListDetailPage: View {
     private func handleSortTasks() {
         logTaskSort()
         let sorted = taskList.tasks.sorted { a, b in
-            if a.completed != b.completed { return !a.completed }
+            let aGroup = taskDisplayGroup(a)
+            let bGroup = taskDisplayGroup(b)
+            if aGroup != bGroup { return aGroup < bGroup }
             let aEmpty = a.date.isEmpty, bEmpty = b.date.isEmpty
             if aEmpty != bEmpty { return bEmpty }
             if !aEmpty && !bEmpty && a.date != b.date { return a.date < b.date }
@@ -4507,7 +4693,7 @@ struct LightlistApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(pendingDeepLink: $pendingDeepLink)
+            RootView(pendingDeepLink: $pendingDeepLink)
                 .onOpenURL { url in
                     pendingDeepLink = parseDeepLink(url)
                 }
@@ -4515,8 +4701,8 @@ struct LightlistApp: App {
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
+struct RootView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+        RootView()
     }
 }

@@ -76,8 +76,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -1989,7 +1991,9 @@ private fun SignInView(onShowReset: () -> Unit) {
         label = { Text(t.t("auth.form.email")) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
         singleLine = true,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().semantics {
+            contentType = ContentType.Username + ContentType.EmailAddress
+        }
     )
     Spacer(Modifier.height(8.dp))
     OutlinedTextField(
@@ -2003,7 +2007,9 @@ private fun SignInView(onShowReset: () -> Unit) {
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         singleLine = true,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().semantics {
+            contentType = ContentType.Password
+        }
     )
     emailError?.let {
         Spacer(Modifier.height(8.dp))
@@ -2077,7 +2083,9 @@ private fun SignUpView(
         label = { Text(t.t("auth.form.email")) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
         singleLine = true,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().semantics {
+            contentType = ContentType.NewUsername + ContentType.EmailAddress
+        }
     )
     Spacer(Modifier.height(8.dp))
     OutlinedTextField(
@@ -2092,7 +2100,9 @@ private fun SignUpView(
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         singleLine = true,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().semantics {
+            contentType = ContentType.NewPassword
+        }
     )
     Spacer(Modifier.height(8.dp))
     OutlinedTextField(
@@ -2106,7 +2116,9 @@ private fun SignUpView(
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         singleLine = true,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().semantics {
+            contentType = ContentType.NewPassword
+        }
     )
     listOf(emailError, passwordError, confirmPasswordError, errorMessage).filterNotNull().forEach { message ->
         Spacer(Modifier.height(8.dp))
@@ -2265,7 +2277,9 @@ private fun ResetPasswordView(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().semantics {
+                    contentType = ContentType.NewPassword
+                },
                 enabled = !isVerifying && !isSubmitting
             )
             Spacer(Modifier.height(8.dp))
@@ -2280,7 +2294,9 @@ private fun ResetPasswordView(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().semantics {
+                    contentType = ContentType.NewPassword
+                },
                 enabled = !isVerifying && !isSubmitting
             )
         }

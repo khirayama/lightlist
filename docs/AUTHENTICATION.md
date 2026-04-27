@@ -106,6 +106,7 @@
 - Android の deep link は `lightlist://password-reset?oobCode=...`、`lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`、`https://lightlist.com/password_reset?oobCode=...` を処理する。
 - Android の共有コード deep link は未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - iOS / Android のサインイン画面は、Web と同様に全画面背景の中央へ最大幅約 `480pt/dp` のフォームサーフェスを置く。余白は外周側で確保し、カード背景はフォーム本文だけに付与する。
+- Android の認証フォームは Compose Autofill を有効にするため `contentType` を必須とし、サインインのメール欄は `Username + EmailAddress`、既存パスワード欄は `Password`、サインアップとパスワードリセットの新規パスワード欄は `NewPassword` を設定する。
 - タブは `signin` / `signup` / `reset` の 3 つ。
 - `email` state はタブ間で共有し、切り替えても保持する。
 - iOS の reset 画面は通常導線と deep link 起動の両方で使う。

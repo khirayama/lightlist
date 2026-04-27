@@ -57,6 +57,7 @@
 - パスワードリセットURLは `VITE_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
 - iOS のパスワードリセット URL は Info.plist の `PASSWORD_RESET_URL`、Android は `BuildConfig.PASSWORD_RESET_URL` を使い、既定値は `https://lightlist.com/password_reset` とする。
 - Android の認証フォームは Compose Autofill を有効にするため `ContentView.kt` の `OutlinedTextField` に `contentType` を必ず設定し、サインインは既存資格情報、サインアップ/パスワードリセットは新規資格情報として宣言する。
+- Android の未ログイン起動時の認証画面は、保存済み settings が無い場合に端末ロケールをサポート言語へ丸めて初回表示言語として使い、`Translations` は初回描画前にロード済みインスタンスを `CompositionLocal` へ渡して翻訳キーの生表示を避ける。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` に丸め、それ以外の未対応ロケールは `ja` にフォールバックする。
 - iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。共有コード deep link は未認証でも共有リストプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。Android の deep link は `lightlist://password-reset?...`、`lightlist://sharecodes/...`、`https://lightlist.com/sharecodes/...`、`https://lightlist.com/password_reset?...` を処理する。
 - Web の本番 security headers は配信基盤側で管理する。
 - Android の release build は `isMinifyEnabled = true`、`allowBackup = false`、App Check は release で Play Integrity provider を使う。

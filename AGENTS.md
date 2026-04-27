@@ -55,6 +55,7 @@
 - Android の app module は `ContentView.kt` 内の analytics helper が `BuildConfig.DEBUG` を参照するため、`apps/android/app/build.gradle.kts` の `buildFeatures.buildConfig = true` を維持する。
 - Android のパスワードリセット URL は `BuildConfig.PASSWORD_RESET_URL` で管理し、既定値は `https://lightlist.com/password_reset` とする。
 - Android の認証フォームは Compose Autofill を有効にするため `ContentView.kt` の `OutlinedTextField` に `contentType` を必ず設定し、サインインは既存資格情報、サインアップ/パスワードリセットは新規資格情報として宣言する。
+- Android の未ログイン起動時の認証画面は、保存済み settings が無い場合に端末ロケールをサポート言語へ丸めて初回表示言語として使い、`Translations` は初回描画前にロード済みインスタンスを `CompositionLocal` へ渡して翻訳キーの生表示を避ける。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` に丸め、それ以外の未対応ロケールは `ja` にフォールバックする。
 - iOS の RTL 対応は `ContentView.swift` 内の `LightlistApp` で `.environment(\.layoutDirection, ...)` をルートに設定し、SwiftUI の自動反転に委ねる。再起動不要。
 - iOS のディープリンクは `lightlist://password-reset?oobCode=...`（パスワードリセット）と `lightlist://sharecodes/CODE` または `https://lightlist.com/sharecodes/CODE`（共有コード）を処理する。`LightlistApp` で URL を `PendingDeepLink` へ変換し、`RootView` 側でパスワードリセット画面または共有リストプレビューへ振り分ける。共有コードは未認証でもプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。
 - Android のディープリンクは `lightlist://password-reset?oobCode=...`、`lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`、`https://lightlist.com/password_reset?oobCode=...` を処理し、`ContentView.kt` 内の `MainActivity` で `PendingDeepLink` へ変換して UI 側で処理する。共有コードは未認証でもプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。

@@ -107,6 +107,8 @@
 - Android の共有コード deep link は未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - iOS / Android のサインイン画面は、Web と同様に全画面背景の中央へ最大幅約 `480pt/dp` のフォームサーフェスを置く。余白は外周側で確保し、カード背景はフォーム本文だけに付与する。
 - Android の認証フォームは Compose Autofill を有効にするため `contentType` を必須とし、サインインのメール欄は `Username + EmailAddress`、既存パスワード欄は `Password`、サインアップとパスワードリセットの新規パスワード欄は `NewPassword` を設定する。
+- Android の未ログイン起動時の認証画面は、保存済み設定が無い場合に端末ロケールをサポート言語 (`ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`) へ丸めて初回表示言語として使う。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` へ丸め、それ以外の未対応ロケールは `ja` にフォールバックする。
+- Android の認証画面は、初回描画前に確定した翻訳辞書を使って表示し、起動直後に locale key や未翻訳文言を生表示しない。
 - タブは `signin` / `signup` / `reset` の 3 つ。
 - `email` state はタブ間で共有し、切り替えても保持する。
 - iOS の reset 画面は通常導線と deep link 起動の両方で使う。

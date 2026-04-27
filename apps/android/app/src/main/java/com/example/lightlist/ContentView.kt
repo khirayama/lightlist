@@ -244,6 +244,12 @@ class Translations {
 
     companion object {
         private val supported = listOf("ja","en","es","de","fr","ko","zh-CN","hi","ar","pt-BR","id")
+
+        fun from(context: Context, language: String): Translations {
+            return Translations().apply {
+                load(context, language)
+            }
+        }
     }
 
     fun load(context: Context, language: String) {
@@ -589,6 +595,32 @@ private fun normalizeLanguageCode(language: String): String {
     }
 }
 
+private fun resolveDeviceLanguage(context: Context): String {
+    val locale = context.resources.configuration.locales[0] ?: return "ja"
+    val languageTag = locale.toLanguageTag()
+    val language = locale.language
+    return when {
+        languageTag == "zh-CN" -> "zh-CN"
+        languageTag == "pt-BR" -> "pt-BR"
+        language == "zh" -> "zh-CN"
+        language == "pt" -> "pt-BR"
+        language in listOf("ja", "en", "es", "de", "fr", "ko", "hi", "ar", "id") -> language
+        else -> "ja"
+    }
+}
+
+private fun resolveStartupLanguage(
+    context: Context,
+    userId: String?,
+    settingsLanguage: String
+): String {
+    return if (userId == null) {
+        resolveDeviceLanguage(context)
+    } else {
+        normalizeLanguageCode(settingsLanguage)
+    }
+}
+
 private fun isValidEmail(email: String): Boolean {
     return Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email)
 }
@@ -806,9 +838,11 @@ fun RootScreen(
 
     val settingsState = rememberSettingsUiState(currentUserId)
     val context = LocalContext.current
-    val translations = remember { Translations() }
-    LaunchedEffect(settingsState.language) {
-        translations.load(context, settingsState.language)
+    val startupLanguage = remember(currentUserId, settingsState.language, context) {
+        resolveStartupLanguage(context, currentUserId, settingsState.language)
+    }
+    val translations = remember(startupLanguage, context) {
+        Translations.from(context, startupLanguage)
     }
     val darkTheme = when (settingsState.theme) {
         "dark" -> true
@@ -833,7 +867,7 @@ fun RootScreen(
     }
 
     LightlistTheme(darkTheme = darkTheme) {
-    key(settingsState.language) {
+    key(startupLanguage) {
     CompositionLocalProvider(LocalTranslations provides translations) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         if (pendingPasswordResetCode != null) {
@@ -917,7 +951,7 @@ fun RootScreen(
                 ) {
                     AuthView(
                         initialScreen = authScreen,
-                        language = settingsState.language,
+                        language = startupLanguage,
                         onScreenChange = { authScreen = it }
                     )
                 }

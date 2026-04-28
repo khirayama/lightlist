@@ -46,6 +46,8 @@ yarn-error.log*
 
 # Firebase local configuration
 apps/ios/Lightlist/Resources/GoogleService-Info.plist
+apps/ios/Lightlist/Resources/GoogleService-Info.prod.plist
 apps/android/app/google-services.json
+apps/android/app/google-services.prod.json
 GoogleService-Info.plist
 google-services.json

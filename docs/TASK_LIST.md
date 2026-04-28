@@ -58,6 +58,7 @@
 - Android の inline task 編集中は、hardware keyboard の矢印キーと Enter を編集欄内で完結させる。`←` / `→` は caret 移動だけを行い、`↑` / `↓` は no-op として consume し、pager 切替や近傍要素への focus 移動を起こさない。Enter は task を確定して編集終了するだけで、一覧表示や戻る導線を発火させない。
 - iOS / Android の task row は、drag handle・完了トグル・本文の縦方向中心を揃える。日付がある場合も `task.text` / 編集中の入力欄の縦位置は変えず、補助ラベルとして同じ本文領域内の直上へ近接配置する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
 - Android の task row は、drag handle と完了トグルの間隔をやや詰め、完了トグルと本文開始位置の間隔はそれより少し広く取る。日付表示がある行でも `drag handle`・完了トグル・`task.text` の中心軸は揃えたまま、日付ラベル側をわずかに上へ寄せて `task.text` との視覚間隔を広げる。
+- Android の `TaskListDetailPage` の task row は、`alignBy` に依存しない単純な `Row + Column` 構成を使い、非ドラッグ行では drag 用 transform を載せない。`LazyColumn` の task item は `contentType = "task"` を付け、header / input / actions / empty state と分けて composition reuse を安定させる。
 - Android の task 日付設定ダイアログは platform `DatePickerDialog` を使い、positive button は `pages.tasklist.setDateShort`、neutral button は `pages.tasklist.clearDateShort` を使って 3 ボタンを横並びに収める。Compose Material3 `DatePicker` と custom 月間カレンダーは使わない。
 - `updateTaskListOrder()` は並び替え後に `1.0` 始まりの連番へ振り直す。
 - `deleteTaskList()` は次を transaction で行う。

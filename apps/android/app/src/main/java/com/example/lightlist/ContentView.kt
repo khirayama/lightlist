@@ -66,6 +66,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -151,6 +152,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
@@ -425,6 +427,7 @@ private enum class AuthScreen {
     Reset
 }
 
+@Immutable
 private data class TaskSummary(
     val id: String,
     val text: String,
@@ -442,6 +445,7 @@ private data class TaskListSummary(
     val background: String?
 )
 
+@Immutable
 private data class TaskListDetail(
     val id: String,
     val name: String,
@@ -3568,6 +3572,215 @@ private fun TaskListIndicator(
     }
 }
 
+@Composable
+private fun TaskListRow(
+    task: TaskSummary,
+    index: Int,
+    isEditing: Boolean,
+    isDragged: Boolean,
+    reduceMotion: Boolean,
+    taskDragOffset: Float,
+    languageTag: String,
+    taskTextStyle: TextStyle,
+    taskDateTextStyle: TextStyle,
+    editingTextFieldValue: TextFieldValue,
+    onEditingTextFieldValueChange: (TextFieldValue) -> Unit,
+    onTaskClick: () -> Unit,
+    onToggleCompletion: () -> Unit,
+    onShowActions: () -> Unit,
+    onDragGesture: suspend PointerInputScope.() -> Unit,
+    completeInlineEdit: () -> Unit,
+    moveInlineCaretLeft: () -> Unit,
+    moveInlineCaretRight: () -> Unit,
+    onInlineEditBlur: () -> Unit
+) {
+    val t = LocalTranslations.current
+    val focusRequester = remember { FocusRequester() }
+    val rowModifier = if (isDragged) {
+        Modifier
+            .offset { IntOffset(0, taskDragOffset.toInt()) }
+            .zIndex(1f)
+            .alpha((if (!reduceMotion) 0.8f else 1f) * if (task.completed) COMPLETED_TASK_ALPHA else 1f)
+            .then(
+                if (reduceMotion) {
+                    Modifier
+                } else {
+                    Modifier.graphicsLayer {
+                        scaleX = 1.03f
+                        scaleY = 1.03f
+                    }
+                }
+            )
+    } else {
+        Modifier
+            .alpha(if (task.completed) COMPLETED_TASK_ALPHA else 1f)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                top = if (index == 0) 0.dp else TaskListDetailMetrics.taskRowSpacing,
+                bottom = TaskListDetailMetrics.taskRowVerticalPadding
+            )
+            .then(rowModifier),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(
+                    top = TaskListDetailMetrics.dragHandleTopPadding,
+                    end = TaskListDetailMetrics.dragHandleEndPadding
+                )
+                .width(TaskListDetailMetrics.dragHandleTouchWidth)
+                .height(48.dp)
+                .pointerInput(task.id, onDragGesture) { onDragGesture() },
+            contentAlignment = Alignment.CenterStart
+        ) {
+            DragHandleIcon(modifier = Modifier.offset(x = 0.dp))
+        }
+        Box(
+            modifier = Modifier
+                .padding(
+                    top = TaskListDetailMetrics.completionTopPadding,
+                    end = TaskListDetailMetrics.completionEndPadding
+                )
+                .width(TaskListDetailMetrics.completionTouchWidth)
+                .height(48.dp)
+                .semantics {
+                    contentDescription = if (task.completed) t.t("pages.tasklist.markIncomplete") else t.t("pages.tasklist.markComplete")
+                    role = Role.Checkbox
+                }
+                .clickable { onToggleCompletion() },
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(TaskListDetailMetrics.completionDotSize)
+                    .border(
+                        width = if (task.completed) 0.dp else 1.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
+                        shape = CircleShape
+                    )
+                    .background(
+                        if (task.completed) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+                        else Color.Transparent,
+                        CircleShape
+                    )
+                    .offset(x = (-3).dp)
+            )
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .heightIn(min = TaskListDetailMetrics.taskContentHeight),
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (task.date.isNotBlank()) {
+                val displayDate = remember(task.date, languageTag) {
+                    formatDateForLocale(task.date, languageTag, "MMM d EEE")
+                }
+                Text(
+                    text = displayDate,
+                    style = taskDateTextStyle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.offset(y = TaskListDetailMetrics.taskDateTopInset)
+                )
+            }
+            if (isEditing) {
+                var hasFocused by remember { mutableStateOf(false) }
+                var hasCommitted by remember { mutableStateOf(false) }
+                val inlineEditKeyModifier = Modifier
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown && event.type != KeyEventType.KeyUp) {
+                            return@onPreviewKeyEvent false
+                        }
+                        when (event.key) {
+                            Key.DirectionLeft -> {
+                                if (event.type == KeyEventType.KeyDown) {
+                                    moveInlineCaretLeft()
+                                }
+                                true
+                            }
+                            Key.DirectionRight -> {
+                                if (event.type == KeyEventType.KeyDown) {
+                                    moveInlineCaretRight()
+                                }
+                                true
+                            }
+                            Key.DirectionUp,
+                            Key.DirectionDown -> true
+                            Key.Enter,
+                            Key.NumPadEnter -> {
+                                if (event.type == KeyEventType.KeyUp) {
+                                    hasCommitted = true
+                                    completeInlineEdit()
+                                }
+                                true
+                            }
+                            else -> false
+                        }
+                    }
+                BasicTextField(
+                    value = editingTextFieldValue,
+                    onValueChange = onEditingTextFieldValueChange,
+                    textStyle = taskTextStyle.copy(color = MaterialTheme.colorScheme.onSurface),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        hasCommitted = true
+                        completeInlineEdit()
+                    }),
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = TaskListDetailMetrics.taskTextStartPadding)
+                        .focusRequester(focusRequester)
+                        .then(inlineEditKeyModifier)
+                        .onFocusChanged { state ->
+                            if (state.isFocused) {
+                                hasFocused = true
+                            } else if (hasFocused && !hasCommitted) {
+                                hasCommitted = true
+                                onInlineEditBlur()
+                            }
+                        }
+                )
+                LaunchedEffect(task.id) {
+                    focusRequester.requestFocus()
+                }
+            } else {
+                Text(
+                    task.text,
+                    style = taskTextStyle,
+                    textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
+                    color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (task.pinned && !task.completed) FontWeight.Bold else FontWeight.SemiBold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = TaskListDetailMetrics.taskTextStartPadding)
+                        .clickable { onTaskClick() }
+                )
+            }
+        }
+        IconButton(
+            onClick = onShowActions,
+            modifier = Modifier
+                .width(TaskListDetailMetrics.trailingDateButtonWidth)
+                .height(48.dp)
+        ) {
+            Icon(
+                imageVector = if (task.pinned) Icons.Default.PushPin else Icons.Default.CalendarToday,
+                contentDescription = t.t("pages.tasklist.setDate"),
+                tint = if (task.pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                modifier = Modifier
+                    .size(TaskListDetailMetrics.trailingDateIconSize)
+                    .offset(x = 2.dp)
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TaskListDetailPage(
@@ -3621,7 +3834,9 @@ private fun TaskListDetailPage(
         return tasks.sortedWith(compareBy<TaskSummary> { taskDisplayGroup(it) }.thenBy { it.order })
     }
 
-    val displayTasks = dragOrderedTasks ?: getDisplayOrderedTasks(taskList.tasks)
+    val displayTasks = remember(taskList.tasks, dragOrderedTasks) {
+        dragOrderedTasks ?: getDisplayOrderedTasks(taskList.tasks)
+    }
     val taskDensity = LocalDensity.current
     val taskSpacingPx = with(taskDensity) { TaskListDetailMetrics.taskRowSpacing.toPx() }
     val chromeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
@@ -3648,6 +3863,9 @@ private fun TaskListDetailPage(
         fontWeight = FontWeight.Medium
     )
     val focusManager = LocalFocusManager.current
+    val languageTag = t.languageTag()
+    val canSort = remember(taskList.tasks) { taskList.tasks.size >= 2 }
+    val hasCompletedTasks = remember(taskList.tasks) { taskList.tasks.any { it.completed } }
 
     fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
         return tasks
@@ -4031,7 +4249,7 @@ private fun TaskListDetailPage(
             bottom = 16.dp
         )
     ) {
-        item(key = "taskListHeader") {
+        item(key = "taskListHeader", contentType = "header") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -4072,7 +4290,7 @@ private fun TaskListDetailPage(
                 }
             }
         }
-        item(key = "taskListInput") {
+        item(key = "taskListInput", contentType = "input") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -4161,7 +4379,7 @@ private fun TaskListDetailPage(
                 }
             }
         }
-        item(key = "taskListActions") {
+        item(key = "taskListActions", contentType = "actions") {
             Column(modifier = Modifier.padding(bottom = TaskListDetailMetrics.actionsBottomSpacing)) {
                 Row(
                     modifier = Modifier
@@ -4172,7 +4390,7 @@ private fun TaskListDetailPage(
                 ) {
                     Row(
                         modifier = Modifier
-                            .clickable(enabled = taskList.tasks.size >= 2) { sortTasks() }
+                            .clickable(enabled = canSort) { sortTasks() }
                             .padding(vertical = TaskListDetailMetrics.actionControlVerticalPadding),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -4180,22 +4398,22 @@ private fun TaskListDetailPage(
                             Icons.Default.FilterList,
                             contentDescription = t.t("pages.tasklist.sort"),
                             modifier = Modifier.size(AppIconMetrics.inlineActionIconSize),
-                            tint = if (taskList.tasks.size >= 2) chromeColor else chromeColor.copy(alpha = 0.45f)
+                            tint = if (canSort) chromeColor else chromeColor.copy(alpha = 0.45f)
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
                             t.t("pages.tasklist.sort"),
                             style = actionTextStyle,
-                            color = if (taskList.tasks.size >= 2) chromeColor else chromeColor.copy(alpha = 0.45f)
+                            color = if (canSort) chromeColor else chromeColor.copy(alpha = 0.45f)
                         )
                     }
                     Row(
                         modifier = Modifier
-                            .clickable(enabled = taskList.tasks.any { it.completed }) { showDeleteCompletedConfirm = true }
+                            .clickable(enabled = hasCompletedTasks) { showDeleteCompletedConfirm = true }
                             .padding(vertical = TaskListDetailMetrics.actionControlVerticalPadding),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val deleteEnabled = taskList.tasks.any { it.completed }
+                        val deleteEnabled = hasCompletedTasks
                         Text(
                             t.t("pages.tasklist.deleteCompleted"),
                             style = actionTextStyle,
@@ -4213,7 +4431,7 @@ private fun TaskListDetailPage(
             }
         }
         if (taskList.tasks.isEmpty()) {
-            item(key = "emptyState") {
+            item(key = "emptyState", contentType = "emptyState") {
                 Box(
                     modifier = Modifier
                         .fillParentMaxHeight()
@@ -4224,253 +4442,95 @@ private fun TaskListDetailPage(
                 }
             }
         } else {
-            itemsIndexed(displayTasks, key = { _, task -> task.id }) { index, task ->
-                    val isEditing = editingTaskId == task.id
-                    val focusRequester = remember { FocusRequester() }
-                    val isDragged = draggingTaskId == task.id
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                top = if (index == 0) 0.dp else TaskListDetailMetrics.taskRowSpacing,
-                                bottom = TaskListDetailMetrics.taskRowVerticalPadding
-                            )
-                            .offset { IntOffset(0, if (isDragged) taskDragOffset.toInt() else 0) }
-                            .zIndex(if (isDragged) 1f else 0f)
-                            .alpha((if (isDragged && !reduceMotion) 0.8f else 1f) * if (task.completed) COMPLETED_TASK_ALPHA else 1f)
-                            .graphicsLayer {
-                                scaleX = if (isDragged && !reduceMotion) 1.03f else 1f
-                                scaleY = if (isDragged && !reduceMotion) 1.03f else 1f
+            itemsIndexed(
+                items = displayTasks,
+                key = { _, task -> task.id },
+                contentType = { _, _ -> "task" }
+            ) { index, task ->
+                val isEditing = editingTaskId == task.id
+                val isDragged = draggingTaskId == task.id
+                val dragGesture: suspend PointerInputScope.() -> Unit = {
+                    detectDragGestures(
+                        onDragStart = { _ ->
+                            draggingTaskId = task.id
+                            dragOrderedTasks = displayTasks
+                            taskItemHeights = lazyListState.layoutInfo.visibleItemsInfo
+                                .filter { it.key is String }
+                                .associate { (it.key as String) to it.size.toFloat() }
+                            taskDragOffset = 0f
+                        },
+                        onDragEnd = {
+                            taskAutoScrollSpeed = 0f
+                            val ordered = dragOrderedTasks
+                            if (ordered != null && ordered.map { it.id } != displayTasks.map { it.id }) {
+                                persistTaskOrder(ordered.map { it.id })
                             }
-                            .then(if (!isDragged && !reduceMotion) Modifier.animateItem() else Modifier),
-                    ) {
-                            Box(
-                                modifier = Modifier
-                                    .alignBy { it.measuredHeight / 2 }
-                                    .padding(
-                                        top = TaskListDetailMetrics.dragHandleTopPadding,
-                                        end = TaskListDetailMetrics.dragHandleEndPadding
-                                    )
-                                    .width(TaskListDetailMetrics.dragHandleTouchWidth)
-                                    .height(48.dp)
-                                    .pointerInput(task.id) {
-                                        detectDragGestures(
-                                            onDragStart = { _ ->
-                                                draggingTaskId = task.id
-                                                dragOrderedTasks = displayTasks
-                                                taskItemHeights = lazyListState.layoutInfo.visibleItemsInfo
-                                                    .filter { it.key is String }
-                                                    .associate { (it.key as String) to it.size.toFloat() }
-                                                taskDragOffset = 0f
-                                            },
-                                            onDragEnd = {
-                                                taskAutoScrollSpeed = 0f
-                                                val ordered = dragOrderedTasks
-                                                if (ordered != null && ordered.map { it.id } != displayTasks.map { it.id }) {
-                                                    persistTaskOrder(ordered.map { it.id })
-                                                }
-                                                draggingTaskId = null
-                                                dragOrderedTasks = null
-                                                taskDragOffset = 0f
-                                            },
-                                            onDragCancel = {
-                                                taskAutoScrollSpeed = 0f
-                                                draggingTaskId = null
-                                                dragOrderedTasks = null
-                                                taskDragOffset = 0f
-                                            },
-                                            onDrag = { change, dragAmount ->
-                                                change.consume()
-                                                taskDragOffset += dragAmount.y
-                                                checkTaskSwap()
+                            draggingTaskId = null
+                            dragOrderedTasks = null
+                            taskDragOffset = 0f
+                        },
+                        onDragCancel = {
+                            taskAutoScrollSpeed = 0f
+                            draggingTaskId = null
+                            dragOrderedTasks = null
+                            taskDragOffset = 0f
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            taskDragOffset += dragAmount.y
+                            checkTaskSwap()
 
-                                                val viewportHeight = lazyListState.layoutInfo.viewportSize.height.toFloat()
-                                                val edgeZone = with(taskDensity) { 80.dp.toPx() }
-                                                val maxSpeed = with(taskDensity) { 8.dp.toPx() }
-                                                val draggedItemInfo = lazyListState.layoutInfo.visibleItemsInfo
-                                                    .firstOrNull { it.key == draggingTaskId }
-                                                val fingerInViewport = if (draggedItemInfo != null) {
-                                                    (draggedItemInfo.offset + draggedItemInfo.size / 2 + taskDragOffset).toFloat()
-                                                } else {
-                                                    viewportHeight / 2
-                                                }
-                                                taskAutoScrollSpeed = when {
-                                                    fingerInViewport < edgeZone && lazyListState.canScrollBackward -> {
-                                                        val ratio = 1f - fingerInViewport.coerceAtLeast(0f) / edgeZone
-                                                        -maxSpeed * ratio
-                                                    }
-                                                    fingerInViewport > viewportHeight - edgeZone && lazyListState.canScrollForward -> {
-                                                        val ratio = 1f - (viewportHeight - fingerInViewport).coerceAtLeast(0f) / edgeZone
-                                                        maxSpeed * ratio
-                                                    }
-                                                    else -> 0f
-                                                }
-                                            }
-                                        )
-                                    },
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                DragHandleIcon(modifier = Modifier.offset(x = 0.dp))
+                            val viewportHeight = lazyListState.layoutInfo.viewportSize.height.toFloat()
+                            val edgeZone = with(taskDensity) { 80.dp.toPx() }
+                            val maxSpeed = with(taskDensity) { 8.dp.toPx() }
+                            val draggedItemInfo = lazyListState.layoutInfo.visibleItemsInfo
+                                .firstOrNull { it.key == draggingTaskId }
+                            val fingerInViewport = if (draggedItemInfo != null) {
+                                (draggedItemInfo.offset + draggedItemInfo.size / 2 + taskDragOffset).toFloat()
+                            } else {
+                                viewportHeight / 2
                             }
-                            Box(
-                                modifier = Modifier
-                                    .alignBy { it.measuredHeight / 2 }
-                                    .padding(
-                                        top = TaskListDetailMetrics.completionTopPadding,
-                                        end = TaskListDetailMetrics.completionEndPadding
-                                    )
-                                    .width(TaskListDetailMetrics.completionTouchWidth)
-                                    .height(48.dp)
-                                    .semantics {
-                                        contentDescription = if (task.completed) t.t("pages.tasklist.markIncomplete") else t.t("pages.tasklist.markComplete")
-                                        role = Role.Checkbox
-                                    }
-                                    .clickable { toggleCompletion(task) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(TaskListDetailMetrics.completionDotSize)
-                                        .border(
-                                            width = if (task.completed) 0.dp else 1.5.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
-                                            shape = CircleShape
-                                        )
-                                        .background(
-                                            if (task.completed) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
-                                            else Color.Transparent,
-                                            CircleShape
-                                        )
-                                        .offset(x = (-3).dp)
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .alignBy { it.measuredHeight / 2 }
-                                    .fillMaxWidth()
-                                    .heightIn(min = TaskListDetailMetrics.taskContentHeight),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                if (task.date.isNotBlank()) {
-                                    val displayDate = remember(task.date, t.languageTag()) {
-                                        formatDateForLocale(task.date, t.languageTag(), "MMM d EEE")
-                                    }
-                                    Text(
-                                        text = displayDate,
-                                        style = taskDateTextStyle,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier
-                                            .align(Alignment.TopStart)
-                                            .offset(y = TaskListDetailMetrics.taskDateTopInset)
-                                    )
+                            taskAutoScrollSpeed = when {
+                                fingerInViewport < edgeZone && lazyListState.canScrollBackward -> {
+                                    val ratio = 1f - fingerInViewport.coerceAtLeast(0f) / edgeZone
+                                    -maxSpeed * ratio
                                 }
-                                if (isEditing) {
-                                    var hasFocused by remember { mutableStateOf(false) }
-                                    var hasCommitted by remember { mutableStateOf(false) }
-                                    fun completeInlineEdit() {
-                                        if (hasCommitted) {
-                                            return
-                                        }
-                                        hasCommitted = true
-                                        finishTaskEditing(task, focusManager)
-                                    }
-                                    val inlineEditKeyModifier = Modifier
-                                        .onPreviewKeyEvent { event ->
-                                            if (event.type != KeyEventType.KeyDown && event.type != KeyEventType.KeyUp) {
-                                                return@onPreviewKeyEvent false
-                                            }
-                                            when (event.key) {
-                                                Key.DirectionLeft -> {
-                                                    if (event.type == KeyEventType.KeyDown) {
-                                                        moveInlineCaretLeft()
-                                                    }
-                                                    true
-                                                }
-                                                Key.DirectionRight -> {
-                                                    if (event.type == KeyEventType.KeyDown) {
-                                                        moveInlineCaretRight()
-                                                    }
-                                                    true
-                                                }
-                                                Key.DirectionUp,
-                                                Key.DirectionDown -> true
-                                                Key.Enter,
-                                                Key.NumPadEnter -> {
-                                                    if (event.type == KeyEventType.KeyUp) {
-                                                        completeInlineEdit()
-                                                    }
-                                                    true
-                                                }
-                                                else -> false
-                                            }
-                                        }
-                                    BasicTextField(
-                                        value = editingTextFieldValue,
-                                        onValueChange = { editingTextFieldValue = it },
-                                        textStyle = taskTextStyle.copy(
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        ),
-                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                        keyboardActions = KeyboardActions(onDone = {
-                                            completeInlineEdit()
-                                        }),
-                                        singleLine = true,
-                                        modifier = Modifier
-                                            .align(Alignment.CenterStart)
-                                            .fillMaxWidth()
-                                            .padding(start = TaskListDetailMetrics.taskTextStartPadding)
-                                            .focusRequester(focusRequester)
-                                            .then(inlineEditKeyModifier)
-                                            .onFocusChanged { state ->
-                                                if (state.isFocused) {
-                                                    hasFocused = true
-                                                } else if (hasFocused && !hasCommitted) {
-                                                    hasCommitted = true
-                                                    commitEdit(task, editingTextFieldValue.text)
-                                                }
-                                            }
-                                    )
-                                    LaunchedEffect(Unit) {
-                                        focusRequester.requestFocus()
-                                    }
-                                } else {
-                                    Text(
-                                        task.text,
-                                        style = taskTextStyle,
-                                        textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
-                                        color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                                        fontWeight = if (task.pinned && !task.completed) FontWeight.Bold else FontWeight.SemiBold,
-                                        modifier = Modifier
-                                            .align(Alignment.CenterStart)
-                                            .padding(start = TaskListDetailMetrics.taskTextStartPadding)
-                                            .clickable {
-                                                editingTaskId = task.id
-                                                editingTextFieldValue = TextFieldValue(
-                                                    text = task.text,
-                                                    selection = TextRange(task.text.length)
-                                                )
-                                            }
-                                    )
+                                fingerInViewport > viewportHeight - edgeZone && lazyListState.canScrollForward -> {
+                                    val ratio = 1f - (viewportHeight - fingerInViewport).coerceAtLeast(0f) / edgeZone
+                                    maxSpeed * ratio
                                 }
-                            }
-                            IconButton(
-                                onClick = { showTaskActionsForTaskId = task.id },
-                                modifier = Modifier
-                                    .alignBy { it.measuredHeight / 2 }
-                                    .width(TaskListDetailMetrics.trailingDateButtonWidth)
-                                    .height(48.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (task.pinned) Icons.Default.PushPin else Icons.Default.CalendarToday,
-                                    contentDescription = t.t("pages.tasklist.setDate"),
-                                    tint = if (task.pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                                    modifier = Modifier
-                                        .size(TaskListDetailMetrics.trailingDateIconSize)
-                                        .offset(x = 2.dp)
-                                )
+                                else -> 0f
                             }
                         }
+                    )
+                }
+                TaskListRow(
+                    task = task,
+                    index = index,
+                    isEditing = isEditing,
+                    isDragged = isDragged,
+                    reduceMotion = reduceMotion,
+                    taskDragOffset = taskDragOffset,
+                    languageTag = languageTag,
+                    taskTextStyle = taskTextStyle,
+                    taskDateTextStyle = taskDateTextStyle,
+                    editingTextFieldValue = editingTextFieldValue,
+                    onEditingTextFieldValueChange = { editingTextFieldValue = it },
+                    onTaskClick = {
+                        editingTaskId = task.id
+                        editingTextFieldValue = TextFieldValue(
+                            text = task.text,
+                            selection = TextRange(task.text.length)
+                        )
+                    },
+                    onToggleCompletion = { toggleCompletion(task) },
+                    onShowActions = { showTaskActionsForTaskId = task.id },
+                    onDragGesture = dragGesture,
+                    completeInlineEdit = { finishTaskEditing(task, focusManager) },
+                    moveInlineCaretLeft = ::moveInlineCaretLeft,
+                    moveInlineCaretRight = ::moveInlineCaretRight,
+                    onInlineEditBlur = { commitEdit(task, editingTextFieldValue.text) }
+                )
             }
         }
     }

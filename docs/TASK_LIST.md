@@ -52,6 +52,7 @@
 - iOS / Android のタスクリスト詳細ヘッダーとページャーインジケータは、背景を持たない前景レイヤーとして重ねる。タスクリスト背景は画面上端から塗り、本文スクロール領域側でその前景分の上余白を確保して見た目位置を維持する。
 - iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を縦に分け、タイトル行・入力欄・操作列・タスク行までの余白を詰めて単票リファレンスに近い密度で配置する。入力欄の追加ボタンは入力文字がある時だけ表示し、未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で表現する。
 - iOS / Android の compact/regular 共通タスクリスト詳細は、本文の文字サイズと視覚余白を iOS に近い密度へ寄せつつ、編集・共有・追加・日付・完了・ドラッグ操作のタップ領域は iOS `44pt` 前後、Android `48dp` を維持する。global theme は変えず、`TaskListDetailPage` ローカルの metrics で調整する。iOS のアプリ内アイコンの視覚サイズは `ContentView.swift` の metrics で用途別に統一し、標準アクションとナビゲーションは `22pt`、テキスト横の補助アクションは `18pt`、詳細画面の小型アクションは `20pt` を基準とする。Android のアプリ内アイコンの視覚サイズは `ContentView.kt` の metrics で用途別に統一し、標準アクションは `24dp`、テキスト横の補助アクションは `18dp`、詳細画面の小型アクションは `20dp` を基準とする。
+- Android の `TaskListDetailPage` の本文系テキスト（新規入力欄、task 本文、インライン編集欄、日付ラベル）は、共通の local `TextStyle` を基準に `includeFontPadding = false` と固定 line height を使う。日本語 UI で英字や数字を入力しても行ボックスの高さを変えず、新規入力欄はローカル metrics の最小高さを維持する。
 - Web / iOS / Android の完了 task row は、打ち消し線と muted 色に加えて行全体へ標準強度の透明度を掛け、日付ラベル・完了トグル・本文・日付ボタン・ドラッグハンドルをまとめて減衰させる。共有コードプレビューの task 行も同じ完了表現に揃える。
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白、操作列とタスク一覧の区切り余白、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰め、一覧密度を上げても各操作の `48dp` タップ領域は維持する。
 - Android のタスクリスト一覧ヘッダー、詳細ヘッダー、設定ヘッダーは `WindowInsets.safeDrawing` を考慮して上端へ配置し、メールアドレス、設定導線、戻るボタン、タイトルがステータスバーにかからず、ヘッダー本体の固定高さ内でクリップされないようにする。
@@ -59,6 +60,7 @@
 - iOS / Android の task row は、drag handle・完了トグル・本文の縦方向中心を揃える。日付がある場合も `task.text` / 編集中の入力欄の縦位置は変えず、補助ラベルとして同じ本文領域内の直上へ近接配置する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
 - Android の task row は、drag handle と完了トグルの間隔をやや詰め、完了トグルと本文開始位置の間隔はそれより少し広く取る。日付表示がある行でも `drag handle`・完了トグル・`task.text` の中心軸は揃えたまま、日付ラベル側をわずかに上へ寄せて `task.text` との視覚間隔を広げる。
 - Android の `TaskListDetailPage` の task row は、`alignBy` に依存しない単純な `Row + Column` 構成を使い、非ドラッグ行では drag 用 transform を載せない。`LazyColumn` の task item は `contentType = "task"` を付け、header / input / actions / empty state と分けて composition reuse を安定させる。
+- Android の task row / task list row の handle 並び替えは、pointer を離すまで同じ drag session を維持し、1 回 swap した直後に gesture detector を再生成しない。`TaskListDetailPage` の task row handle は中央寄せした `24dp` 幅の hit area を持ち、アイコンを見切らせない。
 - Android の task 日付設定ダイアログは platform `DatePickerDialog` を使い、positive button は `pages.tasklist.setDateShort`、neutral button は `pages.tasklist.clearDateShort` を使って 3 ボタンを横並びに収める。Compose Material3 `DatePicker` と custom 月間カレンダーは使わない。
 - `updateTaskListOrder()` は並び替え後に `1.0` 始まりの連番へ振り直す。
 - `deleteTaskList()` は次を transaction で行う。

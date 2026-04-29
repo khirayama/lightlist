@@ -59,6 +59,8 @@
 - Android は `ContentView.kt` に `MainActivity` / `RootScreen`、UI、翻訳ロード、analytics helper を同居させる。
 - Android app module は `BuildConfig.DEBUG` と `BuildConfig.PASSWORD_RESET_URL` を使うため `buildFeatures.buildConfig = true` を維持する。
 - iOS / Android の識別子は `com.lightlist.app` を正とする。
+- Android の Firebase 設定ファイルは build variant ごとに分け、debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json` を使う。
+- Android の release APK は R8 縮小後も Firebase component registrar の no-arg constructor を保持する。`apps/android/app/proguard-rules.pro` の `ComponentRegistrar` keep ルールを削除しない。
 - iOS の AppIcon は `shared/assets/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。
 - Android の launcher icon は `shared/assets/brand/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
 
@@ -72,6 +74,8 @@
 - iOS: `cd apps/ios && just build`
 - iOS: `cd apps/ios && xcodegen generate`
 - Android: `cd apps/android && just lint && just build`
+- Android: `cd apps/android && just build-release`
+- Android の `just build-release` は内部配布確認用の署名済み release APK（`app/build/outputs/apk/release/app-release.apk`）を生成する。Play Store 提出用の正式 release 署名ではない。
 - Android: `just android` は `apps/android` の debug build を端末へ上書きインストールして起動する。通常はアプリデータと Firebase Auth セッションを保持する。
 - Android: 上書きインストールに失敗した場合のみ `just android` は `com.lightlist.app` をアンインストールしてから debug APK を入れ直す。この場合はアプリデータが消えるためログイン状態も消える。
 - Android: 明示的にクリーン再インストールしたい場合は `cd apps/android && just run-clean` を使う。

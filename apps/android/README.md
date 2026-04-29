@@ -1,11 +1,16 @@
 ```sh
 just build
+just build-release
 just emulator Pixel_9_API_35
 just run
 
 just run emulator-5554
 just emulator Medium_Phone_API_36.1
 ```
+
+- `just build-release` は内部配布確認用の署名済み release APK を生成する。
+- 生成物は `apps/android/app/build/outputs/apk/release/app-release.apk`。
+- App Check は release 扱いのままなので、Firebase 通信は Play Integrity 前提で動作する。
 
 ## Current UI
 

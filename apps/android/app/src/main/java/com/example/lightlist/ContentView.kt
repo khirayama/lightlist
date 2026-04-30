@@ -93,6 +93,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -137,6 +139,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -147,12 +150,12 @@ import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
@@ -500,6 +503,7 @@ private object TaskListDetailMetrics {
     val inputCornerRadius = 14.dp
     val inputHorizontalPadding = 14.dp
     val inputVerticalPadding = 10.dp
+    val inputMinHeight = 44.dp
     val inputActionSpacing = 8.dp
     val addActionIconButtonSize = 32.dp
     val addActionIconSize = AppIconMetrics.compactActionIconSize
@@ -513,7 +517,7 @@ private object TaskListDetailMetrics {
     val taskDateTopInset = (-3).dp
     val dragHandleTopPadding = 0.dp
     val dragHandleEndPadding = 0.dp
-    val dragHandleTouchWidth = 16.dp
+    val dragHandleTouchWidth = 24.dp
     val completionTopPadding = 1.dp
     val completionEndPadding = 0.dp
     val completionTouchWidth = 26.dp
@@ -521,6 +525,8 @@ private object TaskListDetailMetrics {
     val taskTextStartPadding = 3.dp
     val trailingDateButtonWidth = 48.dp
     val trailingDateIconSize = AppIconMetrics.compactActionIconSize
+    val textLineHeight = 22.sp
+    val dateLineHeight = 16.sp
 }
 
 private val AUTH_ERROR_KEY_MAP = mapOf(
@@ -2995,63 +3001,69 @@ private fun TaskListsView(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            DragHandleIcon(
-                                modifier = Modifier.pointerInput(taskList.id) {
-                                    detectDragGestures(
-                                        onDragStart = { _ ->
-                                            draggingTaskListId = taskList.id
-                                            dragOrderedTaskLists = uiState.taskLists
-                                            taskListItemHeights = lazyListState.layoutInfo.visibleItemsInfo
-                                                .filter { it.key is String }
-                                                .associate { (it.key as String) to it.size.toFloat() }
-                                            taskListDragOffset = 0f
-                                        },
-                                        onDragEnd = {
-                                            taskListAutoScrollSpeed = 0f
-                                            val ordered = dragOrderedTaskLists
-                                            if (ordered != null && ordered.map { it.id } != uiState.taskLists.map { it.id }) {
-                                                persistTaskListOrder(ordered.map { it.id })
-                                            }
-                                            draggingTaskListId = null
-                                            dragOrderedTaskLists = null
-                                            taskListDragOffset = 0f
-                                        },
-                                        onDragCancel = {
-                                            taskListAutoScrollSpeed = 0f
-                                            draggingTaskListId = null
-                                            dragOrderedTaskLists = null
-                                            taskListDragOffset = 0f
-                                        },
-                                        onDrag = { change, dragAmount ->
-                                            change.consume()
-                                            taskListDragOffset += dragAmount.y
-                                            checkTaskListSwap()
+                            Box(
+                                modifier = Modifier
+                                    .width(TaskListDetailMetrics.dragHandleTouchWidth)
+                                    .height(48.dp)
+                                    .pointerInput(taskList.id) {
+                                        detectDragGestures(
+                                            onDragStart = { _ ->
+                                                draggingTaskListId = taskList.id
+                                                dragOrderedTaskLists = uiState.taskLists
+                                                taskListItemHeights = lazyListState.layoutInfo.visibleItemsInfo
+                                                    .filter { it.key is String }
+                                                    .associate { (it.key as String) to it.size.toFloat() }
+                                                taskListDragOffset = 0f
+                                            },
+                                            onDragEnd = {
+                                                taskListAutoScrollSpeed = 0f
+                                                val ordered = dragOrderedTaskLists
+                                                if (ordered != null && ordered.map { it.id } != uiState.taskLists.map { it.id }) {
+                                                    persistTaskListOrder(ordered.map { it.id })
+                                                }
+                                                draggingTaskListId = null
+                                                dragOrderedTaskLists = null
+                                                taskListDragOffset = 0f
+                                            },
+                                            onDragCancel = {
+                                                taskListAutoScrollSpeed = 0f
+                                                draggingTaskListId = null
+                                                dragOrderedTaskLists = null
+                                                taskListDragOffset = 0f
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                taskListDragOffset += dragAmount.y
+                                                checkTaskListSwap()
 
-                                            val viewportHeight = lazyListState.layoutInfo.viewportSize.height.toFloat()
-                                            val edgeZone = with(density) { 80.dp.toPx() }
-                                            val maxSpeed = with(density) { 8.dp.toPx() }
-                                            val draggedItemInfo = lazyListState.layoutInfo.visibleItemsInfo
-                                                .firstOrNull { it.key == draggingTaskListId }
-                                            val fingerInViewport = if (draggedItemInfo != null) {
-                                                (draggedItemInfo.offset + draggedItemInfo.size / 2 + taskListDragOffset).toFloat()
-                                            } else {
-                                                viewportHeight / 2
-                                            }
-                                            taskListAutoScrollSpeed = when {
-                                                fingerInViewport < edgeZone && lazyListState.canScrollBackward -> {
-                                                    val ratio = 1f - fingerInViewport.coerceAtLeast(0f) / edgeZone
-                                                    -maxSpeed * ratio
+                                                val viewportHeight = lazyListState.layoutInfo.viewportSize.height.toFloat()
+                                                val edgeZone = with(density) { 80.dp.toPx() }
+                                                val maxSpeed = with(density) { 8.dp.toPx() }
+                                                val draggedItemInfo = lazyListState.layoutInfo.visibleItemsInfo
+                                                    .firstOrNull { it.key == draggingTaskListId }
+                                                val fingerInViewport = if (draggedItemInfo != null) {
+                                                    (draggedItemInfo.offset + draggedItemInfo.size / 2 + taskListDragOffset).toFloat()
+                                                } else {
+                                                    viewportHeight / 2
                                                 }
-                                                fingerInViewport > viewportHeight - edgeZone && lazyListState.canScrollForward -> {
-                                                    val ratio = 1f - (viewportHeight - fingerInViewport).coerceAtLeast(0f) / edgeZone
-                                                    maxSpeed * ratio
+                                                taskListAutoScrollSpeed = when {
+                                                    fingerInViewport < edgeZone && lazyListState.canScrollBackward -> {
+                                                        val ratio = 1f - fingerInViewport.coerceAtLeast(0f) / edgeZone
+                                                        -maxSpeed * ratio
+                                                    }
+                                                    fingerInViewport > viewportHeight - edgeZone && lazyListState.canScrollForward -> {
+                                                        val ratio = 1f - (viewportHeight - fingerInViewport).coerceAtLeast(0f) / edgeZone
+                                                        maxSpeed * ratio
+                                                    }
+                                                    else -> 0f
                                                 }
-                                                else -> 0f
                                             }
-                                        }
-                                    )
-                                }
-                            )
+                                        )
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                DragHandleIcon()
+                            }
 
                             Box(
                                 Modifier
@@ -3588,7 +3600,10 @@ private fun TaskListRow(
     onTaskClick: () -> Unit,
     onToggleCompletion: () -> Unit,
     onShowActions: () -> Unit,
-    onDragGesture: suspend PointerInputScope.() -> Unit,
+    onDragStart: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+    onDrag: (change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: Offset) -> Unit,
     completeInlineEdit: () -> Unit,
     moveInlineCaretLeft: () -> Unit,
     moveInlineCaretRight: () -> Unit,
@@ -3596,6 +3611,10 @@ private fun TaskListRow(
 ) {
     val t = LocalTranslations.current
     val focusRequester = remember { FocusRequester() }
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
+    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+    val currentOnDragCancel by rememberUpdatedState(onDragCancel)
+    val currentOnDrag by rememberUpdatedState(onDrag)
     val rowModifier = if (isDragged) {
         Modifier
             .offset { IntOffset(0, taskDragOffset.toInt()) }
@@ -3634,10 +3653,17 @@ private fun TaskListRow(
                 )
                 .width(TaskListDetailMetrics.dragHandleTouchWidth)
                 .height(48.dp)
-                .pointerInput(task.id, onDragGesture) { onDragGesture() },
-            contentAlignment = Alignment.CenterStart
+                .pointerInput(task.id) {
+                    detectDragGestures(
+                        onDragStart = { currentOnDragStart(it) },
+                        onDragEnd = currentOnDragEnd,
+                        onDragCancel = currentOnDragCancel,
+                        onDrag = { change, dragAmount -> currentOnDrag(change, dragAmount) }
+                    )
+                },
+            contentAlignment = Alignment.Center
         ) {
-            DragHandleIcon(modifier = Modifier.offset(x = 0.dp))
+            DragHandleIcon()
         }
         Box(
             modifier = Modifier
@@ -3841,26 +3867,41 @@ private fun TaskListDetailPage(
     val taskSpacingPx = with(taskDensity) { TaskListDetailMetrics.taskRowSpacing.toPx() }
     val chromeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
     val inputBackgroundColor = MaterialTheme.colorScheme.surface
+    val detailBodyTextStyle = MaterialTheme.typography.bodyMedium.copy(
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = LineHeightStyle(
+            alignment = LineHeightStyle.Alignment.Center,
+            trim = LineHeightStyle.Trim.None
+        )
+    )
     val titleTextStyle = MaterialTheme.typography.titleLarge.copy(
         fontSize = 20.sp,
         fontWeight = FontWeight.Bold
     )
-    val inputTextStyle = MaterialTheme.typography.bodyMedium.copy(
+    val inputTextStyle = detailBodyTextStyle.copy(
         fontSize = 16.sp,
-        fontWeight = FontWeight.Medium
+        fontWeight = FontWeight.Medium,
+        lineHeight = TaskListDetailMetrics.textLineHeight
     )
     val actionTextStyle = MaterialTheme.typography.bodySmall.copy(
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold
     )
     val taskContentHeightPx = with(taskDensity) { TaskListDetailMetrics.taskContentHeight.roundToPx() }
-    val taskTextStyle = MaterialTheme.typography.bodyMedium.copy(
+    val taskTextStyle = detailBodyTextStyle.copy(
         fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold
+        fontWeight = FontWeight.SemiBold,
+        lineHeight = TaskListDetailMetrics.textLineHeight
     )
     val taskDateTextStyle = MaterialTheme.typography.labelSmall.copy(
         fontSize = 12.sp,
-        fontWeight = FontWeight.Medium
+        fontWeight = FontWeight.Medium,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = LineHeightStyle(
+            alignment = LineHeightStyle.Alignment.Center,
+            trim = LineHeightStyle.Trim.None
+        ),
+        lineHeight = TaskListDetailMetrics.dateLineHeight
     )
     val focusManager = LocalFocusManager.current
     val languageTag = t.languageTag()
@@ -4313,6 +4354,7 @@ private fun TaskListDetailPage(
                         .onFocusChanged { state ->
                             isNewTaskInputFocused = state.isFocused
                         }
+                        .heightIn(min = TaskListDetailMetrics.inputMinHeight)
                         .background(inputBackgroundColor, RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius))
                         .border(
                             width = 1.dp,
@@ -4325,7 +4367,9 @@ private fun TaskListDetailPage(
                         ),
                     decorationBox = { innerTextField ->
                         Box(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = TaskListDetailMetrics.inputMinHeight - (TaskListDetailMetrics.inputVerticalPadding * 2)),
                             contentAlignment = Alignment.CenterStart
                         ) {
                             if (newTaskText.isEmpty()) {
@@ -4449,61 +4493,6 @@ private fun TaskListDetailPage(
             ) { index, task ->
                 val isEditing = editingTaskId == task.id
                 val isDragged = draggingTaskId == task.id
-                val dragGesture: suspend PointerInputScope.() -> Unit = {
-                    detectDragGestures(
-                        onDragStart = { _ ->
-                            draggingTaskId = task.id
-                            dragOrderedTasks = displayTasks
-                            taskItemHeights = lazyListState.layoutInfo.visibleItemsInfo
-                                .filter { it.key is String }
-                                .associate { (it.key as String) to it.size.toFloat() }
-                            taskDragOffset = 0f
-                        },
-                        onDragEnd = {
-                            taskAutoScrollSpeed = 0f
-                            val ordered = dragOrderedTasks
-                            if (ordered != null && ordered.map { it.id } != displayTasks.map { it.id }) {
-                                persistTaskOrder(ordered.map { it.id })
-                            }
-                            draggingTaskId = null
-                            dragOrderedTasks = null
-                            taskDragOffset = 0f
-                        },
-                        onDragCancel = {
-                            taskAutoScrollSpeed = 0f
-                            draggingTaskId = null
-                            dragOrderedTasks = null
-                            taskDragOffset = 0f
-                        },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            taskDragOffset += dragAmount.y
-                            checkTaskSwap()
-
-                            val viewportHeight = lazyListState.layoutInfo.viewportSize.height.toFloat()
-                            val edgeZone = with(taskDensity) { 80.dp.toPx() }
-                            val maxSpeed = with(taskDensity) { 8.dp.toPx() }
-                            val draggedItemInfo = lazyListState.layoutInfo.visibleItemsInfo
-                                .firstOrNull { it.key == draggingTaskId }
-                            val fingerInViewport = if (draggedItemInfo != null) {
-                                (draggedItemInfo.offset + draggedItemInfo.size / 2 + taskDragOffset).toFloat()
-                            } else {
-                                viewportHeight / 2
-                            }
-                            taskAutoScrollSpeed = when {
-                                fingerInViewport < edgeZone && lazyListState.canScrollBackward -> {
-                                    val ratio = 1f - fingerInViewport.coerceAtLeast(0f) / edgeZone
-                                    -maxSpeed * ratio
-                                }
-                                fingerInViewport > viewportHeight - edgeZone && lazyListState.canScrollForward -> {
-                                    val ratio = 1f - (viewportHeight - fingerInViewport).coerceAtLeast(0f) / edgeZone
-                                    maxSpeed * ratio
-                                }
-                                else -> 0f
-                            }
-                        }
-                    )
-                }
                 TaskListRow(
                     task = task,
                     index = index,
@@ -4525,7 +4514,57 @@ private fun TaskListDetailPage(
                     },
                     onToggleCompletion = { toggleCompletion(task) },
                     onShowActions = { showTaskActionsForTaskId = task.id },
-                    onDragGesture = dragGesture,
+                    onDragStart = {
+                        draggingTaskId = task.id
+                        dragOrderedTasks = displayTasks
+                        taskItemHeights = lazyListState.layoutInfo.visibleItemsInfo
+                            .filter { info -> info.key is String }
+                            .associate { (it.key as String) to it.size.toFloat() }
+                        taskDragOffset = 0f
+                    },
+                    onDragEnd = {
+                        taskAutoScrollSpeed = 0f
+                        val ordered = dragOrderedTasks
+                        if (ordered != null && ordered.map { it.id } != displayTasks.map { it.id }) {
+                            persistTaskOrder(ordered.map { it.id })
+                        }
+                        draggingTaskId = null
+                        dragOrderedTasks = null
+                        taskDragOffset = 0f
+                    },
+                    onDragCancel = {
+                        taskAutoScrollSpeed = 0f
+                        draggingTaskId = null
+                        dragOrderedTasks = null
+                        taskDragOffset = 0f
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        taskDragOffset += dragAmount.y
+                        checkTaskSwap()
+
+                        val viewportHeight = lazyListState.layoutInfo.viewportSize.height.toFloat()
+                        val edgeZone = with(taskDensity) { 80.dp.toPx() }
+                        val maxSpeed = with(taskDensity) { 8.dp.toPx() }
+                        val draggedItemInfo = lazyListState.layoutInfo.visibleItemsInfo
+                            .firstOrNull { it.key == draggingTaskId }
+                        val fingerInViewport = if (draggedItemInfo != null) {
+                            (draggedItemInfo.offset + draggedItemInfo.size / 2 + taskDragOffset).toFloat()
+                        } else {
+                            viewportHeight / 2
+                        }
+                        taskAutoScrollSpeed = when {
+                            fingerInViewport < edgeZone && lazyListState.canScrollBackward -> {
+                                val ratio = 1f - fingerInViewport.coerceAtLeast(0f) / edgeZone
+                                -maxSpeed * ratio
+                            }
+                            fingerInViewport > viewportHeight - edgeZone && lazyListState.canScrollForward -> {
+                                val ratio = 1f - (viewportHeight - fingerInViewport).coerceAtLeast(0f) / edgeZone
+                                maxSpeed * ratio
+                            }
+                            else -> 0f
+                        }
+                    },
                     completeInlineEdit = { finishTaskEditing(task, focusManager) },
                     moveInlineCaretLeft = ::moveInlineCaretLeft,
                     moveInlineCaretRight = ::moveInlineCaretRight,

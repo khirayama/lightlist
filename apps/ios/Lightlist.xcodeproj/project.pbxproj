@@ -12,6 +12,7 @@
 		178E6DEBCEC4A72419C5ADCA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 03E96005FE689A03AE608611 /* Assets.xcassets */; };
 		2802D4B40E4EF5A424DDCBE5 /* LightlistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C4AFDF92886FBDFA0EAB45 /* LightlistTests.swift */; };
 		4CA7C737938F6922C9F7C029 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 5D2FC049671012454C273F85 /* FirebaseCrashlytics */; };
+		5BAAF63D7439A714D2BF1D47 /* GoogleService-Info.prod.plist in Resources */ = {isa = PBXBuildFile; fileRef = 4887635BC82911AD4C4F8470 /* GoogleService-Info.prod.plist */; };
 		752231066BD951B04BCD7AE0 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 85C2E8D19C38E5EC9E466233 /* FirebaseAppCheck */; };
 		7860014FD9954EA01343DE72 /* locales.json in Resources */ = {isa = PBXBuildFile; fileRef = 5615019F3DBD2986C21F8B42 /* locales.json */; };
 		89CB2AA3EC79089749AE0FDC /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */; };
@@ -33,6 +34,7 @@
 
 /* Begin PBXFileReference section */
 		03E96005FE689A03AE608611 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		4887635BC82911AD4C4F8470 /* GoogleService-Info.prod.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.prod.plist"; sourceTree = "<group>"; };
 		5615019F3DBD2986C21F8B42 /* locales.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = locales.json; sourceTree = "<group>"; };
 		5F18EECC750B7FE6A93E5288 /* LightlistTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LightlistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -101,6 +103,7 @@
 			children = (
 				03E96005FE689A03AE608611 /* Assets.xcassets */,
 				644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */,
+				4887635BC82911AD4C4F8470 /* GoogleService-Info.prod.plist */,
 				F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */,
 				1C627F24DFEA9370108D68BC /* Preview Content */,
 			);
@@ -213,6 +216,7 @@
 			files = (
 				178E6DEBCEC4A72419C5ADCA /* Assets.xcassets in Resources */,
 				A6770824316C099D24A28312 /* GoogleService-Info.plist in Resources */,
+				5BAAF63D7439A714D2BF1D47 /* GoogleService-Info.prod.plist in Resources */,
 				940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */,
 				F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */,
 				7860014FD9954EA01343DE72 /* locales.json in Resources */,

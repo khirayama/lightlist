@@ -136,6 +136,7 @@ enum AppRoute: Hashable {
     case taskLists
     case taskList(taskListId: String)
     case settings
+    case calendar
 
     var title: String {
         switch self {
@@ -145,6 +146,8 @@ enum AppRoute: Hashable {
             return "TaskList"
         case .settings:
             return "Settings"
+        case .calendar:
+            return "Calendar"
         }
     }
 
@@ -160,6 +163,12 @@ private struct TaskSummary: Identifiable, Hashable {
     let date: String
     let order: Double
     let pinned: Bool
+}
+
+private struct TaskActionSheetState: Identifiable, Equatable {
+    let taskId: String
+
+    var id: String { taskId }
 }
 
 private struct TaskListSummary: Identifiable, Hashable {
@@ -896,6 +905,7 @@ struct RootView: View {
     private enum RegularPane {
         case taskList
         case settings
+        case calendar
     }
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -910,6 +920,7 @@ struct RootView: View {
     @State private var pendingPasswordResetCode: String?
     @State private var pendingSharePreviewCode: String?
     @State private var pendingShareCode: String?
+    @StateObject private var calendarViewModel = CalendarViewModel()
     @StateObject private var translations = Translations()
     @Binding private var pendingDeepLink: PendingDeepLink?
 
@@ -994,15 +1005,19 @@ struct RootView: View {
 
     private var compactRoot: some View {
         NavigationStack(path: $path) {
-            TaskListsView(path: $path, pendingShareCode: $pendingShareCode)
+            TaskListsView(path: $path, pendingShareCode: $pendingShareCode, calendarTasks: calendarViewModel.calendarTasks)
                 .navigationDestination(for: AppRoute.self) { route in
                     switch route {
                     case .taskLists:
-                        TaskListsView(path: $path, pendingShareCode: $pendingShareCode)
+                        TaskListsView(path: $path, pendingShareCode: $pendingShareCode, calendarTasks: calendarViewModel.calendarTasks)
                     case .taskList(let taskListId):
                         TaskListDetailPagerView(initialTaskListId: taskListId)
                     case .settings:
                         SettingsView()
+                    case .calendar:
+                        CalendarScreenView(calendarTasks: calendarViewModel.calendarTasks)
+                            .navigationTitle(translations.t("app.calendar"))
+                            .navigationBarTitleDisplayMode(.inline)
                     }
                 }
         }
@@ -1016,6 +1031,7 @@ struct RootView: View {
             TaskListsView(
                 path: $path,
                 pendingShareCode: $pendingShareCode,
+                calendarTasks: calendarViewModel.calendarTasks,
                 selectedTaskListId: selectedTaskListId,
                 onSelectTaskList: { taskListId in
                     selectedTaskListId = taskListId
@@ -1023,6 +1039,9 @@ struct RootView: View {
                 },
                 onOpenSettings: {
                     selectedRegularPane = .settings
+                },
+                onOpenCalendar: {
+                    selectedRegularPane = .calendar
                 }
             )
             .navigationSplitViewColumnWidth(min: 360, ideal: 360, max: 360)
@@ -1031,6 +1050,8 @@ struct RootView: View {
                 Color(.systemBackground)
                 if selectedRegularPane == .settings {
                     SettingsView()
+                } else if selectedRegularPane == .calendar {
+                    CalendarScreenView(calendarTasks: calendarViewModel.calendarTasks)
                 } else {
                     RegularTaskListDetailPagerView(selectedTaskListId: $selectedTaskListId)
                 }
@@ -1044,6 +1065,7 @@ struct RootView: View {
         authHandle = Auth.auth().addStateDidChangeListener { _, user in
             Task { @MainActor in
                 settingsListener?.remove()
+                calendarViewModel.bind(uid: user?.uid)
                 guard let uid = user?.uid else {
                     theme = "system"
                     Task { translations.load(language: "ja") }
@@ -1065,6 +1087,7 @@ struct RootView: View {
     private func stopListening() {
         settingsListener?.remove()
         if let handle = authHandle { Auth.auth().removeStateDidChangeListener(handle) }
+        calendarViewModel.reset()
     }
 
     private func handlePendingDeepLink(_ deepLink: PendingDeepLink?) {
@@ -1765,8 +1788,6 @@ private struct TaskListsView: View {
     @State private var isLoggedIn = Auth.auth().currentUser != nil
     @State private var authStateHandle: AuthStateDidChangeListenerHandle?
     @StateObject private var viewModel = OrderedTaskListViewModel<TaskListSummary>(mapper: mapTaskListSummary)
-    @StateObject private var calendarViewModel = CalendarViewModel()
-    @State private var showCalendarSheet = false
     @State private var draggingTaskListId: String? = nil
     @State private var dragOffset: CGFloat = 0
     @State private var dragStartLocationY: CGFloat? = nil
@@ -1784,9 +1805,11 @@ private struct TaskListsView: View {
     @State private var joinListError: String? = nil
     @Binding var path: [AppRoute]
     @Binding var pendingShareCode: String?
+    let calendarTasks: [CalendarTask]
     var selectedTaskListId: String? = nil
     var onSelectTaskList: ((String) -> Void)? = nil
     var onOpenSettings: (() -> Void)? = nil
+    var onOpenCalendar: (() -> Void)? = nil
 
     private var displayTaskLists: [TaskListSummary] {
         dragOrderedTaskLists ?? viewModel.taskLists
@@ -1895,6 +1918,14 @@ private struct TaskListsView: View {
         }
     }
 
+    private func openCalendar() {
+        if let onOpenCalendar {
+            onOpenCalendar()
+        } else {
+            path.append(.calendar)
+        }
+    }
+
     var body: some View {
         ZStack {
             Color(.systemBackground)
@@ -1931,7 +1962,7 @@ private struct TaskListsView: View {
                 .padding(.bottom, 16)
 
                 Button {
-                    showCalendarSheet = true
+                    openCalendar()
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "calendar")
@@ -2112,7 +2143,6 @@ private struct TaskListsView: View {
                 Task { @MainActor in
                     isLoggedIn = user != nil
                     viewModel.bind(uid: user?.uid)
-                    calendarViewModel.bind(uid: user?.uid)
                 }
             }
         }
@@ -2121,7 +2151,6 @@ private struct TaskListsView: View {
                 Auth.auth().removeStateDidChangeListener(handle)
             }
             viewModel.reset()
-            calendarViewModel.reset()
         }
         .onChange(of: viewModel.taskLists) { _, taskLists in
             guard let onSelectTaskList else {
@@ -2145,19 +2174,6 @@ private struct TaskListsView: View {
             if nextIsLoggedIn {
                 consumePendingShareCode(pendingShareCode)
             }
-        }
-        .sheet(isPresented: $showCalendarSheet) {
-            NavigationStack {
-                CalendarSheetView(calendarTasks: calendarViewModel.calendarTasks)
-                    .navigationTitle(translations.t("app.calendar"))
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(translations.t("common.close")) { showCalendarSheet = false }
-                        }
-                    }
-            }
-            .presentationDetents([.large])
         }
         .sheet(isPresented: $showCreateSheet) {
             NavigationStack {
@@ -2661,8 +2677,7 @@ private struct TaskListDetailPage: View {
     @State private var newTaskText = ""
     @State private var editingTaskId: String? = nil
     @State private var editingText: String = ""
-    @State private var datePickerTaskId: String? = nil
-    @State private var datePickerDate: Date = Date()
+    @State private var taskActionSheetState: TaskActionSheetState? = nil
     @State private var showDeleteCompletedAlert = false
     @State private var draggingTaskId: String? = nil
     @State private var taskDragOffset: CGFloat = 0
@@ -3129,7 +3144,7 @@ private struct TaskListDetailPage: View {
                             }
 
                             Button {
-                                openDatePicker(task)
+                                openTaskActionSheet(task)
                             } label: {
                                 Image(systemName: task.pinned ? "pin.fill" : "calendar")
                                     .font(.system(size: TaskListDetailMetrics.trailingDateIconSize, weight: .medium))
@@ -3140,7 +3155,7 @@ private struct TaskListDetailPage: View {
                             .alignmentGuide(.taskRowContentCenter) { dimensions in
                                 dimensions[VerticalAlignment.center]
                             }
-                            .accessibilityLabel(translations.t("pages.tasklist.setDate"))
+                            .accessibilityLabel(task.pinned ? translations.t("pages.tasklist.unpinTask") : translations.t("pages.tasklist.setDate"))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, TaskListDetailMetrics.taskRowVerticalPadding)
@@ -3267,54 +3282,51 @@ private struct TaskListDetailPage: View {
             }
             .presentationDetents([.medium])
         }
-        .sheet(isPresented: Binding(
-            get: { datePickerTaskId != nil },
-            set: { if !$0 { datePickerTaskId = nil } }
-        )) {
-            if let taskId = datePickerTaskId,
-               let task = taskList.tasks.first(where: { $0.id == taskId }) {
-                NavigationStack {
-                    VStack(spacing: 12) {
-                        DatePicker("", selection: $datePickerDate, displayedComponents: .date)
-                            .datePickerStyle(.graphical)
-                            .padding(.horizontal)
-                            .padding(.top, 8)
-                        HStack(spacing: 12) {
-                            Button(translations.t("pages.tasklist.clearDate")) {
-                                commitDate(task, dateStr: "")
-                            }
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .buttonStyle(.bordered)
-
-                            Button {
-                                togglePinned(task)
-                            } label: {
-                                Label(
-                                    translations.t(task.pinned ? "pages.tasklist.unpinTask" : "pages.tasklist.pinTask"),
-                                    systemImage: task.pinned ? "pin.slash" : "pin"
-                                )
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                            }
-                            .buttonStyle(.bordered)
+        .sheet(item: $taskActionSheetState) { actionState in
+            if let task = taskList.tasks.first(where: { $0.id == actionState.taskId }) {
+                VStack(spacing: 16) {
+                    Button {
+                        togglePinned(task)
+                        taskActionSheetState = nil
+                    } label: {
+                        HStack {
+                            Label(
+                                translations.t(task.pinned ? "pages.tasklist.unpinTask" : "pages.tasklist.pinTask"),
+                                systemImage: task.pinned ? "pin.slash" : "pin"
+                            )
+                            Spacer()
+                            Image(systemName: task.pinned ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(task.pinned ? Color.accentColor : .secondary)
                         }
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .padding(.horizontal, 2)
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.horizontal)
+                    .accessibilityHint("タップでピン留め状態を切り替える")
+                    Button(translations.t("pages.tasklist.clearDate")) {
+                        commitDate(task, dateStr: "")
+                        taskActionSheetState = nil
+                    }
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .buttonStyle(.bordered)
+                    .padding(.horizontal)
+                    DatePicker("", selection: Binding(
+                        get: { Self.isoFormatter.date(from: task.date) ?? Date() },
+                        set: {
+                            commitDate(task, dateStr: Self.isoFormatter.string(from: $0))
+                            taskActionSheetState = nil
+                        }
+                    ), displayedComponents: .date)
+                        .datePickerStyle(.graphical)
                         .padding(.horizontal)
                         .padding(.bottom, 16)
-                    }
-                    .navigationTitle(translations.t("pages.tasklist.setDate"))
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(translations.t("common.cancel")) { datePickerTaskId = nil }
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(translations.t("common.done")) {
-                                commitDate(task, dateStr: Self.isoFormatter.string(from: datePickerDate))
-                            }
-                        }
-                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .accessibilityLabel(translations.t("pages.tasklist.setDate"))
                 .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
         }
         .sheet(isPresented: $showShareSheet) {
@@ -3476,9 +3488,10 @@ private struct TaskListDetailPage: View {
         updateTaskList(updates)
     }
 
-    private func openDatePicker(_ task: TaskSummary) {
-        datePickerDate = Self.isoFormatter.date(from: task.date) ?? Date()
-        datePickerTaskId = task.id
+    private func openTaskActionSheet(_ task: TaskSummary) {
+        taskActionSheetState = TaskActionSheetState(
+            taskId: task.id
+        )
     }
 
     private func commitDate(_ task: TaskSummary, dateStr: String) {
@@ -3495,7 +3508,6 @@ private struct TaskListDetailPage: View {
                 )
             }
             persistTasks(updatedTasks)
-            datePickerTaskId = nil
             return
         }
 
@@ -3503,7 +3515,6 @@ private struct TaskListDetailPage: View {
             "tasks.\(task.id).date": dateStr,
             "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
         ])
-        datePickerTaskId = nil
     }
 
     private func togglePinned(_ task: TaskSummary) {
@@ -4470,7 +4481,7 @@ private struct CalendarTaskRow: View {
     }
 }
 
-private struct CalendarSheetView: View {
+private struct CalendarScreenView: View {
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let calendarTasks: [CalendarTask]

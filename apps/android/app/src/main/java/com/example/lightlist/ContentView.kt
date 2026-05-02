@@ -1,8 +1,6 @@
 package com.example.lightlist
 
-import android.app.DatePickerDialog
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
 import android.text.format.DateFormat
@@ -51,14 +49,18 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -82,6 +84,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
@@ -97,6 +100,7 @@ import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -123,8 +127,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -337,6 +339,7 @@ val LocalTranslations = compositionLocalOf { Translations() }
 sealed class AppRoute(val route: String, val title: String) {
     data object TaskLists : AppRoute("TaskLists", "TaskLists")
     data object Settings : AppRoute("Settings", "Settings")
+    data object Calendar : AppRoute("Calendar", "Calendar")
     data object TaskList : AppRoute("TaskList/{taskListId}", "TaskList") {
         const val argumentName = "taskListId"
 
@@ -440,6 +443,10 @@ private data class TaskSummary(
     val pinned: Boolean
 )
 
+private data class TaskActionSheetState(
+    val taskId: String
+)
+
 private data class TaskListSummary(
     val id: String,
     val name: String,
@@ -493,7 +500,6 @@ private object AppIconMetrics {
 }
 private object TaskListDetailMetrics {
     val topBarHeight = 48.dp
-    val indicatorTopOffset = 4.dp
     val indicatorContentInset = 42.dp
     val indicatorTouchSize = 24.dp
     val indicatorDotSize = 7.dp
@@ -720,7 +726,8 @@ private suspend fun sendPasswordResetEmail(email: String, language: String) {
 
 private enum class TabletPane {
     TaskList,
-    Settings
+    Settings,
+    Calendar
 }
 
 private data class TaskListsUiState(
@@ -923,6 +930,9 @@ fun RootScreen(
                         }
                     ) {
                         composable(AppRoute.TaskLists.route) { TaskListsView(navController, currentUserId) }
+                        composable(AppRoute.Calendar.route) {
+                            CalendarScreen(navController = navController, userId = currentUserId)
+                        }
                         composable(
                             route = AppRoute.TaskList.route,
                             arguments = listOf(navArgument(AppRoute.TaskList.argumentName) { type = NavType.StringType })
@@ -2579,13 +2589,19 @@ private fun CalendarTaskRow(task: CalendarTask, isHighlighted: Boolean, onClick:
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CalendarTaskBottomSheet(
-    calendarTasks: List<CalendarTask>,
-    onDismiss: () -> Unit
+private fun CalendarScreen(
+    navController: NavController? = null,
+    userId: String?,
+    selectedTaskListIdState: MutableState<String?>? = null,
+    onOpenTaskList: (() -> Unit)? = null,
+    showTopBar: Boolean = true
 ) {
     val t = LocalTranslations.current
+    val calendarTaskLists = rememberOrderedTaskLists(userId, ::parseTaskListDetail)
+    val calendarTasks = remember(calendarTaskLists) {
+        flattenCalendarTasks(calendarTaskLists)
+    }
     var displayedMonth by remember {
         mutableStateOf(
             Calendar.getInstance().apply {
@@ -2634,48 +2650,29 @@ private fun CalendarTaskBottomSheet(
         }
     }
 
-    ModalBottomSheet(
-        modifier = Modifier.fillMaxHeight(),
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = null
+    fun openTaskList(taskListId: String) {
+        if (selectedTaskListIdState != null) {
+            selectedTaskListIdState.value = taskListId
+            onOpenTaskList?.invoke()
+        } else {
+            navController?.navigate(AppRoute.TaskList.createRoute(taskListId))
+        }
+    }
+
+    DetailScreenScaffold(
+        title = t.t("app.calendar"),
+        onBack = if (navController != null) ({ navController.navigateUp() }) else null,
+        showTopBar = showTopBar
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.96f)
+                .fillMaxHeight()
+                .widthIn(max = 960.dp)
+                .align(Alignment.CenterHorizontally)
+                .padding(top = 24.dp)
                 .padding(bottom = 24.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(
-                        WindowInsets.safeDrawing.only(
-                            WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-                        )
-                    )
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.align(Alignment.CenterStart)
-                ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(t.t("common.close"))
-                    }
-                }
-
-                Text(
-                    text = t.t("app.calendar"),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2748,7 +2745,10 @@ private fun CalendarTaskBottomSheet(
                             CalendarTaskRow(
                                 task = task,
                                 isHighlighted = selectedDateKey == task.dateKey,
-                                onClick = { selectDate(task.dateKey) }
+                                onClick = {
+                                    selectDate(task.dateKey)
+                                    openTaskList(task.taskListId)
+                                }
                             )
                         }
                     }
@@ -2787,7 +2787,8 @@ private fun TaskListsView(
     userId: String?,
     selectedTaskListId: String? = null,
     onTaskListSelected: ((String) -> Unit)? = null,
-    onOpenSettings: (() -> Unit)? = null
+    onOpenSettings: (() -> Unit)? = null,
+    onOpenCalendar: (() -> Unit)? = null
 ) {
     val t = LocalTranslations.current
     val context = LocalContext.current
@@ -2799,8 +2800,6 @@ private fun TaskListsView(
         ) == 0f
     }
     val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListSummary)
-    val calendarTaskLists = rememberOrderedTaskLists(userId, ::parseTaskListDetail)
-    var showCalendarSheet by remember { mutableStateOf(false) }
     val userEmail = Firebase.auth.currentUser?.email ?: ""
 
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -2829,6 +2828,14 @@ private fun TaskListsView(
             onTaskListSelected(taskListId)
         } else {
             navController?.navigate(AppRoute.TaskList.createRoute(taskListId))
+        }
+    }
+
+    fun openCalendar() {
+        if (onOpenCalendar != null) {
+            onOpenCalendar()
+        } else {
+            navController?.navigate(AppRoute.Calendar.route)
         }
     }
 
@@ -2932,7 +2939,7 @@ private fun TaskListsView(
         }
 
         OutlinedButton(
-            onClick = { showCalendarSheet = true },
+            onClick = { openCalendar() },
             modifier = Modifier
                 .fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -3310,12 +3317,6 @@ private fun TaskListsView(
         )
     }
 
-    if (showCalendarSheet) {
-        CalendarTaskBottomSheet(
-            calendarTasks = flattenCalendarTasks(calendarTaskLists),
-            onDismiss = { showCalendarSheet = false }
-        )
-    }
 }
 
 @Composable
@@ -3354,6 +3355,9 @@ private fun TabletRootScreen(
                 },
                 onOpenSettings = {
                     selectedPane = TabletPane.Settings
+                },
+                onOpenCalendar = {
+                    selectedPane = TabletPane.Calendar
                 }
             )
         }
@@ -3372,6 +3376,15 @@ private fun TabletRootScreen(
         ) {
             if (selectedPane == TabletPane.Settings) {
                 SettingsView(showTopBar = false)
+            } else if (selectedPane == TabletPane.Calendar) {
+                CalendarScreen(
+                    userId = userId,
+                    selectedTaskListIdState = selectedTaskListState,
+                    onOpenTaskList = {
+                        selectedPane = TabletPane.TaskList
+                    },
+                    showTopBar = false
+                )
             } else {
                 TaskListDetailPagerScreen(
                     navController = null,
@@ -3519,13 +3532,12 @@ private fun TaskListDetailPagerScreen(
                                 TaskListIndicator(
                                     count = uiState.taskLists.size,
                                     selectedIndex = selectedTaskListIndex,
+                                    backgroundColor = taskListBackgroundColor,
                                     onSelect = { index ->
                                         val nextTaskList = uiState.taskLists.getOrNull(index) ?: return@TaskListIndicator
                                         updateSelectedTaskListId(nextTaskList.id)
                                     },
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .padding(top = TaskListDetailMetrics.indicatorTopOffset)
+                                    modifier = Modifier.align(Alignment.TopCenter)
                                 )
                             }
                         } else {
@@ -3553,32 +3565,40 @@ private fun TaskListDetailPagerScreen(
 private fun TaskListIndicator(
     count: Int,
     selectedIndex: Int,
+    backgroundColor: Color,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(backgroundColor),
+        contentAlignment = Alignment.Center
     ) {
-        repeat(count) { index ->
-            val isSelected = index == selectedIndex
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 2.dp, vertical = 4.dp)
-                    .size(TaskListDetailMetrics.indicatorTouchSize)
-                    .clickable { onSelect(index) },
-                contentAlignment = Alignment.Center
-            ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(count) { index ->
+                val isSelected = index == selectedIndex
                 Box(
                     modifier = Modifier
-                        .size(TaskListDetailMetrics.indicatorDotSize)
-                        .background(
-                            MaterialTheme.colorScheme.onBackground.copy(
-                                alpha = if (isSelected) 1f else 0.4f
-                            ),
-                            CircleShape
-                        )
-                )
+                        .padding(horizontal = 2.dp, vertical = 4.dp)
+                        .size(TaskListDetailMetrics.indicatorTouchSize)
+                        .clickable { onSelect(index) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(TaskListDetailMetrics.indicatorDotSize)
+                            .background(
+                                MaterialTheme.colorScheme.onBackground.copy(
+                                    alpha = if (isSelected) 1f else 0.4f
+                                ),
+                                CircleShape
+                            )
+                    )
+                }
             }
         }
     }
@@ -3830,8 +3850,7 @@ private fun TaskListDetailPage(
     var isNewTaskInputFocused by remember { mutableStateOf(false) }
     var editingTaskId by remember { mutableStateOf<String?>(null) }
     var editingTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
-    var showDatePickerForTaskId by remember { mutableStateOf<String?>(null) }
-    var showTaskActionsForTaskId by remember { mutableStateOf<String?>(null) }
+    var taskActionSheetState by remember { mutableStateOf<TaskActionSheetState?>(null) }
     var showDeleteCompletedConfirm by remember { mutableStateOf(false) }
     var draggingTaskId by remember { mutableStateOf<String?>(null) }
     var taskDragOffset by remember { mutableFloatStateOf(0f) }
@@ -3907,6 +3926,7 @@ private fun TaskListDetailPage(
     val languageTag = t.languageTag()
     val canSort = remember(taskList.tasks) { taskList.tasks.size >= 2 }
     val hasCompletedTasks = remember(taskList.tasks) { taskList.tasks.any { it.completed } }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
         return tasks
@@ -4087,7 +4107,6 @@ private fun TaskListDetailPage(
 
     fun commitDate(task: TaskSummary, dateStr: String) {
         logTaskUpdate(fields = "date")
-        showDatePickerForTaskId = null
         if (autoSort) {
             val updatedTasks = taskList.tasks.map { current ->
                 if (current.id == task.id) current.copy(date = dateStr) else current
@@ -4513,7 +4532,11 @@ private fun TaskListDetailPage(
                         )
                     },
                     onToggleCompletion = { toggleCompletion(task) },
-                    onShowActions = { showTaskActionsForTaskId = task.id },
+                    onShowActions = {
+                        taskActionSheetState = TaskActionSheetState(
+                            taskId = task.id
+                        )
+                    },
                     onDragStart = {
                         draggingTaskId = task.id
                         dragOrderedTasks = displayTasks
@@ -4812,118 +4835,102 @@ private fun TaskListDetailPage(
         )
     }
 
-    if (showTaskActionsForTaskId != null) {
-        val task = taskList.tasks.firstOrNull { it.id == showTaskActionsForTaskId }
-        if (task != null) {
-            AlertDialog(
-                onDismissRequest = { showTaskActionsForTaskId = null },
-                title = { Text(task.text) },
-                text = {
-                    Column {
-                        TextButton(
+    taskActionSheetState?.let { actionState ->
+        val task = taskList.tasks.firstOrNull { it.id == actionState.taskId }
+        if (task == null) {
+            LaunchedEffect(actionState.taskId) {
+                taskActionSheetState = null
+            }
+        } else {
+            key(task.id) {
+                val initialSelectedMillis = remember(task.date) {
+                    task.date.takeIf { it.isNotBlank() }?.let { date ->
+                        runCatching {
+                            SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                                timeZone = TimeZone.getTimeZone("UTC")
+                            }.parse(date)?.time
+                        }.getOrNull()
+                    }
+                }
+                val datePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = initialSelectedMillis
+                )
+                var ignoreInitialSelection by remember(task.id) { mutableStateOf(true) }
+                val pinnedLabel = t.t(if (task.pinned) "pages.tasklist.unpinTask" else "pages.tasklist.pinTask")
+                LaunchedEffect(datePickerState.selectedDateMillis) {
+                    val millis = datePickerState.selectedDateMillis ?: return@LaunchedEffect
+                    if (ignoreInitialSelection) {
+                        ignoreInitialSelection = false
+                        if (initialSelectedMillis == millis) return@LaunchedEffect
+                    }
+                    val nextDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                        timeZone = TimeZone.getTimeZone("UTC")
+                    }.format(Date(millis))
+                    if (nextDate == task.date) return@LaunchedEffect
+                    commitDate(task, nextDate)
+                    taskActionSheetState = null
+                }
+                ModalBottomSheet(
+                    onDismissRequest = { taskActionSheetState = null },
+                    sheetState = sheetState,
+                    sheetMaxWidth = Dp.Unspecified,
+                    modifier = Modifier.semantics {
+                        paneTitle = t.t("pages.tasklist.setDate")
+                    }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 640.dp)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedButton(
                             onClick = {
                                 togglePinned(task)
-                                showTaskActionsForTaskId = null
+                                taskActionSheetState = null
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics {
+                                    contentDescription = pinnedLabel
+                                    role = Role.Switch
+                                }
                         ) {
-                            Icon(Icons.Default.PushPin, contentDescription = null)
-                            Text(t.t(if (task.pinned) "pages.tasklist.unpinTask" else "pages.tasklist.pinTask"))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.PushPin, contentDescription = null)
+                                    Text(pinnedLabel)
+                                }
+                                Switch(checked = task.pinned, onCheckedChange = null)
+                            }
                         }
-                        TextButton(
-                            onClick = {
-                                showTaskActionsForTaskId = null
-                                showDatePickerForTaskId = task.id
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Default.CalendarToday, contentDescription = null)
-                            Text(t.t("pages.tasklist.setDate"))
-                        }
-                        TextButton(
+                        OutlinedButton(
                             onClick = {
                                 commitDate(task, "")
-                                showTaskActionsForTaskId = null
+                                taskActionSheetState = null
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(t.t("pages.tasklist.clearDate"))
                         }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showTaskActionsForTaskId = null }) {
-                        Text(t.t("common.close"))
-                    }
-                }
-            )
-        }
-    }
-
-    if (showDatePickerForTaskId != null) {
-        val task = taskList.tasks.firstOrNull { it.id == showDatePickerForTaskId }
-        if (task != null) {
-            DisposableEffect(task.id, task.date, t.languageTag()) {
-                val initialMillis = if (task.date.isNotBlank()) {
-                    try {
-                        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-                            timeZone = TimeZone.getTimeZone("UTC")
-                        }.parse(task.date)?.time ?: System.currentTimeMillis()
-                    } catch (e: Exception) {
-                        System.currentTimeMillis()
-                    }
-                } else {
-                    System.currentTimeMillis()
-                }
-                val initialDate = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-                    timeInMillis = initialMillis
-                }
-                var handled = false
-                val dialog = DatePickerDialog(
-                    context,
-                    { _, year, month, dayOfMonth ->
-                        handled = true
-                        commitDate(task, String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, dayOfMonth))
-                    },
-                    initialDate.get(Calendar.YEAR),
-                    initialDate.get(Calendar.MONTH),
-                    initialDate.get(Calendar.DAY_OF_MONTH)
-                )
-                dialog.setButton(DialogInterface.BUTTON_POSITIVE, t.t("pages.tasklist.setDateShort")) { _, _ ->
-                    val picker = dialog.datePicker
-                    handled = true
-                    commitDate(
-                        task,
-                        String.format(
-                            Locale.US, "%04d-%02d-%02d",
-                            picker.year,
-                            picker.month + 1,
-                            picker.dayOfMonth
+                        DatePicker(
+                            state = datePickerState,
+                            modifier = Modifier.fillMaxWidth(),
+                            title = null,
+                            headline = null,
+                            showModeToggle = false
                         )
-                    )
-                }
-                dialog.setButton(DialogInterface.BUTTON_NEUTRAL, t.t("pages.tasklist.clearDateShort")) { _, _ ->
-                    handled = true
-                    commitDate(task, "")
-                }
-                dialog.setButton(DialogInterface.BUTTON_NEGATIVE, t.t("common.cancel")) { _, _ ->
-                    handled = true
-                    showDatePickerForTaskId = null
-                }
-                dialog.setOnCancelListener {
-                    handled = true
-                    showDatePickerForTaskId = null
-                }
-                dialog.setOnDismissListener {
-                    if (!handled) {
-                        showDatePickerForTaskId = null
                     }
-                }
-                dialog.show()
-
-                onDispose {
-                    dialog.setOnDismissListener(null)
-                    dialog.dismiss()
                 }
             }
         }

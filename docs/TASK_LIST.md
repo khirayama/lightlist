@@ -45,11 +45,13 @@
 - Web の task row の drag handle は、タスク並び替えの操作中およびハンドル接触中に親カルーセルの横スクロールを発火させない。
 - Web を基準に、タスクリスト一覧のサイドバーは外周 `16pt/dp` の余白を持つコンテナとして扱い、メール行、カレンダーボタン、一覧、作成/参加ボタンの順に積む。選択中行のハイライトは行自身の角丸背景にだけ付与し、外側コンテナへ広げない。
 - iOS のサイドバーにある「カレンダーで確認」ボタンは、枠線で示した横幅いっぱいの領域全体を押下可能範囲として扱う。
-- Android の「カレンダーで確認」シートは iOS に寄せ、ドラッグハンドルを出さず、上部に `閉じる` ボタンと中央タイトル、その下に月移動ヘッダーを置く。タスク一覧の区切り線は左 `16dp` の inset を持つ。
-- Android の「カレンダーで確認」シートは上端に `WindowInsets.safeDrawing` を反映し、閉じるボタンと月移動ボタンはステータスバーと重ならない。日付ドットは背景色未設定のリストでも枠線付きで可視化し、一覧行を押した時は該当日付をカレンダー側でも選択状態にする。
+- Web / iOS / Android の「カレンダーで確認」は sheet/modal ではなく通常の page/screen として開く。compact 幅は一覧から通常遷移で開き、regular/tablet 幅は左 sidebar を維持したまま右 pane に表示する。
+- Android の「カレンダーで確認」画面は詳細/設定と同じ top bar 系統に載せ、月移動ヘッダーを本文先頭へ置く。タスク一覧の区切り線は左 `16dp` の inset を持つ。
+- Android の「カレンダーで確認」画面は上端に `WindowInsets.safeDrawing` を反映し、戻るボタンと月移動ボタンはステータスバーと重ならない。日付ドットは背景色未設定のリストでも枠線付きで可視化し、一覧行を押した時は該当日付をカレンダー側でも選択状態にしつつ対象タスクリスト詳細へ遷移する。
 - iOS / Android のタスクリスト詳細本文は、背景色を画面側で保持したまま、本文だけに左右 `16pt/dp` の余白を付ける。wide/regular 幅の本文最大幅は Web の `max-w-3xl` に合わせて約 `768pt/dp` とする。
 - iOS / Android のページャー内の各タスクリスト詳細ページは背景を持たず透過とする。背景色は選択中タスクリストに応じた親コンテナだけが保持し、横スクロール中にページ単位で色面が切り替わらないようにする。
 - iOS / Android のタスクリスト詳細ヘッダーとページャーインジケータは、背景を持たない前景レイヤーとして重ねる。タスクリスト背景は画面上端から塗り、本文スクロール領域側でその前景分の上余白を確保して見た目位置を維持する。
+- Android の `TaskListDetailPagerScreen` のページインジケータは、固定ヘッダー直下に隙間なく接続する横幅いっぱいのフラットな背景帯として描画する。背景色は選択中タスクリストの `background` と同じ解決色をそのまま使い、角丸・枠線・影・透明度差は付けない。
 - iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を縦に分け、タイトル行・入力欄・操作列・タスク行までの余白を詰めて単票リファレンスに近い密度で配置する。入力欄の追加ボタンは入力文字がある時だけ表示し、未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で表現する。
 - iOS / Android の compact/regular 共通タスクリスト詳細は、本文の文字サイズと視覚余白を iOS に近い密度へ寄せつつ、編集・共有・追加・日付・完了・ドラッグ操作のタップ領域は iOS `44pt` 前後、Android `48dp` を維持する。global theme は変えず、`TaskListDetailPage` ローカルの metrics で調整する。iOS のアプリ内アイコンの視覚サイズは `ContentView.swift` の metrics で用途別に統一し、標準アクションとナビゲーションは `22pt`、テキスト横の補助アクションは `18pt`、詳細画面の小型アクションは `20pt` を基準とする。Android のアプリ内アイコンの視覚サイズは `ContentView.kt` の metrics で用途別に統一し、標準アクションは `24dp`、テキスト横の補助アクションは `18dp`、詳細画面の小型アクションは `20dp` を基準とする。
 - Android の `TaskListDetailPage` の本文系テキスト（新規入力欄、task 本文、インライン編集欄、日付ラベル）は、共通の local `TextStyle` を基準に `includeFontPadding = false` と固定 line height を使う。日本語 UI で英字や数字を入力しても行ボックスの高さを変えず、新規入力欄はローカル metrics の最小高さを維持する。
@@ -61,7 +63,11 @@
 - Android の task row は、drag handle と完了トグルの間隔をやや詰め、完了トグルと本文開始位置の間隔はそれより少し広く取る。日付表示がある行でも `drag handle`・完了トグル・`task.text` の中心軸は揃えたまま、日付ラベル側をわずかに上へ寄せて `task.text` との視覚間隔を広げる。
 - Android の `TaskListDetailPage` の task row は、`alignBy` に依存しない単純な `Row + Column` 構成を使い、非ドラッグ行では drag 用 transform を載せない。`LazyColumn` の task item は `contentType = "task"` を付け、header / input / actions / empty state と分けて composition reuse を安定させる。
 - Android の task row / task list row の handle 並び替えは、pointer を離すまで同じ drag session を維持し、1 回 swap した直後に gesture detector を再生成しない。`TaskListDetailPage` の task row handle は中央寄せした `24dp` 幅の hit area を持ち、アイコンを見切らせない。
-- Android の task 日付設定ダイアログは platform `DatePickerDialog` を使い、positive button は `pages.tasklist.setDateShort`、neutral button は `pages.tasklist.clearDateShort` を使って 3 ボタンを横並びに収める。Compose Material3 `DatePicker` と custom 月間カレンダーは使わない。
+- Web / iOS / Android の task 右端 action は、task ごとの sheet / dialog でピン留め切替・日付選択・日付クリアをまとめて扱う。ピン留め切替・日付選択・日付クリアは即時保存し、保存後は sheet を閉じる。
+- task action sheet / dialog の visible UI には `pages.tasklist.setDate` タイトルや task 名を表示しない。用途説明はアクセシビリティ名として保持する。
+- Android の task action は `ModalBottomSheet` と Compose Material3 `DatePicker` を使い、sheet 本文は縦スクロール可能にする。`DatePicker` の title / headline / mode toggle は表示しない。Web は狭幅で actual bottom sheet・広幅で centered dialog、iOS は `sheet` + graphical `DatePicker` を使う。
+- Web の task action は route hash を変えずに `history.state` を 1 段積み、ブラウザ/端末の戻る操作で先に sheet を閉じる。`Esc` や overlay dismiss 後も起点ボタンへ focus を戻す。
+- 3平台とも可能な限りキーボードのみ操作を維持する。
 - `updateTaskListOrder()` は並び替え後に `1.0` 始まりの連番へ振り直す。
 - `deleteTaskList()` は次を transaction で行う。
   - 自分の `taskListOrder` から対象を外す。
@@ -86,7 +92,7 @@
 - Android のタスク追加後は入力欄の focus を維持したまま IME を閉じない。
 - Android のタスク入力欄の送信アイコンは Web と同様に入力欄 focus 中だけ横方向アニメーションで表示し、入力文字が空の間は disabled のまま保つ。
 - 表示順は `未完了 pinned -> 未完了 unpinned -> 完了` とし、各グループ内は `order` 昇順を使う。
-- pinned task は Web / iOS / Android のタスク行で強めの本文 weight を使って通常 task と区別する。右端の task action はカレンダーアイコンではなくピンアイコンを表示し、同じ操作からピン解除と日付設定を開く。
+- pinned task は Web / iOS / Android のタスク行で強めの本文 weight を使って通常 task と区別する。右端の task action はカレンダーアイコンではなくピンアイコンを表示し、同じ sheet / dialog からピン切替・日付設定・日付クリアを開く。
 - pinned 内や unpinned 内の D&D は `order` を更新する。異なる表示グループをまたぐ D&D は行わず、グループ移動はピン切替または完了切替で行う。
 - iOS の task ハンドル D&D は、ドラッグ開始前の表示順とドロップ後の表示順を比較し、差分がある場合だけ `tasks.*.order` を保存する。
 - `autoSort` 有効時は `未完了 pinned -> date -> order`、`未完了 unpinned -> date -> order`、`完了 -> date -> order` の順で並べ直す。

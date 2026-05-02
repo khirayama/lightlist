@@ -86,7 +86,6 @@ import type {
   Firestore,
   FirestoreError,
 } from "firebase/firestore";
-import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { Drawer as DrawerPrimitive } from "vaul";
 import { Command as CommandPrimitive } from "cmdk";
 import type { Locale } from "date-fns";
@@ -3233,6 +3232,56 @@ const DialogContent = forwardRef<
   );
 });
 
+const TaskActionDialogContent = forwardRef<
+  ElementRef<typeof DialogPrimitive.Content>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    title: ComponentPropsWithoutRef<typeof DialogPrimitive.Title>["children"];
+    description?: ComponentPropsWithoutRef<
+      typeof DialogPrimitive.Description
+    >["children"];
+    titleId?: string;
+    descriptionId?: string;
+  }
+>(function TaskActionDialogContent(
+  { children, title, description, titleId, descriptionId, className, ...props },
+  ref: ForwardedRef<ElementRef<typeof DialogPrimitive.Content>>,
+) {
+  const generatedTitleId = titleId ?? useId();
+  const generatedDescriptionId =
+    description !== undefined ? (descriptionId ?? useId()) : undefined;
+
+  return (
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Close asChild>
+        <DialogOverlay />
+      </DialogPrimitive.Close>
+      <DialogPrimitive.Content
+        {...props}
+        ref={ref}
+        aria-labelledby={generatedTitleId}
+        aria-describedby={generatedDescriptionId}
+        className={clsx(
+          "fixed inset-x-0 bottom-0 z-1300 flex max-h-[min(44rem,88vh)] w-full translate-x-0 translate-y-0 flex-col overflow-hidden rounded-t-[28px] bg-surface px-4 pb-6 pt-4 text-text shadow-2xl sm:left-1/2 sm:top-1/2 sm:h-[min(44rem,88vh)] sm:w-[min(38rem,92vw)] sm:max-w-[min(38rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[28px] sm:border sm:border-border dark:bg-surface-dark dark:text-text-dark dark:sm:border-border-dark",
+          className,
+        )}
+      >
+        <DialogPrimitive.Title id={generatedTitleId} className="sr-only">
+          {title}
+        </DialogPrimitive.Title>
+        {description !== undefined ? (
+          <DialogPrimitive.Description
+            id={generatedDescriptionId}
+            className="sr-only"
+          >
+            {description}
+          </DialogPrimitive.Description>
+        ) : null}
+        {children}
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Portal>
+  );
+});
+
 function DialogFooter({ children }: { children: ReactNode }) {
   return (
     <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
@@ -3943,7 +3992,7 @@ const formatMonthKey = (date: Date): string =>
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
 
-type AppView = "taskLists" | "detail" | "settings";
+type AppView = "taskLists" | "detail" | "settings" | "calendar";
 
 type DatedTask = {
   taskListId: string;
@@ -3959,9 +4008,10 @@ const getDatedTaskId = (task: DatedTask): string =>
 
 const TASK_LISTS_ROUTE = "/task-lists";
 const SETTINGS_ROUTE = "/settings";
+const CALENDAR_ROUTE = "/calendar";
 
 type KnownAppHashRoute =
-  | { view: "taskLists" | "settings" }
+  | { view: "taskLists" | "settings" | "calendar" }
   | { view: "detail"; taskListId: string };
 type AppHashRoute = KnownAppHashRoute | { view: "unknown" };
 
@@ -3970,6 +4020,7 @@ const parseAppHashRoute = (hash: string): AppHashRoute => {
   if (!normalizedHash) return { view: "unknown" };
   if (normalizedHash === TASK_LISTS_ROUTE) return { view: "taskLists" };
   if (normalizedHash === SETTINGS_ROUTE) return { view: "settings" };
+  if (normalizedHash === CALENDAR_ROUTE) return { view: "calendar" };
 
   const detailPrefix = `${TASK_LISTS_ROUTE}/`;
   if (normalizedHash.startsWith(detailPrefix)) {
@@ -4490,29 +4541,6 @@ const formatTaskDateValue = (value: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-const PopoverContent = forwardRef<
-  ElementRef<typeof PopoverPrimitive.Content>,
-  ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(function PopoverContent(
-  { className, align = "center", sideOffset = 4, ...props },
-  ref: ForwardedRef<ElementRef<typeof PopoverPrimitive.Content>>,
-) {
-  return (
-    <PopoverPrimitive.Portal>
-      <PopoverPrimitive.Content
-        ref={ref}
-        align={align}
-        sideOffset={sideOffset}
-        className={clsx(
-          "z-50 w-auto rounded-xl border border-border bg-surface p-2 text-text shadow-lg outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-dark",
-          className,
-        )}
-        {...props}
-      />
-    </PopoverPrimitive.Portal>
-  );
-});
-
 function TaskItemComponent({
   task,
   isEditing,
@@ -4521,8 +4549,7 @@ function TaskItemComponent({
   onEditStart,
   onEditEnd,
   onToggle,
-  onDateChange,
-  onPinnedChange,
+  onOpenTaskActions,
   onDragInteractionChange,
 }: {
   task: Task;
@@ -4532,8 +4559,7 @@ function TaskItemComponent({
   onEditStart: (task: Task) => void;
   onEditEnd: (task: Task, text?: string) => void;
   onToggle: (task: Task) => void;
-  onDateChange?: (taskId: string, date: string) => void;
-  onPinnedChange?: (taskId: string, pinned: boolean) => void;
+  onOpenTaskActions?: (task: Task, trigger: HTMLButtonElement | null) => void;
   onDragInteractionChange?: (active: boolean) => void;
 }) {
   const completedTaskOpacity = 0.5;
@@ -4554,7 +4580,7 @@ function TaskItemComponent({
     opacity: rowOpacity,
   };
   const [isHandlePointerDown, setIsHandlePointerDown] = useState(false);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const actionButtonRef = useRef<HTMLButtonElement | null>(null);
   const taskTextId = `task-item-text-${task.id}`;
   const selectedDate = parseTaskDateValue(task.date);
   const setDateLabel = t("pages.tasklist.setDate");
@@ -4691,54 +4717,23 @@ function TaskItemComponent({
           </span>
         )}
       </div>
-      <PopoverPrimitive.Root
-        open={datePickerOpen}
-        onOpenChange={setDatePickerOpen}
+      <button
+        ref={actionButtonRef}
+        type="button"
+        aria-label={dateTitle}
+        title={dateTitle}
+        onClick={() => onOpenTaskActions?.(task, actionButtonRef.current)}
+        className="flex items-center rounded-lg p-1 text-placeholder focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:focus-visible:outline-muted-dark"
       >
-        <PopoverPrimitive.Trigger asChild>
-          <button
-            type="button"
-            aria-label={setDateLabel}
-            title={dateTitle}
-            className="flex items-center rounded-lg p-1 text-placeholder focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:focus-visible:outline-muted-dark"
-          >
-            <span className="relative inline-flex">
-              <AppIcon
-                name={task.pinned ? "push-pin" : "calendar-today"}
-                aria-hidden="true"
-                focusable="false"
-              />
-            </span>
-            <span className="sr-only">{setDateLabel}</span>
-          </button>
-        </PopoverPrimitive.Trigger>
-        <PopoverContent align="end" className="p-0">
-          <button
-            type="button"
-            onClick={() => {
-              onPinnedChange?.(task.id, !task.pinned);
-              setDatePickerOpen(false);
-            }}
-            className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-start text-sm font-medium text-text hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-muted dark:border-border-dark dark:text-text-dark dark:hover:bg-background-dark"
-          >
-            <AppIcon
-              name="push-pin"
-              size={18}
-              aria-hidden="true"
-              focusable="false"
-            />
-            {pinLabel}
-          </button>
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(next) => {
-              onDateChange?.(task.id, next ? formatTaskDateValue(next) : "");
-              setDatePickerOpen(false);
-            }}
+        <span className="relative inline-flex">
+          <AppIcon
+            name={task.pinned ? "push-pin" : "calendar-today"}
+            aria-hidden="true"
+            focusable="false"
           />
-        </PopoverContent>
-      </PopoverPrimitive.Root>
+        </span>
+        <span className="sr-only">{pinLabel}</span>
+      </button>
     </div>
   );
 }
@@ -4753,6 +4748,9 @@ function TaskListCard({
   onSortingChange,
   onDragInteractionChange,
   onDeleted,
+  activeTaskActionTaskId,
+  onOpenTaskAction,
+  onCloseTaskAction,
 }: {
   taskList: TaskList;
   isActive: boolean;
@@ -4761,8 +4759,11 @@ function TaskListCard({
   onSortingChange?: (sorting: boolean) => void;
   onDragInteractionChange?: (active: boolean) => void;
   onDeleted?: () => void;
+  activeTaskActionTaskId?: string | null;
+  onOpenTaskAction?: (taskListId: string, taskId: string) => void;
+  onCloseTaskAction?: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const reactId = useId();
   const [taskError, setTaskError] = useState<string | null>(null);
   const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
@@ -4794,6 +4795,8 @@ function TaskListCard({
   const [shareCopySuccess, setShareCopySuccess] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
+  const taskActionTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const previousTaskActionTaskIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!showShareDialog) return;
@@ -4850,6 +4853,41 @@ function TaskListCard({
   const destructiveButtonClass =
     "inline-flex items-center justify-center rounded-xl bg-error px-4 py-2 font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-50 dark:bg-error-dark dark:focus-visible:outline-error-dark";
   const iconButtonClass = clsx(secondaryButtonClass, "px-2");
+  const activeTaskActionTask =
+    activeTaskActionTaskId === null || activeTaskActionTaskId === undefined
+      ? null
+      : (taskList.tasks.find((task) => task.id === activeTaskActionTaskId) ??
+        null);
+  const closeTaskActionDialog = () => {
+    onCloseTaskAction?.();
+  };
+
+  const openTaskActionDialog = (
+    task: Task,
+    trigger: HTMLButtonElement | null,
+  ) => {
+    onActivate?.(taskList.id);
+    taskActionTriggerRef.current = trigger;
+    onOpenTaskAction?.(taskList.id, task.id);
+  };
+
+  useEffect(() => {
+    const previousTaskActionTaskId = previousTaskActionTaskIdRef.current;
+    previousTaskActionTaskIdRef.current = activeTaskActionTaskId ?? null;
+    if (
+      previousTaskActionTaskId !== null &&
+      (activeTaskActionTaskId === null || activeTaskActionTaskId === undefined)
+    ) {
+      if (typeof window === "undefined") {
+        taskActionTriggerRef.current = null;
+        return;
+      }
+      window.requestAnimationFrame(() => {
+        taskActionTriggerRef.current?.focus();
+        taskActionTriggerRef.current = null;
+      });
+    }
+  }, [activeTaskActionTaskId]);
 
   return (
     <section
@@ -5435,26 +5473,7 @@ function TaskListCard({
                             ),
                           );
                       }}
-                      onDateChange={(taskId, date) => {
-                        setTaskError(null);
-                        void updateTask(taskList.id, taskId, { date })
-                          .then(() => logTaskUpdate({ fields: "date" }))
-                          .catch((error) =>
-                            setTaskError(
-                              resolveErrorMessage(error, t, "common.error"),
-                            ),
-                          );
-                      }}
-                      onPinnedChange={(taskId, pinned) => {
-                        setTaskError(null);
-                        void updateTask(taskList.id, taskId, { pinned })
-                          .then(() => logTaskUpdate({ fields: "pinned" }))
-                          .catch((error) =>
-                            setTaskError(
-                              resolveErrorMessage(error, t, "common.error"),
-                            ),
-                          );
-                      }}
+                      onOpenTaskActions={openTaskActionDialog}
                     />
                   ))}
                 </div>
@@ -5463,6 +5482,122 @@ function TaskListCard({
           </DndContext>
         </div>
       </div>
+      <Dialog
+        open={isActive && activeTaskActionTask !== null}
+        onOpenChange={(open: boolean) => {
+          if (!open) {
+            closeTaskActionDialog();
+          }
+        }}
+      >
+        {activeTaskActionTask ? (
+          <TaskActionDialogContent
+            title={t("pages.tasklist.setDate")}
+            description={[
+              activeTaskActionTask.pinned
+                ? t("pages.tasklist.unpinTask")
+                : t("pages.tasklist.pinTask"),
+              activeTaskActionTask.date
+                ? `${t("pages.tasklist.setDate")}: ${new Intl.DateTimeFormat(
+                    i18n.language,
+                    {
+                      month: "short",
+                      day: "numeric",
+                      weekday: "short",
+                    },
+                  ).format(
+                    parseTaskDateValue(activeTaskActionTask.date) ?? new Date(),
+                  )}`
+                : t("pages.tasklist.clearDate"),
+            ].join(" / ")}
+          >
+            <div className="flex min-h-0 flex-1 flex-col gap-4 pt-2">
+              <button
+                type="button"
+                aria-pressed={activeTaskActionTask.pinned}
+                aria-label={
+                  activeTaskActionTask.pinned
+                    ? t("pages.tasklist.unpinTask")
+                    : t("pages.tasklist.pinTask")
+                }
+                onClick={() => {
+                  setTaskError(null);
+                  void updateTask(taskList.id, activeTaskActionTask.id, {
+                    pinned: !activeTaskActionTask.pinned,
+                  })
+                    .then(() => {
+                      logTaskUpdate({ fields: "pinned" });
+                      closeTaskActionDialog();
+                    })
+                    .catch((error) =>
+                      setTaskError(
+                        resolveErrorMessage(error, t, "common.error"),
+                      ),
+                    );
+                }}
+                className="flex min-h-12 w-full items-center justify-between rounded-2xl border border-border bg-background px-4 py-3 text-start text-sm font-semibold text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:focus-visible:outline-muted-dark"
+              >
+                <span className="flex items-center gap-3">
+                  <AppIcon
+                    name="push-pin"
+                    size={18}
+                    aria-hidden="true"
+                    focusable="false"
+                  />
+                  {activeTaskActionTask.pinned
+                    ? t("pages.tasklist.unpinTask")
+                    : t("pages.tasklist.pinTask")}
+                </span>
+                <span className="text-xs text-muted dark:text-muted-dark">
+                  {activeTaskActionTask.pinned ? t("common.done") : ""}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTaskError(null);
+                  void updateTask(taskList.id, activeTaskActionTask.id, {
+                    date: "",
+                  })
+                    .then(() => {
+                      logTaskUpdate({ fields: "date" });
+                      closeTaskActionDialog();
+                    })
+                    .catch((error) =>
+                      setTaskError(
+                        resolveErrorMessage(error, t, "common.error"),
+                      ),
+                    );
+                }}
+                className="inline-flex min-h-11 w-fit items-center self-start rounded-xl text-sm font-semibold text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error dark:text-muted-dark"
+              >
+                {t("pages.tasklist.clearDate")}
+              </button>
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-[24px] border border-border bg-background p-3 dark:border-border-dark dark:bg-background-dark">
+                <Calendar
+                  mode="single"
+                  selected={parseTaskDateValue(activeTaskActionTask.date)}
+                  onSelect={(next) => {
+                    setTaskError(null);
+                    void updateTask(taskList.id, activeTaskActionTask.id, {
+                      date: next ? formatTaskDateValue(next) : "",
+                    })
+                      .then(() => {
+                        logTaskUpdate({ fields: "date" });
+                        closeTaskActionDialog();
+                      })
+                      .catch((error) =>
+                        setTaskError(
+                          resolveErrorMessage(error, t, "common.error"),
+                        ),
+                      );
+                  }}
+                />
+              </div>
+            </div>
+          </TaskActionDialogContent>
+        ) : null}
+      </Dialog>
     </section>
   );
 }
@@ -5470,14 +5605,25 @@ function TaskListCard({
 const toAppUrl = (route: KnownAppHashRoute): string => {
   if (typeof window === "undefined") return "/app/";
   const baseUrl = `${window.location.pathname}${window.location.search}`;
-  return route.view === "detail"
-    ? `${baseUrl}#${TASK_LISTS_ROUTE}/${encodeURIComponent(route.taskListId)}`
-    : `${baseUrl}#${route.view === "settings" ? SETTINGS_ROUTE : TASK_LISTS_ROUTE}`;
+  if (route.view === "detail") {
+    return `${baseUrl}#${TASK_LISTS_ROUTE}/${encodeURIComponent(route.taskListId)}`;
+  }
+  if (route.view === "settings") {
+    return `${baseUrl}#${SETTINGS_ROUTE}`;
+  }
+  if (route.view === "calendar") {
+    return `${baseUrl}#${CALENDAR_ROUTE}`;
+  }
+  return `${baseUrl}#${TASK_LISTS_ROUTE}`;
 };
 
 const buildAppHistoryState = (
   route: KnownAppHashRoute,
   currentState: unknown,
+  taskAction: {
+    taskListId: string;
+    taskId: string;
+  } | null = null,
 ): Record<string, unknown> => ({
   ...(currentState && typeof currentState === "object"
     ? (currentState as Record<string, unknown>)
@@ -5485,7 +5631,30 @@ const buildAppHistoryState = (
   lightlistMobileStackInitialized: true,
   lightlistAppView: route.view,
   lightlistTaskListId: route.view === "detail" ? route.taskListId : null,
+  lightlistTaskActionTaskListId: taskAction?.taskListId ?? null,
+  lightlistTaskActionTaskId: taskAction?.taskId ?? null,
 });
+
+const readTaskActionHistoryState = (
+  state: unknown,
+): {
+  taskListId: string;
+  taskId: string;
+} | null => {
+  if (!state || typeof state !== "object") {
+    return null;
+  }
+  const record = state as Record<string, unknown>;
+  const taskListId = record.lightlistTaskActionTaskListId;
+  const taskId = record.lightlistTaskActionTaskId;
+  if (typeof taskListId !== "string" || typeof taskId !== "string") {
+    return null;
+  }
+  if (taskListId.length === 0 || taskId.length === 0) {
+    return null;
+  }
+  return { taskListId, taskId };
+};
 
 type SortableTaskListItemProps = {
   taskList: TaskList;
@@ -5624,22 +5793,18 @@ function CalendarTaskItem({
   );
 }
 
-type CalendarTaskSheetProps = {
-  isWideLayout: boolean;
+type CalendarScreenProps = {
+  showCompactHeaderOffset?: boolean;
   taskLists: TaskList[];
   onSelectTaskList: (taskListId: string) => void;
-  onCloseDrawer: () => void;
 };
 
-function CalendarTaskSheet({
-  isWideLayout,
+function CalendarScreen({
+  showCompactHeaderOffset = false,
   taskLists,
   onSelectTaskList,
-  onCloseDrawer,
-}: CalendarTaskSheetProps) {
+}: CalendarScreenProps) {
   const { t, i18n } = useTranslation();
-  const calendarSheetStateKey = "calendar-sheet-open";
-  const [calendarSheetOpen, setCalendarSheetOpen] = useState(false);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<
     Date | undefined
   >(undefined);
@@ -5718,28 +5883,6 @@ function CalendarTaskSheet({
     return map;
   }, [datedTasksByMonth]);
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !calendarSheetOpen) return;
-
-    const currentState = window.history.state;
-    if (currentState?.calendarSheet !== calendarSheetStateKey) {
-      window.history.pushState(
-        { ...currentState, calendarSheet: calendarSheetStateKey },
-        "",
-      );
-    }
-
-    const handlePopState = (event: PopStateEvent) => {
-      if (event.state?.calendarSheet === calendarSheetStateKey) return;
-      setCalendarSheetOpen(false);
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [calendarSheetOpen, calendarSheetStateKey]);
-
   const selectedCalendarDateKey = useMemo(
     () => (selectedCalendarDate ? formatTaskDate(selectedCalendarDate) : null),
     [selectedCalendarDate],
@@ -5775,42 +5918,8 @@ function CalendarTaskSheet({
     });
   };
 
-  const handleCalendarSheetOpenChange = (open: boolean) => {
-    if (open) {
-      setCalendarSheetOpen(true);
-      return;
-    }
-
-    if (
-      typeof window !== "undefined" &&
-      window.history.state?.calendarSheet === calendarSheetStateKey
-    ) {
-      window.history.back();
-      return;
-    }
-
-    setCalendarSheetOpen(false);
-  };
-
   const handleOpenTaskListFromCalendar = (taskListId: string) => {
     onSelectTaskList(taskListId);
-
-    if (!isWideLayout) {
-      if (
-        typeof window !== "undefined" &&
-        window.history.state?.calendarSheet === calendarSheetStateKey &&
-        window.history.state?.drawer === "drawer-open"
-      ) {
-        window.history.go(-2);
-        return;
-      }
-
-      handleCalendarSheetOpenChange(false);
-      onCloseDrawer();
-      return;
-    }
-
-    handleCalendarSheetOpenChange(false);
   };
 
   const displayedMonthKey = formatMonthKey(displayedMonth);
@@ -5819,131 +5928,117 @@ function CalendarTaskSheet({
   const dateDotColors = monthDateDotColors[displayedMonthKey] ?? {};
 
   return (
-    <Drawer
-      direction="bottom"
-      open={calendarSheetOpen}
-      onOpenChange={handleCalendarSheetOpenChange}
-    >
-      <DrawerTrigger asChild>
-        <button
-          type="button"
-          data-vaul-no-drag
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text shadow-sm hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark"
-        >
-          <AppIcon
-            name="calendar-today"
-            aria-hidden="true"
-            focusable="false"
-            className="h-5 w-5"
-          />
-          <span>{t("app.calendarCheckButton")}</span>
-        </button>
-      </DrawerTrigger>
-      <DrawerContent
-        overlayClassName="z-1400"
-        className="inset-x-0 bottom-0 left-0 right-0 top-auto z-1500 h-[min(94vh,920px)] max-w-none overflow-hidden rounded-t-2xl"
-      >
-        <div className="flex h-full min-h-0 flex-col">
-          {calendarError ? (
-            <Alert variant="error">{calendarError}</Alert>
-          ) : null}
-          {datedTasks.length > 0 ? (
-            <div
-              className={clsx(
-                "min-h-0 flex-1 overflow-y-auto pb-12",
-                isWideLayout
-                  ? "grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]"
-                  : "flex flex-col gap-3",
-              )}
-            >
-              <div
-                data-vaul-no-drag
-                className={clsx(
-                  "w-full",
-                  isWideLayout && "sticky top-0 self-start",
-                )}
-              >
-                <Calendar
-                  className="w-full"
-                  mode="single"
-                  selected={selectedCalendarDate}
-                  onSelect={(next) =>
-                    handleSelectCalendarDate(next, visibleDatedTasks)
-                  }
-                  month={displayedMonth}
-                  onMonthChange={(newMonth) => {
-                    setDisplayedMonth(newMonth);
-                    setSelectedCalendarDate(undefined);
-                  }}
-                  modifiers={{ hasTask: calendarTaskDates }}
-                  components={{
-                    DayButton: (props) => {
-                      const dateKey = formatTaskDate(props.day.date);
-                      const colors = dateDotColors[dateKey] ?? [];
-                      return (
-                        <DayPickerDayButton {...props}>
-                          <span className="relative flex h-full w-full items-center justify-center">
-                            <span className={clsx(colors.length > 0 && "pb-2")}>
-                              {props.day.date.getDate()}
-                            </span>
-                            {colors.length > 0 ? (
-                              <span className="pointer-events-none absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-0.5">
-                                {colors.map((color, index) => (
-                                  <span
-                                    key={`${dateKey}-${color}-${index}`}
-                                    className="h-1.5 w-1.5 rounded-full border border-primary dark:border-primary-dark"
-                                    style={{ backgroundColor: color }}
-                                  />
-                                ))}
-                              </span>
-                            ) : null}
-                          </span>
-                        </DayPickerDayButton>
-                      );
-                    },
-                  }}
-                />
-              </div>
-              <div
-                data-vaul-no-drag
-                className={clsx(
-                  "min-h-0 overflow-y-auto rounded-xl border border-border dark:border-border-dark",
-                  isWideLayout ? "h-full" : "flex-1",
-                )}
-              >
-                {visibleDatedTasks.length > 0 ? (
-                  visibleDatedTasks.map((task) => {
-                    const taskId = getDatedTaskId(task);
+    <section className="flex h-full min-h-0 flex-col bg-background dark:bg-background-dark">
+      <div className="flex h-full min-h-0 flex-col p-4">
+        {showCompactHeaderOffset ? <div className="h-[88px]" /> : null}
+        {calendarError ? <Alert variant="error">{calendarError}</Alert> : null}
+        {datedTasks.length > 0 ? (
+          <div
+            className={clsx(
+              "min-h-0 flex-1 overflow-y-auto pb-12",
+              "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]",
+              "flex flex-col gap-3",
+            )}
+          >
+            <div className="w-full lg:sticky lg:top-0 lg:self-start">
+              <Calendar
+                className="w-full"
+                mode="single"
+                selected={selectedCalendarDate}
+                onSelect={(next) =>
+                  handleSelectCalendarDate(next, visibleDatedTasks)
+                }
+                month={displayedMonth}
+                onMonthChange={(newMonth) => {
+                  setDisplayedMonth(newMonth);
+                  setSelectedCalendarDate(undefined);
+                }}
+                modifiers={{ hasTask: calendarTaskDates }}
+                components={{
+                  DayButton: (props) => {
+                    const dateKey = formatTaskDate(props.day.date);
+                    const colors = dateDotColors[dateKey] ?? [];
                     return (
-                      <CalendarTaskItem
-                        key={taskId}
-                        task={task}
-                        onOpenTaskList={handleOpenTaskListFromCalendar}
-                        onSelectDate={(date) =>
-                          handleSelectCalendarDate(date, visibleDatedTasks)
-                        }
-                        isHighlighted={selectedCalendarDateKey === task.dateKey}
-                        itemRef={(element) => {
-                          datedTaskRefs.current[taskId] = element;
-                        }}
-                      />
+                      <DayPickerDayButton {...props}>
+                        <span className="relative flex h-full w-full items-center justify-center">
+                          <span className={clsx(colors.length > 0 && "pb-2")}>
+                            {props.day.date.getDate()}
+                          </span>
+                          {colors.length > 0 ? (
+                            <span className="pointer-events-none absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-0.5">
+                              {colors.map((color, index) => (
+                                <span
+                                  key={`${dateKey}-${color}-${index}`}
+                                  className="h-1.5 w-1.5 rounded-full border border-primary dark:border-primary-dark"
+                                  style={{ backgroundColor: color }}
+                                />
+                              ))}
+                            </span>
+                          ) : null}
+                        </span>
+                      </DayPickerDayButton>
                     );
-                  })
-                ) : (
-                  <p className="p-4 text-sm text-muted dark:text-muted-dark">
-                    {t("app.calendarNoDatedTasks")}
-                  </p>
-                )}
-              </div>
+                  },
+                }}
+              />
             </div>
-          ) : (
-            <p className="text-sm text-muted dark:text-muted-dark">
-              {t("app.calendarNoDatedTasks")}
-            </p>
-          )}
-        </div>
-      </DrawerContent>
-    </Drawer>
+            <div className="min-h-0 overflow-y-auto rounded-xl border border-border dark:border-border-dark lg:h-full">
+              {visibleDatedTasks.length > 0 ? (
+                visibleDatedTasks.map((task) => {
+                  const taskId = getDatedTaskId(task);
+                  return (
+                    <CalendarTaskItem
+                      key={taskId}
+                      task={task}
+                      onOpenTaskList={handleOpenTaskListFromCalendar}
+                      onSelectDate={(date) =>
+                        handleSelectCalendarDate(date, visibleDatedTasks)
+                      }
+                      isHighlighted={selectedCalendarDateKey === task.dateKey}
+                      itemRef={(element) => {
+                        datedTaskRefs.current[taskId] = element;
+                      }}
+                    />
+                  );
+                })
+              ) : (
+                <p className="p-4 text-sm text-muted dark:text-muted-dark">
+                  {t("app.calendarNoDatedTasks")}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted dark:text-muted-dark">
+            {t("app.calendarNoDatedTasks")}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+type CalendarEntryButtonProps = {
+  onOpen: () => void;
+};
+
+function CalendarEntryButton({ onOpen }: CalendarEntryButtonProps) {
+  const { t } = useTranslation();
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text shadow-sm hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark"
+    >
+      <AppIcon
+        name="calendar-today"
+        aria-hidden="true"
+        focusable="false"
+        className="h-5 w-5"
+      />
+      <span>{t("app.calendarCheckButton")}</span>
+    </button>
   );
 }
 
@@ -5953,6 +6048,7 @@ type TaskListSidebarPanelProps = {
   hasTaskLists: boolean;
   taskLists: TaskList[];
   sensorsList: SensorDescriptor<SensorOptions>[];
+  onOpenCalendar: () => void;
   onReorderTaskList: (
     draggedId: string,
     targetId: string,
@@ -5971,6 +6067,7 @@ function TaskListSidebarPanel({
   hasTaskLists,
   taskLists,
   sensorsList,
+  onOpenCalendar,
   onReorderTaskList,
   selectedTaskListId,
   onSelectTaskList,
@@ -6060,12 +6157,7 @@ function TaskListSidebarPanel({
         </div>
       </DrawerHeader>
 
-      <CalendarTaskSheet
-        isWideLayout={isWideLayout}
-        taskLists={taskLists}
-        onSelectTaskList={onSelectTaskList}
-        onCloseDrawer={onCloseDrawer}
-      />
+      <CalendarEntryButton onOpen={onOpenCalendar} />
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
         {hasTaskLists ? (
@@ -6280,6 +6372,10 @@ function AppShellPage() {
   const [isViewAnimationReady, setIsViewAnimationReady] = useState(false);
   const [pendingInitialTaskListRoute, setPendingInitialTaskListRoute] =
     useState(false);
+  const [activeTaskAction, setActiveTaskAction] = useState<{
+    taskListId: string;
+    taskId: string;
+  } | null>(null);
 
   const sensorsList = useSensors(
     useSensor(PointerSensor, {
@@ -6308,11 +6404,15 @@ function AppShellPage() {
       if (route.view === "unknown") {
         return;
       }
+      const nextTaskAction = readTaskActionHistoryState(window.history.state);
 
       setCurrentView(route.view);
       if (route.view === "detail") {
         setSelectedTaskListId(route.taskListId);
+        setActiveTaskAction(nextTaskAction);
+        return;
       }
+      setActiveTaskAction(null);
     };
 
     syncView();
@@ -6363,54 +6463,75 @@ function AppShellPage() {
 
     if (routeFromLocation.view === "taskLists") {
       window.history.replaceState(
-        buildAppHistoryState({ view: "taskLists" }, currentState),
+        buildAppHistoryState({ view: "taskLists" }, currentState, null),
         "",
         toAppUrl({ view: "taskLists" }),
       );
       setCurrentView("taskLists");
+      setActiveTaskAction(null);
       setPendingInitialTaskListRoute(false);
       return;
     }
 
     if (routeFromLocation.view === "settings") {
       window.history.replaceState(
-        buildAppHistoryState({ view: "taskLists" }, currentState),
+        buildAppHistoryState({ view: "taskLists" }, currentState, null),
         "",
         toAppUrl({ view: "taskLists" }),
       );
       window.history.pushState(
-        buildAppHistoryState({ view: "settings" }, currentState),
+        buildAppHistoryState({ view: "settings" }, currentState, null),
         "",
         toAppUrl({ view: "settings" }),
       );
       setCurrentView("settings");
+      setActiveTaskAction(null);
+      setPendingInitialTaskListRoute(false);
+      return;
+    }
+
+    if (routeFromLocation.view === "calendar") {
+      window.history.replaceState(
+        buildAppHistoryState({ view: "taskLists" }, currentState, null),
+        "",
+        toAppUrl({ view: "taskLists" }),
+      );
+      window.history.pushState(
+        buildAppHistoryState({ view: "calendar" }, currentState, null),
+        "",
+        toAppUrl({ view: "calendar" }),
+      );
+      setCurrentView("calendar");
+      setActiveTaskAction(null);
       setPendingInitialTaskListRoute(false);
       return;
     }
 
     if (routeFromLocation.view === "detail") {
       window.history.replaceState(
-        buildAppHistoryState({ view: "taskLists" }, currentState),
+        buildAppHistoryState({ view: "taskLists" }, currentState, null),
         "",
         toAppUrl({ view: "taskLists" }),
       );
       window.history.pushState(
-        buildAppHistoryState(routeFromLocation, currentState),
+        buildAppHistoryState(routeFromLocation, currentState, null),
         "",
         toAppUrl(routeFromLocation),
       );
       setCurrentView("detail");
       setSelectedTaskListId(routeFromLocation.taskListId);
+      setActiveTaskAction(readTaskActionHistoryState(window.history.state));
       setPendingInitialTaskListRoute(false);
       return;
     }
 
     window.history.replaceState(
-      buildAppHistoryState({ view: "taskLists" }, currentState),
+      buildAppHistoryState({ view: "taskLists" }, currentState, null),
       "",
       toAppUrl({ view: "taskLists" }),
     );
     setCurrentView("taskLists");
+    setActiveTaskAction(null);
     setPendingInitialTaskListRoute(true);
   }, [authStatus]);
 
@@ -6442,6 +6563,7 @@ function AppShellPage() {
 
   const setViewState = (route: KnownAppHashRoute, mode: "push" | "replace") => {
     setCurrentView(route.view);
+    setActiveTaskAction(null);
     if (route.view === "detail") {
       setSelectedTaskListId(route.taskListId);
     }
@@ -6451,7 +6573,7 @@ function AppShellPage() {
       return;
     }
 
-    const nextState = buildAppHistoryState(route, window.history.state);
+    const nextState = buildAppHistoryState(route, window.history.state, null);
     if (mode === "push") {
       window.history.pushState(nextState, "", toAppUrl(route));
       return;
@@ -6471,12 +6593,56 @@ function AppShellPage() {
     );
   const openSettings = (mode: "push" | "replace" = "replace") =>
     setViewState({ view: "settings" }, isWideLayout ? "replace" : mode);
+  const openCalendar = (mode: "push" | "replace" = "replace") =>
+    setViewState({ view: "calendar" }, isWideLayout ? "replace" : mode);
+  const getCurrentDetailRoute = (): KnownAppHashRoute | null => {
+    if (currentView !== "detail" || selectedTaskListId === null) {
+      return null;
+    }
+    return { view: "detail", taskListId: selectedTaskListId };
+  };
+  const openTaskAction = (taskListId: string, taskId: string) => {
+    setActiveTaskAction({ taskListId, taskId });
+    if (typeof window === "undefined") {
+      return;
+    }
+    const route = getCurrentDetailRoute();
+    if (route === null) {
+      return;
+    }
+    window.history.pushState(
+      buildAppHistoryState(route, window.history.state, { taskListId, taskId }),
+      "",
+      toAppUrl(route),
+    );
+  };
+  const closeTaskAction = () => {
+    setActiveTaskAction(null);
+    if (typeof window === "undefined") {
+      return;
+    }
+    if (readTaskActionHistoryState(window.history.state) !== null) {
+      window.history.back();
+      return;
+    }
+    const route = getCurrentDetailRoute();
+    if (route === null) {
+      return;
+    }
+    window.history.replaceState(
+      buildAppHistoryState(route, window.history.state, null),
+      "",
+      toAppUrl(route),
+    );
+  };
 
   const handleBackToTaskLists = () => {
     if (
       typeof window !== "undefined" &&
       window.history.length > 1 &&
-      (currentView === "detail" || currentView === "settings")
+      (currentView === "detail" ||
+        currentView === "settings" ||
+        currentView === "calendar")
     ) {
       window.history.back();
       return;
@@ -6505,6 +6671,26 @@ function AppShellPage() {
   ]);
 
   useEffect(() => {
+    if (activeTaskAction === null) {
+      return;
+    }
+    const taskList = taskLists.find(
+      (candidate) => candidate.id === activeTaskAction.taskListId,
+    );
+    if (!taskList) {
+      setActiveTaskAction(null);
+      return;
+    }
+    if (!taskList.tasks.some((task) => task.id === activeTaskAction.taskId)) {
+      setActiveTaskAction(null);
+      return;
+    }
+    if (currentView !== "detail" || selectedTaskListId !== taskList.id) {
+      setActiveTaskAction(null);
+    }
+  }, [activeTaskAction, currentView, selectedTaskListId, taskLists]);
+
+  useEffect(() => {
     if (!hasResolvedTaskLists || currentView !== "detail" || selectedTaskList) {
       return;
     }
@@ -6530,6 +6716,7 @@ function AppShellPage() {
       hasTaskLists={!isTaskListsHydrating && hasTaskLists}
       taskLists={taskLists}
       sensorsList={sensorsList}
+      onOpenCalendar={() => openCalendar("push")}
       onReorderTaskList={async (draggedTaskListId, targetTaskListId) => {
         setError(null);
         try {
@@ -6679,6 +6866,13 @@ function AppShellPage() {
                   sensorsList={sensorsList}
                   onSortingChange={setIsTaskSorting}
                   onDragInteractionChange={setIsTaskDragInteracting}
+                  activeTaskActionTaskId={
+                    activeTaskAction?.taskListId === taskList.id
+                      ? activeTaskAction.taskId
+                      : null
+                  }
+                  onOpenTaskAction={openTaskAction}
+                  onCloseTaskAction={closeTaskAction}
                   onDeleted={() => {
                     const remainingLists = stateTaskLists.filter(
                       (currentTaskList) =>
@@ -6706,6 +6900,16 @@ function AppShellPage() {
         </div>
       )}
     </div>
+  );
+
+  const calendarContent = (
+    <CalendarScreen
+      showCompactHeaderOffset={!isWideLayout}
+      taskLists={taskLists}
+      onSelectTaskList={(taskListId) =>
+        openTaskList(taskListId, isWideLayout ? "replace" : "push")
+      }
+    />
   );
 
   const taskListsRootContent = (
@@ -6755,6 +6959,8 @@ function AppShellPage() {
                 <div className="h-full overflow-y-auto">
                   <SettingsView showBackButton={false} />
                 </div>
+              ) : currentView === "calendar" ? (
+                calendarContent
               ) : (
                 detailContent
               )}
@@ -6782,6 +6988,19 @@ function AppShellPage() {
                     showBackButton={true}
                   />
                 </div>,
+                "bg-background dark:bg-background-dark",
+              )}
+              {renderCompactPanel(
+                "calendar",
+                <>
+                  <div className="absolute z-20 w-full">
+                    <AppHeader
+                      backLabel={t("common.back")}
+                      onBack={handleBackToTaskLists}
+                    />
+                  </div>
+                  {calendarContent}
+                </>,
                 "bg-background dark:bg-background-dark",
               )}
             </div>

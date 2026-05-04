@@ -44,6 +44,7 @@
 - Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/entry.tsx` に集約する。
 - Web の Auth / settings / taskLists の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
 - Web の task 更新系は Firestore `tasks` map の列挙順を順序根拠に使わず、必ず `order` 昇順の配列へ直してから追加・自動並び替え・D&D 並び替え・完了済み削除を計算する。
+- Web / iOS / Android のタスク入力候補は `taskLists.history` を共通の正本として使い、履歴更新はタスク追加時と本文変更時に行う。候補表示条件は trim 後 2 文字以上の部分一致・最大 20 件・完全一致除外で Web 仕様に揃える。
 - task のピン留めは `tasks.*.pinned` だけを追加し、`pinOrder` は持たない。表示順は `未完了 pinned -> 未完了 unpinned -> 完了`、各グループ内は `order` 昇順を正とする。`autoSort` 有効時は各グループ内を `date -> order` で再採番する。pinned task の右端 action はカレンダーではなくピンアイコンを表示し、強めの本文 weight で通常 task と区別する。
 - タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/entry.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。
 - task 入力 parser は、先頭の日付表現に加えて各対応言語の短い pin prefix も扱う。`ja: ピン`, `es: fijar`, `de: anheften`, `fr: epingler/épingler`, `ko: 고정`, `zh-CN: 置顶`, `hi: पिन`, `ar: تثبيت`, `pt-BR: fixar`, `id: sematkan` に加え、全言語で `pin` / `pinned` を許可し、`pin 04/24 task1` と `04/24 pin task1` の両方を解釈する。本文編集では prefix 付与時だけ `pinned = true` にし、prefix 不在で自動解除しない。

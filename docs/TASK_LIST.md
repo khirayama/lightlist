@@ -100,6 +100,7 @@
 - Web の task 更新系は Firestore の `tasks` map の列挙順を信用せず、常に `order` 昇順の配列へ直してから追加・並び替え・自動並び替え・完了済み削除を計算する。
 - iOS / Android の `TaskListDetailPage` でも `autoSort` 有効時は、タスク追加、完了切替、本文編集、日付変更、完了済み削除のたびに同じ順序で再採番して Firestore へ保存する。
 - `history` は重複を除きつつ先頭追加し、最大 300 件を保持する。
+- Web / iOS / Android のタスク入力欄は `taskLists.history` を候補元として共有し、trim 後 2 文字以上の部分一致だけを最大 20 件表示する。完全一致候補は出さず、候補選択時は入力欄への挿入ではなくその文言を即追加する。iOS の候補 UI は本文上の overlay ではなく `popover` presentation で表示し、本文操作と hit area を分離する。
 - Web の `sortTasks()` と `updateTasksOrder()` は順序系操作のたびに全 task を連番で再採番して保存し、既存の `order` 不整合もその操作時に補正する。
 - `updateTask()` は `autoSort: false` では対象 task の項目だけを更新する。ただし pinned 解除時は未完了 unpinned 先頭へ入るよう task 集合を再構成して保存する。`autoSort: true` のときは自動並び替え順で task 集合を再構成して保存する。
 - `deleteCompletedTasks()` は完了済み task を削除し、残りを再採番する。

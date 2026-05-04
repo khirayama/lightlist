@@ -170,7 +170,10 @@ import java.util.TimeZone
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -460,6 +463,7 @@ private data class TaskListDetail(
     val id: String,
     val name: String,
     val tasks: List<TaskSummary>,
+    val history: List<String>,
     val memberCount: Int,
     val background: String? = null,
     val shareCode: String? = null
@@ -1201,12 +1205,14 @@ private fun parseTaskListDetail(taskListId: String, data: Map<String, Any>): Tas
     val memberCount = (data["memberCount"] as? Number)?.toInt() ?: 1
     val background = data["background"] as? String
     val shareCode = data["shareCode"] as? String
+    val history = (data["history"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
     val tasks = parseTasks(data["tasks"] as? Map<*, *> ?: emptyMap<String, Any>())
 
     return TaskListDetail(
         id = taskListId,
         name = name,
         tasks = tasks,
+        history = history,
         memberCount = memberCount,
         background = background,
         shareCode = shareCode
@@ -3923,10 +3929,12 @@ private fun TaskListDetailPage(
         lineHeight = TaskListDetailMetrics.dateLineHeight
     )
     val focusManager = LocalFocusManager.current
+    val density = LocalDensity.current
     val languageTag = t.languageTag()
     val canSort = remember(taskList.tasks) { taskList.tasks.size >= 2 }
     val hasCompletedTasks = remember(taskList.tasks) { taskList.tasks.any { it.completed } }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var newTaskInputWidthPx by remember { mutableStateOf(0) }
 
     fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
         return tasks
@@ -3965,6 +3973,24 @@ private fun TaskListDetailPage(
         return updates
     }
 
+    fun buildHistory(newText: String, oldText: String? = null): List<String> {
+        val candidate = newText.trim()
+        if (candidate.isEmpty()) return taskList.history
+        val trimmedOldText = oldText?.trim()
+        val result = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+        for (entry in listOf(candidate) + taskList.history) {
+            val trimmed = entry.trim()
+            if (trimmed.isEmpty()) continue
+            if (trimmedOldText != null && trimmed == trimmedOldText) continue
+            val normalized = trimmed.lowercase()
+            if (!seen.add(normalized)) continue
+            result.add(trimmed)
+            if (result.size >= 300) break
+        }
+        return result
+    }
+
     fun persistTaskListUpdate(updates: Map<String, Any>) {
         scope.launch {
             try {
@@ -3983,6 +4009,28 @@ private fun TaskListDetailPage(
                 deletedTaskIds = deletedTaskIds
             )
         )
+    }
+
+    val historyOptions = run {
+        val input = newTaskText.trim()
+        if (input.length < 2) {
+            emptyList()
+        } else {
+            val inputLower = input.lowercase()
+            val seen = mutableSetOf<String>()
+            buildList {
+                for (candidate in taskList.history) {
+                    val option = candidate.trim()
+                    if (option.isEmpty()) continue
+                    val optionLower = option.lowercase()
+                    if (optionLower == inputLower || !optionLower.contains(inputLower) || !seen.add(optionLower)) {
+                        continue
+                    }
+                    add(option)
+                    if (size >= 20) break
+                }
+            }
+        }
     }
 
     fun checkTaskSwap() {
@@ -4064,7 +4112,13 @@ private fun TaskListDetailPage(
                         )
                     } else current
                 }
-                persistNormalizedTasks(updatedTasks)
+                val updates = buildTaskUpdateData(
+                    tasks = getAutoSortedTasks(updatedTasks)
+                ).toMutableMap<String, Any>()
+                if (textChanged) {
+                    updates["history"] = buildHistory(resolved.text, task.text)
+                }
+                persistTaskListUpdate(updates)
                 return
             }
 
@@ -4073,6 +4127,7 @@ private fun TaskListDetailPage(
                     put("tasks.${task.id}.text", resolved.text)
                     put("tasks.${task.id}.date", resolved.date ?: task.date)
                     if (pinnedChanged) put("tasks.${task.id}.pinned", true)
+                    if (textChanged) put("history", buildHistory(resolved.text, task.text))
                     put("updatedAt", System.currentTimeMillis())
                 }
             )
@@ -4266,7 +4321,11 @@ private fun TaskListDetailPage(
             val reorderedTasks = taskList.tasks.toMutableList().apply {
                 add(insertIndex, insertedTask)
             }
-            persistNormalizedTasks(reorderedTasks)
+            val updates = buildTaskUpdateData(
+                tasks = getAutoSortedTasks(reorderedTasks)
+            ).toMutableMap<String, Any>()
+            updates["history"] = buildHistory(parsed.text)
+            persistTaskListUpdate(updates)
             return
         }
 
@@ -4278,6 +4337,7 @@ private fun TaskListDetailPage(
                 "tasks.$taskId.date" to (parsed.date ?: ""),
                 "tasks.$taskId.order" to order,
                 "tasks.$taskId.pinned" to parsed.pinnedFromInput,
+                "history" to buildHistory(parsed.text),
                 "updatedAt" to now
             )
         )
@@ -4351,92 +4411,129 @@ private fun TaskListDetailPage(
             }
         }
         item(key = "taskListInput", contentType = "input") {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = TaskListDetailMetrics.sectionBottomSpacing),
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                BasicTextField(
-                    value = newTaskText,
-                    onValueChange = { newTaskText = it },
-                    textStyle = inputTextStyle.copy(
-                        color = MaterialTheme.colorScheme.onSurface
-                    ),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { addTask() }),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(newTaskFocusRequester)
-                        .onFocusChanged { state ->
-                            isNewTaskInputFocused = state.isFocused
-                        }
-                        .heightIn(min = TaskListDetailMetrics.inputMinHeight)
-                        .background(inputBackgroundColor, RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius))
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
-                            shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius)
-                        )
-                        .padding(
-                            horizontal = TaskListDetailMetrics.inputHorizontalPadding,
-                            vertical = TaskListDetailMetrics.inputVerticalPadding
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            newTaskInputWidthPx = coordinates.size.width
+                        },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    BasicTextField(
+                        value = newTaskText,
+                        onValueChange = { newTaskText = it },
+                        textStyle = inputTextStyle.copy(
+                            color = MaterialTheme.colorScheme.onSurface
                         ),
-                    decorationBox = { innerTextField ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = TaskListDetailMetrics.inputMinHeight - (TaskListDetailMetrics.inputVerticalPadding * 2)),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (newTaskText.isEmpty()) {
-                                Text(
-                                    t.t("pages.tasklist.addTaskPlaceholder"),
-                                    style = inputTextStyle,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { addTask() }),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
+                        modifier = Modifier
+                            .weight(1f)
+                            .focusRequester(newTaskFocusRequester)
+                            .onFocusChanged { state ->
+                                isNewTaskInputFocused = state.isFocused
+                            }
+                            .heightIn(min = TaskListDetailMetrics.inputMinHeight)
+                            .background(inputBackgroundColor, RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius))
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
+                                shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius)
+                            )
+                            .padding(
+                                horizontal = TaskListDetailMetrics.inputHorizontalPadding,
+                                vertical = TaskListDetailMetrics.inputVerticalPadding
+                            ),
+                        decorationBox = { innerTextField ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = TaskListDetailMetrics.inputMinHeight - (TaskListDetailMetrics.inputVerticalPadding * 2)),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (newTaskText.isEmpty()) {
+                                    Text(
+                                        t.t("pages.tasklist.addTaskPlaceholder"),
+                                        style = inputTextStyle,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        }
+                    )
+                    AnimatedVisibility(
+                        visible = isNewTaskInputFocused,
+                        enter = if (reduceMotion) {
+                            EnterTransition.None
+                        } else {
+                            fadeIn(animationSpec = tween(durationMillis = 180)) +
+                                expandHorizontally(
+                                    expandFrom = Alignment.Start,
+                                    animationSpec = tween(durationMillis = 240)
+                                )
+                        },
+                        exit = if (reduceMotion) {
+                            ExitTransition.None
+                        } else {
+                            fadeOut(animationSpec = tween(durationMillis = 120)) +
+                                shrinkHorizontally(
+                                    shrinkTowards = Alignment.Start,
+                                    animationSpec = tween(durationMillis = 180)
+                                )
+                        }
+                    ) {
+                        Box(modifier = Modifier.padding(start = TaskListDetailMetrics.inputActionSpacing)) {
+                            IconButton(
+                                onClick = {
+                                    addTask()
+                                    newTaskFocusRequester.requestFocus()
+                                },
+                                enabled = newTaskText.trim().isNotEmpty(),
+                                modifier = Modifier.size(TaskListDetailMetrics.addActionIconButtonSize)
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = t.t("common.add"),
+                                    modifier = Modifier.size(TaskListDetailMetrics.addActionIconSize)
                                 )
                             }
-                            innerTextField()
                         }
                     }
-                )
-                AnimatedVisibility(
-                    visible = isNewTaskInputFocused,
-                    enter = if (reduceMotion) {
-                        EnterTransition.None
-                    } else {
-                        fadeIn(animationSpec = tween(durationMillis = 180)) +
-                            expandHorizontally(
-                                expandFrom = Alignment.Start,
-                                animationSpec = tween(durationMillis = 240)
-                            )
-                    },
-                    exit = if (reduceMotion) {
-                        ExitTransition.None
-                    } else {
-                        fadeOut(animationSpec = tween(durationMillis = 120)) +
-                            shrinkHorizontally(
-                                shrinkTowards = Alignment.Start,
-                                animationSpec = tween(durationMillis = 180)
-                            )
-                    }
+                }
+                DropdownMenu(
+                    expanded = isNewTaskInputFocused && historyOptions.isNotEmpty(),
+                    onDismissRequest = {},
+                    offset = DpOffset(0.dp, 4.dp),
+                    properties = PopupProperties(focusable = false),
+                    modifier = Modifier
+                        .width(with(density) { newTaskInputWidthPx.toDp() })
+                        .heightIn(max = 220.dp)
                 ) {
-                    Box(modifier = Modifier.padding(start = TaskListDetailMetrics.inputActionSpacing)) {
-                        IconButton(
+                    historyOptions.forEachIndexed { index, option ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = option,
+                                    style = inputTextStyle,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
                             onClick = {
+                                newTaskText = option
                                 addTask()
                                 newTaskFocusRequester.requestFocus()
-                            },
-                            enabled = newTaskText.trim().isNotEmpty(),
-                            modifier = Modifier.size(TaskListDetailMetrics.addActionIconButtonSize)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = t.t("common.add"),
-                                modifier = Modifier.size(TaskListDetailMetrics.addActionIconSize)
-                            )
+                            }
+                        )
+                        if (index != historyOptions.lastIndex) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                         }
                     }
                 }

@@ -183,6 +183,7 @@ private struct TaskListDetail: Identifiable, Hashable {
     let id: String
     let name: String
     let tasks: [TaskSummary]
+    let history: [String]
     let memberCount: Int
     let background: String?
     let shareCode: String?
@@ -262,6 +263,9 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
     let name = (data["name"] as? String ?? "").precomposedStringWithCanonicalMapping
     let memberCount = (data["memberCount"] as? NSNumber)?.intValue ?? 1
     let background = data["background"] as? String
+    let history = (data["history"] as? [String] ?? []).map {
+        $0.precomposedStringWithCanonicalMapping
+    }
     let rawTasks = data["tasks"] as? [String: Any] ?? [:]
 
     let tasks = rawTasks.compactMap { entry -> TaskSummary? in
@@ -292,6 +296,7 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
         id: id,
         name: name,
         tasks: tasks,
+        history: history,
         memberCount: memberCount,
         background: background,
         shareCode: shareCode
@@ -2871,6 +2876,27 @@ private struct TaskListDetailPage: View {
         return updates
     }
 
+    private func buildHistory(newText: String, oldText: String? = nil) -> [String] {
+        let candidate = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty else { return taskList.history }
+        let trimmedOldText = oldText?.trimmingCharacters(in: .whitespacesAndNewlines)
+        var result: [String] = []
+        var seen = Set<String>()
+
+        for entry in [candidate] + taskList.history {
+            let trimmed = entry.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { continue }
+            if let trimmedOldText, trimmed == trimmedOldText { continue }
+            let normalized = trimmed.lowercased()
+            if seen.contains(normalized) { continue }
+            seen.insert(normalized)
+            result.append(trimmed)
+            if result.count >= 300 { break }
+        }
+
+        return result
+    }
+
     private func normalizedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
         autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks)
     }
@@ -2958,6 +2984,31 @@ private struct TaskListDetailPage: View {
     @State private var showDeleteListAlert = false
     @State private var shareCopySuccess = false
     @State private var shareError: String? = nil
+    @State private var isHistoryPopoverPresented = false
+
+    private var historyOptions: [String] {
+        let input = newTaskText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if input.count < 2 { return [] }
+        let inputLower = input.lowercased()
+        var seen = Set<String>()
+        var options: [String] = []
+        for candidate in taskList.history {
+            let option = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+            if option.isEmpty { continue }
+            let optionLower = option.lowercased()
+            if optionLower == inputLower || !optionLower.contains(inputLower) || seen.contains(optionLower) {
+                continue
+            }
+            seen.insert(optionLower)
+            options.append(option)
+            if options.count >= 20 { break }
+        }
+        return options
+    }
+
+    private func syncHistoryPopover() {
+        isHistoryPopoverPresented = isNewTaskFocused && !historyOptions.isEmpty
+    }
 
     var body: some View {
         ScrollView {
@@ -2992,54 +3043,93 @@ private struct TaskListDetailPage: View {
                     .padding(.leading, TaskListDetailMetrics.headerActionSpacing)
                 }
 
-                HStack(spacing: 8) {
-                    TextField(translations.t("pages.tasklist.addTaskPlaceholder"), text: $newTaskText)
-                        .focused($isNewTaskFocused)
-                        .onSubmit { addTask() }
-                        .padding(.horizontal, TaskListDetailMetrics.inputHorizontalPadding)
-                        .padding(.vertical, TaskListDetailMetrics.inputVerticalPadding)
-                        .background(Color(.systemBackground).opacity(0.92))
-                        .clipShape(RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous)
-                                .stroke(Color(.separator).opacity(0.45), lineWidth: TaskListDetailMetrics.inputBorderWidth)
-                        )
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            TextField(translations.t("pages.tasklist.addTaskPlaceholder"), text: $newTaskText)
+                                .focused($isNewTaskFocused)
+                                .onSubmit { addTask() }
+                                .onChange(of: isNewTaskFocused) { _, _ in
+                                    syncHistoryPopover()
+                                }
+                                .onChange(of: newTaskText) { _, _ in
+                                    syncHistoryPopover()
+                                }
+                                .padding(.horizontal, TaskListDetailMetrics.inputHorizontalPadding)
+                                .padding(.vertical, TaskListDetailMetrics.inputVerticalPadding)
+                                .background(Color(.systemBackground).opacity(0.92))
+                                .clipShape(RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous)
+                                        .stroke(Color(.separator).opacity(0.45), lineWidth: TaskListDetailMetrics.inputBorderWidth)
+                                )
+                                .popover(isPresented: $isHistoryPopoverPresented) {
+                                    ScrollView {
+                                        VStack(spacing: 0) {
+                                            ForEach(historyOptions, id: \.self) { option in
+                                                Button {
+                                                    newTaskText = option
+                                                    isHistoryPopoverPresented = false
+                                                    addTask()
+                                                } label: {
+                                                    HStack {
+                                                        Text(option)
+                                                            .font(.system(size: 15))
+                                                            .foregroundStyle(.primary)
+                                                        Spacer()
+                                                    }
+                                                    .padding(.horizontal, 12)
+                                                    .padding(.vertical, 10)
+                                                    .contentShape(Rectangle())
+                                                }
+                                                .buttonStyle(.plain)
+                                                if option != historyOptions.last {
+                                                    Divider()
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .frame(minWidth: 280, maxWidth: 420, maxHeight: 220, alignment: .topLeading)
+                                    .presentationCompactAdaptation(.popover)
+                                }
 
-                    if !newTaskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Button { addTask() } label: {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: TaskListDetailMetrics.addActionIconSize, weight: .semibold))
-                                .foregroundStyle(.primary)
-                                .frame(width: 24, height: 24)
+                            if !newTaskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                Button { addTask() } label: {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: TaskListDetailMetrics.addActionIconSize, weight: .semibold))
+                                        .foregroundStyle(.primary)
+                                        .frame(width: 24, height: 24)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("タスクを追加")
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("タスクを追加")
                     }
-                }
 
-                HStack {
-                    Button { handleSortTasks() } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "line.3.horizontal.decrease")
-                                .font(.system(size: TaskListDetailMetrics.actionIconSize, weight: .semibold))
-                            Text(translations.t("pages.tasklist.sort"))
-                                .font(.system(size: 15, weight: .semibold))
+                    HStack {
+                        Button { handleSortTasks() } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "line.3.horizontal.decrease")
+                                    .font(.system(size: TaskListDetailMetrics.actionIconSize, weight: .semibold))
+                                Text(translations.t("pages.tasklist.sort"))
+                                    .font(.system(size: 15, weight: .semibold))
+                            }
                         }
-                    }
-                    .disabled(taskList.tasks.count < 2)
-                    Spacer()
-                    Button { UINotificationFeedbackGenerator().notificationOccurred(.warning); showDeleteCompletedAlert = true } label: {
-                        HStack(spacing: 4) {
-                            Text(translations.t("pages.tasklist.deleteCompleted"))
-                                .font(.system(size: 15, weight: .semibold))
-                            Image(systemName: "trash")
-                                .font(.system(size: TaskListDetailMetrics.actionIconSize, weight: .semibold))
+                        .disabled(taskList.tasks.count < 2)
+                        Spacer()
+                        Button { UINotificationFeedbackGenerator().notificationOccurred(.warning); showDeleteCompletedAlert = true } label: {
+                            HStack(spacing: 4) {
+                                Text(translations.t("pages.tasklist.deleteCompleted"))
+                                    .font(.system(size: 15, weight: .semibold))
+                                Image(systemName: "trash")
+                                    .font(.system(size: TaskListDetailMetrics.actionIconSize, weight: .semibold))
+                            }
                         }
+                        .disabled(taskList.tasks.allSatisfy { !$0.completed })
                     }
-                    .disabled(taskList.tasks.allSatisfy { !$0.completed })
+                    .foregroundStyle(.secondary)
+                    .padding(.top, TaskListDetailMetrics.actionRowTopPadding)
                 }
-                .foregroundStyle(.secondary)
-                .padding(.top, TaskListDetailMetrics.actionRowTopPadding)
 
                 if taskList.tasks.isEmpty {
                     Text(translations.t("pages.tasklist.noTasks"))
@@ -3473,7 +3563,11 @@ private struct TaskListDetailPage: View {
                     pinned: current.id == task.id && resolved.pinnedFromInput ? true : current.pinned
                 )
             }
-            persistTasks(updatedTasks)
+            var updates = buildTaskUpdateData(normalizedTasks(updatedTasks))
+            if textChanged {
+                updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
+            }
+            updateTaskList(updates)
             return
         }
 
@@ -3484,6 +3578,9 @@ private struct TaskListDetailPage: View {
         ]
         if pinnedChanged {
             updates["tasks.\(task.id).pinned"] = true
+        }
+        if textChanged {
+            updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
         }
         updateTaskList(updates)
     }
@@ -3587,7 +3684,9 @@ private struct TaskListDetailPage: View {
             var reorderedTasks = taskList.tasks
             let insertIndex = taskInsertPosition == "top" ? 0 : reorderedTasks.count
             reorderedTasks.insert(insertedTask, at: insertIndex)
-            persistTasks(reorderedTasks)
+            var updates = buildTaskUpdateData(normalizedTasks(reorderedTasks))
+            updates["history"] = buildHistory(newText: parsed.text)
+            updateTaskList(updates)
             return
         }
 
@@ -3598,6 +3697,7 @@ private struct TaskListDetailPage: View {
             "tasks.\(taskId).date": parsed.date ?? "",
             "tasks.\(taskId).order": order,
             "tasks.\(taskId).pinned": parsed.pinnedFromInput,
+            "history": buildHistory(newText: parsed.text),
             "updatedAt": now
         ])
     }

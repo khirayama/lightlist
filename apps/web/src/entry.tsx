@@ -2884,7 +2884,11 @@ export async function removeShareCode(taskListId: string) {
 }
 
 function generateRandomShareCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  return Array.from(
+    crypto.getRandomValues(new Uint32Array(8)),
+    (value) => chars[value % chars.length],
+  ).join("");
 }
 
 export async function generateShareCode(taskListId: string): Promise<string> {

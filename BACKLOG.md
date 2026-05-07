@@ -6,9 +6,12 @@
 
 ## BACKLOG
 
+https://gen.typesetting.jp/ このフォントをWeb/iOS/Androidに導入
+apps/android UI調整。アイコンが一直線になるように微調整
+apps/android モーダルUIを整理。サイズがでかい
 apps/ios タスク入力で先頭が大文字になってしまう。標準ならよいが、設定次第なら調整したい。
 apps/ios 本番用Firebaseでbuildできるようにする
-apps/android モーダルUIを整理。サイズがでかい
+apps/web apps/ios apps/android 各プラットフォームの作法に合わせて、ライセンス表記を追加
 
 Goal: タスク入力にフォーカスしたら、既存のタスク一覧画面上で入力モードビューに遷移し、全画面に近い入力UIへアニメーション付きで切り替える。各プラットフォームの既存ナビゲーションと入力管理方式に沿って実装する。
 Success criteria:

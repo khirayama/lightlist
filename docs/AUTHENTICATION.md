@@ -107,6 +107,8 @@
 - iOS の共有コード deep link は `lightlist://sharecodes/CODE` と `https://lightlist.com/sharecodes/CODE` を受け、未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - Android の deep link は `lightlist://password-reset?oobCode=...`、`lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`、`https://lightlist.com/password_reset?oobCode=...` を処理する。
 - Android の共有コード deep link は未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
+- 有効な共有コードを知っている利用者は、未認証でも対象リストの閲覧と編集を行える。共有コードは bearer credential として扱い、タスク編集だけでなくリスト名・履歴・背景・共有コード自体の更新にも使える。
+- 認証済みユーザーが共有リストを自分の一覧へ追加する時は `taskListOrder/{uid}` への追加が権限付与の正本として機能し、その後は保持リストとして通常アクセスできる。
 - iOS / Android のサインイン画面は、Web と同様に全画面背景の中央へ最大幅約 `480pt/dp` のフォームサーフェスを置く。余白は外周側で確保し、カード背景はフォーム本文だけに付与する。
 - Android の認証フォームは Compose Autofill を有効にするため `contentType` を必須とし、サインインのメール欄は `Username + EmailAddress`、既存パスワード欄は `Password`、サインアップとパスワードリセットの新規パスワード欄は `NewPassword` を設定する。
 - Android の未ログイン起動時の認証画面は、保存済み設定が無い場合に端末ロケールをサポート言語 (`ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`) へ丸めて初回表示言語として使う。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` へ丸め、それ以外の未対応ロケールは `ja` にフォールバックする。

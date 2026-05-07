@@ -118,13 +118,16 @@
 ## 共有権限
 
 - 共有 URL を知っているユーザーは、未認証でも共有リストを閲覧・編集できる。
+- 共有コードは bearer credential として扱い、コードを知っている利用者は認証状態に関わらず対象リストの `name` `tasks` `history` `background` `shareCode` を更新できる。
 - 自分の一覧へ追加する操作だけは認証が必要。
+- 認証済みユーザーは、自分の `taskListOrder/{uid}` へ `taskListId` を追加することで、そのリストを自分の保持リストとして扱う。これは共有済み・参加済みリストを自分の一覧へ取り込むための意図した権限付与手段とする。
 
 ## Firestore ルール
 
 - `settings/{uid}` と `taskListOrder/{uid}` は本人のみ読み書き可能。
 - `shareCodes/{shareCode}` は `get` のみ誰でも可能で、`list` は不可。
 - `taskLists/{taskListId}` は、自分の `taskListOrder` に含まれるか、有効な `shareCode` がある場合に読み書きできる。
+- `taskListOrder/{uid}` の本人書き込み内容は制限せず、対象 `taskListId` を保持リストへ追加した時点で `taskLists/{taskListId}` へのアクセス根拠として扱う。
 - `taskLists` の削除は最後の保持者のみ可能。
 - `memberCount` は通常据え置きで、参加時 `+1`、離脱時 `-1` のみ許可する。
 

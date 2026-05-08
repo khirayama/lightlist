@@ -60,6 +60,13 @@ targets:
           - CFBundleTypeRole: Editor
             CFBundleURLSchemes:
               - lightlist
+        INFOPLIST_KEY_UIAppFonts:
+          - GenInterfaceJP-Regular.ttf
+          - GenInterfaceJP-Medium.ttf
+          - GenInterfaceJP-SemiBold.ttf
+          - GenInterfaceJP-Bold.ttf
+          - GenInterfaceJPDisplay-Bold.ttf
+          - GenInterfaceJPDisplay-ExtraBold.ttf
         CODE_SIGN_ENTITLEMENTS: Lightlist/Lightlist.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.lightlist.app
         PRODUCT_NAME: Lightlist

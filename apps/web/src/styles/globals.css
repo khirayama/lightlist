@@ -1,8 +1,17 @@
+@import url("/fonts/gen-interface-jp/400.css");
+@import url("/fonts/gen-interface-jp/500.css");
+@import url("/fonts/gen-interface-jp/600.css");
+@import url("/fonts/gen-interface-jp/700.css");
+@import url("/fonts/gen-interface-jp/display-700.css");
+@import url("/fonts/gen-interface-jp/display-800.css");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  --font-gen-interface-jp: "Gen Interface JP";
+  --font-gen-interface-jp-display: "Gen Interface JP Display";
   --dialog-bg: #ffffff;
   --dialog-fg: #111827;
   --dialog-muted: #4b5563;
@@ -30,6 +39,14 @@ body {
 }
 
 @layer base {
+  h1,
+  h2,
+  h3 {
+    font-family:
+      var(--font-gen-interface-jp-display), var(--font-gen-interface-jp),
+      "Hiragino Sans", "Yu Gothic", "YuGothic", system-ui, sans-serif;
+  }
+
   * {
     scrollbar-width: thin;
     scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
@@ -63,5 +80,13 @@ body {
 
   .dark *::-webkit-scrollbar-thumb:hover {
     background-color: rgba(75, 85, 99, 0.6);
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family:
+      var(--font-gen-interface-jp-display), var(--font-gen-interface-jp),
+      "Hiragino Sans", "Yu Gothic", "YuGothic", system-ui, sans-serif;
   }
 }

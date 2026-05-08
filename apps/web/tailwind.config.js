@@ -43,8 +43,17 @@ export default {
       },
       fontFamily: {
         sans: [
-          "var(--font-inter)",
-          "var(--font-noto-sans-jp)",
+          "var(--font-gen-interface-jp)",
+          "Hiragino Sans",
+          "Yu Gothic",
+          "YuGothic",
+          "system-ui",
+          "sans-serif",
+        ],
+        display: [
+          "var(--font-gen-interface-jp-display)",
+          "var(--font-gen-interface-jp)",
+          "Hiragino Sans",
           "Yu Gothic",
           "YuGothic",
           "system-ui",

@@ -704,7 +704,9 @@ class ErrorBoundaryBase extends Component<
                 className="h-6 w-6 text-red-600 dark:text-red-400"
               />
             </div>
-            <h2 className="text-lg font-semibold">{t("pages.error.title")}</h2>
+            <h2 className="font-display text-lg font-semibold">
+              {t("pages.error.title")}
+            </h2>
             <p className="text-sm text-muted dark:text-muted-dark">
               {t("pages.error.description")}
             </p>
@@ -3626,7 +3628,7 @@ function SettingsView({ onBack, showBackButton = false }: SettingsViewProps) {
               />
             </button>
           ) : null}
-          <h1 className="min-w-0 flex-1 text-2xl font-semibold tracking-tight">
+          <h1 className="font-display min-w-0 flex-1 text-2xl font-semibold tracking-tight">
             {t("settings.title")}
           </h1>
         </header>
@@ -3907,7 +3909,9 @@ function NotFoundPage() {
             className="h-6 w-6 text-gray-600 dark:text-gray-400"
           />
         </div>
-        <h1 className="text-lg font-semibold">{t("pages.notFound.title")}</h1>
+        <h1 className="font-display text-lg font-semibold">
+          {t("pages.notFound.title")}
+        </h1>
         <p className="text-sm text-muted dark:text-muted-dark">
           {t("pages.notFound.description")}
         </p>
@@ -3939,7 +3943,7 @@ function ServerErrorPage() {
             className="h-6 w-6 text-red-600 dark:text-red-400"
           />
         </div>
-        <h1 className="text-lg font-semibold">
+        <h1 className="font-display text-lg font-semibold">
           {t("pages.serverError.title")}
         </h1>
         <p className="text-sm text-muted dark:text-muted-dark">
@@ -4907,7 +4911,9 @@ function TaskListCard({
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <h2 className="m-0 text-xl font-semibold">{taskList.name}</h2>
+                  <h2 className="font-display m-0 text-xl font-semibold">
+                    {taskList.name}
+                  </h2>
                 </div>
                 <div className="relative left-2 flex flex-wrap justify-end">
                   <Dialog
@@ -7219,7 +7225,7 @@ function IndexPage() {
             <div className="mx-auto max-w-3xl text-center">
               <h1
                 id="landing-hero-title"
-                className="whitespace-pre-line text-[2.6rem] font-semibold tracking-[-0.05em] text-[#121212] dark:text-[#f5f5f5] sm:text-6xl lg:text-7xl"
+                className="font-display whitespace-pre-line text-[2.6rem] font-semibold tracking-[-0.05em] text-[#121212] dark:text-[#f5f5f5] sm:text-6xl lg:text-7xl"
               >
                 {t("pages.index.headline")}
               </h1>
@@ -7276,7 +7282,7 @@ function IndexPage() {
             <div className="mx-auto max-w-2xl text-center">
               <h2
                 id="landing-features-title"
-                className="text-3xl font-semibold tracking-[-0.04em] text-[#151515] dark:text-[#f2f2f2] sm:text-4xl"
+                className="font-display text-3xl font-semibold tracking-[-0.04em] text-[#151515] dark:text-[#f2f2f2] sm:text-4xl"
               >
                 {t("pages.index.features.title")}
               </h2>
@@ -7293,7 +7299,7 @@ function IndexPage() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f5f5f5] dark:bg-white/5">
                     {icon}
                   </div>
-                  <h3 className="mt-5 text-xl font-semibold text-[#1c1c1c] dark:text-[#f2f2f2]">
+                  <h3 className="font-display mt-5 text-xl font-semibold text-[#1c1c1c] dark:text-[#f2f2f2]">
                     {t(`pages.index.features.${key}.title`)}
                   </h3>
                   <p className="mt-3 text-sm leading-7 text-[#666666] dark:text-[#b8b8b8]">
@@ -7318,7 +7324,7 @@ function IndexPage() {
             />
             <h2
               id="landing-cta-title"
-              className="mt-8 text-3xl font-semibold tracking-[-0.04em] text-[#121212] dark:text-[#f5f5f5] sm:text-5xl"
+              className="font-display mt-8 text-3xl font-semibold tracking-[-0.04em] text-[#121212] dark:text-[#f5f5f5] sm:text-5xl"
             >
               {t("pages.index.cta.title")}
             </h2>
@@ -7535,7 +7541,7 @@ function LoginPage() {
       >
         <div className="w-full rounded-2xl border border-border bg-surface p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark sm:p-8">
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
               {t("title")}
             </h1>
           </div>
@@ -7965,7 +7971,7 @@ function PasswordResetPage() {
       >
         <div className="w-full rounded-2xl border border-border bg-surface p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark sm:p-8">
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
               {t("auth.passwordReset.title")}
             </h1>
           </div>
@@ -8134,7 +8140,7 @@ function ShareCodePreviewPage() {
             style={{ backgroundColor: taskList.background ?? undefined }}
           >
             <header className="flex items-center justify-between gap-3">
-              <h1 className="text-xl font-semibold text-text dark:text-text-dark">
+              <h1 className="font-display text-xl font-semibold text-text dark:text-text-dark">
                 {taskList.name}
               </h1>
             </header>

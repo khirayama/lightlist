@@ -18,8 +18,14 @@
 		89CB2AA3EC79089749AE0FDC /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */; };
 		940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */; };
 		A6770824316C099D24A28312 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */; };
+		AC435305172D0AB359635835 /* GenInterfaceJP-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F069413852FDD95B929B55BB /* GenInterfaceJP-Medium.ttf */; };
+		AED11886C733A359C1C4C94D /* GenInterfaceJPDisplay-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */; };
+		DCA7F06671A939FE685A39D4 /* GenInterfaceJPDisplay-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */; };
+		EDB0B08DEFFC531DC60C7995 /* GenInterfaceJP-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EF706C384D72391FD32EA55D /* GenInterfaceJP-SemiBold.ttf */; };
 		F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */; };
 		F6AEE5CF134912C7EE97AC4E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A627AA500EE83986B1828B17 /* ContentView.swift */; };
+		F7675E7D98C4D697EA7B7314 /* GenInterfaceJP-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 931A2D9664B0C1631B7FC40E /* GenInterfaceJP-Regular.ttf */; };
+		FE009DFB7FB0FB9E550E1E0D /* GenInterfaceJP-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9DC1459A6D18434358F8BB59 /* GenInterfaceJP-Bold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,14 +40,20 @@
 
 /* Begin PBXFileReference section */
 		03E96005FE689A03AE608611 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJPDisplay-Bold.ttf"; sourceTree = "<group>"; };
+		44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJPDisplay-ExtraBold.ttf"; sourceTree = "<group>"; };
 		4887635BC82911AD4C4F8470 /* GoogleService-Info.prod.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.prod.plist"; sourceTree = "<group>"; };
 		5615019F3DBD2986C21F8B42 /* locales.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = locales.json; sourceTree = "<group>"; };
 		5F18EECC750B7FE6A93E5288 /* LightlistTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LightlistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		931A2D9664B0C1631B7FC40E /* GenInterfaceJP-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJP-Regular.ttf"; sourceTree = "<group>"; };
+		9DC1459A6D18434358F8BB59 /* GenInterfaceJP-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJP-Bold.ttf"; sourceTree = "<group>"; };
 		A627AA500EE83986B1828B17 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B655550126664DF5B14E98D0 /* Lightlist.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Lightlist.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7C4AFDF92886FBDFA0EAB45 /* LightlistTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightlistTests.swift; sourceTree = "<group>"; };
+		EF706C384D72391FD32EA55D /* GenInterfaceJP-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJP-SemiBold.ttf"; sourceTree = "<group>"; };
+		F069413852FDD95B929B55BB /* GenInterfaceJP-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJP-Medium.ttf"; sourceTree = "<group>"; };
 		F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -105,10 +117,24 @@
 				644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */,
 				4887635BC82911AD4C4F8470 /* GoogleService-Info.prod.plist */,
 				F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */,
+				D1B0D57606F7CD298729AC51 /* Fonts */,
 				1C627F24DFEA9370108D68BC /* Preview Content */,
 			);
 			name = Resources;
 			path = Lightlist/Resources;
+			sourceTree = "<group>";
+		};
+		D1B0D57606F7CD298729AC51 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				9DC1459A6D18434358F8BB59 /* GenInterfaceJP-Bold.ttf */,
+				F069413852FDD95B929B55BB /* GenInterfaceJP-Medium.ttf */,
+				931A2D9664B0C1631B7FC40E /* GenInterfaceJP-Regular.ttf */,
+				EF706C384D72391FD32EA55D /* GenInterfaceJP-SemiBold.ttf */,
+				2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */,
+				44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */,
+			);
+			path = Fonts;
 			sourceTree = "<group>";
 		};
 		D3781430FB8EF16DB27B8124 /* Tests */ = {
@@ -215,6 +241,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				178E6DEBCEC4A72419C5ADCA /* Assets.xcassets in Resources */,
+				FE009DFB7FB0FB9E550E1E0D /* GenInterfaceJP-Bold.ttf in Resources */,
+				AC435305172D0AB359635835 /* GenInterfaceJP-Medium.ttf in Resources */,
+				F7675E7D98C4D697EA7B7314 /* GenInterfaceJP-Regular.ttf in Resources */,
+				EDB0B08DEFFC531DC60C7995 /* GenInterfaceJP-SemiBold.ttf in Resources */,
+				DCA7F06671A939FE685A39D4 /* GenInterfaceJPDisplay-Bold.ttf in Resources */,
+				AED11886C733A359C1C4C94D /* GenInterfaceJPDisplay-ExtraBold.ttf in Resources */,
 				A6770824316C099D24A28312 /* GoogleService-Info.plist in Resources */,
 				5BAAF63D7439A714D2BF1D47 /* GoogleService-Info.prod.plist in Resources */,
 				940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */,
@@ -310,6 +342,14 @@
 				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleTypeRole\": \"Editor\", \"CFBundleURLSchemes\": [\"lightlist\"]]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
+				INFOPLIST_KEY_UIAppFonts = (
+					"GenInterfaceJP-Regular.ttf",
+					"GenInterfaceJP-Medium.ttf",
+					"GenInterfaceJP-SemiBold.ttf",
+					"GenInterfaceJP-Bold.ttf",
+					"GenInterfaceJPDisplay-Bold.ttf",
+					"GenInterfaceJPDisplay-ExtraBold.ttf",
+				);
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -477,6 +517,14 @@
 				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleTypeRole\": \"Editor\", \"CFBundleURLSchemes\": [\"lightlist\"]]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
+				INFOPLIST_KEY_UIAppFonts = (
+					"GenInterfaceJP-Regular.ttf",
+					"GenInterfaceJP-Medium.ttf",
+					"GenInterfaceJP-SemiBold.ttf",
+					"GenInterfaceJP-Bold.ttf",
+					"GenInterfaceJPDisplay-Bold.ttf",
+					"GenInterfaceJPDisplay-ExtraBold.ttf",
+				);
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

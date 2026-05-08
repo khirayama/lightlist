@@ -59,6 +59,40 @@ private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
     return nil
 }
 
+private enum AppTypography {
+    static func body() -> Font {
+        .custom("GenInterfaceJP-Regular", size: 17, relativeTo: .body)
+    }
+
+    static func bodyMedium() -> Font {
+        .custom("GenInterfaceJP-Medium", size: 17, relativeTo: .body)
+    }
+
+    static func subheadline() -> Font {
+        .custom("GenInterfaceJP-Regular", size: 15, relativeTo: .subheadline)
+    }
+
+    static func subheadlineMedium() -> Font {
+        .custom("GenInterfaceJP-Medium", size: 15, relativeTo: .subheadline)
+    }
+
+    static func caption() -> Font {
+        .custom("GenInterfaceJP-Regular", size: 12, relativeTo: .caption)
+    }
+
+    static func captionSemibold() -> Font {
+        .custom("GenInterfaceJP-SemiBold", size: 12, relativeTo: .caption)
+    }
+
+    static func title() -> Font {
+        .custom("GenInterfaceJPDisplay-Bold", size: 28, relativeTo: .title)
+    }
+
+    static func headline() -> Font {
+        .custom("GenInterfaceJPDisplay-Bold", size: 17, relativeTo: .headline)
+    }
+}
+
 @MainActor
 final class Translations: ObservableObject {
     @Published private(set) var language: String = "ja"
@@ -949,6 +983,7 @@ struct RootView: View {
                 compactRoot
             }
         }
+        .font(AppTypography.body())
         .preferredColorScheme(colorScheme)
         .onAppear { startListening() }
         .onDisappear { stopListening() }
@@ -1183,7 +1218,7 @@ private struct ScreenScaffold<Content: View>: View {
 
                 VStack(spacing: 24) {
                     Text(title)
-                        .font(.title.weight(.semibold))
+                        .font(AppTypography.title())
 
                     content()
                 }
@@ -1318,7 +1353,7 @@ private struct AuthView: View {
                             Image(systemName: "globe")
                             Text(supportedLanguages.first(where: { $0.code == selectedLanguage })?.name ?? selectedLanguage)
                         }
-                        .font(.subheadline.weight(.medium))
+                        .font(AppTypography.subheadlineMedium())
                     }
                     .accessibilityLabel(translations.t("settings.language.title"))
                 }
@@ -1394,7 +1429,7 @@ private struct SignInView: View {
             ForEach([emailError, passwordError, errorMessage].compactMap { $0 }, id: \.self) { message in
                 Text(message)
                     .foregroundStyle(.red)
-                    .font(.caption)
+                    .font(AppTypography.caption())
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -1475,7 +1510,7 @@ private struct SignUpView: View {
             ForEach([emailError, passwordError, confirmPasswordError, errorMessage].compactMap { $0 }, id: \.self) { message in
                 Text(message)
                     .foregroundStyle(.red)
-                    .font(.caption)
+                    .font(AppTypography.caption())
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -1583,7 +1618,7 @@ private struct PasswordResetRequestView: View {
     var body: some View {
         VStack(spacing: 16) {
             Text(translations.t("auth.passwordReset.instruction"))
-                .font(.subheadline)
+                .font(AppTypography.subheadline())
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -1597,14 +1632,14 @@ private struct PasswordResetRequestView: View {
             ForEach([emailError, errorMessage].compactMap { $0 }, id: \.self) { message in
                 Text(message)
                     .foregroundStyle(.red)
-                    .font(.caption)
+                    .font(AppTypography.caption())
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             if let successMessage {
                 Text(successMessage)
                     .foregroundStyle(.green)
-                    .font(.caption)
+                    .font(AppTypography.caption())
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -1691,7 +1726,7 @@ private struct PasswordResetView: View {
                 if let errorMessage {
                     Text(errorMessage)
                         .foregroundStyle(.red)
-                        .font(.caption)
+                        .font(AppTypography.caption())
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
@@ -1939,7 +1974,7 @@ private struct TaskListsView: View {
             VStack(spacing: 0) {
                 HStack {
                     Text(displayedUserEmail)
-                        .font(.subheadline)
+                        .font(AppTypography.subheadline())
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
@@ -1973,7 +2008,7 @@ private struct TaskListsView: View {
                         Image(systemName: "calendar")
                             .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .medium))
                         Text(translations.t("app.calendarCheckButton"))
-                            .font(.body)
+                            .font(AppTypography.body())
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -1996,7 +2031,7 @@ private struct TaskListsView: View {
                 } else if viewModel.status == .error {
                     Text(translations.t("app.loadError"))
                         .foregroundStyle(.red)
-                        .font(.subheadline)
+                        .font(AppTypography.subheadline())
                         .padding(.horizontal, 16)
                 } else if viewModel.taskLists.isEmpty {
                     Text(translations.t("app.emptyState"))
@@ -2059,10 +2094,10 @@ private struct TaskListsView: View {
 
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(taskList.name)
-                                            .font(.body.weight(.medium))
+                                            .font(AppTypography.bodyMedium())
                                             .foregroundStyle(.primary)
                                         Text(translations.t("taskList.taskCount", ["count": "\(taskList.taskCount)"]))
-                                            .font(.subheadline)
+                                            .font(AppTypography.subheadline())
                                             .foregroundStyle(.secondary)
                                     }
 
@@ -2113,7 +2148,7 @@ private struct TaskListsView: View {
                         showCreateSheet = true
                     } label: {
                         Text(translations.t("app.createNew"))
-                            .font(.body.weight(.medium))
+                            .font(AppTypography.bodyMedium())
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(Color.accentColor)
@@ -2128,7 +2163,7 @@ private struct TaskListsView: View {
                         showJoinSheet = true
                     } label: {
                         Text(translations.t("app.joinList"))
-                            .font(.body.weight(.medium))
+                            .font(AppTypography.bodyMedium())
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .overlay(
@@ -2190,7 +2225,7 @@ private struct TaskListsView: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text(translations.t("taskList.selectColor"))
-                            .font(.subheadline)
+                            .font(AppTypography.subheadline())
                             .foregroundStyle(.secondary)
                             .padding(.horizontal)
 
@@ -2257,13 +2292,13 @@ private struct TaskListsView: View {
             NavigationStack {
                 VStack(spacing: 16) {
                     Text(translations.t("app.joinListDescription"))
-                        .font(.subheadline)
+                        .font(AppTypography.subheadline())
                         .foregroundStyle(.secondary)
 
                     if let error = joinListError {
                         Text(error)
                             .foregroundStyle(.red)
-                            .font(.subheadline)
+                            .font(AppTypography.subheadline())
                     }
 
                     TextField(translations.t("app.shareCodePlaceholder"), text: $joinListInput)
@@ -3305,7 +3340,7 @@ private struct TaskListDetailPage: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text(translations.t("taskList.selectColor"))
-                            .font(.subheadline)
+                            .font(AppTypography.subheadline())
                             .foregroundStyle(.secondary)
                             .padding(.horizontal)
 
@@ -3425,13 +3460,13 @@ private struct TaskListDetailPage: View {
                     if let error = shareError {
                         Text(error)
                             .foregroundStyle(.red)
-                            .font(.subheadline)
+                            .font(AppTypography.subheadline())
                     }
 
                     if let code = currentShareCode {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(translations.t("taskList.shareCode"))
-                                .font(.subheadline)
+                                .font(AppTypography.subheadline())
                                 .foregroundStyle(.secondary)
                             HStack {
                                 Text(code)
@@ -3470,7 +3505,7 @@ private struct TaskListDetailPage: View {
                         .disabled(removingShareCode)
                     } else {
                         Text(translations.t("taskList.shareDescription"))
-                            .font(.subheadline)
+                            .font(AppTypography.subheadline())
                             .foregroundStyle(.secondary)
 
                         Button {
@@ -4080,7 +4115,7 @@ private struct SharedTaskListPreviewView: View {
             if let addToOrderError {
                 Text(addToOrderError)
                     .foregroundStyle(.red)
-                    .font(.subheadline)
+                    .font(AppTypography.subheadline())
                     .padding(.top, 72)
                     .padding(.horizontal, 16)
             }
@@ -4278,7 +4313,7 @@ private struct SettingsView: View {
                     if let errorMessage {
                         Text(errorMessage)
                             .foregroundStyle(.red)
-                            .font(.caption)
+                            .font(AppTypography.caption())
                     }
                 } else {
                     ProgressView()
@@ -4358,7 +4393,7 @@ private struct SettingsView: View {
     private func settingsCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(.caption.weight(.semibold))
+                .font(AppTypography.captionSemibold())
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
                 .padding(.bottom, 6)
@@ -4436,10 +4471,10 @@ private struct SettingsView: View {
                     .autocapitalization(.none)
                     .textFieldStyle(.roundedBorder)
                 if let error = emailChangeError {
-                    Text(error).foregroundStyle(.red).font(.caption)
+                    Text(error).foregroundStyle(.red).font(AppTypography.caption())
                 }
                 if emailChangeSuccess {
-                    Text(translations.t("settings.emailChange.successMessage")).foregroundStyle(.green).font(.caption)
+                    Text(translations.t("settings.emailChange.successMessage")).foregroundStyle(.green).font(AppTypography.caption())
                 }
                 Button(isChangingEmail ? "..." : translations.t("settings.emailChange.submitButton")) {
                     isChangingEmail = true
@@ -4505,7 +4540,7 @@ private struct CalendarDayCell: View {
         Button(action: onTap) {
             VStack(spacing: 2) {
                 Text("\(Self.cal.component(.day, from: day))")
-                    .font(.subheadline)
+                    .font(AppTypography.subheadline())
                     .foregroundStyle(isSelected ? Color.white : Color.primary)
                     .frame(width: 44, height: 44)
                     .background(
@@ -4552,7 +4587,7 @@ private struct CalendarTaskRow: View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
                 Text(Self.displayFormatter.string(from: task.dateValue))
-                    .font(.caption)
+                    .font(AppTypography.caption())
                     .foregroundStyle(.secondary)
                     .frame(width: 80, alignment: .leading)
 
@@ -4561,14 +4596,14 @@ private struct CalendarTaskRow: View {
                         .fill(task.taskListBackground.flatMap { Color(hex: $0) } ?? Color.accentColor)
                         .frame(width: AppIconMetrics.calendarTaskColorDotSize, height: AppIconMetrics.calendarTaskColorDotSize)
                     Text(task.taskListName)
-                        .font(.caption)
+                        .font(AppTypography.caption())
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
                 .frame(width: 90, alignment: .leading)
 
                 Text(task.text)
-                    .font(.body)
+                    .font(AppTypography.body())
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -4686,7 +4721,7 @@ private struct CalendarScreenView: View {
                 .accessibilityLabel(translations.t("app.calendarPreviousMonth"))
                 Spacer()
                 Text(monthTitle)
-                    .font(.headline)
+                    .font(AppTypography.headline())
                 Spacer()
                 Button { shiftMonth(by: 1) } label: {
                     Image(systemName: "chevron.right")
@@ -4736,15 +4771,15 @@ private struct CalendarScreenView: View {
 
                 if tasksInMonth.isEmpty {
                     Spacer()
-                    Text(translations.t("app.calendarNoDatedTasks"))
-                        .foregroundStyle(.secondary)
-                        .font(.subheadline)
+                        Text(translations.t("app.calendarNoDatedTasks"))
+                            .foregroundStyle(.secondary)
+                            .font(AppTypography.subheadline())
                     Spacer()
                 } else if visibleTasks.isEmpty {
                     Spacer()
                     Text(translations.t("app.calendarNoTasksOnSelectedDate"))
                         .foregroundStyle(.secondary)
-                        .font(.subheadline)
+                        .font(AppTypography.subheadline())
                     Spacer()
                 } else {
                     ScrollViewReader { proxy in

@@ -66,6 +66,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
@@ -92,6 +93,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -133,7 +135,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -216,14 +217,42 @@ private val LightColorScheme = lightColorScheme(
     tertiary = Color(0xFF7D5260),
 )
 
+private val GenInterfaceJPBodyFontFamily = FontFamily(
+    Font(R.font.gen_interface_jp_regular, FontWeight.Normal),
+    Font(R.font.gen_interface_jp_medium, FontWeight.Medium),
+    Font(R.font.gen_interface_jp_semibold, FontWeight.SemiBold),
+    Font(R.font.gen_interface_jp_bold, FontWeight.Bold),
+)
+
+private val GenInterfaceJPDisplayFontFamily = FontFamily(
+    Font(R.font.gen_interface_jp_display_bold, FontWeight.Bold),
+    Font(R.font.gen_interface_jp_display_extrabold, FontWeight.ExtraBold),
+)
+
+private val BaseTypography = Typography()
+
 private val LightlistTypography = Typography(
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+    displayLarge = BaseTypography.displayLarge.copy(fontFamily = GenInterfaceJPDisplayFontFamily),
+    displayMedium = BaseTypography.displayMedium.copy(fontFamily = GenInterfaceJPDisplayFontFamily),
+    displaySmall = BaseTypography.displaySmall.copy(fontFamily = GenInterfaceJPDisplayFontFamily),
+    headlineLarge = BaseTypography.headlineLarge.copy(fontFamily = GenInterfaceJPDisplayFontFamily),
+    headlineMedium = BaseTypography.headlineMedium.copy(fontFamily = GenInterfaceJPDisplayFontFamily),
+    headlineSmall = BaseTypography.headlineSmall.copy(fontFamily = GenInterfaceJPDisplayFontFamily),
+    titleLarge = BaseTypography.titleLarge.copy(fontFamily = GenInterfaceJPDisplayFontFamily),
+    titleMedium = BaseTypography.titleMedium.copy(fontFamily = GenInterfaceJPDisplayFontFamily),
+    titleSmall = BaseTypography.titleSmall.copy(fontFamily = GenInterfaceJPDisplayFontFamily),
+    bodyLarge = BaseTypography.bodyLarge.copy(
+        fontFamily = GenInterfaceJPBodyFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp,
-    )
+    ),
+    bodyMedium = BaseTypography.bodyMedium.copy(fontFamily = GenInterfaceJPBodyFontFamily),
+    bodySmall = BaseTypography.bodySmall.copy(fontFamily = GenInterfaceJPBodyFontFamily),
+    labelLarge = BaseTypography.labelLarge.copy(fontFamily = GenInterfaceJPBodyFontFamily),
+    labelMedium = BaseTypography.labelMedium.copy(fontFamily = GenInterfaceJPBodyFontFamily),
+    labelSmall = BaseTypography.labelSmall.copy(fontFamily = GenInterfaceJPBodyFontFamily),
 )
 
 @Composable

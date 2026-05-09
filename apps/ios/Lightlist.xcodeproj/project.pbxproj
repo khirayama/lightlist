@@ -26,6 +26,7 @@
 		F6AEE5CF134912C7EE97AC4E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A627AA500EE83986B1828B17 /* ContentView.swift */; };
 		F7675E7D98C4D697EA7B7314 /* GenInterfaceJP-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 931A2D9664B0C1631B7FC40E /* GenInterfaceJP-Regular.ttf */; };
 		FE009DFB7FB0FB9E550E1E0D /* GenInterfaceJP-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9DC1459A6D18434358F8BB59 /* GenInterfaceJP-Bold.ttf */; };
+		FFD5490E2864081F7A21BA40 /* manual-licenses.json in Resources */ = {isa = PBXBuildFile; fileRef = 0049B0A7BA2F0C40048DD4CE /* manual-licenses.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -39,6 +40,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0049B0A7BA2F0C40048DD4CE /* manual-licenses.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "manual-licenses.json"; sourceTree = "<group>"; };
 		03E96005FE689A03AE608611 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJPDisplay-Bold.ttf"; sourceTree = "<group>"; };
 		44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJPDisplay-ExtraBold.ttf"; sourceTree = "<group>"; };
@@ -76,6 +78,7 @@
 		0CBB767CA9E4D97930F04AEC = {
 			isa = PBXGroup;
 			children = (
+				695AF3ECA8F1E9E6B14CEBB9 /* licenses */,
 				45CF26A86FDC418DCF71DBA5 /* locales */,
 				794F5D9817987A08766BEC43 /* Resources */,
 				DB6A27021DE17295F5B935D5 /* Sources */,
@@ -108,6 +111,15 @@
 			);
 			name = locales;
 			path = ../../shared/locales;
+			sourceTree = "<group>";
+		};
+		695AF3ECA8F1E9E6B14CEBB9 /* licenses */ = {
+			isa = PBXGroup;
+			children = (
+				0049B0A7BA2F0C40048DD4CE /* manual-licenses.json */,
+			);
+			name = licenses;
+			path = ../../shared/licenses;
 			sourceTree = "<group>";
 		};
 		794F5D9817987A08766BEC43 /* Resources */ = {
@@ -183,11 +195,13 @@
 				6DDBA329DCA0DE222A0C65D1 /* Sources */,
 				A1F5FC8773B87DE1F5659193 /* Resources */,
 				F480CC513E56F1F22B952DC2 /* Frameworks */,
+				5313B5FB14C792F714392252 /* Copy LicensePlist Output */,
 				3085898B266E90AFE4394C78 /* Firebase Crashlytics dSYM Upload */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				002302C262F77889CCFB5BBB /* PBXTargetDependency */,
 			);
 			name = Lightlist;
 			packageProductDependencies = (
@@ -223,6 +237,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				7EF3D4604DA627E61ABF0267 /* XCRemoteSwiftPackageReference "LicensePlist" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 16F14110FC3CE2425E62E837 /* Products */;
@@ -252,6 +267,7 @@
 				940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */,
 				F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */,
 				7860014FD9954EA01343DE72 /* locales.json in Resources */,
+				FFD5490E2864081F7A21BA40 /* manual-licenses.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -282,6 +298,24 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\ntouch \"${DERIVED_FILE_DIR}/firebase-crashlytics-dsym-upload\"\n";
 		};
+		5313B5FB14C792F714392252 /* Copy LicensePlist Output */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy LicensePlist Output";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "echo \"Copy LicensePlist output\"\nACKNOWLEDGEMENTS_DIR=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/com.mono0926.LicensePlist.Output\"\nDESTINATION_PATH=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Acknowledgements\"\nrm -rf \"${DESTINATION_PATH}\"\nmkdir -p \"${DESTINATION_PATH}\"\nif [ -d \"${ACKNOWLEDGEMENTS_DIR}\" ]; then\n  cp -R \"${ACKNOWLEDGEMENTS_DIR}\"/. \"${DESTINATION_PATH}\"\nfi\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -304,6 +338,10 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		002302C262F77889CCFB5BBB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = 630368C29EBF53BC2F5F8852 /* LicensePlistBuildTool */;
+		};
 		6589B2AF79B68BB544513673 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = ED9A22FCF5F5FD5C421D6FDF /* Lightlist */;
@@ -339,7 +377,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleTypeRole\": \"Editor\", \"CFBundleURLSchemes\": [\"lightlist\"]]]";
+				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
 				INFOPLIST_KEY_UIAppFonts = (
@@ -514,7 +552,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleTypeRole\": \"Editor\", \"CFBundleURLSchemes\": [\"lightlist\"]]]";
+				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
 				INFOPLIST_KEY_UIAppFonts = (
@@ -570,6 +608,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		7EF3D4604DA627E61ABF0267 /* XCRemoteSwiftPackageReference "LicensePlist" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mono0926/LicensePlist";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.27.5;
+			};
+		};
 		E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -595,6 +641,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAuth;
+		};
+		630368C29EBF53BC2F5F8852 /* LicensePlistBuildTool */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7EF3D4604DA627E61ABF0267 /* XCRemoteSwiftPackageReference "LicensePlist" */;
+			productName = "plugin:LicensePlistBuildTool";
 		};
 		6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */ = {
 			isa = XCSwiftPackageProductDependency;

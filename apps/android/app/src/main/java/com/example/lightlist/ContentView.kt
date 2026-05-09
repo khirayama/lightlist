@@ -192,6 +192,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import com.google.android.gms.oss.licenses.v2.OssLicensesMenuActivity
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
 import com.google.firebase.FirebaseApp
@@ -228,6 +229,33 @@ private val GenInterfaceJPDisplayFontFamily = FontFamily(
     Font(R.font.gen_interface_jp_display_bold, FontWeight.Bold),
     Font(R.font.gen_interface_jp_display_extrabold, FontWeight.ExtraBold),
 )
+
+private data class ManualLicense(
+    val id: String,
+    val name: String,
+    val license: String,
+    val source: String?,
+    val text: String
+)
+
+private fun loadManualLicenses(context: Context): List<ManualLicense> {
+    return try {
+        val json = context.assets.open("manual-licenses.json").bufferedReader().use { it.readText() }
+        val array = org.json.JSONArray(json)
+        List(array.length()) { index ->
+            val item = array.getJSONObject(index)
+            ManualLicense(
+                id = item.getString("id"),
+                name = item.getString("name"),
+                license = item.getString("license"),
+                source = item.optString("source").ifBlank { null },
+                text = item.getString("text")
+            )
+        }
+    } catch (_: Exception) {
+        emptyList()
+    }
+}
 
 private val BaseTypography = Typography()
 
@@ -5113,11 +5141,13 @@ private fun SettingsSelectRow(label: String, value: String, onClick: () -> Unit)
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun SettingsView(
     navController: NavController? = null,
     showTopBar: Boolean = true
 ) {
     val t = LocalTranslations.current
+    val context = LocalContext.current
     val userId = Firebase.auth.currentUser?.uid
     val uiState = rememberSettingsUiState(userId)
     val scope = rememberCoroutineScope()
@@ -5127,6 +5157,7 @@ private fun SettingsView(
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showPositionDialog by remember { mutableStateOf(false) }
     var showEmailChangeDialog by remember { mutableStateOf(false) }
+    var showBundledLicensesSheet by remember { mutableStateOf(false) }
     var newEmail by remember { mutableStateOf("") }
     var emailChangeError by remember { mutableStateOf<String?>(null) }
     var emailChangeSuccess by remember { mutableStateOf(false) }
@@ -5134,6 +5165,7 @@ private fun SettingsView(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isDeletingAccount by remember { mutableStateOf(false) }
     var isSigningOut by remember { mutableStateOf(false) }
+    val manualLicenses = remember(context) { loadManualLicenses(context) }
 
     fun updateSettings(partial: Map<String, Any>) {
         if (userId == null) return
@@ -5188,6 +5220,21 @@ private fun SettingsView(
                 SettingsSectionCard(title = t.t("settings.userInfo.title")) {
                     Text(uiState.userEmail)
                     TextButton(onClick = { showEmailChangeDialog = true }) { Text(t.t("settings.emailChange.title")) }
+                }
+                Spacer(Modifier.height(16.dp))
+                SettingsSectionCard(title = t.t("settings.legal.title")) {
+                    SettingsSelectRow(
+                        label = t.t("settings.licenses.openSource"),
+                        value = ""
+                    ) {
+                        OssLicensesMenuActivity.setActivityTitle(t.t("settings.licenses.openSource"))
+                        context.startActivity(Intent(context, OssLicensesMenuActivity::class.java))
+                    }
+                    HorizontalDivider()
+                    SettingsSelectRow(
+                        label = t.t("settings.licenses.bundledAssets"),
+                        value = ""
+                    ) { showBundledLicensesSheet = true }
                 }
                 Spacer(Modifier.height(16.dp))
                 SettingsSectionCard(title = t.t("settings.actions.title")) {
@@ -5446,5 +5493,63 @@ private fun SettingsView(
                 }) { Text(t.t("common.cancel")) }
             }
         )
+    }
+
+    if (showBundledLicensesSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBundledLicensesSheet = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    t.t("settings.licenses.bundledAssets"),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                if (manualLicenses.isEmpty()) {
+                    Text(
+                        t.t("settings.licenses.loadError"),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                } else {
+                    manualLicenses.forEachIndexed { index, license ->
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(license.name, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                license.license,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            license.source?.let { source ->
+                                Text(
+                                    source,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Text(
+                                license.text,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        if (index != manualLicenses.lastIndex) {
+                            HorizontalDivider()
+                        }
+                    }
+                }
+                TextButton(
+                    onClick = { showBundledLicensesSheet = false },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(t.t("common.close"))
+                }
+            }
+        }
     }
 }

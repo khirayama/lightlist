@@ -3299,6 +3299,7 @@ function DialogFooter({ children }: { children: ReactNode }) {
 type SettingsViewProps = {
   onBack?: () => void;
   showBackButton?: boolean;
+  onOpenLicenses?: () => void;
 };
 
 type SelectRowProps = {
@@ -3313,6 +3314,22 @@ type SelectRowProps = {
 type SettingsSectionProps = {
   children: ReactNode;
   tone?: "default" | "danger";
+};
+
+type LicenseEntry = {
+  id?: string;
+  license: string;
+  licenseText?: string;
+  name: string;
+  repository?: string;
+  source?: string;
+  text?: string;
+  version?: string;
+};
+
+type LicensePayload = {
+  bundledLicenses: LicenseEntry[];
+  openSourceLicenses: LicenseEntry[];
 };
 
 type ConfirmDialogProps = {
@@ -3442,7 +3459,11 @@ function SelectRow({
   );
 }
 
-function SettingsView({ onBack, showBackButton = false }: SettingsViewProps) {
+function SettingsView({
+  onBack,
+  showBackButton = false,
+  onOpenLicenses,
+}: SettingsViewProps) {
   const { t } = useTranslation();
   const { authStatus, user } = useSessionState();
   const { settings, settingsStatus } = useSettingsState();
@@ -3747,6 +3768,27 @@ function SettingsView({ onBack, showBackButton = false }: SettingsViewProps) {
             <SettingsSection>
               <div className="flex flex-col gap-3">
                 <h2 className="text-sm font-semibold tracking-wide text-text dark:text-text-dark">
+                  {t("settings.legal.title")}
+                </h2>
+                <button
+                  type="button"
+                  onClick={onOpenLicenses}
+                  disabled={!onOpenLicenses}
+                  className="flex items-center justify-between gap-3 rounded-lg px-1 py-2 text-left transition hover:bg-background disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-background-dark"
+                >
+                  <span className="text-sm font-medium text-text dark:text-text-dark">
+                    {t("settings.licenses.openSource")}
+                  </span>
+                  <span className="text-sm text-muted dark:text-muted-dark">
+                    &gt;
+                  </span>
+                </button>
+              </div>
+            </SettingsSection>
+
+            <SettingsSection>
+              <div className="flex flex-col gap-3">
+                <h2 className="text-sm font-semibold tracking-wide text-text dark:text-text-dark">
                   {t("settings.actions.title")}
                 </h2>
                 <div className="border-b border-border pb-3 dark:border-border-dark">
@@ -3892,6 +3934,149 @@ function SettingsView({ onBack, showBackButton = false }: SettingsViewProps) {
   );
 }
 
+type LicensesViewProps = {
+  onBack?: () => void;
+  showBackButton?: boolean;
+};
+
+function LicenseCard({ entry }: { entry: LicenseEntry }) {
+  const sourceUrl = entry.repository ?? entry.source;
+
+  return (
+    <details className="rounded-xl border border-border bg-surface px-4 py-3 dark:border-border-dark dark:bg-surface-dark">
+      <summary className="cursor-pointer list-none">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-text dark:text-text-dark">
+              {entry.name}
+            </p>
+            <p className="mt-1 text-xs text-muted dark:text-muted-dark">
+              {[entry.version, entry.license].filter(Boolean).join(" / ")}
+            </p>
+          </div>
+          <span className="mt-0.5 text-sm text-muted dark:text-muted-dark">
+            &gt;
+          </span>
+        </div>
+      </summary>
+      {sourceUrl ? (
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex text-xs text-muted underline hover:text-text dark:text-muted-dark dark:hover:text-text-dark"
+        >
+          {sourceUrl}
+        </a>
+      ) : null}
+      <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-background p-3 text-xs leading-5 text-text dark:bg-background-dark dark:text-text-dark">
+        {entry.licenseText ?? entry.text ?? ""}
+      </pre>
+    </details>
+  );
+}
+
+function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
+  const { t } = useTranslation();
+  const [payload, setPayload] = useState<LicensePayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.BASE_URL}licenses/licenses.json`,
+        );
+        if (!response.ok) {
+          throw new Error("Failed to load licenses");
+        }
+        const nextPayload = (await response.json()) as LicensePayload;
+        if (!cancelled) {
+          setPayload(nextPayload);
+          setError(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setError(t("settings.licenses.loadError"));
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
+
+  return (
+    <div className="min-h-full w-full bg-background text-text dark:bg-background-dark dark:text-text-dark">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 pb-10 pt-6 sm:px-6 lg:pt-8">
+        <header className="flex items-center gap-3 px-1">
+          {showBackButton ? (
+            <button
+              type="button"
+              onClick={onBack}
+              title={t("common.back")}
+              aria-label={t("common.back")}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted transition hover:bg-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border dark:text-muted-dark dark:hover:bg-surface-dark dark:focus-visible:outline-border-dark"
+            >
+              <AppIcon
+                name="arrow-back"
+                className="h-5 w-5"
+                aria-hidden="true"
+                focusable="false"
+              />
+            </button>
+          ) : null}
+          <h1 className="font-display min-w-0 flex-1 text-2xl font-semibold tracking-tight">
+            {t("settings.licenses.title")}
+          </h1>
+        </header>
+
+        {error ? <Alert variant="error">{error}</Alert> : null}
+
+        {!payload && !error ? <Spinner /> : null}
+
+        {payload ? (
+          <>
+            <SettingsSection>
+              <div className="flex flex-col gap-3">
+                <h2 className="text-sm font-semibold tracking-wide text-text dark:text-text-dark">
+                  {t("settings.licenses.openSource")}
+                </h2>
+                <div className="flex flex-col gap-3">
+                  {payload.openSourceLicenses.map((entry) => (
+                    <LicenseCard
+                      key={`${entry.name}-${entry.version ?? ""}`}
+                      entry={entry}
+                    />
+                  ))}
+                </div>
+              </div>
+            </SettingsSection>
+
+            <SettingsSection>
+              <div className="flex flex-col gap-3">
+                <h2 className="text-sm font-semibold tracking-wide text-text dark:text-text-dark">
+                  {t("settings.licenses.bundledAssets")}
+                </h2>
+                <div className="flex flex-col gap-3">
+                  {payload.bundledLicenses.map((entry) => (
+                    <LicenseCard key={entry.id ?? entry.name} entry={entry} />
+                  ))}
+                </div>
+              </div>
+            </SettingsSection>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 // pages/404.tsx
 function NotFoundPage() {
   const { t } = useTranslation();
@@ -4000,7 +4185,7 @@ const formatMonthKey = (date: Date): string =>
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
 
-type AppView = "taskLists" | "detail" | "settings" | "calendar";
+type AppView = "taskLists" | "detail" | "settings" | "licenses" | "calendar";
 
 type DatedTask = {
   taskListId: string;
@@ -4016,10 +4201,11 @@ const getDatedTaskId = (task: DatedTask): string =>
 
 const TASK_LISTS_ROUTE = "/task-lists";
 const SETTINGS_ROUTE = "/settings";
+const SETTINGS_LICENSES_ROUTE = "/settings/licenses";
 const CALENDAR_ROUTE = "/calendar";
 
 type KnownAppHashRoute =
-  | { view: "taskLists" | "settings" | "calendar" }
+  | { view: "taskLists" | "settings" | "licenses" | "calendar" }
   | { view: "detail"; taskListId: string };
 type AppHashRoute = KnownAppHashRoute | { view: "unknown" };
 
@@ -4027,6 +4213,7 @@ const parseAppHashRoute = (hash: string): AppHashRoute => {
   const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
   if (!normalizedHash) return { view: "unknown" };
   if (normalizedHash === TASK_LISTS_ROUTE) return { view: "taskLists" };
+  if (normalizedHash === SETTINGS_LICENSES_ROUTE) return { view: "licenses" };
   if (normalizedHash === SETTINGS_ROUTE) return { view: "settings" };
   if (normalizedHash === CALENDAR_ROUTE) return { view: "calendar" };
 
@@ -5618,6 +5805,9 @@ const toAppUrl = (route: KnownAppHashRoute): string => {
   if (route.view === "detail") {
     return `${baseUrl}#${TASK_LISTS_ROUTE}/${encodeURIComponent(route.taskListId)}`;
   }
+  if (route.view === "licenses") {
+    return `${baseUrl}#${SETTINGS_LICENSES_ROUTE}`;
+  }
   if (route.view === "settings") {
     return `${baseUrl}#${SETTINGS_ROUTE}`;
   }
@@ -6500,6 +6690,28 @@ function AppShellPage() {
       return;
     }
 
+    if (routeFromLocation.view === "licenses") {
+      window.history.replaceState(
+        buildAppHistoryState({ view: "taskLists" }, currentState, null),
+        "",
+        toAppUrl({ view: "taskLists" }),
+      );
+      window.history.pushState(
+        buildAppHistoryState({ view: "settings" }, currentState, null),
+        "",
+        toAppUrl({ view: "settings" }),
+      );
+      window.history.pushState(
+        buildAppHistoryState({ view: "licenses" }, currentState, null),
+        "",
+        toAppUrl({ view: "licenses" }),
+      );
+      setCurrentView("licenses");
+      setActiveTaskAction(null);
+      setPendingInitialTaskListRoute(false);
+      return;
+    }
+
     if (routeFromLocation.view === "calendar") {
       window.history.replaceState(
         buildAppHistoryState({ view: "taskLists" }, currentState, null),
@@ -6603,6 +6815,8 @@ function AppShellPage() {
     );
   const openSettings = (mode: "push" | "replace" = "replace") =>
     setViewState({ view: "settings" }, isWideLayout ? "replace" : mode);
+  const openLicenses = (mode: "push" | "replace" = "replace") =>
+    setViewState({ view: "licenses" }, isWideLayout ? "replace" : mode);
   const openCalendar = (mode: "push" | "replace" = "replace") =>
     setViewState({ view: "calendar" }, isWideLayout ? "replace" : mode);
   const getCurrentDetailRoute = (): KnownAppHashRoute | null => {
@@ -6652,6 +6866,7 @@ function AppShellPage() {
       window.history.length > 1 &&
       (currentView === "detail" ||
         currentView === "settings" ||
+        currentView === "licenses" ||
         currentView === "calendar")
     ) {
       window.history.back();
@@ -6967,7 +7182,17 @@ function AppShellPage() {
             <div className="h-full overflow-hidden">
               {currentView === "settings" ? (
                 <div className="h-full overflow-y-auto">
-                  <SettingsView showBackButton={false} />
+                  <SettingsView
+                    showBackButton={false}
+                    onOpenLicenses={() => openLicenses("replace")}
+                  />
+                </div>
+              ) : currentView === "licenses" ? (
+                <div className="h-full overflow-y-auto">
+                  <LicensesView
+                    onBack={() => openSettings("replace")}
+                    showBackButton={true}
+                  />
                 </div>
               ) : currentView === "calendar" ? (
                 calendarContent
@@ -6994,6 +7219,17 @@ function AppShellPage() {
                 "settings",
                 <div className="h-full overflow-y-auto">
                   <SettingsView
+                    onBack={handleBackToTaskLists}
+                    showBackButton={true}
+                    onOpenLicenses={() => openLicenses("push")}
+                  />
+                </div>,
+                "bg-background dark:bg-background-dark",
+              )}
+              {renderCompactPanel(
+                "licenses",
+                <div className="h-full overflow-y-auto">
+                  <LicensesView
                     onBack={handleBackToTaskLists}
                     showBackButton={true}
                   />

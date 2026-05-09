@@ -201,6 +201,15 @@
         "submitting": "جارٍ الإرسال...",
         "successMessage": "تم إرسال رسالة التحقق. انقر على الرابط في عنوان البريد الإلكتروني الجديد لإكمال التغيير.",
         "changeButton": "تغيير"
+      },
+      "legal": {
+        "title": "القانونية"
+      },
+      "licenses": {
+        "title": "التراخيص",
+        "openSource": "تراخيص البرامج مفتوحة المصدر",
+        "bundledAssets": "الأصول المضمّنة",
+        "loadError": "تعذر تحميل معلومات الترخيص"
       }
     },
     "pages": {
@@ -485,6 +494,15 @@
         "submitting": "Wird gesendet...",
         "successMessage": "Bestätigungs-E-Mail gesendet. Klicke den Link in der neuen E-Mail-Adresse, um die Änderung abzuschließen.",
         "changeButton": "Ändern"
+      },
+      "legal": {
+        "title": "Rechtliches"
+      },
+      "licenses": {
+        "title": "Lizenzen",
+        "openSource": "Open-Source-Lizenzen",
+        "bundledAssets": "Mitgelieferte Assets",
+        "loadError": "Lizenzinformationen konnten nicht geladen werden"
       }
     },
     "pages": {
@@ -769,6 +787,15 @@
         "submitting": "Sending...",
         "successMessage": "Verification email sent. Click the link in the new email address to complete the change.",
         "changeButton": "Change"
+      },
+      "legal": {
+        "title": "Legal"
+      },
+      "licenses": {
+        "title": "Licenses",
+        "openSource": "Open source licenses",
+        "bundledAssets": "Bundled assets",
+        "loadError": "Failed to load license information"
       }
     },
     "pages": {
@@ -1053,6 +1080,15 @@
         "submitting": "Enviando...",
         "successMessage": "Correo de verificación enviado. Haz clic en el enlace del nuevo correo para completar el cambio.",
         "changeButton": "Cambiar"
+      },
+      "legal": {
+        "title": "Información legal"
+      },
+      "licenses": {
+        "title": "Licencias",
+        "openSource": "Licencias de código abierto",
+        "bundledAssets": "Recursos incluidos",
+        "loadError": "No se pudo cargar la información de licencias"
       }
     },
     "pages": {
@@ -1337,6 +1373,15 @@
         "submitting": "Envoi...",
         "successMessage": "E-mail de vérification envoyé. Cliquez sur le lien dans la nouvelle adresse e-mail pour terminer la modification.",
         "changeButton": "Modifier"
+      },
+      "legal": {
+        "title": "Mentions légales"
+      },
+      "licenses": {
+        "title": "Licences",
+        "openSource": "Licences open source",
+        "bundledAssets": "Ressources intégrées",
+        "loadError": "Impossible de charger les informations de licence"
       }
     },
     "pages": {
@@ -1621,6 +1666,15 @@
         "submitting": "भेजा जा रहा है...",
         "successMessage": "सत्यापन ईमेल भेज दिया गया है। परिवर्तन पूरा करने के लिए नए ईमेल पते में लिंक पर क्लिक करें।",
         "changeButton": "बदलें"
+      },
+      "legal": {
+        "title": "कानूनी जानकारी"
+      },
+      "licenses": {
+        "title": "लाइसेंस",
+        "openSource": "ओपन सोर्स लाइसेंस",
+        "bundledAssets": "शामिल एसेट",
+        "loadError": "लाइसेंस जानकारी लोड नहीं हो सकी"
       }
     },
     "pages": {
@@ -1905,6 +1959,15 @@
         "submitting": "Mengirim...",
         "successMessage": "Email verifikasi telah dikirim. Klik tautan pada alamat email baru untuk menyelesaikan perubahan.",
         "changeButton": "Ubah"
+      },
+      "legal": {
+        "title": "Legal"
+      },
+      "licenses": {
+        "title": "Lisensi",
+        "openSource": "Lisensi open source",
+        "bundledAssets": "Aset bawaan",
+        "loadError": "Gagal memuat informasi lisensi"
       }
     },
     "pages": {
@@ -2189,6 +2252,15 @@
         "submitting": "送信中...",
         "successMessage": "確認メールを送信しました。新しいメールアドレスのリンクをクリックすると変更が完了します。",
         "changeButton": "変更"
+      },
+      "legal": {
+        "title": "法的情報"
+      },
+      "licenses": {
+        "title": "ライセンス",
+        "openSource": "オープンソースライセンス",
+        "bundledAssets": "同梱アセット",
+        "loadError": "ライセンス情報の読み込みに失敗しました"
       }
     },
     "pages": {
@@ -2473,6 +2545,15 @@
         "submitting": "전송 중...",
         "successMessage": "인증 메일을 보냈습니다. 새 이메일의 링크를 클릭하면 변경이 완료됩니다.",
         "changeButton": "변경"
+      },
+      "legal": {
+        "title": "법적 정보"
+      },
+      "licenses": {
+        "title": "라이선스",
+        "openSource": "오픈소스 라이선스",
+        "bundledAssets": "포함된 자산",
+        "loadError": "라이선스 정보를 불러오지 못했습니다"
       }
     },
     "pages": {
@@ -2757,6 +2838,15 @@
         "submitting": "Enviando...",
         "successMessage": "E-mail de verificação enviado. Clique no link no novo endereço de e-mail para concluir a alteração.",
         "changeButton": "Alterar"
+      },
+      "legal": {
+        "title": "Informações legais"
+      },
+      "licenses": {
+        "title": "Licenças",
+        "openSource": "Licenças de código aberto",
+        "bundledAssets": "Recursos incluídos",
+        "loadError": "Falha ao carregar as informações de licença"
       }
     },
     "pages": {
@@ -3041,6 +3131,15 @@
         "submitting": "发送中...",
         "successMessage": "验证邮件已发送。请点击新邮箱中的链接完成修改。",
         "changeButton": "修改"
+      },
+      "legal": {
+        "title": "法律信息"
+      },
+      "licenses": {
+        "title": "许可证",
+        "openSource": "开源许可证",
+        "bundledAssets": "内置资源",
+        "loadError": "无法加载许可证信息"
       }
     },
     "pages": {

@@ -213,6 +213,45 @@ private struct TaskListSummary: Identifiable, Hashable {
     let background: String?
 }
 
+private struct ManualLicense: Decodable, Identifiable {
+    let id: String
+    let name: String
+    let license: String
+    let source: String?
+    let text: String
+}
+
+private struct GeneratedLicense: Identifiable {
+    let id: String
+    let title: String
+    let text: String
+}
+
+private func loadManualLicenses() -> [ManualLicense] {
+    guard let url = Bundle.main.url(forResource: "manual-licenses", withExtension: "json"),
+          let data = try? Data(contentsOf: url),
+          let licenses = try? JSONDecoder().decode([ManualLicense].self, from: data) else {
+        return []
+    }
+    return licenses
+}
+
+private func loadGeneratedLicenses() -> [GeneratedLicense] {
+    guard let url = Bundle.main.url(forResource: "Acknowledgements", withExtension: "plist", subdirectory: "Acknowledgements"),
+          let data = try? Data(contentsOf: url),
+          let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+          let specifiers = plist["PreferenceSpecifiers"] as? [[String: Any]] else {
+        return []
+    }
+    return specifiers.compactMap { item in
+        guard let title = item["Title"] as? String,
+              let text = item["FooterText"] as? String else {
+            return nil
+        }
+        return GeneratedLicense(id: title, title: title, text: text)
+    }
+}
+
 private struct TaskListDetail: Identifiable, Hashable {
     let id: String
     let name: String
@@ -4261,6 +4300,7 @@ private struct SettingsView: View {
     @State private var showLanguagePicker = false
     @State private var showPositionPicker = false
     @State private var showEmailChangeForm = false
+    @State private var showLicensesSheet = false
     @State private var newEmail = ""
     @State private var emailChangeError: String? = nil
     @State private var emailChangeSuccess = false
@@ -4297,6 +4337,11 @@ private struct SettingsView: View {
                             .foregroundStyle(.primary)
                         Divider()
                         Button(translations.t("settings.emailChange.title")) { showEmailChangeForm = true }
+                    }
+                    settingsCard(title: translations.t("settings.legal.title")) {
+                        settingsRow(label: translations.t("settings.licenses.openSource"), value: "") {
+                            showLicensesSheet = true
+                        }
                     }
                     settingsCard(title: translations.t("settings.actions.title")) {
                         Button(isSigningOut ? "..." : translations.t("auth.button.signOut")) {
@@ -4383,6 +4428,9 @@ private struct SettingsView: View {
         }
         .sheet(isPresented: $showEmailChangeForm) {
             emailChangeSheet
+        }
+        .sheet(isPresented: $showLicensesSheet) {
+            licensesSheet
         }
     }
 
@@ -4507,6 +4555,97 @@ private struct SettingsView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var licensesSheet: some View {
+        NavigationStack {
+            LicensesView()
+                .environmentObject(translations)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(translations.t("common.close")) { showLicensesSheet = false }
+                    }
+                }
+        }
+    }
+}
+
+private struct LicensesView: View {
+    @EnvironmentObject var translations: Translations
+    private let generatedLicenses = loadGeneratedLicenses()
+    private let manualLicenses = loadManualLicenses()
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                if generatedLicenses.isEmpty {
+                    Text(translations.t("settings.licenses.loadError"))
+                        .foregroundStyle(.red)
+                        .font(AppTypography.caption())
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(translations.t("settings.licenses.openSource"))
+                            .font(AppTypography.captionSemibold())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+
+                        ForEach(generatedLicenses) { license in
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(license.title)
+                                    .font(AppTypography.bodyMedium())
+                                    .foregroundStyle(.primary)
+                                Text(license.text)
+                                    .font(AppTypography.caption())
+                                    .foregroundStyle(.primary)
+                                    .textSelection(.enabled)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(16)
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(translations.t("settings.licenses.bundledAssets"))
+                        .font(AppTypography.captionSemibold())
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 4)
+
+                    ForEach(manualLicenses) { license in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(license.name)
+                                .font(AppTypography.bodyMedium())
+                                .foregroundStyle(.primary)
+                            Text(license.license)
+                                .font(AppTypography.caption())
+                                .foregroundStyle(.secondary)
+                            if let source = license.source,
+                               let url = URL(string: source) {
+                                Link(source, destination: url)
+                                    .font(AppTypography.caption())
+                            }
+                            Text(license.text)
+                                .font(AppTypography.caption())
+                                .foregroundStyle(.primary)
+                                .textSelection(.enabled)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                }
+            }
+            .frame(maxWidth: 768)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 24)
+        }
+        .navigationTitle(translations.t("settings.licenses.title"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

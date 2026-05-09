@@ -2,7 +2,7 @@ set shell := ["zsh", "-cu"]
 
 build:
   DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer  xcodegen generate
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Lightlist.xcodeproj -scheme Lightlist -configuration Debug -derivedDataPath build -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -skipPackagePluginValidation -project Lightlist.xcodeproj -scheme Lightlist -configuration Debug -derivedDataPath build -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build
 
 run:
   xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/Lightlist.app

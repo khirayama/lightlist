@@ -1,8 +1,5 @@
 ## ONGOING
 
-apps/web apps/ios apps/android 各プラットフォームの作法に合わせて、ライセンス表記を追加
-
-
 ## BACKLOG
 
 apps/android UI調整。アイコンが一直線になるように微調整

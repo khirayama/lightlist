@@ -1,0 +1,5 @@
+options:
+  xcodeprojPath: Lightlist.xcodeproj
+  prefix: Acknowledgements
+  addVersionNumbers: true
+  singlePage: true

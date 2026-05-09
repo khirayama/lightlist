@@ -3,11 +3,13 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
+    id("com.google.android.gms.oss-licenses-plugin")
 }
 
 val generatedSharedAssetsDir = layout.buildDirectory.dir("generated/assets/shared/main").get().asFile
 val syncSharedLocales by tasks.registering(Copy::class) {
     from(rootProject.file("../../shared/locales/locales.json"))
+    from(rootProject.file("../../shared/licenses/manual-licenses.json"))
     into(generatedSharedAssetsDir)
 }
 
@@ -84,6 +86,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
+    implementation("com.google.android.gms:play-services-oss-licenses:17.5.1")
     implementation(libs.firebase.appcheck.debug)
     implementation(libs.firebase.appcheck.playintegrity)
     implementation(libs.kotlinx.coroutines.play.services)

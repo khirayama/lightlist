@@ -6,6 +6,9 @@ packages:
   FirebaseSDK:
     url: https://github.com/firebase/firebase-ios-sdk
     from: "11.0.0"
+  LicensePlist:
+    url: https://github.com/mono0926/LicensePlist
+    from: "3.27.5"
 settings:
   base:
     CURRENT_PROJECT_VERSION: 1
@@ -23,6 +26,8 @@ targets:
         buildPhase: resources
       - path: ../../shared/locales/locales.json
         buildPhase: resources
+      - path: ../../shared/licenses/manual-licenses.json
+        buildPhase: resources
     dependencies:
       - package: FirebaseSDK
         product: FirebaseAuth
@@ -34,7 +39,20 @@ targets:
         product: FirebaseCrashlytics
       - package: FirebaseSDK
         product: FirebaseAppCheck
+    buildToolPlugins:
+      - plugin: LicensePlistBuildTool
+        package: LicensePlist
     postBuildScripts:
+      - script: |
+          echo "Copy LicensePlist output"
+          ACKNOWLEDGEMENTS_DIR="${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/com.mono0926.LicensePlist.Output"
+          DESTINATION_PATH="${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Acknowledgements"
+          rm -rf "${DESTINATION_PATH}"
+          mkdir -p "${DESTINATION_PATH}"
+          if [ -d "${ACKNOWLEDGEMENTS_DIR}" ]; then
+            cp -R "${ACKNOWLEDGEMENTS_DIR}"/. "${DESTINATION_PATH}"
+          fi
+        name: "Copy LicensePlist Output"
       - script: |
           "${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run"
           touch "${DERIVED_FILE_DIR}/firebase-crashlytics-dsym-upload"

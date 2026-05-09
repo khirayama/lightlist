@@ -37,6 +37,7 @@
 - iOS の AppIcon は `shared/assets/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。
 - Android の launcher icon は `shared/assets/brand/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
 - UI フォントの正本は `shared/assets/fonts/gen-interface-jp` とし、本文は `Gen Interface JP`、主要見出しは `Gen Interface JP Display` を使う。共有コードなど等幅の意味を持つ表示は monospace を維持する。
+- ライセンス表記の手動管理対象は `shared/licenses/manual-licenses.json` を正本とし、Web は `apps/web/scripts/generate-licenses.mjs`、iOS は `LicensePlist` build tool plugin、Android は Google OSS Licenses plugin で依存ライセンスを生成する。iOS の build tool plugin は初回 build 時に Xcode の trust が必要で、CLI では必要に応じて `xcodebuild -skipPackagePluginValidation` を使う。
 - ブランドロゴの現行 SVG は `shared/assets/brand/logo.svg` と `apps/web/public/brand/logo.svg` を正とし、差し替え前の旧ロゴは `logo_legacy.svg` に退避する。
 - タスクリストは `taskLists.memberCount` で保持ユーザー数を管理し、削除操作は `taskListOrder` からの離脱を基本とする（`memberCount` が 0 のときのみ実体削除）。
 - 共有権限モデルは「共有URLを知っているユーザーは未認証でも閲覧・編集可」を固定仕様とし、production readiness 評価の item1（認可モデル再設計）は 2026-03 時点で対応不要とする。

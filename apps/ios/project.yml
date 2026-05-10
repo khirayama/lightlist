@@ -24,6 +24,8 @@ targets:
       - path: Lightlist/Sources
       - path: Lightlist/Resources
         buildPhase: resources
+        excludes:
+          - Firebase/**
       - path: ../../shared/locales/locales.json
         buildPhase: resources
       - path: ../../shared/licenses/manual-licenses.json
@@ -42,6 +44,18 @@ targets:
     buildToolPlugins:
       - plugin: LicensePlistBuildTool
         package: LicensePlist
+    preBuildScripts:
+      - script: |
+          if [ ! -f "${FIREBASE_PLIST_SOURCE}" ]; then
+            echo "Missing Firebase config: ${FIREBASE_PLIST_SOURCE}" >&2
+            exit 1
+          fi
+          cp "${FIREBASE_PLIST_SOURCE}" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist"
+        name: "Copy Firebase Config"
+        inputFiles:
+          - "$(FIREBASE_PLIST_SOURCE)"
+        outputFiles:
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist"
     postBuildScripts:
       - script: |
           echo "Copy LicensePlist output"
@@ -86,8 +100,12 @@ targets:
           - GenInterfaceJPDisplay-Bold.ttf
           - GenInterfaceJPDisplay-ExtraBold.ttf
         CODE_SIGN_ENTITLEMENTS: Lightlist/Lightlist.entitlements
+        FIREBASE_PLIST_SOURCE: $(SRCROOT)/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.lightlist.app
         PRODUCT_NAME: Lightlist
+      configs:
+        Release:
+          FIREBASE_PLIST_SOURCE: $(SRCROOT)/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist
     scheme:
       testTargets:
         - LightlistTests

@@ -12,12 +12,10 @@
 		178E6DEBCEC4A72419C5ADCA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 03E96005FE689A03AE608611 /* Assets.xcassets */; };
 		2802D4B40E4EF5A424DDCBE5 /* LightlistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C4AFDF92886FBDFA0EAB45 /* LightlistTests.swift */; };
 		4CA7C737938F6922C9F7C029 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 5D2FC049671012454C273F85 /* FirebaseCrashlytics */; };
-		5BAAF63D7439A714D2BF1D47 /* GoogleService-Info.prod.plist in Resources */ = {isa = PBXBuildFile; fileRef = 4887635BC82911AD4C4F8470 /* GoogleService-Info.prod.plist */; };
 		752231066BD951B04BCD7AE0 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 85C2E8D19C38E5EC9E466233 /* FirebaseAppCheck */; };
 		7860014FD9954EA01343DE72 /* locales.json in Resources */ = {isa = PBXBuildFile; fileRef = 5615019F3DBD2986C21F8B42 /* locales.json */; };
 		89CB2AA3EC79089749AE0FDC /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */; };
 		940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */; };
-		A6770824316C099D24A28312 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */; };
 		AC435305172D0AB359635835 /* GenInterfaceJP-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F069413852FDD95B929B55BB /* GenInterfaceJP-Medium.ttf */; };
 		AED11886C733A359C1C4C94D /* GenInterfaceJPDisplay-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */; };
 		DCA7F06671A939FE685A39D4 /* GenInterfaceJPDisplay-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */; };
@@ -44,10 +42,8 @@
 		03E96005FE689A03AE608611 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJPDisplay-Bold.ttf"; sourceTree = "<group>"; };
 		44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJPDisplay-ExtraBold.ttf"; sourceTree = "<group>"; };
-		4887635BC82911AD4C4F8470 /* GoogleService-Info.prod.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.prod.plist"; sourceTree = "<group>"; };
 		5615019F3DBD2986C21F8B42 /* locales.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = locales.json; sourceTree = "<group>"; };
 		5F18EECC750B7FE6A93E5288 /* LightlistTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LightlistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		931A2D9664B0C1631B7FC40E /* GenInterfaceJP-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJP-Regular.ttf"; sourceTree = "<group>"; };
 		9DC1459A6D18434358F8BB59 /* GenInterfaceJP-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJP-Bold.ttf"; sourceTree = "<group>"; };
@@ -126,8 +122,6 @@
 			isa = PBXGroup;
 			children = (
 				03E96005FE689A03AE608611 /* Assets.xcassets */,
-				644841CF3E13AFCC9806A325 /* GoogleService-Info.plist */,
-				4887635BC82911AD4C4F8470 /* GoogleService-Info.prod.plist */,
 				F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */,
 				D1B0D57606F7CD298729AC51 /* Fonts */,
 				1C627F24DFEA9370108D68BC /* Preview Content */,
@@ -192,6 +186,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1AB77027168F8EDEA6B945F8 /* Build configuration list for PBXNativeTarget "Lightlist" */;
 			buildPhases = (
+				CE78B53865F9CBCF847E8FB4 /* Copy Firebase Config */,
 				6DDBA329DCA0DE222A0C65D1 /* Sources */,
 				A1F5FC8773B87DE1F5659193 /* Resources */,
 				F480CC513E56F1F22B952DC2 /* Frameworks */,
@@ -262,8 +257,6 @@
 				EDB0B08DEFFC531DC60C7995 /* GenInterfaceJP-SemiBold.ttf in Resources */,
 				DCA7F06671A939FE685A39D4 /* GenInterfaceJPDisplay-Bold.ttf in Resources */,
 				AED11886C733A359C1C4C94D /* GenInterfaceJPDisplay-ExtraBold.ttf in Resources */,
-				A6770824316C099D24A28312 /* GoogleService-Info.plist in Resources */,
-				5BAAF63D7439A714D2BF1D47 /* GoogleService-Info.prod.plist in Resources */,
 				940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */,
 				F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */,
 				7860014FD9954EA01343DE72 /* locales.json in Resources */,
@@ -315,6 +308,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "echo \"Copy LicensePlist output\"\nACKNOWLEDGEMENTS_DIR=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/com.mono0926.LicensePlist.Output\"\nDESTINATION_PATH=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Acknowledgements\"\nrm -rf \"${DESTINATION_PATH}\"\nmkdir -p \"${DESTINATION_PATH}\"\nif [ -d \"${ACKNOWLEDGEMENTS_DIR}\" ]; then\n  cp -R \"${ACKNOWLEDGEMENTS_DIR}\"/. \"${DESTINATION_PATH}\"\nfi\n";
+		};
+		CE78B53865F9CBCF847E8FB4 /* Copy Firebase Config */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(FIREBASE_PLIST_SOURCE)",
+			);
+			name = "Copy Firebase Config";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ ! -f \"${FIREBASE_PLIST_SOURCE}\" ]; then\n  echo \"Missing Firebase config: ${FIREBASE_PLIST_SOURCE}\" >&2\n  exit 1\nfi\ncp \"${FIREBASE_PLIST_SOURCE}\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -376,6 +389,7 @@
 				CODE_SIGN_ENTITLEMENTS = Lightlist/Lightlist.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
+				FIREBASE_PLIST_SOURCE = "$(SRCROOT)/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -551,6 +565,7 @@
 				CODE_SIGN_ENTITLEMENTS = Lightlist/Lightlist.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
+				FIREBASE_PLIST_SOURCE = "$(SRCROOT)/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;

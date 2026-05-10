@@ -15,4 +15,5 @@ xcuserdata/
 *.gcno
 Lightlist.xcodeproj/xcuserdata/
 Tuist/.build/
-Lightlist/Resources/GoogleService-Info.plist
+Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist
+Lightlist/Resources/Firebase/Release/GoogleService-Info.plist

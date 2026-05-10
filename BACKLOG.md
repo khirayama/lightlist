@@ -1,5 +1,3 @@
-apps/ios 本番用Firebaseでbuildできるようにする
-
 ## ONGOING
 
 UI調整を行います。

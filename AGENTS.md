@@ -40,7 +40,7 @@
 - Web の HTML entry は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。script path は各 HTML 自身の配置位置を基準に相対指定し、`apps/web/html/index.html` と `apps/web/html/404.html` / `500.html` は `../src/entry.tsx`、`apps/web/html/*/index.html` は `../../src/entry.tsx` を使う。Vite 設定の `/src` alias も維持する。
 - Firebase デプロイ設定（`firestore.rules`, `firebase.json`, `.firebaserc`, `firestore.indexes.json`）はリポジトリルートに配置。
 - `.gitignore` はルートで共通ローカル生成物（OS / editor / Node / Firebase 設定）を管理し、`apps/web/.gitignore` / `apps/ios/.gitignore` / `apps/android/.gitignore` は各アプリ固有の生成物だけを管理する。
-- `apps/ios` の commit 対象は `project.yml` と `Lightlist/` 配下のソースを基本とし、`xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` は含めない。`GoogleService-Info.plist` は `apps/ios/Lightlist/Resources/` にローカル配置して `.gitignore` で除外する。entitlements は `apps/ios/Lightlist/Lightlist.entitlements` を使う。
+- `apps/ios` の commit 対象は `project.yml` と `Lightlist/` 配下のソースを基本とし、`xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` は含めない。Firebase plist は `apps/ios/Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` にローカル配置して `.gitignore` で除外し、build configuration に応じて app bundle 内の標準名 `GoogleService-Info.plist` へ 1 つだけコピーする。entitlements は `apps/ios/Lightlist/Lightlist.entitlements` を使う。
 - Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/entry.tsx` に集約する。
 - Web の Auth / settings / taskLists の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
 - Web の task 更新系は Firestore `tasks` map の列挙順を順序根拠に使わず、必ず `order` 昇順の配列へ直してから追加・自動並び替え・D&D 並び替え・完了済み削除を計算する。
@@ -140,9 +140,10 @@
   - `npm run typecheck`
 - `apps/ios`:
   - `just build`
+  - `just build-release`
   - `xcodegen generate`（`project.yml` → `.xcodeproj` 生成）
   - Xcode で開いてビルド（CLI: `xcodebuild -scheme Lightlist -destination 'platform=iOS Simulator,...'`）
-  - `GoogleService-Info.plist` は `.gitignore` で除外。Firebase コンソールからダウンロードして `apps/ios/Lightlist/Resources/` に配置
+  - Firebase plist は `.gitignore` で除外。Firebase コンソールからダウンロードして `apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist` と `apps/ios/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist` に配置
 - `apps/android`:
   - `just lint`
   - `just build`
@@ -166,6 +167,6 @@
 3. agent 向けドキュメント（`AGENTS.md` / `CLAUDE.md` / `GEMINI.md`）に恒久的な知見の追記・修正が必要か確認し、必要なら更新する。
 4. 変更があった app ごとに検証を実行する。`apps/web` は `npm scripts`、`apps/ios` / `apps/android` は `Justfile` を正本として扱う。
 5. `apps/web` を変更した場合は `cd apps/web && npm run format && npm run lint && npm run build && npm run typecheck` を実行する。
-6. `apps/ios` を変更した場合は `cd apps/ios && just build` を実行する。現状 iOS 専用の `lint` / `format` は未設定のため要求しない。
+6. `apps/ios` を変更した場合は `cd apps/ios && just build && just build-release` を実行する。現状 iOS 専用の `lint` / `format` は未設定のため要求しない。
 7. `apps/android` を変更した場合は `cd apps/android && just lint && just build` を実行する。現状 Android 専用の `format` は未設定のため要求しない。
 8. 明示指示がない限りコミットしない。

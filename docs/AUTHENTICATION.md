@@ -34,6 +34,8 @@
 - Web の provider は `ReCaptchaEnterpriseProvider` を使い、`VITE_FIREBASE_APPCHECK_SITE_KEY` を必須とする。
 - Web の localhost / `127.0.0.1` では `FIREBASE_APPCHECK_DEBUG_TOKEN` を自動設定し、`VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` があればその値を使い、未設定時は debug token 自動発行モードを使う。
 - iOS は `ContentView.swift` 内の `LightlistApp` で App Check provider factory を設定し、simulator / Debug では debug provider、本番デバイスでは App Attest 優先・DeviceCheck フォールバックで初期化する。
+- iOS の Firebase project 切り替えは build configuration で行う。Debug は `apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist`、Release は `apps/ios/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist` を入力に使い、app bundle には標準名 `GoogleService-Info.plist` を 1 つだけ配置する。
+- iOS の Release 用 `GoogleService-Info.plist` は bundle identifier `com.lightlist.app` に一致する Firebase Apple app から取得した内容を置く。
 - Android は `MainActivity.kt` で App Check provider factory を設定し、Debug では debug provider、release では Play Integrity provider を使う。
 - Android の Firebase project 切り替えは `google-services.json` の配置で行う。debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json` を使う。
 - Android の release 用 `google-services.json` は `applicationId=com.lightlist.app` に一致する Firebase Android app から取得した内容を置く。

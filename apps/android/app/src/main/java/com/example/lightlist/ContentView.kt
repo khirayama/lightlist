@@ -2881,10 +2881,18 @@ private fun TaskListsView(
     var joiningList by remember { mutableStateOf(false) }
     var joinListError by remember { mutableStateOf<String?>(null) }
     val displayedUserEmail = userEmail.ifBlank { t.t("app.drawerNoEmail") }
+    var pendingTaskListOrder by remember { mutableStateOf<List<TaskListSummary>?>(null) }
 
-    val displayTaskLists = dragOrderedTaskLists ?: uiState.taskLists
+    val displayTaskLists = dragOrderedTaskLists ?: pendingTaskListOrder ?: uiState.taskLists
     val density = LocalDensity.current
     val taskListSpacingPx = with(density) { 24.dp.toPx() }
+
+    LaunchedEffect(uiState.taskLists, pendingTaskListOrder) {
+        val pending = pendingTaskListOrder ?: return@LaunchedEffect
+        if (pending.map { it.id } == uiState.taskLists.map { it.id }) {
+            pendingTaskListOrder = null
+        }
+    }
 
     fun openTaskList(taskListId: String) {
         if (onTaskListSelected != null) {
@@ -2937,8 +2945,13 @@ private fun TaskListsView(
         logTaskListReorder()
         val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
         ids.forEachIndexed { i, id -> updates["$id.order"] = (i + 1).toDouble() }
+        pendingTaskListOrder = displayTaskLists.toList()
         scope.launch {
-            try { Firebase.firestore.collection("taskListOrder").document(uid).update(updates).await() } catch (_: Exception) {}
+            try {
+                Firebase.firestore.collection("taskListOrder").document(uid).update(updates).await()
+            } catch (_: Exception) {
+                pendingTaskListOrder = null
+            }
         }
     }
 
@@ -3092,7 +3105,6 @@ private fun TaskListsView(
                                                     persistTaskListOrder(ordered.map { it.id })
                                                 }
                                                 draggingTaskListId = null
-                                                dragOrderedTaskLists = null
                                                 taskListDragOffset = 0f
                                             },
                                             onDragCancel = {
@@ -3918,6 +3930,7 @@ private fun TaskListDetailPage(
     var draggingTaskId by remember { mutableStateOf<String?>(null) }
     var taskDragOffset by remember { mutableFloatStateOf(0f) }
     var dragOrderedTasks by remember { mutableStateOf<List<TaskSummary>?>(null) }
+    var pendingDisplayedTasks by remember { mutableStateOf<List<TaskSummary>?>(null) }
     var taskItemHeights by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
     var taskAutoScrollSpeed by remember { mutableFloatStateOf(0f) }
     val lazyListState = rememberLazyListState()
@@ -3942,8 +3955,8 @@ private fun TaskListDetailPage(
         return tasks.sortedWith(compareBy<TaskSummary> { taskDisplayGroup(it) }.thenBy { it.order })
     }
 
-    val displayTasks = remember(taskList.tasks, dragOrderedTasks) {
-        dragOrderedTasks ?: getDisplayOrderedTasks(taskList.tasks)
+    val displayTasks = remember(taskList.tasks, dragOrderedTasks, pendingDisplayedTasks) {
+        dragOrderedTasks ?: pendingDisplayedTasks ?: getDisplayOrderedTasks(taskList.tasks)
     }
     val taskDensity = LocalDensity.current
     val taskSpacingPx = with(taskDensity) { TaskListDetailMetrics.taskRowSpacing.toPx() }
@@ -4048,11 +4061,24 @@ private fun TaskListDetailPage(
         return result
     }
 
+    fun setPendingTasks(tasks: List<TaskSummary>) {
+        pendingDisplayedTasks = tasks
+    }
+
+    LaunchedEffect(taskList.tasks, pendingDisplayedTasks) {
+        val pending = pendingDisplayedTasks ?: return@LaunchedEffect
+        if (pending == getDisplayOrderedTasks(taskList.tasks)) {
+            pendingDisplayedTasks = null
+        }
+    }
+
     fun persistTaskListUpdate(updates: Map<String, Any>) {
         scope.launch {
             try {
                 db.collection("taskLists").document(taskList.id).update(updates).await()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                pendingDisplayedTasks = null
+            }
         }
     }
 
@@ -4060,6 +4086,7 @@ private fun TaskListDetailPage(
         tasks: List<TaskSummary>,
         deletedTaskIds: List<String> = emptyList()
     ) {
+        setPendingTasks(if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks))
         persistTaskListUpdate(
             buildTaskUpdateData(
                 tasks = if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks),
@@ -4124,6 +4151,7 @@ private fun TaskListDetailPage(
         logTaskReorder()
         val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
         ids.forEachIndexed { i, id -> updates["tasks.$id.order"] = (i + 1).toDouble() }
+        setPendingTasks(renumberTasks(displayTasks))
         persistTaskListUpdate(updates)
     }
 
@@ -4142,6 +4170,11 @@ private fun TaskListDetailPage(
                 "tasks.${task.id}.completed" to !task.completed,
                 "updatedAt" to System.currentTimeMillis()
             )
+        )
+        setPendingTasks(
+            displayTasks.map { current ->
+                if (current.id == task.id) current.copy(completed = !current.completed) else current
+            }
         )
     }
 
@@ -4186,6 +4219,17 @@ private fun TaskListDetailPage(
                     if (pinnedChanged) put("tasks.${task.id}.pinned", true)
                     if (textChanged) put("history", buildHistory(resolved.text, task.text))
                     put("updatedAt", System.currentTimeMillis())
+                }
+            )
+            setPendingTasks(
+                displayTasks.map { current ->
+                    if (current.id == task.id) {
+                        current.copy(
+                            text = resolved.text,
+                            date = resolved.date ?: current.date,
+                            pinned = if (pinnedChanged) true else current.pinned
+                        )
+                    } else current
                 }
             )
         }
@@ -4233,6 +4277,11 @@ private fun TaskListDetailPage(
                 "updatedAt" to System.currentTimeMillis()
             )
         )
+        setPendingTasks(
+            displayTasks.map { current ->
+                if (current.id == task.id) current.copy(date = dateStr) else current
+            }
+        )
     }
 
     fun togglePinned(task: TaskSummary) {
@@ -4265,6 +4314,13 @@ private fun TaskListDetailPage(
                 "updatedAt" to System.currentTimeMillis()
             )
         )
+        setPendingTasks(
+            getDisplayOrderedTasks(
+                displayTasks.map { current ->
+                    if (current.id == task.id) current.copy(pinned = nextPinned) else current
+                }
+            )
+        )
     }
 
     fun sortTasks() {
@@ -4277,6 +4333,7 @@ private fun TaskListDetailPage(
         )
         val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
         sorted.forEachIndexed { i, task -> updates["tasks.${task.id}.order"] = (i + 1).toDouble() }
+        setPendingTasks(renumberTasks(sorted))
         persistTaskListUpdate(updates)
     }
 
@@ -4396,6 +4453,18 @@ private fun TaskListDetailPage(
                 "tasks.$taskId.pinned" to parsed.pinnedFromInput,
                 "history" to buildHistory(parsed.text),
                 "updatedAt" to now
+            )
+        )
+        setPendingTasks(
+            getDisplayOrderedTasks(
+                taskList.tasks + TaskSummary(
+                    id = taskId,
+                    text = parsed.text,
+                    completed = false,
+                    date = parsed.date ?: "",
+                    order = order,
+                    pinned = parsed.pinnedFromInput
+                )
             )
         )
     }
@@ -4706,7 +4775,6 @@ private fun TaskListDetailPage(
                             persistTaskOrder(ordered.map { it.id })
                         }
                         draggingTaskId = null
-                        dragOrderedTasks = null
                         taskDragOffset = 0f
                     },
                     onDragCancel = {

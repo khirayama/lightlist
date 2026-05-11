@@ -1871,6 +1871,7 @@ private struct TaskListsView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var dragStartLocationY: CGFloat? = nil
     @State private var dragOrderedTaskLists: [TaskListSummary]? = nil
+    @State private var pendingTaskListOrder: [TaskListSummary]? = nil
     @State private var taskListItemHeights: [String: CGFloat] = [:]
     @State private var autoScrollSpeed: CGFloat = 0
     @State private var autoScrollTimer: Timer? = nil
@@ -1891,7 +1892,7 @@ private struct TaskListsView: View {
     var onOpenCalendar: (() -> Void)? = nil
 
     private var displayTaskLists: [TaskListSummary] {
-        dragOrderedTaskLists ?? viewModel.taskLists
+        dragOrderedTaskLists ?? pendingTaskListOrder ?? viewModel.taskLists
     }
 
     private func checkTaskListSwap() -> CGFloat {
@@ -2118,7 +2119,6 @@ private struct TaskListsView: View {
                                                     }
                                                     dragStartLocationY = nil
                                                     draggingTaskListId = nil
-                                                    dragOrderedTaskLists = nil
                                                 }
                                         )
 
@@ -2232,6 +2232,9 @@ private struct TaskListsView: View {
             viewModel.reset()
         }
         .onChange(of: viewModel.taskLists) { _, taskLists in
+            if let pendingTaskListOrder, pendingTaskListOrder.map(\.id) == taskLists.map(\.id) {
+                self.pendingTaskListOrder = nil
+            }
             guard let onSelectTaskList else {
                 return
             }
@@ -2398,6 +2401,7 @@ private struct TaskListsView: View {
         for (i, id) in ids.enumerated() {
             updates["\(id).order"] = Double(i + 1)
         }
+        pendingTaskListOrder = displayTaskLists
         Firestore.firestore().collection("taskListOrder").document(uid).updateData(updates)
     }
 
@@ -2762,6 +2766,7 @@ private struct TaskListDetailPage: View {
     @State private var taskDragOffset: CGFloat = 0
     @State private var taskDragStartLocationY: CGFloat? = nil
     @State private var dragOrderedTasks: [TaskSummary]? = nil
+    @State private var pendingDisplayTasks: [TaskSummary]? = nil
     @State private var taskItemHeights: [String: CGFloat] = [:]
     @State private var taskAutoScrollSpeed: CGFloat = 0
     @State private var taskAutoScrollTimer: Timer? = nil
@@ -2771,7 +2776,7 @@ private struct TaskListDetailPage: View {
     private let db = Firestore.firestore()
 
     private var displayTasks: [TaskSummary] {
-        dragOrderedTasks ?? getDisplayOrderedTasks(taskList.tasks)
+        dragOrderedTasks ?? pendingDisplayTasks ?? getDisplayOrderedTasks(taskList.tasks)
     }
 
     private func taskDisplayGroup(_ task: TaskSummary) -> Int {
@@ -2975,11 +2980,16 @@ private struct TaskListDetailPage: View {
         autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks)
     }
 
+    private func setPendingTasks(_ tasks: [TaskSummary]) {
+        pendingDisplayTasks = tasks
+    }
+
     private func updateTaskList(_ updates: [String: Any]) {
         db.collection("taskLists").document(taskList.id).updateData(updates)
     }
 
     private func persistTasks(_ tasks: [TaskSummary], deletedTaskIds: [String] = []) {
+        setPendingTasks(normalizedTasks(tasks))
         updateTaskList(buildTaskUpdateData(normalizedTasks(tasks), deletedTaskIds: deletedTaskIds))
     }
 
@@ -3250,7 +3260,6 @@ private struct TaskListDetailPage: View {
                                             }
                                             taskDragStartLocationY = nil
                                             draggingTaskId = nil
-                                            dragOrderedTasks = nil
                                         }
                                 )
 
@@ -3354,6 +3363,11 @@ private struct TaskListDetailPage: View {
                   let taskId = editingTaskId,
                   let task = taskList.tasks.first(where: { $0.id == taskId }) else { return }
             commitEdit(task)
+        }
+        .onChange(of: taskList.tasks) { _, tasks in
+            if let pendingDisplayTasks, pendingDisplayTasks == getDisplayOrderedTasks(tasks) {
+                self.pendingDisplayTasks = nil
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .alert(translations.t("pages.tasklist.deleteCompletedConfirmTitle"), isPresented: $showDeleteCompletedAlert) {
@@ -3605,6 +3619,16 @@ private struct TaskListDetailPage: View {
             "tasks.\(task.id).completed": !task.completed,
             "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
         ])
+        setPendingTasks(displayTasks.map { current in
+            TaskSummary(
+                id: current.id,
+                text: current.text,
+                completed: current.id == task.id ? !current.completed : current.completed,
+                date: current.date,
+                order: current.order,
+                pinned: current.pinned
+            )
+        })
     }
 
     private func startEdit(_ task: TaskSummary) {
@@ -3657,6 +3681,16 @@ private struct TaskListDetailPage: View {
             updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
         }
         updateTaskList(updates)
+        setPendingTasks(displayTasks.map { current in
+            TaskSummary(
+                id: current.id,
+                text: current.id == task.id ? resolved.text : current.text,
+                completed: current.completed,
+                date: current.id == task.id ? resolved.date ?? current.date : current.date,
+                order: current.order,
+                pinned: current.id == task.id && pinnedChanged ? true : current.pinned
+            )
+        })
     }
 
     private func openTaskActionSheet(_ task: TaskSummary) {
@@ -3686,6 +3720,16 @@ private struct TaskListDetailPage: View {
             "tasks.\(task.id).date": dateStr,
             "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
         ])
+        setPendingTasks(displayTasks.map { current in
+            TaskSummary(
+                id: current.id,
+                text: current.text,
+                completed: current.completed,
+                date: current.id == task.id ? dateStr : current.date,
+                order: current.order,
+                pinned: current.pinned
+            )
+        })
     }
 
     private func togglePinned(_ task: TaskSummary) {
@@ -3731,6 +3775,16 @@ private struct TaskListDetailPage: View {
             "tasks.\(task.id).pinned": nextPinned,
             "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
         ])
+        setPendingTasks(getDisplayOrderedTasks(displayTasks.map { current in
+            TaskSummary(
+                id: current.id,
+                text: current.text,
+                completed: current.completed,
+                date: current.date,
+                order: current.order,
+                pinned: current.id == task.id ? nextPinned : current.pinned
+            )
+        }))
     }
 
     private func addTask() {
@@ -3774,6 +3828,16 @@ private struct TaskListDetailPage: View {
             "history": buildHistory(newText: parsed.text),
             "updatedAt": now
         ])
+        setPendingTasks(getDisplayOrderedTasks(taskList.tasks + [
+            TaskSummary(
+                id: taskId,
+                text: parsed.text,
+                completed: false,
+                date: parsed.date ?? "",
+                order: order,
+                pinned: parsed.pinnedFromInput
+            )
+        ]))
     }
 
     private func handleSortTasks() {
@@ -3791,6 +3855,7 @@ private struct TaskListDetailPage: View {
         for (i, task) in sorted.enumerated() {
             updates["tasks.\(task.id).order"] = Double(i + 1)
         }
+        setPendingTasks(renumberTasks(sorted))
         updateTaskList(updates)
     }
 
@@ -3807,6 +3872,7 @@ private struct TaskListDetailPage: View {
         for (i, id) in ids.enumerated() {
             updates["tasks.\(id).order"] = Double(i + 1)
         }
+        setPendingTasks(renumberTasks(displayTasks))
         updateTaskList(updates)
     }
 

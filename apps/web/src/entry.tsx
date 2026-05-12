@@ -220,6 +220,20 @@ type TaskList = {
   updatedAt: number;
 };
 
+const areTasksEqual = (left: Task[], right: Task[]) =>
+  left.length === right.length &&
+  left.every((task, index) => {
+    const other = right[index];
+    return (
+      other !== undefined &&
+      task.id === other.id &&
+      task.text === other.text &&
+      task.completed === other.completed &&
+      task.date === other.date &&
+      task.pinned === other.pinned
+    );
+  });
+
 type AppState = {
   user: User | null;
   authStatus: AuthStatus;
@@ -4937,6 +4951,7 @@ const TaskItem = memo(TaskItemComponent);
 
 function TaskListCard({
   taskList,
+  autoSort,
   isActive,
   onActivate,
   sensorsList,
@@ -4948,6 +4963,7 @@ function TaskListCard({
   onCloseTaskAction,
 }: {
   taskList: TaskList;
+  autoSort: boolean;
   isActive: boolean;
   onActivate?: (taskListId: string) => void;
   sensorsList: SensorDescriptor<SensorOptions>[];
@@ -4961,8 +4977,10 @@ function TaskListCard({
   const { t, i18n } = useTranslation();
   const reactId = useId();
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [pendingTasks, setPendingTasks] = useState<Task[] | null>(null);
+  const baseTasks = pendingTasks ?? taskList.tasks;
   const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
-    taskList.tasks,
+    baseTasks,
     (draggedId, targetId) => updateTasksOrder(taskList.id, draggedId, targetId),
   );
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -4999,9 +5017,43 @@ function TaskListCard({
   }, [taskList.shareCode, showShareDialog]);
 
   useEffect(() => {
+    if (!pendingTasks) return;
+    if (areTasksEqual(pendingTasks, taskList.tasks)) {
+      setPendingTasks(null);
+    }
+  }, [pendingTasks, taskList.tasks]);
+
+  useEffect(() => {
     if (isActive) return;
     onDragInteractionChange?.(false);
   }, [isActive, onDragInteractionChange]);
+
+  const normalizePendingTasks = (nextTasks: Task[]): Task[] => {
+    const normalizedTasks = nextTasks.map((task, index) => ({
+      id: task.id,
+      text: task.text,
+      completed: task.completed,
+      date: task.date,
+      order: index + 1,
+      pinned: task.pinned,
+    }));
+    const sortedTasks = autoSort
+      ? getAutoSortedTasks(normalizedTasks)
+      : getDisplayOrderedTasks({
+          tasks: Object.fromEntries(
+            normalizedTasks.map(
+              (task) => [task.id, task] satisfies [string, TaskListStoreTask],
+            ),
+          ),
+        });
+    return sortedTasks.map((task) => ({
+      id: task.id,
+      text: task.text,
+      completed: task.completed,
+      date: task.date,
+      pinned: task.pinned,
+    }));
+  };
 
   const historyOptions = (() => {
     const input = newTaskText.trim();
@@ -5051,8 +5103,7 @@ function TaskListCard({
   const activeTaskActionTask =
     activeTaskActionTaskId === null || activeTaskActionTaskId === undefined
       ? null
-      : (taskList.tasks.find((task) => task.id === activeTaskActionTaskId) ??
-        null);
+      : (tasks.find((task) => task.id === activeTaskActionTaskId) ?? null);
   const closeTaskActionDialog = () => {
     onCloseTaskAction?.();
   };
@@ -5393,8 +5444,25 @@ function TaskListCard({
               onSubmit={(event) => {
                 event.preventDefault();
                 if (newTaskText.trim() === "") return;
+                const parsed = resolveTaskInput(
+                  newTaskText.trim(),
+                  normalizeLanguage(i18n.language),
+                );
                 setHistoryOpen(false);
                 newTaskInputRef.current?.focus();
+                const nextTaskId = crypto.randomUUID();
+                setPendingTasks(
+                  normalizePendingTasks([
+                    ...tasks,
+                    {
+                      id: nextTaskId,
+                      text: parsed.text,
+                      completed: false,
+                      date: parsed.date,
+                      pinned: parsed.pinned,
+                    },
+                  ]),
+                );
                 void addTask(taskList.id, newTaskText.trim())
                   .then(() => {
                     setNewTaskText("");
@@ -5402,9 +5470,12 @@ function TaskListCard({
                     setAddTaskError(null);
                     logTaskAdd({ has_date: false });
                   })
-                  .catch((error) =>
-                    setAddTaskError(
-                      resolveErrorMessage(error, t, "common.error"),
+                  .catch(
+                    (error) => (
+                      setPendingTasks(null),
+                      setAddTaskError(
+                        resolveErrorMessage(error, t, "common.error"),
+                      )
                     ),
                   );
               }}
@@ -5514,11 +5585,15 @@ function TaskListCard({
                 disabled={tasks.length < 2}
                 onClick={() => {
                   setTaskError(null);
+                  setPendingTasks(normalizePendingTasks(tasks));
                   void sortTasks(taskList.id)
                     .then(() => logTaskSort())
-                    .catch((error) =>
-                      setTaskError(
-                        resolveErrorMessage(error, t, "common.error"),
+                    .catch(
+                      (error) => (
+                        setPendingTasks(null),
+                        setTaskError(
+                          resolveErrorMessage(error, t, "common.error"),
+                        )
                       ),
                     );
                 }}
@@ -5542,10 +5617,16 @@ function TaskListCard({
                     return;
                   }
                   setDeleteCompletedPending(true);
+                  setPendingTasks(
+                    normalizePendingTasks(
+                      tasks.filter((task) => !task.completed),
+                    ),
+                  );
                   try {
                     await deleteCompletedTasks(taskList.id);
                     logTaskDeleteCompleted({ count: completedTaskCount });
                   } catch (error) {
+                    setPendingTasks(null);
                     setTaskError(resolveErrorMessage(error, t, "common.error"));
                   } finally {
                     setDeleteCompletedPending(false);
@@ -5636,6 +5717,22 @@ function TaskListCard({
                           task,
                         );
                         setTaskError(null);
+                        setPendingTasks(
+                          normalizePendingTasks(
+                            tasks.map((currentTask) =>
+                              currentTask.id === task.id
+                                ? {
+                                    ...currentTask,
+                                    text: resolved.text,
+                                    date: resolved.date,
+                                    pinned: resolved.pinnedChanged
+                                      ? resolved.pinned
+                                      : currentTask.pinned,
+                                  }
+                                : currentTask,
+                            ),
+                          ),
+                        );
                         void updateTask(taskList.id, task.id, {
                           text: currentText,
                         })
@@ -5645,11 +5742,12 @@ function TaskListCard({
                             if (resolved.pinnedChanged) fields.push("pinned");
                             logTaskUpdate({ fields: fields.join(",") });
                           })
-                          .catch((error) =>
+                          .catch((error) => {
+                            setPendingTasks(null);
                             setTaskError(
                               resolveErrorMessage(error, t, "common.error"),
-                            ),
-                          );
+                            );
+                          });
                       }}
                       onDragInteractionChange={(active) => {
                         if (!isActive) {
@@ -5660,15 +5758,28 @@ function TaskListCard({
                       }}
                       onToggle={(task) => {
                         setTaskError(null);
+                        setPendingTasks(
+                          normalizePendingTasks(
+                            tasks.map((currentTask) =>
+                              currentTask.id === task.id
+                                ? {
+                                    ...currentTask,
+                                    completed: !task.completed,
+                                  }
+                                : currentTask,
+                            ),
+                          ),
+                        );
                         void updateTask(taskList.id, task.id, {
                           completed: !task.completed,
                         })
                           .then(() => logTaskUpdate({ fields: "completed" }))
-                          .catch((error) =>
+                          .catch((error) => {
+                            setPendingTasks(null);
                             setTaskError(
                               resolveErrorMessage(error, t, "common.error"),
-                            ),
-                          );
+                            );
+                          });
                       }}
                       onOpenTaskActions={openTaskActionDialog}
                     />
@@ -5719,6 +5830,18 @@ function TaskListCard({
                 }
                 onClick={() => {
                   setTaskError(null);
+                  setPendingTasks(
+                    normalizePendingTasks(
+                      tasks.map((task) =>
+                        task.id === activeTaskActionTask.id
+                          ? {
+                              ...task,
+                              pinned: !activeTaskActionTask.pinned,
+                            }
+                          : task,
+                      ),
+                    ),
+                  );
                   void updateTask(taskList.id, activeTaskActionTask.id, {
                     pinned: !activeTaskActionTask.pinned,
                   })
@@ -5726,11 +5849,12 @@ function TaskListCard({
                       logTaskUpdate({ fields: "pinned" });
                       closeTaskActionDialog();
                     })
-                    .catch((error) =>
+                    .catch((error) => {
+                      setPendingTasks(null);
                       setTaskError(
                         resolveErrorMessage(error, t, "common.error"),
-                      ),
-                    );
+                      );
+                    });
                 }}
                 className="flex min-h-12 w-full items-center justify-between rounded-2xl border border-border bg-background px-4 py-3 text-start text-sm font-semibold text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:focus-visible:outline-muted-dark"
               >
@@ -5753,6 +5877,15 @@ function TaskListCard({
                 type="button"
                 onClick={() => {
                   setTaskError(null);
+                  setPendingTasks(
+                    normalizePendingTasks(
+                      tasks.map((task) =>
+                        task.id === activeTaskActionTask.id
+                          ? { ...task, date: "" }
+                          : task,
+                      ),
+                    ),
+                  );
                   void updateTask(taskList.id, activeTaskActionTask.id, {
                     date: "",
                   })
@@ -5760,11 +5893,12 @@ function TaskListCard({
                       logTaskUpdate({ fields: "date" });
                       closeTaskActionDialog();
                     })
-                    .catch((error) =>
+                    .catch((error) => {
+                      setPendingTasks(null);
                       setTaskError(
                         resolveErrorMessage(error, t, "common.error"),
-                      ),
-                    );
+                      );
+                    });
                 }}
                 className="inline-flex min-h-11 w-fit items-center self-start rounded-xl text-sm font-semibold text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error dark:text-muted-dark"
               >
@@ -5776,6 +5910,18 @@ function TaskListCard({
                   selected={parseTaskDateValue(activeTaskActionTask.date)}
                   onSelect={(next) => {
                     setTaskError(null);
+                    setPendingTasks(
+                      normalizePendingTasks(
+                        tasks.map((task) =>
+                          task.id === activeTaskActionTask.id
+                            ? {
+                                ...task,
+                                date: next ? formatTaskDateValue(next) : "",
+                              }
+                            : task,
+                        ),
+                      ),
+                    );
                     void updateTask(taskList.id, activeTaskActionTask.id, {
                       date: next ? formatTaskDateValue(next) : "",
                     })
@@ -5783,11 +5929,12 @@ function TaskListCard({
                         logTaskUpdate({ fields: "date" });
                         closeTaskActionDialog();
                       })
-                      .catch((error) =>
+                      .catch((error) => {
+                        setPendingTasks(null);
                         setTaskError(
                           resolveErrorMessage(error, t, "common.error"),
-                        ),
-                      );
+                        );
+                      });
                   }}
                 />
               </div>
@@ -6533,6 +6680,7 @@ function AppShellPage() {
   const { t, i18n } = useTranslation();
   const { authStatus } = useSessionState();
   const user = useUser();
+  const settings = useSettings();
   const {
     hasStartupError,
     taskListOrderStatus,
@@ -7086,6 +7234,7 @@ function AppShellPage() {
               >
                 <TaskListCard
                   taskList={taskList}
+                  autoSort={settings?.autoSort ?? false}
                   isActive={selectedTaskListId === taskList.id}
                   onActivate={openTaskList}
                   sensorsList={sensorsList}

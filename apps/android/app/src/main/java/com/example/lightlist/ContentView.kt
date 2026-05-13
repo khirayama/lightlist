@@ -119,6 +119,9 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.firestore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -147,6 +150,7 @@ import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.focus.FocusManager
@@ -503,6 +507,20 @@ private data class TaskSummary(
     val pinned: Boolean
 )
 
+private class TaskListMutationQueue(
+    private val scope: CoroutineScope
+) {
+    private var tail: Job? = null
+
+    fun enqueue(block: suspend () -> Unit) {
+        val previous = tail
+        tail = scope.launch {
+            previous?.join()
+            block()
+        }
+    }
+}
+
 private data class TaskActionSheetState(
     val taskId: String
 )
@@ -564,18 +582,21 @@ private object TaskListDetailMetrics {
     val indicatorContentInset = 42.dp
     val indicatorTouchSize = 24.dp
     val indicatorDotSize = 7.dp
-    val headerActionIconButtonSize = 28.dp
-    val headerActionIconSize = AppIconMetrics.compactActionIconSize
-    val headerActionSpacing = 10.dp
+    val headerActionIconButtonSize = 40.dp
+    val headerActionIconSize = AppIconMetrics.standardActionIconSize
+    val headerActionSpacing = 0.dp
+    val headerActionsEndOffset = 12.dp
     val inputCornerRadius = 14.dp
     val inputHorizontalPadding = 14.dp
     val inputVerticalPadding = 10.dp
     val inputMinHeight = 44.dp
     val inputActionSpacing = 8.dp
-    val addActionIconButtonSize = 32.dp
-    val addActionIconSize = AppIconMetrics.compactActionIconSize
-    val actionRowVerticalPadding = 2.dp
-    val actionControlVerticalPadding = 2.dp
+    val addActionIconButtonSize = 40.dp
+    val addActionIconSize = AppIconMetrics.standardActionIconSize
+    val actionRowVerticalPadding = 4.dp
+    val actionControlVerticalPadding = 4.dp
+    val actionControlIconSize = 22.dp
+    val actionControlIconSpacing = 6.dp
     val sectionBottomSpacing = 14.dp
     val actionsBottomSpacing = 24.dp
     val taskRowSpacing = 4.dp
@@ -584,14 +605,15 @@ private object TaskListDetailMetrics {
     val taskDateTopInset = (-3).dp
     val dragHandleTopPadding = 0.dp
     val dragHandleEndPadding = 0.dp
-    val dragHandleTouchWidth = 24.dp
+    val dragHandleTouchWidth = 22.dp
     val completionTopPadding = 1.dp
-    val completionEndPadding = 0.dp
-    val completionTouchWidth = 26.dp
+    val completionEndPadding = 2.dp
+    val completionTouchWidth = 28.dp
     val completionDotSize = 18.dp
-    val taskTextStartPadding = 3.dp
-    val trailingDateButtonWidth = 48.dp
-    val trailingDateIconSize = AppIconMetrics.compactActionIconSize
+    val taskTextStartPadding = 6.dp
+    val trailingDateButtonWidth = 24.dp
+    val trailingDateIconSize = AppIconMetrics.standardActionIconSize
+    val trailingActionEndOffset = 3.dp
     val textLineHeight = 22.sp
     val dateLineHeight = 16.sp
 }
@@ -1443,31 +1465,34 @@ private suspend fun fetchTaskListIdByShareCode(shareCode: String): String? {
 private suspend fun addSharedTaskListToOrder(taskListId: String) {
     val uid = Firebase.auth.currentUser?.uid ?: return
     val db = Firebase.firestore
-    db.runTransaction { transaction ->
-        val taskListOrderRef = db.collection("taskListOrder").document(uid)
-        val orderSnap = transaction.get(taskListOrderRef)
-        if (!orderSnap.exists()) throw Exception(TASK_LIST_ORDER_NOT_FOUND_ERROR)
-        val orderData = orderSnap.data ?: throw Exception(TASK_LIST_ORDER_NOT_FOUND_ERROR)
+    val taskListOrderRef = db.collection("taskListOrder").document(uid)
+    val taskListRef = db.collection("taskLists").document(taskListId)
+    val orderSnap = taskListOrderRef.get().await()
+    val orderData = orderSnap.data ?: emptyMap()
 
-        if (orderData.containsKey(taskListId)) {
-            throw Exception(TASK_LIST_ALREADY_ADDED_ERROR)
-        }
+    if (orderData.containsKey(taskListId)) {
+        return
+    }
 
-        val orders = orderData.entries.mapNotNull { entry ->
-            if (entry.key == "createdAt" || entry.key == "updatedAt") return@mapNotNull null
-            val value = entry.value as? Map<*, *> ?: return@mapNotNull null
-            (value["order"] as? Number)?.toDouble()
-        }
-        val newOrder = if (orders.isEmpty()) 1.0 else orders.max() + 1.0
+    val orders = orderData.entries.mapNotNull { entry ->
+        if (entry.key == "createdAt" || entry.key == "updatedAt") return@mapNotNull null
+        val value = entry.value as? Map<*, *> ?: return@mapNotNull null
+        (value["order"] as? Number)?.toDouble()
+    }
+    val newOrder = if (orders.isEmpty()) 1.0 else orders.max() + 1.0
 
-        val taskListRef = db.collection("taskLists").document(taskListId)
-        val taskListSnap = transaction.get(taskListRef)
-        if (!taskListSnap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
-        val currentMemberCount = (taskListSnap.data?.get("memberCount") as? Number)?.toInt() ?: 1
-        val now = System.currentTimeMillis()
-        transaction.set(taskListOrderRef, mapOf(taskListId to mapOf("order" to newOrder), "updatedAt" to now), SetOptions.merge())
-        transaction.update(taskListRef, mapOf("memberCount" to (currentMemberCount + 1), "updatedAt" to now))
-    }.await()
+    val taskListSnap = taskListRef.get().await()
+    if (!taskListSnap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
+    val currentMemberCount = (taskListSnap.data?.get("memberCount") as? Number)?.toInt() ?: 1
+    val now = System.currentTimeMillis()
+    db.batch().apply {
+        set(
+            taskListOrderRef,
+            mapOf(taskListId to mapOf("order" to newOrder), "updatedAt" to now),
+            SetOptions.merge()
+        )
+        update(taskListRef, mapOf("memberCount" to (currentMemberCount + 1), "updatedAt" to now))
+    }.commit().await()
 }
 
 private fun flattenCalendarTasks(taskLists: List<TaskListDetail>): List<CalendarTask> {
@@ -2832,7 +2857,7 @@ private fun DragHandleIcon(modifier: Modifier = Modifier) {
                 repeat(2) {
                     Box(
                         Modifier
-                            .size(AppIconMetrics.dragHandleDotSize)
+                            .size(4.dp)
                             .background(
                                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 CircleShape
@@ -3889,6 +3914,7 @@ private fun TaskListRow(
             modifier = Modifier
                 .width(TaskListDetailMetrics.trailingDateButtonWidth)
                 .height(48.dp)
+                .offset(x = TaskListDetailMetrics.trailingActionEndOffset)
         ) {
             Icon(
                 imageVector = if (task.pinned) Icons.Default.PushPin else Icons.Default.CalendarToday,
@@ -3896,7 +3922,6 @@ private fun TaskListRow(
                 tint = if (task.pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                 modifier = Modifier
                     .size(TaskListDetailMetrics.trailingDateIconSize)
-                    .offset(x = 2.dp)
             )
         }
     }
@@ -4005,6 +4030,7 @@ private fun TaskListDetailPage(
     val hasCompletedTasks = remember(taskList.tasks) { taskList.tasks.any { it.completed } }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var newTaskInputWidthPx by remember { mutableStateOf(0) }
+    val mutationQueue = remember(taskList.id) { TaskListMutationQueue(scope) }
 
     fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
         return tasks
@@ -4073,11 +4099,13 @@ private fun TaskListDetailPage(
     }
 
     fun persistTaskListUpdate(updates: Map<String, Any>) {
-        scope.launch {
+        mutationQueue.enqueue {
             try {
                 db.collection("taskLists").document(taskList.id).update(updates).await()
             } catch (_: Exception) {
-                pendingDisplayedTasks = null
+                withContext(Dispatchers.Main) {
+                    pendingDisplayedTasks = null
+                }
             }
         }
     }
@@ -4353,20 +4381,19 @@ private fun TaskListDetailPage(
                 val uid = user.uid
                 val now = System.currentTimeMillis()
                 val taskListId = taskList.id
-                db.runTransaction { transaction ->
-                    val taskListOrderRef = db.collection("taskListOrder").document(uid)
-                    val taskListOrderSnapshot = transaction.get(taskListOrderRef)
-                    if (!taskListOrderSnapshot.exists()) {
-                        throw IllegalStateException("TaskListOrder not found")
-                    }
-                    if (!taskListOrderSnapshot.contains(taskListId)) {
-                        return@runTransaction null
-                    }
+                val taskListOrderRef = db.collection("taskListOrder").document(uid)
+                val taskListRef = db.collection("taskLists").document(taskListId)
+                val taskListOrderSnapshot = taskListOrderRef.get().await()
+                if (!taskListOrderSnapshot.exists() || !taskListOrderSnapshot.contains(taskListId)) {
+                    return@launch
+                }
+                val taskListSnapshot = taskListRef.get().await()
+                if (!taskListSnapshot.exists()) {
+                    return@launch
+                }
 
-                    val taskListRef = db.collection("taskLists").document(taskListId)
-                    val taskListSnapshot = transaction.get(taskListRef)
-
-                    transaction.update(
+                db.batch().apply {
+                    update(
                         taskListOrderRef,
                         mapOf(
                             taskListId to FieldValue.delete(),
@@ -4374,31 +4401,24 @@ private fun TaskListDetailPage(
                         )
                     )
 
-                    if (!taskListSnapshot.exists()) {
-                        return@runTransaction null
-                    }
-
                     val currentMemberCount = (taskListSnapshot.getLong("memberCount") ?: 1L).toInt()
-                    val nextMemberCount = currentMemberCount - 1
-                    if (nextMemberCount <= 0) {
+                    if (currentMemberCount <= 1) {
                         taskListSnapshot.getString("shareCode")
                             ?.takeIf { it.isNotBlank() }
                             ?.let { shareCode ->
-                                transaction.delete(db.collection("shareCodes").document(shareCode))
+                                delete(db.collection("shareCodes").document(shareCode))
                             }
-                        transaction.delete(taskListRef)
-                        return@runTransaction null
-                    }
-
-                    transaction.update(
-                        taskListRef,
-                        mapOf(
-                            "memberCount" to nextMemberCount,
-                            "updatedAt" to now
+                        delete(taskListRef)
+                    } else {
+                        update(
+                            taskListRef,
+                            mapOf(
+                                "memberCount" to (currentMemberCount - 1),
+                                "updatedAt" to now
+                            )
                         )
-                    )
-                    null
-                }.await()
+                    }
+                }.commit().await()
                 showRemoveListConfirm = false
                 showEditDialog = false
             } catch (_: Exception) {
@@ -4508,31 +4528,36 @@ private fun TaskListDetailPage(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(
-                    onClick = { editName = taskList.name; editBackground = taskList.background; showEditDialog = true },
-                    modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
+                Row(
+                    modifier = Modifier.offset(x = TaskListDetailMetrics.headerActionsEndOffset),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = t.t("taskList.editTitle"),
-                        modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
-                    )
-                }
-                Spacer(Modifier.width(TaskListDetailMetrics.headerActionSpacing))
-                IconButton(
-                    onClick = {
-                        currentShareCode = taskList.shareCode
-                        shareCopySuccess = false
-                        shareError = null
-                        showShareDialog = true
-                    },
-                    modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
-                ) {
-                    Icon(
-                        Icons.Default.Share,
-                        contentDescription = t.t("taskList.share"),
-                        modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
-                    )
+                    IconButton(
+                        onClick = { editName = taskList.name; editBackground = taskList.background; showEditDialog = true },
+                        modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = t.t("taskList.editTitle"),
+                            modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
+                        )
+                    }
+                    Spacer(Modifier.width(TaskListDetailMetrics.headerActionSpacing))
+                    IconButton(
+                        onClick = {
+                            currentShareCode = taskList.shareCode
+                            shareCopySuccess = false
+                            shareError = null
+                            showShareDialog = true
+                        },
+                        modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
+                    ) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = t.t("taskList.share"),
+                            modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
+                        )
+                    }
                 }
             }
         }
@@ -4683,10 +4708,10 @@ private fun TaskListDetailPage(
                         Icon(
                             Icons.Default.FilterList,
                             contentDescription = t.t("pages.tasklist.sort"),
-                            modifier = Modifier.size(AppIconMetrics.inlineActionIconSize),
+                            modifier = Modifier.size(TaskListDetailMetrics.actionControlIconSize),
                             tint = if (canSort) chromeColor else chromeColor.copy(alpha = 0.45f)
                         )
-                        Spacer(Modifier.width(4.dp))
+                        Spacer(Modifier.width(TaskListDetailMetrics.actionControlIconSpacing))
                         Text(
                             t.t("pages.tasklist.sort"),
                             style = actionTextStyle,
@@ -4705,11 +4730,11 @@ private fun TaskListDetailPage(
                             style = actionTextStyle,
                             color = if (deleteEnabled) chromeColor else chromeColor.copy(alpha = 0.45f)
                         )
-                        Spacer(Modifier.width(4.dp))
+                        Spacer(Modifier.width(TaskListDetailMetrics.actionControlIconSpacing))
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = t.t("pages.tasklist.deleteCompleted"),
-                            modifier = Modifier.size(AppIconMetrics.inlineActionIconSize),
+                            modifier = Modifier.size(TaskListDetailMetrics.actionControlIconSize).offset(x = 2.dp),
                             tint = if (deleteEnabled) chromeColor else chromeColor.copy(alpha = 0.45f)
                         )
                     }

@@ -75,7 +75,6 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
   query,
-  runTransaction,
   setDoc,
   updateDoc,
   writeBatch,
@@ -233,6 +232,37 @@ const areTasksEqual = (left: Task[], right: Task[]) =>
       task.pinned === other.pinned
     );
   });
+
+const taskListMutationQueues = new Map<string, Promise<void>>();
+
+async function enqueueTaskListMutation<T>(
+  taskListId: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previous = taskListMutationQueues.get(taskListId) ?? Promise.resolve();
+  let release: (() => void) | undefined;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  taskListMutationQueues.set(
+    taskListId,
+    previous.then(
+      () => current,
+      () => current,
+    ),
+  );
+  await previous.catch(() => undefined);
+  try {
+    return await operation();
+  } finally {
+    if (release) {
+      release();
+    }
+    if (taskListMutationQueues.get(taskListId) === current) {
+      taskListMutationQueues.delete(taskListId);
+    }
+  }
+}
 
 type AppState = {
   user: User | null;
@@ -2586,41 +2616,49 @@ export async function updateTaskList(
 export async function deleteTaskList(taskListId: string) {
   const uid = requireCurrentUserId();
   const db = getDbInstance();
-  await runTransaction(db, async (transaction) => {
-    const taskListRef = doc(db, "taskLists", taskListId);
-    const taskListOrderRef = doc(db, "taskListOrder", uid);
-    const [taskListSnapshot, taskListOrderSnapshot] = await Promise.all([
-      transaction.get(taskListRef),
-      transaction.get(taskListOrderRef),
-    ]);
-    const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
-    const taskListOrder = assertTaskListOrderStore(
-      taskListOrderSnapshot.data(),
-      uid,
-    );
-    transaction.set(
-      taskListOrderRef,
-      {
-        [taskListId]: deleteField(),
-        updatedAt: Date.now(),
-      },
-      { merge: true },
-    );
-    if (getValidMemberCount(taskList) <= 1) {
-      transaction.delete(taskListRef);
-      return;
+  const taskListRef = doc(db, "taskLists", taskListId);
+  const taskListOrderRef = doc(db, "taskListOrder", uid);
+  const [taskListSnapshot, taskListOrderSnapshot] = await Promise.all([
+    getDoc(taskListRef),
+    getDoc(taskListOrderRef),
+  ]);
+  const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
+  if (!taskListOrderSnapshot.exists()) {
+    return;
+  }
+  const taskListOrder = assertTaskListOrderStore(
+    taskListOrderSnapshot.data(),
+    uid,
+  );
+  if (
+    !getTaskListOrderEntries(taskListOrder).some(([id]) => id === taskListId)
+  ) {
+    return;
+  }
+  const now = Date.now();
+  const batch = writeBatch(db);
+  batch.set(
+    taskListOrderRef,
+    {
+      [taskListId]: deleteField(),
+      updatedAt: now,
+    },
+    { merge: true },
+  );
+  if (getValidMemberCount(taskList) <= 1) {
+    if (taskList.shareCode) {
+      batch.delete(
+        doc(db, "shareCodes", normalizeShareCode(taskList.shareCode)),
+      );
     }
-    transaction.update(taskListRef, {
+    batch.delete(taskListRef);
+  } else {
+    batch.update(taskListRef, {
       memberCount: getValidMemberCount(taskList) - 1,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
-    const remainingOrderEntries = getTaskListOrderEntries(taskListOrder).filter(
-      ([id]) => id !== taskListId,
-    );
-    if (remainingOrderEntries.length === 0) {
-      transaction.delete(taskListOrderRef);
-    }
-  });
+  }
+  await batch.commit();
 }
 
 export async function updateTaskListOrder(
@@ -2636,39 +2674,45 @@ export async function updateTaskListOrder(
   });
 }
 
-export async function addTask(taskListId: string, rawText: string) {
-  const taskList = await getTaskListData(taskListId);
-  const settings = await getResolvedTaskSettings();
-  const parsed = resolveTaskInput(rawText, settings.language);
-  const now = Date.now();
-  const tasks = getOrderedTasks(taskList);
-  const nextOrder =
-    settings.taskInsertPosition === "bottom"
-      ? Math.max(0, ...tasks.map((task) => task.order)) + 1
-      : 0;
-  const nextTask: TaskListStoreTask = {
-    id: doc(collection(getDbInstance(), "taskLists")).id,
-    text: parsed.text,
-    completed: false,
-    date: parsed.date,
-    order: nextOrder,
-    pinned: parsed.pinned,
-  };
-  const nextTasks = getSortedTasks(
-    [
-      ...tasks.map((task) =>
-        settings.taskInsertPosition === "top"
-          ? { ...task, order: task.order + 1 }
-          : task,
-      ),
-      nextTask,
-    ],
-    settings,
-  );
-  await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-    ...buildTaskUpdateData({ tasks: nextTasks }),
-    history: buildHistory(taskList, parsed.text),
-    updatedAt: now,
+export async function addTask(
+  taskListId: string,
+  rawText: string,
+  options?: { taskId?: string },
+) {
+  await enqueueTaskListMutation(taskListId, async () => {
+    const taskList = await getTaskListData(taskListId);
+    const settings = await getResolvedTaskSettings();
+    const parsed = resolveTaskInput(rawText, settings.language);
+    const now = Date.now();
+    const tasks = getOrderedTasks(taskList);
+    const nextOrder =
+      settings.taskInsertPosition === "bottom"
+        ? Math.max(0, ...tasks.map((task) => task.order)) + 1
+        : 0;
+    const nextTask: TaskListStoreTask = {
+      id: options?.taskId ?? doc(collection(getDbInstance(), "taskLists")).id,
+      text: parsed.text,
+      completed: false,
+      date: parsed.date,
+      order: nextOrder,
+      pinned: parsed.pinned,
+    };
+    const nextTasks = getSortedTasks(
+      [
+        ...tasks.map((task) =>
+          settings.taskInsertPosition === "top"
+            ? { ...task, order: task.order + 1 }
+            : task,
+        ),
+        nextTask,
+      ],
+      settings,
+    );
+    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
+      ...buildTaskUpdateData({ tasks: nextTasks }),
+      history: buildHistory(taskList, parsed.text),
+      updatedAt: now,
+    });
   });
 }
 
@@ -2677,46 +2721,99 @@ export async function updateTask(
   taskId: string,
   updates: Partial<Pick<Task, "completed" | "date" | "pinned" | "text">>,
 ) {
-  const settings = await getResolvedTaskSettings();
-  const needsTaskListRead =
-    settings.autoSort ||
-    typeof updates.text === "string" ||
-    typeof updates.pinned === "boolean";
-  const taskList = needsTaskListRead ? await getTaskListData(taskListId) : null;
-  const currentTask = taskList?.tasks[taskId];
-  if (needsTaskListRead && !currentTask) {
-    throw new Error("Task not found");
-  }
-  const resolvedTextAndDate =
-    typeof updates.text === "string" && currentTask
-      ? resolveTaskInput(updates.text, settings.language, currentTask)
+  await enqueueTaskListMutation(taskListId, async () => {
+    const settings = await getResolvedTaskSettings();
+    const needsTaskListRead =
+      settings.autoSort ||
+      typeof updates.text === "string" ||
+      typeof updates.pinned === "boolean";
+    const taskList = needsTaskListRead
+      ? await getTaskListData(taskListId)
       : null;
-  const normalizedUpdates: Partial<
-    Pick<Task, "completed" | "date" | "pinned" | "text">
-  > = {
-    ...updates,
-  };
-  if (resolvedTextAndDate) {
-    normalizedUpdates.text = resolvedTextAndDate.text;
-    if (!("date" in updates)) {
-      normalizedUpdates.date = resolvedTextAndDate.date;
+    const currentTask = taskList?.tasks[taskId];
+    if (needsTaskListRead && !currentTask) {
+      throw new Error("Task not found");
     }
-    if (!("pinned" in updates) && resolvedTextAndDate.pinnedChanged) {
-      normalizedUpdates.pinned = resolvedTextAndDate.pinned;
+    const resolvedTextAndDate =
+      typeof updates.text === "string" && currentTask
+        ? resolveTaskInput(updates.text, settings.language, currentTask)
+        : null;
+    const normalizedUpdates: Partial<
+      Pick<Task, "completed" | "date" | "pinned" | "text">
+    > = {
+      ...updates,
+    };
+    if (resolvedTextAndDate) {
+      normalizedUpdates.text = resolvedTextAndDate.text;
+      if (!("date" in updates)) {
+        normalizedUpdates.date = resolvedTextAndDate.date;
+      }
+      if (!("pinned" in updates) && resolvedTextAndDate.pinnedChanged) {
+        normalizedUpdates.pinned = resolvedTextAndDate.pinned;
+      }
     }
-  }
-  if (normalizedUpdates.text !== undefined && normalizedUpdates.text === "") {
-    throw new Error("Task text is empty");
-  }
-  const now = Date.now();
+    if (normalizedUpdates.text !== undefined && normalizedUpdates.text === "") {
+      throw new Error("Task text is empty");
+    }
+    const now = Date.now();
 
-  if (!settings.autoSort && typeof normalizedUpdates.pinned !== "boolean") {
+    if (!settings.autoSort && typeof normalizedUpdates.pinned !== "boolean") {
+      const nextUpdates: Record<string, unknown> = {
+        updatedAt: now,
+      };
+      Object.entries(normalizedUpdates).forEach(([key, value]) => {
+        nextUpdates[`tasks.${taskId}.${key}`] = value;
+      });
+      if (
+        taskList &&
+        currentTask &&
+        resolvedTextAndDate &&
+        resolvedTextAndDate.text.trim() !== currentTask.text.trim()
+      ) {
+        nextUpdates.history = buildHistory(
+          taskList,
+          resolvedTextAndDate.text,
+          currentTask.text,
+        );
+      }
+      await updateDoc(
+        doc(getDbInstance(), "taskLists", taskListId),
+        nextUpdates,
+      );
+      return;
+    }
+
+    if (!taskList || !currentTask) {
+      throw new Error("Task not found");
+    }
+
+    const tasks = getOrderedTasks(taskList);
+    const updatedTasks = tasks.map((task) => {
+      if (task.id !== taskId) return task;
+      const nextTask: TaskListStoreTask = {
+        ...task,
+        ...normalizedUpdates,
+      };
+      return nextTask;
+    });
+    const nextTasks =
+      !settings.autoSort &&
+      currentTask.pinned &&
+      !currentTask.completed &&
+      normalizedUpdates.pinned === false
+        ? renumberTasks([
+            ...updatedTasks.filter((task) => getTaskDisplayGroup(task) === 0),
+            ...updatedTasks.filter((task) => task.id === taskId),
+            ...updatedTasks.filter(
+              (task) => getTaskDisplayGroup(task) === 1 && task.id !== taskId,
+            ),
+            ...updatedTasks.filter((task) => getTaskDisplayGroup(task) === 2),
+          ])
+        : getSortedTasks(updatedTasks, settings);
     const nextUpdates: Record<string, unknown> = {
+      ...buildTaskUpdateData({ tasks: nextTasks }),
       updatedAt: now,
     };
-    Object.entries(normalizedUpdates).forEach(([key, value]) => {
-      nextUpdates[`tasks.${taskId}.${key}`] = value;
-    });
     if (
       taskList &&
       currentTask &&
@@ -2730,53 +2827,7 @@ export async function updateTask(
       );
     }
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), nextUpdates);
-    return;
-  }
-
-  if (!taskList || !currentTask) {
-    throw new Error("Task not found");
-  }
-
-  const tasks = getOrderedTasks(taskList);
-  const updatedTasks = tasks.map((task) => {
-    if (task.id !== taskId) return task;
-    const nextTask: TaskListStoreTask = {
-      ...task,
-      ...normalizedUpdates,
-    };
-    return nextTask;
   });
-  const nextTasks =
-    !settings.autoSort &&
-    currentTask.pinned &&
-    !currentTask.completed &&
-    normalizedUpdates.pinned === false
-      ? renumberTasks([
-          ...updatedTasks.filter((task) => getTaskDisplayGroup(task) === 0),
-          ...updatedTasks.filter((task) => task.id === taskId),
-          ...updatedTasks.filter(
-            (task) => getTaskDisplayGroup(task) === 1 && task.id !== taskId,
-          ),
-          ...updatedTasks.filter((task) => getTaskDisplayGroup(task) === 2),
-        ])
-      : getSortedTasks(updatedTasks, settings);
-  const nextUpdates: Record<string, unknown> = {
-    ...buildTaskUpdateData({ tasks: nextTasks }),
-    updatedAt: now,
-  };
-  if (
-    taskList &&
-    currentTask &&
-    resolvedTextAndDate &&
-    resolvedTextAndDate.text.trim() !== currentTask.text.trim()
-  ) {
-    nextUpdates.history = buildHistory(
-      taskList,
-      resolvedTextAndDate.text,
-      currentTask.text,
-    );
-  }
-  await updateDoc(doc(getDbInstance(), "taskLists", taskListId), nextUpdates);
 }
 
 async function deleteTask(taskListId: string, taskId: string) {
@@ -2787,27 +2838,31 @@ async function deleteTask(taskListId: string, taskId: string) {
 }
 
 export async function deleteCompletedTasks(taskListId: string) {
-  const taskList = await getTaskListData(taskListId);
-  const remainingTasks = getSortedTasks(
-    getOrderedTasks(taskList).filter((task) => !task.completed),
-    await getResolvedTaskSettings(),
-  );
-  const nextData: Record<string, unknown> = {
-    tasks: {},
-    updatedAt: Date.now(),
-  };
-  remainingTasks.forEach((task) => {
-    (nextData.tasks as Record<string, TaskListStoreTask>)[task.id] = task;
+  await enqueueTaskListMutation(taskListId, async () => {
+    const taskList = await getTaskListData(taskListId);
+    const remainingTasks = getSortedTasks(
+      getOrderedTasks(taskList).filter((task) => !task.completed),
+      await getResolvedTaskSettings(),
+    );
+    const nextData: Record<string, unknown> = {
+      tasks: {},
+      updatedAt: Date.now(),
+    };
+    remainingTasks.forEach((task) => {
+      (nextData.tasks as Record<string, TaskListStoreTask>)[task.id] = task;
+    });
+    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), nextData);
   });
-  await updateDoc(doc(getDbInstance(), "taskLists", taskListId), nextData);
 }
 
 export async function sortTasks(taskListId: string) {
-  const taskList = await getTaskListData(taskListId);
-  const sortedTasks = getAutoSortedTasks(getDisplayOrderedTasks(taskList));
-  await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-    ...buildTaskUpdateData({ tasks: sortedTasks }),
-    updatedAt: Date.now(),
+  await enqueueTaskListMutation(taskListId, async () => {
+    const taskList = await getTaskListData(taskListId);
+    const sortedTasks = getAutoSortedTasks(getDisplayOrderedTasks(taskList));
+    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
+      ...buildTaskUpdateData({ tasks: sortedTasks }),
+      updatedAt: Date.now(),
+    });
   });
 }
 
@@ -2816,21 +2871,23 @@ export async function updateTasksOrder(
   draggedId: string,
   targetId: string,
 ) {
-  const taskList = await getTaskListData(taskListId);
-  const tasks = getDisplayOrderedTasks(taskList);
-  const dragged = taskList.tasks[draggedId];
-  const target = taskList.tasks[targetId];
-  if (!dragged || !target) return;
-  if (getTaskDisplayGroup(dragged) !== getTaskDisplayGroup(target)) return;
-  const oldIndex = tasks.findIndex((task) => task.id === draggedId);
-  const newIndex = tasks.findIndex((task) => task.id === targetId);
-  if (oldIndex === -1 || newIndex === -1) return;
-  const [draggedTask] = tasks.splice(oldIndex, 1);
-  tasks.splice(newIndex, 0, draggedTask);
-  const nextTasks = renumberTasks(tasks);
-  await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-    ...buildTaskUpdateData({ tasks: nextTasks }),
-    updatedAt: Date.now(),
+  await enqueueTaskListMutation(taskListId, async () => {
+    const taskList = await getTaskListData(taskListId);
+    const tasks = getDisplayOrderedTasks(taskList);
+    const dragged = taskList.tasks[draggedId];
+    const target = taskList.tasks[targetId];
+    if (!dragged || !target) return;
+    if (getTaskDisplayGroup(dragged) !== getTaskDisplayGroup(target)) return;
+    const oldIndex = tasks.findIndex((task) => task.id === draggedId);
+    const newIndex = tasks.findIndex((task) => task.id === targetId);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const [draggedTask] = tasks.splice(oldIndex, 1);
+    tasks.splice(newIndex, 0, draggedTask);
+    const nextTasks = renumberTasks(tasks);
+    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
+      ...buildTaskUpdateData({ tasks: nextTasks }),
+      updatedAt: Date.now(),
+    });
   });
 }
 
@@ -2854,35 +2911,42 @@ export async function fetchTaskListIdByShareCode(shareCode: string) {
 export async function addSharedTaskListToOrder(taskListId: string) {
   const uid = requireCurrentUserId();
   const db = getDbInstance();
-  await runTransaction(db, async (transaction) => {
-    const taskListRef = doc(db, "taskLists", taskListId);
-    const taskListOrderRef = doc(db, "taskListOrder", uid);
-    const [taskListSnapshot, taskListOrderSnapshot] = await Promise.all([
-      transaction.get(taskListRef),
-      transaction.get(taskListOrderRef),
-    ]);
-    const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
-    const taskListOrder = taskListOrderSnapshot.exists()
-      ? assertTaskListOrderStore(taskListOrderSnapshot.data(), uid)
-      : null;
-    const nextOrder =
-      Math.max(
-        0,
-        ...(taskListOrder ? getOrderedTaskListOrders(taskListOrder) : []),
-      ) + 1;
-    transaction.set(
-      taskListOrderRef,
-      {
-        [taskListId]: { order: nextOrder },
-        updatedAt: Date.now(),
-      },
-      { merge: true },
-    );
-    transaction.update(taskListRef, {
-      memberCount: getValidMemberCount(taskList) + 1,
-      updatedAt: Date.now(),
-    });
+  const taskListRef = doc(db, "taskLists", taskListId);
+  const taskListOrderRef = doc(db, "taskListOrder", uid);
+  const [taskListSnapshot, taskListOrderSnapshot] = await Promise.all([
+    getDoc(taskListRef),
+    getDoc(taskListOrderRef),
+  ]);
+  const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
+  const taskListOrder = taskListOrderSnapshot.exists()
+    ? assertTaskListOrderStore(taskListOrderSnapshot.data(), uid)
+    : null;
+  if (
+    taskListOrder &&
+    getTaskListOrderEntries(taskListOrder).some(([id]) => id === taskListId)
+  ) {
+    return;
+  }
+  const nextOrder =
+    Math.max(
+      0,
+      ...(taskListOrder ? getOrderedTaskListOrders(taskListOrder) : []),
+    ) + 1;
+  const now = Date.now();
+  const batch = writeBatch(db);
+  batch.set(
+    taskListOrderRef,
+    {
+      [taskListId]: { order: nextOrder },
+      updatedAt: now,
+    },
+    { merge: true },
+  );
+  batch.update(taskListRef, {
+    memberCount: getValidMemberCount(taskList) + 1,
+    updatedAt: now,
   });
+  await batch.commit();
 }
 
 export async function removeShareCode(taskListId: string) {
@@ -4952,6 +5016,7 @@ const TaskItem = memo(TaskItemComponent);
 function TaskListCard({
   taskList,
   autoSort,
+  taskInsertPosition,
   isActive,
   onActivate,
   sensorsList,
@@ -4964,6 +5029,7 @@ function TaskListCard({
 }: {
   taskList: TaskList;
   autoSort: boolean;
+  taskInsertPosition: TaskInsertPosition;
   isActive: boolean;
   onActivate?: (taskListId: string) => void;
   sensorsList: SensorDescriptor<SensorOptions>[];
@@ -5054,6 +5120,9 @@ function TaskListCard({
       pinned: task.pinned,
     }));
   };
+
+  const buildOptimisticAddedTasks = (task: Task): Task[] =>
+    taskInsertPosition === "top" ? [task, ...tasks] : [...tasks, task];
 
   const historyOptions = (() => {
     const input = newTaskText.trim();
@@ -5452,18 +5521,19 @@ function TaskListCard({
                 newTaskInputRef.current?.focus();
                 const nextTaskId = crypto.randomUUID();
                 setPendingTasks(
-                  normalizePendingTasks([
-                    ...tasks,
-                    {
+                  normalizePendingTasks(
+                    buildOptimisticAddedTasks({
                       id: nextTaskId,
                       text: parsed.text,
                       completed: false,
                       date: parsed.date,
                       pinned: parsed.pinned,
-                    },
-                  ]),
+                    }),
+                  ),
                 );
-                void addTask(taskList.id, newTaskText.trim())
+                void addTask(taskList.id, newTaskText.trim(), {
+                  taskId: nextTaskId,
+                })
                   .then(() => {
                     setNewTaskText("");
                     setTaskError(null);
@@ -7235,6 +7305,7 @@ function AppShellPage() {
                 <TaskListCard
                   taskList={taskList}
                   autoSort={settings?.autoSort ?? false}
+                  taskInsertPosition={settings?.taskInsertPosition ?? "top"}
                   isActive={selectedTaskListId === taskList.id}
                   onActivate={openTaskList}
                   sensorsList={sensorsList}

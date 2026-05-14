@@ -5121,9 +5121,6 @@ function TaskListCard({
     }));
   };
 
-  const buildOptimisticAddedTasks = (task: Task): Task[] =>
-    taskInsertPosition === "top" ? [task, ...tasks] : [...tasks, task];
-
   const historyOptions = (() => {
     const input = newTaskText.trim();
     if (
@@ -5173,19 +5170,6 @@ function TaskListCard({
     activeTaskActionTaskId === null || activeTaskActionTaskId === undefined
       ? null
       : (tasks.find((task) => task.id === activeTaskActionTaskId) ?? null);
-  const closeTaskActionDialog = () => {
-    onCloseTaskAction?.();
-  };
-
-  const openTaskActionDialog = (
-    task: Task,
-    trigger: HTMLButtonElement | null,
-  ) => {
-    onActivate?.(taskList.id);
-    taskActionTriggerRef.current = trigger;
-    onOpenTaskAction?.(taskList.id, task.id);
-  };
-
   useEffect(() => {
     const previousTaskActionTaskId = previousTaskActionTaskIdRef.current;
     previousTaskActionTaskIdRef.current = activeTaskActionTaskId ?? null;
@@ -5520,15 +5504,18 @@ function TaskListCard({
                 setHistoryOpen(false);
                 newTaskInputRef.current?.focus();
                 const nextTaskId = crypto.randomUUID();
+                const optimisticTask = {
+                  id: nextTaskId,
+                  text: parsed.text,
+                  completed: false,
+                  date: parsed.date,
+                  pinned: parsed.pinned,
+                } satisfies Task;
                 setPendingTasks(
                   normalizePendingTasks(
-                    buildOptimisticAddedTasks({
-                      id: nextTaskId,
-                      text: parsed.text,
-                      completed: false,
-                      date: parsed.date,
-                      pinned: parsed.pinned,
-                    }),
+                    taskInsertPosition === "top"
+                      ? [optimisticTask, ...tasks]
+                      : [...tasks, optimisticTask],
                   ),
                 );
                 void addTask(taskList.id, newTaskText.trim(), {
@@ -5851,7 +5838,11 @@ function TaskListCard({
                             );
                           });
                       }}
-                      onOpenTaskActions={openTaskActionDialog}
+                      onOpenTaskActions={(task, trigger) => {
+                        onActivate?.(taskList.id);
+                        taskActionTriggerRef.current = trigger;
+                        onOpenTaskAction?.(taskList.id, task.id);
+                      }}
                     />
                   ))}
                 </div>
@@ -5864,7 +5855,7 @@ function TaskListCard({
         open={isActive && activeTaskActionTask !== null}
         onOpenChange={(open: boolean) => {
           if (!open) {
-            closeTaskActionDialog();
+            onCloseTaskAction?.();
           }
         }}
       >
@@ -5917,7 +5908,7 @@ function TaskListCard({
                   })
                     .then(() => {
                       logTaskUpdate({ fields: "pinned" });
-                      closeTaskActionDialog();
+                      onCloseTaskAction?.();
                     })
                     .catch((error) => {
                       setPendingTasks(null);
@@ -5961,7 +5952,7 @@ function TaskListCard({
                   })
                     .then(() => {
                       logTaskUpdate({ fields: "date" });
-                      closeTaskActionDialog();
+                      onCloseTaskAction?.();
                     })
                     .catch((error) => {
                       setPendingTasks(null);
@@ -5997,7 +5988,7 @@ function TaskListCard({
                     })
                       .then(() => {
                         logTaskUpdate({ fields: "date" });
-                        closeTaskActionDialog();
+                        onCloseTaskAction?.();
                       })
                       .catch((error) => {
                         setPendingTasks(null);
@@ -6071,6 +6062,86 @@ const readTaskActionHistoryState = (
     return null;
   }
   return { taskListId, taskId };
+};
+
+const isInitializedAppHistoryState = (state: unknown): boolean =>
+  Boolean(
+    state &&
+    typeof state === "object" &&
+    (state as Record<string, unknown>).lightlistMobileStackInitialized === true,
+  );
+
+const getCurrentHistoryState = (): Record<string, unknown> | null =>
+  window.history.state && typeof window.history.state === "object"
+    ? (window.history.state as Record<string, unknown>)
+    : null;
+
+const replaceHistoryForRoute = (route: KnownAppHashRoute): void => {
+  window.history.replaceState(
+    buildAppHistoryState(route, getCurrentHistoryState(), null),
+    "",
+    toAppUrl(route),
+  );
+};
+
+const pushHistoryForRoute = (route: KnownAppHashRoute): void => {
+  window.history.pushState(
+    buildAppHistoryState(route, getCurrentHistoryState(), null),
+    "",
+    toAppUrl(route),
+  );
+};
+
+const getHistoryStackForRoute = (route: AppHashRoute): KnownAppHashRoute[] => {
+  switch (route.view) {
+    case "settings":
+      return [{ view: "taskLists" }, { view: "settings" }];
+    case "licenses":
+      return [
+        { view: "taskLists" },
+        { view: "settings" },
+        { view: "licenses" },
+      ];
+    case "calendar":
+      return [{ view: "taskLists" }, { view: "calendar" }];
+    case "detail":
+      return [{ view: "taskLists" }, route];
+    case "taskLists":
+    case "unknown":
+    default:
+      return [{ view: "taskLists" }];
+  }
+};
+
+const applyHistoryStack = (stack: readonly KnownAppHashRoute[]): void => {
+  const [firstRoute, ...restRoutes] = stack;
+  replaceHistoryForRoute(firstRoute);
+  restRoutes.forEach((route) => {
+    pushHistoryForRoute(route);
+  });
+};
+
+const initializeAppHistory = (
+  route: AppHashRoute,
+): {
+  currentView: AppView;
+  selectedTaskListId: string | null;
+  activeTaskAction: { taskListId: string; taskId: string } | null;
+  pendingInitialTaskListRoute: boolean;
+} => {
+  const stack = getHistoryStackForRoute(route);
+  applyHistoryStack(stack);
+  const currentRoute = stack[stack.length - 1];
+  return {
+    currentView: currentRoute.view,
+    selectedTaskListId:
+      currentRoute.view === "detail" ? currentRoute.taskListId : null,
+    activeTaskAction:
+      currentRoute.view === "detail"
+        ? readTaskActionHistoryState(window.history.state)
+        : null,
+    pendingInitialTaskListRoute: route.view === "unknown",
+  };
 };
 
 type SortableTaskListItemProps = {
@@ -6869,110 +6940,19 @@ function AppShellPage() {
       return;
     }
 
-    const currentState =
-      window.history.state && typeof window.history.state === "object"
-        ? (window.history.state as Record<string, unknown>)
-        : null;
-    if (currentState?.lightlistMobileStackInitialized === true) {
+    if (isInitializedAppHistoryState(window.history.state)) {
       return;
     }
 
-    const routeFromLocation = parseAppHashRoute(window.location.hash);
-
-    if (routeFromLocation.view === "taskLists") {
-      window.history.replaceState(
-        buildAppHistoryState({ view: "taskLists" }, currentState, null),
-        "",
-        toAppUrl({ view: "taskLists" }),
-      );
-      setCurrentView("taskLists");
-      setActiveTaskAction(null);
-      setPendingInitialTaskListRoute(false);
-      return;
-    }
-
-    if (routeFromLocation.view === "settings") {
-      window.history.replaceState(
-        buildAppHistoryState({ view: "taskLists" }, currentState, null),
-        "",
-        toAppUrl({ view: "taskLists" }),
-      );
-      window.history.pushState(
-        buildAppHistoryState({ view: "settings" }, currentState, null),
-        "",
-        toAppUrl({ view: "settings" }),
-      );
-      setCurrentView("settings");
-      setActiveTaskAction(null);
-      setPendingInitialTaskListRoute(false);
-      return;
-    }
-
-    if (routeFromLocation.view === "licenses") {
-      window.history.replaceState(
-        buildAppHistoryState({ view: "taskLists" }, currentState, null),
-        "",
-        toAppUrl({ view: "taskLists" }),
-      );
-      window.history.pushState(
-        buildAppHistoryState({ view: "settings" }, currentState, null),
-        "",
-        toAppUrl({ view: "settings" }),
-      );
-      window.history.pushState(
-        buildAppHistoryState({ view: "licenses" }, currentState, null),
-        "",
-        toAppUrl({ view: "licenses" }),
-      );
-      setCurrentView("licenses");
-      setActiveTaskAction(null);
-      setPendingInitialTaskListRoute(false);
-      return;
-    }
-
-    if (routeFromLocation.view === "calendar") {
-      window.history.replaceState(
-        buildAppHistoryState({ view: "taskLists" }, currentState, null),
-        "",
-        toAppUrl({ view: "taskLists" }),
-      );
-      window.history.pushState(
-        buildAppHistoryState({ view: "calendar" }, currentState, null),
-        "",
-        toAppUrl({ view: "calendar" }),
-      );
-      setCurrentView("calendar");
-      setActiveTaskAction(null);
-      setPendingInitialTaskListRoute(false);
-      return;
-    }
-
-    if (routeFromLocation.view === "detail") {
-      window.history.replaceState(
-        buildAppHistoryState({ view: "taskLists" }, currentState, null),
-        "",
-        toAppUrl({ view: "taskLists" }),
-      );
-      window.history.pushState(
-        buildAppHistoryState(routeFromLocation, currentState, null),
-        "",
-        toAppUrl(routeFromLocation),
-      );
-      setCurrentView("detail");
-      setSelectedTaskListId(routeFromLocation.taskListId);
-      setActiveTaskAction(readTaskActionHistoryState(window.history.state));
-      setPendingInitialTaskListRoute(false);
-      return;
-    }
-
-    window.history.replaceState(
-      buildAppHistoryState({ view: "taskLists" }, currentState, null),
-      "",
-      toAppUrl({ view: "taskLists" }),
+    const initializedState = initializeAppHistory(
+      parseAppHashRoute(window.location.hash),
     );
-    setCurrentView("taskLists");
-    setActiveTaskAction(null);
-    setPendingInitialTaskListRoute(true);
+    setCurrentView(initializedState.currentView);
+    setSelectedTaskListId(initializedState.selectedTaskListId);
+    setActiveTaskAction(initializedState.activeTaskAction);
+    setPendingInitialTaskListRoute(
+      initializedState.pendingInitialTaskListRoute,
+    );
   }, [authStatus]);
 
   const isAuthLoading = authStatus === "loading";

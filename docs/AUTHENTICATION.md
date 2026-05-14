@@ -7,6 +7,7 @@
 - Web の認証状態、settings 購読、taskList 購読は `apps/web/src/entry.tsx` の `AppStateProvider` と関連 hook に集約する。
 - iOS / Android は画面側から Firebase Auth と Firestore を直接呼ぶ。
 - iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。
+- iOS の認証状態監視と認証画面の full screen cover 表示判定は `RootView` に集約し、子 view へ分散させない。
 
 ## Web の必須環境変数
 
@@ -105,8 +106,10 @@
 
 - Web の認証画面は `/login/` で提供し、実装は `apps/web/src/entry.tsx` に集約する。
 - iOS のパスワードリセット deep link は `lightlist://password-reset?oobCode=...` を受け、`RootView` の full screen cover で新しいパスワード入力画面を表示する。
+- iOS の通常認証画面も `RootView` の full screen cover で表示し、認証成功後は同じ `RootView` の auth state listener 更新で自動 dismiss する。
 - Web の共有コードページは `/sharecodes/?code=CODE` を受け、未認証でも共有リストの軽量プレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - iOS の共有コード deep link は `lightlist://sharecodes/CODE` と `https://lightlist.com/sharecodes/CODE` を受け、未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
+- iOS の認証画面は、パスワードリセットまたは共有コードプレビューの cover が前面にある間は重ねて表示しない。
 - Android の deep link は `lightlist://password-reset?oobCode=...`、`lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`、`https://lightlist.com/password_reset?oobCode=...` を処理する。
 - Android の共有コード deep link は未認証でも共有リストのプレビューを開く。ログイン済みかつ未参加の場合のみ `taskListOrder` へ追加する導線を表示する。
 - 有効な共有コードを知っている利用者は、未認証でも対象リストの閲覧と編集を行える。共有コードは bearer credential として扱い、タスク編集だけでなくリスト名・履歴・背景・共有コード自体の更新にも使える。

@@ -55,6 +55,7 @@
 - Android の `TaskListDetailPagerScreen` のページインジケータは、固定ヘッダー直下に隙間なく接続する横幅いっぱいのフラットな背景帯として描画する。背景色は選択中タスクリストの `background` と同じ解決色をそのまま使い、角丸・枠線・影・透明度差は付けない。
 - iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を縦に分け、タイトル行・入力欄・操作列・タスク行までの余白を詰めて単票リファレンスに近い密度で配置する。入力欄の追加ボタンは入力文字がある時だけ表示し、未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で表現する。
 - iOS / Android の compact/regular 共通タスクリスト詳細は、本文の文字サイズと視覚余白を iOS に近い密度へ寄せつつ、編集・共有・追加・日付・完了・ドラッグ操作のタップ領域は iOS `44pt` 前後、Android `48dp` を維持する。global theme は変えず、`TaskListDetailPage` ローカルの metrics で調整する。iOS のアプリ内アイコンの視覚サイズは `ContentView.swift` の metrics で用途別に統一し、標準アクションとナビゲーションは `22pt`、テキスト横の補助アクションは `18pt`、詳細画面の小型アクションは `20pt` を基準とする。Android のアプリ内アイコンの視覚サイズは `ContentView.kt` の metrics で用途別に統一し、標準アクションは `24dp`、テキスト横の補助アクションは `18dp`、詳細画面の小型アクションは `20dp` を基準とする。
+- Android の `TaskListDetailPage` では、ヘッダー右上 action、操作列 icon、task row 右端 action、drag handle の見た目サイズと左右端の x 軸整列を同じ local metrics で管理する。個別 `offset` に頼らず、各 icon は `48dp` 前後の hit area 内で視覚的に一直線に見える配置を正とする。
 - Android の `TaskListDetailPage` の本文系テキスト（新規入力欄、task 本文、インライン編集欄、日付ラベル）は、共通の local `TextStyle` を基準に `includeFontPadding = false` と固定 line height を使う。日本語 UI で英字や数字を入力しても行ボックスの高さを変えず、新規入力欄はローカル metrics の最小高さを維持する。
 - Web / iOS / Android の完了 task row は、打ち消し線と muted 色に加えて行全体へ標準強度の透明度を掛け、日付ラベル・完了トグル・本文・日付ボタン・ドラッグハンドルをまとめて減衰させる。共有コードプレビューの task 行も同じ完了表現に揃える。
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白、操作列とタスク一覧の区切り余白、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰め、一覧密度を上げても各操作の `48dp` タップ領域は維持する。
@@ -70,11 +71,12 @@
 - Web の task action は route hash を変えずに `history.state` を 1 段積み、ブラウザ/端末の戻る操作で先に sheet を閉じる。`Esc` や overlay dismiss 後も起点ボタンへ focus を戻す。
 - 3平台とも可能な限りキーボードのみ操作を維持する。
 - `updateTaskListOrder()` は並び替え後に `1.0` 始まりの連番へ振り直す。
-- `deleteTaskList()` は次を transaction で行う。
+- `deleteTaskList()` は事前 read 後の batch write で次を行う。
   - 自分の `taskListOrder` から対象を外す。
   - `memberCount` を 1 減らす。
   - `memberCount` が 0 以下になる場合だけ `taskLists` 実体を削除する。
   - 現在の `shareCode` があれば `shareCodes/{code}` も削除する。
+  - `taskListOrder` ドキュメント自体は空になっても削除せず、対象 field の削除だけを行う。
 
 ## タスク操作
 
@@ -106,6 +108,8 @@
 - `updateTask()` は `autoSort: false` では対象 task の項目だけを更新する。ただし pinned 解除時は未完了 unpinned 先頭へ入るよう task 集合を再構成して保存する。`autoSort: true` のときは自動並び替え順で task 集合を再構成して保存する。
 - `deleteCompletedTasks()` は完了済み task を削除し、残りを再採番する。
 - UI 更新系では transaction を使わない。並び替えや本文編集の保存要求後も、listener が旧 snapshot を返している間は local pending state を表示し続け、旧 `task.text` や旧 order を一瞬再表示しない。Web の local pending state も `autoSort` 有効時は `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内 `date -> order` に正規化して保持する。
+- Web / iOS / Android の task 更新系書き込みは、同一 `taskListId` 内でクライアントごとに直列化する。追加直後の完了切替・本文編集・日付変更・ピン切替・並び替え・完了済み削除が前の保存を追い越さないようにし、追加直後の task も同じ `taskId` を optimistic 表示と Firestore 保存で共有する。
+- Web の optimistic task 追加は `taskInsertPosition` をその場の pending 表示にも反映し、`top` は先頭、`bottom` は末尾へ挿入した状態から正規化する。
 
 ## 共有
 
@@ -113,9 +117,11 @@
 - 既存共有コードがあれば削除してから新しいコードへ置き換える。
 - `removeShareCode()` は `taskLists.shareCode` を `null` に戻し、対応する `shareCodes` ドキュメントを削除する。
 - `fetchTaskListIdByShareCode()` は共有コードから `taskListId` を解決する。
-- `addSharedTaskListToOrder()` は transaction で次を行う。
+- `addSharedTaskListToOrder()` は事前 read 後の batch write で次を行う。
   - 自分の `taskListOrder` に末尾追加する。
   - `memberCount` を `+1` する。
+  - `taskListOrder/{uid}` が欠損している場合は merge 書き込みで自動作成する。
+  - 既に追加済みの場合は no-op とし、`memberCount` を重複加算しない。
 
 ## 共有権限
 

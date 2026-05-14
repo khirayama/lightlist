@@ -59,6 +59,7 @@
 - iOS の Firebase Auth callback と auth state listener から SwiftUI state を更新する処理は MainActor 上で行い、ログイン completion で `error` と `result` がともに空の場合も汎用認証エラーを表示する。
 - locale の正本は `shared/locales/locales.json` とし、Web / iOS / Android はそれを各 app の local resource へ同期して参照する。
 - iOS は `ContentView.swift` に `LightlistApp` / `RootView`、Firebase 初期化、UI、翻訳ロード、analytics helper を集約する。
+- iOS の認証状態監視と認証画面表示責務は `RootView` に集約し、子 view に auth listener や認証 cover を重複配置しない。
 - iOS の Firebase 設定は build configuration ごとに `GoogleService-Info.plist` を切り替える。入力ファイルは `apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist` と `apps/ios/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist` を使い、app bundle には標準名 `GoogleService-Info.plist` だけを配置する。
 - Android は `ContentView.kt` に `MainActivity` / `RootScreen`、UI、翻訳ロード、analytics helper を同居させる。
 - Android app module は `BuildConfig.DEBUG` と `BuildConfig.PASSWORD_RESET_URL` を使うため `buildFeatures.buildConfig = true` を維持する。

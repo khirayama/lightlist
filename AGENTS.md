@@ -45,6 +45,8 @@
 - Web の Auth / settings / taskLists の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
 - Web の task 更新系は Firestore `tasks` map の列挙順を順序根拠に使わず、必ず `order` 昇順の配列へ直してから追加・自動並び替え・D&D 並び替え・完了済み削除を計算する。
 - Web / iOS / Android の UI 更新系 Firestore 書き込みでは transaction を使わず、task 本文 blur・task 並び替え・taskList 並び替え・日付変更・ピン切替・完了切替の保存後も、listener が同じ内容へ追いつくまで local pending state を優先表示して旧表示への瞬間的な逆戻りを防ぐ。Web の local pending task 表示も `autoSort` 有効時は `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内 `date -> order` へ正規化して保持する。
+- Web / iOS / Android の task 更新系 Firestore 書き込みは同一 `taskListId` ごとにクライアント内で直列化し、task 追加直後の後続更新が先行保存を追い越さないようにする。Web の optimistic task 追加は Firestore 保存と同じ `taskId` を使う。
+- Web / iOS / Android の `deleteTaskList()` と `addSharedTaskListToOrder()` も transaction を使わず、事前 read 後の batch write で `taskListOrder` と `taskLists.memberCount` を更新する。共有参加は `taskListOrder/{uid}` 欠損時でも merge 書き込みで自動作成し、既に追加済みなら no-op にする。
 - Web / iOS / Android のタスク入力候補は `taskLists.history` を共通の正本として使い、履歴更新はタスク追加時と本文変更時に行う。候補表示条件は trim 後 2 文字以上の部分一致・最大 20 件・完全一致除外で Web 仕様に揃える。
 - task のピン留めは `tasks.*.pinned` だけを追加し、`pinOrder` は持たない。表示順は `未完了 pinned -> 未完了 unpinned -> 完了`、各グループ内は `order` 昇順を正とする。`autoSort` 有効時は各グループ内を `date -> order` で再採番する。pinned task の右端 action はカレンダーではなくピンアイコンを表示し、強めの本文 weight で通常 task と区別する。
 - タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/entry.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。
@@ -64,6 +66,7 @@
 - iOS のディープリンクは `lightlist://password-reset?oobCode=...`（パスワードリセット）と `lightlist://sharecodes/CODE` または `https://lightlist.com/sharecodes/CODE`（共有コード）を処理する。`LightlistApp` で URL を `PendingDeepLink` へ変換し、`RootView` 側でパスワードリセット画面または共有リストプレビューへ振り分ける。共有コードは未認証でもプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。
 - Android のディープリンクは `lightlist://password-reset?oobCode=...`、`lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`、`https://lightlist.com/password_reset?oobCode=...` を処理し、`ContentView.kt` 内の `MainActivity` で `PendingDeepLink` へ変換して UI 側で処理する。共有コードは未認証でもプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。
 - iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。ネイティブ側で Firebase Auth と Firestore 初期データ作成を完結させる。
+- iOS の認証状態監視と認証画面表示は `RootView` に集約し、子 view に auth listener や認証用 full screen cover を分散させない。
 - iOS の認証済み画面遷移は `RootView` の `AppRoute` と `NavigationStack` / `NavigationSplitView` で管理し、compact 幅は `TaskListsView` から `TaskListDetailPagerView` / `SettingsView` / `CalendarScreenView` へ遷移し、regular 幅は 360pt サイドバーと `RegularTaskListDetailPagerView` / `SettingsView` / `CalendarScreenView` の detail pane で表示する。
 - iOS / Android の tablet regular 幅は、左 360pt 前後のサイドバーにタスクリスト一覧と主要操作を置き、右ペインにタスクリスト詳細または設定を表示する。詳細の pager (`TabView(.page)` / `HorizontalPager`) とサイドバー選択状態は双方向同期する。
 - iOS の `TaskListDetailPagerView` / `RegularTaskListDetailPagerView` は、選択中タスクリストの `background` を詳細画面背景として使う。compact 幅は safe area を含む全面、regular 幅は detail column 内だけに適用し、sidebar と split 境界線には広げない。各 `TaskListDetailPage` 本文も同じ色を使い、未設定時だけ `Color(.systemBackground)` にフォールバックする。
@@ -72,6 +75,7 @@
 - Android の `TaskListDetailPagerScreen` のページインジケータは、固定ヘッダー直下に隙間なく接続する横幅いっぱいのフラットな背景帯として描画する。背景色は選択中タスクリストの `background` と同じ解決色をそのまま使い、角丸・枠線・影・透明度差は付けない。
 - Android の一覧ヘッダー、詳細ヘッダー、設定ヘッダー、カレンダー確認画面の上部クロームは `WindowInsets.safeDrawing` を反映し、ステータスバーと重ねない。詳細/設定/カレンダーの共通ヘッダーは safe area 分を外側コンテナで確保し、戻るボタンやタイトルの固定高さを inset と共有しない。
 - Android のタスクリスト詳細の密度調整は global typography ではなく `TaskListDetailPage` ローカルの metrics で行い、iOS に近い視覚バランスへ寄せつつ edit/share/add/date/complete/drag の `48dp` タップ領域は維持する。
+- Android の `TaskListDetailPage` の icon 配置は local metrics を正とし、ヘッダー右上 action・操作列 icon・task row 右端 action・drag handle の見た目サイズと左右端の x 軸整列を揃える。個別 `offset` ではなく hit area と列幅で視覚的な一直線を作る。
 - Android の `TaskListDetailPage` の本文系テキスト（新規入力欄、task 本文、インライン編集欄、日付ラベル）は local `TextStyle` を共有し、`includeFontPadding = false` と固定 line height で言語や font fallback による高さ揺れを吸収する。新規入力欄は local metrics の最小高さを持たせる。
 - Web / iOS / Android の task 右端 action は、task ごとの sheet / dialog でピン留め切替・日付選択・日付クリアをまとめて扱う。ピン留め切替・日付選択・日付クリアは即時保存し、保存後は sheet を閉じる。
 - task action の visible UI には `pages.tasklist.setDate` タイトルや task 名を表示しない。用途説明はアクセシビリティ名として保持する。

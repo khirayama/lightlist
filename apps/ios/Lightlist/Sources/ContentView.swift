@@ -262,6 +262,27 @@ private struct TaskListDetail: Identifiable, Hashable {
     let shareCode: String?
 }
 
+@MainActor
+private final class TaskListMutationQueue: ObservableObject {
+    private var tail: Task<Void, Never>?
+
+    func enqueue(
+        _ operation: @escaping @Sendable () async throws -> Void,
+        onError: @escaping @MainActor () -> Void = {}
+    ) {
+        let previous = tail
+        let next = Task {
+            _ = await previous?.result
+            do {
+                try await operation()
+            } catch {
+                await onError()
+            }
+        }
+        tail = next
+    }
+}
+
 private struct CalendarTask: Identifiable {
     var id: String { "\(taskListId):\(taskId)" }
     let taskListId: String
@@ -989,6 +1010,8 @@ struct RootView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var path = AppRoute.initialPath
     @State private var theme: String = "system"
+    @State private var isLoggedIn = Auth.auth().currentUser != nil
+    @State private var currentUserId = Auth.auth().currentUser?.uid
     @State private var settingsListener: ListenerRegistration?
     @State private var authHandle: AuthStateDidChangeListenerHandle?
     @State private var selectedTaskListId: String? = "__initial__"
@@ -1028,6 +1051,25 @@ struct RootView: View {
         .onDisappear { stopListening() }
         .onChange(of: pendingDeepLink, initial: true) { _, deepLink in
             handlePendingDeepLink(deepLink)
+        }
+        .fullScreenCover(
+            isPresented: Binding(
+                get: {
+                    !isLoggedIn &&
+                    pendingPasswordResetCode == nil &&
+                    pendingSharePreviewCode == nil
+                },
+                set: { presented in
+                    if !presented {
+                        isLoggedIn = true
+                    }
+                }
+            )
+        ) {
+            NavigationStack {
+                AuthView(language: translations.language)
+            }
+            .environmentObject(translations)
         }
         .fullScreenCover(
             isPresented: Binding(
@@ -1084,11 +1126,23 @@ struct RootView: View {
 
     private var compactRoot: some View {
         NavigationStack(path: $path) {
-            TaskListsView(path: $path, pendingShareCode: $pendingShareCode, calendarTasks: calendarViewModel.calendarTasks)
+            TaskListsView(
+                path: $path,
+                pendingShareCode: $pendingShareCode,
+                isLoggedIn: isLoggedIn,
+                currentUserId: currentUserId,
+                calendarTasks: calendarViewModel.calendarTasks
+            )
                 .navigationDestination(for: AppRoute.self) { route in
                     switch route {
                     case .taskLists:
-                        TaskListsView(path: $path, pendingShareCode: $pendingShareCode, calendarTasks: calendarViewModel.calendarTasks)
+                        TaskListsView(
+                            path: $path,
+                            pendingShareCode: $pendingShareCode,
+                            isLoggedIn: isLoggedIn,
+                            currentUserId: currentUserId,
+                            calendarTasks: calendarViewModel.calendarTasks
+                        )
                     case .taskList(let taskListId):
                         TaskListDetailPagerView(initialTaskListId: taskListId)
                     case .settings:
@@ -1110,6 +1164,8 @@ struct RootView: View {
             TaskListsView(
                 path: $path,
                 pendingShareCode: $pendingShareCode,
+                isLoggedIn: isLoggedIn,
+                currentUserId: currentUserId,
                 calendarTasks: calendarViewModel.calendarTasks,
                 selectedTaskListId: selectedTaskListId,
                 onSelectTaskList: { taskListId in
@@ -1143,6 +1199,8 @@ struct RootView: View {
     private func startListening() {
         authHandle = Auth.auth().addStateDidChangeListener { _, user in
             Task { @MainActor in
+                isLoggedIn = user != nil
+                currentUserId = user?.uid
                 settingsListener?.remove()
                 calendarViewModel.bind(uid: user?.uid)
                 guard let uid = user?.uid else {
@@ -1864,8 +1922,6 @@ private struct DragHandleIcon: View {
 private struct TaskListsView: View {
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isLoggedIn = Auth.auth().currentUser != nil
-    @State private var authStateHandle: AuthStateDidChangeListenerHandle?
     @StateObject private var viewModel = OrderedTaskListViewModel<TaskListSummary>(mapper: mapTaskListSummary)
     @State private var draggingTaskListId: String? = nil
     @State private var dragOffset: CGFloat = 0
@@ -1885,6 +1941,8 @@ private struct TaskListsView: View {
     @State private var joinListError: String? = nil
     @Binding var path: [AppRoute]
     @Binding var pendingShareCode: String?
+    let isLoggedIn: Bool
+    let currentUserId: String?
     let calendarTasks: [CalendarTask]
     var selectedTaskListId: String? = nil
     var onSelectTaskList: ((String) -> Void)? = nil
@@ -2218,18 +2276,13 @@ private struct TaskListsView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            authStateHandle = Auth.auth().addStateDidChangeListener { _, user in
-                Task { @MainActor in
-                    isLoggedIn = user != nil
-                    viewModel.bind(uid: user?.uid)
-                }
-            }
+            viewModel.bind(uid: currentUserId)
         }
         .onDisappear {
-            if let handle = authStateHandle {
-                Auth.auth().removeStateDidChangeListener(handle)
-            }
             viewModel.reset()
+        }
+        .onChange(of: currentUserId) { _, nextUid in
+            viewModel.bind(uid: nextUid)
         }
         .onChange(of: viewModel.taskLists) { _, taskLists in
             if let pendingTaskListOrder, pendingTaskListOrder.map(\.id) == taskLists.map(\.id) {
@@ -2314,21 +2367,6 @@ private struct TaskListsView: View {
                 }
             }
             .presentationDetents([.medium])
-        }
-        .fullScreenCover(
-            isPresented: Binding(
-                get: { !isLoggedIn },
-                set: { presented in
-                    if !presented {
-                        isLoggedIn = true
-                    }
-                }
-            )
-        ) {
-            NavigationStack {
-                AuthView(language: translations.language)
-            }
-            .environmentObject(translations)
         }
         .sheet(isPresented: $showJoinSheet) {
             NavigationStack {
@@ -2480,6 +2518,62 @@ private struct TaskListsView: View {
     }
 }
 
+private struct TaskListPagerContent: View {
+    @Binding var selectedTaskListId: String
+    let taskLists: [TaskListDetail]
+    let taskInsertPosition: String
+    let autoSort: Bool
+    let showBackButton: Bool
+    let onBack: (() -> Void)?
+    let ignoresSafeAreaBackground: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            TabView(selection: $selectedTaskListId) {
+                ForEach(taskLists) { taskList in
+                    TaskListDetailPage(
+                        taskList: taskList,
+                        taskInsertPosition: taskInsertPosition,
+                        autoSort: autoSort
+                    )
+                    .tag(taskList.id)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(backgroundView)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            TaskListTopChrome(
+                showBackButton: showBackButton,
+                taskLists: taskLists,
+                selectedIndex: selectedTaskListIndex,
+                onSelect: { selectedTaskListId = $0 },
+                onBack: onBack
+            )
+        }
+        .padding(.bottom, 16)
+    }
+
+    @ViewBuilder
+    private var backgroundView: some View {
+        let background = resolveTaskListBackgroundColor(currentTaskList?.background)
+        if ignoresSafeAreaBackground {
+            background.ignoresSafeArea()
+        } else {
+            background
+        }
+    }
+
+    private var currentTaskList: TaskListDetail? {
+        taskLists.first(where: { $0.id == selectedTaskListId }) ?? taskLists.first
+    }
+
+    private var selectedTaskListIndex: Int {
+        max(0, taskLists.firstIndex(where: { $0.id == selectedTaskListId }) ?? 0)
+    }
+}
+
 private struct TaskListDetailPagerView: View {
     @EnvironmentObject var translations: Translations
     let initialTaskListId: String
@@ -2495,7 +2589,7 @@ private struct TaskListDetailPagerView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
             if viewModel.status == .loading {
                 VStack {
                     Spacer()
@@ -2517,21 +2611,19 @@ private struct TaskListDetailPagerView: View {
                     Spacer()
                 }
             } else {
-                taskListPager
+                TaskListPagerContent(
+                    selectedTaskListId: $selectedTaskListId,
+                    taskLists: viewModel.taskLists,
+                    taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "bottom",
+                    autoSort: settingsViewModel.settings?.autoSort ?? false,
+                    showBackButton: true,
+                    onBack: { dismiss() },
+                    ignoresSafeAreaBackground: true
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(resolveTaskListBackgroundColor(currentTaskList?.background).ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            TaskListTopChrome(
-                showBackButton: true,
-                taskLists: viewModel.taskLists,
-                selectedIndex: selectedTaskListIndex,
-                onSelect: { selectedTaskListId = $0 },
-                onBack: { dismiss() }
-            )
-        }
         .onAppear {
             authStateHandle = Auth.auth().addStateDidChangeListener { _, user in
                 Task { @MainActor in
@@ -2557,38 +2649,8 @@ private struct TaskListDetailPagerView: View {
                 return
             }
 
-            if let initialTaskList = taskLists.first(where: { $0.id == initialTaskListId }) {
-                selectedTaskListId = initialTaskList.id
-            } else if let firstTaskList = taskLists.first {
-                selectedTaskListId = firstTaskList.id
-            }
+            selectedTaskListId = taskLists.first(where: { $0.id == initialTaskListId })?.id ?? taskLists[0].id
         }
-    }
-
-    private var currentTaskList: TaskListDetail? {
-        viewModel.taskLists.first(where: { $0.id == selectedTaskListId }) ?? viewModel.taskLists.first
-    }
-
-    private var selectedTaskListIndex: Int {
-        max(0, viewModel.taskLists.firstIndex(where: { $0.id == selectedTaskListId }) ?? 0)
-    }
-
-    private var taskListPager: some View {
-        VStack(spacing: 0) {
-            TabView(selection: $selectedTaskListId) {
-                ForEach(viewModel.taskLists) { taskList in
-                    TaskListDetailPage(
-                        taskList: taskList,
-                        taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "bottom",
-                        autoSort: settingsViewModel.settings?.autoSort ?? false
-                    )
-                    .tag(taskList.id)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-        }
-        .padding(.bottom, 16)
-        .background(resolveTaskListBackgroundColor(currentTaskList?.background))
     }
 }
 
@@ -2600,7 +2662,7 @@ private struct RegularTaskListDetailPagerView: View {
     @StateObject private var settingsViewModel = SettingsViewModel()
 
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
             if viewModel.status == .loading {
                 VStack {
                     Spacer()
@@ -2622,20 +2684,21 @@ private struct RegularTaskListDetailPagerView: View {
                     Spacer()
                 }
             } else {
-                taskListPager
+                TaskListPagerContent(
+                    selectedTaskListId: Binding(
+                        get: { resolvedTaskListId },
+                        set: { selectedTaskListId = $0 }
+                    ),
+                    taskLists: viewModel.taskLists,
+                    taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "bottom",
+                    autoSort: settingsViewModel.settings?.autoSort ?? false,
+                    showBackButton: false,
+                    onBack: nil,
+                    ignoresSafeAreaBackground: false
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(resolveTaskListBackgroundColor(currentTaskList?.background))
-        .safeAreaInset(edge: .top, spacing: 0) {
-            TaskListTopChrome(
-                showBackButton: false,
-                taskLists: viewModel.taskLists,
-                selectedIndex: selectedTaskListIndex,
-                onSelect: { selectedTaskListId = $0 },
-                onBack: nil
-            )
-        }
         .onAppear {
             authStateHandle = Auth.auth().addStateDidChangeListener { _, user in
                 Task { @MainActor in
@@ -2665,48 +2728,11 @@ private struct RegularTaskListDetailPagerView: View {
         }
     }
 
-    private var currentTaskList: TaskListDetail? {
-        guard let currentId = resolvedTaskListId else {
-            return viewModel.taskLists.first
-        }
-        return viewModel.taskLists.first(where: { $0.id == currentId }) ?? viewModel.taskLists.first
-    }
-
-    private var resolvedTaskListId: String? {
+    private var resolvedTaskListId: String {
         if let selectedTaskListId, viewModel.taskLists.contains(where: { $0.id == selectedTaskListId }) {
             return selectedTaskListId
         }
-        return viewModel.taskLists.first?.id
-    }
-
-    private var selectedTaskListIndex: Int {
-        guard let resolvedTaskListId else {
-            return 0
-        }
-        return max(0, viewModel.taskLists.firstIndex(where: { $0.id == resolvedTaskListId }) ?? 0)
-    }
-
-    private var taskListPager: some View {
-        VStack(spacing: 0) {
-            TabView(
-                selection: Binding(
-                    get: { resolvedTaskListId ?? "" },
-                    set: { selectedTaskListId = $0 }
-                )
-            ) {
-                ForEach(viewModel.taskLists) { taskList in
-                    TaskListDetailPage(
-                        taskList: taskList,
-                        taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "bottom",
-                        autoSort: settingsViewModel.settings?.autoSort ?? false
-                    )
-                    .tag(taskList.id)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-        }
-        .padding(.bottom, 16)
-        .background(resolveTaskListBackgroundColor(currentTaskList?.background))
+        return viewModel.taskLists.first?.id ?? ""
     }
 }
 
@@ -2771,6 +2797,7 @@ private struct TaskListDetailPage: View {
     @State private var taskAutoScrollSpeed: CGFloat = 0
     @State private var taskAutoScrollTimer: Timer? = nil
     @State private var taskScrollViewRef: UIScrollView? = nil
+    @StateObject private var mutationQueue = TaskListMutationQueue()
     @FocusState private var isNewTaskFocused: Bool
     @FocusState private var isTextFieldFocused: Bool
     private let db = Firestore.firestore()
@@ -2985,12 +3012,17 @@ private struct TaskListDetailPage: View {
     }
 
     private func updateTaskList(_ updates: [String: Any]) {
-        db.collection("taskLists").document(taskList.id).updateData(updates)
+        mutationQueue.enqueue({
+            try await db.collection("taskLists").document(taskList.id).updateData(updates)
+        }, onError: {
+            pendingDisplayTasks = nil
+        })
     }
 
     private func persistTasks(_ tasks: [TaskSummary], deletedTaskIds: [String] = []) {
-        setPendingTasks(normalizedTasks(tasks))
-        updateTaskList(buildTaskUpdateData(normalizedTasks(tasks), deletedTaskIds: deletedTaskIds))
+        let normalized = normalizedTasks(tasks)
+        setPendingTasks(normalized)
+        updateTaskList(buildTaskUpdateData(normalized, deletedTaskIds: deletedTaskIds))
     }
 
     private func deleteTaskList() {
@@ -3001,47 +3033,45 @@ private struct TaskListDetailPage: View {
 
         Task {
             do {
-                _ = try await db.runTransaction { transaction, errorPointer in
-                    let taskListOrderRef = self.db.collection("taskListOrder").document(uid)
-                    let taskListRef = self.db.collection("taskLists").document(taskList.id)
-                    let orderSnapshot: DocumentSnapshot
-                    let taskListSnapshot: DocumentSnapshot
-
-                    do {
-                        orderSnapshot = try transaction.getDocument(taskListOrderRef)
-                        taskListSnapshot = try transaction.getDocument(taskListRef)
-                    } catch {
-                        errorPointer?.pointee = error as NSError
-                        return nil
+                let taskListOrderRef = self.db.collection("taskListOrder").document(uid)
+                let taskListRef = self.db.collection("taskLists").document(taskList.id)
+                let orderSnapshot = try await taskListOrderRef.getDocument()
+                let taskListSnapshot = try await taskListRef.getDocument()
+                guard orderSnapshot.exists,
+                      let orderData = orderSnapshot.data(),
+                      orderData[taskList.id] != nil else {
+                    await MainActor.run {
+                        removingList = false
                     }
-
-                    if orderSnapshot.exists {
-                        transaction.updateData([
-                            taskList.id: FieldValue.delete(),
-                            "updatedAt": now,
-                        ], forDocument: taskListOrderRef)
-                    }
-
-                    guard taskListSnapshot.exists else {
-                        return nil
-                    }
-
-                    let currentMemberCount = (taskListSnapshot.data()?["memberCount"] as? NSNumber)?.intValue ?? 1
-                    let nextMemberCount = currentMemberCount - 1
-                    if nextMemberCount <= 0 {
-                        if let currentCode = taskListSnapshot.data()?["shareCode"] as? String,
-                           !currentCode.isEmpty {
-                            transaction.deleteDocument(self.db.collection("shareCodes").document(currentCode))
-                        }
-                        transaction.deleteDocument(taskListRef)
-                    } else {
-                        transaction.updateData([
-                            "memberCount": nextMemberCount,
-                            "updatedAt": now,
-                        ], forDocument: taskListRef)
-                    }
-                    return nil
+                    return
                 }
+                guard taskListSnapshot.exists else {
+                    await MainActor.run {
+                        removingList = false
+                    }
+                    return
+                }
+
+                let batch = db.batch()
+                batch.setData([
+                    taskList.id: FieldValue.delete(),
+                    "updatedAt": now,
+                ], forDocument: taskListOrderRef, merge: true)
+
+                let currentMemberCount = (taskListSnapshot.data()?["memberCount"] as? NSNumber)?.intValue ?? 1
+                if currentMemberCount <= 1 {
+                    if let currentCode = taskListSnapshot.data()?["shareCode"] as? String,
+                       !currentCode.isEmpty {
+                        batch.deleteDocument(self.db.collection("shareCodes").document(currentCode))
+                    }
+                    batch.deleteDocument(taskListRef)
+                } else {
+                    batch.updateData([
+                        "memberCount": currentMemberCount - 1,
+                        "updatedAt": now,
+                    ], forDocument: taskListRef)
+                }
+                try await batch.commit()
 
                 await MainActor.run {
                     logTaskListDelete()
@@ -3948,47 +3978,33 @@ private func fetchTaskListIdByShareCode(_ shareCode: String) async throws -> Str
 private func addSharedTaskListToOrder(taskListId: String) async throws {
     guard let uid = Auth.auth().currentUser?.uid else { return }
     let db = Firestore.firestore()
-    let _: Any? = try await db.runTransaction { transaction, errorPointer in
-        do {
-            let taskListOrderRef = db.collection("taskListOrder").document(uid)
-            let orderSnap = try transaction.getDocument(taskListOrderRef)
-            guard orderSnap.exists, let orderData = orderSnap.data() else {
-                let err = NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "TaskListOrder not found"])
-                errorPointer?.pointee = err
-                return nil
-            }
-            if orderData[taskListId] != nil {
-                let err = NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "このリストは既に追加されています"])
-                errorPointer?.pointee = err
-                return nil
-            }
-            let orders = orderData.compactMap { entry -> Double? in
-                guard entry.key != "createdAt", entry.key != "updatedAt",
-                      let val = entry.value as? [String: Any],
-                      let order = (val["order"] as? NSNumber)?.doubleValue else { return nil }
-                return order
-            }
-            let newOrder = orders.max().map { $0 + 1.0 } ?? 1.0
-
-            let taskListRef = db.collection("taskLists").document(taskListId)
-            let taskListSnap = try transaction.getDocument(taskListRef)
-            guard taskListSnap.exists, let taskListData = taskListSnap.data() else {
-                let err = NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
-                errorPointer?.pointee = err
-                return nil
-            }
-            let currentMemberCount = (taskListData["memberCount"] as? NSNumber)?.intValue ?? 1
-            let now = Int64(Date().timeIntervalSince1970 * 1000)
-            transaction.setData([taskListId: ["order": newOrder], "updatedAt": now] as [String: Any],
-                               forDocument: taskListOrderRef, merge: true)
-            transaction.updateData(["memberCount": currentMemberCount + 1, "updatedAt": now],
-                                  forDocument: taskListRef)
-            return nil
-        } catch let err as NSError {
-            errorPointer?.pointee = err
-            return nil
-        }
+    let taskListOrderRef = db.collection("taskListOrder").document(uid)
+    let taskListRef = db.collection("taskLists").document(taskListId)
+    let orderSnap = try await taskListOrderRef.getDocument()
+    let orderData = orderSnap.data() ?? [:]
+    if orderData[taskListId] != nil {
+        return
     }
+    let orders = orderData.compactMap { entry -> Double? in
+        guard entry.key != "createdAt", entry.key != "updatedAt",
+              let val = entry.value as? [String: Any],
+              let order = (val["order"] as? NSNumber)?.doubleValue else { return nil }
+        return order
+    }
+    let newOrder = orders.max().map { $0 + 1.0 } ?? 1.0
+
+    let taskListSnap = try await taskListRef.getDocument()
+    guard taskListSnap.exists, let taskListData = taskListSnap.data() else {
+        throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
+    }
+    let currentMemberCount = (taskListData["memberCount"] as? NSNumber)?.intValue ?? 1
+    let now = Int64(Date().timeIntervalSince1970 * 1000)
+    let batch = db.batch()
+    batch.setData([taskListId: ["order": newOrder], "updatedAt": now] as [String: Any],
+                  forDocument: taskListOrderRef, merge: true)
+    batch.updateData(["memberCount": currentMemberCount + 1, "updatedAt": now],
+                     forDocument: taskListRef)
+    try await batch.commit()
 }
 
 @MainActor

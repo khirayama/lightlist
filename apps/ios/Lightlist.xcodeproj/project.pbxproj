@@ -391,7 +391,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
 				FIREBASE_PLIST_SOURCE = "$(SRCROOT)/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
+				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleTypeRole\": \"Editor\", \"CFBundleURLSchemes\": [\"lightlist\"]]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
 				INFOPLIST_KEY_UIAppFonts = (
@@ -567,7 +567,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
 				FIREBASE_PLIST_SOURCE = "$(SRCROOT)/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
+				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleTypeRole\": \"Editor\", \"CFBundleURLSchemes\": [\"lightlist\"]]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
 				INFOPLIST_KEY_UIAppFonts = (

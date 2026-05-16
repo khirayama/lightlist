@@ -3524,6 +3524,16 @@ private fun TaskListDetailPagerScreen(
         }
     }
 
+    fun resolveSelectedTaskListId(taskLists: List<TaskListDetail>): String? {
+        if (taskLists.isEmpty()) {
+            return null
+        }
+        if (taskLists.any { it.id == selectedTaskListId }) {
+            return selectedTaskListId
+        }
+        return taskLists.firstOrNull { it.id == initialTaskListId }?.id ?: taskLists.first().id
+    }
+
     LaunchedEffect(uiState.taskLists) {
         if (uiState.isLoading) {
             return@LaunchedEffect
@@ -3532,16 +3542,14 @@ private fun TaskListDetailPagerScreen(
             onEmpty?.invoke()
             return@LaunchedEffect
         }
-        if (uiState.taskLists.none { it.id == selectedTaskListId }) {
-            val fallbackId = uiState.taskLists
-                .firstOrNull { it.id == initialTaskListId }
-                ?.id
-                ?: uiState.taskLists.first().id
-            updateSelectedTaskListId(fallbackId)
+        val resolvedTaskListId = resolveSelectedTaskListId(uiState.taskLists)
+        if (resolvedTaskListId != null && resolvedTaskListId != selectedTaskListId) {
+            updateSelectedTaskListId(resolvedTaskListId)
         }
     }
 
-    val selectedTaskListIndex = uiState.taskLists.indexOfFirst { it.id == selectedTaskListId }
+    val resolvedTaskListId = resolveSelectedTaskListId(uiState.taskLists)
+    val selectedTaskListIndex = uiState.taskLists.indexOfFirst { it.id == resolvedTaskListId }
         .takeIf { it >= 0 }
         ?: 0
     val pagerState = rememberPagerState(initialPage = selectedTaskListIndex) {
@@ -3550,6 +3558,9 @@ private fun TaskListDetailPagerScreen(
     val currentTaskList =
         uiState.taskLists.getOrNull(pagerState.currentPage) ?: uiState.taskLists.firstOrNull()
     val taskListBackgroundColor = resolveTaskListBackgroundColor(currentTaskList?.background)
+    val showIndicator = uiState.taskLists.size > 1 && currentTaskList != null
+    val taskPageTopInset =
+        if (showIndicator) TaskListDetailMetrics.indicatorContentInset else 0.dp
 
     LaunchedEffect(uiState.taskLists.size, selectedTaskListIndex) {
         if (uiState.taskLists.isEmpty()) {
@@ -3615,32 +3626,7 @@ private fun TaskListDetailPagerScreen(
                         }
                     }
                     else -> {
-                        if (uiState.taskLists.size > 1) {
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                HorizontalPager(
-                                    state = pagerState,
-                                    modifier = Modifier.fillMaxSize()
-                                ) { page ->
-                                    val taskList = uiState.taskLists[page]
-                                    TaskListDetailPage(
-                                        taskList = taskList,
-                                        taskInsertPosition = settingsUiState.taskInsertPosition,
-                                        autoSort = settingsUiState.autoSort,
-                                        topInset = TaskListDetailMetrics.indicatorContentInset
-                                    )
-                                }
-                                TaskListIndicator(
-                                    count = uiState.taskLists.size,
-                                    selectedIndex = selectedTaskListIndex,
-                                    backgroundColor = taskListBackgroundColor,
-                                    onSelect = { index ->
-                                        val nextTaskList = uiState.taskLists.getOrNull(index) ?: return@TaskListIndicator
-                                        updateSelectedTaskListId(nextTaskList.id)
-                                    },
-                                    modifier = Modifier.align(Alignment.TopCenter)
-                                )
-                            }
-                        } else {
+                        Box(modifier = Modifier.fillMaxSize()) {
                             HorizontalPager(
                                 state = pagerState,
                                 modifier = Modifier.fillMaxSize()
@@ -3650,7 +3636,19 @@ private fun TaskListDetailPagerScreen(
                                     taskList = taskList,
                                     taskInsertPosition = settingsUiState.taskInsertPosition,
                                     autoSort = settingsUiState.autoSort,
-                                    topInset = 0.dp
+                                    topInset = taskPageTopInset
+                                )
+                            }
+                            if (showIndicator) {
+                                TaskListIndicator(
+                                    count = uiState.taskLists.size,
+                                    selectedIndex = selectedTaskListIndex,
+                                    backgroundColor = taskListBackgroundColor,
+                                    onSelect = { index ->
+                                        val nextTaskList = uiState.taskLists.getOrNull(index) ?: return@TaskListIndicator
+                                        updateSelectedTaskListId(nextTaskList.id)
+                                    },
+                                    modifier = Modifier.align(Alignment.TopCenter)
                                 )
                             }
                         }
@@ -4087,6 +4085,10 @@ private fun TaskListDetailPage(
         return result
     }
 
+    fun normalizeTasks(tasks: List<TaskSummary>): List<TaskSummary> {
+        return if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks)
+    }
+
     fun setPendingTasks(tasks: List<TaskSummary>) {
         pendingDisplayedTasks = tasks
     }
@@ -4114,10 +4116,11 @@ private fun TaskListDetailPage(
         tasks: List<TaskSummary>,
         deletedTaskIds: List<String> = emptyList()
     ) {
-        setPendingTasks(if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks))
+        val normalizedTasks = normalizeTasks(tasks)
+        setPendingTasks(normalizedTasks)
         persistTaskListUpdate(
             buildTaskUpdateData(
-                tasks = if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks),
+                tasks = normalizedTasks,
                 deletedTaskIds = deletedTaskIds
             )
         )

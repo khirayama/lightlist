@@ -62,6 +62,7 @@
 - Android のタスクリスト一覧ヘッダー、詳細ヘッダー、設定ヘッダーは `WindowInsets.safeDrawing` を考慮して上端へ配置し、メールアドレス、設定導線、戻るボタン、タイトルがステータスバーにかからず、ヘッダー本体の固定高さ内でクリップされないようにする。
 - Android の inline task 編集中は、hardware keyboard の矢印キーと Enter を編集欄内で完結させる。`←` / `→` は caret 移動だけを行い、`↑` / `↓` は no-op として consume し、pager 切替や近傍要素への focus 移動を起こさない。Enter は task を確定して編集終了するだけで、一覧表示や戻る導線を発火させない。
 - iOS / Android の task row は、drag handle・完了トグル・本文の縦方向中心を揃える。日付がある場合も `task.text` / 編集中の入力欄の縦位置は変えず、補助ラベルとして同じ本文領域内の直上へ近接配置する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
+- Web の task row は、`task.text === ""` の場合も本文表示要素で 1 行分の最小高さを維持し、空本文でも行の高さを潰さない。
 - Android の task row は、drag handle と完了トグルの間隔をやや詰め、完了トグルと本文開始位置の間隔はそれより少し広く取る。日付表示がある行でも `drag handle`・完了トグル・`task.text` の中心軸は揃えたまま、日付ラベル側をわずかに上へ寄せて `task.text` との視覚間隔を広げる。
 - Android の `TaskListDetailPage` の task row は、`alignBy` に依存しない単純な `Row + Column` 構成を使い、非ドラッグ行では drag 用 transform を載せない。`LazyColumn` の task item は `contentType = "task"` を付け、header / input / actions / empty state と分けて composition reuse を安定させる。
 - Android の task row / task list row の handle 並び替えは、pointer を離すまで同じ drag session を維持し、1 回 swap した直後に gesture detector を再生成しない。`TaskListDetailPage` の task row handle は中央寄せした `24dp` 幅の hit area を持ち、アイコンを見切らせない。

@@ -4979,9 +4979,9 @@ function TaskItemComponent({
             }}
             className={
               task.completed
-                ? "min-w-0 cursor-pointer text-start font-medium leading-7 text-muted line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:focus-visible:outline-muted-dark"
+                ? "block min-h-7 min-w-0 cursor-pointer text-start font-medium leading-7 text-muted line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:focus-visible:outline-muted-dark"
                 : clsx(
-                    "min-w-0 cursor-pointer text-start leading-7 text-text underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-text-dark dark:focus-visible:outline-muted-dark",
+                    "block min-h-7 min-w-0 cursor-pointer text-start leading-7 text-text underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-text-dark dark:focus-visible:outline-muted-dark",
                     task.pinned ? "font-semibold" : "font-medium",
                   )
             }

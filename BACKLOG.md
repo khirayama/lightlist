@@ -16,7 +16,6 @@ apps/ios
 
 apps/ios apps/android apps/web 大規模リファクタリング。要件を満たすために継ぎ足されたコードが増えている。
 apps/ios build-releaseが通るように
-apps/web task.text = "" のタスクの時に最小高さの設定が必要
 
 Goal: タスク入力にフォーカスしたら、既存のタスク一覧画面上で入力モードビューに遷移し、全画面に近い入力UIへアニメーション付きで切り替える。各プラットフォームの既存ナビゲーションと入力管理方式に沿って実装する。
 Success criteria:

@@ -602,6 +602,7 @@ private object TaskListDetailMetrics {
     val taskRowSpacing = 4.dp
     val taskRowVerticalPadding = 6.dp
     val taskContentHeight = 48.dp
+    val taskTextTopPadding = 13.dp
     val taskDateTopInset = (-3).dp
     val dragHandleTopPadding = 0.dp
     val dragHandleEndPadding = 0.dp
@@ -3818,93 +3819,106 @@ private fun TaskListRow(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .heightIn(min = TaskListDetailMetrics.taskContentHeight),
-            verticalArrangement = Arrangement.Center
+                .heightIn(min = TaskListDetailMetrics.taskContentHeight)
         ) {
-            if (task.date.isNotBlank()) {
-                val displayDate = remember(task.date, languageTag) {
-                    formatDateForLocale(task.date, languageTag, "MMM d EEE")
-                }
-                Text(
-                    text = displayDate,
-                    style = taskDateTextStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.offset(y = TaskListDetailMetrics.taskDateTopInset)
-                )
-            }
-            if (isEditing) {
-                var hasFocused by remember { mutableStateOf(false) }
-                var hasCommitted by remember { mutableStateOf(false) }
-                val inlineEditKeyModifier = Modifier
-                    .onPreviewKeyEvent { event ->
-                        if (event.type != KeyEventType.KeyDown && event.type != KeyEventType.KeyUp) {
-                            return@onPreviewKeyEvent false
-                        }
-                        when (event.key) {
-                            Key.DirectionLeft -> {
-                                if (event.type == KeyEventType.KeyDown) {
-                                    moveInlineCaretLeft()
-                                }
-                                true
-                            }
-                            Key.DirectionRight -> {
-                                if (event.type == KeyEventType.KeyDown) {
-                                    moveInlineCaretRight()
-                                }
-                                true
-                            }
-                            Key.DirectionUp,
-                            Key.DirectionDown -> true
-                            Key.Enter,
-                            Key.NumPadEnter -> {
-                                if (event.type == KeyEventType.KeyUp) {
-                                    hasCommitted = true
-                                    completeInlineEdit()
-                                }
-                                true
-                            }
-                            else -> false
-                        }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = TaskListDetailMetrics.taskContentHeight)
+            ) {
+                if (task.date.isNotBlank()) {
+                    val displayDate = remember(task.date, languageTag) {
+                        formatDateForLocale(task.date, languageTag, "MMM d EEE")
                     }
-                BasicTextField(
-                    value = editingTextFieldValue,
-                    onValueChange = onEditingTextFieldValueChange,
-                    textStyle = taskTextStyle.copy(color = MaterialTheme.colorScheme.onSurface),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        hasCommitted = true
-                        completeInlineEdit()
-                    }),
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = TaskListDetailMetrics.taskTextStartPadding)
-                        .focusRequester(focusRequester)
-                        .then(inlineEditKeyModifier)
-                        .onFocusChanged { state ->
-                            if (state.isFocused) {
-                                hasFocused = true
-                            } else if (hasFocused && !hasCommitted) {
-                                hasCommitted = true
-                                onInlineEditBlur()
+                    Text(
+                        text = displayDate,
+                        style = taskDateTextStyle,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(start = TaskListDetailMetrics.taskTextStartPadding)
+                            .offset(y = TaskListDetailMetrics.taskDateTopInset)
+                    )
+                }
+                if (isEditing) {
+                    var hasFocused by remember { mutableStateOf(false) }
+                    var hasCommitted by remember { mutableStateOf(false) }
+                    val inlineEditKeyModifier = Modifier
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown && event.type != KeyEventType.KeyUp) {
+                                return@onPreviewKeyEvent false
+                            }
+                            when (event.key) {
+                                Key.DirectionLeft -> {
+                                    if (event.type == KeyEventType.KeyDown) {
+                                        moveInlineCaretLeft()
+                                    }
+                                    true
+                                }
+                                Key.DirectionRight -> {
+                                    if (event.type == KeyEventType.KeyDown) {
+                                        moveInlineCaretRight()
+                                    }
+                                    true
+                                }
+                                Key.DirectionUp,
+                                Key.DirectionDown -> true
+                                Key.Enter,
+                                Key.NumPadEnter -> {
+                                    if (event.type == KeyEventType.KeyUp) {
+                                        hasCommitted = true
+                                        completeInlineEdit()
+                                    }
+                                    true
+                                }
+                                else -> false
                             }
                         }
-                )
-                LaunchedEffect(task.id) {
-                    focusRequester.requestFocus()
+                    BasicTextField(
+                        value = editingTextFieldValue,
+                        onValueChange = onEditingTextFieldValueChange,
+                        textStyle = taskTextStyle.copy(color = MaterialTheme.colorScheme.onSurface),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
+                            hasCommitted = true
+                            completeInlineEdit()
+                        }),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                start = TaskListDetailMetrics.taskTextStartPadding,
+                                top = TaskListDetailMetrics.taskTextTopPadding
+                            )
+                            .focusRequester(focusRequester)
+                            .then(inlineEditKeyModifier)
+                            .onFocusChanged { state ->
+                                if (state.isFocused) {
+                                    hasFocused = true
+                                } else if (hasFocused && !hasCommitted) {
+                                    hasCommitted = true
+                                    onInlineEditBlur()
+                                }
+                            }
+                    )
+                    LaunchedEffect(task.id) {
+                        focusRequester.requestFocus()
+                    }
+                } else {
+                    Text(
+                        task.text,
+                        style = taskTextStyle,
+                        textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
+                        color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (task.pinned && !task.completed) FontWeight.Bold else FontWeight.SemiBold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                start = TaskListDetailMetrics.taskTextStartPadding,
+                                top = TaskListDetailMetrics.taskTextTopPadding
+                            )
+                            .clickable { onTaskClick() }
+                    )
                 }
-            } else {
-                Text(
-                    task.text,
-                    style = taskTextStyle,
-                    textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
-                    color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = if (task.pinned && !task.completed) FontWeight.Bold else FontWeight.SemiBold,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = TaskListDetailMetrics.taskTextStartPadding)
-                        .clickable { onTaskClick() }
-                )
             }
         }
         IconButton(

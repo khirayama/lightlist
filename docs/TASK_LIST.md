@@ -61,9 +61,9 @@
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白、操作列とタスク一覧の区切り余白、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰め、一覧密度を上げても各操作の `48dp` タップ領域は維持する。
 - Android のタスクリスト一覧ヘッダー、詳細ヘッダー、設定ヘッダーは `WindowInsets.safeDrawing` を考慮して上端へ配置し、メールアドレス、設定導線、戻るボタン、タイトルがステータスバーにかからず、ヘッダー本体の固定高さ内でクリップされないようにする。
 - Android の inline task 編集中は、hardware keyboard の矢印キーと Enter を編集欄内で完結させる。`←` / `→` は caret 移動だけを行い、`↑` / `↓` は no-op として consume し、pager 切替や近傍要素への focus 移動を起こさない。Enter は task を確定して編集終了するだけで、一覧表示や戻る導線を発火させない。
-- iOS / Android の task row は、drag handle・完了トグル・本文の縦方向中心を揃える。日付がある場合も `task.text` / 編集中の入力欄の縦位置は変えず、補助ラベルとして同じ本文領域内の直上へ近接配置する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
+- iOS / Android の task row は、drag handle・完了トグル・本文の縦方向中心を揃える。Android は `task.text` の 1 行目中心を基準とし、複数行でもその基準を維持する。日付がある場合も `task.text` / 編集中の入力欄の縦位置は変えず、補助ラベルとして同じ本文領域内の直上へ近接配置する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
 - Web の task row は、`task.text === ""` の場合も本文表示要素で 1 行分の最小高さを維持し、空本文でも行の高さを潰さない。
-- Android の task row は、drag handle と完了トグルの間隔をやや詰め、完了トグルと本文開始位置の間隔はそれより少し広く取る。日付表示がある行でも `drag handle`・完了トグル・`task.text` の中心軸は揃えたまま、日付ラベル側をわずかに上へ寄せて `task.text` との視覚間隔を広げる。
+- Android の task row は、drag handle と完了トグルの間隔をやや詰め、完了トグルと本文開始位置の間隔はそれより少し広く取る。`drag handle`・完了トグル・`task.text` は本文 1 行目の中心線で揃え、本文が複数行でも基準は 1 行目とする。日付ラベルは同じ本文領域内で `offset` によりわずかに上へ寄せ、本文や完了トグルの縦位置を押し下げない。
 - Android の `TaskListDetailPage` の task row は、`alignBy` に依存しない単純な `Row + Column` 構成を使い、非ドラッグ行では drag 用 transform を載せない。`LazyColumn` の task item は `contentType = "task"` を付け、header / input / actions / empty state と分けて composition reuse を安定させる。
 - Android の task row / task list row の handle 並び替えは、pointer を離すまで同じ drag session を維持し、1 回 swap した直後に gesture detector を再生成しない。`TaskListDetailPage` の task row handle は中央寄せした `24dp` 幅の hit area を持ち、アイコンを見切らせない。
 - Web / iOS / Android の task 右端 action は、task ごとの sheet / dialog でピン留め切替・日付選択・日付クリアをまとめて扱う。ピン留め切替・日付選択・日付クリアは即時保存し、保存後は sheet を閉じる。

@@ -6,8 +6,8 @@ apps/web
 - タスクリストのcheckboxが少し右に寄っているように見える
 - タスクリスト作成モーダルの「キャンセル」に改行が入ってしまっている
 
-apps/android
-- task.textとtask.date、checkboxの配置を調整
+apps/android task.textとtask.date、checkboxの配置を調整。
+handle - checkbox - task.text(1行目)の中心線を揃える。tast.textが二行以上になる場合も一行目が揃っていれば良い。task.dateは、offsetで上に表示。
 
 apps/ios
 

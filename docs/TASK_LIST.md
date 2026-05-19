@@ -34,6 +34,7 @@
 - 共有ページは `subscribeToSharedTaskList(taskListId)` で個別購読する。
 - iOS / Android も `taskListOrder` と `taskLists` を別購読し、順序付きリストを組み立てる。
 - Web / iOS / Android の UI 更新系は、listener の反映より先に画面上の編集結果を捨てない。task 本文編集の blur、task 並び替え、taskList 並び替え、日付変更、ピン切り替え、完了切り替えは、Firestore snapshot が同じ内容へ追いつくまで local pending state を優先表示する。
+- Web / iOS / Android の task 更新 UI は、`現在表示中 task 群 -> 正規化済み next task 群 -> local pending 表示 -> taskListId 単位 queue 経由の保存` の順で処理する。
 
 ## タスクリスト操作
 
@@ -110,6 +111,7 @@
 - `deleteCompletedTasks()` は完了済み task を削除し、残りを再採番する。
 - UI 更新系では transaction を使わない。並び替えや本文編集の保存要求後も、listener が旧 snapshot を返している間は local pending state を表示し続け、旧 `task.text` や旧 order を一瞬再表示しない。Web の local pending state も `autoSort` 有効時は `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内 `date -> order` に正規化して保持する。
 - Web / iOS / Android の task 更新系書き込みは、同一 `taskListId` 内でクライアントごとに直列化する。追加直後の完了切替・本文編集・日付変更・ピン切替・並び替え・完了済み削除が前の保存を追い越さないようにし、追加直後の task も同じ `taskId` を optimistic 表示と Firestore 保存で共有する。
+- local pending state の解放判定は、listener 側 task 群も同じ正規化へ通した結果と比較し、一致した時だけ行う。
 - Web の optimistic task 追加は `taskInsertPosition` をその場の pending 表示にも反映し、`top` は先頭、`bottom` は末尾へ挿入した状態から正規化する。
 
 ## 共有

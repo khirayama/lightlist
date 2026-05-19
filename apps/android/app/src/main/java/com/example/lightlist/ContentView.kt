@@ -4103,13 +4103,17 @@ private fun TaskListDetailPage(
         return if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks)
     }
 
+    fun reconcileTasks(tasks: List<TaskSummary>): List<TaskSummary> {
+        return getDisplayOrderedTasks(normalizeTasks(tasks))
+    }
+
     fun setPendingTasks(tasks: List<TaskSummary>) {
         pendingDisplayedTasks = tasks
     }
 
     LaunchedEffect(taskList.tasks, pendingDisplayedTasks) {
         val pending = pendingDisplayedTasks ?: return@LaunchedEffect
-        if (pending == getDisplayOrderedTasks(taskList.tasks)) {
+        if (pending == reconcileTasks(taskList.tasks)) {
             pendingDisplayedTasks = null
         }
     }
@@ -4138,6 +4142,15 @@ private fun TaskListDetailPage(
                 deletedTaskIds = deletedTaskIds
             )
         )
+    }
+
+    fun performTaskMutation(
+        buildNextTasks: (List<TaskSummary>) -> List<TaskSummary>,
+        persist: (List<TaskSummary>) -> Unit
+    ) {
+        val nextTasks = reconcileTasks(buildNextTasks(displayTasks))
+        setPendingTasks(nextTasks)
+        persist(nextTasks)
     }
 
     val historyOptions = run {
@@ -4202,23 +4215,23 @@ private fun TaskListDetailPage(
 
     fun toggleCompletion(task: TaskSummary) {
         logTaskUpdate(fields = "completed")
-        if (autoSort) {
-            val updatedTasks = taskList.tasks.map { current ->
-                if (current.id == task.id) current.copy(completed = !current.completed) else current
-            }
-            persistNormalizedTasks(updatedTasks)
-            return
-        }
-
-        persistTaskListUpdate(
-            mapOf(
-                "tasks.${task.id}.completed" to !task.completed,
-                "updatedAt" to System.currentTimeMillis()
-            )
-        )
-        setPendingTasks(
-            displayTasks.map { current ->
-                if (current.id == task.id) current.copy(completed = !current.completed) else current
+        performTaskMutation(
+            buildNextTasks = { currentTasks ->
+                currentTasks.map { current ->
+                    if (current.id == task.id) current.copy(completed = !task.completed) else current
+                }
+            },
+            persist = { nextTasks ->
+                if (autoSort) {
+                    persistNormalizedTasks(nextTasks)
+                } else {
+                    persistTaskListUpdate(
+                        mapOf(
+                            "tasks.${task.id}.completed" to !task.completed,
+                            "updatedAt" to System.currentTimeMillis()
+                        )
+                    )
+                }
             }
         )
     }
@@ -4237,44 +4250,38 @@ private fun TaskListDetailPage(
                 if (pinnedChanged) "pinned" else null,
             ).joinToString(",")
             logTaskUpdate(fields = changedFields)
-            if (autoSort) {
-                val updatedTasks = taskList.tasks.map { current ->
-                    if (current.id == task.id) {
-                        current.copy(
-                            text = resolved.text,
-                            date = resolved.date ?: current.date,
-                            pinned = if (resolved.pinnedFromInput) true else current.pinned
+            performTaskMutation(
+                buildNextTasks = { currentTasks ->
+                    currentTasks.map { current ->
+                        if (current.id == task.id) {
+                            current.copy(
+                                text = resolved.text,
+                                date = resolved.date ?: current.date,
+                                pinned = if (pinnedChanged) true else current.pinned
+                            )
+                        } else current
+                    }
+                },
+                persist = { nextTasks ->
+                    if (autoSort) {
+                        val updates = buildTaskUpdateData(
+                            tasks = normalizeTasks(nextTasks)
+                        ).toMutableMap<String, Any>()
+                        if (textChanged) {
+                            updates["history"] = buildHistory(resolved.text, task.text)
+                        }
+                        persistTaskListUpdate(updates)
+                    } else {
+                        persistTaskListUpdate(
+                            buildMap {
+                                put("tasks.${task.id}.text", resolved.text)
+                                put("tasks.${task.id}.date", resolved.date ?: task.date)
+                                if (pinnedChanged) put("tasks.${task.id}.pinned", true)
+                                if (textChanged) put("history", buildHistory(resolved.text, task.text))
+                                put("updatedAt", System.currentTimeMillis())
+                            }
                         )
-                    } else current
-                }
-                val updates = buildTaskUpdateData(
-                    tasks = getAutoSortedTasks(updatedTasks)
-                ).toMutableMap<String, Any>()
-                if (textChanged) {
-                    updates["history"] = buildHistory(resolved.text, task.text)
-                }
-                persistTaskListUpdate(updates)
-                return
-            }
-
-            persistTaskListUpdate(
-                buildMap {
-                    put("tasks.${task.id}.text", resolved.text)
-                    put("tasks.${task.id}.date", resolved.date ?: task.date)
-                    if (pinnedChanged) put("tasks.${task.id}.pinned", true)
-                    if (textChanged) put("history", buildHistory(resolved.text, task.text))
-                    put("updatedAt", System.currentTimeMillis())
-                }
-            )
-            setPendingTasks(
-                displayTasks.map { current ->
-                    if (current.id == task.id) {
-                        current.copy(
-                            text = resolved.text,
-                            date = resolved.date ?: current.date,
-                            pinned = if (pinnedChanged) true else current.pinned
-                        )
-                    } else current
+                    }
                 }
             )
         }
@@ -4308,23 +4315,23 @@ private fun TaskListDetailPage(
 
     fun commitDate(task: TaskSummary, dateStr: String) {
         logTaskUpdate(fields = "date")
-        if (autoSort) {
-            val updatedTasks = taskList.tasks.map { current ->
-                if (current.id == task.id) current.copy(date = dateStr) else current
-            }
-            persistNormalizedTasks(updatedTasks)
-            return
-        }
-
-        persistTaskListUpdate(
-            mapOf(
-                "tasks.${task.id}.date" to dateStr,
-                "updatedAt" to System.currentTimeMillis()
-            )
-        )
-        setPendingTasks(
-            displayTasks.map { current ->
-                if (current.id == task.id) current.copy(date = dateStr) else current
+        performTaskMutation(
+            buildNextTasks = { currentTasks ->
+                currentTasks.map { current ->
+                    if (current.id == task.id) current.copy(date = dateStr) else current
+                }
+            },
+            persist = { nextTasks ->
+                if (autoSort) {
+                    persistNormalizedTasks(nextTasks)
+                } else {
+                    persistTaskListUpdate(
+                        mapOf(
+                            "tasks.${task.id}.date" to dateStr,
+                            "updatedAt" to System.currentTimeMillis()
+                        )
+                    )
+                }
             }
         )
     }
@@ -4332,39 +4339,34 @@ private fun TaskListDetailPage(
     fun togglePinned(task: TaskSummary) {
         logTaskUpdate(fields = "pinned")
         val nextPinned = !task.pinned
-        if (autoSort) {
-            val updatedTasks = taskList.tasks.map { current ->
-                if (current.id == task.id) current.copy(pinned = nextPinned) else current
-            }
-            persistNormalizedTasks(updatedTasks)
-            return
-        }
-
-        if (task.pinned && !nextPinned && !task.completed) {
-            val updatedTasks = taskList.tasks.map { current ->
-                if (current.id == task.id) current.copy(pinned = false) else current
-            }
-            val reorderedTasks =
-                updatedTasks.filter { taskDisplayGroup(it) == 0 } +
-                    updatedTasks.filter { it.id == task.id } +
-                    updatedTasks.filter { taskDisplayGroup(it) == 1 && it.id != task.id } +
-                    updatedTasks.filter { taskDisplayGroup(it) == 2 }
-            persistTaskListUpdate(buildTaskUpdateData(renumberTasks(reorderedTasks)))
-            return
-        }
-
-        persistTaskListUpdate(
-            mapOf(
-                "tasks.${task.id}.pinned" to nextPinned,
-                "updatedAt" to System.currentTimeMillis()
-            )
-        )
-        setPendingTasks(
-            getDisplayOrderedTasks(
-                displayTasks.map { current ->
+        performTaskMutation(
+            buildNextTasks = { currentTasks ->
+                val updatedTasks = currentTasks.map { current ->
                     if (current.id == task.id) current.copy(pinned = nextPinned) else current
                 }
-            )
+                if (task.pinned && !nextPinned && !task.completed && !autoSort) {
+                    updatedTasks.filter { taskDisplayGroup(it) == 0 } +
+                        updatedTasks.filter { it.id == task.id } +
+                        updatedTasks.filter { taskDisplayGroup(it) == 1 && it.id != task.id } +
+                        updatedTasks.filter { taskDisplayGroup(it) == 2 }
+                } else {
+                    updatedTasks
+                }
+            },
+            persist = { nextTasks ->
+                if (autoSort) {
+                    persistNormalizedTasks(nextTasks)
+                } else if (task.pinned && !nextPinned && !task.completed) {
+                    persistTaskListUpdate(buildTaskUpdateData(renumberTasks(nextTasks)))
+                } else {
+                    persistTaskListUpdate(
+                        mapOf(
+                            "tasks.${task.id}.pinned" to nextPinned,
+                            "updatedAt" to System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
         )
     }
 
@@ -4459,50 +4461,44 @@ private fun TaskListDetailPage(
             (tasks.firstOrNull()?.order ?: 1.0) - 1.0
         else
             (tasks.lastOrNull()?.order ?: 0.0) + 1.0
-        if (autoSort) {
-            val insertedTask = TaskSummary(
-                id = taskId,
-                text = parsed.text,
-                completed = false,
-                date = parsed.date ?: "",
-                order = order,
-                pinned = parsed.pinnedFromInput
-            )
-            val insertIndex = if (taskInsertPosition == "top") 0 else taskList.tasks.size
-            val reorderedTasks = taskList.tasks.toMutableList().apply {
-                add(insertIndex, insertedTask)
-            }
-            val updates = buildTaskUpdateData(
-                tasks = getAutoSortedTasks(reorderedTasks)
-            ).toMutableMap<String, Any>()
-            updates["history"] = buildHistory(parsed.text)
-            persistTaskListUpdate(updates)
-            return
-        }
-
-        persistTaskListUpdate(
-            mapOf(
-                "tasks.$taskId.id" to taskId,
-                "tasks.$taskId.text" to parsed.text,
-                "tasks.$taskId.completed" to false,
-                "tasks.$taskId.date" to (parsed.date ?: ""),
-                "tasks.$taskId.order" to order,
-                "tasks.$taskId.pinned" to parsed.pinnedFromInput,
-                "history" to buildHistory(parsed.text),
-                "updatedAt" to now
-            )
+        val insertedTask = TaskSummary(
+            id = taskId,
+            text = parsed.text,
+            completed = false,
+            date = parsed.date ?: "",
+            order = order,
+            pinned = parsed.pinnedFromInput
         )
-        setPendingTasks(
-            getDisplayOrderedTasks(
-                taskList.tasks + TaskSummary(
-                    id = taskId,
-                    text = parsed.text,
-                    completed = false,
-                    date = parsed.date ?: "",
-                    order = order,
-                    pinned = parsed.pinnedFromInput
-                )
-            )
+        performTaskMutation(
+            buildNextTasks = { currentTasks ->
+                if (taskInsertPosition == "top") {
+                    listOf(insertedTask) + currentTasks
+                } else {
+                    currentTasks + insertedTask
+                }
+            },
+            persist = { nextTasks ->
+                if (autoSort) {
+                    val updates = buildTaskUpdateData(
+                        tasks = normalizeTasks(nextTasks)
+                    ).toMutableMap<String, Any>()
+                    updates["history"] = buildHistory(parsed.text)
+                    persistTaskListUpdate(updates)
+                } else {
+                    persistTaskListUpdate(
+                        mapOf(
+                            "tasks.$taskId.id" to taskId,
+                            "tasks.$taskId.text" to parsed.text,
+                            "tasks.$taskId.completed" to false,
+                            "tasks.$taskId.date" to (parsed.date ?: ""),
+                            "tasks.$taskId.order" to order,
+                            "tasks.$taskId.pinned" to parsed.pinnedFromInput,
+                            "history" to buildHistory(parsed.text),
+                            "updatedAt" to now
+                        )
+                    )
+                }
+            }
         )
     }
     LaunchedEffect(draggingTaskId) {

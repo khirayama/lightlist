@@ -3007,6 +3007,10 @@ private struct TaskListDetailPage: View {
         autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks)
     }
 
+    private func reconciledTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
+        getDisplayOrderedTasks(normalizedTasks(tasks))
+    }
+
     private func setPendingTasks(_ tasks: [TaskSummary]) {
         pendingDisplayTasks = tasks
     }
@@ -3023,6 +3027,15 @@ private struct TaskListDetailPage: View {
         let normalized = normalizedTasks(tasks)
         setPendingTasks(normalized)
         updateTaskList(buildTaskUpdateData(normalized, deletedTaskIds: deletedTaskIds))
+    }
+
+    private func performTaskMutation(
+        buildNextTasks: ([TaskSummary]) -> [TaskSummary],
+        persist: ([TaskSummary]) -> Void
+    ) {
+        let nextTasks = reconciledTasks(buildNextTasks(displayTasks))
+        setPendingTasks(nextTasks)
+        persist(nextTasks)
     }
 
     private func deleteTaskList() {
@@ -3630,35 +3643,32 @@ private struct TaskListDetailPage: View {
 
     private func toggleCompletion(_ task: TaskSummary) {
         logTaskUpdate(fields: "completed")
-        if autoSort {
-            let updatedTasks = taskList.tasks.map { current in
-                TaskSummary(
-                    id: current.id,
-                    text: current.text,
-                    completed: current.id == task.id ? !current.completed : current.completed,
-                    date: current.date,
-                    order: current.order,
-                    pinned: current.pinned
-                )
+        performTaskMutation(
+            buildNextTasks: { currentTasks in
+                currentTasks.map { current in
+                    current.id == task.id
+                        ? TaskSummary(
+                            id: current.id,
+                            text: current.text,
+                            completed: !task.completed,
+                            date: current.date,
+                            order: current.order,
+                            pinned: current.pinned
+                        )
+                        : current
+                }
+            },
+            persist: { nextTasks in
+                if autoSort {
+                    persistTasks(nextTasks)
+                    return
+                }
+                updateTaskList([
+                    "tasks.\(task.id).completed": !task.completed,
+                    "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
+                ])
             }
-            persistTasks(updatedTasks)
-            return
-        }
-
-        updateTaskList([
-            "tasks.\(task.id).completed": !task.completed,
-            "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
-        ])
-        setPendingTasks(displayTasks.map { current in
-            TaskSummary(
-                id: current.id,
-                text: current.text,
-                completed: current.id == task.id ? !current.completed : current.completed,
-                date: current.date,
-                order: current.order,
-                pinned: current.pinned
-            )
-        })
+        )
     }
 
     private func startEdit(_ task: TaskSummary) {
@@ -3680,47 +3690,45 @@ private struct TaskListDetailPage: View {
             .compactMap { $0 }
             .joined(separator: ",")
         logTaskUpdate(fields: changedFields)
-        if autoSort {
-            let updatedTasks = taskList.tasks.map { current in
-                TaskSummary(
-                    id: current.id,
-                    text: current.id == task.id ? resolved.text : current.text,
-                    completed: current.completed,
-                    date: current.id == task.id ? resolved.date ?? current.date : current.date,
-                    order: current.order,
-                    pinned: current.id == task.id && resolved.pinnedFromInput ? true : current.pinned
-                )
-            }
-            var updates = buildTaskUpdateData(normalizedTasks(updatedTasks))
-            if textChanged {
-                updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
-            }
-            updateTaskList(updates)
-            return
-        }
+        performTaskMutation(
+            buildNextTasks: { currentTasks in
+                currentTasks.map { current in
+                    current.id == task.id
+                        ? TaskSummary(
+                            id: current.id,
+                            text: resolved.text,
+                            completed: current.completed,
+                            date: resolved.date ?? current.date,
+                            order: current.order,
+                            pinned: pinnedChanged ? true : current.pinned
+                        )
+                        : current
+                }
+            },
+            persist: { nextTasks in
+                if autoSort {
+                    var updates = buildTaskUpdateData(normalizedTasks(nextTasks))
+                    if textChanged {
+                        updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
+                    }
+                    updateTaskList(updates)
+                    return
+                }
 
-        var updates: [String: Any] = [
-            "tasks.\(task.id).text": resolved.text,
-            "tasks.\(task.id).date": resolved.date ?? task.date,
-            "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
-        ]
-        if pinnedChanged {
-            updates["tasks.\(task.id).pinned"] = true
-        }
-        if textChanged {
-            updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
-        }
-        updateTaskList(updates)
-        setPendingTasks(displayTasks.map { current in
-            TaskSummary(
-                id: current.id,
-                text: current.id == task.id ? resolved.text : current.text,
-                completed: current.completed,
-                date: current.id == task.id ? resolved.date ?? current.date : current.date,
-                order: current.order,
-                pinned: current.id == task.id && pinnedChanged ? true : current.pinned
-            )
-        })
+                var updates: [String: Any] = [
+                    "tasks.\(task.id).text": resolved.text,
+                    "tasks.\(task.id).date": resolved.date ?? task.date,
+                    "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
+                ]
+                if pinnedChanged {
+                    updates["tasks.\(task.id).pinned"] = true
+                }
+                if textChanged {
+                    updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
+                }
+                updateTaskList(updates)
+            }
+        )
     }
 
     private func openTaskActionSheet(_ task: TaskSummary) {
@@ -3731,90 +3739,76 @@ private struct TaskListDetailPage: View {
 
     private func commitDate(_ task: TaskSummary, dateStr: String) {
         logTaskUpdate(fields: "date")
-        if autoSort {
-            let updatedTasks = taskList.tasks.map { current in
-                TaskSummary(
-                    id: current.id,
-                    text: current.text,
-                    completed: current.completed,
-                    date: current.id == task.id ? dateStr : current.date,
-                    order: current.order,
-                    pinned: current.pinned
-                )
+        performTaskMutation(
+            buildNextTasks: { currentTasks in
+                currentTasks.map { current in
+                    current.id == task.id
+                        ? TaskSummary(
+                            id: current.id,
+                            text: current.text,
+                            completed: current.completed,
+                            date: dateStr,
+                            order: current.order,
+                            pinned: current.pinned
+                        )
+                        : current
+                }
+            },
+            persist: { nextTasks in
+                if autoSort {
+                    persistTasks(nextTasks)
+                    return
+                }
+                updateTaskList([
+                    "tasks.\(task.id).date": dateStr,
+                    "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
+                ])
             }
-            persistTasks(updatedTasks)
-            return
-        }
-
-        updateTaskList([
-            "tasks.\(task.id).date": dateStr,
-            "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
-        ])
-        setPendingTasks(displayTasks.map { current in
-            TaskSummary(
-                id: current.id,
-                text: current.text,
-                completed: current.completed,
-                date: current.id == task.id ? dateStr : current.date,
-                order: current.order,
-                pinned: current.pinned
-            )
-        })
+        )
     }
 
     private func togglePinned(_ task: TaskSummary) {
         logTaskUpdate(fields: "pinned")
         let nextPinned = !task.pinned
-        if autoSort {
-            let updatedTasks = taskList.tasks.map { current in
-                TaskSummary(
-                    id: current.id,
-                    text: current.text,
-                    completed: current.completed,
-                    date: current.date,
-                    order: current.order,
-                    pinned: current.id == task.id ? nextPinned : current.pinned
-                )
+        performTaskMutation(
+            buildNextTasks: { currentTasks in
+                let updatedTasks = currentTasks.map { current in
+                    current.id == task.id
+                        ? TaskSummary(
+                            id: current.id,
+                            text: current.text,
+                            completed: current.completed,
+                            date: current.date,
+                            order: current.order,
+                            pinned: nextPinned
+                        )
+                        : current
+                }
+                if task.pinned && !nextPinned && !task.completed && !autoSort {
+                    return [
+                        updatedTasks.filter { taskDisplayGroup($0) == 0 },
+                        updatedTasks.filter { $0.id == task.id },
+                        updatedTasks.filter { taskDisplayGroup($0) == 1 && $0.id != task.id },
+                        updatedTasks.filter { taskDisplayGroup($0) == 2 }
+                    ].flatMap { $0 }
+                }
+                return updatedTasks
+            },
+            persist: { nextTasks in
+                if autoSort {
+                    persistTasks(nextTasks)
+                    return
+                }
+                if task.pinned && !nextPinned && !task.completed {
+                    updateTaskList(buildTaskUpdateData(renumberTasks(nextTasks)))
+                    return
+                }
+                updateTaskList([
+                    "tasks.\(task.id).pinned": nextPinned,
+                    "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
+                ])
             }
-            persistTasks(updatedTasks)
-            return
-        }
-
-        if task.pinned && !nextPinned && !task.completed {
-            let updatedTasks = taskList.tasks.map { current in
-                TaskSummary(
-                    id: current.id,
-                    text: current.text,
-                    completed: current.completed,
-                    date: current.date,
-                    order: current.order,
-                    pinned: current.id == task.id ? false : current.pinned
-                )
-            }
-            let reorderedTasks = [
-                updatedTasks.filter { taskDisplayGroup($0) == 0 },
-                updatedTasks.filter { $0.id == task.id },
-                updatedTasks.filter { taskDisplayGroup($0) == 1 && $0.id != task.id },
-                updatedTasks.filter { taskDisplayGroup($0) == 2 }
-            ].flatMap { $0 }
-            updateTaskList(buildTaskUpdateData(renumberTasks(reorderedTasks)))
-            return
-        }
-
-        updateTaskList([
-            "tasks.\(task.id).pinned": nextPinned,
-            "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
-        ])
-        setPendingTasks(getDisplayOrderedTasks(displayTasks.map { current in
-            TaskSummary(
-                id: current.id,
-                text: current.text,
-                completed: current.completed,
-                date: current.date,
-                order: current.order,
-                pinned: current.id == task.id ? nextPinned : current.pinned
-            )
-        }))
+        )
     }
 
     private func addTask() {
@@ -3830,44 +3824,39 @@ private struct TaskListDetailPage: View {
         let order: Double = taskInsertPosition == "top"
             ? (tasks.first?.order ?? 1.0) - 1.0
             : (tasks.last?.order ?? 0.0) + 1.0
-        if autoSort {
-            let insertedTask = TaskSummary(
-                id: taskId,
-                text: parsed.text,
-                completed: false,
-                date: parsed.date ?? "",
-                order: order,
-                pinned: parsed.pinnedFromInput
-            )
-            var reorderedTasks = taskList.tasks
-            let insertIndex = taskInsertPosition == "top" ? 0 : reorderedTasks.count
-            reorderedTasks.insert(insertedTask, at: insertIndex)
-            var updates = buildTaskUpdateData(normalizedTasks(reorderedTasks))
-            updates["history"] = buildHistory(newText: parsed.text)
-            updateTaskList(updates)
-            return
-        }
-
-        updateTaskList([
-            "tasks.\(taskId).id": taskId,
-            "tasks.\(taskId).text": parsed.text,
-            "tasks.\(taskId).completed": false,
-            "tasks.\(taskId).date": parsed.date ?? "",
-            "tasks.\(taskId).order": order,
-            "tasks.\(taskId).pinned": parsed.pinnedFromInput,
-            "history": buildHistory(newText: parsed.text),
-            "updatedAt": now
-        ])
-        setPendingTasks(getDisplayOrderedTasks(taskList.tasks + [
-            TaskSummary(
-                id: taskId,
-                text: parsed.text,
-                completed: false,
-                date: parsed.date ?? "",
-                order: order,
-                pinned: parsed.pinnedFromInput
-            )
-        ]))
+        let insertedTask = TaskSummary(
+            id: taskId,
+            text: parsed.text,
+            completed: false,
+            date: parsed.date ?? "",
+            order: order,
+            pinned: parsed.pinnedFromInput
+        )
+        performTaskMutation(
+            buildNextTasks: { currentTasks in
+                taskInsertPosition == "top"
+                    ? [insertedTask] + currentTasks
+                    : currentTasks + [insertedTask]
+            },
+            persist: { nextTasks in
+                if autoSort {
+                    var updates = buildTaskUpdateData(normalizedTasks(nextTasks))
+                    updates["history"] = buildHistory(newText: parsed.text)
+                    updateTaskList(updates)
+                    return
+                }
+                updateTaskList([
+                    "tasks.\(taskId).id": taskId,
+                    "tasks.\(taskId).text": parsed.text,
+                    "tasks.\(taskId).completed": false,
+                    "tasks.\(taskId).date": parsed.date ?? "",
+                    "tasks.\(taskId).order": order,
+                    "tasks.\(taskId).pinned": parsed.pinnedFromInput,
+                    "history": buildHistory(newText: parsed.text),
+                    "updatedAt": now
+                ])
+            }
+        )
     }
 
     private func handleSortTasks() {

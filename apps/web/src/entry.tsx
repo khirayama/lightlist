@@ -5082,44 +5082,79 @@ function TaskListCard({
     setShareCode(taskList.shareCode ?? null);
   }, [taskList.shareCode, showShareDialog]);
 
+  const normalizePendingTasks = useCallback(
+    (nextTasks: Task[]): Task[] => {
+      const normalizedTasks = nextTasks.map((task, index) => ({
+        id: task.id,
+        text: task.text,
+        completed: task.completed,
+        date: task.date,
+        order: index + 1,
+        pinned: task.pinned,
+      }));
+      const sortedTasks = autoSort
+        ? getAutoSortedTasks(normalizedTasks)
+        : getDisplayOrderedTasks({
+            tasks: Object.fromEntries(
+              normalizedTasks.map(
+                (task) => [task.id, task] satisfies [string, TaskListStoreTask],
+              ),
+            ),
+          });
+      return sortedTasks.map((task) => ({
+        id: task.id,
+        text: task.text,
+        completed: task.completed,
+        date: task.date,
+        pinned: task.pinned,
+      }));
+    },
+    [autoSort],
+  );
+
   useEffect(() => {
     if (!pendingTasks) return;
-    if (areTasksEqual(pendingTasks, taskList.tasks)) {
+    if (areTasksEqual(pendingTasks, normalizePendingTasks(taskList.tasks))) {
       setPendingTasks(null);
     }
-  }, [pendingTasks, taskList.tasks]);
+  }, [normalizePendingTasks, pendingTasks, taskList.tasks]);
 
   useEffect(() => {
     if (isActive) return;
     onDragInteractionChange?.(false);
   }, [isActive, onDragInteractionChange]);
 
-  const normalizePendingTasks = (nextTasks: Task[]): Task[] => {
-    const normalizedTasks = nextTasks.map((task, index) => ({
-      id: task.id,
-      text: task.text,
-      completed: task.completed,
-      date: task.date,
-      order: index + 1,
-      pinned: task.pinned,
-    }));
-    const sortedTasks = autoSort
-      ? getAutoSortedTasks(normalizedTasks)
-      : getDisplayOrderedTasks({
-          tasks: Object.fromEntries(
-            normalizedTasks.map(
-              (task) => [task.id, task] satisfies [string, TaskListStoreTask],
-            ),
-          ),
-        });
-    return sortedTasks.map((task) => ({
-      id: task.id,
-      text: task.text,
-      completed: task.completed,
-      date: task.date,
-      pinned: task.pinned,
-    }));
-  };
+  const applyPendingTasks = useCallback(
+    (buildNextTasks: (currentTasks: Task[]) => Task[]) => {
+      setPendingTasks(normalizePendingTasks(buildNextTasks(tasks)));
+    },
+    [normalizePendingTasks, tasks],
+  );
+
+  const runTaskMutation = useCallback(
+    async ({
+      buildNextTasks,
+      commit,
+      onSuccess,
+      onError,
+    }: {
+      buildNextTasks: (currentTasks: Task[]) => Task[];
+      commit: () => Promise<void>;
+      onSuccess?: () => void;
+      onError?: (error: unknown) => void;
+    }) => {
+      setTaskError(null);
+      applyPendingTasks(buildNextTasks);
+      try {
+        await commit();
+        onSuccess?.();
+      } catch (error) {
+        setPendingTasks(null);
+        onError?.(error);
+      }
+    },
+    [applyPendingTasks],
+  );
 
   const historyOptions = (() => {
     const input = newTaskText.trim();
@@ -5511,30 +5546,26 @@ function TaskListCard({
                   date: parsed.date,
                   pinned: parsed.pinned,
                 } satisfies Task;
-                setPendingTasks(
-                  normalizePendingTasks(
+                void runTaskMutation({
+                  buildNextTasks: (currentTasks) =>
                     taskInsertPosition === "top"
-                      ? [optimisticTask, ...tasks]
-                      : [...tasks, optimisticTask],
-                  ),
-                );
-                void addTask(taskList.id, newTaskText.trim(), {
-                  taskId: nextTaskId,
-                })
-                  .then(() => {
+                      ? [optimisticTask, ...currentTasks]
+                      : [...currentTasks, optimisticTask],
+                  commit: () =>
+                    addTask(taskList.id, newTaskText.trim(), {
+                      taskId: nextTaskId,
+                    }),
+                  onSuccess: () => {
                     setNewTaskText("");
-                    setTaskError(null);
                     setAddTaskError(null);
-                    logTaskAdd({ has_date: false });
-                  })
-                  .catch(
-                    (error) => (
-                      setPendingTasks(null),
-                      setAddTaskError(
-                        resolveErrorMessage(error, t, "common.error"),
-                      )
-                    ),
-                  );
+                    logTaskAdd({ has_date: Boolean(parsed.date) });
+                  },
+                  onError: (error) => {
+                    setAddTaskError(
+                      resolveErrorMessage(error, t, "common.error"),
+                    );
+                  },
+                });
               }}
             >
               <div className="relative min-w-0 flex-1">
@@ -5594,16 +5625,36 @@ function TaskListCard({
                             setAddTaskError(null);
                             setHistoryOpen(false);
                             newTaskInputRef.current?.focus();
-                            void addTask(taskList.id, text)
-                              .then(() => {
+                            const parsed = resolveTaskInput(
+                              text,
+                              normalizeLanguage(i18n.language),
+                            );
+                            const optimisticTask = {
+                              id: crypto.randomUUID(),
+                              text: parsed.text,
+                              completed: false,
+                              date: parsed.date,
+                              pinned: parsed.pinned,
+                            } satisfies Task;
+                            void runTaskMutation({
+                              buildNextTasks: (currentTasks) =>
+                                taskInsertPosition === "top"
+                                  ? [optimisticTask, ...currentTasks]
+                                  : [...currentTasks, optimisticTask],
+                              commit: () =>
+                                addTask(taskList.id, text, {
+                                  taskId: optimisticTask.id,
+                                }),
+                              onSuccess: () => {
                                 setNewTaskText("");
-                                logTaskAdd({ has_date: false });
-                              })
-                              .catch((error) =>
+                                logTaskAdd({ has_date: Boolean(parsed.date) });
+                              },
+                              onError: (error) => {
                                 setAddTaskError(
                                   resolveErrorMessage(error, t, "common.error"),
-                                ),
-                              );
+                                );
+                              },
+                            });
                           }}
                           className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none data-[selected=true]:bg-background dark:data-[selected=true]:bg-background-dark"
                         >
@@ -5641,18 +5692,16 @@ function TaskListCard({
                 type="button"
                 disabled={tasks.length < 2}
                 onClick={() => {
-                  setTaskError(null);
-                  setPendingTasks(normalizePendingTasks(tasks));
-                  void sortTasks(taskList.id)
-                    .then(() => logTaskSort())
-                    .catch(
-                      (error) => (
-                        setPendingTasks(null),
-                        setTaskError(
-                          resolveErrorMessage(error, t, "common.error"),
-                        )
-                      ),
-                    );
+                  void runTaskMutation({
+                    buildNextTasks: (currentTasks) => currentTasks,
+                    commit: () => sortTasks(taskList.id),
+                    onSuccess: () => logTaskSort(),
+                    onError: (error) => {
+                      setTaskError(
+                        resolveErrorMessage(error, t, "common.error"),
+                      );
+                    },
+                  });
                 }}
                 className="inline-flex items-center justify-center rounded-xl font-medium text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:text-text-dark dark:focus-visible:outline-muted-dark"
               >
@@ -5674,20 +5723,18 @@ function TaskListCard({
                     return;
                   }
                   setDeleteCompletedPending(true);
-                  setPendingTasks(
-                    normalizePendingTasks(
-                      tasks.filter((task) => !task.completed),
-                    ),
-                  );
-                  try {
-                    await deleteCompletedTasks(taskList.id);
-                    logTaskDeleteCompleted({ count: completedTaskCount });
-                  } catch (error) {
-                    setPendingTasks(null);
-                    setTaskError(resolveErrorMessage(error, t, "common.error"));
-                  } finally {
-                    setDeleteCompletedPending(false);
-                  }
+                  await runTaskMutation({
+                    buildNextTasks: (currentTasks) =>
+                      currentTasks.filter((task) => !task.completed),
+                    commit: () => deleteCompletedTasks(taskList.id),
+                    onSuccess: () =>
+                      logTaskDeleteCompleted({ count: completedTaskCount }),
+                    onError: (error) => {
+                      setTaskError(
+                        resolveErrorMessage(error, t, "common.error"),
+                      );
+                    },
+                  }).finally(() => setDeleteCompletedPending(false));
                 }}
                 className="inline-flex items-center justify-center rounded-xl font-medium text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-60 dark:text-text-dark dark:focus-visible:outline-error-dark"
               >
@@ -5773,10 +5820,9 @@ function TaskListCard({
                           normalizeLanguage(i18n.language),
                           task,
                         );
-                        setTaskError(null);
-                        setPendingTasks(
-                          normalizePendingTasks(
-                            tasks.map((currentTask) =>
+                        void runTaskMutation({
+                          buildNextTasks: (currentTasks) =>
+                            currentTasks.map((currentTask) =>
                               currentTask.id === task.id
                                 ? {
                                     ...currentTask,
@@ -5788,23 +5834,22 @@ function TaskListCard({
                                   }
                                 : currentTask,
                             ),
-                          ),
-                        );
-                        void updateTask(taskList.id, task.id, {
-                          text: currentText,
-                        })
-                          .then(() => {
+                          commit: () =>
+                            updateTask(taskList.id, task.id, {
+                              text: currentText,
+                            }),
+                          onSuccess: () => {
                             setEditingTaskId(null);
                             const fields = ["text", "date"];
                             if (resolved.pinnedChanged) fields.push("pinned");
                             logTaskUpdate({ fields: fields.join(",") });
-                          })
-                          .catch((error) => {
-                            setPendingTasks(null);
+                          },
+                          onError: (error) => {
                             setTaskError(
                               resolveErrorMessage(error, t, "common.error"),
                             );
-                          });
+                          },
+                        });
                       }}
                       onDragInteractionChange={(active) => {
                         if (!isActive) {
@@ -5814,10 +5859,9 @@ function TaskListCard({
                         onDragInteractionChange?.(active);
                       }}
                       onToggle={(task) => {
-                        setTaskError(null);
-                        setPendingTasks(
-                          normalizePendingTasks(
-                            tasks.map((currentTask) =>
+                        void runTaskMutation({
+                          buildNextTasks: (currentTasks) =>
+                            currentTasks.map((currentTask) =>
                               currentTask.id === task.id
                                 ? {
                                     ...currentTask,
@@ -5825,18 +5869,18 @@ function TaskListCard({
                                   }
                                 : currentTask,
                             ),
-                          ),
-                        );
-                        void updateTask(taskList.id, task.id, {
-                          completed: !task.completed,
-                        })
-                          .then(() => logTaskUpdate({ fields: "completed" }))
-                          .catch((error) => {
-                            setPendingTasks(null);
+                          commit: () =>
+                            updateTask(taskList.id, task.id, {
+                              completed: !task.completed,
+                            }),
+                          onSuccess: () =>
+                            logTaskUpdate({ fields: "completed" }),
+                          onError: (error) => {
                             setTaskError(
                               resolveErrorMessage(error, t, "common.error"),
                             );
-                          });
+                          },
+                        });
                       }}
                       onOpenTaskActions={(task, trigger) => {
                         onActivate?.(taskList.id);
@@ -5890,10 +5934,9 @@ function TaskListCard({
                     : t("pages.tasklist.pinTask")
                 }
                 onClick={() => {
-                  setTaskError(null);
-                  setPendingTasks(
-                    normalizePendingTasks(
-                      tasks.map((task) =>
+                  void runTaskMutation({
+                    buildNextTasks: (currentTasks) =>
+                      currentTasks.map((task) =>
                         task.id === activeTaskActionTask.id
                           ? {
                               ...task,
@@ -5901,21 +5944,20 @@ function TaskListCard({
                             }
                           : task,
                       ),
-                    ),
-                  );
-                  void updateTask(taskList.id, activeTaskActionTask.id, {
-                    pinned: !activeTaskActionTask.pinned,
-                  })
-                    .then(() => {
+                    commit: () =>
+                      updateTask(taskList.id, activeTaskActionTask.id, {
+                        pinned: !activeTaskActionTask.pinned,
+                      }),
+                    onSuccess: () => {
                       logTaskUpdate({ fields: "pinned" });
                       onCloseTaskAction?.();
-                    })
-                    .catch((error) => {
-                      setPendingTasks(null);
+                    },
+                    onError: (error) => {
                       setTaskError(
                         resolveErrorMessage(error, t, "common.error"),
                       );
-                    });
+                    },
+                  });
                 }}
                 className="flex min-h-12 w-full items-center justify-between rounded-2xl border border-border bg-background px-4 py-3 text-start text-sm font-semibold text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:focus-visible:outline-muted-dark"
               >
@@ -5937,29 +5979,27 @@ function TaskListCard({
               <button
                 type="button"
                 onClick={() => {
-                  setTaskError(null);
-                  setPendingTasks(
-                    normalizePendingTasks(
-                      tasks.map((task) =>
+                  void runTaskMutation({
+                    buildNextTasks: (currentTasks) =>
+                      currentTasks.map((task) =>
                         task.id === activeTaskActionTask.id
                           ? { ...task, date: "" }
                           : task,
                       ),
-                    ),
-                  );
-                  void updateTask(taskList.id, activeTaskActionTask.id, {
-                    date: "",
-                  })
-                    .then(() => {
+                    commit: () =>
+                      updateTask(taskList.id, activeTaskActionTask.id, {
+                        date: "",
+                      }),
+                    onSuccess: () => {
                       logTaskUpdate({ fields: "date" });
                       onCloseTaskAction?.();
-                    })
-                    .catch((error) => {
-                      setPendingTasks(null);
+                    },
+                    onError: (error) => {
                       setTaskError(
                         resolveErrorMessage(error, t, "common.error"),
                       );
-                    });
+                    },
+                  });
                 }}
                 className="inline-flex min-h-11 w-fit items-center self-start rounded-xl text-sm font-semibold text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error dark:text-muted-dark"
               >
@@ -5970,32 +6010,31 @@ function TaskListCard({
                   mode="single"
                   selected={parseTaskDateValue(activeTaskActionTask.date)}
                   onSelect={(next) => {
-                    setTaskError(null);
-                    setPendingTasks(
-                      normalizePendingTasks(
-                        tasks.map((task) =>
+                    const nextDate = next ? formatTaskDateValue(next) : "";
+                    void runTaskMutation({
+                      buildNextTasks: (currentTasks) =>
+                        currentTasks.map((task) =>
                           task.id === activeTaskActionTask.id
                             ? {
                                 ...task,
-                                date: next ? formatTaskDateValue(next) : "",
+                                date: nextDate,
                               }
                             : task,
                         ),
-                      ),
-                    );
-                    void updateTask(taskList.id, activeTaskActionTask.id, {
-                      date: next ? formatTaskDateValue(next) : "",
-                    })
-                      .then(() => {
+                      commit: () =>
+                        updateTask(taskList.id, activeTaskActionTask.id, {
+                          date: nextDate,
+                        }),
+                      onSuccess: () => {
                         logTaskUpdate({ fields: "date" });
                         onCloseTaskAction?.();
-                      })
-                      .catch((error) => {
-                        setPendingTasks(null);
+                      },
+                      onError: (error) => {
                         setTaskError(
                           resolveErrorMessage(error, t, "common.error"),
                         );
-                      });
+                      },
+                    });
                   }}
                 />
               </div>

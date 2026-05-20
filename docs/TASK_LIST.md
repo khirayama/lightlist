@@ -35,6 +35,7 @@
 - iOS / Android も `taskListOrder` と `taskLists` を別購読し、順序付きリストを組み立てる。
 - Web / iOS / Android の UI 更新系は、listener の反映より先に画面上の編集結果を捨てない。task 本文編集の blur、task 並び替え、taskList 並び替え、日付変更、ピン切り替え、完了切り替えは、Firestore snapshot が同じ内容へ追いつくまで local pending state を優先表示する。
 - Web / iOS / Android の task 更新 UI は、`現在表示中 task 群 -> 正規化済み next task 群 -> local pending 表示 -> taskListId 単位 queue 経由の保存` の順で処理する。
+- task 一覧の空状態判定も local pending 表示を含む現在表示中 task 群を基準に行い、空リストへの 1 件目追加でも listener 反映待ちに戻さない。
 
 ## タスクリスト操作
 

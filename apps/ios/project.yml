@@ -26,8 +26,6 @@ targets:
         buildPhase: resources
         excludes:
           - Firebase/**
-      - path: ../../shared/locales/locales.json
-        buildPhase: resources
       - path: ../../shared/licenses/manual-licenses.json
         buildPhase: resources
     dependencies:

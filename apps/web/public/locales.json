@@ -131,7 +131,10 @@
         { "pattern": "^غد(?:ا|ًا)?(?:[\\s　]|$)", "offset": 1 },
         { "pattern": "^بعد\\s+غد(?:[\\s　]|$)", "offset": 2 },
         { "pattern": "^بعد\\s+(\\d+)\\s+أيام?(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
         "الأحد": 0,
@@ -444,17 +447,32 @@
         { "pattern": "^heute(?:[\\s　]|$)", "offset": 0, "options": "i" },
         { "pattern": "^morgen(?:[\\s　]|$)", "offset": 1, "options": "i" },
         { "pattern": "^übermorgen(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^in\\s+(\\d+)\\s+tagen?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^in\\s+(\\d+)\\s+tagen?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "sonntag": 0, "so": 0,
-        "montag": 1, "mo": 1,
-        "dienstag": 2, "di": 2,
-        "mittwoch": 3, "mi": 3,
-        "donnerstag": 4, "do": 4,
-        "freitag": 5, "fr": 5,
-        "samstag": 6, "sa": 6
+        "sonntag": 0,
+        "so": 0,
+        "montag": 1,
+        "mo": 1,
+        "dienstag": 2,
+        "di": 2,
+        "mittwoch": 3,
+        "mi": 3,
+        "donnerstag": 4,
+        "do": 4,
+        "freitag": 5,
+        "fr": 5,
+        "samstag": 6,
+        "sa": 6
       }
     },
     "pinPrefixes": ["anheften"],
@@ -756,13 +774,35 @@
       "relative": [
         { "pattern": "^today(?:[\\s　]|$)", "offset": 0, "options": "i" },
         { "pattern": "^tomorrow(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^day after tomorrow(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^in\\s+(\\d+)\\s+days?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(\\d+)\\s+days?\\s+later(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(mon|tue|wed|thu|fri|sat|sun)(?:day)?(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^day after tomorrow(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^in\\s+(\\d+)\\s+days?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(\\d+)\\s+days?\\s+later(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(mon|tue|wed|thu|fri|sat|sun)(?:day)?(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6
+        "sun": 0,
+        "mon": 1,
+        "tue": 2,
+        "wed": 3,
+        "thu": 4,
+        "fri": 5,
+        "sat": 6
       }
     },
     "pinPrefixes": ["pin", "pinned"],
@@ -1064,18 +1104,41 @@
       "relative": [
         { "pattern": "^hoy(?:[\\s　]|$)", "offset": 0, "options": "i" },
         { "pattern": "^mañana(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^pasado\\s+mañana(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^(?:en|dentro\\s+de)\\s+(\\d+)\\s+d[ií]as?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^pasado\\s+mañana(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^(?:en|dentro\\s+de)\\s+(\\d+)\\s+d[ií]as?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "domingo": 0, "dom": 0,
-        "lunes": 1, "lun": 1,
-        "martes": 2, "mar": 2,
-        "miércoles": 3, "miercoles": 3, "mié": 3, "mie": 3,
-        "jueves": 4, "jue": 4,
-        "viernes": 5, "vie": 5,
-        "sábado": 6, "sabado": 6, "sáb": 6, "sab": 6
+        "domingo": 0,
+        "dom": 0,
+        "lunes": 1,
+        "lun": 1,
+        "martes": 2,
+        "mar": 2,
+        "miércoles": 3,
+        "miercoles": 3,
+        "mié": 3,
+        "mie": 3,
+        "jueves": 4,
+        "jue": 4,
+        "viernes": 5,
+        "vie": 5,
+        "sábado": 6,
+        "sabado": 6,
+        "sáb": 6,
+        "sab": 6
       }
     },
     "pinPrefixes": ["fijar"],
@@ -1375,20 +1438,43 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^aujourd(?:'|’)hui(?:[\\s　]|$)", "offset": 0, "options": "i" },
+        {
+          "pattern": "^aujourd(?:'|’)hui(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
         { "pattern": "^demain(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^apr[eè]s[- ]demain(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^dans\\s+(\\d+)\\s+jours?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^apr[eè]s[- ]demain(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^dans\\s+(\\d+)\\s+jours?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "dimanche": 0, "dim": 0,
-        "lundi": 1, "lun": 1,
-        "mardi": 2, "mar": 2,
-        "mercredi": 3, "mer": 3,
-        "jeudi": 4, "jeu": 4,
-        "vendredi": 5, "ven": 5,
-        "samedi": 6, "sam": 6
+        "dimanche": 0,
+        "dim": 0,
+        "lundi": 1,
+        "lun": 1,
+        "mardi": 2,
+        "mar": 2,
+        "mercredi": 3,
+        "mer": 3,
+        "jeudi": 4,
+        "jeu": 4,
+        "vendredi": 5,
+        "ven": 5,
+        "samedi": 6,
+        "sam": 6
       }
     },
     "pinPrefixes": ["epingler", "épingler"],
@@ -1692,10 +1778,19 @@
         { "pattern": "^कल(?:[\\s　]|$)", "offset": 1 },
         { "pattern": "^परसों(?:[\\s　]|$)", "offset": 2 },
         { "pattern": "^(\\d+)\\s*दिन\\s*बाद(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
-        "रविवार": 0, "सोमवार": 1, "मंगलवार": 2, "बुधवार": 3, "गुरुवार": 4, "शुक्रवार": 5, "शनिवार": 6
+        "रविवार": 0,
+        "सोमवार": 1,
+        "मंगलवार": 2,
+        "बुधवार": 3,
+        "गुरुवार": 4,
+        "शुक्रवार": 5,
+        "शनिवार": 6
       }
     },
     "pinPrefixes": ["पिन"],
@@ -1998,11 +2093,26 @@
         { "pattern": "^hari\\s+ini(?:[\\s　]|$)", "offset": 0, "options": "i" },
         { "pattern": "^besok(?:[\\s　]|$)", "offset": 1, "options": "i" },
         { "pattern": "^lusa(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^dalam\\s+(\\d+)\\s+hari(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^dalam\\s+(\\d+)\\s+hari(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "minggu": 0, "senin": 1, "selasa": 2, "rabu": 3, "kamis": 4, "jumat": 5, "jum'at": 5, "sabtu": 6
+        "minggu": 0,
+        "senin": 1,
+        "selasa": 2,
+        "rabu": 3,
+        "kamis": 4,
+        "jumat": 5,
+        "jum'at": 5,
+        "sabtu": 6
       }
     },
     "pinPrefixes": ["sematkan"],
@@ -2308,7 +2418,15 @@
         { "pattern": "^(\\d+)日後(?:に)?(?:[\\s　]|$)", "offsetGroup": 1 },
         { "pattern": "^([月火水木金土日])曜?(?:[\\s　]|$)", "weekdayGroup": 1 }
       ],
-      "weekdays": { "日": 0, "月": 1, "火": 2, "水": 3, "木": 4, "金": 5, "土": 6 }
+      "weekdays": {
+        "日": 0,
+        "月": 1,
+        "火": 2,
+        "水": 3,
+        "木": 4,
+        "金": 5,
+        "土": 6
+      }
     },
     "pinPrefixes": ["ピン"],
     "taskList": {
@@ -2611,10 +2729,26 @@
         { "pattern": "^내일(?:[\\s　]|$)", "offset": 1 },
         { "pattern": "^모레(?:[\\s　]|$)", "offset": 2 },
         { "pattern": "^(\\d+)\\s*일\\s*후(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
-        "일요일": 0, "일": 0, "월요일": 1, "월": 1, "화요일": 2, "화": 2, "수요일": 3, "수": 3, "목요일": 4, "목": 4, "금요일": 5, "금": 5, "토요일": 6, "토": 6
+        "일요일": 0,
+        "일": 0,
+        "월요일": 1,
+        "월": 1,
+        "화요일": 2,
+        "화": 2,
+        "수요일": 3,
+        "수": 3,
+        "목요일": 4,
+        "목": 4,
+        "금요일": 5,
+        "금": 5,
+        "토요일": 6,
+        "토": 6
       }
     },
     "pinPrefixes": ["고정"],
@@ -2916,18 +3050,46 @@
       "relative": [
         { "pattern": "^hoje(?:[\\s　]|$)", "offset": 0, "options": "i" },
         { "pattern": "^amanh[ãa](?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^depois\\s+de\\s+amanh[ãa](?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^em\\s+(\\d+)\\s+dias?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^depois\\s+de\\s+amanh[ãa](?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^em\\s+(\\d+)\\s+dias?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "domingo": 0, "dom": 0,
-        "segunda": 1, "segunda-feira": 1, "seg": 1,
-        "terça": 2, "terca": 2, "terça-feira": 2, "terca-feira": 2, "ter": 2,
-        "quarta": 3, "quarta-feira": 3, "qua": 3,
-        "quinta": 4, "quinta-feira": 4, "qui": 4,
-        "sexta": 5, "sexta-feira": 5, "sex": 5,
-        "sábado": 6, "sabado": 6, "sáb": 6, "sab": 6
+        "domingo": 0,
+        "dom": 0,
+        "segunda": 1,
+        "segunda-feira": 1,
+        "seg": 1,
+        "terça": 2,
+        "terca": 2,
+        "terça-feira": 2,
+        "terca-feira": 2,
+        "ter": 2,
+        "quarta": 3,
+        "quarta-feira": 3,
+        "qua": 3,
+        "quinta": 4,
+        "quinta-feira": 4,
+        "qui": 4,
+        "sexta": 5,
+        "sexta-feira": 5,
+        "sex": 5,
+        "sábado": 6,
+        "sabado": 6,
+        "sáb": 6,
+        "sab": 6
       }
     },
     "pinPrefixes": ["fixar"],
@@ -3231,16 +3393,28 @@
         { "pattern": "^明天(?:[\\s　]|$)", "offset": 1 },
         { "pattern": "^后天(?:[\\s　]|$)", "offset": 2 },
         { "pattern": "^(\\d+)\\s*天后(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(星期[一二三四五六日天]|周[一二三四五六日天])(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^(星期[一二三四五六日天]|周[一二三四五六日天])(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
-        "星期日": 0, "星期天": 0, "周日": 0, "周天": 0,
-        "星期一": 1, "周一": 1,
-        "星期二": 2, "周二": 2,
-        "星期三": 3, "周三": 3,
-        "星期四": 4, "周四": 4,
-        "星期五": 5, "周五": 5,
-        "星期六": 6, "周六": 6
+        "星期日": 0,
+        "星期天": 0,
+        "周日": 0,
+        "周天": 0,
+        "星期一": 1,
+        "周一": 1,
+        "星期二": 2,
+        "周二": 2,
+        "星期三": 3,
+        "周三": 3,
+        "星期四": 4,
+        "周四": 4,
+        "星期五": 5,
+        "周五": 5,
+        "星期六": 6,
+        "周六": 6
       }
     },
     "pinPrefixes": ["置顶"],

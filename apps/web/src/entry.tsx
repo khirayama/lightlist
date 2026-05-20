@@ -75,6 +75,8 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
   query,
+  increment,
+  serverTimestamp,
   setDoc,
   updateDoc,
   writeBatch,
@@ -158,11 +160,11 @@ type SettingsStore = {
   updatedAt: number;
 };
 
-type TaskListOrderStore = {
-  [taskListId: string]: {
-    order: number;
-  };
-} & {
+type TaskListOrderEntry = {
+  order: number;
+};
+
+type TaskListOrderStore = Record<string, TaskListOrderEntry | number> & {
   createdAt: number;
   updatedAt: number;
 };
@@ -990,8 +992,14 @@ const mapTaskListStoreToTaskList = (
   background: taskListData.background,
   memberCount:
     typeof taskListData.memberCount === "number" ? taskListData.memberCount : 1,
-  createdAt: taskListData.createdAt,
-  updatedAt: taskListData.updatedAt,
+  createdAt:
+    typeof taskListData.createdAt === "number"
+      ? taskListData.createdAt
+      : ((taskListData.createdAt as any)?.toMillis?.() ?? 0),
+  updatedAt:
+    typeof taskListData.updatedAt === "number"
+      ? taskListData.updatedAt
+      : ((taskListData.updatedAt as any)?.toMillis?.() ?? 0),
 });
 
 const createMissingTaskList = (taskListId: string): TaskList => ({
@@ -1511,19 +1519,7 @@ const withAuthLanguage = async <T,>(
   }
 };
 
-const INITIAL_TASK_LIST_NAME_BY_LANGUAGE: Record<Language, string> = {
-  ja: "📒個人",
-  en: "📒PERSONAL",
-  es: "📒PERSONAL",
-  de: "📒PERSÖNLICH",
-  fr: "📒PERSONNEL",
-  ko: "📒개인",
-  "zh-CN": "📒个人",
-  hi: "📒व्यक्तिगत",
-  ar: "📒شخصية",
-  "pt-BR": "📒PESSOAL",
-  id: "📒PRIBADI",
-};
+// INITIAL_TASK_LIST_NAME_BY_LANGUAGE removed
 
 const requireCurrentUser = (): FirebaseAuthUser => {
   const user = getAuthInstance().currentUser;
@@ -1551,27 +1547,29 @@ const createInitialTaskListStore = (
   taskListId: string,
   language: Language,
   now: number,
-): TaskListStore => ({
-  id: taskListId,
-  name: INITIAL_TASK_LIST_NAME_BY_LANGUAGE[language],
-  tasks: {},
-  history: [],
-  shareCode: null,
-  background: null,
-  memberCount: 1,
-  createdAt: now,
-  updatedAt: now,
-});
+): TaskListStore => {
+  const bundle = i18next.getResourceBundle(language, "translation") as any;
+  return {
+    id: taskListId,
+    name: bundle?.app?.initialTaskListName ?? "📒PERSONAL",
+    tasks: {},
+    history: [],
+    shareCode: null,
+    background: null,
+    memberCount: 1,
+    createdAt: now,
+    updatedAt: now,
+  };
+};
 
 const createInitialTaskListOrderStore = (
   taskListId: string,
   now: number,
-): TaskListOrderStore =>
-  ({
-    [taskListId]: { order: 1.0 },
-    createdAt: now,
-    updatedAt: now,
-  }) as TaskListOrderStore;
+): TaskListOrderStore => ({
+  [taskListId]: { order: 1.0 },
+  createdAt: now,
+  updatedAt: now,
+});
 
 const getPreferredLanguage = async (language?: Language): Promise<Language> => {
   if (language) {
@@ -1780,489 +1778,44 @@ const NUMERIC_PATTERNS: DatePattern[] = [
       if (date.getMonth() !== m || date.getDate() !== d) {
         return null;
       }
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      if (date < today) {
-        date.setFullYear(currentYear + 1);
-      }
       return date;
     },
   },
 ];
 
-const RELATIVE_PATTERNS: Record<Language, DatePattern[]> = {
-  ja: [
-    {
-      regex: new RegExp(String.raw`^今日${SPACE_OR_END}`),
-      getOffset: () => 0,
+const getRelativePatterns = (language: Language): DatePattern[] => {
+  const bundle = i18next.getResourceBundle(language, "translation") as any;
+  const patterns = bundle?.datePatterns?.relative ?? [];
+  const weekdays = bundle?.datePatterns?.weekdays ?? {};
+
+  return patterns.map((p: any) => ({
+    regex: new RegExp(p.pattern, p.options || ""),
+    getOffset: (match: RegExpMatchArray) => {
+      if (p.offset !== undefined) return p.offset;
+      if (p.offsetGroup !== undefined)
+        return Number.parseInt(match[p.offsetGroup], 10);
+      if (p.weekdayGroup !== undefined) {
+        const target = weekdays[match[p.weekdayGroup]];
+        if (target === undefined) {
+          const lowerTarget = match[p.weekdayGroup].toLowerCase();
+          const lowerWeekdays = Object.fromEntries(
+            Object.entries(weekdays).map(([k, v]) => [k.toLowerCase(), v]),
+          );
+          const finalTarget = lowerWeekdays[lowerTarget];
+          if (finalTarget === undefined) return null;
+          return getNextWeekdayOffset(
+            finalTarget as number,
+            new Date().getDay(),
+          );
+        }
+        return getNextWeekdayOffset(target as number, new Date().getDay());
+      }
+      return null;
     },
-    {
-      regex: new RegExp(String.raw`^明日${SPACE_OR_END}`),
-      getOffset: () => 1,
-    },
-    {
-      regex: new RegExp(String.raw`^明後日${SPACE_OR_END}`),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(String.raw`^(\d+)日後(?:に)?${SPACE_OR_END}`),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(String.raw`^([月火水木金土日])曜?${SPACE_OR_END}`),
-      getOffset: (match) =>
-        getNextWeekdayOffset(
-          { 日: 0, 月: 1, 火: 2, 水: 3, 木: 4, 金: 5, 土: 6 }[match[1]] ?? 0,
-          new Date().getDay(),
-        ),
-    },
-  ],
-  en: [
-    {
-      regex: new RegExp(String.raw`^today${SPACE_OR_END}`, "i"),
-      getOffset: () => 0,
-    },
-    {
-      regex: new RegExp(String.raw`^tomorrow${SPACE_OR_END}`, "i"),
-      getOffset: () => 1,
-    },
-    {
-      regex: new RegExp(String.raw`^day after tomorrow${SPACE_OR_END}`, "i"),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(String.raw`^in\s+(\d+)\s+days?${SPACE_OR_END}`, "i"),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(String.raw`^(\d+)\s+days?\s+later${SPACE_OR_END}`, "i"),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(mon|tue|wed|thu|fri|sat|sun)(?:day)?${SPACE_OR_END}`,
-        "i",
-      ),
-      getOffset: (match) =>
-        getNextWeekdayOffset(
-          { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 }[
-            match[1].toLowerCase()
-          ] ?? 0,
-          new Date().getDay(),
-        ),
-    },
-  ],
-  es: [
-    {
-      regex: new RegExp(String.raw`^hoy${SPACE_OR_END}`, "i"),
-      getOffset: () => 0,
-    },
-    {
-      regex: new RegExp(String.raw`^mañana${SPACE_OR_END}`, "i"),
-      getOffset: () => 1,
-    },
-    {
-      regex: new RegExp(String.raw`^pasado\s+mañana${SPACE_OR_END}`, "i"),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(?:en|dentro\s+de)\s+(\d+)\s+d[ií]as?${SPACE_OR_END}`,
-        "i",
-      ),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)${SPACE_OR_END}`,
-        "i",
-      ),
-      getOffset: (match) => {
-        const map: Record<string, number> = {
-          domingo: 0,
-          dom: 0,
-          lunes: 1,
-          lun: 1,
-          martes: 2,
-          mar: 2,
-          miércoles: 3,
-          miercoles: 3,
-          mié: 3,
-          mie: 3,
-          jueves: 4,
-          jue: 4,
-          viernes: 5,
-          vie: 5,
-          sábado: 6,
-          sabado: 6,
-          sáb: 6,
-          sab: 6,
-        };
-        const target = map[match[1].toLowerCase()];
-        if (target === undefined) return null;
-        return getNextWeekdayOffset(target, new Date().getDay());
-      },
-    },
-  ],
-  de: [
-    {
-      regex: new RegExp(String.raw`^heute${SPACE_OR_END}`, "i"),
-      getOffset: () => 0,
-    },
-    {
-      regex: new RegExp(String.raw`^morgen${SPACE_OR_END}`, "i"),
-      getOffset: () => 1,
-    },
-    {
-      regex: new RegExp(String.raw`^übermorgen${SPACE_OR_END}`, "i"),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(String.raw`^in\s+(\d+)\s+tagen?${SPACE_OR_END}`, "i"),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)${SPACE_OR_END}`,
-        "i",
-      ),
-      getOffset: (match) => {
-        const map: Record<string, number> = {
-          sonntag: 0,
-          so: 0,
-          montag: 1,
-          mo: 1,
-          dienstag: 2,
-          di: 2,
-          mittwoch: 3,
-          mi: 3,
-          donnerstag: 4,
-          do: 4,
-          freitag: 5,
-          fr: 5,
-          samstag: 6,
-          sa: 6,
-        };
-        const target = map[match[1].toLowerCase()];
-        if (target === undefined) return null;
-        return getNextWeekdayOffset(target, new Date().getDay());
-      },
-    },
-  ],
-  fr: [
-    {
-      regex: new RegExp(String.raw`^aujourd(?:'|’)hui${SPACE_OR_END}`, "i"),
-      getOffset: () => 0,
-    },
-    {
-      regex: new RegExp(String.raw`^demain${SPACE_OR_END}`, "i"),
-      getOffset: () => 1,
-    },
-    {
-      regex: new RegExp(String.raw`^apr[eè]s[- ]demain${SPACE_OR_END}`, "i"),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(String.raw`^dans\s+(\d+)\s+jours?${SPACE_OR_END}`, "i"),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)${SPACE_OR_END}`,
-        "i",
-      ),
-      getOffset: (match) => {
-        const map: Record<string, number> = {
-          dimanche: 0,
-          dim: 0,
-          lundi: 1,
-          lun: 1,
-          mardi: 2,
-          mar: 2,
-          mercredi: 3,
-          mer: 3,
-          jeudi: 4,
-          jeu: 4,
-          vendredi: 5,
-          ven: 5,
-          samedi: 6,
-          sam: 6,
-        };
-        const target = map[match[1].toLowerCase()];
-        if (target === undefined) return null;
-        return getNextWeekdayOffset(target, new Date().getDay());
-      },
-    },
-  ],
-  ko: [
-    {
-      regex: new RegExp(String.raw`^오늘${SPACE_OR_END}`),
-      getOffset: () => 0,
-    },
-    {
-      regex: new RegExp(String.raw`^내일${SPACE_OR_END}`),
-      getOffset: () => 1,
-    },
-    {
-      regex: new RegExp(String.raw`^모레${SPACE_OR_END}`),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(String.raw`^(\d+)\s*일\s*후${SPACE_OR_END}`),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)${SPACE_OR_END}`,
-      ),
-      getOffset: (match) => {
-        const map: Record<string, number> = {
-          일요일: 0,
-          일: 0,
-          월요일: 1,
-          월: 1,
-          화요일: 2,
-          화: 2,
-          수요일: 3,
-          수: 3,
-          목요일: 4,
-          목: 4,
-          금요일: 5,
-          금: 5,
-          토요일: 6,
-          토: 6,
-        };
-        const target = map[match[1]];
-        if (target === undefined) return null;
-        return getNextWeekdayOffset(target, new Date().getDay());
-      },
-    },
-  ],
-  "zh-CN": [
-    {
-      regex: new RegExp(String.raw`^今天${SPACE_OR_END}`),
-      getOffset: () => 0,
-    },
-    {
-      regex: new RegExp(String.raw`^明天${SPACE_OR_END}`),
-      getOffset: () => 1,
-    },
-    {
-      regex: new RegExp(String.raw`^后天${SPACE_OR_END}`),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(String.raw`^(\d+)\s*天后${SPACE_OR_END}`),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(星期[一二三四五六日天]|周[一二三四五六日天])${SPACE_OR_END}`,
-      ),
-      getOffset: (match) => {
-        const map: Record<string, number> = {
-          星期日: 0,
-          星期天: 0,
-          周日: 0,
-          周天: 0,
-          星期一: 1,
-          周一: 1,
-          星期二: 2,
-          周二: 2,
-          星期三: 3,
-          周三: 3,
-          星期四: 4,
-          周四: 4,
-          星期五: 5,
-          周五: 5,
-          星期六: 6,
-          周六: 6,
-        };
-        const target = map[match[1]];
-        if (target === undefined) return null;
-        return getNextWeekdayOffset(target, new Date().getDay());
-      },
-    },
-  ],
-  hi: [
-    { regex: new RegExp(String.raw`^आज${SPACE_OR_END}`), getOffset: () => 0 },
-    { regex: new RegExp(String.raw`^कल${SPACE_OR_END}`), getOffset: () => 1 },
-    {
-      regex: new RegExp(String.raw`^परसों${SPACE_OR_END}`),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(String.raw`^(\d+)\s*दिन\s*बाद${SPACE_OR_END}`),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)${SPACE_OR_END}`,
-      ),
-      getOffset: (match) => {
-        const map: Record<string, number> = {
-          रविवार: 0,
-          सोमवार: 1,
-          मंगलवार: 2,
-          बुधवार: 3,
-          गुरुवार: 4,
-          शुक्रवार: 5,
-          शनिवार: 6,
-        };
-        const target = map[match[1]];
-        if (target === undefined) return null;
-        return getNextWeekdayOffset(target, new Date().getDay());
-      },
-    },
-  ],
-  ar: [
-    {
-      regex: new RegExp(String.raw`^اليوم${SPACE_OR_END}`),
-      getOffset: () => 0,
-    },
-    {
-      regex: new RegExp(String.raw`^غد(?:ا|ًا)?${SPACE_OR_END}`),
-      getOffset: () => 1,
-    },
-    {
-      regex: new RegExp(String.raw`^بعد\s+غد${SPACE_OR_END}`),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(String.raw`^بعد\s+(\d+)\s+أيام?${SPACE_OR_END}`),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)${SPACE_OR_END}`,
-      ),
-      getOffset: (match) => {
-        const map: Record<string, number> = {
-          الأحد: 0,
-          الاثنين: 1,
-          الإثنين: 1,
-          الثلاثاء: 2,
-          الأربعاء: 3,
-          الخميس: 4,
-          الجمعة: 5,
-          السبت: 6,
-        };
-        const target = map[match[1]];
-        if (target === undefined) return null;
-        return getNextWeekdayOffset(target, new Date().getDay());
-      },
-    },
-  ],
-  "pt-BR": [
-    {
-      regex: new RegExp(String.raw`^hoje${SPACE_OR_END}`, "i"),
-      getOffset: () => 0,
-    },
-    {
-      regex: new RegExp(String.raw`^amanh[ãa]${SPACE_OR_END}`, "i"),
-      getOffset: () => 1,
-    },
-    {
-      regex: new RegExp(
-        String.raw`^depois\s+de\s+amanh[ãa]${SPACE_OR_END}`,
-        "i",
-      ),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(String.raw`^em\s+(\d+)\s+dias?${SPACE_OR_END}`, "i"),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)${SPACE_OR_END}`,
-        "i",
-      ),
-      getOffset: (match) => {
-        const map: Record<string, number> = {
-          domingo: 0,
-          dom: 0,
-          segunda: 1,
-          "segunda-feira": 1,
-          seg: 1,
-          terça: 2,
-          terca: 2,
-          "terça-feira": 2,
-          "terca-feira": 2,
-          ter: 2,
-          quarta: 3,
-          "quarta-feira": 3,
-          qua: 3,
-          quinta: 4,
-          "quinta-feira": 4,
-          qui: 4,
-          sexta: 5,
-          "sexta-feira": 5,
-          sex: 5,
-          sábado: 6,
-          sabado: 6,
-          sáb: 6,
-          sab: 6,
-        };
-        const target = map[match[1].toLowerCase()];
-        if (target === undefined) return null;
-        return getNextWeekdayOffset(target, new Date().getDay());
-      },
-    },
-  ],
-  id: [
-    {
-      regex: new RegExp(String.raw`^hari\s+ini${SPACE_OR_END}`, "i"),
-      getOffset: () => 0,
-    },
-    {
-      regex: new RegExp(String.raw`^besok${SPACE_OR_END}`, "i"),
-      getOffset: () => 1,
-    },
-    {
-      regex: new RegExp(String.raw`^lusa${SPACE_OR_END}`, "i"),
-      getOffset: () => 2,
-    },
-    {
-      regex: new RegExp(String.raw`^dalam\s+(\d+)\s+hari${SPACE_OR_END}`, "i"),
-      getOffset: (match) => Number.parseInt(match[1], 10),
-    },
-    {
-      regex: new RegExp(
-        String.raw`^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)${SPACE_OR_END}`,
-        "i",
-      ),
-      getOffset: (match) => {
-        const map: Record<string, number> = {
-          minggu: 0,
-          senin: 1,
-          selasa: 2,
-          rabu: 3,
-          kamis: 4,
-          jumat: 5,
-          "jum'at": 5,
-          sabtu: 6,
-        };
-        const target = map[match[1].toLowerCase()];
-        if (target === undefined) return null;
-        return getNextWeekdayOffset(target, new Date().getDay());
-      },
-    },
-  ],
+  }));
 };
 
-const LOCALIZED_PIN_PREFIXES: Record<Language, readonly string[]> = {
-  ja: ["ピン"],
-  en: ["pin", "pinned"],
-  es: ["fijar"],
-  de: ["anheften"],
-  fr: ["epingler", "épingler"],
-  ko: ["고정"],
-  "zh-CN": ["置顶"],
-  hi: ["पिन"],
-  ar: ["تثبيت"],
-  "pt-BR": ["fixar"],
-  id: ["sematkan"],
-};
+// LOCALIZED_PIN_PREFIXES removed
 
 const GLOBAL_PIN_PREFIXES = ["pin", "pinned"] as const;
 
@@ -2270,11 +1823,9 @@ const escapeRegex = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 const getPinPrefixRegex = (language: Language): RegExp => {
+  const bundle = i18next.getResourceBundle(language, "translation") as any;
   const tokens = Array.from(
-    new Set([
-      ...GLOBAL_PIN_PREFIXES,
-      ...(LOCALIZED_PIN_PREFIXES[normalizeLanguage(language)] ?? []),
-    ]),
+    new Set([...GLOBAL_PIN_PREFIXES, ...(bundle?.pinPrefixes ?? [])]),
   ).sort((left, right) => right.length - left.length);
   return new RegExp(
     String.raw`^(?:${tokens.map(escapeRegex).join("|")})(?=\s|$)`,
@@ -2339,10 +1890,10 @@ function parseDateFromText(
     };
   }
   const relativePatternSets: DatePattern[][] = [
-    RELATIVE_PATTERNS[resolvedLanguage] ?? RELATIVE_PATTERNS.ja,
+    getRelativePatterns(resolvedLanguage),
   ];
   if (resolvedLanguage !== "en") {
-    relativePatternSets.push(RELATIVE_PATTERNS.en);
+    relativePatternSets.push(getRelativePatterns("en"));
   }
   for (const patterns of relativePatternSets) {
     const languageParsed = resolveDateFromPattern(normalized, patterns);
@@ -2435,7 +1986,7 @@ function assertTaskListOrderStore(
 const getTaskListOrderEntries = (taskListOrder: TaskListOrderStore) =>
   Object.entries(taskListOrder).filter(
     ([key]) => !TASK_LIST_ORDER_METADATA_KEYS.has(key),
-  );
+  ) as Array<[string, TaskListOrderEntry]>;
 
 const getValidMemberCount = (taskList: TaskListStore): number => {
   if (!Number.isInteger(taskList.memberCount) || taskList.memberCount < 1) {
@@ -2496,9 +2047,7 @@ async function getResolvedTaskSettings(): Promise<ResolvedTaskSettings> {
 }
 
 function getOrderedTaskListOrders(taskListOrder: TaskListOrderStore): number[] {
-  return getTaskListOrderEntries(taskListOrder).map(
-    ([, value]) => (value as { order: number }).order,
-  );
+  return getTaskListOrderEntries(taskListOrder).map(([, value]) => value.order);
 }
 
 async function getTaskListOrderData(uid: string): Promise<TaskListOrderStore> {
@@ -2654,8 +2203,8 @@ export async function deleteTaskList(taskListId: string) {
     batch.delete(taskListRef);
   } else {
     batch.update(taskListRef, {
-      memberCount: getValidMemberCount(taskList) - 1,
-      updatedAt: now,
+      memberCount: increment(-1),
+      updatedAt: serverTimestamp(),
     });
   }
   await batch.commit();
@@ -2665,7 +2214,7 @@ export async function updateTaskListOrder(
   taskListOrders: Array<{ taskListId: string; order: number }>,
 ) {
   const uid = requireCurrentUserId();
-  const updates: Record<string, unknown> = { updatedAt: Date.now() };
+  const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
   taskListOrders.forEach(({ taskListId, order }) => {
     updates[`${taskListId}.order`] = order;
   });
@@ -2711,7 +2260,7 @@ export async function addTask(
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
       ...buildTaskUpdateData({ tasks: nextTasks }),
       history: buildHistory(taskList, parsed.text),
-      updatedAt: now,
+      updatedAt: serverTimestamp(),
     });
   });
 }
@@ -2759,7 +2308,7 @@ export async function updateTask(
 
     if (!settings.autoSort && typeof normalizedUpdates.pinned !== "boolean") {
       const nextUpdates: Record<string, unknown> = {
-        updatedAt: now,
+        updatedAt: serverTimestamp(),
       };
       Object.entries(normalizedUpdates).forEach(([key, value]) => {
         nextUpdates[`tasks.${taskId}.${key}`] = value;
@@ -2812,7 +2361,7 @@ export async function updateTask(
         : getSortedTasks(updatedTasks, settings);
     const nextUpdates: Record<string, unknown> = {
       ...buildTaskUpdateData({ tasks: nextTasks }),
-      updatedAt: now,
+      updatedAt: serverTimestamp(),
     };
     if (
       taskList &&
@@ -2833,7 +2382,7 @@ export async function updateTask(
 async function deleteTask(taskListId: string, taskId: string) {
   await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
     [`tasks.${taskId}`]: deleteField(),
-    updatedAt: Date.now(),
+    updatedAt: serverTimestamp(),
   });
 }
 
@@ -3316,7 +2865,7 @@ const DialogContent = forwardRef<
   );
 });
 
-const TaskActionDialogContent = forwardRef<
+const ActionSheetContent = forwardRef<
   ElementRef<typeof DialogPrimitive.Content>,
   ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     title: ComponentPropsWithoutRef<typeof DialogPrimitive.Title>["children"];
@@ -3326,7 +2875,7 @@ const TaskActionDialogContent = forwardRef<
     titleId?: string;
     descriptionId?: string;
   }
->(function TaskActionDialogContent(
+>(function ActionSheetContent(
   { children, title, description, titleId, descriptionId, className, ...props },
   ref: ForwardedRef<ElementRef<typeof DialogPrimitive.Content>>,
 ) {
@@ -5904,7 +5453,7 @@ function TaskListCard({
         }}
       >
         {activeTaskActionTask ? (
-          <TaskActionDialogContent
+          <ActionSheetContent
             title={t("pages.tasklist.setDate")}
             description={[
               activeTaskActionTask.pinned
@@ -6039,7 +5588,7 @@ function TaskListCard({
                 />
               </div>
             </div>
-          </TaskActionDialogContent>
+          </ActionSheetContent>
         ) : null}
       </Dialog>
     </section>
@@ -6569,7 +6118,7 @@ function CalendarEntryButton({ onOpen }: CalendarEntryButtonProps) {
   );
 }
 
-type TaskListSidebarPanelProps = {
+type SidebarProps = {
   isWideLayout: boolean;
   userEmail: string;
   hasTaskLists: boolean;
@@ -6602,7 +6151,7 @@ function TaskListSidebarPanel({
   onOpenSettings,
   onCreateList,
   onJoinList,
-}: TaskListSidebarPanelProps) {
+}: SidebarProps) {
   const { t } = useTranslation();
   const [showCreateListDialog, setShowCreateListDialog] = useState(false);
   const [createListInput, setCreateListInput] = useState("");

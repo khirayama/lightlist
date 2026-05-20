@@ -315,10 +315,72 @@ class Translations {
 
     companion object {
         private val supported = listOf("ja","en","es","de","fr","ko","zh-CN","hi","ar","pt-BR","id")
+        private var allLocales: JSONObject? = null
 
         fun from(context: Context, language: String): Translations {
+            if (allLocales == null) {
+                try {
+                    val json = context.assets.open("locales.json").bufferedReader().readText()
+                    allLocales = JSONObject(json)
+                } catch (_: Exception) {}
+            }
             return Translations().apply {
-                load(context, language)
+                val lang = if (supported.contains(language)) language else "ja"
+                currentLanguage = lang
+                dict = allLocales?.optJSONObject(lang) ?: JSONObject()
+            }
+        }
+
+        fun getRelativePatterns(language: String): List<TaskDatePattern> {
+            val lang = if (supported.contains(language)) language else "ja"
+            val locale = allLocales?.optJSONObject(lang) ?: return emptyList()
+            return getRelativePatternsFromDict(locale)
+        }
+
+        private fun getRelativePatternsFromDict(dict: JSONObject): List<TaskDatePattern> {
+            val datePatterns = dict.optJSONObject("datePatterns") ?: return emptyList()
+            val relative = datePatterns.optJSONArray("relative") ?: return emptyList()
+            val weekdays = datePatterns.optJSONObject("weekdays") ?: JSONObject()
+
+            return List(relative.length()) { i ->
+                val p = relative.getJSONObject(i)
+                val pattern = p.getString("pattern")
+                val options = if (p.optString("options").contains("i")) setOf(RegexOption.IGNORE_CASE) else emptySet()
+
+                TaskDatePattern(Regex(pattern, options)) { match ->
+                    if (p.has("offset")) {
+                        return@TaskDatePattern makeTaskOffsetDate(p.getInt("offset"))
+                    }
+                    if (p.has("offsetGroup")) {
+                        val groupIndex = p.getInt("offsetGroup")
+                        val offset = match.groupValues.getOrNull(groupIndex)?.toIntOrNull()
+                        if (offset != null) return@TaskDatePattern makeTaskOffsetDate(offset)
+                    }
+                    if (p.has("weekdayGroup")) {
+                        val groupIndex = p.getInt("weekdayGroup")
+                        val key = match.groupValues.getOrNull(groupIndex)
+                        if (key != null) {
+                            val target = if (weekdays.has(key)) weekdays.getInt(key) else {
+                                val lowerKey = key.lowercase()
+                                var found: Int? = null
+                                val keys = weekdays.keys()
+                                while (keys.hasNext()) {
+                                    val k = keys.next()
+                                    if (k.lowercase() == lowerKey) {
+                                        found = weekdays.getInt(k)
+                                        break
+                                    }
+                                }
+                                found
+                            }
+                            if (target != null) {
+                                val current = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1
+                                return@TaskDatePattern makeTaskOffsetDate(nextTaskWeekdayOffset(target, current))
+                            }
+                        }
+                    }
+                    null
+                }
             }
         }
     }
@@ -326,13 +388,13 @@ class Translations {
     fun load(context: Context, language: String) {
         val lang = if (supported.contains(language)) language else "ja"
         currentLanguage = lang
-        try {
-            val json = context.assets.open("locales.json").bufferedReader().readText()
-            val allLocales = JSONObject(json)
-            dict = allLocales.optJSONObject(lang) ?: JSONObject()
-        } catch (_: Exception) {
-            dict = JSONObject()
+        if (allLocales == null) {
+            try {
+                val json = context.assets.open("locales.json").bufferedReader().readText()
+                allLocales = JSONObject(json)
+            } catch (_: Exception) {}
         }
+        dict = allLocales?.optJSONObject(lang) ?: JSONObject()
     }
 
     fun languageTag(): String = currentLanguage
@@ -349,6 +411,21 @@ class Translations {
         var result = current as? String ?: return key
         vars.forEach { (k, v) -> result = result.replace("{{$k}}", v) }
         return result
+    }
+
+    fun getRawDict(): JSONObject = dict
+
+    fun getPinPrefixes(): List<String> {
+        val prefixes = dict.optJSONArray("pinPrefixes") ?: return listOf("pin", "pinned")
+        val list = mutableListOf<String>()
+        for (i in 0 until prefixes.length()) {
+            list.add(prefixes.getString(i))
+        }
+        return (listOf("pin", "pinned") + list).distinct().sortedByDescending { it.length }
+    }
+
+    fun getRelativePatterns(): List<TaskDatePattern> {
+        return Translations.getRelativePatterns(currentLanguage)
     }
 }
 
@@ -521,7 +598,7 @@ private class TaskListMutationQueue(
     }
 }
 
-private data class TaskActionSheetState(
+private data class ActionSheetState(
     val taskId: String
 )
 
@@ -763,15 +840,14 @@ private suspend fun signUpWithInitialData(email: String, password: String, langu
     val normalizedLanguage = normalizeLanguageCode(language)
     val userCredential = auth.createUserWithEmailAndPassword(email, password).await()
     val uid = userCredential.user?.uid ?: throw IllegalStateException("Missing user ID")
-    val now = System.currentTimeMillis()
     val taskListId = db.collection("taskLists").document().id
     val settingsData = mapOf(
         "theme" to "system",
         "language" to normalizedLanguage,
         "taskInsertPosition" to "top",
         "autoSort" to false,
-        "createdAt" to now,
-        "updatedAt" to now
+        "createdAt" to FieldValue.serverTimestamp(),
+        "updatedAt" to FieldValue.serverTimestamp()
     )
     val taskListData = hashMapOf<String, Any?>(
         "id" to taskListId,
@@ -782,13 +858,13 @@ private suspend fun signUpWithInitialData(email: String, password: String, langu
         "shareCode" to null,
         "background" to null,
         "memberCount" to 1,
-        "createdAt" to now,
-        "updatedAt" to now
+        "createdAt" to FieldValue.serverTimestamp(),
+        "updatedAt" to FieldValue.serverTimestamp()
     )
     val taskListOrderData = mapOf(
         taskListId to mapOf("order" to 1.0),
-        "createdAt" to now,
-        "updatedAt" to now
+        "createdAt" to FieldValue.serverTimestamp(),
+        "updatedAt" to FieldValue.serverTimestamp()
     )
 
     db.batch().apply {
@@ -826,7 +902,7 @@ private data class TaskListDetailsUiState(
     val hasError: Boolean = false
 )
 
-private data class SettingsUiState(
+private data class SettingsState(
     val theme: String = "system",
     val language: String = "ja",
     val taskInsertPosition: String = "bottom",
@@ -841,7 +917,7 @@ private fun removeTaskListListeners(listeners: List<ListenerRegistration>) {
 
 private fun <T> subscribeToOrderedTaskLists(
     userId: String,
-    mapDocument: (String, Map<String, Any>) -> T,
+    parseDocument: (String, Map<String, Any>) -> T,
     onPublish: (List<T>) -> Unit,
     onError: (() -> Unit)? = null
 ): () -> Unit {
@@ -887,7 +963,7 @@ private fun <T> subscribeToOrderedTaskLists(
                             nextTaskListsById.remove(taskListId)
                         } else {
                             nextTaskListsById[taskListId] =
-                                mapDocument(taskListId, change.document.data)
+                                parseDocument(taskListId, change.document.data)
                         }
                     }
                     taskListsById = nextTaskListsById
@@ -937,7 +1013,7 @@ fun RootScreen(
         onDispose { Firebase.auth.removeAuthStateListener(listener) }
     }
 
-    val settingsState = rememberSettingsUiState(currentUserId)
+    val settingsState = rememberSettingsState(currentUserId)
     val context = LocalContext.current
     val startupLanguage = remember(currentUserId, settingsState.language, context) {
         resolveStartupLanguage(context, currentUserId, settingsState.language)
@@ -1013,7 +1089,7 @@ fun RootScreen(
                             slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(300))
                         }
                     ) {
-                        composable(AppRoute.TaskLists.route) { TaskListsView(navController, currentUserId) }
+                        composable(AppRoute.TaskLists.route) { TaskListsScreen(navController, currentUserId) }
                         composable(AppRoute.Calendar.route) {
                             CalendarScreen(navController = navController, userId = currentUserId)
                         }
@@ -1062,7 +1138,7 @@ fun RootScreen(
             }
         }
     }
-    }
+}
     }
     }
 }
@@ -1075,8 +1151,8 @@ private fun SharedTaskListPreviewScreen(
     onAdded: (String) -> Unit
 ) {
     val t = LocalTranslations.current
-    val uiState = rememberSharedTaskListPreviewState(shareCode, userId)
-    val settingsUiState = rememberSettingsUiState(userId)
+    val previewUiState = rememberSharedTaskListPreviewState(shareCode, userId)
+    val settingsState = rememberSettingsState(userId)
     val scope = rememberCoroutineScope()
     var isJoining by remember { mutableStateOf(false) }
     var addToOrderError by remember { mutableStateOf<String?>(null) }
@@ -1084,19 +1160,19 @@ private fun SharedTaskListPreviewScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(resolveTaskListBackgroundColor(uiState.taskList?.background))
+            .background(resolveTaskListBackgroundColor(previewUiState.taskList?.background))
     ) {
         when {
-            uiState.isLoading -> {
+            previewUiState.isLoading -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             }
-            uiState.taskList != null -> {
-                TaskListDetailPage(
-                    taskList = uiState.taskList,
-                    taskInsertPosition = settingsUiState.taskInsertPosition,
-                    autoSort = settingsUiState.autoSort,
+            previewUiState.taskList != null -> {
+                TaskListDetailContent(
+                    taskList = previewUiState.taskList,
+                    taskInsertPosition = settingsState.taskInsertPosition,
+                    autoSort = settingsState.autoSort,
                     topInset = 56.dp
                 )
             }
@@ -1108,7 +1184,7 @@ private fun SharedTaskListPreviewScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        uiState.errorMessage ?: t.t("pages.sharecode.error"),
+                        previewUiState.errorMessage ?: t.t("pages.sharecode.error"),
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -1133,16 +1209,16 @@ private fun SharedTaskListPreviewScreen(
                 }
             }
 
-            if (userId != null && !uiState.isAdded && uiState.taskListId != null) {
+            if (userId != null && !previewUiState.isAdded && previewUiState.taskListId != null) {
                 Button(
                     onClick = {
                         scope.launch {
                             isJoining = true
                             addToOrderError = null
                             try {
-                                addSharedTaskListToOrder(uiState.taskListId)
+                                addSharedTaskListToOrder(previewUiState.taskListId)
                                 logShareCodeJoin()
-                                onAdded(uiState.taskListId)
+                                onAdded(previewUiState.taskListId)
                             } catch (_: Exception) {
                                 addToOrderError = t.t("pages.sharecode.addToOrderError")
                             } finally {
@@ -1173,7 +1249,7 @@ private fun SharedTaskListPreviewScreen(
 @Composable
 private fun <T> rememberOrderedTaskListsState(
     userId: String?,
-    mapDocument: (String, Map<String, Any>) -> T
+    parseDocument: (String, Map<String, Any>) -> T
 ): OrderedTaskListsUiState<T> {
     var uiState by remember(userId) {
         mutableStateOf(
@@ -1192,7 +1268,7 @@ private fun <T> rememberOrderedTaskListsState(
             uiState = OrderedTaskListsUiState(isLoading = true, hasError = false)
             val dispose = subscribeToOrderedTaskLists(
                 userId = userId,
-                mapDocument = mapDocument,
+                parseDocument = parseDocument,
                 onPublish = { taskLists ->
                     uiState = OrderedTaskListsUiState<T>(
                         taskLists = taskLists,
@@ -1213,8 +1289,8 @@ private fun <T> rememberOrderedTaskListsState(
 }
 
 @Composable
-private fun <T> rememberOrderedTaskLists(userId: String?, mapDocument: (String, Map<String, Any>) -> T): List<T> {
-    return rememberOrderedTaskListsState(userId, mapDocument).taskLists
+private fun <T> rememberOrderedTaskLists(userId: String?, parseDocument: (String, Map<String, Any>) -> T): List<T> {
+    return rememberOrderedTaskListsState(userId, parseDocument).taskLists
 }
 
 private data class OrderedTaskListsUiState<T>(
@@ -1224,11 +1300,11 @@ private data class OrderedTaskListsUiState<T>(
 )
 
 @Composable
-private fun rememberSettingsUiState(userId: String?): SettingsUiState {
-    var uiState by remember(userId) { mutableStateOf(SettingsUiState(isLoading = userId != null)) }
+private fun rememberSettingsState(userId: String?): SettingsState {
+    var uiState by remember(userId) { mutableStateOf(SettingsState(isLoading = userId != null)) }
     DisposableEffect(userId) {
         if (userId == null) {
-            uiState = SettingsUiState(isLoading = false)
+            uiState = SettingsState(isLoading = false)
             onDispose {}
         } else {
             val db = Firebase.firestore
@@ -1236,7 +1312,7 @@ private fun rememberSettingsUiState(userId: String?): SettingsUiState {
             val listener = db.collection("settings").document(userId)
                 .addSnapshotListener { snapshot, _ ->
                     val data = snapshot?.data ?: return@addSnapshotListener
-                    uiState = SettingsUiState(
+                    uiState = SettingsState(
                         theme = data["theme"] as? String ?: "system",
                         language = data["language"] as? String ?: "ja",
                         taskInsertPosition = data["taskInsertPosition"] as? String ?: "bottom",
@@ -1429,9 +1505,8 @@ private suspend fun generateShareCode(taskListId: String): String {
                 transaction.delete(db.collection("shareCodes").document(currentShareCode))
             }
 
-            val now = System.currentTimeMillis()
-            transaction.set(shareCodeRef, mapOf("taskListId" to taskListId, "createdAt" to now))
-            transaction.update(taskListRef, mapOf("shareCode" to code, "updatedAt" to now))
+            transaction.set(shareCodeRef, mapOf("taskListId" to taskListId, "createdAt" to FieldValue.serverTimestamp()))
+            transaction.update(taskListRef, mapOf("shareCode" to code, "updatedAt" to FieldValue.serverTimestamp()))
             code
         }.await()
         if (result != null) return result
@@ -1449,8 +1524,7 @@ private suspend fun removeShareCode(taskListId: String) {
         if (currentShareCode != null) {
             transaction.delete(db.collection("shareCodes").document(currentShareCode))
         }
-        val now = System.currentTimeMillis()
-        transaction.update(taskListRef, mapOf("shareCode" to null, "updatedAt" to now))
+        transaction.update(taskListRef, mapOf("shareCode" to null, "updatedAt" to FieldValue.serverTimestamp()))
     }.await()
 }
 
@@ -1485,14 +1559,16 @@ private suspend fun addSharedTaskListToOrder(taskListId: String) {
     val taskListSnap = taskListRef.get().await()
     if (!taskListSnap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
     val currentMemberCount = (taskListSnap.data?.get("memberCount") as? Number)?.toInt() ?: 1
-    val now = System.currentTimeMillis()
+
     db.batch().apply {
-        set(
-            taskListOrderRef,
-            mapOf(taskListId to mapOf("order" to newOrder), "updatedAt" to now),
-            SetOptions.merge()
-        )
-        update(taskListRef, mapOf("memberCount" to (currentMemberCount + 1), "updatedAt" to now))
+        update(taskListOrderRef, mapOf(
+            taskListId to mapOf("order" to newOrder),
+            "updatedAt" to FieldValue.serverTimestamp()
+        ))
+        update(taskListRef, mapOf(
+            "memberCount" to FieldValue.increment(1),
+            "updatedAt" to FieldValue.serverTimestamp()
+        ))
     }.commit().await()
 }
 
@@ -1587,7 +1663,7 @@ private data class ParsedTaskInput(
     val pinnedFromInput: Boolean
 )
 
-private data class TaskDatePattern(
+data class TaskDatePattern(
     val regex: Regex,
     val resolveDate: (MatchResult) -> Date?
 )
@@ -1643,155 +1719,11 @@ private fun makeTaskOffsetDate(offset: Int): Date {
     }.time
 }
 
-private fun taskRelativePatterns(languageTag: String): List<TaskDatePattern> {
-    return when (normalizeLanguageCode(languageTag)) {
-        "en" -> listOf(
-            TaskDatePattern(Regex("""^today$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^tomorrow$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^day after tomorrow$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^in\s+(\d+)\s+days?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(\d+)\s+days?\s+later$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(mon|tue|wed|thu|fri|sat|sun)(?:day)?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
-                val map = mapOf("sun" to Calendar.SUNDAY, "mon" to Calendar.MONDAY, "tue" to Calendar.TUESDAY, "wed" to Calendar.WEDNESDAY, "thu" to Calendar.THURSDAY, "fri" to Calendar.FRIDAY, "sat" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-        "es" -> listOf(
-            TaskDatePattern(Regex("""^hoy$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^mañana$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^pasado\s+mañana$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^(?:en|dentro\s+de)\s+(\d+)\s+d[ií]as?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
-                val map = mapOf("domingo" to Calendar.SUNDAY, "dom" to Calendar.SUNDAY, "lunes" to Calendar.MONDAY, "lun" to Calendar.MONDAY, "martes" to Calendar.TUESDAY, "mar" to Calendar.TUESDAY, "miércoles" to Calendar.WEDNESDAY, "miercoles" to Calendar.WEDNESDAY, "mié" to Calendar.WEDNESDAY, "mie" to Calendar.WEDNESDAY, "jueves" to Calendar.THURSDAY, "jue" to Calendar.THURSDAY, "viernes" to Calendar.FRIDAY, "vie" to Calendar.FRIDAY, "sábado" to Calendar.SATURDAY, "sabado" to Calendar.SATURDAY, "sáb" to Calendar.SATURDAY, "sab" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-        "de" -> listOf(
-            TaskDatePattern(Regex("""^heute$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^morgen$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^übermorgen$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^in\s+(\d+)\s+tagen?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
-                val map = mapOf("sonntag" to Calendar.SUNDAY, "so" to Calendar.SUNDAY, "montag" to Calendar.MONDAY, "mo" to Calendar.MONDAY, "dienstag" to Calendar.TUESDAY, "di" to Calendar.TUESDAY, "mittwoch" to Calendar.WEDNESDAY, "mi" to Calendar.WEDNESDAY, "donnerstag" to Calendar.THURSDAY, "do" to Calendar.THURSDAY, "freitag" to Calendar.FRIDAY, "fr" to Calendar.FRIDAY, "samstag" to Calendar.SATURDAY, "sa" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-        "fr" -> listOf(
-            TaskDatePattern(Regex("""^aujourd(?:'|’)hui$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^demain$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^apr[eè]s[- ]demain$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^dans\s+(\d+)\s+jours?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
-                val map = mapOf("dimanche" to Calendar.SUNDAY, "dim" to Calendar.SUNDAY, "lundi" to Calendar.MONDAY, "lun" to Calendar.MONDAY, "mardi" to Calendar.TUESDAY, "mar" to Calendar.TUESDAY, "mercredi" to Calendar.WEDNESDAY, "mer" to Calendar.WEDNESDAY, "jeudi" to Calendar.THURSDAY, "jeu" to Calendar.THURSDAY, "vendredi" to Calendar.FRIDAY, "ven" to Calendar.FRIDAY, "samedi" to Calendar.SATURDAY, "sam" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-        "ko" -> listOf(
-            TaskDatePattern(Regex("""^오늘$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^내일$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^모레$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^(\d+)\s*일\s*후$TASK_DATE_SPACE_OR_END""")) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)$TASK_DATE_SPACE_OR_END""")) { match ->
-                val map = mapOf("일요일" to Calendar.SUNDAY, "일" to Calendar.SUNDAY, "월요일" to Calendar.MONDAY, "월" to Calendar.MONDAY, "화요일" to Calendar.TUESDAY, "화" to Calendar.TUESDAY, "수요일" to Calendar.WEDNESDAY, "수" to Calendar.WEDNESDAY, "목요일" to Calendar.THURSDAY, "목" to Calendar.THURSDAY, "금요일" to Calendar.FRIDAY, "금" to Calendar.FRIDAY, "토요일" to Calendar.SATURDAY, "토" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1]] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-        "zh-CN" -> listOf(
-            TaskDatePattern(Regex("""^今天$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^明天$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^后天$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^(\d+)\s*天后$TASK_DATE_SPACE_OR_END""")) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(星期[一二三四五六日天]|周[一二三四五六日天])$TASK_DATE_SPACE_OR_END""")) { match ->
-                val map = mapOf("星期日" to Calendar.SUNDAY, "星期天" to Calendar.SUNDAY, "周日" to Calendar.SUNDAY, "周天" to Calendar.SUNDAY, "星期一" to Calendar.MONDAY, "周一" to Calendar.MONDAY, "星期二" to Calendar.TUESDAY, "周二" to Calendar.TUESDAY, "星期三" to Calendar.WEDNESDAY, "周三" to Calendar.WEDNESDAY, "星期四" to Calendar.THURSDAY, "周四" to Calendar.THURSDAY, "星期五" to Calendar.FRIDAY, "周五" to Calendar.FRIDAY, "星期六" to Calendar.SATURDAY, "周六" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1]] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-        "hi" -> listOf(
-            TaskDatePattern(Regex("""^आज$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^कल$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^परसों$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^(\d+)\s*दिन\s*बाद$TASK_DATE_SPACE_OR_END""")) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)$TASK_DATE_SPACE_OR_END""")) { match ->
-                val map = mapOf("रविवार" to Calendar.SUNDAY, "सोमवार" to Calendar.MONDAY, "मंगलवार" to Calendar.TUESDAY, "बुधवार" to Calendar.WEDNESDAY, "गुरुवार" to Calendar.THURSDAY, "शुक्रवार" to Calendar.FRIDAY, "शनिवार" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1]] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-        "ar" -> listOf(
-            TaskDatePattern(Regex("""^اليوم$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^غد(?:ا|ًا)?$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^بعد\s+غد$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^بعد\s+(\d+)\s+أيام?$TASK_DATE_SPACE_OR_END""")) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)$TASK_DATE_SPACE_OR_END""")) { match ->
-                val map = mapOf("الأحد" to Calendar.SUNDAY, "الاثنين" to Calendar.MONDAY, "الإثنين" to Calendar.MONDAY, "الثلاثاء" to Calendar.TUESDAY, "الأربعاء" to Calendar.WEDNESDAY, "الخميس" to Calendar.THURSDAY, "الجمعة" to Calendar.FRIDAY, "السبت" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1]] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-        "pt-BR" -> listOf(
-            TaskDatePattern(Regex("""^hoje$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^amanh[ãa]$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^depois\s+de\s+amanh[ãa]$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^em\s+(\d+)\s+dias?$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
-                val map = mapOf("domingo" to Calendar.SUNDAY, "dom" to Calendar.SUNDAY, "segunda" to Calendar.MONDAY, "segunda-feira" to Calendar.MONDAY, "seg" to Calendar.MONDAY, "terça" to Calendar.TUESDAY, "terca" to Calendar.TUESDAY, "terça-feira" to Calendar.TUESDAY, "terca-feira" to Calendar.TUESDAY, "ter" to Calendar.TUESDAY, "quarta" to Calendar.WEDNESDAY, "quarta-feira" to Calendar.WEDNESDAY, "qua" to Calendar.WEDNESDAY, "quinta" to Calendar.THURSDAY, "quinta-feira" to Calendar.THURSDAY, "qui" to Calendar.THURSDAY, "sexta" to Calendar.FRIDAY, "sexta-feira" to Calendar.FRIDAY, "sex" to Calendar.FRIDAY, "sábado" to Calendar.SATURDAY, "sabado" to Calendar.SATURDAY, "sáb" to Calendar.SATURDAY, "sab" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-        "id" -> listOf(
-            TaskDatePattern(Regex("""^hari\s+ini$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^besok$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^lusa$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^dalam\s+(\d+)\s+hari$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)$TASK_DATE_SPACE_OR_END""", RegexOption.IGNORE_CASE)) { match ->
-                val map = mapOf("minggu" to Calendar.SUNDAY, "senin" to Calendar.MONDAY, "selasa" to Calendar.TUESDAY, "rabu" to Calendar.WEDNESDAY, "kamis" to Calendar.THURSDAY, "jumat" to Calendar.FRIDAY, "jum'at" to Calendar.FRIDAY, "sabtu" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1].lowercase()] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-        else -> listOf(
-            TaskDatePattern(Regex("""^今日$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(0) },
-            TaskDatePattern(Regex("""^明日$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(1) },
-            TaskDatePattern(Regex("""^明後日$TASK_DATE_SPACE_OR_END""")) { makeTaskOffsetDate(2) },
-            TaskDatePattern(Regex("""^(\d+)日後(?:に)?$TASK_DATE_SPACE_OR_END""")) { match -> makeTaskOffsetDate(match.groupValues[1].toInt()) },
-            TaskDatePattern(Regex("""^([月火水木金土日])曜?$TASK_DATE_SPACE_OR_END""")) { match ->
-                val map = mapOf("日" to Calendar.SUNDAY, "月" to Calendar.MONDAY, "火" to Calendar.TUESDAY, "水" to Calendar.WEDNESDAY, "木" to Calendar.THURSDAY, "金" to Calendar.FRIDAY, "土" to Calendar.SATURDAY)
-                val target = map[match.groupValues[1]] ?: return@TaskDatePattern null
-                makeTaskOffsetDate(nextTaskWeekdayOffset(target, Calendar.getInstance().get(Calendar.DAY_OF_WEEK)))
-            },
-        )
-    }
-}
-
-private fun localizedPinPrefixes(languageTag: String): List<String> {
-    val localized = when (normalizeLanguageCode(languageTag)) {
-        "en" -> listOf("pin", "pinned")
-        "es" -> listOf("fijar")
-        "de" -> listOf("anheften")
-        "fr" -> listOf("epingler", "épingler")
-        "ko" -> listOf("고정")
-        "zh-CN" -> listOf("置顶")
-        "hi" -> listOf("पिन")
-        "ar" -> listOf("تثبيت")
-        "pt-BR" -> listOf("fixar")
-        "id" -> listOf("sematkan")
-        else -> listOf("ピン")
-    }
-    return (listOf("pin", "pinned") + localized).distinct().sortedByDescending { it.length }
-}
-
-private fun parsePinPrefix(text: String, languageTag: String): Pair<String, Boolean> {
+private fun parsePinPrefix(text: String, t: Translations): Pair<String, Boolean> {
     val source = text.trim()
     if (source.isEmpty()) return source to false
 
-    for (token in localizedPinPrefixes(languageTag)) {
+    for (token in t.getPinPrefixes()) {
         if (!source.startsWith(token, ignoreCase = true)) continue
         if (source.length > token.length && !source[token.length].isWhitespace()) continue
         return source.substring(token.length).trimStart() to true
@@ -1800,7 +1732,7 @@ private fun parsePinPrefix(text: String, languageTag: String): Pair<String, Bool
     return source to false
 }
 
-private fun parseDateFromTaskInput(text: String, languageTag: String): Pair<String, String?> {
+private fun parseDateFromTaskInput(text: String, t: Translations): Pair<String, String?> {
     val source = text.trim()
     if (source.isEmpty()) return source to null
 
@@ -1831,9 +1763,9 @@ private fun parseDateFromTaskInput(text: String, languageTag: String): Pair<Stri
     )
 
     val relativePatternSets = buildList {
-        add(taskRelativePatterns(languageTag))
-        if (normalizeLanguageCode(languageTag) != "en") {
-            add(taskRelativePatterns("en"))
+        add(t.getRelativePatterns())
+        if (t.languageTag() != "en") {
+            add(Translations.getRelativePatterns("en"))
         }
     }
 
@@ -1850,7 +1782,7 @@ private fun parseDateFromTaskInput(text: String, languageTag: String): Pair<Stri
     return source to null
 }
 
-private fun resolveTaskInput(text: String, languageTag: String, currentTask: TaskSummary? = null): ParsedTaskInput {
+private fun resolveTaskInput(text: String, t: Translations, currentTask: TaskSummary? = null): ParsedTaskInput {
     var remaining = text.trim()
     var parsedDate: String? = null
     var pinnedFromInput = false
@@ -1859,7 +1791,7 @@ private fun resolveTaskInput(text: String, languageTag: String, currentTask: Tas
 
     repeat(2) {
         if (!parsedPin) {
-            val (pinText, matchedPin) = parsePinPrefix(remaining, languageTag)
+            val (pinText, matchedPin) = parsePinPrefix(remaining, t)
             if (matchedPin) {
                 remaining = pinText
                 pinnedFromInput = true
@@ -1868,7 +1800,7 @@ private fun resolveTaskInput(text: String, languageTag: String, currentTask: Tas
             }
         }
         if (!parsedDateValue) {
-            val (dateText, dateValue) = parseDateFromTaskInput(remaining, languageTag)
+            val (dateText, dateValue) = parseDateFromTaskInput(remaining, t)
             if (dateValue != null) {
                 remaining = dateText
                 parsedDate = dateValue
@@ -2871,7 +2803,7 @@ private fun DragHandleIcon(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TaskListsView(
+private fun TaskListsScreen(
     navController: NavController?,
     userId: String?,
     selectedTaskListId: String? = null,
@@ -2966,10 +2898,10 @@ private fun TaskListsView(
         }
     }
 
-    fun persistTaskListOrder(ids: List<String>) {
+    fun commitTaskListOrder(ids: List<String>) {
         val uid = Firebase.auth.currentUser?.uid ?: return
         logTaskListReorder()
-        val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
+        val updates = mutableMapOf<String, Any>("updatedAt" to FieldValue.serverTimestamp())
         ids.forEachIndexed { i, id -> updates["$id.order"] = (i + 1).toDouble() }
         pendingTaskListOrder = displayTaskLists.toList()
         scope.launch {
@@ -3128,7 +3060,7 @@ private fun TaskListsView(
                                                 taskListAutoScrollSpeed = 0f
                                                 val ordered = dragOrderedTaskLists
                                                 if (ordered != null && ordered.map { it.id } != uiState.taskLists.map { it.id }) {
-                                                    persistTaskListOrder(ordered.map { it.id })
+                                                    commitTaskListOrder(ordered.map { it.id })
                                                 }
                                                 draggingTaskListId = null
                                                 taskListDragOffset = 0f
@@ -3306,8 +3238,7 @@ private fun TaskListsView(
                             val uid = Firebase.auth.currentUser?.uid ?: return@TextButton
                             val db = Firebase.firestore
                             val taskListId = db.collection("taskLists").document().id
-                            val now = System.currentTimeMillis()
-                            val newOrder = (uiState.taskLists.size + 1).toDouble()
+                            val nextOrder = (uiState.taskLists.size + 1).toDouble()
                             val newTaskList = hashMapOf<String, Any?>(
                                 "id" to taskListId,
                                 "name" to trimmed,
@@ -3316,19 +3247,18 @@ private fun TaskListsView(
                                 "shareCode" to null,
                                 "background" to createBackground,
                                 "memberCount" to 1,
-                                "createdAt" to now,
-                                "updatedAt" to now
+                                "createdAt" to FieldValue.serverTimestamp(),
+                                "updatedAt" to FieldValue.serverTimestamp()
                             )
                             scope.launch {
                                 db.batch().apply {
                                     set(db.collection("taskLists").document(taskListId), newTaskList)
-                                    set(
+                                    update(
                                         db.collection("taskListOrder").document(uid),
                                         mapOf(
-                                            taskListId to mapOf("order" to newOrder),
-                                            "updatedAt" to now
-                                        ),
-                                        SetOptions.merge()
+                                            taskListId to mapOf("order" to nextOrder),
+                                            "updatedAt" to FieldValue.serverTimestamp()
+                                        )
                                     )
                                 }.commit().await()
                                 logTaskListCreate()
@@ -3446,7 +3376,7 @@ private fun TabletRootScreen(
                 .fillMaxHeight()
                 .width(360.dp)
         ) {
-            TaskListsView(
+            TaskListsScreen(
                 navController = null,
                 userId = userId,
                 selectedTaskListId = selectedTaskListState.value,
@@ -3510,7 +3440,7 @@ private fun TaskListDetailPagerScreen(
 ) {
     val t = LocalTranslations.current
     val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
-    val settingsUiState = rememberSettingsUiState(userId)
+    val settingsState = rememberSettingsState(userId)
     var internalSelectedTaskListId by rememberSaveable(initialTaskListId) {
         mutableStateOf(initialTaskListId)
     }
@@ -3633,10 +3563,10 @@ private fun TaskListDetailPagerScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) { page ->
                                 val taskList = uiState.taskLists[page]
-                                TaskListDetailPage(
+                                TaskListDetailContent(
                                     taskList = taskList,
-                                    taskInsertPosition = settingsUiState.taskInsertPosition,
-                                    autoSort = settingsUiState.autoSort,
+                                    taskInsertPosition = settingsState.taskInsertPosition,
+                                    autoSort = settingsState.autoSort,
                                     topInset = taskPageTopInset
                                 )
                             }
@@ -3941,7 +3871,7 @@ private fun TaskListRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TaskListDetailPage(
+private fun TaskListDetailContent(
     taskList: TaskListDetail,
     taskInsertPosition: String = "bottom",
     autoSort: Boolean = false,
@@ -3962,7 +3892,7 @@ private fun TaskListDetailPage(
     var isNewTaskInputFocused by remember { mutableStateOf(false) }
     var editingTaskId by remember { mutableStateOf<String?>(null) }
     var editingTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
-    var taskActionSheetState by remember { mutableStateOf<TaskActionSheetState?>(null) }
+    var actionSheetState by remember { mutableStateOf<ActionSheetState?>(null) }
     var showDeleteCompletedConfirm by remember { mutableStateOf(false) }
     var draggingTaskId by remember { mutableStateOf<String?>(null) }
     var taskDragOffset by remember { mutableFloatStateOf(0f) }
@@ -4066,7 +3996,7 @@ private fun TaskListDetailPage(
         tasks: List<TaskSummary>,
         deletedTaskIds: List<String> = emptyList()
     ): Map<String, Any> {
-        val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
+        val updates = mutableMapOf<String, Any>("updatedAt" to FieldValue.serverTimestamp())
         deletedTaskIds.forEach { taskId ->
             updates["tasks.$taskId"] = FieldValue.delete()
         }
@@ -4205,9 +4135,9 @@ private fun TaskListDetailPage(
         }
     }
 
-    fun persistTaskOrder(ids: List<String>) {
+    fun commitTaskOrder(ids: List<String>) {
         logTaskReorder()
-        val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
+        val updates = mutableMapOf<String, Any>("updatedAt" to FieldValue.serverTimestamp())
         ids.forEachIndexed { i, id -> updates["tasks.$id.order"] = (i + 1).toDouble() }
         setPendingTasks(renumberTasks(displayTasks))
         persistTaskListUpdate(updates)
@@ -4228,7 +4158,7 @@ private fun TaskListDetailPage(
                     persistTaskListUpdate(
                         mapOf(
                             "tasks.${task.id}.completed" to !task.completed,
-                            "updatedAt" to System.currentTimeMillis()
+                            "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )
                 }
@@ -4238,7 +4168,7 @@ private fun TaskListDetailPage(
 
     fun commitEdit(task: TaskSummary, text: String) {
         val trimmed = text.trim()
-        val resolved = resolveTaskInput(text, t.languageTag(), task)
+        val resolved = resolveTaskInput(text, t, task)
         val textChanged = resolved.text != task.text
         val dateChanged = (resolved.date ?: task.date) != task.date
         val pinnedChanged = resolved.pinnedFromInput && !task.pinned
@@ -4278,7 +4208,7 @@ private fun TaskListDetailPage(
                                 put("tasks.${task.id}.date", resolved.date ?: task.date)
                                 if (pinnedChanged) put("tasks.${task.id}.pinned", true)
                                 if (textChanged) put("history", buildHistory(resolved.text, task.text))
-                                put("updatedAt", System.currentTimeMillis())
+                                put("updatedAt", FieldValue.serverTimestamp())
                             }
                         )
                     }
@@ -4328,7 +4258,7 @@ private fun TaskListDetailPage(
                     persistTaskListUpdate(
                         mapOf(
                             "tasks.${task.id}.date" to dateStr,
-                            "updatedAt" to System.currentTimeMillis()
+                            "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )
                 }
@@ -4362,7 +4292,7 @@ private fun TaskListDetailPage(
                     persistTaskListUpdate(
                         mapOf(
                             "tasks.${task.id}.pinned" to nextPinned,
-                            "updatedAt" to System.currentTimeMillis()
+                            "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )
                 }
@@ -4378,7 +4308,7 @@ private fun TaskListDetailPage(
                 .thenBy { if (it.date.isEmpty()) "" else it.date }
                 .thenBy { it.order }
         )
-        val updates = mutableMapOf<String, Any>("updatedAt" to System.currentTimeMillis())
+        val updates = mutableMapOf<String, Any>("updatedAt" to FieldValue.serverTimestamp())
         sorted.forEachIndexed { i, task -> updates["tasks.${task.id}.order"] = (i + 1).toDouble() }
         setPendingTasks(renumberTasks(sorted))
         persistTaskListUpdate(updates)
@@ -4398,7 +4328,6 @@ private fun TaskListDetailPage(
             try {
                 val user = Firebase.auth.currentUser ?: return@launch
                 val uid = user.uid
-                val now = System.currentTimeMillis()
                 val taskListId = taskList.id
                 val taskListOrderRef = db.collection("taskListOrder").document(uid)
                 val taskListRef = db.collection("taskLists").document(taskListId)
@@ -4416,7 +4345,7 @@ private fun TaskListDetailPage(
                         taskListOrderRef,
                         mapOf(
                             taskListId to FieldValue.delete(),
-                            "updatedAt" to now
+                            "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )
 
@@ -4432,8 +4361,8 @@ private fun TaskListDetailPage(
                         update(
                             taskListRef,
                             mapOf(
-                                "memberCount" to (currentMemberCount - 1),
-                                "updatedAt" to now
+                                "memberCount" to FieldValue.increment(-1),
+                                "updatedAt" to FieldValue.serverTimestamp()
                             )
                         )
                     }
@@ -4451,11 +4380,11 @@ private fun TaskListDetailPage(
     fun addTask() {
         val trimmed = newTaskText.trim()
         if (trimmed.isEmpty()) return
-        val parsed = resolveTaskInput(trimmed, t.languageTag())
+        val parsed = resolveTaskInput(trimmed, t)
         logTaskAdd(hasDate = !parsed.date.isNullOrEmpty())
         newTaskText = ""
         val taskId = java.util.UUID.randomUUID().toString()
-        val now = System.currentTimeMillis()
+        // now variable removed
         val tasks = taskList.tasks
         val order = if (taskInsertPosition == "top")
             (tasks.firstOrNull()?.order ?: 1.0) - 1.0
@@ -4494,7 +4423,7 @@ private fun TaskListDetailPage(
                             "tasks.$taskId.order" to order,
                             "tasks.$taskId.pinned" to parsed.pinnedFromInput,
                             "history" to buildHistory(parsed.text),
-                            "updatedAt" to now
+                            "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )
                 }
@@ -4754,7 +4683,7 @@ private fun TaskListDetailPage(
                 }
             }
         }
-        if (taskList.tasks.isEmpty()) {
+        if (displayTasks.isEmpty()) {
             item(key = "emptyState", contentType = "emptyState") {
                 Box(
                     modifier = Modifier
@@ -4794,7 +4723,7 @@ private fun TaskListDetailPage(
                     },
                     onToggleCompletion = { toggleCompletion(task) },
                     onShowActions = {
-                        taskActionSheetState = TaskActionSheetState(
+                        actionSheetState = ActionSheetState(
                             taskId = task.id
                         )
                     },
@@ -4810,7 +4739,7 @@ private fun TaskListDetailPage(
                         taskAutoScrollSpeed = 0f
                         val ordered = dragOrderedTasks
                         if (ordered != null && ordered.map { it.id } != displayTasks.map { it.id }) {
-                            persistTaskOrder(ordered.map { it.id })
+                            commitTaskOrder(ordered.map { it.id })
                         }
                         draggingTaskId = null
                         taskDragOffset = 0f
@@ -4921,7 +4850,7 @@ private fun TaskListDetailPage(
                     onClick = {
                         val trimmed = editName.trim()
                         if (trimmed.isNotEmpty()) {
-                            val updates = mutableMapOf<String, Any?>("updatedAt" to System.currentTimeMillis())
+                            val updates = mutableMapOf<String, Any?>("updatedAt" to FieldValue.serverTimestamp())
                             if (trimmed != taskList.name) updates["name"] = trimmed
                             if (editBackground != taskList.background) updates["background"] = editBackground
                             if (updates.size > 1) {
@@ -5095,11 +5024,11 @@ private fun TaskListDetailPage(
         )
     }
 
-    taskActionSheetState?.let { actionState ->
+    actionSheetState?.let { actionState ->
         val task = taskList.tasks.firstOrNull { it.id == actionState.taskId }
         if (task == null) {
             LaunchedEffect(actionState.taskId) {
-                taskActionSheetState = null
+                actionSheetState = null
             }
         } else {
             key(task.id) {
@@ -5128,10 +5057,10 @@ private fun TaskListDetailPage(
                     }.format(Date(millis))
                     if (nextDate == task.date) return@LaunchedEffect
                     commitDate(task, nextDate)
-                    taskActionSheetState = null
+                    actionSheetState = null
                 }
                 ModalBottomSheet(
-                    onDismissRequest = { taskActionSheetState = null },
+                    onDismissRequest = { actionSheetState = null },
                     sheetState = sheetState,
                     sheetMaxWidth = Dp.Unspecified,
                     modifier = Modifier.semantics {
@@ -5150,7 +5079,7 @@ private fun TaskListDetailPage(
                         OutlinedButton(
                             onClick = {
                                 togglePinned(task)
-                                taskActionSheetState = null
+                                actionSheetState = null
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -5177,7 +5106,7 @@ private fun TaskListDetailPage(
                         OutlinedButton(
                             onClick = {
                                 commitDate(task, "")
-                                taskActionSheetState = null
+                                actionSheetState = null
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -5255,7 +5184,7 @@ private fun SettingsView(
     val t = LocalTranslations.current
     val context = LocalContext.current
     val userId = Firebase.auth.currentUser?.uid
-    val uiState = rememberSettingsUiState(userId)
+    val uiState = rememberSettingsState(userId)
     val scope = rememberCoroutineScope()
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -5276,7 +5205,7 @@ private fun SettingsView(
     fun updateSettings(partial: Map<String, Any>) {
         if (userId == null) return
         Firebase.firestore.collection("settings").document(userId)
-            .set(partial + mapOf("updatedAt" to System.currentTimeMillis()), SetOptions.merge())
+            .set(partial + mapOf("updatedAt" to FieldValue.serverTimestamp()), SetOptions.merge())
     }
 
     DetailScreenScaffold(
@@ -5424,7 +5353,7 @@ private fun SettingsView(
                                         if (memberCount <= 1) {
                                             taskListRef.delete().await()
                                         } else {
-                                            taskListRef.update("memberCount", memberCount - 1).await()
+                                            taskListRef.update("memberCount", FieldValue.increment(-1)).await()
                                         }
                                     } catch (_: Exception) {}
                                 }

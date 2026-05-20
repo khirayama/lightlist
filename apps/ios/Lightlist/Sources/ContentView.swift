@@ -127,6 +127,60 @@ final class Translations: ObservableObject {
         }
         return result
     }
+
+    func getRawDict() -> [String: Any] {
+        return dict
+    }
+
+    fileprivate func getRelativePatterns() -> [TaskDatePattern] {
+        return Self.getRelativePatterns(from: dict)
+    }
+
+    fileprivate static func getRelativePatterns(for language: String) -> [TaskDatePattern] {
+        let lang = supported.contains(language) ? language : "ja"
+        guard let url = Bundle.main.url(forResource: "locales", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let locale = json[lang] as? [String: Any] else {
+            return []
+        }
+        return getRelativePatterns(from: locale)
+    }
+
+    private static func getRelativePatterns(from dict: [String: Any]) -> [TaskDatePattern] {
+        let datePatterns = dict["datePatterns"] as? [String: Any]
+        let relative = datePatterns?["relative"] as? [[String: Any]] ?? []
+        let weekdays = datePatterns?["weekdays"] as? [String: Int] ?? [:]
+        
+        return relative.compactMap { p in
+            guard let pattern = p["pattern"] as? String else { return nil }
+            let optionsStr = p["options"] as? String ?? ""
+            var options: NSRegularExpression.Options = []
+            if optionsStr.contains("i") { options.insert(.caseInsensitive) }
+            
+            return TaskDatePattern(pattern: pattern, options: options) { groups in
+                if let offset = p["offset"] as? Int {
+                    return makeTaskOffsetDate(offset)
+                }
+                if let groupIndex = p["offsetGroup"] as? Int, groups.indices.contains(groupIndex), let offset = Int(groups[groupIndex]) {
+                    return makeTaskOffsetDate(offset)
+                }
+                if let groupIndex = p["weekdayGroup"] as? Int, groups.indices.contains(groupIndex) {
+                    let key = groups[groupIndex]
+                    if let target = weekdays[key] {
+                        let current = Calendar.current.component(.weekday, from: Date())
+                        return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target + 1, currentDay: current))
+                    }
+                    let lowerKey = key.lowercased()
+                    if let target = weekdays.first(where: { $0.key.lowercased() == lowerKey })?.value {
+                        let current = Calendar.current.component(.weekday, from: Date())
+                        return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target + 1, currentDay: current))
+                    }
+                }
+                return nil
+            }
+        }
+    }
 }
 
 private func log(_ eventName: String, _ params: [String: Any]? = nil) {
@@ -199,7 +253,7 @@ private struct TaskSummary: Identifiable, Hashable {
     let pinned: Bool
 }
 
-private struct TaskActionSheetState: Identifiable, Equatable {
+private struct ActionSheetState: Identifiable, Equatable {
     let taskId: String
 
     var id: String { taskId }
@@ -662,154 +716,7 @@ private func makeTaskOffsetDate(_ offset: Int) -> Date? {
     Calendar.current.date(byAdding: .day, value: offset, to: Date())
 }
 
-private func taskRelativePatterns(language: String) -> [TaskDatePattern] {
-    switch normalizeLanguageCode(language) {
-    case "en":
-        return [
-            .init(pattern: #"^today\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^tomorrow\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^day after tomorrow\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^in\s+(\d+)\s+days?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(\d+)\s+days?\s+later\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(mon|tue|wed|thu|fri|sat|sun)(?:day)?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
-                let map = ["sun": 1, "mon": 2, "tue": 3, "wed": 4, "thu": 5, "fri": 6, "sat": 7]
-                guard let target = map[groups[1].lowercased()] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    case "es":
-        return [
-            .init(pattern: #"^hoy\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^mañana\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^pasado\s+mañana\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^(?:en|dentro\s+de)\s+(\d+)\s+d[ií]as?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
-                let map = ["domingo": 1, "dom": 1, "lunes": 2, "lun": 2, "martes": 3, "mar": 3, "miércoles": 4, "miercoles": 4, "mié": 4, "mie": 4, "jueves": 5, "jue": 5, "viernes": 6, "vie": 6, "sábado": 7, "sabado": 7, "sáb": 7, "sab": 7]
-                guard let target = map[groups[1].lowercased()] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    case "de":
-        return [
-            .init(pattern: #"^heute\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^morgen\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^übermorgen\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^in\s+(\d+)\s+tagen?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
-                let map = ["sonntag": 1, "so": 1, "montag": 2, "mo": 2, "dienstag": 3, "di": 3, "mittwoch": 4, "mi": 4, "donnerstag": 5, "do": 5, "freitag": 6, "fr": 6, "samstag": 7, "sa": 7]
-                guard let target = map[groups[1].lowercased()] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    case "fr":
-        return [
-            .init(pattern: #"^aujourd(?:'|’)hui\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^demain\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^apr[eè]s[- ]demain\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^dans\s+(\d+)\s+jours?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
-                let map = ["dimanche": 1, "dim": 1, "lundi": 2, "lun": 2, "mardi": 3, "mar": 3, "mercredi": 4, "mer": 4, "jeudi": 5, "jeu": 5, "vendredi": 6, "ven": 6, "samedi": 7, "sam": 7]
-                guard let target = map[groups[1].lowercased()] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    case "ko":
-        return [
-            .init(pattern: #"^오늘\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^내일\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^모레\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^(\d+)\s*일\s*후\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
-                let map = ["일요일": 1, "일": 1, "월요일": 2, "월": 2, "화요일": 3, "화": 3, "수요일": 4, "수": 4, "목요일": 5, "목": 5, "금요일": 6, "금": 6, "토요일": 7, "토": 7]
-                guard let target = map[groups[1]] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    case "zh-CN":
-        return [
-            .init(pattern: #"^今天\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^明天\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^后天\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^(\d+)\s*天后\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(星期[一二三四五六日天]|周[一二三四五六日天])\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
-                let map = ["星期日": 1, "星期天": 1, "周日": 1, "周天": 1, "星期一": 2, "周一": 2, "星期二": 3, "周二": 3, "星期三": 4, "周三": 4, "星期四": 5, "周四": 5, "星期五": 6, "周五": 6, "星期六": 7, "周六": 7]
-                guard let target = map[groups[1]] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    case "hi":
-        return [
-            .init(pattern: #"^आज\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^कल\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^परसों\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^(\d+)\s*दिन\s*बाद\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
-                let map = ["रविवार": 1, "सोमवार": 2, "मंगलवार": 3, "बुधवार": 4, "गुरुवार": 5, "शुक्रवार": 6, "शनिवार": 7]
-                guard let target = map[groups[1]] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    case "ar":
-        return [
-            .init(pattern: #"^اليوم\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^غد(?:ا|ًا)?\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^بعد\s+غد\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^بعد\s+(\d+)\s+أيام?\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
-                let map = ["الأحد": 1, "الاثنين": 2, "الإثنين": 2, "الثلاثاء": 3, "الأربعاء": 4, "الخميس": 5, "الجمعة": 6, "السبت": 7]
-                guard let target = map[groups[1]] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    case "pt-BR":
-        return [
-            .init(pattern: #"^hoje\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^amanh[ãa]\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^depois\s+de\s+amanh[ãa]\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^em\s+(\d+)\s+dias?\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
-                let map = ["domingo": 1, "dom": 1, "segunda": 2, "segunda-feira": 2, "seg": 2, "terça": 3, "terca": 3, "terça-feira": 3, "terca-feira": 3, "ter": 3, "quarta": 4, "quarta-feira": 4, "qua": 4, "quinta": 5, "quinta-feira": 5, "qui": 5, "sexta": 6, "sexta-feira": 6, "sex": 6, "sábado": 7, "sabado": 7, "sáb": 7, "sab": 7]
-                guard let target = map[groups[1].lowercased()] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    case "id":
-        return [
-            .init(pattern: #"^hari\s+ini\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^besok\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^lusa\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^dalam\s+(\d+)\s+hari\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)\#(taskDateSpaceOrEndPattern)"#, options: [.caseInsensitive]) { groups in
-                let map = ["minggu": 1, "senin": 2, "selasa": 3, "rabu": 4, "kamis": 5, "jumat": 6, "jum'at": 6, "sabtu": 7]
-                guard let target = map[groups[1].lowercased()] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    default:
-        return [
-            .init(pattern: #"^今日\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(0) },
-            .init(pattern: #"^明日\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(1) },
-            .init(pattern: #"^明後日\#(taskDateSpaceOrEndPattern)"#, options: []) { _ in makeTaskOffsetDate(2) },
-            .init(pattern: #"^(\d+)日後(?:に)?\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in Int(groups[1]).flatMap(makeTaskOffsetDate) },
-            .init(pattern: #"^([月火水木金土日])曜?\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
-                let map = ["日": 1, "月": 2, "火": 3, "水": 4, "木": 5, "金": 6, "土": 7]
-                guard let target = map[groups[1]] else { return nil }
-                let current = Calendar.current.component(.weekday, from: Date())
-                return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target, currentDay: current))
-            },
-        ]
-    }
-}
+// taskRelativePatterns removed in favor of Translations methods
 
 private func resolveTaskDate(from source: String, patterns: [TaskDatePattern]) -> (date: Date, matchedLength: Int)? {
     let nsSource = source as NSString
@@ -829,42 +736,21 @@ private func resolveTaskDate(from source: String, patterns: [TaskDatePattern]) -
     return nil
 }
 
-private func localizedPinPrefixes(language: String) -> [String] {
-    let localized: [String]
-    switch normalizeLanguageCode(language) {
-    case "en":
-        localized = ["pin", "pinned"]
-    case "es":
-        localized = ["fijar"]
-    case "de":
-        localized = ["anheften"]
-    case "fr":
-        localized = ["epingler", "épingler"]
-    case "ko":
-        localized = ["고정"]
-    case "zh-CN":
-        localized = ["置顶"]
-    case "hi":
-        localized = ["पिन"]
-    case "ar":
-        localized = ["تثبيت"]
-    case "pt-BR":
-        localized = ["fixar"]
-    case "id":
-        localized = ["sematkan"]
-    default:
-        localized = ["ピン"]
-    }
+@MainActor
+private func localizedPinPrefixes(translations: Translations) -> [String] {
+    let bundle = translations.getRawDict()
+    let localized = bundle["pinPrefixes"] as? [String] ?? []
     return Array(Set(["pin", "pinned"] + localized)).sorted { $0.count > $1.count }
 }
 
-private func parsePinPrefix(_ text: String, language: String) -> (text: String, pinnedFromInput: Bool) {
+@MainActor
+private func parsePinPrefix(_ text: String, translations: Translations) -> (text: String, pinnedFromInput: Bool) {
     let source = text.trimmingCharacters(in: .whitespacesAndNewlines)
     if source.isEmpty {
         return (source, false)
     }
 
-    for token in localizedPinPrefixes(language: language) {
+    for token in localizedPinPrefixes(translations: translations) {
         guard source.count >= token.count else { continue }
         let endIndex = source.index(source.startIndex, offsetBy: token.count)
         let candidate = String(source[..<endIndex])
@@ -878,7 +764,8 @@ private func parsePinPrefix(_ text: String, language: String) -> (text: String, 
     return (source, false)
 }
 
-private func parseDateFromTaskInput(_ text: String, language: String) -> (text: String, date: String?) {
+@MainActor
+private func parseDateFromTaskInput(_ text: String, translations: Translations) -> (text: String, date: String?) {
     let source = text.trimmingCharacters(in: .whitespacesAndNewlines)
     if source.isEmpty {
         return (source, nil)
@@ -911,9 +798,9 @@ private func parseDateFromTaskInput(_ text: String, language: String) -> (text: 
         return (stripped, formatTaskInputDate(resolved.date))
     }
 
-    var relativePatternSets = [taskRelativePatterns(language: language)]
-    if normalizeLanguageCode(language) != "en" {
-        relativePatternSets.append(taskRelativePatterns(language: "en"))
+    var relativePatternSets = [translations.getRelativePatterns()]
+    if translations.language != "en" {
+        relativePatternSets.append(Translations.getRelativePatterns(for: "en"))
     }
 
     for patterns in relativePatternSets {
@@ -926,7 +813,8 @@ private func parseDateFromTaskInput(_ text: String, language: String) -> (text: 
     return (source, nil)
 }
 
-private func resolveTaskInput(_ text: String, language: String, currentTask: TaskSummary? = nil) -> ParsedTaskInput {
+@MainActor
+private func resolveTaskInput(_ text: String, translations: Translations, currentTask: TaskSummary? = nil) -> ParsedTaskInput {
     var remaining = text.trimmingCharacters(in: .whitespacesAndNewlines)
     var parsedDate: String?
     var pinnedFromInput = false
@@ -935,7 +823,7 @@ private func resolveTaskInput(_ text: String, language: String, currentTask: Tas
 
     for _ in 0..<2 {
         if !parsedPin {
-            let pinParsed = parsePinPrefix(remaining, language: language)
+            let pinParsed = parsePinPrefix(remaining, translations: translations)
             if pinParsed.pinnedFromInput {
                 remaining = pinParsed.text
                 pinnedFromInput = true
@@ -944,7 +832,7 @@ private func resolveTaskInput(_ text: String, language: String, currentTask: Tas
             }
         }
         if !parsedDateValue {
-            let dateParsed = parseDateFromTaskInput(remaining, language: language)
+            let dateParsed = parseDateFromTaskInput(remaining, translations: translations)
             if dateParsed.date != nil {
                 remaining = dateParsed.text
                 parsedDate = dateParsed.date
@@ -1668,8 +1556,8 @@ private struct SignUpView: View {
                     "language": normalizedLanguage,
                     "taskInsertPosition": "top",
                     "autoSort": false,
-                    "createdAt": now,
-                    "updatedAt": now,
+                    "createdAt": FieldValue.serverTimestamp(),
+                    "updatedAt": FieldValue.serverTimestamp(),
                 ], forDocument: db.collection("settings").document(uid))
                 batch.setData([
                     "id": taskListId,
@@ -1679,8 +1567,8 @@ private struct SignUpView: View {
                     "shareCode": NSNull(),
                     "background": NSNull(),
                     "memberCount": 1,
-                    "createdAt": now,
-                    "updatedAt": now,
+                    "createdAt": FieldValue.serverTimestamp(),
+                    "updatedAt": FieldValue.serverTimestamp(),
                 ], forDocument: db.collection("taskLists").document(taskListId))
                 batch.setData([
                     taskListId: ["order": 1.0],
@@ -1920,6 +1808,15 @@ private struct DragHandleIcon: View {
 }
 
 private struct TaskListsView: View {
+    @Binding var path: [AppRoute]
+    @Binding var pendingShareCode: String?
+    let isLoggedIn: Bool
+    let currentUserId: String?
+    let calendarTasks: [CalendarTask]
+    let selectedTaskListId: String?
+    let onSelectTaskList: ((String) -> Void)?
+    let onOpenSettings: (() -> Void)?
+    let onOpenCalendar: (() -> Void)?
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var viewModel = OrderedTaskListViewModel<TaskListSummary>(mapper: mapTaskListSummary)
@@ -1939,15 +1836,28 @@ private struct TaskListsView: View {
     @State private var joinListInput = ""
     @State private var joiningList = false
     @State private var joinListError: String? = nil
-    @Binding var path: [AppRoute]
-    @Binding var pendingShareCode: String?
-    let isLoggedIn: Bool
-    let currentUserId: String?
-    let calendarTasks: [CalendarTask]
-    var selectedTaskListId: String? = nil
-    var onSelectTaskList: ((String) -> Void)? = nil
-    var onOpenSettings: (() -> Void)? = nil
-    var onOpenCalendar: (() -> Void)? = nil
+
+    init(
+        path: Binding<[AppRoute]>,
+        pendingShareCode: Binding<String?>,
+        isLoggedIn: Bool,
+        currentUserId: String?,
+        calendarTasks: [CalendarTask],
+        selectedTaskListId: String? = nil,
+        onSelectTaskList: ((String) -> Void)? = nil,
+        onOpenSettings: (() -> Void)? = nil,
+        onOpenCalendar: (() -> Void)? = nil
+    ) {
+        _path = path
+        _pendingShareCode = pendingShareCode
+        self.isLoggedIn = isLoggedIn
+        self.currentUserId = currentUserId
+        self.calendarTasks = calendarTasks
+        self.selectedTaskListId = selectedTaskListId
+        self.onSelectTaskList = onSelectTaskList
+        self.onOpenSettings = onOpenSettings
+        self.onOpenCalendar = onOpenCalendar
+    }
 
     private var displayTaskLists: [TaskListSummary] {
         dragOrderedTaskLists ?? pendingTaskListOrder ?? viewModel.taskLists
@@ -2060,7 +1970,7 @@ private struct TaskListsView: View {
         if let onOpenCalendar {
             onOpenCalendar()
         } else {
-            path.append(.calendar)
+            path.append(AppRoute.calendar)
         }
     }
 
@@ -2435,7 +2345,7 @@ private struct TaskListsView: View {
     private func persistTaskListOrder(_ ids: [String]) {
         logTaskListReorder()
         guard let uid = Auth.auth().currentUser?.uid else { return }
-        var updates: [String: Any] = ["updatedAt": Int64(Date().timeIntervalSince1970 * 1000)]
+        var updates: [String: Any] = ["updatedAt": FieldValue.serverTimestamp()]
         for (i, id) in ids.enumerated() {
             updates["\(id).order"] = Double(i + 1)
         }
@@ -2447,7 +2357,7 @@ private struct TaskListsView: View {
         guard let uid = Auth.auth().currentUser?.uid else { return }
         let db = Firestore.firestore()
         let taskListId = db.collection("taskLists").document().documentID
-        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        // now variable removed as it's replaced by serverTimestamp
         let newOrder = Double(viewModel.taskLists.count + 1)
 
         var newTaskList: [String: Any] = [
@@ -2457,8 +2367,8 @@ private struct TaskListsView: View {
             "history": [Any](),
             "shareCode": NSNull(),
             "memberCount": 1,
-            "createdAt": now,
-            "updatedAt": now,
+            "createdAt": FieldValue.serverTimestamp(),
+            "updatedAt": FieldValue.serverTimestamp(),
         ]
         if let background {
             newTaskList["background"] = background
@@ -2470,7 +2380,7 @@ private struct TaskListsView: View {
         batch.setData(newTaskList, forDocument: db.collection("taskLists").document(taskListId))
         batch.setData([
             "\(taskListId)": ["order": newOrder],
-            "updatedAt": now,
+            "updatedAt": FieldValue.serverTimestamp(),
         ] as [String: Any], forDocument: db.collection("taskListOrder").document(uid), merge: true)
 
         batch.commit { error in
@@ -2518,7 +2428,7 @@ private struct TaskListsView: View {
     }
 }
 
-private struct TaskListPagerContent: View {
+private struct DetailPagerContent: View {
     @Binding var selectedTaskListId: String
     let taskLists: [TaskListDetail]
     let taskInsertPosition: String
@@ -2575,9 +2485,9 @@ private struct TaskListPagerContent: View {
 }
 
 private struct TaskListDetailPagerView: View {
-    @EnvironmentObject var translations: Translations
     let initialTaskListId: String
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var translations: Translations
     @State private var authStateHandle: AuthStateDidChangeListenerHandle?
     @State private var selectedTaskListId: String
     @StateObject private var viewModel = OrderedTaskListViewModel<TaskListDetail>(mapper: mapTaskListDetail)
@@ -2611,7 +2521,7 @@ private struct TaskListDetailPagerView: View {
                     Spacer()
                 }
             } else {
-                TaskListPagerContent(
+                DetailPagerContent(
                     selectedTaskListId: $selectedTaskListId,
                     taskLists: viewModel.taskLists,
                     taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "bottom",
@@ -2684,7 +2594,7 @@ private struct RegularTaskListDetailPagerView: View {
                     Spacer()
                 }
             } else {
-                TaskListPagerContent(
+                DetailPagerContent(
                     selectedTaskListId: Binding(
                         get: { resolvedTaskListId },
                         set: { selectedTaskListId = $0 }
@@ -2786,7 +2696,7 @@ private struct TaskListDetailPage: View {
     @State private var newTaskText = ""
     @State private var editingTaskId: String? = nil
     @State private var editingText: String = ""
-    @State private var taskActionSheetState: TaskActionSheetState? = nil
+    @State private var actionSheetState: ActionSheetState? = nil
     @State private var showDeleteCompletedAlert = false
     @State private var draggingTaskId: String? = nil
     @State private var taskDragOffset: CGFloat = 0
@@ -2903,6 +2813,23 @@ private struct TaskListDetailPage: View {
         }
     }
 
+    private func handleTaskDragChanged(task: TaskSummary, displayTasks: [TaskSummary], fingerY: CGFloat) {
+        if draggingTaskId == nil {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            draggingTaskId = task.id
+            dragOrderedTasks = displayTasks
+            taskDragStartLocationY = fingerY
+        }
+        guard let startY = taskDragStartLocationY else { return }
+        taskDragOffset = fingerY - startY
+        let correction = checkTaskSwap()
+        if correction != 0 {
+            UISelectionFeedbackGenerator().selectionChanged()
+            taskDragStartLocationY = startY - correction
+        }
+        updateTaskAutoScroll(fingerY: fingerY)
+    }
+
     private func stopTaskAutoScroll() {
         taskAutoScrollTimer?.invalidate()
         taskAutoScrollTimer = nil
@@ -2921,6 +2848,54 @@ private struct TaskListDetailPage: View {
         formatter.locale = Locale(identifier: localeIdentifier(for: translations.language))
         formatter.setLocalizedDateFormatFromTemplate("MMMEd")
         return formatter.string(from: date)
+    }
+
+    @ViewBuilder
+    private func completionButton(_ task: TaskSummary) -> some View {
+        let strokeOpacity = task.completed ? 0.12 : 0.35
+        let strokeWidth = task.completed ? 0.0 : 1.5
+        let fillColor = task.completed ? Color.secondary.opacity(0.28) : Color.clear
+        let accessibilityLabel = task.completed ? "完了済み、タップで未完了にする" : "未完了、タップで完了にする"
+
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            toggleCompletion(task)
+        } label: {
+            ZStack {
+                Circle()
+                    .stroke(Color.secondary.opacity(strokeOpacity), lineWidth: strokeWidth)
+                    .background(
+                        Circle()
+                            .fill(fillColor)
+                    )
+                    .frame(width: TaskListDetailMetrics.completionDotSize, height: TaskListDetailMetrics.completionDotSize)
+            }
+            .frame(width: TaskListDetailMetrics.completionTouchWidth, height: TaskListDetailMetrics.completionTouchHeight)
+        }
+        .buttonStyle(.plain)
+        .alignmentGuide(.taskRowContentCenter) { dimensions in
+            dimensions[VerticalAlignment.center]
+        }
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    @ViewBuilder
+    private func colorOptionButton(color: String?, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        let fillColor = color.flatMap { Color(hex: $0) } ?? Color(.systemBackground)
+        let outlineWidth = color == nil ? 1.0 : 0.0
+        let selectedWidth = isSelected ? 2.5 : 0.0
+
+        Button(action: action) {
+            Circle()
+                .fill(fillColor)
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Circle().stroke(Color(.separator), lineWidth: outlineWidth)
+                )
+                .overlay(
+                    Circle().stroke(Color.accentColor, lineWidth: selectedWidth).padding(-3)
+                )
+        }
     }
 
     private func getAutoSortedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
@@ -2967,7 +2942,7 @@ private struct TaskListDetailPage: View {
     }
 
     private func buildTaskUpdateData(_ tasks: [TaskSummary], deletedTaskIds: [String] = []) -> [String: Any] {
-        var updates: [String: Any] = ["updatedAt": Int64(Date().timeIntervalSince1970 * 1000)]
+        var updates: [String: Any] = ["updatedAt": FieldValue.serverTimestamp()]
         for taskId in deletedTaskIds {
             updates["tasks.\(taskId)"] = FieldValue.delete()
         }
@@ -3042,7 +3017,7 @@ private struct TaskListDetailPage: View {
         guard !removingList, let user = Auth.auth().currentUser else { return }
         removingList = true
         let uid = user.uid
-        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        // now variable removed as it's replaced by serverTimestamp
 
         Task {
             do {
@@ -3068,7 +3043,7 @@ private struct TaskListDetailPage: View {
                 let batch = db.batch()
                 batch.setData([
                     taskList.id: FieldValue.delete(),
-                    "updatedAt": now,
+                    "updatedAt": FieldValue.serverTimestamp(),
                 ], forDocument: taskListOrderRef, merge: true)
 
                 let currentMemberCount = (taskListSnapshot.data()?["memberCount"] as? NSNumber)?.intValue ?? 1
@@ -3080,8 +3055,8 @@ private struct TaskListDetailPage: View {
                     batch.deleteDocument(taskListRef)
                 } else {
                     batch.updateData([
-                        "memberCount": currentMemberCount - 1,
-                        "updatedAt": now,
+                        "memberCount": FieldValue.increment(Int64(-1)),
+                        "updatedAt": FieldValue.serverTimestamp(),
                     ], forDocument: taskListRef)
                 }
                 try await batch.commit()
@@ -3258,7 +3233,7 @@ private struct TaskListDetailPage: View {
                     .padding(.top, TaskListDetailMetrics.actionRowTopPadding)
                 }
 
-                if taskList.tasks.isEmpty {
+                if displayTasks.isEmpty {
                     Text(translations.t("pages.tasklist.noTasks"))
                         .frame(maxWidth: .infinity, minHeight: 200)
                         .foregroundStyle(.secondary)
@@ -3276,20 +3251,7 @@ private struct TaskListDetailPage: View {
                                 .gesture(
                                     DragGesture(minimumDistance: 2, coordinateSpace: .named("taskList"))
                                         .onChanged { value in
-                                            if draggingTaskId == nil {
-                                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                                draggingTaskId = task.id
-                                                dragOrderedTasks = displayTasks
-                                                taskDragStartLocationY = value.location.y
-                                            }
-                                            guard let startY = taskDragStartLocationY else { return }
-                                            taskDragOffset = value.location.y - startY
-                                            let correction = checkTaskSwap()
-                                            if correction != 0 {
-                                                UISelectionFeedbackGenerator().selectionChanged()
-                                                taskDragStartLocationY = startY - correction
-                                            }
-                                            updateTaskAutoScroll(fingerY: value.location.y)
+                                            handleTaskDragChanged(task: task, displayTasks: displayTasks, fingerY: value.location.y)
                                         }
                                         .onEnded { _ in
                                             stopTaskAutoScroll()
@@ -3306,26 +3268,7 @@ private struct TaskListDetailPage: View {
                                         }
                                 )
 
-                            Button {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                toggleCompletion(task)
-                            } label: {
-                                ZStack {
-                                    Circle()
-                                        .stroke(Color.secondary.opacity(task.completed ? 0.12 : 0.35), lineWidth: task.completed ? 0 : 1.5)
-                                        .background(
-                                            Circle()
-                                                .fill(task.completed ? Color.secondary.opacity(0.28) : Color.clear)
-                                        )
-                                        .frame(width: TaskListDetailMetrics.completionDotSize, height: TaskListDetailMetrics.completionDotSize)
-                                }
-                                .frame(width: TaskListDetailMetrics.completionTouchWidth, height: TaskListDetailMetrics.completionTouchHeight)
-                            }
-                            .buttonStyle(.plain)
-                            .alignmentGuide(.taskRowContentCenter) { dimensions in
-                                dimensions[VerticalAlignment.center]
-                            }
-                            .accessibilityLabel(task.completed ? "完了済み、タップで未完了にする" : "未完了、タップで完了にする")
+                            completionButton(task)
 
                             VStack(alignment: .leading, spacing: 0) {
                                 if !task.date.isEmpty {
@@ -3408,7 +3351,7 @@ private struct TaskListDetailPage: View {
             commitEdit(task)
         }
         .onChange(of: taskList.tasks) { _, tasks in
-            if let pendingDisplayTasks, pendingDisplayTasks == getDisplayOrderedTasks(tasks) {
+            if let pendingDisplayTasks, pendingDisplayTasks == reconciledTasks(tasks) {
                 self.pendingDisplayTasks = nil
             }
         }
@@ -3444,17 +3387,7 @@ private struct TaskListDetailPage: View {
                             ForEach(colorOptions.indices, id: \.self) { i in
                                 let c = colorOptions[i]
                                 let isSelected = editBackground == c
-                                Button { editBackground = c } label: {
-                                    Circle()
-                                        .fill(c.flatMap { Color(hex: $0) } ?? Color(.systemBackground))
-                                        .frame(width: 44, height: 44)
-                                        .overlay(
-                                            Circle().stroke(Color(.separator), lineWidth: c == nil ? 1 : 0)
-                                        )
-                                        .overlay(
-                                            Circle().stroke(Color.accentColor, lineWidth: isSelected ? 2.5 : 0).padding(-3)
-                                        )
-                                }
+                                colorOptionButton(color: c, isSelected: isSelected) { editBackground = c }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(colorLabel(c))
                             }
@@ -3484,7 +3417,7 @@ private struct TaskListDetailPage: View {
                         Button(translations.t("taskList.save")) {
                             let trimmed = editName.trimmingCharacters(in: .whitespaces)
                             if !trimmed.isEmpty {
-                                var updates: [String: Any] = ["updatedAt": Date().timeIntervalSince1970 * 1000]
+                                var updates: [String: Any] = ["updatedAt": FieldValue.serverTimestamp()]
                                 if trimmed != taskList.name {
                                     updates["name"] = trimmed
                                 }
@@ -3503,12 +3436,12 @@ private struct TaskListDetailPage: View {
             }
             .presentationDetents([.medium])
         }
-        .sheet(item: $taskActionSheetState) { actionState in
+        .sheet(item: $actionSheetState) { actionState in
             if let task = taskList.tasks.first(where: { $0.id == actionState.taskId }) {
                 VStack(spacing: 16) {
                     Button {
                         togglePinned(task)
-                        taskActionSheetState = nil
+                        actionSheetState = nil
                     } label: {
                         HStack {
                             Label(
@@ -3527,7 +3460,7 @@ private struct TaskListDetailPage: View {
                     .accessibilityHint("タップでピン留め状態を切り替える")
                     Button(translations.t("pages.tasklist.clearDate")) {
                         commitDate(task, dateStr: "")
-                        taskActionSheetState = nil
+                        actionSheetState = nil
                     }
                     .foregroundStyle(.red)
                     .frame(maxWidth: .infinity, minHeight: 44)
@@ -3537,7 +3470,7 @@ private struct TaskListDetailPage: View {
                         get: { Self.isoFormatter.date(from: task.date) ?? Date() },
                         set: {
                             commitDate(task, dateStr: Self.isoFormatter.string(from: $0))
-                            taskActionSheetState = nil
+                            actionSheetState = nil
                         }
                     ), displayedComponents: .date)
                         .datePickerStyle(.graphical)
@@ -3665,7 +3598,7 @@ private struct TaskListDetailPage: View {
                 }
                 updateTaskList([
                     "tasks.\(task.id).completed": !task.completed,
-                    "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
+                    "updatedAt": FieldValue.serverTimestamp()
                 ])
             }
         )
@@ -3680,7 +3613,7 @@ private struct TaskListDetailPage: View {
     private func commitEdit(_ task: TaskSummary) {
         guard editingTaskId == task.id else { return }
         let trimmed = editingText.trimmingCharacters(in: .whitespaces)
-        let resolved = resolveTaskInput(editingText, language: translations.language, currentTask: task)
+        let resolved = resolveTaskInput(editingText, translations: translations, currentTask: task)
         let textChanged = resolved.text != task.text
         let dateChanged = resolved.date != task.date
         let pinnedChanged = resolved.pinnedFromInput && !task.pinned
@@ -3718,7 +3651,7 @@ private struct TaskListDetailPage: View {
                 var updates: [String: Any] = [
                     "tasks.\(task.id).text": resolved.text,
                     "tasks.\(task.id).date": resolved.date ?? task.date,
-                    "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
+                    "updatedAt": FieldValue.serverTimestamp()
                 ]
                 if pinnedChanged {
                     updates["tasks.\(task.id).pinned"] = true
@@ -3732,7 +3665,7 @@ private struct TaskListDetailPage: View {
     }
 
     private func openTaskActionSheet(_ task: TaskSummary) {
-        taskActionSheetState = TaskActionSheetState(
+        actionSheetState = ActionSheetState(
             taskId: task.id
         )
     }
@@ -3761,7 +3694,7 @@ private struct TaskListDetailPage: View {
                 }
                 updateTaskList([
                     "tasks.\(task.id).date": dateStr,
-                    "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
+                    "updatedAt": FieldValue.serverTimestamp()
                 ])
             }
         )
@@ -3805,7 +3738,7 @@ private struct TaskListDetailPage: View {
                 }
                 updateTaskList([
                     "tasks.\(task.id).pinned": nextPinned,
-                    "updatedAt": Int64(Date().timeIntervalSince1970 * 1000)
+                    "updatedAt": FieldValue.serverTimestamp()
                 ])
             }
         )
@@ -3814,12 +3747,12 @@ private struct TaskListDetailPage: View {
     private func addTask() {
         let trimmed = newTaskText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        let parsed = resolveTaskInput(trimmed, language: translations.language)
+        let parsed = resolveTaskInput(trimmed, translations: translations)
         logTaskAdd(hasDate: !(parsed.date ?? "").isEmpty)
         newTaskText = ""
         isNewTaskFocused = true
         let taskId = UUID().uuidString
-        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        // now variable removed as it's replaced by serverTimestamp
         let tasks = taskList.tasks
         let order: Double = taskInsertPosition == "top"
             ? (tasks.first?.order ?? 1.0) - 1.0
@@ -3853,7 +3786,7 @@ private struct TaskListDetailPage: View {
                     "tasks.\(taskId).order": order,
                     "tasks.\(taskId).pinned": parsed.pinnedFromInput,
                     "history": buildHistory(newText: parsed.text),
-                    "updatedAt": now
+                    "updatedAt": FieldValue.serverTimestamp()
                 ])
             }
         )
@@ -3870,7 +3803,7 @@ private struct TaskListDetailPage: View {
             if !aEmpty && !bEmpty && a.date != b.date { return a.date < b.date }
             return a.order < b.order
         }
-        var updates: [String: Any] = ["updatedAt": Int64(Date().timeIntervalSince1970 * 1000)]
+        var updates: [String: Any] = ["updatedAt": FieldValue.serverTimestamp()]
         for (i, task) in sorted.enumerated() {
             updates["tasks.\(task.id).order"] = Double(i + 1)
         }
@@ -3887,7 +3820,7 @@ private struct TaskListDetailPage: View {
 
     private func persistTaskOrder(_ ids: [String]) {
         logTaskReorder()
-        var updates: [String: Any] = ["updatedAt": Int64(Date().timeIntervalSince1970 * 1000)]
+        var updates: [String: Any] = ["updatedAt": FieldValue.serverTimestamp()]
         for (i, id) in ids.enumerated() {
             updates["tasks.\(id).order"] = Double(i + 1)
         }
@@ -3917,9 +3850,8 @@ private struct TaskListDetailPage: View {
                         transaction.deleteDocument(self.db.collection("shareCodes").document(currentCode))
                     }
 
-                    let now = Int64(Date().timeIntervalSince1970 * 1000)
-                    transaction.setData(["taskListId": taskListId, "createdAt": now], forDocument: shareCodeRef)
-                    transaction.updateData(["shareCode": code, "updatedAt": now], forDocument: taskListRef)
+                    transaction.setData(["taskListId": taskListId, "createdAt": FieldValue.serverTimestamp()], forDocument: shareCodeRef)
+                    transaction.updateData(["shareCode": code, "updatedAt": FieldValue.serverTimestamp()], forDocument: taskListRef)
                     return code
                 } catch let err as NSError {
                     errorPointer?.pointee = err
@@ -3944,8 +3876,8 @@ private struct TaskListDetailPage: View {
                 if let currentCode = snap.data()?["shareCode"] as? String {
                     transaction.deleteDocument(self.db.collection("shareCodes").document(currentCode))
                 }
-                let now = Int64(Date().timeIntervalSince1970 * 1000)
-                transaction.updateData(["shareCode": NSNull(), "updatedAt": now], forDocument: taskListRef)
+                // now variable removed
+                transaction.updateData(["shareCode": NSNull(), "updatedAt": FieldValue.serverTimestamp()], forDocument: taskListRef)
                 return nil
             } catch let err as NSError {
                 errorPointer?.pointee = err
@@ -3967,6 +3899,7 @@ private func fetchTaskListIdByShareCode(_ shareCode: String) async throws -> Str
 private func addSharedTaskListToOrder(taskListId: String) async throws {
     guard let uid = Auth.auth().currentUser?.uid else { return }
     let db = Firestore.firestore()
+    let batch = db.batch()
     let taskListOrderRef = db.collection("taskListOrder").document(uid)
     let taskListRef = db.collection("taskLists").document(taskListId)
     let orderSnap = try await taskListOrderRef.getDocument()
@@ -3983,15 +3916,12 @@ private func addSharedTaskListToOrder(taskListId: String) async throws {
     let newOrder = orders.max().map { $0 + 1.0 } ?? 1.0
 
     let taskListSnap = try await taskListRef.getDocument()
-    guard taskListSnap.exists, let taskListData = taskListSnap.data() else {
+    guard taskListSnap.exists, taskListSnap.data() != nil else {
         throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
     }
-    let currentMemberCount = (taskListData["memberCount"] as? NSNumber)?.intValue ?? 1
-    let now = Int64(Date().timeIntervalSince1970 * 1000)
-    let batch = db.batch()
-    batch.setData([taskListId: ["order": newOrder], "updatedAt": now] as [String: Any],
+    batch.setData([taskListId: ["order": newOrder], "updatedAt": FieldValue.serverTimestamp()] as [String: Any],
                   forDocument: taskListOrderRef, merge: true)
-    batch.updateData(["memberCount": currentMemberCount + 1, "updatedAt": now],
+    batch.updateData(["memberCount": FieldValue.increment(Int64(1)), "updatedAt": FieldValue.serverTimestamp()],
                      forDocument: taskListRef)
     try await batch.commit()
 }
@@ -4253,14 +4183,14 @@ private struct SharedTaskListPreviewView: View {
 }
 
 private final class SettingsViewModel: ObservableObject {
-    struct UserSettings {
+    struct Settings {
         var theme: String = "system"
         var language: String = "ja"
         var taskInsertPosition: String = "bottom"
         var autoSort: Bool = false
     }
 
-    @Published var settings: UserSettings? = nil
+    @Published var settings: Settings? = nil
     @Published var userEmail: String = ""
 
     private let db = Firestore.firestore()
@@ -4276,7 +4206,7 @@ private final class SettingsViewModel: ObservableObject {
         settingsListener = db.collection("settings").document(uid)
             .addSnapshotListener { [weak self] snapshot, _ in
                 guard let self, let data = snapshot?.data() else { return }
-                self.settings = UserSettings(
+                self.settings = Settings(
                     theme: data["theme"] as? String ?? "system",
                     language: data["language"] as? String ?? "ja",
                     taskInsertPosition: data["taskInsertPosition"] as? String ?? "bottom",
@@ -4323,7 +4253,7 @@ private final class SettingsViewModel: ObservableObject {
                     if memberCount <= 1 {
                         ref.delete { _ in group.leave() }
                     } else {
-                        ref.updateData(["memberCount": memberCount - 1]) { _ in group.leave() }
+                        ref.updateData(["memberCount": FieldValue.increment(Int64(-1))]) { _ in group.leave() }
                     }
                 }
             }
@@ -4979,22 +4909,26 @@ private struct CalendarScreenView: View {
 
             Divider()
 
-                if tasksInMonth.isEmpty {
+            if tasksInMonth.isEmpty {
+                VStack {
                     Spacer()
-                        Text(translations.t("app.calendarNoDatedTasks"))
-                            .foregroundStyle(.secondary)
-                            .font(AppTypography.subheadline())
+                    Text(translations.t("app.calendarNoDatedTasks"))
+                        .foregroundStyle(.secondary)
+                        .font(AppTypography.subheadline())
                     Spacer()
-                } else if visibleTasks.isEmpty {
+                }
+            } else if visibleTasks.isEmpty {
+                VStack {
                     Spacer()
                     Text(translations.t("app.calendarNoTasksOnSelectedDate"))
                         .foregroundStyle(.secondary)
                         .font(AppTypography.subheadline())
                     Spacer()
-                } else {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 0) {
+                }
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
                             ForEach(visibleTasks) { task in
                                 CalendarTaskRow(
                                     task: task,
@@ -5009,7 +4943,7 @@ private struct CalendarScreenView: View {
                         let key = dateKey(date)
                         if let first = visibleTasks.first(where: { $0.date == key }) {
                             withAnimation(reduceMotion ? .none : .default) {
-                                proxy.scrollTo(first.id, anchor: .top)
+                                proxy.scrollTo(first.id, anchor: UnitPoint.top)
                             }
                         }
                     }

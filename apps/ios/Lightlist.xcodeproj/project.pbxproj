@@ -13,11 +13,11 @@
 		2802D4B40E4EF5A424DDCBE5 /* LightlistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C4AFDF92886FBDFA0EAB45 /* LightlistTests.swift */; };
 		4CA7C737938F6922C9F7C029 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 5D2FC049671012454C273F85 /* FirebaseCrashlytics */; };
 		752231066BD951B04BCD7AE0 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 85C2E8D19C38E5EC9E466233 /* FirebaseAppCheck */; };
-		7860014FD9954EA01343DE72 /* locales.json in Resources */ = {isa = PBXBuildFile; fileRef = 5615019F3DBD2986C21F8B42 /* locales.json */; };
 		89CB2AA3EC79089749AE0FDC /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */; };
 		940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */; };
 		AC435305172D0AB359635835 /* GenInterfaceJP-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F069413852FDD95B929B55BB /* GenInterfaceJP-Medium.ttf */; };
 		AED11886C733A359C1C4C94D /* GenInterfaceJPDisplay-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */; };
+		D5EB3F6E45B0895306033B0A /* locales.json in Resources */ = {isa = PBXBuildFile; fileRef = 0FA110DD158815A8840D5EEC /* locales.json */; };
 		DCA7F06671A939FE685A39D4 /* GenInterfaceJPDisplay-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */; };
 		EDB0B08DEFFC531DC60C7995 /* GenInterfaceJP-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EF706C384D72391FD32EA55D /* GenInterfaceJP-SemiBold.ttf */; };
 		F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */; };
@@ -40,9 +40,9 @@
 /* Begin PBXFileReference section */
 		0049B0A7BA2F0C40048DD4CE /* manual-licenses.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "manual-licenses.json"; sourceTree = "<group>"; };
 		03E96005FE689A03AE608611 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		0FA110DD158815A8840D5EEC /* locales.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = locales.json; sourceTree = "<group>"; };
 		2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJPDisplay-Bold.ttf"; sourceTree = "<group>"; };
 		44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJPDisplay-ExtraBold.ttf"; sourceTree = "<group>"; };
-		5615019F3DBD2986C21F8B42 /* locales.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = locales.json; sourceTree = "<group>"; };
 		5F18EECC750B7FE6A93E5288 /* LightlistTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LightlistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		931A2D9664B0C1631B7FC40E /* GenInterfaceJP-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJP-Regular.ttf"; sourceTree = "<group>"; };
@@ -75,7 +75,6 @@
 			isa = PBXGroup;
 			children = (
 				695AF3ECA8F1E9E6B14CEBB9 /* licenses */,
-				45CF26A86FDC418DCF71DBA5 /* locales */,
 				794F5D9817987A08766BEC43 /* Resources */,
 				DB6A27021DE17295F5B935D5 /* Sources */,
 				D3781430FB8EF16DB27B8124 /* Tests */,
@@ -100,15 +99,6 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
-		45CF26A86FDC418DCF71DBA5 /* locales */ = {
-			isa = PBXGroup;
-			children = (
-				5615019F3DBD2986C21F8B42 /* locales.json */,
-			);
-			name = locales;
-			path = ../../shared/locales;
-			sourceTree = "<group>";
-		};
 		695AF3ECA8F1E9E6B14CEBB9 /* licenses */ = {
 			isa = PBXGroup;
 			children = (
@@ -122,6 +112,7 @@
 			isa = PBXGroup;
 			children = (
 				03E96005FE689A03AE608611 /* Assets.xcassets */,
+				0FA110DD158815A8840D5EEC /* locales.json */,
 				F813AEADA49016FBDC9EE7F9 /* PrivacyInfo.xcprivacy */,
 				D1B0D57606F7CD298729AC51 /* Fonts */,
 				1C627F24DFEA9370108D68BC /* Preview Content */,
@@ -259,7 +250,7 @@
 				AED11886C733A359C1C4C94D /* GenInterfaceJPDisplay-ExtraBold.ttf in Resources */,
 				940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */,
 				F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */,
-				7860014FD9954EA01343DE72 /* locales.json in Resources */,
+				D5EB3F6E45B0895306033B0A /* locales.json in Resources */,
 				FFD5490E2864081F7A21BA40 /* manual-licenses.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

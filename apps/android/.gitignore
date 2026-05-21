@@ -1,4 +1,3 @@
-.DS_Store
 *.iml
 .gradle/
 .idea/
@@ -10,5 +9,3 @@ captures/
 local.properties
 emulator.log
 app/build/
-app/google-services.json
-app/src/release/google-services.json

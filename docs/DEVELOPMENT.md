@@ -27,6 +27,7 @@
 - iOS は SwiftUI + XcodeGen。
 - Android は Kotlin + Gradle。
 - Firebase デプロイ設定はリポジトリルートに置く。
+- `.gitignore` はルートで共通ローカル生成物（OS / editor / Node / env / Firebase 設定）を管理し、`apps/web/.gitignore` `apps/ios/.gitignore` `apps/android/.gitignore` は各アプリ固有の生成物だけを管理する。
 
 ## 主要パス
 

@@ -1,4 +1,3 @@
-.DS_Store
 build/
 build-*/
 Derived/
@@ -15,5 +14,3 @@ xcuserdata/
 *.gcno
 Lightlist.xcodeproj/xcuserdata/
 Tuist/.build/
-Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist
-Lightlist/Resources/Firebase/Release/GoogleService-Info.plist

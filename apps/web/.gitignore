@@ -1,16 +1,1 @@
-node_modules/
-.next/
-.vercel/
-.turbo/
-out/
-coverage/
-.nyc_output/
-*.tsbuildinfo
 .wrangler/
-next-env.d.ts
-.env
-.env.local
-.env.*.local
-.env.development.local
-.env.test.local
-.env.production.local

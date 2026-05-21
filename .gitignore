@@ -10,10 +10,12 @@ Thumbs.db
 .idea/
 
 # Local agent / workspace files
+.codex/
 .claude/
 .serena/
 .gemini/
 .worktrees/
+.antigravitycli/
 NOTE.md
 
 # Node / web toolchain
@@ -48,6 +50,6 @@ yarn-error.log*
 apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist
 apps/ios/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist
 apps/android/app/google-services.json
-apps/android/app/google-services.prod.json
+apps/android/app/src/release/google-services.json
 GoogleService-Info.plist
 google-services.json

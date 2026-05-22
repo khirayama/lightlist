@@ -9,6 +9,9 @@ build:
 build-release:
   ./gradlew assembleRelease
 
+bundle-play:
+  ./gradlew bundleRelease -PLIGHTLIST_REQUIRE_RELEASE_SIGNING=true
+
 run:
   adb install -r app/build/outputs/apk/debug/app-debug.apk || { adb uninstall com.lightlist.app || true; adb install app/build/outputs/apk/debug/app-debug.apk; }
   adb shell monkey -p com.lightlist.app -c android.intent.category.LAUNCHER 1

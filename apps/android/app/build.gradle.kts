@@ -19,6 +19,40 @@ val passwordResetUrl =
     providers.gradleProperty("PASSWORD_RESET_URL")
         .orElse("https://lightlist.com/password_reset")
         .get()
+val releaseKeystorePath =
+    providers.gradleProperty("LIGHTLIST_ANDROID_KEYSTORE")
+        .orElse(providers.environmentVariable("LIGHTLIST_ANDROID_KEYSTORE"))
+        .orNull
+val releaseKeystorePassword =
+    providers.gradleProperty("LIGHTLIST_ANDROID_KEYSTORE_PASSWORD")
+        .orElse(providers.environmentVariable("LIGHTLIST_ANDROID_KEYSTORE_PASSWORD"))
+        .orNull
+val releaseKeyAlias =
+    providers.gradleProperty("LIGHTLIST_ANDROID_KEY_ALIAS")
+        .orElse(providers.environmentVariable("LIGHTLIST_ANDROID_KEY_ALIAS"))
+        .orNull
+val releaseKeyPassword =
+    providers.gradleProperty("LIGHTLIST_ANDROID_KEY_PASSWORD")
+        .orElse(providers.environmentVariable("LIGHTLIST_ANDROID_KEY_PASSWORD"))
+        .orNull
+val hasReleaseSigning =
+    listOf(
+        releaseKeystorePath,
+        releaseKeystorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword
+    ).all { !it.isNullOrBlank() }
+val requireReleaseSigning =
+    providers.gradleProperty("LIGHTLIST_REQUIRE_RELEASE_SIGNING")
+        .map(String::toBoolean)
+        .orElse(false)
+        .get()
+
+if (requireReleaseSigning && !hasReleaseSigning) {
+    throw GradleException(
+        "Google Play submission requires LIGHTLIST_ANDROID_KEYSTORE, LIGHTLIST_ANDROID_KEYSTORE_PASSWORD, LIGHTLIST_ANDROID_KEY_ALIAS, and LIGHTLIST_ANDROID_KEY_PASSWORD."
+    )
+}
 
 android {
     namespace = "com.example.lightlist"
@@ -41,11 +75,24 @@ android {
 
     signingConfigs {
         getByName("debug")
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig =
+                if (hasReleaseSigning) {
+                    signingConfigs.getByName("release")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

@@ -67,6 +67,7 @@
 - iOS / Android の識別子は `com.lightlist.app` を正とする。
 - Android の Firebase 設定ファイルは build variant ごとに分け、debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json` を使う。
 - Android の release APK は R8 縮小後も Firebase component registrar の no-arg constructor を保持する。`apps/android/app/proguard-rules.pro` の `ComponentRegistrar` keep ルールを削除しない。
+- Android の Google Play 提出物は `just bundle-play` で生成する release AAB とし、release upload key 署名を必須にする。署名値は `LIGHTLIST_ANDROID_KEYSTORE` / `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` / `LIGHTLIST_ANDROID_KEY_ALIAS` / `LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡す。
 - iOS の AppIcon は `shared/assets/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。
 - Android の launcher icon は `shared/assets/brand/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
 
@@ -83,6 +84,8 @@
 - Android: `cd apps/android && just lint && just build`
 - Android: `cd apps/android && just build-release`
 - Android の `just build-release` は内部配布確認用の署名済み release APK（`app/build/outputs/apk/release/app-release.apk`）を生成する。Play Store 提出用の正式 release 署名ではない。
+- Android: `cd apps/android && just bundle-play`
+- Android の `just bundle-play` は Google Play 提出用の署名済み release AAB（`app/build/outputs/bundle/release/app-release.aab`）を生成する。`versionCode` は Play Console にアップロード済みの値より大きくしてから実行する。
 - Android: `just android` は `apps/android` の debug build を端末へ上書きインストールして起動する。通常はアプリデータと Firebase Auth セッションを保持する。
 - Android: 上書きインストールに失敗した場合のみ `just android` は `com.lightlist.app` をアンインストールしてから debug APK を入れ直す。この場合はアプリデータが消えるためログイン状態も消える。
 - Android: 明示的にクリーン再インストールしたい場合は `cd apps/android && just run-clean` を使う。

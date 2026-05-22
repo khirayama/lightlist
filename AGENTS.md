@@ -62,6 +62,7 @@
 - Android のパスワードリセット URL は `BuildConfig.PASSWORD_RESET_URL` で管理し、既定値は `https://lightlist.com/password_reset` とする。
 - Android の Firebase 設定は build variant ごとに `google-services.json` を分け、debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json` を使う。release 用ファイルの package 名は `com.lightlist.app` と一致させる。
 - Android の release APK は R8 縮小後も Firebase component registrar の no-arg constructor を保持する必要がある。`apps/android/app/proguard-rules.pro` の `-keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }` を維持し、削除しない。
+- Android の Google Play 提出物は `cd apps/android && just bundle-play` で生成する release AAB（`apps/android/app/build/outputs/bundle/release/app-release.aab`）を正とする。release upload key 署名は `LIGHTLIST_ANDROID_KEYSTORE` / `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` / `LIGHTLIST_ANDROID_KEY_ALIAS` / `LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡し、`versionCode` は Play Console にアップロード済みの値より大きくしてから生成する。
 - Android の認証フォームは Compose Autofill を有効にするため `ContentView.kt` の `OutlinedTextField` に `contentType` を必ず設定し、サインインは既存資格情報、サインアップ/パスワードリセットは新規資格情報として宣言する。
 - Android の未ログイン起動時の認証画面は、保存済み settings が無い場合に端末ロケールをサポート言語へ丸めて初回表示言語として使い、`Translations` は初回描画前にロード済みインスタンスを `CompositionLocal` へ渡して翻訳キーの生表示を避ける。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` に丸め、それ以外の未対応ロケールは `ja` にフォールバックする。
 - iOS の RTL 対応は `ContentView.swift` 内の `LightlistApp` で `.environment(\.layoutDirection, ...)` をルートに設定し、SwiftUI の自動反転に委ねる。再起動不要。
@@ -155,6 +156,7 @@
   - `just lint`
   - `just build`
   - `just build-release`
+  - `just bundle-play`
   - `just run`（通常は上書きインストールで Firebase Auth セッションを保持し、失敗時のみアンインストールして入れ直す）
   - `just run-clean`（明示的なクリーン再インストール用。アプリデータとログイン状態は消える）
 
@@ -166,6 +168,7 @@
 - CI による品質ゲートは設定しない。品質確認は変更があった app のローカル検証コマンド実行を正本とする。
 - Android の release build は `isMinifyEnabled = true` とし、`allowBackup = false` を維持する。App Check は Debug で debug provider、release で Play Integrity provider を使う。
 - Android の `just build-release` は debug keystore 署名の内部配布確認用 release APK（`apps/android/app/build/outputs/apk/release/app-release.apk`）を生成する。正式配布用 keystore 署名は別途用意する。
+- Android の `just bundle-play` は release upload key 署名なしでは失敗させ、Google Play 提出用 AAB を生成する。
 
 ## 作業完了チェック
 

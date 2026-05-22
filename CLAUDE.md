@@ -76,6 +76,7 @@
 - Web の本番 security headers は配信基盤側で管理する。
 - Android の release build は `isMinifyEnabled = true`、`allowBackup = false`、App Check は release で Play Integrity provider を使う。
 - Android の `just build-release` は debug keystore 署名の内部配布確認用 release APK（`apps/android/app/build/outputs/apk/release/app-release.apk`）を生成する。正式配布用 keystore 署名は別途用意する。
+- Android の Google Play 提出物は `cd apps/android && just bundle-play` で生成する release AAB（`apps/android/app/build/outputs/bundle/release/app-release.aab`）を正とする。release upload key 署名は `LIGHTLIST_ANDROID_KEYSTORE` / `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` / `LIGHTLIST_ANDROID_KEY_ALIAS` / `LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡し、`versionCode` は Play Console にアップロード済みの値より大きくしてから生成する。
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
 - `shared/locales/locales.json` は英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。
 - Web の翻訳資産は `shared/locales/locales.json` を `apps/web/scripts/sync-shared-locales.mjs` で `apps/web/src/locales.json` へ同期して使う。
@@ -112,7 +113,7 @@
 - Cloudflare Pages ローカル確認: `cd apps/web && npm run cf:preview`
 - Cloudflare Pages Direct Upload: `cd apps/web && npm run cf:deploy`
 - Web の本番 env は Vite の `.env.production` / `.env.production.local` または deploy 環境変数で供給し、build 前に `.env` をコピーしない。
-- Android: `cd apps/android && just lint` / `cd apps/android && just build` / `cd apps/android && just build-release`
+- Android: `cd apps/android && just lint` / `cd apps/android && just build` / `cd apps/android && just build-release` / `cd apps/android && just bundle-play`
 
 ## agentドキュメント更新
 

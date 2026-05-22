@@ -32,3 +32,13 @@
 - `404.html` は `apps/web/dist/404.html` を custom 404 として使う。
 - `500.html` は build 出力へ含めるが、Cloudflare Pages の static hosting が自動で custom 500 として扱う前提は置かない。
 - `_headers` は static asset response にのみ適用され、Pages Functions を追加した場合は Function 側で header を返す。
+
+## Android Google Play 配信
+
+- Google Play 提出物は Android App Bundle（AAB）を正とし、`cd apps/android && just bundle-play` で生成する。
+- 生成物は `apps/android/app/build/outputs/bundle/release/app-release.aab`。
+- `just bundle-play` は release upload key 署名を必須とし、`LIGHTLIST_ANDROID_KEYSTORE`、`LIGHTLIST_ANDROID_KEYSTORE_PASSWORD`、`LIGHTLIST_ANDROID_KEY_ALIAS`、`LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡す。
+- `versionCode` は Play Console へアップロード済みの値より大きい整数へ更新してから AAB を生成する。
+- Android の `applicationId` は `com.lightlist.app`、release Firebase 設定は `apps/android/app/src/release/google-services.json` を使う。
+- release build は R8 縮小を有効化し、App Check は Play Integrity provider を使う。
+- Play Console では Play App Signing を有効化し、内部テスト track で確認してから production へ段階的に公開する。

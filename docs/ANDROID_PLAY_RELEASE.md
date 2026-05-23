@@ -25,10 +25,12 @@
 ### 1. Play Console の初期設定
 
 - Google Play Developer account を用意する。
+- developer identity / contact information の確認を完了し、公開後も正確な状態で維持する。
 - Play Console で新規アプリを作成する。
 - package name は `com.lightlist.app` にする。
 - アプリ名、既定言語、アプリ/ゲーム区分、無料/有料を決める。
 - 無料公開で開始する場合は、後からダウンロード有料にはできないことを確認してから進める。
+- 新規個人デベロッパーアカウントの場合は、production access 申請前に closed testing で 12 人以上の tester が 14 日間連続 opt-in している必要がある。
 
 ### 2. Play App Signing
 
@@ -55,6 +57,13 @@ just bundle-play
 - release 用 `google-services.json` を Firebase から取得し、`apps/android/app/src/release/google-services.json` に置く。
 - release 用 `google-services.json` の package name が `com.lightlist.app` であることを確認する。
 
+### 3.5. App Links / deep links
+
+- `https://lightlist.com/sharecodes/CODE` と `https://lightlist.com/password_reset?oobCode=...` を Android release build で確認する。
+- Android App Links の自動検証を有効にする場合は、`https://lightlist.com/.well-known/assetlinks.json` を配置する。
+- `assetlinks.json` には `com.lightlist.app` と Play App Signing の SHA-256 certificate fingerprint を設定する。
+- `lightlist://password-reset?oobCode=...` と `lightlist://sharecodes/CODE` の custom scheme も確認する。
+
 ### 4. Store listing
 
 - アプリ名を確定する。
@@ -71,12 +80,17 @@ just bundle-play
 
 - Data safety を入力する。
 - Privacy policy を入力する。
+- Privacy Policy は公開URLで提供し、PDFではなく、地域制限やログイン必須にしない。
+- Privacy Policy には Google Play store listing に表示する developer / company / app name と整合する主体名を記載する。
 - App access を入力する。
 - Ads は現状なしとして入力する。
 - Content rating questionnaire を完了する。
 - Target audience を入力する。
 - News apps / Government apps / Financial features など該当有無を確認する。
-- Account deletion / data deletion の要件を確認し、必要な URL やアプリ内導線を用意する。
+- Account deletion / data deletion を入力する。
+- Lightlist はアプリ内でアカウント作成できるため、アプリ内の削除導線に加えて、アプリ外からアカウント削除をリクエストできるWeb URLを用意し、Play Console の Data safety form に入力する。
+- アカウント削除Web URLはアプリ名または developer 名に紐づくページとし、削除依頼導線を明確に表示する。
+- 将来サブスクリプションを導入する場合、削除前にサブスクリプション解約が必要なら、その手順を削除WebページとPrivacy Policyに明記する。
 
 ### 6. Release build
 
@@ -98,6 +112,7 @@ just bundle-play
 ### 7. Test track
 
 - 最初は internal testing track に AAB をアップロードする。
+- 新規個人デベロッパーアカウントで production access が未解放の場合は、closed testing で 12 人以上の tester に 14 日間連続 opt-in してもらってから production access を申請する。
 - Firebase Auth、Firestore、App Check、Crashlytics、Analytics の動作を確認する。
 - deep link を確認する。
   - `lightlist://password-reset?oobCode=...`
@@ -122,6 +137,7 @@ just bundle-play
 - 無料アプリからダウンロード有料アプリへの変更: 不可。
 - `versionCode`: 一度アップロードした値は再利用不可。
 - サブスクリプション / アプリ内商品の product ID: 作成後に変更・再利用不可。
+- developer account の国や支払い profile 周り: 変更に制約や再確認が入るため、公開主体と住所・連絡先は最初に確認する。
 - Privacy Policy / Data safety: 変更可能だが、実装と申告がズレると審査リスクが高い。
 - アプリ名・ストア文言: 変更可能だが、審査・検索・ブランドへの影響がある。
 
@@ -135,3 +151,6 @@ just bundle-play
 - Google Play Billing: https://developer.android.com/google/play/billing
 - In-app product catalog: https://support.google.com/googleplay/android-developer/answer/14590082
 - Data safety: https://support.google.com/googleplay/android-developer/answer/10787469
+- App account deletion requirements: https://support.google.com/googleplay/android-developer/answer/13327111
+- App testing requirements for new personal developer accounts: https://support.google.com/googleplay/android-developer/answer/14151465
+- User Data policy: https://support.google.com/googleplay/android-developer/answer/10144311

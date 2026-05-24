@@ -16,6 +16,9 @@ native:
 web:
   cd apps/web && npm run dev
 
+screenshots target='all':
+  cd apps/web && npm run screenshots:generate -- {{target}}
+
 run-all:
   just android
   just ios

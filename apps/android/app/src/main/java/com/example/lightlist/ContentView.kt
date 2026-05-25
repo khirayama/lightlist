@@ -1558,13 +1558,16 @@ private suspend fun addSharedTaskListToOrder(taskListId: String) {
 
     val taskListSnap = taskListRef.get().await()
     if (!taskListSnap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
-    val currentMemberCount = (taskListSnap.data?.get("memberCount") as? Number)?.toInt() ?: 1
 
     db.batch().apply {
-        update(taskListOrderRef, mapOf(
-            taskListId to mapOf("order" to newOrder),
-            "updatedAt" to FieldValue.serverTimestamp()
-        ))
+        set(
+            taskListOrderRef,
+            mapOf(
+                taskListId to mapOf("order" to newOrder),
+                "updatedAt" to FieldValue.serverTimestamp()
+            ),
+            SetOptions.merge()
+        )
         update(taskListRef, mapOf(
             "memberCount" to FieldValue.increment(1),
             "updatedAt" to FieldValue.serverTimestamp()

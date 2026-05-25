@@ -2466,7 +2466,7 @@ export async function addSharedTaskListToOrder(taskListId: string) {
     getDoc(taskListRef),
     getDoc(taskListOrderRef),
   ]);
-  const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
+  assertTaskListStore(taskListSnapshot.data(), taskListId);
   const taskListOrder = taskListOrderSnapshot.exists()
     ? assertTaskListOrderStore(taskListOrderSnapshot.data(), uid)
     : null;
@@ -2492,7 +2492,7 @@ export async function addSharedTaskListToOrder(taskListId: string) {
     { merge: true },
   );
   batch.update(taskListRef, {
-    memberCount: getValidMemberCount(taskList) + 1,
+    memberCount: increment(1),
     updatedAt: now,
   });
   await batch.commit();

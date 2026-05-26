@@ -31,7 +31,7 @@
 
 - Web は `taskListOrder/{uid}` を購読して対象 `taskListId` を解決する。
 - 対象 `taskLists` は 10 件ずつ chunk に分けて購読する。
-- 共有ページは `subscribeToSharedTaskList(taskListId)` で個別購読する。
+- 共有ページや未保持リストの詳細表示は、対象 `taskLists/{taskListId}` を個別購読する。
 - iOS / Android も `taskListOrder` と `taskLists` を別購読し、順序付きリストを組み立てる。
 - Web / iOS / Android の UI 更新系は、listener の反映より先に画面上の編集結果を捨てない。task 本文編集の blur、task 並び替え、taskList 並び替え、日付変更、ピン切り替え、完了切り替えは、Firestore snapshot が同じ内容へ追いつくまで local pending state を優先表示する。
 - Web / iOS / Android の task 更新 UI は、`現在表示中 task 群 -> 正規化済み next task 群 -> local pending 表示 -> taskListId 単位 queue 経由の保存` の順で処理する。
@@ -77,7 +77,7 @@
 - `deleteTaskList()` は事前 read 後の batch write で次を行う。
   - 自分の `taskListOrder` から対象を外す。
   - `memberCount` を 1 減らす。
-  - `memberCount` が 0 以下になる場合だけ `taskLists` 実体を削除する。
+  - 現在の `memberCount` が 1 以下の場合だけ `taskLists` 実体を削除する。
   - 現在の `shareCode` があれば `shareCodes/{code}` も削除する。
   - `taskListOrder` ドキュメント自体は空になっても削除せず、対象 field の削除だけを行う。
 
@@ -146,7 +146,7 @@
 ## すること
 
 - タスクリスト仕様を変える時は `taskListOrder` と `taskLists` を別管理する前提を崩さない。
-- 削除仕様は「一覧から外す」を基本にし、`memberCount` が 0 になった時だけ実体削除する。
+- 削除仕様は「一覧から外す」を基本にし、現在の `memberCount` が 1 以下の場合だけ実体削除する。
 - `autoSort` 有効時は Web / iOS / Android で `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内の `date -> order` を揃える。
 - 背景色は選択中タスクリスト詳細の背景として扱い、一覧ペインや split 境界線へ広げない。
 

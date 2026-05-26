@@ -2,7 +2,7 @@
 
 ## 実装配置
 
-- Web は `apps/web/src/lib/analytics.ts` に集約する。
+- Web は `apps/web/src/entry.tsx` に集約する。
 - iOS は `apps/ios/Lightlist/Sources/ContentView.swift` に集約する。
 - Android は `apps/android/app/src/main/java/com/example/lightlist/ContentView.kt` に集約する。
 - 3 実装ともイベント名と主要パラメータは揃える。
@@ -23,7 +23,7 @@
 - Web の `logException(description, fatal)` は `app_exception` を送信する。
 - iOS / Android の `logException(description, fatal)` は `app_exception` を送信し、あわせて Crashlytics に記録する。
 - iOS は `ContentView.swift` 内の `LightlistApp` で未捕捉例外ハンドラを設定する。
-- Android は `MainActivity.kt` で `Thread.setDefaultUncaughtExceptionHandler` を設定する。
+- Android は `ContentView.kt` 内の `MainActivity` で `Thread.setDefaultUncaughtExceptionHandler` を設定する。
 
 ## イベント一覧
 

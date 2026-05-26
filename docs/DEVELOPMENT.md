@@ -32,7 +32,6 @@
 ## 主要パス
 
 - `apps/web`
-- `apps/web/src/lib`
 - `apps/ios/Lightlist/Sources`
 - `apps/android/app/src/main/java/com/example/lightlist`
 - `docs`

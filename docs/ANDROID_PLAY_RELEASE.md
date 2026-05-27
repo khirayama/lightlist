@@ -7,7 +7,7 @@
 - Google Play に出す `applicationId` / package name は `com.lightlist.app` を正とする。
 - `com.lightlist.app` は reverse DNS 形式で、ブランド名と公開アプリ用途が明確なため適切。
 - 公開後の package name は実質変更不可。別 package name にしたい場合は、別アプリとして新規作成する前提になる。
-- Firebase Android app、Play Console、App Check、deep link / app link の設定は `com.lightlist.app` に揃える。
+- Firebase Android app、Play Console、deep link / app link の設定は `com.lightlist.app` に揃える。
 - Android Gradle の `namespace = "com.example.lightlist"` は Kotlin/R class 用の namespace で、公開 package name は `applicationId = "com.lightlist.app"` が正本。
 
 ### 無料 / 有料
@@ -53,7 +53,6 @@ just bundle-play
 - Firebase Android app の package name が `com.lightlist.app` であることを確認する。
 - Play App Signing の app signing certificate fingerprint を Firebase Android app に追加する。
 - 必要に応じて upload certificate fingerprint も Firebase Android app に追加する。
-- App Check の Play Integrity provider が release app 用に設定されていることを確認する。
 - release 用 `google-services.json` を Firebase から取得し、`apps/android/app/src/release/google-services.json` に置く。
 - release 用 `google-services.json` の package name が `com.lightlist.app` であることを確認する。
 
@@ -113,7 +112,7 @@ just bundle-play
 
 - 最初は internal testing track に AAB をアップロードする。
 - 新規個人デベロッパーアカウントで production access が未解放の場合は、closed testing で 12 人以上の tester に 14 日間連続 opt-in してもらってから production access を申請する。
-- Firebase Auth、Firestore、App Check、Crashlytics、Analytics の動作を確認する。
+- Firebase Auth、Firestore、Crashlytics、Analytics の動作を確認する。
 - deep link を確認する。
   - `lightlist://password-reset?oobCode=...`
   - `lightlist://sharecodes/CODE`

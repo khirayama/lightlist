@@ -38,7 +38,7 @@
 
 ## Web の前提
 
-- Firebase 初期化、App Check 初期化、i18n、認証・設定・タスクリスト関連の Web runtime 実装は `apps/web/src/entry.tsx` に集約する。
+- Firebase 初期化、i18n、認証・設定・タスクリスト関連の Web runtime 実装は `apps/web/src/entry.tsx` に集約する。
 - Web の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` を正とし、Auth / settings / taskLists は `Context + useEffect` で購読する。
 - Web UI から `firebase/*` を直接 import せず、共通実装は `apps/web/src/entry.tsx` に集約する。
 - Web の Vite root は `apps/web/html` とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。

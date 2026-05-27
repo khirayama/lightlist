@@ -40,5 +40,5 @@
 - `just bundle-play` は release upload key 署名を必須とし、`LIGHTLIST_ANDROID_KEYSTORE`、`LIGHTLIST_ANDROID_KEYSTORE_PASSWORD`、`LIGHTLIST_ANDROID_KEY_ALIAS`、`LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡す。
 - `versionCode` は Play Console へアップロード済みの値より大きい整数へ更新してから AAB を生成する。
 - Android の `applicationId` は `com.lightlist.app`、release Firebase 設定は `apps/android/app/src/release/google-services.json` を使う。
-- release build は R8 縮小を有効化し、App Check は Play Integrity provider を使う。
+- release build は R8 縮小を有効化する。
 - Play Console では Play App Signing を有効化し、内部テスト track で確認してから production へ段階的に公開する。

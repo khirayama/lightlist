@@ -44,13 +44,8 @@ import {
 } from "react-i18next";
 import type { WithTranslation } from "react-i18next";
 import { getApps, initializeApp } from "firebase/app";
-import type { FirebaseApp } from "firebase/app";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import type { Analytics } from "firebase/analytics";
-import {
-  ReCaptchaEnterpriseProvider,
-  initializeAppCheck,
-} from "firebase/app-check";
 import {
   ActionCodeSettings,
   confirmPasswordReset as firebaseConfirmPasswordReset,
@@ -280,7 +275,6 @@ type AppState = {
 
 let cachedAuth: Auth | null = null;
 let cachedDb: Firestore | null = null;
-let appCheckInitialized = false;
 
 const getApp = () =>
   getApps().length === 0
@@ -294,42 +288,12 @@ const getApp = () =>
       })
     : getApps()[0];
 
-const isLocalhost = (hostname: string) =>
-  hostname === "localhost" || hostname === "127.0.0.1";
-
-const ensureAppCheckInitialized = (app: FirebaseApp) => {
-  if (appCheckInitialized || typeof window === "undefined") {
-    return;
-  }
-
-  const siteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
-  if (!siteKey) {
-    return;
-  }
-
-  if (isLocalhost(window.location.hostname)) {
-    (
-      globalThis as typeof globalThis & {
-        FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string;
-      }
-    ).FIREBASE_APPCHECK_DEBUG_TOKEN =
-      import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN ?? true;
-  }
-
-  initializeAppCheck(app, {
-    provider: new ReCaptchaEnterpriseProvider(siteKey),
-    isTokenAutoRefreshEnabled: true,
-  });
-  appCheckInitialized = true;
-};
-
 const getAuthInstance = (): Auth => {
   if (cachedAuth) {
     return cachedAuth;
   }
 
   const app = getApp();
-  ensureAppCheckInitialized(app);
   cachedAuth = getAuth(app);
   return cachedAuth;
 };
@@ -340,7 +304,6 @@ const getDbInstance = (): Firestore => {
   }
 
   const app = getApp();
-  ensureAppCheckInitialized(app);
   cachedDb = initializeFirestore(app, {
     localCache: persistentLocalCache({
       tabManager: persistentMultipleTabManager(),
@@ -545,6 +508,8 @@ type PasswordFormData = {
   password: string;
   confirmPassword: string;
 };
+
+const AUTH_SIGN_IN_TIMEOUT_MS = 10_000;
 
 type EmailChangeFormData = {
   newEmail: string;
@@ -1618,7 +1583,24 @@ export async function signUp(
 }
 
 export async function signIn(email: string, password: string) {
-  await signInWithEmailAndPassword(getAuthInstance(), email, password);
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      logException("Web sign in timed out", false);
+      reject(new Error("auth-timeout"));
+    }, AUTH_SIGN_IN_TIMEOUT_MS);
+  });
+
+  try {
+    await Promise.race([
+      signInWithEmailAndPassword(getAuthInstance(), email, password),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 async function signOut() {

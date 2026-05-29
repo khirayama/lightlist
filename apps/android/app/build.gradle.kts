@@ -134,8 +134,6 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
     implementation("com.google.android.gms:play-services-oss-licenses:17.5.1")
-    implementation(libs.firebase.appcheck.debug)
-    implementation(libs.firebase.appcheck.playintegrity)
     implementation(libs.kotlinx.coroutines.play.services)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

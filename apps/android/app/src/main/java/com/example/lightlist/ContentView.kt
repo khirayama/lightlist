@@ -150,7 +150,9 @@ import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.focus.FocusManager
@@ -200,9 +202,6 @@ import com.google.android.gms.oss.licenses.v2.OssLicensesMenuActivity
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
 import com.google.firebase.FirebaseApp
-import com.google.firebase.appcheck.appCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
-import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import java.text.DateFormatSymbols
 
@@ -500,13 +499,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         FirebaseApp.initializeApp(this)
-        Firebase.appCheck.installAppCheckProviderFactory(
-            if (BuildConfig.DEBUG) {
-                DebugAppCheckProviderFactory.getInstance()
-            } else {
-                PlayIntegrityAppCheckProviderFactory.getInstance()
-            }
-        )
 
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
@@ -2052,6 +2044,7 @@ private fun AuthView(
 @Composable
 private fun SignInView(onShowReset: () -> Unit) {
     val t = LocalTranslations.current
+    val scope = rememberCoroutineScope()
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
@@ -2111,15 +2104,21 @@ private fun SignInView(onShowReset: () -> Unit) {
             }
             isLoading = true
             errorMessage = null
-            Firebase.auth.signInWithEmailAndPassword(email.trim(), password)
-                .addOnSuccessListener {
-                    isLoading = false
+            scope.launch {
+                try {
+                    withTimeout(10_000) {
+                        Firebase.auth.signInWithEmailAndPassword(email.trim(), password).await()
+                    }
                     logLogin()
-                }
-                .addOnFailureListener { e ->
-                    isLoading = false
+                } catch (e: TimeoutCancellationException) {
+                    logException("Android sign in timed out", fatal = false)
+                    errorMessage = t.t("auth.error.general")
+                } catch (e: Exception) {
                     errorMessage = resolveAuthErrorMessage(t, e)
+                } finally {
+                    isLoading = false
                 }
+            }
         },
         enabled = !isLoading,
         modifier = Modifier.fillMaxWidth()

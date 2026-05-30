@@ -65,6 +65,8 @@ import {
   deleteField,
   doc,
   getDoc,
+  getDocFromCache,
+  getDocsFromCache,
   initializeFirestore,
   onSnapshot,
   persistentLocalCache,
@@ -81,6 +83,7 @@ import type {
   DocumentData,
   Firestore,
   FirestoreError,
+  QuerySnapshot,
 } from "firebase/firestore";
 import { Drawer as DrawerPrimitive } from "vaul";
 import { Command as CommandPrimitive } from "cmdk";
@@ -1189,14 +1192,34 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let hasLiveSnapshot = false;
+    let isSubscribed = true;
+    const settingsRef = doc(getDbInstance(), "settings", session.user.uid);
+
     setSettingsState((current) => ({
       settings: current.settings,
       settingsStatus: "loading",
     }));
 
-    return onSnapshot(
-      doc(getDbInstance(), "settings", session.user.uid),
+    void getDocFromCache(settingsRef)
+      .then((snapshot) => {
+        if (!isSubscribed || hasLiveSnapshot) {
+          return;
+        }
+        const settingsStore = snapshot.exists()
+          ? (snapshot.data() as SettingsStore)
+          : null;
+        setSettingsState({
+          settings: mapSettingsStore(settingsStore),
+          settingsStatus: "ready",
+        });
+      })
+      .catch(() => {});
+
+    const unsubscribe = onSnapshot(
+      settingsRef,
       (snapshot) => {
+        hasLiveSnapshot = true;
         const settingsStore = snapshot.exists()
           ? (snapshot.data() as SettingsStore)
           : null;
@@ -1206,12 +1229,18 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         });
       },
       () => {
+        hasLiveSnapshot = true;
         setSettingsState({
           settings: null,
           settingsStatus: "error",
         });
       },
     );
+
+    return () => {
+      isSubscribed = false;
+      unsubscribe();
+    };
   }, [session.authStatus, session.user]);
 
   useEffect(() => {
@@ -1220,11 +1249,35 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let hasLiveSnapshot = false;
+    let isSubscribed = true;
+    const taskListOrderRef = doc(
+      getDbInstance(),
+      "taskListOrder",
+      session.user.uid,
+    );
+
     dispatchTaskLists({ type: "reset", taskListOrderStatus: "loading" });
 
-    return onSnapshot(
-      doc(getDbInstance(), "taskListOrder", session.user.uid),
+    void getDocFromCache(taskListOrderRef)
+      .then((snapshot) => {
+        if (!isSubscribed || hasLiveSnapshot) {
+          return;
+        }
+        dispatchTaskLists({
+          type: "setTaskListOrder",
+          taskListOrder: snapshot.exists()
+            ? (snapshot.data() as TaskListOrderStore)
+            : null,
+          taskListOrderStatus: "ready",
+        });
+      })
+      .catch(() => {});
+
+    const unsubscribe = onSnapshot(
+      taskListOrderRef,
       (snapshot) => {
+        hasLiveSnapshot = true;
         dispatchTaskLists({
           type: "setTaskListOrder",
           taskListOrder: snapshot.exists()
@@ -1234,6 +1287,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         });
       },
       () => {
+        hasLiveSnapshot = true;
         dispatchTaskLists({
           type: "setTaskListOrder",
           taskListOrder: null,
@@ -1241,6 +1295,11 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         });
       },
     );
+
+    return () => {
+      isSubscribed = false;
+      unsubscribe();
+    };
   }, [session.authStatus, session.user]);
 
   const orderedTaskListIds = useMemo(
@@ -1266,23 +1325,46 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const unsubscribers = getTaskListIdChunks(orderedTaskListIds).map((chunk) =>
-      onSnapshot(
+    let isSubscribed = true;
+    const liveSnapshotIndexes = new Set<number>();
+    const taskListQueries = getTaskListIdChunks(orderedTaskListIds).map(
+      (chunk) =>
         query(
           collection(getDbInstance(), "taskLists"),
           where("__name__", "in", chunk),
         ),
-        (snapshot) => {
-          const changes = snapshot.docChanges();
-          if (changes.length === 0) {
+    );
+    const applyTaskListSnapshot = (snapshot: QuerySnapshot<DocumentData>) => {
+      const changes = snapshot.docChanges();
+      if (changes.length === 0) {
+        return;
+      }
+      dispatchTaskLists({
+        type: "applyTaskListDocChanges",
+        changes,
+      });
+    };
+
+    taskListQueries.forEach((taskListQuery, index) => {
+      void getDocsFromCache(taskListQuery)
+        .then((snapshot) => {
+          if (!isSubscribed || liveSnapshotIndexes.has(index)) {
             return;
           }
-          dispatchTaskLists({
-            type: "applyTaskListDocChanges",
-            changes,
-          });
+          applyTaskListSnapshot(snapshot);
+        })
+        .catch(() => {});
+    });
+
+    const unsubscribers = taskListQueries.map((taskListQuery, index) =>
+      onSnapshot(
+        taskListQuery,
+        (snapshot) => {
+          liveSnapshotIndexes.add(index);
+          applyTaskListSnapshot(snapshot);
         },
         (error: FirestoreError) => {
+          liveSnapshotIndexes.add(index);
           console.error("taskList chunk listener error:", error);
           dispatchTaskLists({
             type: "setTaskListOrderStatus",
@@ -1293,6 +1375,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     );
 
     return () => {
+      isSubscribed = false;
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [

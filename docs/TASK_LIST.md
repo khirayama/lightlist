@@ -31,6 +31,7 @@
 
 - Web は `taskListOrder/{uid}` を購読して対象 `taskListId` を解決する。
 - 対象 `taskLists` は 10 件ずつ chunk に分けて購読する。
+- Web は Firestore SDK の IndexedDB 永続キャッシュを使い、認証後の `settings/{uid}`、`taskListOrder/{uid}`、対象 `taskLists` を cache から先に hydrate してから通常購読で正本へ追従する。アプリ独自の起動用キャッシュは持たない。
 - 共有ページや未保持リストの詳細表示は、対象 `taskLists/{taskListId}` を個別購読する。
 - iOS / Android も `taskListOrder` と `taskLists` を別購読し、順序付きリストを組み立てる。
 - Web / iOS / Android の UI 更新系は、listener の反映より先に画面上の編集結果を捨てない。task 本文編集の blur、task 並び替え、taskList 並び替え、日付変更、ピン切り替え、完了切り替えは、Firestore snapshot が同じ内容へ追いつくまで local pending state を優先表示する。

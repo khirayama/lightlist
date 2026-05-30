@@ -1797,8 +1797,6 @@ const getRelativePatterns = (language: Language): DatePattern[] => {
   }));
 };
 
-// LOCALIZED_PIN_PREFIXES removed
-
 const GLOBAL_PIN_PREFIXES = ["pin", "pinned"] as const;
 
 const escapeRegex = (value: string): string =>

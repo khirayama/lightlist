@@ -174,6 +174,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.Date
 import java.util.TimeZone
+import java.security.SecureRandom
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalDensity
@@ -208,6 +209,7 @@ import java.text.DateFormatSymbols
 import org.json.JSONObject
 
 private const val COMPLETED_TASK_ALPHA = 0.64f
+private val shareCodeRandom = SecureRandom()
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFD0BCFF),
@@ -1478,46 +1480,50 @@ private fun parseTasks(rawTasks: Map<*, *>): List<TaskSummary> {
     }.sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
 }
 
+private fun generateRandomShareCode(): String {
+    val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    return (1..8)
+        .map { chars[shareCodeRandom.nextInt(chars.length)] }
+        .joinToString("")
+}
+
 private suspend fun generateShareCode(taskListId: String): String {
     val db = Firebase.firestore
-    val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    repeat(10) {
-        val code = (1..8).map { chars.random() }.joinToString("")
-        val result = db.runTransaction { transaction ->
-            val shareCodeRef = db.collection("shareCodes").document(code)
-            val shareCodeSnap = transaction.get(shareCodeRef)
-            if (shareCodeSnap.exists()) return@runTransaction null
+    var attempts = 0
+    while (attempts < 10) {
+        attempts += 1
+        val code = generateRandomShareCode()
+        val shareCodeRef = db.collection("shareCodes").document(code)
+        val shareCodeSnap = shareCodeRef.get().await()
+        if (shareCodeSnap.exists()) continue
 
-            val taskListRef = db.collection("taskLists").document(taskListId)
-            val taskListSnap = transaction.get(taskListRef)
-            if (!taskListSnap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
+        val taskListRef = db.collection("taskLists").document(taskListId)
+        val taskListSnap = taskListRef.get().await()
+        if (!taskListSnap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
 
-            val currentShareCode = taskListSnap.getString("shareCode")
-            if (currentShareCode != null) {
-                transaction.delete(db.collection("shareCodes").document(currentShareCode))
-            }
-
-            transaction.set(shareCodeRef, mapOf("taskListId" to taskListId, "createdAt" to FieldValue.serverTimestamp()))
-            transaction.update(taskListRef, mapOf("shareCode" to code, "updatedAt" to FieldValue.serverTimestamp()))
-            code
-        }.await()
-        if (result != null) return result
+        val batch = db.batch()
+        val currentShareCode = taskListSnap.getString("shareCode")
+        if (currentShareCode != null) {
+            batch.delete(db.collection("shareCodes").document(currentShareCode))
+        }
+        batch.set(shareCodeRef, mapOf("taskListId" to taskListId, "createdAt" to FieldValue.serverTimestamp()))
+        batch.update(taskListRef, mapOf("shareCode" to code, "updatedAt" to FieldValue.serverTimestamp()))
+        batch.commit().await()
+        return code
     }
     throw Exception(SHARE_CODE_GENERATION_FAILED_ERROR)
 }
 
 private suspend fun removeShareCode(taskListId: String) {
     val db = Firebase.firestore
-    db.runTransaction { transaction ->
-        val taskListRef = db.collection("taskLists").document(taskListId)
-        val snap = transaction.get(taskListRef)
-        if (!snap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
-        val currentShareCode = snap.getString("shareCode")
-        if (currentShareCode != null) {
-            transaction.delete(db.collection("shareCodes").document(currentShareCode))
-        }
-        transaction.update(taskListRef, mapOf("shareCode" to null, "updatedAt" to FieldValue.serverTimestamp()))
-    }.await()
+    val taskListRef = db.collection("taskLists").document(taskListId)
+    val snap = taskListRef.get().await()
+    if (!snap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
+    val currentShareCode = snap.getString("shareCode") ?: return
+    val batch = db.batch()
+    batch.delete(db.collection("shareCodes").document(currentShareCode))
+    batch.update(taskListRef, mapOf("shareCode" to null, "updatedAt" to FieldValue.serverTimestamp()))
+    batch.commit().await()
 }
 
 private suspend fun fetchTaskListIdByShareCode(shareCode: String): String? {
@@ -4386,7 +4392,6 @@ private fun TaskListDetailContent(
         logTaskAdd(hasDate = !parsed.date.isNullOrEmpty())
         newTaskText = ""
         val taskId = java.util.UUID.randomUUID().toString()
-        // now variable removed
         val tasks = taskList.tasks
         val order = if (taskInsertPosition == "top")
             (tasks.firstOrNull()?.order ?: 1.0) - 1.0

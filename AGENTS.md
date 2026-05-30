@@ -8,7 +8,7 @@
 - コメント追加は不要。テスト追加は不要。後方互換性は考慮不要。
 - 変更後は `docs/` を実装に合わせて更新し、進捗報告ではなく仕様として記述する。
 - `docs/` は内部コンポーネント一覧や import 構成の重複管理を避け、ドメイン仕様・必須設定・運用上の制約に絞る。
-- agent 向けドキュメント（`AGENTS.md` / `CLAUDE.md` / `GEMINI.md`）は作業で得た恒久的な知見を蓄積する場所として扱い、完了時に必要な更新があれば行う。
+- agent 向けドキュメント（`AGENTS.md` / `CLAUDE.md`）は作業で得た恒久的な知見を蓄積する場所として扱い、完了時に必要な更新があれば行う。
 
 ## 実装スタンス
 
@@ -20,7 +20,7 @@
 
 ## Agentドキュメント運用
 
-- `AGENTS.md` を運用ルールの正本とし、`CLAUDE.md` / `GEMINI.md` は要点を揃えて整合させる。
+- `AGENTS.md` を運用ルールの正本とし、`CLAUDE.md` は要点を揃えて整合させる。
 - 作業完了時に、今回の変更で再利用価値のある恒久ルール・手順・コマンド・構成差分が増えた場合は、agent ドキュメントを更新する。
 - 一時的な調査メモ、進捗報告、タスク固有の事情は agent ドキュメントに書かない。
 - 更新判断に迷う場合は「次回以降の別タスクでも参照価値があるか」で判断する。
@@ -109,6 +109,7 @@
 - タスクリストは `taskLists.memberCount` で保持ユーザー数を管理し、削除操作は「`taskListOrder` から外す」を基本とする。現在の `memberCount` が 1 以下の場合のみ `taskLists` 実体を削除する。
 - 共有権限モデルは「共有URLを知っているユーザーは未認証でも閲覧・編集可」を仕様として固定する。production readiness 評価で挙がった認可モデル再設計（item1）は 2026-03 時点で対応不要とする。
 - 共有コードは bearer credential として扱い、有効な共有コード保有者は未認証でも `taskLists` の `name` `tasks` `history` `background` `shareCode` を更新できる。
+- 共有コード生成は 8 文字の英大文字・数字を暗号学的乱数で作る。Web は `crypto.getRandomValues`、iOS は `SecRandomCopyBytes`、Android は `SecureRandom` を使い、生成・削除は事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。
 - `taskListOrder/{uid}` は本人が任意の `taskListId` を追加でき、その追加自体を共有済み・参加済みリストの保持権限付与として扱う。
 - パスワードリセットURLは `VITE_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
@@ -175,7 +176,7 @@
 
 1. 変更内容を見直し、無駄な変数・関数・分割がないことを確認する。
 2. `docs/` を実装に合わせて更新し、仕様として記述する。
-3. agent 向けドキュメント（`AGENTS.md` / `CLAUDE.md` / `GEMINI.md`）に恒久的な知見の追記・修正が必要か確認し、必要なら更新する。
+3. agent 向けドキュメント（`AGENTS.md` / `CLAUDE.md`）に恒久的な知見の追記・修正が必要か確認し、必要なら更新する。
 4. 変更があった app ごとに検証を実行する。`apps/web` は `npm scripts`、`apps/ios` / `apps/android` は `Justfile` を正本として扱う。
 5. `apps/web` を変更した場合は `cd apps/web && npm run format && npm run lint && npm run build && npm run typecheck` を実行する。
 6. `apps/ios` を変更した場合は `cd apps/ios && just build && just build-release` を実行する。現状 iOS 専用の `lint` / `format` は未設定のため要求しない。

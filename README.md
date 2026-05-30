@@ -6,11 +6,11 @@
 
 | パス | 説明 |
 |---|---|
-| `apps/web` | Next.js（Pages Router）+ Tailwind |
-| `apps/ios` | SwiftUI（iOS 16+） |
+| `apps/web` | Vite multi-page app + React + TypeScript + Tailwind |
+| `apps/ios` | SwiftUI（iOS 17+） |
 | `apps/android` | Kotlin + Gradle |
 
-SDK（Firebase Auth / Firestore 共通ロジック）は `apps/web/src/lib/` に統合。
+Web の Firebase Auth / Firestore 実装は `apps/web/src/entry.tsx` に統合。
 
 ## 前提
 
@@ -21,6 +21,7 @@ SDK（Firebase Auth / Firestore 共通ロジック）は `apps/web/src/lib/` に
 ## セットアップ
 
 ```bash
+cd apps/web
 npm install
 ```
 
@@ -29,13 +30,13 @@ npm install
 **`apps/web/.env.local`**
 
 ```
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
-NEXT_PUBLIC_PASSWORD_RESET_URL=https://your-domain.com/password_reset
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+VITE_PASSWORD_RESET_URL=https://your-domain.com/password_reset
 ```
 
 ## 開発

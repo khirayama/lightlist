@@ -117,9 +117,10 @@
 
 ## 共有
 
-- `generateShareCode()` は 8 文字の英数字大文字コードを生成する。
+- `generateShareCode()` は 8 文字の英数字大文字コードを暗号学的乱数で生成する。Web は `crypto.getRandomValues`、iOS は `SecRandomCopyBytes`、Android は `SecureRandom` を使う。
 - 既存共有コードがあれば削除してから新しいコードへ置き換える。
 - `removeShareCode()` は `taskLists.shareCode` を `null` に戻し、対応する `shareCodes` ドキュメントを削除する。
+- 共有コードの生成・削除は transaction ではなく、事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。
 - `fetchTaskListIdByShareCode()` は共有コードから `taskListId` を解決する。
 - `addSharedTaskListToOrder()` は事前 read 後の batch write で次を行う。
   - 自分の `taskListOrder` に末尾追加する。

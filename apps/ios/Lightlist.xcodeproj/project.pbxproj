@@ -12,7 +12,6 @@
 		178E6DEBCEC4A72419C5ADCA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 03E96005FE689A03AE608611 /* Assets.xcassets */; };
 		2802D4B40E4EF5A424DDCBE5 /* LightlistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C4AFDF92886FBDFA0EAB45 /* LightlistTests.swift */; };
 		4CA7C737938F6922C9F7C029 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 5D2FC049671012454C273F85 /* FirebaseCrashlytics */; };
-		752231066BD951B04BCD7AE0 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 85C2E8D19C38E5EC9E466233 /* FirebaseAppCheck */; };
 		89CB2AA3EC79089749AE0FDC /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */; };
 		940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */; };
 		AC435305172D0AB359635835 /* GenInterfaceJP-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F069413852FDD95B929B55BB /* GenInterfaceJP-Medium.ttf */; };
@@ -64,7 +63,6 @@
 				89CB2AA3EC79089749AE0FDC /* FirebaseFirestore in Frameworks */,
 				009B6DF98373EA0744FD450F /* FirebaseAnalytics in Frameworks */,
 				4CA7C737938F6922C9F7C029 /* FirebaseCrashlytics in Frameworks */,
-				752231066BD951B04BCD7AE0 /* FirebaseAppCheck in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -195,7 +193,6 @@
 				6C91E5B349EBA31BE07C2EAE /* FirebaseFirestore */,
 				5C5DD32924B56E34AB5F034C /* FirebaseAnalytics */,
 				5D2FC049671012454C273F85 /* FirebaseCrashlytics */,
-				85C2E8D19C38E5EC9E466233 /* FirebaseAppCheck */,
 			);
 			productName = Lightlist;
 			productReference = B655550126664DF5B14E98D0 /* Lightlist.app */;
@@ -382,7 +379,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
 				FIREBASE_PLIST_SOURCE = "$(SRCROOT)/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
+				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleTypeRole\": \"Editor\", \"CFBundleURLSchemes\": [\"lightlist\"]]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
 				INFOPLIST_KEY_UIAppFonts = (
@@ -558,7 +555,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Lightlist/Resources/Preview Content\"";
 				FIREBASE_PLIST_SOURCE = "$(SRCROOT)/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"lightlist\"], \"CFBundleTypeRole\": \"Editor\"]]";
+				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleTypeRole\": \"Editor\", \"CFBundleURLSchemes\": [\"lightlist\"]]]";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_PASSWORD_RESET_URL = "$(PASSWORD_RESET_URL)";
 				INFOPLIST_KEY_UIAppFonts = (
@@ -657,11 +654,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
-		};
-		85C2E8D19C38E5EC9E466233 /* FirebaseAppCheck */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseAppCheck;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

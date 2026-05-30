@@ -1,30 +1,27 @@
 import SwiftUI
 import Foundation
-import FirebaseAppCheck
+import Security
 import FirebaseAuth
 import FirebaseAnalytics
 import FirebaseCore
 import FirebaseCrashlytics
 import FirebaseFirestore
 
+private let authSignInTimeoutSeconds: TimeInterval = 10
+private let shareCodeCharacters = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+private func generateRandomShareCode() throws -> String {
+    var bytes = [UInt8](repeating: 0, count: 8)
+    let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+    guard status == errSecSuccess else {
+        throw NSError(domain: "com.lightlist", code: Int(status), userInfo: [NSLocalizedDescriptionKey: "共有コードの生成に失敗しました"])
+    }
+    return String(bytes.map { shareCodeCharacters[Int($0) % shareCodeCharacters.count] })
+}
+
 enum PendingDeepLink: Equatable {
     case passwordReset(code: String)
     case shareCode(String)
-}
-
-private final class LightlistAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
-    func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
-        #if targetEnvironment(simulator)
-        return AppCheckDebugProvider(app: app)
-        #elseif DEBUG
-        return AppCheckDebugProvider(app: app)
-        #else
-        if #available(iOS 14.0, *), !ProcessInfo.processInfo.isiOSAppOnMac {
-            return AppAttestProvider(app: app)
-        }
-        return DeviceCheckProvider(app: app)
-        #endif
-    }
 }
 
 private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
@@ -1445,8 +1442,22 @@ private struct SignInView: View {
 
         isLoading = true
         errorMessage = nil
+        var didComplete = false
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + authSignInTimeoutSeconds) {
+            Task { @MainActor in
+                guard !didComplete else { return }
+                didComplete = true
+                isLoading = false
+                logException(description: "iOS sign in timed out", fatal: false)
+                errorMessage = translations.t("auth.error.general")
+            }
+        }
+
         Auth.auth().signIn(withEmail: trimmedEmail, password: password) { result, error in
             Task { @MainActor in
+                guard !didComplete else { return }
+                didComplete = true
                 isLoading = false
                 if let error {
                     errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
@@ -2357,7 +2368,6 @@ private struct TaskListsView: View {
         guard let uid = Auth.auth().currentUser?.uid else { return }
         let db = Firestore.firestore()
         let taskListId = db.collection("taskLists").document().documentID
-        // now variable removed as it's replaced by serverTimestamp
         let newOrder = Double(viewModel.taskLists.count + 1)
 
         var newTaskList: [String: Any] = [
@@ -3017,8 +3027,6 @@ private struct TaskListDetailPage: View {
         guard !removingList, let user = Auth.auth().currentUser else { return }
         removingList = true
         let uid = user.uid
-        // now variable removed as it's replaced by serverTimestamp
-
         Task {
             do {
                 let taskListOrderRef = self.db.collection("taskListOrder").document(uid)
@@ -3752,7 +3760,6 @@ private struct TaskListDetailPage: View {
         newTaskText = ""
         isNewTaskFocused = true
         let taskId = UUID().uuidString
-        // now variable removed as it's replaced by serverTimestamp
         let tasks = taskList.tasks
         let order: Double = taskInsertPosition == "top"
             ? (tasks.first?.order ?? 1.0) - 1.0
@@ -3829,61 +3836,41 @@ private struct TaskListDetailPage: View {
     }
 
     private func generateShareCode(taskListId: String) async throws -> String {
-        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         for _ in 0..<10 {
-            let code = String((0..<8).map { _ in chars.randomElement()! })
-            let result: String? = try await db.runTransaction { transaction, errorPointer in
-                let shareCodeRef = self.db.collection("shareCodes").document(code)
-                do {
-                    let shareCodeSnap = try transaction.getDocument(shareCodeRef)
-                    if shareCodeSnap.exists { return nil }
+            let code = try generateRandomShareCode()
+            let shareCodeRef = db.collection("shareCodes").document(code)
+            let shareCodeSnap = try await shareCodeRef.getDocument()
+            if shareCodeSnap.exists { continue }
 
-                    let taskListRef = self.db.collection("taskLists").document(taskListId)
-                    let taskListSnap = try transaction.getDocument(taskListRef)
-                    guard taskListSnap.exists else {
-                        let err = NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
-                        errorPointer?.pointee = err
-                        return nil
-                    }
+            let taskListRef = db.collection("taskLists").document(taskListId)
+            let taskListSnap = try await taskListRef.getDocument()
+            guard taskListSnap.exists else {
+                throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
+            }
 
-                    if let currentCode = taskListSnap.data()?["shareCode"] as? String {
-                        transaction.deleteDocument(self.db.collection("shareCodes").document(currentCode))
-                    }
-
-                    transaction.setData(["taskListId": taskListId, "createdAt": FieldValue.serverTimestamp()], forDocument: shareCodeRef)
-                    transaction.updateData(["shareCode": code, "updatedAt": FieldValue.serverTimestamp()], forDocument: taskListRef)
-                    return code
-                } catch let err as NSError {
-                    errorPointer?.pointee = err
-                    return nil
-                }
-            } as? String
-            if let result { return result }
+            let batch = db.batch()
+            if let currentCode = taskListSnap.data()?["shareCode"] as? String {
+                batch.deleteDocument(db.collection("shareCodes").document(currentCode))
+            }
+            batch.setData(["taskListId": taskListId, "createdAt": FieldValue.serverTimestamp()], forDocument: shareCodeRef)
+            batch.updateData(["shareCode": code, "updatedAt": FieldValue.serverTimestamp()], forDocument: taskListRef)
+            try await batch.commit()
+            return code
         }
         throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "共有コードの生成に失敗しました"])
     }
 
     private func removeShareCode(taskListId: String) async throws {
-        let _: Any? = try await db.runTransaction { transaction, errorPointer in
-            do {
-                let taskListRef = self.db.collection("taskLists").document(taskListId)
-                let snap = try transaction.getDocument(taskListRef)
-                guard snap.exists else {
-                    let err = NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
-                    errorPointer?.pointee = err
-                    return nil
-                }
-                if let currentCode = snap.data()?["shareCode"] as? String {
-                    transaction.deleteDocument(self.db.collection("shareCodes").document(currentCode))
-                }
-                // now variable removed
-                transaction.updateData(["shareCode": NSNull(), "updatedAt": FieldValue.serverTimestamp()], forDocument: taskListRef)
-                return nil
-            } catch let err as NSError {
-                errorPointer?.pointee = err
-                return nil
-            }
+        let taskListRef = db.collection("taskLists").document(taskListId)
+        let snap = try await taskListRef.getDocument()
+        guard snap.exists else {
+            throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
         }
+        guard let currentCode = snap.data()?["shareCode"] as? String else { return }
+        let batch = db.batch()
+        batch.deleteDocument(db.collection("shareCodes").document(currentCode))
+        batch.updateData(["shareCode": NSNull(), "updatedAt": FieldValue.serverTimestamp()], forDocument: taskListRef)
+        try await batch.commit()
     }
 }
 
@@ -4971,7 +4958,6 @@ struct LightlistApp: App {
     @State private var pendingDeepLink: PendingDeepLink?
 
     init() {
-        AppCheck.setAppCheckProviderFactory(LightlistAppCheckProviderFactory())
         FirebaseApp.configure()
         _ = Auth.auth().addStateDidChangeListener { _, user in
             Crashlytics.crashlytics().setUserID(user?.uid ?? "")

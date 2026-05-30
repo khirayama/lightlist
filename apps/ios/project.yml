@@ -37,8 +37,6 @@ targets:
         product: FirebaseAnalytics
       - package: FirebaseSDK
         product: FirebaseCrashlytics
-      - package: FirebaseSDK
-        product: FirebaseAppCheck
     buildToolPlugins:
       - plugin: LicensePlistBuildTool
         package: LicensePlist

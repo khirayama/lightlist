@@ -73,7 +73,6 @@ import {
   persistentMultipleTabManager,
   query,
   increment,
-  serverTimestamp,
   setDoc,
   updateDoc,
   writeBatch,
@@ -186,9 +185,21 @@ type TaskListStore = {
   shareCode: string | null;
   background: string | null;
   memberCount: number;
-  createdAt: number;
-  updatedAt: number;
+  createdAt: number | TimestampLike;
+  updatedAt: number | TimestampLike;
 };
+
+type TimestampLike = {
+  toMillis: () => number;
+};
+
+const hasToMillis = (value: unknown): value is TimestampLike =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { toMillis?: unknown }).toMillis === "function";
+
+const toMillisValue = (value: number | TimestampLike): number =>
+  typeof value === "number" ? value : value.toMillis();
 
 // For App
 // User, SettingsStore, TaskListOrderStore, TaskListStoreのデータを利用して、生成される
@@ -349,13 +360,11 @@ const logDeleteAccount = () => log("app_delete_account");
 const logPasswordResetEmailSent = () => log("app_password_reset_email_sent");
 const logEmailChangeRequested = () => log("app_email_change_requested");
 const logTaskListCreate = () => log("app_task_list_create");
-const logTaskListDelete = () => log("app_task_list_delete");
 const logTaskListReorder = () => log("app_task_list_reorder");
 const logTaskAdd = (params: { has_date: boolean }) =>
   log("app_task_add", params);
 const logTaskUpdate = (params: { fields: string }) =>
   log("app_task_update", params);
-const logTaskDelete = () => log("app_task_delete");
 const logTaskReorder = () => log("app_task_reorder");
 const logTaskSort = () => log("app_task_sort");
 const logTaskDeleteCompleted = (params: { count: number }) =>
@@ -960,14 +969,8 @@ const mapTaskListStoreToTaskList = (
   background: taskListData.background,
   memberCount:
     typeof taskListData.memberCount === "number" ? taskListData.memberCount : 1,
-  createdAt:
-    typeof taskListData.createdAt === "number"
-      ? taskListData.createdAt
-      : ((taskListData.createdAt as any)?.toMillis?.() ?? 0),
-  updatedAt:
-    typeof taskListData.updatedAt === "number"
-      ? taskListData.updatedAt
-      : ((taskListData.updatedAt as any)?.toMillis?.() ?? 0),
+  createdAt: toMillisValue(taskListData.createdAt),
+  updatedAt: toMillisValue(taskListData.updatedAt),
 });
 
 const createMissingTaskList = (taskListId: string): TaskList => ({
@@ -1021,8 +1024,8 @@ type TaskListsAction =
   | {
       type: "applyTaskListDocChanges";
       changes: Array<{
-        doc: { id: string; data: () => DocumentData };
-        type: string;
+        taskListId: string;
+        taskListData: TaskListStore | null;
       }>;
     }
   | {
@@ -1060,9 +1063,8 @@ const taskListsReducer = (
     case "applyTaskListDocChanges": {
       const nextTaskListsById = { ...state.taskListsById };
       let hasChanged = false;
-      action.changes.forEach((change) => {
-        const taskListId = change.doc.id;
-        if (change.type === "removed") {
+      action.changes.forEach(({ taskListId, taskListData }) => {
+        if (!taskListData) {
           if (
             !Object.prototype.hasOwnProperty.call(nextTaskListsById, taskListId)
           ) {
@@ -1072,9 +1074,6 @@ const taskListsReducer = (
           hasChanged = true;
           return;
         }
-        const taskListData = normalizeTaskListStore(
-          change.doc.data() as TaskListStore,
-        );
         if (nextTaskListsById[taskListId] === taskListData) {
           return;
         }
@@ -1335,7 +1334,17 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         ),
     );
     const applyTaskListSnapshot = (snapshot: QuerySnapshot<DocumentData>) => {
-      const changes = snapshot.docChanges();
+      const changes = snapshot.docChanges().map((change) => ({
+        taskListId: change.doc.id,
+        taskListData:
+          change.type === "removed"
+            ? null
+            : normalizeTaskListStore(
+                change.doc.data({
+                  serverTimestamps: "estimate",
+                }) as TaskListStore,
+              ),
+      }));
       if (changes.length === 0) {
         return;
       }
@@ -1398,7 +1407,11 @@ function AppStateProvider({ children }: { children: ReactNode }) {
             type: "setSharedTaskList",
             taskListId,
             taskListData: snapshot.exists()
-              ? normalizeTaskListStore(snapshot.data() as TaskListStore)
+              ? normalizeTaskListStore(
+                  snapshot.data({
+                    serverTimestamps: "estimate",
+                  }) as TaskListStore,
+                )
               : null,
           });
         },
@@ -1519,10 +1532,6 @@ function useSettingsState(): SettingsState {
 
 function useSettings(): AppState["settings"] {
   return useSettingsState().settings;
-}
-
-function useSettingsStatus(): AppState["settingsStatus"] {
-  return useSettingsState().settingsStatus;
 }
 
 function useTaskListIndexState(): TaskListIndexState {
@@ -2031,7 +2040,9 @@ function assertTaskListStore(data: unknown, id: string): TaskListStore {
     typeof d.name !== "string" ||
     typeof d.tasks !== "object" ||
     d.tasks === null ||
-    typeof d.memberCount !== "number"
+    typeof d.memberCount !== "number" ||
+    (typeof d.createdAt !== "number" && !hasToMillis(d.createdAt)) ||
+    (typeof d.updatedAt !== "number" && !hasToMillis(d.updatedAt))
   ) {
     throw new Error(`TaskList data is malformed: ${id}`);
   }
@@ -2090,7 +2101,10 @@ async function getTaskListData(taskListId: string): Promise<TaskListStore> {
   const snapshot = await getDoc(doc(db, "taskLists", taskListId));
   if (!snapshot.exists()) throw new Error("Task list not found");
   return normalizeTaskListStore(
-    assertTaskListStore(snapshot.data(), taskListId),
+    assertTaskListStore(
+      snapshot.data({ serverTimestamps: "estimate" }),
+      taskListId,
+    ),
   );
 }
 
@@ -2267,7 +2281,7 @@ export async function deleteTaskList(taskListId: string) {
   } else {
     batch.update(taskListRef, {
       memberCount: increment(-1),
-      updatedAt: serverTimestamp(),
+      updatedAt: now,
     });
   }
   await batch.commit();
@@ -2277,7 +2291,7 @@ export async function updateTaskListOrder(
   taskListOrders: Array<{ taskListId: string; order: number }>,
 ) {
   const uid = requireCurrentUserId();
-  const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
+  const updates: Record<string, unknown> = { updatedAt: Date.now() };
   taskListOrders.forEach(({ taskListId, order }) => {
     updates[`${taskListId}.order`] = order;
   });
@@ -2323,7 +2337,7 @@ export async function addTask(
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
       ...buildTaskUpdateData({ tasks: nextTasks }),
       history: buildHistory(taskList, parsed.text),
-      updatedAt: serverTimestamp(),
+      updatedAt: now,
     });
   });
 }
@@ -2371,7 +2385,7 @@ export async function updateTask(
 
     if (!settings.autoSort && typeof normalizedUpdates.pinned !== "boolean") {
       const nextUpdates: Record<string, unknown> = {
-        updatedAt: serverTimestamp(),
+        updatedAt: now,
       };
       Object.entries(normalizedUpdates).forEach(([key, value]) => {
         nextUpdates[`tasks.${taskId}.${key}`] = value;
@@ -2424,7 +2438,7 @@ export async function updateTask(
         : getSortedTasks(updatedTasks, settings);
     const nextUpdates: Record<string, unknown> = {
       ...buildTaskUpdateData({ tasks: nextTasks }),
-      updatedAt: serverTimestamp(),
+      updatedAt: now,
     };
     if (
       taskList &&
@@ -2445,7 +2459,7 @@ export async function updateTask(
 async function deleteTask(taskListId: string, taskId: string) {
   await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
     [`tasks.${taskId}`]: deleteField(),
-    updatedAt: serverTimestamp(),
+    updatedAt: Date.now(),
   });
 }
 
@@ -3953,7 +3967,6 @@ function AppHeader({ backLabel, onBack }: AppHeaderProps) {
 }
 
 const Drawer = DrawerPrimitive.Root;
-const DrawerTrigger = DrawerPrimitive.Trigger;
 const DrawerPortal = DrawerPrimitive.Portal;
 
 const DrawerOverlay = forwardRef<
@@ -4260,6 +4273,39 @@ function Carousel({
   );
 }
 
+const moveItemBeforeTarget = <T extends { id: string }>(
+  items: T[],
+  draggedId: string,
+  targetId: string,
+): T[] | null => {
+  const oldIndex = items.findIndex((item) => item.id === draggedId);
+  const newIndex = items.findIndex((item) => item.id === targetId);
+  if (oldIndex === -1 || newIndex === -1) return null;
+  const result = items.slice();
+  const [removed] = result.splice(oldIndex, 1);
+  result.splice(newIndex, 0, removed);
+  return result;
+};
+
+const reconcileOptimisticItems = <T extends { id: string }>(
+  optimisticItems: T[],
+  latestItems: T[],
+): T[] | null => {
+  if (optimisticItems.length !== latestItems.length) return null;
+
+  const latestItemsById = new Map(
+    latestItems.map((item) => [item.id, item] as const),
+  );
+  const mergedItems = optimisticItems.map((item) =>
+    latestItemsById.get(item.id),
+  );
+  if (mergedItems.some((item) => item === undefined)) return null;
+
+  const nextItems = mergedItems as T[];
+  return nextItems.every((item, index) => item.id === latestItems[index]?.id)
+    ? null
+    : nextItems;
+};
 const useOptimisticReorder = <T extends { id: string }>(
   initialItems: T[],
   onReorder: (draggedId: string, targetId: string) => Promise<void>,
@@ -4270,41 +4316,20 @@ const useOptimisticReorder = <T extends { id: string }>(
 
   useEffect(() => {
     if (suspendExternalSync || !optimisticItems) return;
-    if (optimisticItems.length !== initialItems.length) {
-      setOptimisticItems(null);
-      return;
-    }
 
-    const latestItemsById = new Map(
-      initialItems.map((item) => [item.id, item] as const),
+    const nextOptimisticItems = reconcileOptimisticItems(
+      optimisticItems,
+      initialItems,
     );
-    const mergedItems = optimisticItems.map((item) =>
-      latestItemsById.get(item.id),
-    );
-    if (mergedItems.some((item) => item === undefined)) {
+    if (nextOptimisticItems === null) {
       setOptimisticItems(null);
       return;
     }
-
-    const nextOptimisticItems = mergedItems as T[];
     if (
-      nextOptimisticItems.every(
-        (item, index) => item.id === initialItems[index]?.id,
-      )
+      nextOptimisticItems.some((item, index) => item !== optimisticItems[index])
     ) {
-      setOptimisticItems(null);
-      return;
+      setOptimisticItems(nextOptimisticItems);
     }
-
-    if (
-      nextOptimisticItems.every(
-        (item, index) => item === optimisticItems[index],
-      )
-    ) {
-      return;
-    }
-
-    setOptimisticItems(nextOptimisticItems);
   }, [initialItems, optimisticItems, suspendExternalSync]);
 
   const reorder = useCallback(
@@ -4312,13 +4337,9 @@ const useOptimisticReorder = <T extends { id: string }>(
       if (!draggedId || !targetId || draggedId === targetId) return;
       setOptimisticItems((currentItems) => {
         const sourceItems = currentItems ?? initialItems;
-        const oldIndex = sourceItems.findIndex((item) => item.id === draggedId);
-        const newIndex = sourceItems.findIndex((item) => item.id === targetId);
-        if (oldIndex === -1 || newIndex === -1) return sourceItems;
-        const result = sourceItems.slice();
-        const [removed] = result.splice(oldIndex, 1);
-        result.splice(newIndex, 0, removed);
-        return result;
+        return (
+          moveItemBeforeTarget(sourceItems, draggedId, targetId) ?? sourceItems
+        );
       });
       try {
         await onReorder(draggedId, targetId);

@@ -164,19 +164,18 @@ final class Translations: ObservableObject {
                 }
                 if let groupIndex = p["weekdayGroup"] as? Int, groups.indices.contains(groupIndex) {
                     let key = groups[groupIndex]
-                    if let target = weekdays[key] {
-                        let current = Calendar.current.component(.weekday, from: Date())
-                        return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target + 1, currentDay: current))
-                    }
-                    let lowerKey = key.lowercased()
-                    if let target = weekdays.first(where: { $0.key.lowercased() == lowerKey })?.value {
-                        let current = Calendar.current.component(.weekday, from: Date())
-                        return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target + 1, currentDay: current))
-                    }
+                    return resolveWeekdayDate(key: key, weekdays: weekdays)
                 }
                 return nil
             }
         }
+    }
+
+    private static func resolveWeekdayDate(key: String, weekdays: [String: Int]) -> Date? {
+        let target = weekdays[key] ?? weekdays.first { $0.key.lowercased() == key.lowercased() }?.value
+        guard let target else { return nil }
+        let current = Calendar.current.component(.weekday, from: Date())
+        return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target + 1, currentDay: current))
     }
 }
 
@@ -198,7 +197,6 @@ func logTaskListDelete() { log("app_task_list_delete") }
 func logTaskListReorder() { log("app_task_list_reorder") }
 func logTaskAdd(hasDate: Bool) { log("app_task_add", ["has_date": hasDate]) }
 func logTaskUpdate(fields: String) { log("app_task_update", ["fields": fields]) }
-func logTaskDelete() { log("app_task_delete") }
 func logTaskReorder() { log("app_task_reorder") }
 func logTaskSort() { log("app_task_sort") }
 func logTaskDeleteCompleted(count: Int) { log("app_task_delete_completed", ["count": count]) }
@@ -712,8 +710,6 @@ private func nextTaskWeekdayOffset(targetDay: Int, currentDay: Int) -> Int {
 private func makeTaskOffsetDate(_ offset: Int) -> Date? {
     Calendar.current.date(byAdding: .day, value: offset, to: Date())
 }
-
-// taskRelativePatterns removed in favor of Translations methods
 
 private func resolveTaskDate(from source: String, patterns: [TaskDatePattern]) -> (date: Date, matchedLength: Int)? {
     let nsSource = source as NSString
@@ -3600,14 +3596,7 @@ private struct TaskListDetailPage: View {
                 }
             },
             persist: { nextTasks in
-                if autoSort {
-                    persistTasks(nextTasks)
-                    return
-                }
-                updateTaskList([
-                    "tasks.\(task.id).completed": !task.completed,
-                    "updatedAt": FieldValue.serverTimestamp()
-                ])
+                updateTaskList(buildTaskUpdateData(nextTasks))
             }
         )
     }
@@ -3647,23 +3636,7 @@ private struct TaskListDetailPage: View {
                 }
             },
             persist: { nextTasks in
-                if autoSort {
-                    var updates = buildTaskUpdateData(normalizedTasks(nextTasks))
-                    if textChanged {
-                        updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
-                    }
-                    updateTaskList(updates)
-                    return
-                }
-
-                var updates: [String: Any] = [
-                    "tasks.\(task.id).text": resolved.text,
-                    "tasks.\(task.id).date": resolved.date ?? task.date,
-                    "updatedAt": FieldValue.serverTimestamp()
-                ]
-                if pinnedChanged {
-                    updates["tasks.\(task.id).pinned"] = true
-                }
+                var updates = buildTaskUpdateData(nextTasks)
                 if textChanged {
                     updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
                 }
@@ -3696,14 +3669,7 @@ private struct TaskListDetailPage: View {
                 }
             },
             persist: { nextTasks in
-                if autoSort {
-                    persistTasks(nextTasks)
-                    return
-                }
-                updateTaskList([
-                    "tasks.\(task.id).date": dateStr,
-                    "updatedAt": FieldValue.serverTimestamp()
-                ])
+                updateTaskList(buildTaskUpdateData(nextTasks))
             }
         )
     }
@@ -3736,18 +3702,7 @@ private struct TaskListDetailPage: View {
                 return updatedTasks
             },
             persist: { nextTasks in
-                if autoSort {
-                    persistTasks(nextTasks)
-                    return
-                }
-                if task.pinned && !nextPinned && !task.completed {
-                    updateTaskList(buildTaskUpdateData(renumberTasks(nextTasks)))
-                    return
-                }
-                updateTaskList([
-                    "tasks.\(task.id).pinned": nextPinned,
-                    "updatedAt": FieldValue.serverTimestamp()
-                ])
+                updateTaskList(buildTaskUpdateData(nextTasks))
             }
         )
     }
@@ -3779,22 +3734,9 @@ private struct TaskListDetailPage: View {
                     : currentTasks + [insertedTask]
             },
             persist: { nextTasks in
-                if autoSort {
-                    var updates = buildTaskUpdateData(normalizedTasks(nextTasks))
-                    updates["history"] = buildHistory(newText: parsed.text)
-                    updateTaskList(updates)
-                    return
-                }
-                updateTaskList([
-                    "tasks.\(taskId).id": taskId,
-                    "tasks.\(taskId).text": parsed.text,
-                    "tasks.\(taskId).completed": false,
-                    "tasks.\(taskId).date": parsed.date ?? "",
-                    "tasks.\(taskId).order": order,
-                    "tasks.\(taskId).pinned": parsed.pinnedFromInput,
-                    "history": buildHistory(newText: parsed.text),
-                    "updatedAt": FieldValue.serverTimestamp()
-                ])
+                var updates = buildTaskUpdateData(nextTasks)
+                updates["history"] = buildHistory(newText: parsed.text)
+                updateTaskList(updates)
             }
         )
     }

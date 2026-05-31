@@ -92,7 +92,7 @@
 - iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を分離し、入力欄の追加ボタンは入力文字がある時だけ表示する。未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で描画し、参考画面に近い密度へ寄せる。
 - iOS / Android の task row は drag handle・完了トグル・本文の縦方向中心を揃える。Android は `task.text` の 1 行目中心を基準とし、複数行でもその基準を維持する。日付ラベルは本文や編集欄の縦位置を押し下げず、同じ本文領域内の直上へ近接表示する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
 - Android Compose の handle 並び替えで `pointerInput` を使う場合、再 compose ごとに変わる gesture lambda を key や detector 本体に直接渡さない。drag 中に state 更新が入っても detector を再生成せず、必要な callback は `rememberUpdatedState` 経由で参照する。
-- iOS / Android の `TaskListDetailPage` は `autoSort` 有効時、タスク追加・完了切替・本文編集・日付変更・完了済み削除ごとに `未完了 -> date -> order` で再採番した `tasks.*` 全体を Firestore へ保存する。
+- iOS の `TaskListDetailPage` は、タスク追加・完了切替・本文編集・日付変更・ピン切替ごとに local pending 表示へ入れた正規化済み task 集合を `tasks.*` 全体として Firestore へ保存する。`autoSort` 無効時も pinned / completed グループ移動後に pending 解放判定がずれないよう partial update にしない。Android は `autoSort` 有効時、同じ順序で再採番した `tasks.*` 全体を保存する。
 - iOS の SwiftUI 並び替えドラッグは、移動中の行の local 座標系ではなく親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で収集した行高さだけを使う。`frame(in:)` の位置監視を drag state に戻さない。
 - iOS の全画面ルートと sheet / dialog は `frame(maxWidth: .infinity, maxHeight: .infinity)` を維持しつつ、背景ビュー側だけで safe area を無視する。標準ナビゲーションバーを使わない iPhone ヘッダーは `SafeAreaNavigationHeader` と `safeAreaInset(edge: .top)` を使う。`LightlistApp` は hidden `UIViewRepresentable` の `WindowSceneConfigurator` で attach 済み `UIWindow` を初期化し、window 背景色と root view controller の safe area / layout margins も全画面前提に揃える。`ScrollView` ベースの全画面フォームはカードラッパーを持たず、外側 `maxWidth` 制約や `RoundedRectangle` でカード化しない。
 - iOS の custom header 付き画面と sheet / dialog は、header を `safeAreaInset(edge: .top)` に載せ、本文 root も `frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)` で画面高または detent 高いっぱいまで広げる。header inset と重複する大きな `padding(.top)` は本文側で足さず、追加の視覚余白は最小限に留める。
@@ -111,6 +111,7 @@
 - 共有コードは bearer credential として扱い、有効な共有コード保有者は未認証でも `taskLists` の `name` `tasks` `history` `background` `shareCode` を更新できる。
 - 共有コード生成は 8 文字の英大文字・数字を暗号学的乱数で作る。Web は `crypto.getRandomValues`、iOS は `SecRandomCopyBytes`、Android は `SecureRandom` を使い、生成・削除は事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。
 - `taskListOrder/{uid}` は本人が任意の `taskListId` を追加でき、その追加自体を共有済み・参加済みリストの保持権限付与として扱う。
+- `taskLists` / `taskListOrder` / `shareCodes` の `createdAt` / `updatedAt` は Firestore Rules の `int` 型検証と pending snapshot の安定性に合わせ、server timestamp ではなく Unix epoch milliseconds の number を書き込む。Web の `taskLists` 読み取りは pending server timestamp を `estimate` として解決する。
 - パスワードリセットURLは `VITE_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
 - `shared/locales/locales.json` は英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。

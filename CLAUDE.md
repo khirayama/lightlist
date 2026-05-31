@@ -46,6 +46,7 @@
 - 共有コードは bearer credential として扱い、有効な共有コード保有者は未認証でも `taskLists` の `name` `tasks` `history` `background` `shareCode` を更新できる。
 - 共有コード生成は 8 文字の英大文字・数字を暗号学的乱数で作る。Web は `crypto.getRandomValues`、iOS は `SecRandomCopyBytes`、Android は `SecureRandom` を使い、生成・削除は事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。
 - `taskListOrder/{uid}` は本人が任意の `taskListId` を追加でき、その追加自体を共有済み・参加済みリストの保持権限付与として扱う。
+- `taskLists` / `taskListOrder` / `shareCodes` の `createdAt` / `updatedAt` は Firestore Rules の `int` 型検証と pending snapshot の安定性に合わせ、server timestamp ではなく Unix epoch milliseconds の number を書き込む。Web の `taskLists` 読み取りは pending server timestamp を `estimate` として解決する。
 - iOS の認証済み画面遷移は `RootView` の `AppRoute` と `NavigationStack` / `NavigationSplitView` で管理し、compact 幅は `TaskListsView` から `TaskListDetailPagerView` / `SettingsView` / `CalendarScreenView` へ遷移し、regular 幅は 360pt サイドバーと `RegularTaskListDetailPagerView` / `SettingsView` / `CalendarScreenView` の detail pane で表示する。
 - iOS の `TaskListDetailPagerView` / `RegularTaskListDetailPagerView` は、選択中タスクリストの `background` を詳細画面背景として使う。compact 幅は safe area を含む全面、regular 幅は detail column 内だけに適用し、sidebar と split 境界線には広げない。各 `TaskListDetailPage` 本文も同じ色を使い、未設定時だけ `Color(.systemBackground)` にフォールバックする。
 - iOS の compact 幅タスクリスト詳細は `TaskListDetailPagerView` 自体を full screen コンテナとして描画し、最外層背景は選択中タスクリストの `background` を `ignoresSafeArea()` で全面へ敷く。本体は画面いっぱいの `VStack` を同じ背景で満たす。ページャーのインジケータだけを固定表示し、タスクリスト名、タスク追加欄、並び替え・完了済み削除操作、タスク行は同じ `ScrollView + LazyVStack` に載せて edge-to-edge にスクロールさせる。regular 幅では detail 側の背景を clip し、divider は sidebar 側の通常背景で固定する。
@@ -65,7 +66,7 @@
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白と、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰める。
 - iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を分離し、入力欄の追加ボタンは入力文字がある時だけ表示する。未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で描画し、参考画面に近い密度へ寄せる。
 - Android Compose の handle 並び替えでは、`pointerInput` に再 compose ごとに変わる gesture lambda を直接渡さず、drag session 中も detector を維持する。更新が必要な callback は `rememberUpdatedState` 経由で参照する。
-- iOS / Android の `TaskListDetailPage` は `autoSort` 有効時、タスク追加・完了切替・本文編集・日付変更・完了済み削除ごとに `未完了 -> date -> order` で再採番した `tasks.*` 全体を Firestore へ保存する。
+- iOS の `TaskListDetailPage` は、タスク追加・完了切替・本文編集・日付変更・ピン切替ごとに local pending 表示へ入れた正規化済み task 集合を `tasks.*` 全体として Firestore へ保存する。`autoSort` 無効時も pinned / completed グループ移動後に pending 解放判定がずれないよう partial update にしない。Android は `autoSort` 有効時、同じ順序で再採番した `tasks.*` 全体を保存する。
 - iOS の SwiftUI 並び替えドラッグは、移動中の行の local 座標系ではなく親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で収集した行高さだけを使う。`frame(in:)` の位置監視を drag state に戻さない。
 - iOS の全画面ルートと sheet / dialog は `frame(maxWidth: .infinity, maxHeight: .infinity)` を維持しつつ、背景ビュー側だけで safe area を無視する。標準ナビゲーションバーを使わない iPhone ヘッダーは `SafeAreaNavigationHeader` と `safeAreaInset(edge: .top)` を使う。`ContentView.swift` 内の `LightlistApp` は hidden `UIViewRepresentable` の `WindowSceneConfigurator` で attach 済み `UIWindow` を初期化し、window 背景色と root view controller の safe area / layout margins も全画面前提に揃える。`ScrollView` ベースの全画面フォームはカードラッパーを持たず、外側 `maxWidth` 制約や `RoundedRectangle` でカード化しない。
 - iOS の custom header 付き画面と sheet / dialog は、header を `safeAreaInset(edge: .top)` に載せ、本文 root も `frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)` で画面高または detent 高いっぱいまで広げる。header inset と重複する大きな `padding(.top)` は本文側で足さず、追加の視覚余白は最小限に留める。

@@ -1,5 +1,7 @@
 ## ONGOING
 
+apps/iosとapps/androidのfirestoreのキャッシュの持ち方？がおかしいところがあるかも。別の端末からの更新をうまく読み取れていないケースあり
+
 ## BACKLOG
 
 docsの整理。不要に分割されているものは削除。

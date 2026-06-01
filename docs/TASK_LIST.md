@@ -32,6 +32,7 @@
 - Web は `taskListOrder/{uid}` を購読して対象 `taskListId` を解決する。
 - 対象 `taskLists` は 10 件ずつ chunk に分けて購読する。
 - Web は Firestore SDK の IndexedDB 永続キャッシュを使い、認証後の `settings/{uid}`、`taskListOrder/{uid}`、対象 `taskLists` を cache から先に hydrate してから通常購読で正本へ追従する。アプリ独自の起動用キャッシュは持たない。
+- Web の `taskLists` 読み取りは Firestore の pending server timestamp を `estimate` として解決し、未確定 timestamp の `null` を UI 状態へ流さない。
 - 共有ページや未保持リストの詳細表示は、対象 `taskLists/{taskListId}` を個別購読する。
 - iOS / Android も `taskListOrder` と `taskLists` を別購読し、順序付きリストを組み立てる。
 - Web / iOS / Android の UI 更新系は、listener の反映より先に画面上の編集結果を捨てない。task 本文編集の blur、task 並び替え、taskList 並び替え、日付変更、ピン切り替え、完了切り替えは、Firestore snapshot が同じ内容へ追いつくまで local pending state を優先表示する。
@@ -105,13 +106,15 @@
 - `autoSort` 有効時は `未完了 pinned -> date -> order`、`未完了 unpinned -> date -> order`、`完了 -> date -> order` の順で並べ直す。
 - `autoSort` 無効時に pinned を解除した task は、未完了 unpinned グループの先頭へ入るよう `order` を再採番する。`autoSort` 有効時は通常の自動並び替えルールに従う。
 - Web の task 更新系は Firestore の `tasks` map の列挙順を信用せず、常に `order` 昇順の配列へ直してから追加・並び替え・自動並び替え・完了済み削除を計算する。
-- iOS / Android の `TaskListDetailPage` でも `autoSort` 有効時は、タスク追加、完了切替、本文編集、日付変更、完了済み削除のたびに同じ順序で再採番して Firestore へ保存する。
+- iOS の `TaskListDetailPage` は、タスク追加、完了切替、本文編集、日付変更、ピン切替のたびに、local pending 表示へ入れた正規化済み task 集合を `tasks.*` 全体として Firestore へ保存する。`autoSort` 無効時も pinned / completed グループ移動で listener 反映後に local pending state が残らないよう、対象 task だけの partial update にはしない。
+- Android の `TaskListDetailPage` でも `autoSort` 有効時は、タスク追加、完了切替、本文編集、日付変更、完了済み削除のたびに同じ順序で再採番して Firestore へ保存する。
 - `history` は重複を除きつつ先頭追加し、最大 300 件を保持する。
 - Web / iOS / Android のタスク入力欄は `taskLists.history` を候補元として共有し、trim 後 2 文字以上の部分一致だけを最大 20 件表示する。完全一致候補は出さず、候補選択時は入力欄への挿入ではなくその文言を即追加する。iOS の候補 UI は本文上の overlay ではなく `popover` presentation で表示し、本文操作と hit area を分離する。
 - Web の `sortTasks()` と `updateTasksOrder()` は順序系操作のたびに全 task を連番で再採番して保存し、既存の `order` 不整合もその操作時に補正する。
 - `updateTask()` は `autoSort: false` では対象 task の項目だけを更新する。ただし pinned 解除時は未完了 unpinned 先頭へ入るよう task 集合を再構成して保存する。`autoSort: true` のときは自動並び替え順で task 集合を再構成して保存する。
 - `deleteCompletedTasks()` は完了済み task を削除し、残りを再採番する。
 - UI 更新系では transaction を使わない。並び替えや本文編集の保存要求後も、listener が旧 snapshot を返している間は local pending state を表示し続け、旧 `task.text` や旧 order を一瞬再表示しない。Web の local pending state も `autoSort` 有効時は `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内 `date -> order` に正規化して保持する。
+- Web の D&D 並び替え中に listener が同じ ID 集合の新しい task / taskList 内容を返した場合は、optimistic な並び順だけを維持し、各 item の中身は listener 側の最新値へ差し替える。ID 集合が変わった場合は local reorder state を破棄して listener 側を正とする。
 - Web / iOS / Android の task 更新系書き込みは、同一 `taskListId` 内でクライアントごとに直列化する。追加直後の完了切替・本文編集・日付変更・ピン切替・並び替え・完了済み削除が前の保存を追い越さないようにし、追加直後の task も同じ `taskId` を optimistic 表示と Firestore 保存で共有する。
 - local pending state の解放判定は、listener 側 task 群も同じ正規化へ通した結果と比較し、一致した時だけ行う。
 - Web の optimistic task 追加は `taskInsertPosition` をその場の pending 表示にも反映し、`top` は先頭、`bottom` は末尾へ挿入した状態から正規化する。
@@ -141,6 +144,7 @@
 - `settings/{uid}` と `taskListOrder/{uid}` は本人のみ読み書き可能。
 - `shareCodes/{shareCode}` は `get` のみ誰でも可能で、`list` は不可。
 - `taskLists/{taskListId}` は、自分の `taskListOrder` に含まれるか、有効な `shareCode` がある場合に読み書きできる。
+- `taskLists` / `taskListOrder` / `shareCodes` の `createdAt` / `updatedAt` は Firestore Rules の型検証と pending snapshot の安定性に合わせ、server timestamp ではなく Unix epoch milliseconds の number として書き込む。
 - `taskListOrder/{uid}` の本人書き込み内容は制限せず、対象 `taskListId` を保持リストへ追加した時点で `taskLists/{taskListId}` へのアクセス根拠として扱う。
 - `taskLists` の削除は最後の保持者のみ可能。
 - `memberCount` は通常据え置きで、参加時 `+1`、離脱時 `-1` のみ許可する。

@@ -117,6 +117,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldPath
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.CoroutineScope
@@ -210,6 +211,13 @@ import org.json.JSONObject
 
 private const val COMPLETED_TASK_ALPHA = 0.64f
 private val shareCodeRandom = SecureRandom()
+
+private fun nowMillis(): Long = System.currentTimeMillis()
+
+private fun firestoreErrorDescription(operation: String, error: Exception): String {
+    val code = (error as? FirebaseFirestoreException)?.code?.name ?: error::class.java.simpleName
+    return "Android $operation failed: $code"
+}
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFD0BCFF),
@@ -361,28 +369,28 @@ class Translations {
                         val groupIndex = p.getInt("weekdayGroup")
                         val key = match.groupValues.getOrNull(groupIndex)
                         if (key != null) {
-                            val target = if (weekdays.has(key)) weekdays.getInt(key) else {
-                                val lowerKey = key.lowercase()
-                                var found: Int? = null
-                                val keys = weekdays.keys()
-                                while (keys.hasNext()) {
-                                    val k = keys.next()
-                                    if (k.lowercase() == lowerKey) {
-                                        found = weekdays.getInt(k)
-                                        break
-                                    }
-                                }
-                                found
-                            }
-                            if (target != null) {
-                                val current = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1
-                                return@TaskDatePattern makeTaskOffsetDate(nextTaskWeekdayOffset(target, current))
-                            }
+                            return@TaskDatePattern resolveWeekdayDate(key, weekdays)
                         }
                     }
                     null
                 }
             }
+        }
+
+        private fun resolveWeekdayDate(key: String, weekdays: JSONObject): Date? {
+            val target = if (weekdays.has(key)) weekdays.getInt(key) else findWeekday(key, weekdays)
+            val current = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1
+            return target?.let { makeTaskOffsetDate(nextTaskWeekdayOffset(it, current)) }
+        }
+
+        private fun findWeekday(key: String, weekdays: JSONObject): Int? {
+            val lowerKey = key.lowercase()
+            val keys = weekdays.keys()
+            while (keys.hasNext()) {
+                val candidate = keys.next()
+                if (candidate.lowercase() == lowerKey) return weekdays.getInt(candidate)
+            }
+            return null
         }
     }
 
@@ -451,11 +459,9 @@ fun logDeleteAccount() = log("app_delete_account")
 fun logPasswordResetEmailSent() = log("app_password_reset_email_sent")
 fun logEmailChangeRequested() = log("app_email_change_requested")
 fun logTaskListCreate() = log("app_task_list_create")
-fun logTaskListDelete() = log("app_task_list_delete")
 fun logTaskListReorder() = log("app_task_list_reorder")
 fun logTaskAdd(hasDate: Boolean) = log("app_task_add") { putBoolean("has_date", hasDate) }
 fun logTaskUpdate(fields: String) = log("app_task_update") { putString("fields", fields) }
-fun logTaskDelete() = log("app_task_delete")
 fun logTaskReorder() = log("app_task_reorder")
 fun logTaskSort() = log("app_task_sort")
 fun logTaskDeleteCompleted(count: Int) = log("app_task_delete_completed") { putInt("count", count) }
@@ -835,13 +841,14 @@ private suspend fun signUpWithInitialData(email: String, password: String, langu
     val userCredential = auth.createUserWithEmailAndPassword(email, password).await()
     val uid = userCredential.user?.uid ?: throw IllegalStateException("Missing user ID")
     val taskListId = db.collection("taskLists").document().id
+    val now = nowMillis()
     val settingsData = mapOf(
         "theme" to "system",
         "language" to normalizedLanguage,
         "taskInsertPosition" to "top",
         "autoSort" to false,
-        "createdAt" to FieldValue.serverTimestamp(),
-        "updatedAt" to FieldValue.serverTimestamp()
+        "createdAt" to now,
+        "updatedAt" to now
     )
     val taskListData = hashMapOf<String, Any?>(
         "id" to taskListId,
@@ -852,13 +859,13 @@ private suspend fun signUpWithInitialData(email: String, password: String, langu
         "shareCode" to null,
         "background" to null,
         "memberCount" to 1,
-        "createdAt" to FieldValue.serverTimestamp(),
-        "updatedAt" to FieldValue.serverTimestamp()
+        "createdAt" to now,
+        "updatedAt" to now
     )
     val taskListOrderData = mapOf(
         taskListId to mapOf("order" to 1.0),
-        "createdAt" to FieldValue.serverTimestamp(),
-        "updatedAt" to FieldValue.serverTimestamp()
+        "createdAt" to now,
+        "updatedAt" to now
     )
 
     db.batch().apply {
@@ -1506,7 +1513,7 @@ private suspend fun generateShareCode(taskListId: String): String {
         if (currentShareCode != null) {
             batch.delete(db.collection("shareCodes").document(currentShareCode))
         }
-        batch.set(shareCodeRef, mapOf("taskListId" to taskListId, "createdAt" to FieldValue.serverTimestamp()))
+        batch.set(shareCodeRef, mapOf("taskListId" to taskListId, "createdAt" to nowMillis()))
         batch.update(taskListRef, mapOf("shareCode" to code, "updatedAt" to FieldValue.serverTimestamp()))
         batch.commit().await()
         return code
@@ -2915,7 +2922,8 @@ private fun TaskListsScreen(
         scope.launch {
             try {
                 Firebase.firestore.collection("taskListOrder").document(uid).update(updates).await()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logException(firestoreErrorDescription("task list order update", e), fatal = false)
                 pendingTaskListOrder = null
             }
         }
@@ -3247,6 +3255,7 @@ private fun TaskListsScreen(
                             val db = Firebase.firestore
                             val taskListId = db.collection("taskLists").document().id
                             val nextOrder = (uiState.taskLists.size + 1).toDouble()
+                            val now = nowMillis()
                             val newTaskList = hashMapOf<String, Any?>(
                                 "id" to taskListId,
                                 "name" to trimmed,
@@ -3255,22 +3264,32 @@ private fun TaskListsScreen(
                                 "shareCode" to null,
                                 "background" to createBackground,
                                 "memberCount" to 1,
-                                "createdAt" to FieldValue.serverTimestamp(),
-                                "updatedAt" to FieldValue.serverTimestamp()
+                                "createdAt" to now,
+                                "updatedAt" to now
                             )
                             scope.launch {
-                                db.batch().apply {
-                                    set(db.collection("taskLists").document(taskListId), newTaskList)
-                                    update(
-                                        db.collection("taskListOrder").document(uid),
-                                        mapOf(
-                                            taskListId to mapOf("order" to nextOrder),
-                                            "updatedAt" to FieldValue.serverTimestamp()
-                                        )
+                                try {
+                                    val taskListOrderRef = db.collection("taskListOrder").document(uid)
+                                    val taskListOrderUpdates = mutableMapOf<String, Any>(
+                                        taskListId to mapOf("order" to nextOrder),
+                                        "updatedAt" to now
                                     )
-                                }.commit().await()
-                                logTaskListCreate()
-                                openTaskList(taskListId)
+                                    if (!taskListOrderRef.get().await().exists()) {
+                                        taskListOrderUpdates["createdAt"] = now
+                                    }
+                                    db.batch().apply {
+                                        set(db.collection("taskLists").document(taskListId), newTaskList)
+                                        set(
+                                            taskListOrderRef,
+                                            taskListOrderUpdates,
+                                            SetOptions.merge()
+                                        )
+                                    }.commit().await()
+                                    logTaskListCreate()
+                                    openTaskList(taskListId)
+                                } catch (e: Exception) {
+                                    logException(firestoreErrorDescription("task list create", e), fatal = false)
+                                }
                             }
                             showCreateDialog = false
                         }
@@ -4060,7 +4079,8 @@ private fun TaskListDetailContent(
         mutationQueue.enqueue {
             try {
                 db.collection("taskLists").document(taskList.id).update(updates).await()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logException(firestoreErrorDescription("task update", e), fatal = false)
                 withContext(Dispatchers.Main) {
                     pendingDisplayedTasks = null
                 }

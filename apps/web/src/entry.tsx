@@ -255,13 +255,11 @@ async function enqueueTaskListMutation<T>(
   const current = new Promise<void>((resolve) => {
     release = resolve;
   });
-  taskListMutationQueues.set(
-    taskListId,
-    previous.then(
-      () => current,
-      () => current,
-    ),
+  const queued = previous.then(
+    () => current,
+    () => current,
   );
+  taskListMutationQueues.set(taskListId, queued);
   await previous.catch(() => undefined);
   try {
     return await operation();
@@ -269,7 +267,7 @@ async function enqueueTaskListMutation<T>(
     if (release) {
       release();
     }
-    if (taskListMutationQueues.get(taskListId) === current) {
+    if (taskListMutationQueues.get(taskListId) === queued) {
       taskListMutationQueues.delete(taskListId);
     }
   }

@@ -186,6 +186,10 @@ private func log(_ eventName: String, _ params: [String: Any]? = nil) {
     Analytics.logEvent(eventName, parameters: params)
 }
 
+private func nowMillis() -> Int64 {
+    Int64(Date().timeIntervalSince1970 * 1000)
+}
+
 func logSignUp() { log(AnalyticsEventSignUp, [AnalyticsParameterMethod: "email"]) }
 func logLogin() { log(AnalyticsEventLogin, [AnalyticsParameterMethod: "email"]) }
 func logSignOut() { log("app_sign_out") }
@@ -1555,7 +1559,7 @@ private struct SignUpView: View {
                     return
                 }
 
-                let now = Date().timeIntervalSince1970 * 1000
+                let now = nowMillis()
                 let taskListId = db.collection("taskLists").document().documentID
                 let batch = db.batch()
                 batch.setData([
@@ -1563,8 +1567,8 @@ private struct SignUpView: View {
                     "language": normalizedLanguage,
                     "taskInsertPosition": "top",
                     "autoSort": false,
-                    "createdAt": FieldValue.serverTimestamp(),
-                    "updatedAt": FieldValue.serverTimestamp(),
+                    "createdAt": nowMillis(),
+                    "updatedAt": nowMillis(),
                 ], forDocument: db.collection("settings").document(uid))
                 batch.setData([
                     "id": taskListId,
@@ -1574,8 +1578,8 @@ private struct SignUpView: View {
                     "shareCode": NSNull(),
                     "background": NSNull(),
                     "memberCount": 1,
-                    "createdAt": FieldValue.serverTimestamp(),
-                    "updatedAt": FieldValue.serverTimestamp(),
+                    "createdAt": nowMillis(),
+                    "updatedAt": nowMillis(),
                 ], forDocument: db.collection("taskLists").document(taskListId))
                 batch.setData([
                     taskListId: ["order": 1.0],
@@ -2352,7 +2356,7 @@ private struct TaskListsView: View {
     private func persistTaskListOrder(_ ids: [String]) {
         logTaskListReorder()
         guard let uid = Auth.auth().currentUser?.uid else { return }
-        var updates: [String: Any] = ["updatedAt": FieldValue.serverTimestamp()]
+        var updates: [String: Any] = ["updatedAt": nowMillis()]
         for (i, id) in ids.enumerated() {
             updates["\(id).order"] = Double(i + 1)
         }
@@ -2373,8 +2377,8 @@ private struct TaskListsView: View {
             "history": [Any](),
             "shareCode": NSNull(),
             "memberCount": 1,
-            "createdAt": FieldValue.serverTimestamp(),
-            "updatedAt": FieldValue.serverTimestamp(),
+            "createdAt": nowMillis(),
+            "updatedAt": nowMillis(),
         ]
         if let background {
             newTaskList["background"] = background
@@ -2386,7 +2390,7 @@ private struct TaskListsView: View {
         batch.setData(newTaskList, forDocument: db.collection("taskLists").document(taskListId))
         batch.setData([
             "\(taskListId)": ["order": newOrder],
-            "updatedAt": FieldValue.serverTimestamp(),
+            "updatedAt": nowMillis(),
         ] as [String: Any], forDocument: db.collection("taskListOrder").document(uid), merge: true)
 
         batch.commit { error in
@@ -2948,7 +2952,7 @@ private struct TaskListDetailPage: View {
     }
 
     private func buildTaskUpdateData(_ tasks: [TaskSummary], deletedTaskIds: [String] = []) -> [String: Any] {
-        var updates: [String: Any] = ["updatedAt": FieldValue.serverTimestamp()]
+        var updates: [String: Any] = ["updatedAt": nowMillis()]
         for taskId in deletedTaskIds {
             updates["tasks.\(taskId)"] = FieldValue.delete()
         }
@@ -3047,7 +3051,7 @@ private struct TaskListDetailPage: View {
                 let batch = db.batch()
                 batch.setData([
                     taskList.id: FieldValue.delete(),
-                    "updatedAt": FieldValue.serverTimestamp(),
+                    "updatedAt": nowMillis(),
                 ], forDocument: taskListOrderRef, merge: true)
 
                 let currentMemberCount = (taskListSnapshot.data()?["memberCount"] as? NSNumber)?.intValue ?? 1
@@ -3060,7 +3064,7 @@ private struct TaskListDetailPage: View {
                 } else {
                     batch.updateData([
                         "memberCount": FieldValue.increment(Int64(-1)),
-                        "updatedAt": FieldValue.serverTimestamp(),
+                        "updatedAt": nowMillis(),
                     ], forDocument: taskListRef)
                 }
                 try await batch.commit()
@@ -3421,7 +3425,7 @@ private struct TaskListDetailPage: View {
                         Button(translations.t("taskList.save")) {
                             let trimmed = editName.trimmingCharacters(in: .whitespaces)
                             if !trimmed.isEmpty {
-                                var updates: [String: Any] = ["updatedAt": FieldValue.serverTimestamp()]
+                                var updates: [String: Any] = ["updatedAt": nowMillis()]
                                 if trimmed != taskList.name {
                                     updates["name"] = trimmed
                                 }
@@ -3743,21 +3747,9 @@ private struct TaskListDetailPage: View {
 
     private func handleSortTasks() {
         logTaskSort()
-        let sorted = taskList.tasks.sorted { a, b in
-            let aGroup = taskDisplayGroup(a)
-            let bGroup = taskDisplayGroup(b)
-            if aGroup != bGroup { return aGroup < bGroup }
-            let aEmpty = a.date.isEmpty, bEmpty = b.date.isEmpty
-            if aEmpty != bEmpty { return bEmpty }
-            if !aEmpty && !bEmpty && a.date != b.date { return a.date < b.date }
-            return a.order < b.order
-        }
-        var updates: [String: Any] = ["updatedAt": FieldValue.serverTimestamp()]
-        for (i, task) in sorted.enumerated() {
-            updates["tasks.\(task.id).order"] = Double(i + 1)
-        }
-        setPendingTasks(renumberTasks(sorted))
-        updateTaskList(updates)
+        let sorted = getAutoSortedTasks(getDisplayOrderedTasks(taskList.tasks))
+        setPendingTasks(sorted)
+        updateTaskList(buildTaskUpdateData(sorted))
     }
 
     private func confirmDeleteCompleted() {
@@ -3769,12 +3761,10 @@ private struct TaskListDetailPage: View {
 
     private func persistTaskOrder(_ ids: [String]) {
         logTaskReorder()
-        var updates: [String: Any] = ["updatedAt": FieldValue.serverTimestamp()]
-        for (i, id) in ids.enumerated() {
-            updates["tasks.\(id).order"] = Double(i + 1)
-        }
-        setPendingTasks(renumberTasks(displayTasks))
-        updateTaskList(updates)
+        let orderedTasks = ids.compactMap { id in displayTasks.first(where: { $0.id == id }) }
+        let normalizedTasks = renumberTasks(orderedTasks)
+        setPendingTasks(normalizedTasks)
+        updateTaskList(buildTaskUpdateData(normalizedTasks))
     }
 
     private func generateShareCode(taskListId: String) async throws -> String {
@@ -3794,8 +3784,8 @@ private struct TaskListDetailPage: View {
             if let currentCode = taskListSnap.data()?["shareCode"] as? String {
                 batch.deleteDocument(db.collection("shareCodes").document(currentCode))
             }
-            batch.setData(["taskListId": taskListId, "createdAt": FieldValue.serverTimestamp()], forDocument: shareCodeRef)
-            batch.updateData(["shareCode": code, "updatedAt": FieldValue.serverTimestamp()], forDocument: taskListRef)
+            batch.setData(["taskListId": taskListId, "createdAt": nowMillis()], forDocument: shareCodeRef)
+            batch.updateData(["shareCode": code, "updatedAt": nowMillis()], forDocument: taskListRef)
             try await batch.commit()
             return code
         }
@@ -3811,7 +3801,7 @@ private struct TaskListDetailPage: View {
         guard let currentCode = snap.data()?["shareCode"] as? String else { return }
         let batch = db.batch()
         batch.deleteDocument(db.collection("shareCodes").document(currentCode))
-        batch.updateData(["shareCode": NSNull(), "updatedAt": FieldValue.serverTimestamp()], forDocument: taskListRef)
+        batch.updateData(["shareCode": NSNull(), "updatedAt": nowMillis()], forDocument: taskListRef)
         try await batch.commit()
     }
 }
@@ -3848,9 +3838,9 @@ private func addSharedTaskListToOrder(taskListId: String) async throws {
     guard taskListSnap.exists, taskListSnap.data() != nil else {
         throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
     }
-    batch.setData([taskListId: ["order": newOrder], "updatedAt": FieldValue.serverTimestamp()] as [String: Any],
+    batch.setData([taskListId: ["order": newOrder], "updatedAt": nowMillis()] as [String: Any],
                   forDocument: taskListOrderRef, merge: true)
-    batch.updateData(["memberCount": FieldValue.increment(Int64(1)), "updatedAt": FieldValue.serverTimestamp()],
+    batch.updateData(["memberCount": FieldValue.increment(Int64(1)), "updatedAt": nowMillis()],
                      forDocument: taskListRef)
     try await batch.commit()
 }
@@ -4154,7 +4144,7 @@ private final class SettingsViewModel: ObservableObject {
     func updateSettings(_ partial: [String: Any]) {
         guard let uid = currentUid else { return }
         var data = partial
-        data["updatedAt"] = Date().timeIntervalSince1970 * 1000
+        data["updatedAt"] = nowMillis()
         db.collection("settings").document(uid).setData(data, merge: true)
     }
 

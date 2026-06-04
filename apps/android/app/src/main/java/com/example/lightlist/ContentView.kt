@@ -219,6 +219,20 @@ private fun firestoreErrorDescription(operation: String, error: Exception): Stri
     return "Android $operation failed: $code"
 }
 
+private fun logDebugSync(message: String) {
+    if (BuildConfig.DEBUG) {
+        Log.d("lightlist-sync", message)
+    }
+}
+
+private fun shortDebugId(value: String): String {
+    if (!BuildConfig.DEBUG) return ""
+    return when {
+        value.length <= 8 -> value
+        else -> "${value.take(4)}...${value.takeLast(4)}"
+    }
+}
+
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFD0BCFF),
     secondary = Color(0xFFCCC2DC),
@@ -929,16 +943,21 @@ private fun <T> subscribeToOrderedTaskLists(
     var taskListChunkListeners = emptyList<ListenerRegistration>()
 
     fun publish() {
+        logDebugSync(
+            "publish user=${shortDebugId(userId)} order=${orderedTaskListIds.size} loaded=${taskListsById.size}"
+        )
         onPublish(orderedTaskListIds.mapNotNull { taskListsById[it] })
     }
 
     fun subscribeToTaskLists(taskListIds: List<String>) {
         val nextKey = taskListIds.sorted().joinToString("|")
         if (taskListIdsKey == nextKey) {
+            logDebugSync("reuse taskList listeners count=${taskListIds.size}")
             publish()
             return
         }
         taskListIdsKey = nextKey
+        logDebugSync("subscribe taskLists count=${taskListIds.size}")
         removeTaskListListeners(taskListChunkListeners)
         taskListChunkListeners = emptyList()
         taskListsById = taskListsById.filterKeys { taskListIds.contains(it) }
@@ -953,10 +972,14 @@ private fun <T> subscribeToOrderedTaskLists(
                 .whereIn(FieldPath.documentId(), chunk)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
+                        logDebugSync("taskLists listener error=${firestoreErrorDescription("taskLists listen", error)}")
                         onError?.invoke()
                         return@addSnapshotListener
                     }
 
+                    logDebugSync(
+                        "taskLists snapshot chunk=${chunk.size} docs=${snapshot?.documents?.size ?: 0} changes=${snapshot?.documentChanges?.size ?: 0} cache=${snapshot?.metadata?.isFromCache} pending=${snapshot?.metadata?.hasPendingWrites()}"
+                    )
                     val nextTaskListsById = taskListsById.toMutableMap()
                     snapshot?.documentChanges?.forEach { change ->
                         val taskListId = change.document.id
@@ -977,10 +1000,14 @@ private fun <T> subscribeToOrderedTaskLists(
         .document(userId)
         .addSnapshotListener { snapshot, error ->
             if (error != null) {
+                logDebugSync("taskListOrder listener error=${firestoreErrorDescription("taskListOrder listen", error)}")
                 onError?.invoke()
                 return@addSnapshotListener
             }
 
+            logDebugSync(
+                "taskListOrder snapshot exists=${snapshot?.exists()} cache=${snapshot?.metadata?.isFromCache} pending=${snapshot?.metadata?.hasPendingWrites()}"
+            )
             orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap<String, Any>())
             subscribeToTaskLists(orderedTaskListIds)
         }
@@ -1514,7 +1541,7 @@ private suspend fun generateShareCode(taskListId: String): String {
             batch.delete(db.collection("shareCodes").document(currentShareCode))
         }
         batch.set(shareCodeRef, mapOf("taskListId" to taskListId, "createdAt" to nowMillis()))
-        batch.update(taskListRef, mapOf("shareCode" to code, "updatedAt" to FieldValue.serverTimestamp()))
+        batch.update(taskListRef, mapOf("shareCode" to code, "updatedAt" to nowMillis()))
         batch.commit().await()
         return code
     }
@@ -1529,7 +1556,7 @@ private suspend fun removeShareCode(taskListId: String) {
     val currentShareCode = snap.getString("shareCode") ?: return
     val batch = db.batch()
     batch.delete(db.collection("shareCodes").document(currentShareCode))
-    batch.update(taskListRef, mapOf("shareCode" to null, "updatedAt" to FieldValue.serverTimestamp()))
+    batch.update(taskListRef, mapOf("shareCode" to null, "updatedAt" to nowMillis()))
     batch.commit().await()
 }
 
@@ -1569,13 +1596,13 @@ private suspend fun addSharedTaskListToOrder(taskListId: String) {
             taskListOrderRef,
             mapOf(
                 taskListId to mapOf("order" to newOrder),
-                "updatedAt" to FieldValue.serverTimestamp()
+                "updatedAt" to nowMillis()
             ),
             SetOptions.merge()
         )
         update(taskListRef, mapOf(
             "memberCount" to FieldValue.increment(1),
-            "updatedAt" to FieldValue.serverTimestamp()
+            "updatedAt" to nowMillis()
         ))
     }.commit().await()
 }
@@ -2916,7 +2943,7 @@ private fun TaskListsScreen(
     fun commitTaskListOrder(ids: List<String>) {
         val uid = Firebase.auth.currentUser?.uid ?: return
         logTaskListReorder()
-        val updates = mutableMapOf<String, Any>("updatedAt" to FieldValue.serverTimestamp())
+        val updates = mutableMapOf<String, Any>("updatedAt" to nowMillis())
         ids.forEachIndexed { i, id -> updates["$id.order"] = (i + 1).toDouble() }
         pendingTaskListOrder = displayTaskLists.toList()
         scope.launch {
@@ -3995,11 +4022,29 @@ private fun TaskListDetailContent(
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
     val languageTag = t.languageTag()
-    val canSort = remember(taskList.tasks) { taskList.tasks.size >= 2 }
-    val hasCompletedTasks = remember(taskList.tasks) { taskList.tasks.any { it.completed } }
+    val canSort = remember(displayTasks) { displayTasks.size >= 2 }
+    val hasCompletedTasks = remember(displayTasks) { displayTasks.any { it.completed } }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var newTaskInputWidthPx by remember { mutableStateOf(0) }
     val mutationQueue = remember(taskList.id) { TaskListMutationQueue(scope) }
+
+    LaunchedEffect(taskList.id) {
+        editingTaskId = null
+        editingTextFieldValue = TextFieldValue("")
+        actionSheetState = null
+        showDeleteCompletedConfirm = false
+        draggingTaskId = null
+        taskDragOffset = 0f
+        dragOrderedTasks = null
+        pendingDisplayedTasks = null
+        taskItemHeights = emptyMap()
+        taskAutoScrollSpeed = 0f
+        currentShareCode = taskList.shareCode
+        editName = ""
+        editBackground = null
+        shareCopySuccess = false
+        shareError = null
+    }
 
     fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
         return tasks
@@ -4023,7 +4068,7 @@ private fun TaskListDetailContent(
         tasks: List<TaskSummary>,
         deletedTaskIds: List<String> = emptyList()
     ): Map<String, Any> {
-        val updates = mutableMapOf<String, Any>("updatedAt" to FieldValue.serverTimestamp())
+        val updates = mutableMapOf<String, Any>("updatedAt" to nowMillis())
         deletedTaskIds.forEach { taskId ->
             updates["tasks.$taskId"] = FieldValue.delete()
         }
@@ -4076,10 +4121,15 @@ private fun TaskListDetailContent(
     }
 
     fun persistTaskListUpdate(updates: Map<String, Any>) {
+        val taskListDebugId = shortDebugId(taskList.id)
+        logDebugSync("task update enqueue taskList=$taskListDebugId fields=${updates.keys.sorted().joinToString(",")}")
         mutationQueue.enqueue {
             try {
+                logDebugSync("task update start taskList=$taskListDebugId fields=${updates.size}")
                 db.collection("taskLists").document(taskList.id).update(updates).await()
+                logDebugSync("task update success taskList=$taskListDebugId")
             } catch (e: Exception) {
+                logDebugSync("task update failure taskList=$taskListDebugId ${firestoreErrorDescription("task update", e)}")
                 logException(firestoreErrorDescription("task update", e), fatal = false)
                 withContext(Dispatchers.Main) {
                     pendingDisplayedTasks = null
@@ -4165,10 +4215,10 @@ private fun TaskListDetailContent(
 
     fun commitTaskOrder(ids: List<String>) {
         logTaskReorder()
-        val updates = mutableMapOf<String, Any>("updatedAt" to FieldValue.serverTimestamp())
-        ids.forEachIndexed { i, id -> updates["tasks.$id.order"] = (i + 1).toDouble() }
-        setPendingTasks(renumberTasks(displayTasks))
-        persistTaskListUpdate(updates)
+        val orderedTasks = ids.mapNotNull { id -> displayTasks.firstOrNull { it.id == id } }
+        val normalizedTasks = renumberTasks(orderedTasks)
+        setPendingTasks(normalizedTasks)
+        persistTaskListUpdate(buildTaskUpdateData(normalizedTasks))
     }
 
     fun toggleCompletion(task: TaskSummary) {
@@ -4176,20 +4226,11 @@ private fun TaskListDetailContent(
         performTaskMutation(
             buildNextTasks = { currentTasks ->
                 currentTasks.map { current ->
-                    if (current.id == task.id) current.copy(completed = !task.completed) else current
+                    if (current.id == task.id) current.copy(completed = !current.completed) else current
                 }
             },
             persist = { nextTasks ->
-                if (autoSort) {
-                    persistNormalizedTasks(nextTasks)
-                } else {
-                    persistTaskListUpdate(
-                        mapOf(
-                            "tasks.${task.id}.completed" to !task.completed,
-                            "updatedAt" to FieldValue.serverTimestamp()
-                        )
-                    )
-                }
+                persistNormalizedTasks(nextTasks)
             }
         )
     }
@@ -4221,25 +4262,15 @@ private fun TaskListDetailContent(
                     }
                 },
                 persist = { nextTasks ->
-                    if (autoSort) {
-                        val updates = buildTaskUpdateData(
-                            tasks = normalizeTasks(nextTasks)
-                        ).toMutableMap<String, Any>()
-                        if (textChanged) {
-                            updates["history"] = buildHistory(resolved.text, task.text)
-                        }
-                        persistTaskListUpdate(updates)
-                    } else {
-                        persistTaskListUpdate(
-                            buildMap {
-                                put("tasks.${task.id}.text", resolved.text)
-                                put("tasks.${task.id}.date", resolved.date ?: task.date)
-                                if (pinnedChanged) put("tasks.${task.id}.pinned", true)
-                                if (textChanged) put("history", buildHistory(resolved.text, task.text))
-                                put("updatedAt", FieldValue.serverTimestamp())
-                            }
-                        )
+                    val normalizedTasks = normalizeTasks(nextTasks)
+                    setPendingTasks(normalizedTasks)
+                    val updates = buildTaskUpdateData(
+                        tasks = normalizedTasks
+                    ).toMutableMap<String, Any>()
+                    if (textChanged) {
+                        updates["history"] = buildHistory(resolved.text, task.text)
                     }
+                    persistTaskListUpdate(updates)
                 }
             )
         }
@@ -4280,29 +4311,21 @@ private fun TaskListDetailContent(
                 }
             },
             persist = { nextTasks ->
-                if (autoSort) {
-                    persistNormalizedTasks(nextTasks)
-                } else {
-                    persistTaskListUpdate(
-                        mapOf(
-                            "tasks.${task.id}.date" to dateStr,
-                            "updatedAt" to FieldValue.serverTimestamp()
-                        )
-                    )
-                }
+                persistNormalizedTasks(nextTasks)
             }
         )
     }
 
     fun togglePinned(task: TaskSummary) {
         logTaskUpdate(fields = "pinned")
-        val nextPinned = !task.pinned
         performTaskMutation(
             buildNextTasks = { currentTasks ->
+                val currentTask = currentTasks.firstOrNull { it.id == task.id } ?: task
+                val nextPinned = !currentTask.pinned
                 val updatedTasks = currentTasks.map { current ->
                     if (current.id == task.id) current.copy(pinned = nextPinned) else current
                 }
-                if (task.pinned && !nextPinned && !task.completed && !autoSort) {
+                if (currentTask.pinned && !nextPinned && !currentTask.completed && !autoSort) {
                     updatedTasks.filter { taskDisplayGroup(it) == 0 } +
                         updatedTasks.filter { it.id == task.id } +
                         updatedTasks.filter { taskDisplayGroup(it) == 1 && it.id != task.id } +
@@ -4312,40 +4335,22 @@ private fun TaskListDetailContent(
                 }
             },
             persist = { nextTasks ->
-                if (autoSort) {
-                    persistNormalizedTasks(nextTasks)
-                } else if (task.pinned && !nextPinned && !task.completed) {
-                    persistTaskListUpdate(buildTaskUpdateData(renumberTasks(nextTasks)))
-                } else {
-                    persistTaskListUpdate(
-                        mapOf(
-                            "tasks.${task.id}.pinned" to nextPinned,
-                            "updatedAt" to FieldValue.serverTimestamp()
-                        )
-                    )
-                }
+                persistNormalizedTasks(nextTasks)
             }
         )
     }
 
     fun sortTasks() {
         logTaskSort()
-        val sorted = taskList.tasks.sortedWith(
-            compareBy<TaskSummary> { taskDisplayGroup(it) }
-                .thenBy { it.date.isEmpty() }
-                .thenBy { if (it.date.isEmpty()) "" else it.date }
-                .thenBy { it.order }
-        )
-        val updates = mutableMapOf<String, Any>("updatedAt" to FieldValue.serverTimestamp())
-        sorted.forEachIndexed { i, task -> updates["tasks.${task.id}.order"] = (i + 1).toDouble() }
-        setPendingTasks(renumberTasks(sorted))
-        persistTaskListUpdate(updates)
+        val sorted = getAutoSortedTasks(getDisplayOrderedTasks(displayTasks))
+        setPendingTasks(sorted)
+        persistTaskListUpdate(buildTaskUpdateData(sorted))
     }
 
     fun deleteCompletedTasks() {
-        val completed = taskList.tasks.filter { it.completed }
+        val completed = displayTasks.filter { it.completed }
         logTaskDeleteCompleted(count = completed.size)
-        val remaining = taskList.tasks.filter { !it.completed }
+        val remaining = displayTasks.filter { !it.completed }
         persistNormalizedTasks(remaining, completed.map { it.id })
     }
 
@@ -4373,7 +4378,7 @@ private fun TaskListDetailContent(
                         taskListOrderRef,
                         mapOf(
                             taskListId to FieldValue.delete(),
-                            "updatedAt" to FieldValue.serverTimestamp()
+                            "updatedAt" to nowMillis()
                         )
                     )
 
@@ -4390,7 +4395,7 @@ private fun TaskListDetailContent(
                             taskListRef,
                             mapOf(
                                 "memberCount" to FieldValue.increment(-1),
-                                "updatedAt" to FieldValue.serverTimestamp()
+                                "updatedAt" to nowMillis()
                             )
                         )
                     }
@@ -4412,7 +4417,7 @@ private fun TaskListDetailContent(
         logTaskAdd(hasDate = !parsed.date.isNullOrEmpty())
         newTaskText = ""
         val taskId = java.util.UUID.randomUUID().toString()
-        val tasks = taskList.tasks
+        val tasks = displayTasks
         val order = if (taskInsertPosition == "top")
             (tasks.firstOrNull()?.order ?: 1.0) - 1.0
         else
@@ -4434,26 +4439,13 @@ private fun TaskListDetailContent(
                 }
             },
             persist = { nextTasks ->
-                if (autoSort) {
-                    val updates = buildTaskUpdateData(
-                        tasks = normalizeTasks(nextTasks)
-                    ).toMutableMap<String, Any>()
-                    updates["history"] = buildHistory(parsed.text)
-                    persistTaskListUpdate(updates)
-                } else {
-                    persistTaskListUpdate(
-                        mapOf(
-                            "tasks.$taskId.id" to taskId,
-                            "tasks.$taskId.text" to parsed.text,
-                            "tasks.$taskId.completed" to false,
-                            "tasks.$taskId.date" to (parsed.date ?: ""),
-                            "tasks.$taskId.order" to order,
-                            "tasks.$taskId.pinned" to parsed.pinnedFromInput,
-                            "history" to buildHistory(parsed.text),
-                            "updatedAt" to FieldValue.serverTimestamp()
-                        )
-                    )
-                }
+                val normalizedTasks = normalizeTasks(nextTasks)
+                setPendingTasks(normalizedTasks)
+                val updates = buildTaskUpdateData(
+                    tasks = normalizedTasks
+                ).toMutableMap<String, Any>()
+                updates["history"] = buildHistory(parsed.text)
+                persistTaskListUpdate(updates)
             }
         )
     }
@@ -4877,7 +4869,7 @@ private fun TaskListDetailContent(
                     onClick = {
                         val trimmed = editName.trim()
                         if (trimmed.isNotEmpty()) {
-                            val updates = mutableMapOf<String, Any?>("updatedAt" to FieldValue.serverTimestamp())
+                            val updates = mutableMapOf<String, Any?>("updatedAt" to nowMillis())
                             if (trimmed != taskList.name) updates["name"] = trimmed
                             if (editBackground != taskList.background) updates["background"] = editBackground
                             if (updates.size > 1) {
@@ -5052,7 +5044,7 @@ private fun TaskListDetailContent(
     }
 
     actionSheetState?.let { actionState ->
-        val task = taskList.tasks.firstOrNull { it.id == actionState.taskId }
+        val task = displayTasks.firstOrNull { it.id == actionState.taskId }
         if (task == null) {
             LaunchedEffect(actionState.taskId) {
                 actionSheetState = null
@@ -5232,7 +5224,7 @@ private fun SettingsView(
     fun updateSettings(partial: Map<String, Any>) {
         if (userId == null) return
         Firebase.firestore.collection("settings").document(userId)
-            .set(partial + mapOf("updatedAt" to FieldValue.serverTimestamp()), SetOptions.merge())
+            .set(partial + mapOf("updatedAt" to nowMillis()), SetOptions.merge())
     }
 
     DetailScreenScaffold(

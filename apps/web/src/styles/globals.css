@@ -1,13 +1,4 @@
-@import url("/fonts/gen-interface-jp/400.css");
-@import url("/fonts/gen-interface-jp/500.css");
-@import url("/fonts/gen-interface-jp/600.css");
-@import url("/fonts/gen-interface-jp/700.css");
-@import url("/fonts/gen-interface-jp/display-700.css");
-@import url("/fonts/gen-interface-jp/display-800.css");
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "./compiled-styles.css";
 
 :root {
   --font-gen-interface-jp: "Gen Interface JP";
@@ -35,10 +26,12 @@ body,
 
 body {
   margin: 0;
-  @apply font-sans;
+  font-family:
+    var(--font-gen-interface-jp), "Hiragino Sans", "Yu Gothic", "YuGothic",
+    system-ui, sans-serif;
 }
 
-@layer base {
+@layer ll-global-base {
   h1,
   h2,
   h3 {
@@ -83,7 +76,7 @@ body {
   }
 }
 
-@layer utilities {
+@layer ll-global-styles {
   .font-display {
     font-family:
       var(--font-gen-interface-jp-display), var(--font-gen-interface-jp),

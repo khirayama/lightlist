@@ -51,315 +51,315 @@
     },
     {
       "name": "@firebase/ai",
-      "version": "2.11.1",
+      "version": "2.13.0",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/ai\n\nThis is the Firebase AI component of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/analytics",
-      "version": "0.10.21",
+      "version": "0.10.22",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/analytics\n\nThis is the Firebase Analytics component of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/analytics-compat",
-      "version": "0.2.27",
+      "version": "0.2.28",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/analytics-compat\n\nThis is the compatibility layer for the Firebase Analytics component of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/analytics-types",
-      "version": "0.8.3",
+      "version": "0.8.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/analytics-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/app",
-      "version": "0.14.11",
+      "version": "0.14.13",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/app\n\nThis package coordinates the communication between the different Firebase components\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/app-check",
-      "version": "0.11.2",
+      "version": "0.11.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/app-check\n\nThis is the Firebase App Check component of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [`firebase`](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/app-check-compat",
-      "version": "0.4.2",
+      "version": "0.4.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/app-check-compat\n\nThis is the Firebase App Check component (compat version) of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [`firebase`](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/app-check-interop-types",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/app-check-interop-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/app-check-types",
-      "version": "0.5.3",
+      "version": "0.5.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/app-check-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/app-compat",
-      "version": "0.5.11",
+      "version": "0.5.13",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/app-compat\n\nThis is the compatibility layer for the Firebase App package, which recreates the v8 API.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/app-types",
-      "version": "0.9.4",
+      "version": "0.9.5",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/app-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/auth",
-      "version": "1.13.0",
+      "version": "1.13.2",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/auth\n\nThis is the Firebase Authentication component of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**\n\n## Testing\n\nThe modular Auth SDK has both unit tests and integration tests, along with a\nhost of npm scripts to run these tests. The most important commands are:\n\n| Command | Description |\n| ------- | ----------- |\n| `yarn test` | This will run lint, unit tests, and integration tests against the live environment|\n| `yarn test:<platform>` | Runs all browser tests, unit and integration |\n| `yarn test:<platform>:unit` | Runs only \\<platform> unit tests |\n| `yarn test:<platform>:unit:debug` | Runs \\<platform> unit tests, auto-watching for file system changes |\n| `yarn test:<platform>:integration` | Runs only integration tests against the live environment |\n| `yarn test:<platform>:integration:local` | Runs all headless \\<platform> integration tests against the emulator (more below) |\n| `yarn test:browser:integration:prodbackend` | Runs TOTP MFA integration tests against the backend (more below) |\n\nWhere \\<platform> is \"browser\" or \"node\". There are also cordova tests, but they\nare not broken into such granular details. Check out `package.json` for more.\n\n### Integration testing with the emulator\n\nTo test against the emulator, set up the Auth emulator\n([instructions](https://firebase.google.com/docs/emulator-suite/connect_and_prototype)).\nThe easiest way to run these tests is to use the `firebase emulators:exec`\ncommand\n([documentation](https://firebase.google.com/docs/emulator-suite/install_and_configure#startup)).\nYou can also manually start the emulator separately, and then point the tests\nto it by setting the `GCLOUD_PROJECT` and `FIREBASE_AUTH_EMULATOR_HOST`\nenvironmental variables. In addition to the commands listed above, the below\ncommands also run various tests:\n\n  * `yarn test:integration:local` — Executes Node and browser emulator\n    integration tests, as well as the Selenium WebDriver tests\n  \n  * `yarn test:webdriver` — Executes only the Selenium WebDriver\n    integration tests\n\nNote - The webdriver tests require the Chrome webdriver to match the version of Chrome running locally.\nIn the CI environment, this is ensured using the environment variable [here.](https://github.com/firebase/firebase-js-sdk/blob/6e80a678fe0c31046860554cec0459a2be34d22b/.github/workflows/test-changed-auth.yml#L7)\nWhen running locally, change the chromedriver version in [package.json](https://github.com/firebase/firebase-js-sdk/blob/6e80a678fe0c31046860554cec0459a2be34d22b/packages/auth/package.json#L124) to match your local Chrome version and run `yarn install`.\n\n\nFor example, to run all integration and WebDriver tests against the emulator,\nyou would simply execute the following command:\n\n```sh\nfirebase emulators:exec --project foo-bar --only auth \"yarn test:integration:local\"\n```\n\n### Integration testing with the production backend\n\nCurrently, MFA TOTP, password policy, and reCAPTCHA Enterprise phone verification tests only run \nagainst the production backend (since they are not supported on the emulator yet).\nRunning against the backend also makes it a more reliable end-to-end test.\n\n#### TOTP\n\nThe TOTP tests require the following email/password combination to exist in the project, so if you are running this test against your test project, please create this user:\n\n'totpuser-donotdelete@test.com', 'password'\n\nYou also need to verify this email address, in order to use MFA. This can be done with a curl command like this:\n\n```\ncurl   -H \"Authorization: Bearer $(gcloud auth print-access-token)\"   -H \"Content-Type: application/json\"   -H \"X-Goog-User-Project: ${PROJECT_ID}\"   -X POST https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode   -d     '{\n      \"email\": \"totpuser-donotdelete@test.com\",\n      \"requestType\": \"VERIFY_EMAIL\",\n      \"returnOobLink\": true,\n    }'\n```\n\n#### Password policy\n\nThe password policy tests require a tenant configured with a password policy that requires all options to exist in the project.\n\nIf you are running this test against your test project, please create the tenant and configure the policy with the following curl command:\n\n```\ncurl   -H \"Authorization: Bearer $(gcloud auth print-access-token)\"   -H \"Content-Type: application/json\"   -H \"X-Goog-User-Project: ${PROJECT_ID}\"   -X POST https://identitytoolkit.googleapis.com/v2/projects/${PROJECT_ID}/tenants   -d     '{\n      \"displayName\": \"passpol-tenant\",\n      \"passwordPolicyConfig\": {\n        \"passwordPolicyEnforcementState\": \"ENFORCE\",\n        \"passwordPolicyVersions\": [\n          {\n            \"customStrengthOptions\": {\n              \"minPasswordLength\": 8,\n              \"maxPasswordLength\": 24,\n              \"containsLowercaseCharacter\": true,\n              \"containsUppercaseCharacter\": true,\n              \"containsNumericCharacter\": true,\n              \"containsNonAlphanumericCharacter\": true\n            }\n          }\n        ]\n      }\n    }'\n```\n\nReplace the tenant ID `passpol-tenant-d7hha` in [test/integration/flows/password_policy.test.ts](https://github.com/firebase/firebase-js-sdk/blob/main/packages/auth/test/integration/flows/password_policy.test.ts) with the ID for the newly created tenant. The tenant ID can be found at the end of the `name` property in the response and is in the format `passpol-tenant-xxxxx`.\n\n#### reCAPTCHA Enterprise phone verification\n\nThe reCAPTCHA Enterprise phone verification tests require reCAPTCHA Enterprise to be enabled and\nthe following fictional phone number to be configured and in the project. \n\nIf you are running this\ntest against your project, please [add this test phone number](https://firebase.google.com/docs/auth/web/phone-auth#create-fictional-phone-numbers-and-verification-codes):\n\n'+1 555-555-1000', SMS code: '123456'\n\nFollow [this guide](https://cloud.google.com/identity-platform/docs/recaptcha-enterprise) to enable reCAPTCHA\nEnterprise, then use the following curl command to set reCAPTCHA Enterprise to ENFORCE for phone provider:\n\n```\ncurl   -H \"Authorization: Bearer $(gcloud auth print-access-token)\"   -H \"Content-Type: application/json\"   -H \"X-Goog-User-Project: $\n{PROJECT_ID}\"   -X POST https://identitytoolkit.googleapis.com/v2/projects/${PROJECT_ID}/config?updateMask=recaptchaConfig.phoneEnforcementState,recaptchaConfig.useSmsBotScore,recaptchaConfig.useSmsTollFraudProtection  -d '\n{\n  \"name\": \"projects/{PROJECT_ID}\",\n  \"recaptchaConfig\": {\n    \"phoneEnforcementState\": \"ENFORCE\",\n    \"useSmsBotScore\": \"true\",\n    \"useSmsTollFraudProtection\": \"true\",\n  },\n}'\n```\n\n### Selenium Webdriver tests\n\nThese tests assume that you have both Firefox and Chrome installed on your\ncomputer and in your `$PATH`. The tests will error out if this is not the case.\nThe WebDriver tests talk to the emulator, but unlike the headless integration\ntests, these run in a browser robot environment; the assertions themselves run\nin Node. When you run these tests a small Express server will be started to\nserve the static files the browser robot uses."
     },
     {
       "name": "@firebase/auth-compat",
-      "version": "0.6.5",
+      "version": "0.6.7",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/auth-compat\n\nThis is a compatability layer to for the Firebase Authentication SDK\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/auth-interop-types",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/auth-interop-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/auth-types",
-      "version": "0.13.0",
+      "version": "0.13.1",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/auth-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/component",
-      "version": "0.7.2",
+      "version": "0.7.3",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/component\n\n_NOTE: This is specifically tailored for Firebase JS SDK usage, if you are not a\nmember of the Firebase team, please avoid using this package_\n\n## Usage\n\n**ES Modules**\n\n```javascript\nimport { Component } from '@firebase/component';\n```"
     },
     {
       "name": "@firebase/data-connect",
-      "version": "0.6.0",
+      "version": "0.7.1",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# Firebase Data Connect\n\n## Local Development\n\nCheck `test/dataconnect.yaml` to ensure that the correct values are filled in."
     },
     {
       "name": "@firebase/database",
-      "version": "1.1.2",
+      "version": "1.1.3",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/database\n\nThis is the Firebase Realtime Database component of the Firebase JS SDK. \n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/database-compat",
-      "version": "2.1.3",
+      "version": "2.1.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/database-compat\n\nThis is the compatibility layer for the Firebase Realtime Database component of the Firebase JS SDK. \n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/database-types",
-      "version": "1.0.19",
+      "version": "1.0.20",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/database-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/firestore",
-      "version": "4.14.0",
+      "version": "4.15.0",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/firestore\n\nThis is the [Cloud Firestore](https://firebase.google.com/docs/firestore/) component of the\n[Firebase JS SDK](https://www.npmjs.com/package/firebase).\n\n**This package is not intended for direct usage, and should only be used via the officially\nsupported [firebase](https://www.npmjs.com/package/firebase) package.**\n\nIf you are developing a Node.js application that requires administrative access to Cloud Firestore,\nuse the [`@google-cloud/firestore`](https://www.npmjs.com/package/@google-cloud/firestore) Server\nSDK with your developer credentials.\n\n## Documentation\n\nFor comprehensive documentation please see the [Firebase Reference\nDocs][reference-docs].\n\n[reference-docs]: https://firebase.google.com/docs/reference/js/\n\n## Contributing\nSee [Contributing to the Firebase SDK](../../CONTRIBUTING.md) for general\ninformation about contributing to the firebase-js-sdk repo and\n[Contributing to the Cloud Firestore Component](./CONTRIBUTING.md) for\ndetails specific to the Cloud Firestore code and tests."
     },
     {
       "name": "@firebase/firestore-compat",
-      "version": "0.4.8",
+      "version": "0.4.10",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/firestore-compat\n\nThis is the [Cloud Firestore](https://firebase.google.com/docs/firestore/) component of the\n[Firebase JS SDK](https://www.npmjs.com/package/firebase).\n\n**This package is not intended for direct usage, and should only be used via the officially\nsupported [firebase](https://www.npmjs.com/package/firebase) package.**\n\nIf you are developing a Node.js application that requires administrative access to Cloud Firestore,\nuse the [`@google-cloud/firestore`](https://www.npmjs.com/package/@google-cloud/firestore) Server\nSDK with your developer credentials.\n\n## Documentation\n\nFor comprehensive documentation please see the [Firebase Reference\nDocs][reference-docs].\n\n[reference-docs]: https://firebase.google.com/docs/reference/js/\n\n## Contributing\nSee [Contributing to the Firebase SDK](../../CONTRIBUTING.md) for general\ninformation about contributing to the firebase-js-sdk repo and\n[Contributing to the Cloud Firestore Component](./CONTRIBUTING.md) for\ndetails specific to the Cloud Firestore code and tests."
     },
     {
       "name": "@firebase/firestore-types",
-      "version": "3.0.3",
+      "version": "3.0.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/firestore-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/functions",
-      "version": "0.13.3",
+      "version": "0.13.5",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# `@firebase/functions`\n\nThis is the Firebase Functions component of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/functions-compat",
-      "version": "0.4.3",
+      "version": "0.4.5",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": ""
     },
     {
       "name": "@firebase/functions-types",
-      "version": "0.6.3",
+      "version": "0.6.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/functions-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/installations",
-      "version": "0.6.21",
+      "version": "0.6.22",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": ""
     },
     {
       "name": "@firebase/installations-compat",
-      "version": "0.2.21",
+      "version": "0.2.22",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/installations-compat\n\nThis is a compatability layer  for the Firebase Installations SDK\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/installations-types",
-      "version": "0.5.3",
+      "version": "0.5.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": ""
     },
     {
       "name": "@firebase/logger",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/logger\n\nThis package serves as the base of all logging in the JS SDK. Any logging that\nis intended to be visible to Firebase end developers should go through this\nmodule.\n\n## Basic Usage\n\nFirebase components should import the `Logger` class and instantiate a new\ninstance by passing a component name (e.g. `@firebase/<COMPONENT>`) to the\nconstructor.\n\n_e.g._\n\n```typescript\nimport { Logger } from '@firebase/logger';\n\nconst logClient = new Logger(`@firebase/<COMPONENT>`);\n```\n\nEach `Logger` instance supports 5 log functions each to be used in a specific\ninstance:\n\n- `debug`: Internal logs; use this to allow developers to send us their debug\n  logs for us to be able to diagnose an issue.\n- `log`: Use to inform your user about things they may need to know.\n- `info`: Use if you have to inform the user about something that they need to\n  take a concrete action on. Once they take that action, the log should go away.\n- `warn`: Use when a product feature may stop functioning correctly; unexpected\n  scenario.\n- `error`: Only use when user App would stop functioning correctly - super rare!\n\n## Log Format\n\nEach log will be formatted in the following manner:\n\n```typescript\n`[${new Date()}]  ${COMPONENT_NAME}: ${...args}`\n```"
     },
     {
       "name": "@firebase/messaging",
-      "version": "0.12.25",
+      "version": "0.13.0",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/messaging\n\nThis is the Firebase Cloud Messaging component of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/messaging-compat",
-      "version": "0.2.25",
+      "version": "0.2.27",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/messaging-compat\n\nThis is the compat package that recreates the v8 APIs.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/messaging-interop-types",
-      "version": "0.2.3",
+      "version": "0.2.5",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/messaging-interop-types\n\n**This package is not intended for direct usage, and should only be used via the officially\nsupported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/performance",
-      "version": "0.7.11",
+      "version": "0.7.12",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/performance\n\nThis is the Firebase Performance component of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/performance-compat",
-      "version": "0.2.24",
+      "version": "0.2.25",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/performance-compat\n\nThis is the compat package that recreates the  v8 APIs.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/performance-types",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": ""
     },
     {
       "name": "@firebase/remote-config",
-      "version": "0.8.2",
+      "version": "0.8.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/remote-config\n\nThis is the [Remote Config](https://firebase.google.com/docs/remote-config/) component of the\n[Firebase JS SDK](https://www.npmjs.com/package/firebase).\n\n**This package is not intended for direct usage, and should only be used via the officially\nsupported [firebase](https://www.npmjs.com/package/firebase) package.**\n\n## Contributing\n\nSetup:\n\n1. Run `yarn` in repo root\n\nFormat:\n\n1. Run `yarn prettier` in RC package\n\nUnit test:\n\n1. Run `yarn test` in RC package\n\nEnd-to-end test:\n\n1. Run `yarn build` in RC package\n1. Run `yarn build` in Firebase package\n1. Open test_app/index.html in a browser"
     },
     {
       "name": "@firebase/remote-config-compat",
-      "version": "0.2.23",
+      "version": "0.2.25",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/remote-compat\n\nThis is the compat package that recreates the v8 APIs.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/remote-config-types",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/remoteconfig-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/storage",
-      "version": "0.14.2",
+      "version": "0.14.3",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/storage\n\nThis is the Cloud Storage component of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/storage-compat",
-      "version": "0.4.2",
+      "version": "0.4.3",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/storage\n\nThis is the Cloud Storage component of the Firebase JS SDK.\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/storage-types",
-      "version": "0.8.3",
+      "version": "0.8.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/storage-types\n\n**This package is not intended for direct usage, and should only be used via the officially supported [firebase](https://www.npmjs.com/package/firebase) package.**"
     },
     {
       "name": "@firebase/util",
-      "version": "1.15.0",
+      "version": "1.15.1",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/util\n\n_NOTE: This is specifically tailored for Firebase JS SDK usage, if you are not a\nmember of the Firebase team, please avoid using this package_\n\nThis is a wrapper of some Webchannel Features for the Firebase JS SDK.\n\n## Usage\n\n**ES Modules**\n\n```javascript\nimport { Deferred } from '@firebase/util';\n\n// Do stuff with Deferred or any of the other Utils you import\n```\n\n**CommonJS Modules**\n\n```javascript\nconst utils = require('@firebase/util');\n\n// Do stuff with any of the re-exported `utils`\n```"
     },
     {
       "name": "@firebase/webchannel-wrapper",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "# @firebase/webchannel-wrapper\n\n_NOTE: This is specifically tailored for Firebase JS SDK usage, if you are not a member of the Firebase team, please avoid using this package_\n\nThis is a wrapper of some Webchannel Features for the Firebase JS SDK.\n\n## Usage\n\nThe following 5 modules are exposed for use:\n\n- `createWebChannelTransport`\n- `ErrorCode`\n- `EventType`\n- `WebChannel`\n- `XhrIoPool`\n\nYou can include these by doing the following:\n\n**ES Modules**\n\n```javascript\nimport { WebChannel } from '@firebase/webchannel-wrapper'\n\n// Do stuff with WebChannel\n```\n\n**CommonJS Modules**\n\n```javascript\nconst webchannelWrapper = require('@firebase/webchannel-wrapper');\n\n// Do stuff with webchannelWrapper.ErrorCode, webchannelWrapper.EventType, etc \n```"
     },
     {
       "name": "@grpc/grpc-js",
-      "version": "1.9.15",
+      "version": "1.9.16",
       "license": "Apache-2.0",
       "repository": "https://github.com/grpc/grpc-node.git#master",
       "licenseText": "Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object code, generated documentation,\n      and conversions to other media types.\n\n      \"Work\" shall mean the work of authorship, whether in Source or\n      Object form, made available under the License, as indicated by a\n      copyright notice that is included in or attached to the work\n      (an example is provided in the Appendix below).\n\n      \"Derivative Works\" shall mean any work, whether in Source or Object\n      form, that is based on (or derived from) the Work and for which the\n      editorial revisions, annotations, elaborations, or other modifications\n      represent, as a whole, an original work of authorship. For the purposes\n      of this License, Derivative Works shall not include works that remain\n      separable from, or merely link (or bind by name) to the interfaces of,\n      the Work and Derivative Works thereof.\n\n      \"Contribution\" shall mean any work of authorship, including\n      the original version of the Work and any modifications or additions\n      to that Work or Derivative Works thereof, that is intentionally\n      submitted to Licensor for inclusion in the Work by the copyright owner\n      or by an individual or Legal Entity authorized to submit on behalf of\n      the copyright owner. For the purposes of this definition, \"submitted\"\n      means any form of electronic, verbal, or written communication sent\n      to the Licensor or its representatives, including but not limited to\n      communication on electronic mailing lists, source code control systems,\n      and issue tracking systems that are managed by, or on behalf of, the\n      Licensor for the purpose of discussing and improving the Work, but\n      excluding communication that is conspicuously marked or otherwise\n      designated in writing by the copyright owner as \"Not a Contribution.\"\n\n      \"Contributor\" shall mean Licensor and any individual or Legal Entity\n      on behalf of whom a Contribution has been received by Licensor and\n      subsequently incorporated within the Work.\n\n   2. Grant of Copyright License. Subject to the terms and conditions of\n      this License, each Contributor hereby grants to You a perpetual,\n      worldwide, non-exclusive, no-charge, royalty-free, irrevocable\n      copyright license to reproduce, prepare Derivative Works of,\n      publicly display, publicly perform, sublicense, and distribute the\n      Work and such Derivative Works in Source or Object form.\n\n   3. Grant of Patent License. Subject to the terms and conditions of\n      this License, each Contributor hereby grants to You a perpetual,\n      worldwide, non-exclusive, no-charge, royalty-free, irrevocable\n      (except as stated in this section) patent license to make, have made,\n      use, offer to sell, sell, import, and otherwise transfer the Work,\n      where such license applies only to those patent claims licensable\n      by such Contributor that are necessarily infringed by their\n      Contribution(s) alone or by combination of their Contribution(s)\n      with the Work to which such Contribution(s) was submitted. If You\n      institute patent litigation against any entity (including a\n      cross-claim or counterclaim in a lawsuit) alleging that the Work\n      or a Contribution incorporated within the Work constitutes direct\n      or contributory patent infringement, then any patent licenses\n      granted to You under this License for that Work shall terminate\n      as of the date such litigation is filed.\n\n   4. Redistribution. You may reproduce and distribute copies of the\n      Work or Derivative Works thereof in any medium, with or without\n      modifications, and in Source or Object form, provided that You\n      meet the following conditions:\n\n      (a) You must give any other recipients of the Work or\n          Derivative Works a copy of this License; and\n\n      (b) You must cause any modified files to carry prominent notices\n          stating that You changed the files; and\n\n      (c) You must retain, in the Source form of any Derivative Works\n          that You distribute, all copyright, patent, trademark, and\n          attribution notices from the Source form of the Work,\n          excluding those notices that do not pertain to any part of\n          the Derivative Works; and\n\n      (d) If the Work includes a \"NOTICE\" text file as part of its\n          distribution, then any Derivative Works that You distribute must\n          include a readable copy of the attribution notices contained\n          within such NOTICE file, excluding those notices that do not\n          pertain to any part of the Derivative Works, in at least one\n          of the following places: within a NOTICE text file distributed\n          as part of the Derivative Works; within the Source form or\n          documentation, if provided along with the Derivative Works; or,\n          within a display generated by the Derivative Works, if and\n          wherever such third-party notices normally appear. The contents\n          of the NOTICE file are for informational purposes only and\n          do not modify the License. You may add Your own attribution\n          notices within Derivative Works that You distribute, alongside\n          or as an addendum to the NOTICE text from the Work, provided\n          that such additional attribution notices cannot be construed\n          as modifying the License.\n\n      You may add Your own copyright statement to Your modifications and\n      may provide additional or different license terms and conditions\n      for use, reproduction, or distribution of Your modifications, or\n      for any such Derivative Works as a whole, provided Your use,\n      reproduction, and distribution of the Work otherwise complies with\n      the conditions stated in this License.\n\n   5. Submission of Contributions. Unless You explicitly state otherwise,\n      any Contribution intentionally submitted for inclusion in the Work\n      by You to the Licensor shall be under the terms and conditions of\n      this License, without any additional terms or conditions.\n      Notwithstanding the above, nothing herein shall supersede or modify\n      the terms of any separate license agreement you may have executed\n      with Licensor regarding such Contributions.\n\n   6. Trademarks. This License does not grant permission to use the trade\n      names, trademarks, service marks, or product names of the Licensor,\n      except as required for reasonable and customary use in describing the\n      origin of the Work and reproducing the content of the NOTICE file.\n\n   7. Disclaimer of Warranty. Unless required by applicable law or\n      agreed to in writing, Licensor provides the Work (and each\n      Contributor provides its Contributions) on an \"AS IS\" BASIS,\n      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or\n      implied, including, without limitation, any warranties or conditions\n      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A\n      PARTICULAR PURPOSE. You are solely responsible for determining the\n      appropriateness of using or redistributing the Work and assume any\n      risks associated with Your exercise of permissions under this License.\n\n   8. Limitation of Liability. In no event and under no legal theory,\n      whether in tort (including negligence), contract, or otherwise,\n      unless required by applicable law (such as deliberate and grossly\n      negligent acts) or agreed to in writing, shall any Contributor be\n      liable to You for damages, including any direct, indirect, special,\n      incidental, or consequential damages of any character arising as a\n      result of this License or out of the use or inability to use the\n      Work (including but not limited to damages for loss of goodwill,\n      work stoppage, computer failure or malfunction, or any and all\n      other commercial damages or losses), even if such Contributor\n      has been advised of the possibility of such damages.\n\n   9. Accepting Warranty or Additional Liability. While redistributing\n      the Work or Derivative Works thereof, You may choose to offer,\n      and charge a fee for, acceptance of support, warranty, indemnity,\n      or other liability obligations and/or rights consistent with this\n      License. However, in accepting such obligations, You may act only\n      on Your own behalf and on Your sole responsibility, not on behalf\n      of any other Contributor, and only if You agree to indemnify,\n      defend, and hold each Contributor harmless for any liability\n      incurred by, or claims asserted against, such Contributor by reason\n      of your accepting any such warranty or additional liability.\n\n   END OF TERMS AND CONDITIONS\n\n   APPENDIX: How to apply the Apache License to your work.\n\n      To apply the Apache License to your work, attach the following\n      boilerplate notice, with the fields enclosed by brackets \"{}\"\n      replaced with your own identifying information. (Don't include\n      the brackets!)  The text should be enclosed in the appropriate\n      comment syntax for the file format. We also recommend that a\n      file or class name and description of purpose be included on the\n      same \"printed page\" as the copyright notice for easier\n      identification within third-party archives.\n\n   Copyright {yyyy} {name of copyright owner}\n\n   Licensed under the Apache License, Version 2.0 (the \"License\");\n   you may not use this file except in compliance with the License.\n   You may obtain a copy of the License at\n\n       http://www.apache.org/licenses/LICENSE-2.0\n\n   Unless required by applicable law or agreed to in writing, software\n   distributed under the License is distributed on an \"AS IS\" BASIS,\n   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n   See the License for the specific language governing permissions and\n   limitations under the License."
@@ -400,14 +400,14 @@
     },
     {
       "name": "@protobufjs/eventemitter",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/dcodeIO/protobuf.js",
       "licenseText": "Copyright (c) 2016, Daniel Wirtz  All rights reserved.\r\n\r\nRedistribution and use in source and binary forms, with or without\r\nmodification, are permitted provided that the following conditions are\r\nmet:\r\n\r\n* Redistributions of source code must retain the above copyright\r\n  notice, this list of conditions and the following disclaimer.\r\n* Redistributions in binary form must reproduce the above copyright\r\n  notice, this list of conditions and the following disclaimer in the\r\n  documentation and/or other materials provided with the distribution.\r\n* Neither the name of its author, nor the names of its contributors\r\n  may be used to endorse or promote products derived from this software\r\n  without specific prior written permission.\r\n\r\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\r\n\"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\r\nLIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\r\nA PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT\r\nOWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\r\nSPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT\r\nLIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\r\nDATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\r\nTHEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\r\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\r\nOF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
     },
     {
       "name": "@protobufjs/fetch",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/dcodeIO/protobuf.js",
       "licenseText": "Copyright (c) 2016, Daniel Wirtz  All rights reserved.\r\n\r\nRedistribution and use in source and binary forms, with or without\r\nmodification, are permitted provided that the following conditions are\r\nmet:\r\n\r\n* Redistributions of source code must retain the above copyright\r\n  notice, this list of conditions and the following disclaimer.\r\n* Redistributions in binary form must reproduce the above copyright\r\n  notice, this list of conditions and the following disclaimer in the\r\n  documentation and/or other materials provided with the distribution.\r\n* Neither the name of its author, nor the names of its contributors\r\n  may be used to endorse or promote products derived from this software\r\n  without specific prior written permission.\r\n\r\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\r\n\"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\r\nLIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\r\nA PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT\r\nOWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\r\nSPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT\r\nLIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\r\nDATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\r\nTHEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\r\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\r\nOF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
@@ -421,7 +421,7 @@
     },
     {
       "name": "@protobufjs/inquire",
-      "version": "1.1.1",
+      "version": "1.1.2",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/dcodeIO/protobuf.js",
       "licenseText": "Copyright (c) 2016, Daniel Wirtz  All rights reserved.\r\n\r\nRedistribution and use in source and binary forms, with or without\r\nmodification, are permitted provided that the following conditions are\r\nmet:\r\n\r\n* Redistributions of source code must retain the above copyright\r\n  notice, this list of conditions and the following disclaimer.\r\n* Redistributions in binary form must reproduce the above copyright\r\n  notice, this list of conditions and the following disclaimer in the\r\n  documentation and/or other materials provided with the distribution.\r\n* Neither the name of its author, nor the names of its contributors\r\n  may be used to endorse or promote products derived from this software\r\n  without specific prior written permission.\r\n\r\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\r\n\"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\r\nLIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\r\nA PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT\r\nOWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\r\nSPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT\r\nLIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\r\nDATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\r\nTHEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\r\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\r\nOF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
@@ -567,21 +567,15 @@
       "licenseText": "# `react-use-layout-effect`\n\n## Installation\n\n```sh\n$ yarn add @radix-ui/react-use-layout-effect\n# or\n$ npm install @radix-ui/react-use-layout-effect\n```\n\n## Usage\n\nThis is an internal utility, not intended for public usage."
     },
     {
-      "name": "@tabby_ai/hijri-converter",
-      "version": "1.0.5",
-      "license": "MIT",
-      "licenseText": "MIT License\n\nCopyright (c) 2023 Tabby FZ-LLC\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
-    },
-    {
       "name": "@types/node",
-      "version": "24.10.13",
+      "version": "25.9.1",
       "license": "MIT",
       "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped",
       "licenseText": "MIT License\n\n    Copyright (c) Microsoft Corporation.\n\n    Permission is hereby granted, free of charge, to any person obtaining a copy\n    of this software and associated documentation files (the \"Software\"), to deal\n    in the Software without restriction, including without limitation the rights\n    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n    copies of the Software, and to permit persons to whom the Software is\n    furnished to do so, subject to the following conditions:\n\n    The above copyright notice and this permission notice shall be included in all\n    copies or substantial portions of the Software.\n\n    THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n    SOFTWARE"
     },
     {
       "name": "@types/react",
-      "version": "19.2.14",
+      "version": "19.2.16",
       "license": "MIT",
       "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped",
       "licenseText": "MIT License\n\n    Copyright (c) Microsoft Corporation.\n\n    Permission is hereby granted, free of charge, to any person obtaining a copy\n    of this software and associated documentation files (the \"Software\"), to deal\n    in the Software without restriction, including without limitation the rights\n    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n    copies of the Software, and to permit persons to whom the Software is\n    furnished to do so, subject to the following conditions:\n\n    The above copyright notice and this permission notice shall be included in all\n    copies or substantial portions of the Software.\n\n    THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n    SOFTWARE"
@@ -658,16 +652,9 @@
     },
     {
       "name": "date-fns",
-      "version": "4.1.0",
+      "version": "4.4.0",
       "license": "MIT",
       "repository": "https://github.com/date-fns/date-fns",
-      "licenseText": "MIT License\n\nCopyright (c) 2021 Sasha Koss and Lesha Koss https://kossnocorp.mit-license.org\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
-    },
-    {
-      "name": "date-fns-jalali",
-      "version": "4.1.0-0",
-      "license": "MIT",
-      "repository": "https://github.com/date-fns-jalali/date-fns-jalali",
       "licenseText": "MIT License\n\nCopyright (c) 2021 Sasha Koss and Lesha Koss https://kossnocorp.mit-license.org\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
     },
     {
@@ -700,7 +687,7 @@
     },
     {
       "name": "firebase",
-      "version": "12.12.1",
+      "version": "12.14.0",
       "license": "Apache-2.0",
       "repository": "https://github.com/firebase/firebase-js-sdk",
       "licenseText": "<!-- BADGES -->\n![Build Status](https://img.shields.io/github/workflow/status/firebase/firebase-js-sdk/Run%20All%20Tests.svg)\n[![Version](https://img.shields.io/npm/v/firebase.svg?label=version)](https://www.npmjs.com/package/firebase)\n[![Coverage Status](https://coveralls.io/repos/github/firebase/firebase-js-sdk/badge.svg?branch=main)](https://coveralls.io/github/firebase/firebase-js-sdk?branch=main)\n<!-- END BADGES -->\n\n# Firebase - App success made simple\n\n## Upgrade to Version 9\nVersion 9 has a redesigned API that supports tree-shaking. Read the [Upgrade Guide](https://firebase.google.com/docs/web/modular-upgrade) to learn more.\n\n## Overview\n\n[Firebase](https://firebase.google.com) provides the tools and infrastructure\nyou need to develop, grow, and earn money from your app. This package supports\nweb (browser), mobile-web, and server (Node.js) clients.\n\nFor more information, visit:\n\n- [Firebase Realtime Database](https://firebase.google.com/docs/database/web/start) -\n  The Firebase Realtime Database lets you store and query user data, and makes\n  it available between users in realtime.\n- [Cloud Firestore](https://firebase.google.com/docs/firestore/quickstart) -\n  Cloud Firestore is a flexible, scalable database for mobile, web, and server\n  development from Firebase and Google Cloud Platform.\n- [Firebase Storage](https://firebase.google.com/docs/storage/web/start) -\n  Firebase Storage lets you upload and store user generated content, such as\n  files, and images.\n- [Cloud Functions for Firebase](https://firebase.google.com/docs/functions) -\n   Cloud Functions for Firebase is a serverless framework that lets you automatically run backend code in response to events triggered by Firebase features and HTTPS requests.\n- [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging/js/client) -\n  Firebase Cloud Messaging is a cross-platform messaging solution that lets you\n  reliably deliver messages at no cost.\n- [Firebase Performance Monitoring](https://firebase.google.com/docs/perf-mon/get-started-web) -\n  Firebase Performance Monitoring helps you gain insight into your app's performance issues.\n- [Google Analytics](https://firebase.google.com/docs/analytics/get-started?platform=web) -\n  Google Analytics is a free app measurement solution that provides insight on app usage and user engagement.\n- [Remote Config](https://firebase.google.com/docs/remote-config/get-started?platform=web) -\n  Firebase Remote Config is a cloud service that lets you change the behavior and appearance of your \n  app without requiring users to reload your app.\n- [App Check](https://firebase.google.com/docs/app-check/web/recaptcha-provider) -\n  App Check helps protect your backend resources from abuse, such as billing fraud and phishing. It \n  works with both Firebase services and your own backends to keep your resources safe.\n- [Create and setup your account](https://firebase.google.com/docs/web/setup) -\n  Get started using Firebase for free.\n\nThis SDK is intended for end-user client access from environments such as the\nWeb, mobile Web (e.g. React Native, Ionic), Node.js desktop (e.g. Electron), or\nIoT devices running Node.js. If you are instead interested in using a Node.js\nSDK which grants you admin access from a privileged environment (like a server),\nyou should use the\n[Firebase Admin Node.js SDK](https://firebase.google.com/docs/admin/setup/).\n\n### Install the SDK\n\nInstall the Firebase NPM module:\n```\n$ npm init\n$ npm install --save firebase\n```\n\n### Use Firebase in your app\n\n1. Initialize Firebase in your app and create a Firebase App object:\n```js\nimport { initializeApp } from 'firebase/app';\n\n// TODO: Replace the following with your app's Firebase project configuration\nconst firebaseConfig = {\n  //...\n};\n\nconst app = initializeApp(firebaseConfig);\n```\n\n2. Access Firebase services in your app\n\nFirebase services (like Cloud Firestore, Authentication, Realtime Database, Remote Config, and more) are available to import within individual sub-packages.\n\nThe example below shows how you could use the Cloud Firestore Lite SDK to retrieve a list of data.\n\n```js\nimport { initializeApp } from 'firebase/app';\nimport { getFirestore, collection, getDocs } from 'firebase/firestore/lite';\n// Follow this pattern to import other Firebase services\n// import { } from 'firebase/<service>';\n\n// TODO: Replace the following with your app's Firebase project configuration\nconst firebaseConfig = {\n  //...\n};\n\nconst app = initializeApp(firebaseConfig);\nconst db = getFirestore(app);\n\n// Get a list of cities from your database\nasync function getCities(db) {\n  const citiesCol = collection(db, 'cities');\n  const citySnapshot = await getDocs(citiesCol);\n  const cityList = citySnapshot.docs.map(doc => doc.data());\n  return cityList;\n}\n```\n\n### Use a module bundler for size reduction\n\nThe Firebase Web SDK is designed to work with module bundlers to remove any\nunused code (tree-shaking). We strongly recommend using this approach for\nproduction apps. Tools such as the [Angular CLI](//angular.io/cli),\n[Next.js](//nextjs.org/), [Vue CLI](//cli.vuejs.org/), or [Create\nReact App](//reactjs.org/docs/create-a-new-react-app.html) automatically\nhandle module bundling for libraries installed through npm and imported into\nyour codebase.\n\nSee [Using module bundlers with Firebase](/docs/web/module-bundling) for more information.\n\n### Script include\nYou can also load Firebase packages as script modules in browsers that support native ES modules.\n\n```html\n<!-- use script module by specifying type=\"module\" -->\n<script type=\"module\">\n    import { initializeApp } from 'https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js';\n    import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore-lite.js';\n    // Follow this pattern to import other Firebase services\n    // import {} from \"https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-analytics.js\";\n    // import {} from \"https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app-check.js\";\n    // import {} from \"https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js\";\n    // import {} from \"https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-functions.js\";\n    // import {} from \"https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js\";\n    // import {} from \"https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-storage.js\";\n    // import {} from \"https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-performance.js\";\n    // import {} from \"https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-remote-config.js\";\n    // import {} from \"https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-messaging.js\";\n    // import {} from \"https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-database.js\";\n    \n    // TODO: Replace the following with your app's Firebase project configuration\n    const firebaseConfig = {\n    //...\n    };\n\n    const app = initializeApp(firebaseConfig);\n    const db = getFirestore(app);\n\n    // Get a list of cities from your database\n    async function getCities(db) {\n    const citiesCol = collection(db, 'cities');\n    const citySnapshot = await getDocs(citiesCol);\n    const cityList = citySnapshot.docs.map(doc => doc.data());\n    return cityList;\n    }\n</script>\n```\n\n_Note: To get a filled in version of the above code snippet, go to the\n[Firebase console](https://console.firebase.google.com/) for your app and click on \"Add\nFirebase to your web app\"._\n\n## Get the code (Node.js - server and command line)\n\n### Install the SDK\n\nWhile you can write entire Firebase applications without any backend code, many\ndevelopers want to write server applications or command-line utilities using the\nNode.js JavaScript runtime.\n\nYou can use the same npm module to use Firebase in the Node.js runtime (on a\nserver or running from the command line):\n\n```\n$ npm init\n$ npm install --save firebase\n```\n\nIn your code, you can access Firebase using:\n\n```js\nconst { initializeApp } = require('firebase/app');\nconst { getFirestore, collection, getDocs } = require('firebase/firestore');\n// ...\n```\n\nIf you are using native ES6 module with --experimental-modules flag (or Node 12+)\nyou should do:\n\n```js\nimport { initializeApp } from 'firebase/app';\nimport { getFirestore, collection, getDocs } from 'firebase/firestore';\n// ...\n```\n\nPlease see [Environment Support](https://firebase.google.com/support/guides/environments_js-sdk) for which packages\nare available in Node.js.\n\n## Compat packages\nVersion 9 provides a set of compat packages that are API compatible with Version 8. They are intended to\nbe used to make the upgrade to the modular API easier by allowing you to upgrade your app piece by piece.\nSee the [Upgrade Guide](https://firebase.google.com/docs/web/modular-upgrade) for more detail.\n\nTo access the compat packages, use the subpath `compat` like so:\n```js\n// v9 compat packages are API compatible with v8 code\nimport firebase from 'firebase/compat/app';\nimport 'firebase/compat/auth';\nimport 'firebase/compat/firestore';\n```\n\n## Changelog\n\nThe Firebase changelog can be found at\n[firebase.google.com](https://firebase.google.com/support/release-notes/js).\n\n## Browser/environment compatibility\n\nPlease see [Environment Support](https://firebase.google.com/support/guides/environments_js-sdk)."
@@ -735,10 +722,10 @@
     },
     {
       "name": "i18next",
-      "version": "25.10.9",
+      "version": "26.3.1",
       "license": "MIT",
       "repository": "https://github.com/i18next/i18next",
-      "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2025 i18next\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+      "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2011-present i18next\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
     },
     {
       "name": "i18next-browser-languagedetector",
@@ -777,35 +764,35 @@
     },
     {
       "name": "protobufjs",
-      "version": "7.5.6",
+      "version": "7.6.2",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/protobufjs/protobuf.js",
       "licenseText": "This license applies to all parts of protobuf.js except those files\neither explicitly including or referencing a different license or\nlocated in a directory containing a different LICENSE file.\n\n---\n\nCopyright (c) 2016, Daniel Wirtz  All rights reserved.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions are\nmet:\n\n* Redistributions of source code must retain the above copyright\n  notice, this list of conditions and the following disclaimer.\n* Redistributions in binary form must reproduce the above copyright\n  notice, this list of conditions and the following disclaimer in the\n  documentation and/or other materials provided with the distribution.\n* Neither the name of its author, nor the names of its contributors\n  may be used to endorse or promote products derived from this software\n  without specific prior written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n\"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\nLIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\nA PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT\nOWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\nSPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT\nLIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\nDATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\nTHEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\nOF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\n---\n\nCode generated by the command line utilities is owned by the owner\nof the input file used when generating it. This code is not\nstandalone and requires a support library to be linked with it. This\nsupport library is itself covered by the above license."
     },
     {
       "name": "react",
-      "version": "19.2.4",
+      "version": "19.2.7",
       "license": "MIT",
       "repository": "https://github.com/facebook/react",
       "licenseText": "MIT License\n\nCopyright (c) Meta Platforms, Inc. and affiliates.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
     },
     {
       "name": "react-day-picker",
-      "version": "9.14.0",
+      "version": "10.0.1",
       "license": "MIT",
       "repository": "https://github.com/gpbl/react-day-picker",
-      "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2014-2025 Giampaolo Bellavite <io@gpbl.dev> and contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+      "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2014-2026 Giampaolo Bellavite <io@gpbl.dev> and contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
     },
     {
       "name": "react-dom",
-      "version": "19.2.4",
+      "version": "19.2.7",
       "license": "MIT",
       "repository": "https://github.com/facebook/react",
       "licenseText": "MIT License\n\nCopyright (c) Meta Platforms, Inc. and affiliates.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
     },
     {
       "name": "react-i18next",
-      "version": "16.6.6",
+      "version": "17.0.8",
       "license": "MIT",
       "repository": "https://github.com/i18next/react-i18next",
       "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2015-present i18next\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
@@ -875,14 +862,14 @@
     },
     {
       "name": "typescript",
-      "version": "5.9.3",
+      "version": "6.0.3",
       "license": "Apache-2.0",
       "repository": "https://github.com/microsoft/TypeScript",
       "licenseText": "Apache License\r\n\r\nVersion 2.0, January 2004\r\n\r\nhttp://www.apache.org/licenses/ \r\n\r\nTERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\r\n\r\n1. Definitions.\r\n\r\n\"License\" shall mean the terms and conditions for use, reproduction, and distribution as defined by Sections 1 through 9 of this document.\r\n\r\n\"Licensor\" shall mean the copyright owner or entity authorized by the copyright owner that is granting the License.\r\n\r\n\"Legal Entity\" shall mean the union of the acting entity and all other entities that control, are controlled by, or are under common control with that entity. For the purposes of this definition, \"control\" means (i) the power, direct or indirect, to cause the direction or management of such entity, whether by contract or otherwise, or (ii) ownership of fifty percent (50%) or more of the outstanding shares, or (iii) beneficial ownership of such entity.\r\n\r\n\"You\" (or \"Your\") shall mean an individual or Legal Entity exercising permissions granted by this License.\r\n\r\n\"Source\" form shall mean the preferred form for making modifications, including but not limited to software source code, documentation source, and configuration files.\r\n\r\n\"Object\" form shall mean any form resulting from mechanical transformation or translation of a Source form, including but not limited to compiled object code, generated documentation, and conversions to other media types.\r\n\r\n\"Work\" shall mean the work of authorship, whether in Source or Object form, made available under the License, as indicated by a copyright notice that is included in or attached to the work (an example is provided in the Appendix below).\r\n\r\n\"Derivative Works\" shall mean any work, whether in Source or Object form, that is based on (or derived from) the Work and for which the editorial revisions, annotations, elaborations, or other modifications represent, as a whole, an original work of authorship. For the purposes of this License, Derivative Works shall not include works that remain separable from, or merely link (or bind by name) to the interfaces of, the Work and Derivative Works thereof.\r\n\r\n\"Contribution\" shall mean any work of authorship, including the original version of the Work and any modifications or additions to that Work or Derivative Works thereof, that is intentionally submitted to Licensor for inclusion in the Work by the copyright owner or by an individual or Legal Entity authorized to submit on behalf of the copyright owner. For the purposes of this definition, \"submitted\" means any form of electronic, verbal, or written communication sent to the Licensor or its representatives, including but not limited to communication on electronic mailing lists, source code control systems, and issue tracking systems that are managed by, or on behalf of, the Licensor for the purpose of discussing and improving the Work, but excluding communication that is conspicuously marked or otherwise designated in writing by the copyright owner as \"Not a Contribution.\"\r\n\r\n\"Contributor\" shall mean Licensor and any individual or Legal Entity on behalf of whom a Contribution has been received by Licensor and subsequently incorporated within the Work.\r\n\r\n2. Grant of Copyright License. Subject to the terms and conditions of this License, each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare Derivative Works of, publicly display, publicly perform, sublicense, and distribute the Work and such Derivative Works in Source or Object form.\r\n\r\n3. Grant of Patent License. Subject to the terms and conditions of this License, each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable (except as stated in this section) patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer the Work, where such license applies only to those patent claims licensable by such Contributor that are necessarily infringed by their Contribution(s) alone or by combination of their Contribution(s) with the Work to which such Contribution(s) was submitted. If You institute patent litigation against any entity (including a cross-claim or counterclaim in a lawsuit) alleging that the Work or a Contribution incorporated within the Work constitutes direct or contributory patent infringement, then any patent licenses granted to You under this License for that Work shall terminate as of the date such litigation is filed.\r\n\r\n4. Redistribution. You may reproduce and distribute copies of the Work or Derivative Works thereof in any medium, with or without modifications, and in Source or Object form, provided that You meet the following conditions:\r\n\r\nYou must give any other recipients of the Work or Derivative Works a copy of this License; and\r\n\r\nYou must cause any modified files to carry prominent notices stating that You changed the files; and\r\n\r\nYou must retain, in the Source form of any Derivative Works that You distribute, all copyright, patent, trademark, and attribution notices from the Source form of the Work, excluding those notices that do not pertain to any part of the Derivative Works; and\r\n\r\nIf the Work includes a \"NOTICE\" text file as part of its distribution, then any Derivative Works that You distribute must include a readable copy of the attribution notices contained within such NOTICE file, excluding those notices that do not pertain to any part of the Derivative Works, in at least one of the following places: within a NOTICE text file distributed as part of the Derivative Works; within the Source form or documentation, if provided along with the Derivative Works; or, within a display generated by the Derivative Works, if and wherever such third-party notices normally appear. The contents of the NOTICE file are for informational purposes only and do not modify the License. You may add Your own attribution notices within Derivative Works that You distribute, alongside or as an addendum to the NOTICE text from the Work, provided that such additional attribution notices cannot be construed as modifying the License. You may add Your own copyright statement to Your modifications and may provide additional or different license terms and conditions for use, reproduction, or distribution of Your modifications, or for any such Derivative Works as a whole, provided Your use, reproduction, and distribution of the Work otherwise complies with the conditions stated in this License.\r\n\r\n5. Submission of Contributions. Unless You explicitly state otherwise, any Contribution intentionally submitted for inclusion in the Work by You to the Licensor shall be under the terms and conditions of this License, without any additional terms or conditions. Notwithstanding the above, nothing herein shall supersede or modify the terms of any separate license agreement you may have executed with Licensor regarding such Contributions.\r\n\r\n6. Trademarks. This License does not grant permission to use the trade names, trademarks, service marks, or product names of the Licensor, except as required for reasonable and customary use in describing the origin of the Work and reproducing the content of the NOTICE file.\r\n\r\n7. Disclaimer of Warranty. Unless required by applicable law or agreed to in writing, Licensor provides the Work (and each Contributor provides its Contributions) on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. You are solely responsible for determining the appropriateness of using or redistributing the Work and assume any risks associated with Your exercise of permissions under this License.\r\n\r\n8. Limitation of Liability. In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall any Contributor be liable to You for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising as a result of this License or out of the use or inability to use the Work (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if such Contributor has been advised of the possibility of such damages.\r\n\r\n9. Accepting Warranty or Additional Liability. While redistributing the Work or Derivative Works thereof, You may choose to offer, and charge a fee for, acceptance of support, warranty, indemnity, or other liability obligations and/or rights consistent with this License. However, in accepting such obligations, You may act only on Your own behalf and on Your sole responsibility, not on behalf of any other Contributor, and only if You agree to indemnify, defend, and hold each Contributor harmless for any liability incurred by, or claims asserted against, such Contributor by reason of your accepting any such warranty or additional liability.\r\n\r\nEND OF TERMS AND CONDITIONS"
     },
     {
       "name": "undici-types",
-      "version": "7.16.0",
+      "version": "7.24.6",
       "license": "MIT",
       "repository": "https://github.com/nodejs/undici",
       "licenseText": "MIT License\n\nCopyright (c) Matteo Collina and Undici contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
@@ -931,10 +918,10 @@
     },
     {
       "name": "websocket-driver",
-      "version": "0.7.4",
+      "version": "0.7.5",
       "license": "Apache-2.0",
       "repository": "https://github.com/faye/websocket-driver-node",
-      "licenseText": "Copyright 2010-2020 James Coglan\n\nLicensed under the Apache License, Version 2.0 (the \"License\"); you may not use\nthis file except in compliance with the License. You may obtain a copy of the\nLicense at\n\n    http://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software distributed\nunder the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR\nCONDITIONS OF ANY KIND, either express or implied. See the License for the\nspecific language governing permissions and limitations under the License."
+      "licenseText": "Copyright 2010-2026 James Coglan\n\nLicensed under the Apache License, Version 2.0 (the \"License\"); you may not use\nthis file except in compliance with the License. You may obtain a copy of the\nLicense at\n\n    http://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software distributed\nunder the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR\nCONDITIONS OF ANY KIND, either express or implied. See the License for the\nspecific language governing permissions and limitations under the License."
     },
     {
       "name": "websocket-extensions",

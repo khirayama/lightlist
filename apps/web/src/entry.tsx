@@ -29,6 +29,7 @@ import type {
   PointerEvent,
 } from "react";
 import { createRoot } from "react-dom/client";
+import type { Root } from "react-dom/client";
 import "@/styles/globals.css";
 import "i18next";
 import i18next from "i18next";
@@ -67,6 +68,7 @@ import {
   getDoc,
   getDocFromCache,
   getDocsFromCache,
+  getFirestore,
   initializeFirestore,
   onSnapshot,
   persistentLocalCache,
@@ -280,13 +282,29 @@ type AppState = {
   settingsStatus: DataLoadStatus;
   taskLists: TaskList[];
   taskListOrderStatus: DataLoadStatus;
+  taskListDocsStatus: DataLoadStatus;
   taskListOrderUpdatedAt: number | null;
   sharedTaskListsById: Record<string, TaskList>;
   startupError: string | null;
 };
 
-let cachedAuth: Auth | null = null;
-let cachedDb: Firestore | null = null;
+type WebBootstrapState = {
+  auth?: Auth;
+  db?: Firestore;
+  analytics?: Analytics | null;
+  root?: Root;
+};
+
+declare global {
+  var __LIGHTLIST_WEB_BOOTSTRAP__: WebBootstrapState | undefined;
+}
+
+const webBootstrapState =
+  globalThis.__LIGHTLIST_WEB_BOOTSTRAP__ ??
+  (globalThis.__LIGHTLIST_WEB_BOOTSTRAP__ = {});
+
+let cachedAuth: Auth | null = webBootstrapState.auth ?? null;
+let cachedDb: Firestore | null = webBootstrapState.db ?? null;
 
 const getApp = () =>
   getApps().length === 0
@@ -307,6 +325,7 @@ const getAuthInstance = (): Auth => {
 
   const app = getApp();
   cachedAuth = getAuth(app);
+  webBootstrapState.auth = cachedAuth;
   return cachedAuth;
 };
 
@@ -316,29 +335,44 @@ const getDbInstance = (): Firestore => {
   }
 
   const app = getApp();
-  cachedDb = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager(),
-    }),
-  });
+  try {
+    cachedDb = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes("initializeFirestore() has already been called")
+    ) {
+      cachedDb = getFirestore(app);
+    } else {
+      throw error;
+    }
+  }
+  webBootstrapState.db = cachedDb;
   return cachedDb;
 };
 
-let cached: Analytics | null | undefined;
+let cached: Analytics | null | undefined = webBootstrapState.analytics;
 
 const getAnalyticsInstance = async (): Promise<Analytics | null> => {
   if (cached !== undefined) return cached;
   const supported = await isSupported();
   if (!supported) {
     cached = null;
+    webBootstrapState.analytics = cached;
     return null;
   }
   const apps = getApps();
   if (apps.length === 0) {
     cached = null;
+    webBootstrapState.analytics = cached;
     return null;
   }
   cached = getAnalytics(apps[0]);
+  webBootstrapState.analytics = cached;
   return cached;
 };
 
@@ -717,23 +751,23 @@ class ErrorBoundaryBase extends Component<
       }
 
       return (
-        <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-surface p-4 text-text dark:bg-background-dark dark:text-text-dark">
-          <div className="w-full max-w-md space-y-4 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+        <div className="ll-u-0059 ll-u-0086 ll-u-0111 ll-u-0152 ll-u-0156 ll-u-0159 ll-u-0223 ll-u-0233 ll-u-0317 ll-u-0473 ll-u-0505">
+          <div className="ll-u-0111 ll-u-0123 ll-u-0169 ll-u-0265">
+            <div className="ll-u-0041 ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0222 ll-u-0482">
               <AppIcon
                 name="alert-circle"
-                className="h-6 w-6 text-red-600 dark:text-red-400"
+                className="ll-u-0070 ll-u-0097 ll-u-0313 ll-u-0503"
               />
             </div>
-            <h2 className="font-display text-lg font-semibold">
+            <h2 className="ll-u-0536 ll-u-0273 ll-u-0287">
               {t("pages.error.title")}
             </h2>
-            <p className="text-sm text-muted dark:text-muted-dark">
+            <p className="ll-u-0274 ll-u-0310 ll-u-0499">
               {t("pages.error.description")}
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primaryText hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:bg-primary-dark dark:text-primaryText-dark dark:hover:opacity-90"
+              className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0286 ll-u-0312 ll-u-0367 ll-u-0381 ll-u-0373 ll-u-0375 ll-u-0376 ll-u-0480 ll-u-0501 ll-u-0521"
             >
               {t("pages.error.reload")}
             </button>
@@ -828,11 +862,11 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
 
   return (
     <ErrorBoundary>
-      <div className="h-dvh w-full overflow-hidden font-sans">
-        <div className="h-full w-full overflow-y-auto">
+      <div className="ll-u-0079 ll-u-0111 ll-u-0176 ll-u-0269">
+        <div className="ll-u-0080 ll-u-0111 ll-u-0178">
           <a
             href={`#${MAIN_CONTENT_ID}`}
-            className="pointer-events-none absolute top-2 z-[2000] -translate-y-16 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primaryText opacity-0 shadow-lg transition focus:pointer-events-auto focus:translate-y-0 focus:opacity-100 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-muted dark:bg-primary-dark dark:text-primaryText-dark dark:focus:outline-muted-dark"
+            className="ll-u-0002 ll-u-0006 ll-u-0017 ll-u-0038 ll-u-0137 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0322 ll-u-0329 ll-u-0337 ll-u-0368 ll-u-0369 ll-u-0372 ll-u-0377 ll-u-0378 ll-u-0379 ll-u-0380 ll-u-0480 ll-u-0501 ll-u-0525"
             style={{ insetInlineStart: "1rem" }}
           >
             {t("common.skipToMain")}
@@ -864,11 +898,13 @@ type SettingsState = Pick<AppState, "settings" | "settingsStatus">;
 type TaskListIndexState = {
   hasStartupError: boolean;
   taskListOrderStatus: AppState["taskListOrderStatus"];
+  taskListDocsStatus: AppState["taskListDocsStatus"];
   taskLists: TaskList[];
 };
 type TaskListsState = {
   taskListOrder: TaskListOrderStore | null;
   taskListOrderStatus: AppState["taskListOrderStatus"];
+  taskListDocsStatus: AppState["taskListDocsStatus"];
   taskListsById: Record<string, TaskListStore>;
   sharedTaskListsById: Record<string, TaskListStore>;
 };
@@ -890,6 +926,7 @@ const initialTaskListsState = (
 ): TaskListsState => ({
   taskListOrder: null,
   taskListOrderStatus,
+  taskListDocsStatus: "idle",
   taskListsById: {},
   sharedTaskListsById: {},
 });
@@ -971,18 +1008,6 @@ const mapTaskListStoreToTaskList = (
   updatedAt: toMillisValue(taskListData.updatedAt),
 });
 
-const createMissingTaskList = (taskListId: string): TaskList => ({
-  id: taskListId,
-  name: "",
-  tasks: [],
-  history: [],
-  shareCode: null,
-  background: null,
-  memberCount: 0,
-  createdAt: 0,
-  updatedAt: 0,
-});
-
 const getOrderedTaskListIds = (
   taskListOrder: TaskListOrderStore | null,
 ): string[] =>
@@ -1016,15 +1041,9 @@ type TaskListsAction =
       taskListOrderStatus: AppState["taskListOrderStatus"];
     }
   | {
-      type: "setTaskListsById";
+      type: "setTaskListChunk";
+      taskListIds: string[];
       taskListsById: Record<string, TaskListStore>;
-    }
-  | {
-      type: "applyTaskListDocChanges";
-      changes: Array<{
-        taskListId: string;
-        taskListData: TaskListStore | null;
-      }>;
     }
   | {
       type: "pruneTaskListsById";
@@ -1033,6 +1052,10 @@ type TaskListsAction =
   | {
       type: "setTaskListOrderStatus";
       taskListOrderStatus: AppState["taskListOrderStatus"];
+    }
+  | {
+      type: "setTaskListDocsStatus";
+      taskListDocsStatus: AppState["taskListDocsStatus"];
     }
   | {
       type: "setSharedTaskList";
@@ -1052,16 +1075,16 @@ const taskListsReducer = (
         ...state,
         taskListOrder: action.taskListOrder,
         taskListOrderStatus: action.taskListOrderStatus,
+        taskListDocsStatus:
+          getTaskListIdsFromOrder(action.taskListOrder).length > 0
+            ? "loading"
+            : "ready",
       };
-    case "setTaskListsById":
-      return {
-        ...state,
-        taskListsById: action.taskListsById,
-      };
-    case "applyTaskListDocChanges": {
+    case "setTaskListChunk": {
       const nextTaskListsById = { ...state.taskListsById };
       let hasChanged = false;
-      action.changes.forEach(({ taskListId, taskListData }) => {
+      action.taskListIds.forEach((taskListId) => {
+        const taskListData = action.taskListsById[taskListId] ?? null;
         if (!taskListData) {
           if (
             !Object.prototype.hasOwnProperty.call(nextTaskListsById, taskListId)
@@ -1114,6 +1137,11 @@ const taskListsReducer = (
       return {
         ...state,
         taskListOrderStatus: action.taskListOrderStatus,
+      };
+    case "setTaskListDocsStatus":
+      return {
+        ...state,
+        taskListDocsStatus: action.taskListDocsStatus,
       };
     case "setSharedTaskList": {
       const nextSharedTaskListsById = { ...state.sharedTaskListsById };
@@ -1314,71 +1342,95 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       taskListIds: orderedTaskListIds,
     });
 
-    if (
-      session.authStatus !== "authenticated" ||
-      !session.user ||
-      orderedTaskListIds.length === 0
-    ) {
+    if (session.authStatus !== "authenticated" || !session.user) {
       return;
     }
 
+    if (orderedTaskListIds.length === 0) {
+      dispatchTaskLists({
+        type: "setTaskListDocsStatus",
+        taskListDocsStatus: "ready",
+      });
+      return;
+    }
+
+    dispatchTaskLists({
+      type: "setTaskListDocsStatus",
+      taskListDocsStatus: "loading",
+    });
+
     let isSubscribed = true;
     const liveSnapshotIndexes = new Set<number>();
-    const taskListQueries = getTaskListIdChunks(orderedTaskListIds).map(
-      (chunk) =>
-        query(
+    const taskListQueryChunks = getTaskListIdChunks(orderedTaskListIds).map(
+      (chunk) => ({
+        taskListIds: chunk,
+        taskListQuery: query(
           collection(getDbInstance(), "taskLists"),
           where("__name__", "in", chunk),
         ),
+      }),
     );
-    const applyTaskListSnapshot = (snapshot: QuerySnapshot<DocumentData>) => {
-      const changes = snapshot.docChanges().map((change) => ({
-        taskListId: change.doc.id,
-        taskListData:
-          change.type === "removed"
-            ? null
-            : normalizeTaskListStore(
-                change.doc.data({
-                  serverTimestamps: "estimate",
-                }) as TaskListStore,
-              ),
-      }));
-      if (changes.length === 0) {
-        return;
-      }
+    const applyTaskListSnapshot = (
+      taskListIds: string[],
+      snapshot: QuerySnapshot<DocumentData>,
+    ) => {
+      const taskListsById: Record<string, TaskListStore> = {};
+      snapshot.docs.forEach((documentSnapshot) => {
+        taskListsById[documentSnapshot.id] = normalizeTaskListStore(
+          documentSnapshot.data({
+            serverTimestamps: "estimate",
+          }) as TaskListStore,
+        );
+      });
       dispatchTaskLists({
-        type: "applyTaskListDocChanges",
-        changes,
+        type: "setTaskListChunk",
+        taskListIds,
+        taskListsById,
       });
     };
 
-    taskListQueries.forEach((taskListQuery, index) => {
+    taskListQueryChunks.forEach(({ taskListIds, taskListQuery }, index) => {
       void getDocsFromCache(taskListQuery)
         .then((snapshot) => {
           if (!isSubscribed || liveSnapshotIndexes.has(index)) {
             return;
           }
-          applyTaskListSnapshot(snapshot);
+          applyTaskListSnapshot(taskListIds, snapshot);
+          if (snapshot.docs.length > 0) {
+            dispatchTaskLists({
+              type: "setTaskListDocsStatus",
+              taskListDocsStatus: "ready",
+            });
+          }
         })
         .catch(() => {});
     });
 
-    const unsubscribers = taskListQueries.map((taskListQuery, index) =>
-      onSnapshot(
-        taskListQuery,
-        (snapshot) => {
-          liveSnapshotIndexes.add(index);
-          applyTaskListSnapshot(snapshot);
-        },
-        (error: FirestoreError) => {
-          liveSnapshotIndexes.add(index);
-          console.error("taskList chunk listener error:", error);
-          dispatchTaskLists({
-            type: "setTaskListOrderStatus",
-            taskListOrderStatus: "error",
-          });
-        },
-      ),
+    const unsubscribers = taskListQueryChunks.map(
+      ({ taskListIds, taskListQuery }, index) =>
+        onSnapshot(
+          taskListQuery,
+          (snapshot) => {
+            liveSnapshotIndexes.add(index);
+            applyTaskListSnapshot(taskListIds, snapshot);
+            dispatchTaskLists({
+              type: "setTaskListDocsStatus",
+              taskListDocsStatus: "ready",
+            });
+          },
+          (error: FirestoreError) => {
+            liveSnapshotIndexes.add(index);
+            console.error("taskList chunk listener error:", error);
+            dispatchTaskLists({
+              type: "setTaskListOrderStatus",
+              taskListOrderStatus: "error",
+            });
+            dispatchTaskLists({
+              type: "setTaskListDocsStatus",
+              taskListDocsStatus: "error",
+            });
+          },
+        ),
     );
 
     return () => {
@@ -1454,11 +1506,11 @@ function AppStateProvider({ children }: { children: ReactNode }) {
 
   const taskLists = useMemo(
     () =>
-      orderedTaskListIds.map((taskListId) => {
+      orderedTaskListIds.flatMap((taskListId) => {
         const taskListData = taskListsState.taskListsById[taskListId];
         return taskListData
-          ? mapTaskListStoreToTaskList(taskListId, taskListData)
-          : createMissingTaskList(taskListId);
+          ? [mapTaskListStoreToTaskList(taskListId, taskListData)]
+          : [];
       }),
     [orderedTaskListIds, taskListsState.taskListsById],
   );
@@ -1482,7 +1534,8 @@ function AppStateProvider({ children }: { children: ReactNode }) {
 
   const hasStartupError =
     settingsState.settingsStatus === "error" ||
-    taskListsState.taskListOrderStatus === "error";
+    taskListsState.taskListOrderStatus === "error" ||
+    taskListsState.taskListDocsStatus === "error";
 
   const contextValue = useMemo<AppStateContextValue>(
     () => ({
@@ -1537,6 +1590,7 @@ function useTaskListIndexState(): TaskListIndexState {
   return {
     hasStartupError,
     taskListOrderStatus: taskListsState.taskListOrderStatus,
+    taskListDocsStatus: taskListsState.taskListDocsStatus,
     taskLists,
   };
 }
@@ -2686,13 +2740,10 @@ interface AlertProps {
 }
 
 const ALERT_VARIANT_CLASSES: Record<AlertVariant, string> = {
-  info: "border-border bg-background text-text dark:border-border-dark dark:bg-surface-dark dark:text-text-dark",
-  success:
-    "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-100",
-  warning:
-    "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100",
-  error:
-    "border-red-200 bg-red-50 text-red-900 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-100",
+  info: "ll-u-0200 ll-u-0210 ll-u-0317 ll-u-0460 ll-u-0485 ll-u-0505",
+  success: "ll-u-0202 ll-u-0215 ll-u-0307 ll-u-0462 ll-u-0476 ll-u-0496",
+  warning: "ll-u-0198 ll-u-0209 ll-u-0306 ll-u-0459 ll-u-0472 ll-u-0495",
+  error: "ll-u-0204 ll-u-0221 ll-u-0315 ll-u-0465 ll-u-0482 ll-u-0502",
 };
 
 function Alert({
@@ -2725,7 +2776,7 @@ function Alert({
       role={role}
       aria-live={ariaLive}
       className={clsx(
-        "rounded-xl border px-3 py-2 text-sm",
+        "ll-u-0191 ll-u-0193 ll-u-0239 ll-u-0244 ll-u-0274",
         ALERT_VARIANT_CLASSES[variant],
         className,
       )}
@@ -2788,23 +2839,23 @@ function Spinner({
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className={clsx("flex items-center justify-center", className)}
+      className={clsx("ll-u-0059 ll-u-0156 ll-u-0159", className)}
     >
-      <div className="animate-pulse">
+      <div className="ll-u-0141">
         <img
           src="/brand/logo.svg"
           alt=""
           aria-hidden="true"
-          className="block h-14 w-auto"
+          className="ll-u-0057 ll-u-0076 ll-u-0109"
         />
       </div>
-      <span className="sr-only">Loading...</span>
+      <span className="ll-u-0005">Loading...</span>
     </div>
   );
 
   if (fullPage) {
     return (
-      <div className="flex h-dvh w-full items-center justify-center bg-background dark:bg-background-dark">
+      <div className="ll-u-0059 ll-u-0079 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0210 ll-u-0473">
         {content}
       </div>
     );
@@ -2832,7 +2883,7 @@ function ColorPicker({
   ariaLabelPrefix: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="ll-u-0059 ll-u-0155 ll-u-0165">
       {colors.map((color) => {
         const isSelected = selectedColor === color.value;
         const ariaLabel =
@@ -2849,9 +2900,9 @@ function ColorPicker({
             title={color.label}
             onClick={() => onSelect(color.value)}
             className={clsx(
-              "flex h-8 w-8 items-center justify-center rounded-[10px] border border-border text-[10px] font-semibold text-muted dark:border-border-dark dark:text-muted-dark",
+              "ll-u-0059 ll-u-0072 ll-u-0099 ll-u-0156 ll-u-0159 ll-u-0183 ll-u-0193 ll-u-0200 ll-u-0279 ll-u-0287 ll-u-0310 ll-u-0460 ll-u-0499",
               isSelected
-                ? "ring-2 ring-primary ring-offset-2 ring-offset-surface dark:ring-primary-dark dark:ring-offset-surface-dark"
+                ? "ll-u-0331 ll-u-0332 ll-u-0333 ll-u-0334 ll-u-0508 ll-u-0509"
                 : "",
             )}
             style={{ backgroundColor: previewColor }}
@@ -2878,7 +2929,7 @@ const DialogOverlay = forwardRef<
       {...rest}
       ref={ref}
       className={clsx(
-        "fixed inset-0 z-1200 bg-black/40 backdrop-blur-sm",
+        "ll-u-0007 ll-u-0011 ll-u-0036 ll-u-0211 ll-u-0336",
         className,
       )}
     />
@@ -2914,21 +2965,21 @@ const DialogContent = forwardRef<
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "fixed left-1/2 top-1/2 z-1300 min-w-[320px] max-w-[min(640px,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--dialog-bg,#ffffff)] p-5 text-[var(--dialog-fg,#111827)] shadow-2xl",
+          "ll-u-0007 ll-u-0026 ll-u-0016 ll-u-0037 ll-u-0127 ll-u-0122 ll-u-0132 ll-u-0136 ll-u-0191 ll-u-0208 ll-u-0234 ll-u-0304 ll-u-0326",
           className,
         )}
       >
-        <div className="flex flex-col gap-2">
+        <div className="ll-u-0059 ll-u-0152 ll-u-0165">
           <DialogPrimitive.Title
             id={generatedTitleId}
-            className="m-0 text-lg font-semibold"
+            className="ll-u-0040 ll-u-0273 ll-u-0287"
           >
             {title}
           </DialogPrimitive.Title>
           {description !== undefined ? (
             <DialogPrimitive.Description
               id={generatedDescriptionId}
-              className="m-0 text-sm text-[var(--dialog-muted,#4B5563)]"
+              className="ll-u-0040 ll-u-0274 ll-u-0305"
             >
               {description}
             </DialogPrimitive.Description>
@@ -2969,17 +3020,17 @@ const ActionSheetContent = forwardRef<
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "fixed inset-x-0 bottom-0 z-1300 flex max-h-[min(44rem,88vh)] w-full translate-x-0 translate-y-0 flex-col overflow-hidden rounded-t-[28px] bg-surface px-4 pb-6 pt-4 text-text shadow-2xl sm:left-1/2 sm:top-1/2 sm:h-[min(44rem,88vh)] sm:w-[min(38rem,92vw)] sm:max-w-[min(38rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[28px] sm:border sm:border-border dark:bg-surface-dark dark:text-text-dark dark:sm:border-border-dark",
+          "ll-u-0007 ll-u-0012 ll-u-0022 ll-u-0037 ll-u-0059 ll-u-0081 ll-u-0111 ll-u-0133 ll-u-0138 ll-u-0152 ll-u-0176 ll-u-0192 ll-u-0223 ll-u-0240 ll-u-0261 ll-u-0253 ll-u-0317 ll-u-0326 ll-u-0407 ll-u-0404 ll-u-0410 ll-u-0413 ll-u-0414 ll-u-0416 ll-u-0417 ll-u-0425 ll-u-0426 ll-u-0427 ll-u-0485 ll-u-0505 ll-u-0535",
           className,
         )}
       >
-        <DialogPrimitive.Title id={generatedTitleId} className="sr-only">
+        <DialogPrimitive.Title id={generatedTitleId} className="ll-u-0005">
           {title}
         </DialogPrimitive.Title>
         {description !== undefined ? (
           <DialogPrimitive.Description
             id={generatedDescriptionId}
-            className="sr-only"
+            className="ll-u-0005"
           >
             {description}
           </DialogPrimitive.Description>
@@ -2992,7 +3043,7 @@ const ActionSheetContent = forwardRef<
 
 function DialogFooter({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+    <div className="ll-u-0046 ll-u-0059 ll-u-0155 ll-u-0156 ll-u-0160 ll-u-0165">
       {children}
     </div>
   );
@@ -3062,11 +3113,11 @@ function ConfirmDialog({
   if (!isOpen) return null;
 
   const primaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primaryText hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark";
+    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501 ll-u-0529";
   const destructiveButtonClass =
-    "inline-flex items-center justify-center rounded-xl bg-error px-4 py-2 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-50 dark:bg-error-dark dark:focus-visible:outline-error-dark";
+    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0216 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0318 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0392 ll-u-0477 ll-u-0528";
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold text-text hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark";
+    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529";
 
   return (
     <Dialog
@@ -3079,7 +3130,7 @@ function ConfirmDialog({
     >
       <DialogContent title={title} description={message}>
         {additionalInfo ? (
-          <p className="mt-2 text-sm text-muted dark:text-muted-dark">
+          <p className="ll-u-0044 ll-u-0274 ll-u-0310 ll-u-0499">
             {additionalInfo}
           </p>
         ) : null}
@@ -3113,14 +3164,14 @@ function ConfirmDialog({
 function SettingsSection({ children, tone = "default" }: SettingsSectionProps) {
   if (tone === "danger") {
     return (
-      <section className="rounded-xl border border-red-200 bg-surface p-4 dark:border-red-900/40 dark:bg-surface-dark sm:p-5">
+      <section className="ll-u-0191 ll-u-0193 ll-u-0204 ll-u-0223 ll-u-0233 ll-u-0465 ll-u-0485 ll-u-0430">
         {children}
       </section>
     );
   }
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-4 dark:border-border-dark dark:bg-surface-dark sm:p-5">
+    <section className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0233 ll-u-0460 ll-u-0485 ll-u-0430">
       {children}
     </section>
   );
@@ -3137,11 +3188,11 @@ function SelectRow({
   return (
     <label
       htmlFor={id}
-      className={`grid gap-2 py-3 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] sm:items-center transition focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-border dark:focus-within:outline-border-dark ${
+      className={`ll-u-0060 ll-u-0165 ll-u-0246 ll-u-0418 ll-u-0420 ll-u-0337 ll-u-0353 ll-u-0354 ll-u-0355 ll-u-0356 ll-u-0511 ${
         disabled ? "opacity-60" : ""
       }`}
     >
-      <span className="text-sm font-medium text-text dark:text-text-dark sm:pr-3">
+      <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505 ll-u-0440">
         {label}
       </span>
       <select
@@ -3149,7 +3200,7 @@ function SelectRow({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-muted dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:focus:border-muted-dark"
+        className="ll-u-0111 ll-u-0190 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0371 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0522"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -3328,30 +3379,30 @@ function SettingsView({
   ] as const;
 
   const skeletonSelect = (
-    <div className="h-9 w-full animate-pulse rounded-md bg-border dark:bg-border-dark" />
+    <div className="ll-u-0073 ll-u-0111 ll-u-0141 ll-u-0190 ll-u-0214 ll-u-0475" />
   );
 
   return (
-    <div className="min-h-full w-full bg-background text-text dark:bg-background-dark dark:text-text-dark">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-10 pt-6 sm:px-6 lg:pt-8">
-        <header className="flex items-center gap-3 px-1">
+    <div className="ll-u-0087 ll-u-0111 ll-u-0210 ll-u-0317 ll-u-0473 ll-u-0505">
+      <div className="ll-u-0041 ll-u-0059 ll-u-0111 ll-u-0113 ll-u-0152 ll-u-0168 ll-u-0240 ll-u-0262 ll-u-0254 ll-u-0434 ll-u-0456">
+        <header className="ll-u-0059 ll-u-0156 ll-u-0167 ll-u-0237">
           {showBackButton ? (
             <button
               type="button"
               onClick={onBack}
               title={t("common.back")}
               aria-label={t("common.back")}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted transition hover:bg-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border dark:text-muted-dark dark:hover:bg-surface-dark dark:focus-visible:outline-border-dark"
+              className="ll-u-0063 ll-u-0074 ll-u-0101 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0310 ll-u-0337 ll-u-0361 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0386 ll-u-0499 ll-u-0518 ll-u-0527"
             >
               <AppIcon
                 name="arrow-back"
-                className="h-5 w-5"
+                className="ll-u-0069 ll-u-0096"
                 aria-hidden="true"
                 focusable="false"
               />
             </button>
           ) : null}
-          <h1 className="font-display min-w-0 flex-1 text-2xl font-semibold tracking-tight">
+          <h1 className="ll-u-0536 ll-u-0125 ll-u-0129 ll-u-0270 ll-u-0287 ll-u-0291">
             {t("settings.title")}
           </h1>
         </header>
@@ -3363,11 +3414,11 @@ function SettingsView({
         ) : (
           <>
             <SettingsSection>
-              <fieldset className="flex flex-col gap-0">
-                <legend className="text-sm font-semibold tracking-wide text-muted dark:text-muted-dark">
+              <fieldset className="ll-u-0059 ll-u-0152 ll-u-0161">
+                <legend className="ll-u-0274 ll-u-0287 ll-u-0292 ll-u-0310 ll-u-0499">
                   {t("settings.preferences.title")}
                 </legend>
-                <div className="mt-2 divide-y divide-border dark:divide-border-dark">
+                <div className="ll-u-0044 ll-u-0171 ll-u-0172 ll-u-0458">
                   {settings ? (
                     <>
                       <SelectRow
@@ -3405,20 +3456,20 @@ function SettingsView({
                     </>
                   ) : (
                     <>
-                      <div className="grid gap-2 py-3 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] sm:items-center">
-                        <span className="text-sm font-medium text-text dark:text-text-dark">
+                      <div className="ll-u-0060 ll-u-0165 ll-u-0246 ll-u-0418 ll-u-0420">
+                        <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
                           {t("settings.language.title")}
                         </span>
                         {skeletonSelect}
                       </div>
-                      <div className="grid gap-2 py-3 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] sm:items-center">
-                        <span className="text-sm font-medium text-text dark:text-text-dark">
+                      <div className="ll-u-0060 ll-u-0165 ll-u-0246 ll-u-0418 ll-u-0420">
+                        <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
                           {t("settings.theme.title")}
                         </span>
                         {skeletonSelect}
                       </div>
-                      <div className="grid gap-2 py-3 sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] sm:items-center">
-                        <span className="text-sm font-medium text-text dark:text-text-dark">
+                      <div className="ll-u-0060 ll-u-0165 ll-u-0246 ll-u-0418 ll-u-0420">
+                        <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
                           {t("settings.taskInsertPosition.title")}
                         </span>
                         {skeletonSelect}
@@ -3427,7 +3478,7 @@ function SettingsView({
                   )}
                 </div>
                 <label
-                  className={`mt-1 flex cursor-pointer items-center justify-between gap-4 border-t border-border py-3 transition focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-border dark:border-border-dark dark:focus-within:outline-border-dark ${
+                  className={`ll-u-0043 ll-u-0059 ll-u-0143 ll-u-0156 ll-u-0158 ll-u-0168 ll-u-0194 ll-u-0200 ll-u-0246 ll-u-0337 ll-u-0353 ll-u-0354 ll-u-0355 ll-u-0356 ll-u-0460 ll-u-0511 ${
                     settingsDisabled ? "cursor-not-allowed opacity-60" : ""
                   }`}
                 >
@@ -3439,26 +3490,26 @@ function SettingsView({
                       void handleAutoSortChange(event.target.checked)
                     }
                     disabled={settingsDisabled}
-                    className="peer sr-only"
+                    className="ll-u-0347 ll-u-0005"
                   />
-                  <span className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium text-text dark:text-text-dark">
+                  <span className="ll-u-0059 ll-u-0152 ll-u-0162">
+                    <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
                       {t("settings.autoSort.title")}
                     </span>
-                    <span className="text-xs text-muted dark:text-muted-dark">
+                    <span className="ll-u-0276 ll-u-0310 ll-u-0499">
                       {t("settings.autoSort.enable")}
                     </span>
                   </span>
                   <span
                     aria-hidden="true"
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full border transition ${
+                    className={`ll-u-0008 ll-u-0063 ll-u-0071 ll-u-0102 ll-u-0156 ll-u-0188 ll-u-0193 ll-u-0337 ${
                       settings?.autoSort
-                        ? "border-primary bg-primary dark:border-primary-dark dark:bg-primary-dark"
-                        : "border-border bg-border dark:border-border-dark dark:bg-surface-dark"
+                        ? "border-primary ll-u-0219 ll-u-0463 dark:bg-primary-dark"
+                        : "border-border ll-u-0214 ll-u-0460 dark:bg-surface-dark"
                     }`}
                   >
                     <span
-                      className={`inline-block h-5 w-5 rounded-full bg-surface shadow-sm transition dark:bg-background-dark ${
+                      className={`ll-u-0062 ll-u-0069 ll-u-0096 ll-u-0188 ll-u-0223 ll-u-0330 ll-u-0337 ll-u-0473 ${
                         settings?.autoSort ? "translate-x-6" : "translate-x-1"
                       }`}
                     />
@@ -3468,56 +3519,54 @@ function SettingsView({
             </SettingsSection>
 
             <SettingsSection>
-              <div className="flex flex-col gap-3">
-                <h2 className="text-sm font-semibold tracking-wide text-text dark:text-text-dark">
+              <div className="ll-u-0059 ll-u-0152 ll-u-0167">
+                <h2 className="ll-u-0274 ll-u-0287 ll-u-0292 ll-u-0317 ll-u-0505">
                   {t("settings.legal.title")}
                 </h2>
                 <button
                   type="button"
                   onClick={onOpenLicenses}
                   disabled={!onOpenLicenses}
-                  className="flex items-center justify-between gap-3 rounded-lg px-1 py-2 text-left transition hover:bg-background disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-background-dark"
+                  className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0167 ll-u-0189 ll-u-0237 ll-u-0244 ll-u-0266 ll-u-0337 ll-u-0359 ll-u-0390 ll-u-0395 ll-u-0514"
                 >
-                  <span className="text-sm font-medium text-text dark:text-text-dark">
+                  <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
                     {t("settings.licenses.openSource")}
                   </span>
-                  <span className="text-sm text-muted dark:text-muted-dark">
-                    &gt;
-                  </span>
+                  <span className="ll-u-0274 ll-u-0310 ll-u-0499">&gt;</span>
                 </button>
               </div>
             </SettingsSection>
 
             <SettingsSection>
-              <div className="flex flex-col gap-3">
-                <h2 className="text-sm font-semibold tracking-wide text-text dark:text-text-dark">
+              <div className="ll-u-0059 ll-u-0152 ll-u-0167">
+                <h2 className="ll-u-0274 ll-u-0287 ll-u-0292 ll-u-0317 ll-u-0505">
                   {t("settings.actions.title")}
                 </h2>
-                <div className="border-b border-border pb-3 dark:border-border-dark">
-                  <p className="text-xs font-medium tracking-wide text-muted dark:text-muted-dark">
+                <div className="ll-u-0196 ll-u-0200 ll-u-0260 ll-u-0460">
+                  <p className="ll-u-0276 ll-u-0286 ll-u-0292 ll-u-0310 ll-u-0499">
                     {t("settings.userInfo.title")}
                   </p>
-                  <div className="mt-1 flex items-center justify-between gap-2">
+                  <div className="ll-u-0043 ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0165">
                     {user ? (
-                      <p className="break-all text-sm font-medium text-text dark:text-text-dark">
+                      <p className="ll-u-0294 ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
                         {user.email}
                       </p>
                     ) : (
-                      <div className="h-5 w-48 animate-pulse rounded bg-border dark:bg-border-dark" />
+                      <div className="ll-u-0069 ll-u-0105 ll-u-0141 ll-u-0181 ll-u-0214 ll-u-0475" />
                     )}
                     {!showEmailChangeForm && (
                       <button
                         type="button"
                         onClick={() => setShowEmailChangeForm(true)}
                         disabled={actionsDisabled}
-                        className="shrink-0 text-xs text-muted underline hover:text-text disabled:cursor-not-allowed disabled:opacity-60 dark:text-muted-dark dark:hover:text-text-dark"
+                        className="ll-u-0131 ll-u-0276 ll-u-0310 ll-u-0320 ll-u-0365 ll-u-0391 ll-u-0393 ll-u-0499 ll-u-0520"
                       >
                         {t("settings.emailChange.changeButton")}
                       </button>
                     )}
                   </div>
                   {showEmailChangeForm && (
-                    <div className="mt-3 flex flex-col gap-3">
+                    <div className="ll-u-0045 ll-u-0059 ll-u-0152 ll-u-0167">
                       {emailChangeSuccess ? (
                         <Alert variant="success">
                           {t("settings.emailChange.successMessage")}
@@ -3530,7 +3579,7 @@ function SettingsView({
                           <div>
                             <label
                               htmlFor="new-email"
-                              className="mb-1 block text-xs font-medium text-muted dark:text-muted-dark"
+                              className="ll-u-0052 ll-u-0057 ll-u-0276 ll-u-0286 ll-u-0310 ll-u-0499"
                             >
                               {t("settings.emailChange.newEmailLabel")}
                             </label>
@@ -3543,15 +3592,15 @@ function SettingsView({
                               placeholder={t(
                                 "settings.emailChange.newEmailPlaceholder",
                               )}
-                              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-muted disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:focus:border-muted-dark"
+                              className="ll-u-0111 ll-u-0190 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0371 ll-u-0393 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0522"
                             />
                           </div>
-                          <div className="flex gap-2">
+                          <div className="ll-u-0059 ll-u-0165">
                             <button
                               type="button"
                               onClick={handleEmailChangeClose}
                               disabled={isChangingEmail}
-                              className="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text transition hover:border-muted hover:bg-background disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:hover:border-muted-dark dark:hover:bg-surface-dark"
+                              className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0337 ll-u-0357 ll-u-0359 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0512 ll-u-0518"
                             >
                               {t("common.cancel")}
                             </button>
@@ -3559,7 +3608,7 @@ function SettingsView({
                               type="button"
                               onClick={() => void handleEmailChangeSubmit()}
                               disabled={isChangingEmail || !newEmail.trim()}
-                              className="inline-flex flex-1 items-center justify-center rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-primaryText transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark"
+                              className="ll-u-0063 ll-u-0129 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0337 ll-u-0367 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501"
                             >
                               {isChangingEmail
                                 ? t("settings.emailChange.submitting")
@@ -3572,7 +3621,7 @@ function SettingsView({
                         <button
                           type="button"
                           onClick={handleEmailChangeClose}
-                          className="text-xs text-muted underline hover:text-text dark:text-muted-dark dark:hover:text-text-dark"
+                          className="ll-u-0276 ll-u-0310 ll-u-0320 ll-u-0365 ll-u-0499 ll-u-0520"
                         >
                           {t("common.close")}
                         </button>
@@ -3580,12 +3629,12 @@ function SettingsView({
                     </div>
                   )}
                 </div>
-                <div className="grid gap-2.5">
+                <div className="ll-u-0060 ll-u-0166">
                   <button
                     type="button"
                     onClick={() => setShowSignOutConfirm(true)}
                     disabled={actionsDisabled}
-                    className="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-semibold text-text shadow-sm transition hover:border-muted hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:hover:border-muted-dark dark:hover:bg-surface-dark dark:focus-visible:outline-border-dark"
+                    className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0246 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0337 ll-u-0357 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0386 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0512 ll-u-0518 ll-u-0527"
                   >
                     {signOutLabel}
                   </button>
@@ -3593,7 +3642,7 @@ function SettingsView({
                     type="button"
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={actionsDisabled}
-                    className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:bg-red-950/30 dark:text-red-100 dark:hover:bg-red-900/40 dark:focus-visible:outline-red-500"
+                    className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0193 ll-u-0204 ll-u-0221 ll-u-0240 ll-u-0246 ll-u-0274 ll-u-0287 ll-u-0314 ll-u-0330 ll-u-0337 ll-u-0363 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0389 ll-u-0391 ll-u-0393 ll-u-0464 ll-u-0483 ll-u-0502 ll-u-0517 ll-u-0530"
                   >
                     {deleteAccountLabel}
                   </button>
@@ -3645,20 +3694,18 @@ function LicenseCard({ entry }: { entry: LicenseEntry }) {
   const sourceUrl = entry.repository ?? entry.source;
 
   return (
-    <details className="rounded-xl border border-border bg-surface px-4 py-3 dark:border-border-dark dark:bg-surface-dark">
-      <summary className="cursor-pointer list-none">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-text dark:text-text-dark">
+    <details className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0246 ll-u-0460 ll-u-0485">
+      <summary className="ll-u-0143 ll-u-0150">
+        <div className="ll-u-0059 ll-u-0157 ll-u-0158 ll-u-0167">
+          <div className="ll-u-0125">
+            <p className="ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0505">
               {entry.name}
             </p>
-            <p className="mt-1 text-xs text-muted dark:text-muted-dark">
+            <p className="ll-u-0043 ll-u-0276 ll-u-0310 ll-u-0499">
               {[entry.version, entry.license].filter(Boolean).join(" / ")}
             </p>
           </div>
-          <span className="mt-0.5 text-sm text-muted dark:text-muted-dark">
-            &gt;
-          </span>
+          <span className="ll-u-0042 ll-u-0274 ll-u-0310 ll-u-0499">&gt;</span>
         </div>
       </summary>
       {sourceUrl ? (
@@ -3666,12 +3713,12 @@ function LicenseCard({ entry }: { entry: LicenseEntry }) {
           href={sourceUrl}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 inline-flex text-xs text-muted underline hover:text-text dark:text-muted-dark dark:hover:text-text-dark"
+          className="ll-u-0045 ll-u-0063 ll-u-0276 ll-u-0310 ll-u-0320 ll-u-0365 ll-u-0499 ll-u-0520"
         >
           {sourceUrl}
         </a>
       ) : null}
-      <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-background p-3 text-xs leading-5 text-text dark:bg-background-dark dark:text-text-dark">
+      <pre className="ll-u-0045 ll-u-0177 ll-u-0296 ll-u-0293 ll-u-0189 ll-u-0210 ll-u-0232 ll-u-0276 ll-u-0280 ll-u-0317 ll-u-0473 ll-u-0505">
         {entry.licenseText ?? entry.text ?? ""}
       </pre>
     </details>
@@ -3714,26 +3761,26 @@ function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
   }, [t]);
 
   return (
-    <div className="min-h-full w-full bg-background text-text dark:bg-background-dark dark:text-text-dark">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 pb-10 pt-6 sm:px-6 lg:pt-8">
-        <header className="flex items-center gap-3 px-1">
+    <div className="ll-u-0087 ll-u-0111 ll-u-0210 ll-u-0317 ll-u-0473 ll-u-0505">
+      <div className="ll-u-0041 ll-u-0059 ll-u-0111 ll-u-0114 ll-u-0152 ll-u-0168 ll-u-0240 ll-u-0262 ll-u-0254 ll-u-0434 ll-u-0456">
+        <header className="ll-u-0059 ll-u-0156 ll-u-0167 ll-u-0237">
           {showBackButton ? (
             <button
               type="button"
               onClick={onBack}
               title={t("common.back")}
               aria-label={t("common.back")}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted transition hover:bg-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border dark:text-muted-dark dark:hover:bg-surface-dark dark:focus-visible:outline-border-dark"
+              className="ll-u-0063 ll-u-0074 ll-u-0101 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0310 ll-u-0337 ll-u-0361 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0386 ll-u-0499 ll-u-0518 ll-u-0527"
             >
               <AppIcon
                 name="arrow-back"
-                className="h-5 w-5"
+                className="ll-u-0069 ll-u-0096"
                 aria-hidden="true"
                 focusable="false"
               />
             </button>
           ) : null}
-          <h1 className="font-display min-w-0 flex-1 text-2xl font-semibold tracking-tight">
+          <h1 className="ll-u-0536 ll-u-0125 ll-u-0129 ll-u-0270 ll-u-0287 ll-u-0291">
             {t("settings.licenses.title")}
           </h1>
         </header>
@@ -3745,11 +3792,11 @@ function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
         {payload ? (
           <>
             <SettingsSection>
-              <div className="flex flex-col gap-3">
-                <h2 className="text-sm font-semibold tracking-wide text-text dark:text-text-dark">
+              <div className="ll-u-0059 ll-u-0152 ll-u-0167">
+                <h2 className="ll-u-0274 ll-u-0287 ll-u-0292 ll-u-0317 ll-u-0505">
                   {t("settings.licenses.openSource")}
                 </h2>
-                <div className="flex flex-col gap-3">
+                <div className="ll-u-0059 ll-u-0152 ll-u-0167">
                   {payload.openSourceLicenses.map((entry) => (
                     <LicenseCard
                       key={`${entry.name}-${entry.version ?? ""}`}
@@ -3761,11 +3808,11 @@ function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
             </SettingsSection>
 
             <SettingsSection>
-              <div className="flex flex-col gap-3">
-                <h2 className="text-sm font-semibold tracking-wide text-text dark:text-text-dark">
+              <div className="ll-u-0059 ll-u-0152 ll-u-0167">
+                <h2 className="ll-u-0274 ll-u-0287 ll-u-0292 ll-u-0317 ll-u-0505">
                   {t("settings.licenses.bundledAssets")}
                 </h2>
-                <div className="flex flex-col gap-3">
+                <div className="ll-u-0059 ll-u-0152 ll-u-0167">
                   {payload.bundledLicenses.map((entry) => (
                     <LicenseCard key={entry.id ?? entry.name} entry={entry} />
                   ))}
@@ -3788,23 +3835,23 @@ function NotFoundPage() {
   }, [t]);
 
   return (
-    <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-surface p-4 text-text dark:bg-background-dark dark:text-text-dark">
-      <div className="w-full max-w-md space-y-4 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+    <div className="ll-u-0059 ll-u-0086 ll-u-0111 ll-u-0152 ll-u-0156 ll-u-0159 ll-u-0223 ll-u-0233 ll-u-0317 ll-u-0473 ll-u-0505">
+      <div className="ll-u-0111 ll-u-0123 ll-u-0169 ll-u-0265">
+        <div className="ll-u-0041 ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0217 ll-u-0478">
           <AppIcon
             name="alert-circle"
-            className="h-6 w-6 text-gray-600 dark:text-gray-400"
+            className="ll-u-0070 ll-u-0097 ll-u-0309 ll-u-0498"
           />
         </div>
-        <h1 className="font-display text-lg font-semibold">
+        <h1 className="ll-u-0536 ll-u-0273 ll-u-0287">
           {t("pages.notFound.title")}
         </h1>
-        <p className="text-sm text-muted dark:text-muted-dark">
+        <p className="ll-u-0274 ll-u-0310 ll-u-0499">
           {t("pages.notFound.description")}
         </p>
         <a
           href="/"
-          className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primaryText hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:bg-primary-dark dark:text-primaryText-dark dark:hover:opacity-90"
+          className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0286 ll-u-0312 ll-u-0367 ll-u-0381 ll-u-0373 ll-u-0375 ll-u-0376 ll-u-0480 ll-u-0501 ll-u-0521"
         >
           {t("pages.notFound.backHome")}
         </a>
@@ -3822,23 +3869,23 @@ function ServerErrorPage() {
   }, [t]);
 
   return (
-    <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-surface p-4 text-text dark:bg-background-dark dark:text-text-dark">
-      <div className="w-full max-w-md space-y-4 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+    <div className="ll-u-0059 ll-u-0086 ll-u-0111 ll-u-0152 ll-u-0156 ll-u-0159 ll-u-0223 ll-u-0233 ll-u-0317 ll-u-0473 ll-u-0505">
+      <div className="ll-u-0111 ll-u-0123 ll-u-0169 ll-u-0265">
+        <div className="ll-u-0041 ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0222 ll-u-0482">
           <AppIcon
             name="alert-circle"
-            className="h-6 w-6 text-red-600 dark:text-red-400"
+            className="ll-u-0070 ll-u-0097 ll-u-0313 ll-u-0503"
           />
         </div>
-        <h1 className="font-display text-lg font-semibold">
+        <h1 className="ll-u-0536 ll-u-0273 ll-u-0287">
           {t("pages.serverError.title")}
         </h1>
-        <p className="text-sm text-muted dark:text-muted-dark">
+        <p className="ll-u-0274 ll-u-0310 ll-u-0499">
           {t("pages.serverError.description")}
         </p>
         <a
           href="/"
-          className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primaryText hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:bg-primary-dark dark:text-primaryText-dark dark:hover:opacity-90"
+          className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0286 ll-u-0312 ll-u-0367 ll-u-0381 ll-u-0373 ll-u-0375 ll-u-0376 ll-u-0480 ll-u-0501 ll-u-0521"
         >
           {t("pages.serverError.backHome")}
         </a>
@@ -3944,21 +3991,21 @@ type AppHeaderProps = { backLabel: string; onBack: () => void };
 
 function AppHeader({ backLabel, onBack }: AppHeaderProps) {
   return (
-    <header className="flex items-center px-1 py-1.5">
+    <header className="ll-u-0059 ll-u-0156 ll-u-0237 ll-u-0243">
       <button
         type="button"
         onClick={onBack}
         aria-label={backLabel}
         title={backLabel}
-        className="inline-flex items-center justify-center rounded p-3 text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:text-text-dark dark:focus-visible:outline-muted-dark"
+        className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0181 ll-u-0232 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0460 ll-u-0505 ll-u-0529"
       >
         <AppIcon
-          className="h-6 w-6"
+          className="ll-u-0070 ll-u-0097"
           name="arrow-back"
           aria-hidden="true"
           focusable="false"
         />
-        <span className="sr-only">{backLabel}</span>
+        <span className="ll-u-0005">{backLabel}</span>
       </button>
     </header>
   );
@@ -3975,7 +4022,7 @@ const DrawerOverlay = forwardRef<
     <DrawerPrimitive.Overlay
       ref={ref}
       className={clsx(
-        "fixed inset-0 z-1000 bg-black/50 backdrop-blur-sm",
+        "ll-u-0007 ll-u-0011 ll-u-0034 ll-u-0212 ll-u-0336",
         className,
       )}
       {...props}
@@ -3999,13 +4046,13 @@ const DrawerContent = forwardRef<
       <DrawerPrimitive.Content
         ref={ref}
         className={clsx(
-          "fixed inset-y-0 z-1100 w-full max-w-[460px] outline-none",
+          "ll-u-0007 ll-u-0013 ll-u-0035 ll-u-0111 ll-u-0119 ll-u-0345",
           className,
         )}
         style={{ insetInlineStart: 0, ...style }}
         {...props}
       >
-        <div className="flex h-full flex-col gap-4 overflow-y-auto bg-surface p-4 text-text shadow-2xl dark:bg-surface-dark dark:text-text-dark">
+        <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0168 ll-u-0178 ll-u-0223 ll-u-0233 ll-u-0317 ll-u-0326 ll-u-0485 ll-u-0505">
           {children}
         </div>
       </DrawerPrimitive.Content>
@@ -4016,7 +4063,7 @@ const DrawerContent = forwardRef<
 function DrawerHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={clsx("flex flex-col gap-3 text-start", className)}
+      className={clsx("ll-u-0059 ll-u-0152 ll-u-0167 ll-u-0267", className)}
       {...props}
     />
   );
@@ -4194,21 +4241,21 @@ function Carousel({
   }, [count, direction, onIndexChange]);
 
   return (
-    <div className={clsx("relative w-full overflow-hidden", className)}>
+    <div className={clsx("ll-u-0008 ll-u-0111 ll-u-0176", className)}>
       {showIndicators && count > 0 ? (
         <nav
           aria-label={ariaLabel}
           className={clsx(
             indicatorInFlow
-              ? "flex justify-center gap-0.5"
-              : "pointer-events-none absolute left-0 right-0 z-30 flex justify-center gap-0.5",
+              ? "ll-u-0059 ll-u-0159 ll-u-0162"
+              : "ll-u-0002 ll-u-0006 ll-u-0025 ll-u-0020 ll-u-0031 ll-u-0059 ll-u-0159 ll-u-0162",
             indicatorInFlow
               ? indicatorPosition === "top"
-                ? "mb-2"
-                : "mt-2"
+                ? "ll-u-0053"
+                : "ll-u-0044"
               : indicatorPosition === "top"
-                ? "top-14"
-                : "bottom-4",
+                ? "ll-u-0018"
+                : "ll-u-0024",
           )}
         >
           {Array.from({ length: count }).map((_, idx) => (
@@ -4221,9 +4268,9 @@ function Carousel({
                 onIndexChange(idx);
               }}
               className={clsx(
-                "inline-flex items-center justify-center rounded-full p-2 transition-all",
-                !indicatorInFlow && "pointer-events-auto",
-                "hover:bg-primary/10 dark:hover:bg-primary-dark/10",
+                "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0230 ll-u-0338",
+                !indicatorInFlow && "ll-u-0001",
+                "ll-u-0362 ll-u-0516",
               )}
               aria-label={
                 getIndicatorLabel?.(idx, count) ?? `Go to slide ${idx + 1}`
@@ -4232,10 +4279,10 @@ function Carousel({
             >
               <span
                 className={clsx(
-                  "h-2 w-2 rounded-full transition-all",
+                  "ll-u-0065 ll-u-0091 ll-u-0188 ll-u-0338",
                   idx === currentIndex
-                    ? "scale-110 bg-primary dark:bg-primary-dark"
-                    : "bg-primary/20 dark:bg-primary-dark/20",
+                    ? "ll-u-0139 ll-u-0219 ll-u-0480"
+                    : "ll-u-0220 ll-u-0481",
                 )}
               />
             </button>
@@ -4246,10 +4293,8 @@ function Carousel({
         ref={containerRef}
         onScroll={scrollEnabled ? handleScroll : undefined}
         className={clsx(
-          "flex h-full w-full snap-x snap-mandatory no-scrollbar scroll-smooth",
-          scrollEnabled
-            ? "overflow-x-auto overflow-y-hidden"
-            : "overflow-hidden",
+          "ll-u-0059 ll-u-0080 ll-u-0111 ll-u-0146 ll-u-0147 no-scrollbar ll-u-0180",
+          scrollEnabled ? "ll-u-0177 ll-u-0179" : "ll-u-0176",
         )}
         style={{
           scrollbarWidth: "none",
@@ -4260,7 +4305,7 @@ function Carousel({
         {Children.map(children, (child, idx) => (
           <div
             key={idx}
-            className="h-full w-full flex-shrink-0 snap-start snap-always"
+            className="ll-u-0080 ll-u-0111 ll-u-0130 ll-u-0148 ll-u-0149"
             aria-hidden={idx !== currentIndex}
           >
             {child}
@@ -4380,37 +4425,30 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={clsx("p-2", className)}
+      className={clsx("ll-u-0230", className)}
       locale={resolvedLocale}
       classNames={{
-        months: "flex flex-col",
-        month: "space-y-4",
-        caption: "relative flex items-center justify-center pt-1",
-        caption_label: "text-sm font-semibold",
-        nav: "flex items-center justify-between space-x-1",
-        nav_button:
-          "h-8 w-8 rounded-lg border border-border bg-surface p-0 text-muted hover:bg-background hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:opacity-50 dark:border-border-dark dark:bg-surface-dark dark:text-muted-dark dark:hover:bg-background-dark dark:hover:text-text-dark dark:focus-visible:outline-muted-dark",
-        nav_button_previous: "absolute ltr:left-1 rtl:right-1",
-        nav_button_next: "absolute ltr:right-1 rtl:left-1",
-        table: "w-full border-collapse space-y-1",
-        month_grid: "w-full",
-        head_row: "flex",
-        head_cell:
-          "w-9 text-[0.8rem] font-medium text-placeholder dark:text-placeholder-dark",
-        row: "mt-2 flex w-full",
-        cell: "relative h-9 w-9 p-0 text-center text-sm",
-        day: "relative h-9 w-9 p-0 text-center text-sm",
+        months: "ll-u-0059 ll-u-0152",
+        month: "ll-u-0169",
+        month_caption: "ll-u-0008 ll-u-0059 ll-u-0156 ll-u-0159 ll-u-0251",
+        caption_label: "ll-u-0274 ll-u-0287",
+        nav: "ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0170",
+        button_previous:
+          "ll-u-0072 ll-u-0099 ll-u-0189 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0228 ll-u-0310 ll-u-0359 ll-u-0365 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0392 ll-u-0460 ll-u-0485 ll-u-0499 ll-u-0514 ll-u-0520 ll-u-0529",
+        button_next:
+          "ll-u-0072 ll-u-0099 ll-u-0189 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0228 ll-u-0310 ll-u-0359 ll-u-0365 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0392 ll-u-0460 ll-u-0485 ll-u-0499 ll-u-0514 ll-u-0520 ll-u-0529",
+        month_grid: "ll-u-0111",
+        weekdays: "ll-u-0059",
+        weekday: "ll-u-0100 ll-u-0277 ll-u-0286 ll-u-0311 ll-u-0500",
+        week: "ll-u-0044 ll-u-0059 ll-u-0111",
+        day: "ll-u-0008 ll-u-0073 ll-u-0100 ll-u-0228 ll-u-0265 ll-u-0274",
         day_button:
-          "h-9 w-9 rounded-lg p-0 font-medium text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted aria-selected:bg-primary aria-selected:text-primaryText dark:text-text-dark dark:focus-visible:outline-muted-dark dark:aria-selected:bg-primary-dark dark:aria-selected:text-primaryText-dark",
-        selected: "rounded-lg bg-border dark:bg-surface",
-        today: "border border-border dark:border-border-dark",
-        day_today: "border border-border dark:border-border-dark",
-        outside: "text-placeholder opacity-50 dark:text-placeholder-dark",
-        day_outside: "text-placeholder opacity-50 dark:text-placeholder-dark",
-        disabled: "text-placeholder opacity-50 dark:text-placeholder-dark",
-        day_disabled: "text-placeholder opacity-50 dark:text-placeholder-dark",
-        hidden: "invisible",
-        day_hidden: "invisible",
+          "ll-u-0073 ll-u-0100 ll-u-0189 ll-u-0228 ll-u-0286 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0396 ll-u-0397 ll-u-0505 ll-u-0529 ll-u-0532 ll-u-0533",
+        selected: "ll-u-0189 ll-u-0214 ll-u-0484",
+        today: "ll-u-0193 ll-u-0200 ll-u-0460",
+        outside: "ll-u-0311 ll-u-0323 ll-u-0500",
+        disabled: "ll-u-0311 ll-u-0323 ll-u-0500",
+        hidden: "ll-u-0003",
         ...classNames,
       }}
       {...props}
@@ -4525,7 +4563,11 @@ function TaskItemComponent({
   );
 
   return (
-    <div ref={setNodeRef} style={style} className="flex gap-2 py-2">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="ll-u-0059 ll-u-0165 ll-u-0244"
+    >
       <button
         {...attributes}
         {...listeners}
@@ -4537,23 +4579,23 @@ function TaskItemComponent({
           setIsHandlePointerDown(true);
           listeners?.onPointerDown?.(event);
         }}
-        className="flex touch-none items-center text-placeholder focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="ll-u-0059 ll-u-0144 ll-u-0156 ll-u-0311 ll-u-0382 ll-u-0383 ll-u-0384"
       >
-        <span className="relative right-[5px]">
+        <span className="ll-u-0008 ll-u-0021">
           <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
         </span>
       </button>
-      <div className="relative flex items-center justify-center">
+      <div className="ll-u-0008 ll-u-0059 ll-u-0156 ll-u-0159">
         <input
           type="checkbox"
           checked={task.completed}
           onChange={() => onToggle(task)}
           aria-labelledby={taskTextId}
-          className="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+          className="ll-u-0347 ll-u-0006 ll-u-0011 ll-u-0029 ll-u-0080 ll-u-0111 ll-u-0143 ll-u-0322"
         />
-        <div className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface transition-colors peer-checked:border-transparent peer-checked:bg-border peer-focus-visible:ring-2 peer-focus-visible:ring-muted dark:border-border-dark dark:bg-surface-dark dark:peer-checked:bg-surface">
+        <div className="ll-u-0059 ll-u-0069 ll-u-0096 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0339 ll-u-0346 ll-u-0348 ll-u-0350 ll-u-0351 ll-u-0460 ll-u-0485 ll-u-0510">
           <svg
-            className="h-3.5 w-3.5 text-surface opacity-0 transition-opacity peer-checked:opacity-100 dark:text-surface-dark"
+            className="ll-u-0067 ll-u-0093 ll-u-0316 ll-u-0322 ll-u-0340 ll-u-0349 ll-u-0504"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -4567,10 +4609,10 @@ function TaskItemComponent({
           </svg>
         </div>
       </div>
-      <div className="relative flex min-w-0 flex-1 flex-col">
+      <div className="ll-u-0008 ll-u-0059 ll-u-0125 ll-u-0129 ll-u-0152">
         {dateDisplayValue ? (
           <span
-            className="absolute -top-2 text-xs leading-none text-muted dark:text-muted-dark"
+            className="ll-u-0006 ll-u-0014 ll-u-0276 ll-u-0284 ll-u-0310 ll-u-0499"
             style={{ insetInlineStart: 0 }}
           >
             {dateDisplayValue}
@@ -4590,10 +4632,10 @@ function TaskItemComponent({
             }}
             autoFocus
             className={clsx(
-              "min-w-0 w-full bg-transparent p-0 font-medium leading-7 focus:outline-none",
+              "ll-u-0125 ll-u-0111 ll-u-0225 ll-u-0228 ll-u-0286 ll-u-0282 ll-u-0381",
               task.completed
-                ? "text-muted line-through dark:text-muted-dark"
-                : "text-text dark:text-text-dark",
+                ? "ll-u-0310 ll-u-0319 ll-u-0499"
+                : "ll-u-0317 ll-u-0505",
             )}
           />
         ) : (
@@ -4610,10 +4652,10 @@ function TaskItemComponent({
             }}
             className={
               task.completed
-                ? "block min-h-7 min-w-0 cursor-pointer text-start font-medium leading-7 text-muted line-through underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:focus-visible:outline-muted-dark"
+                ? "ll-u-0057 ll-u-0083 ll-u-0125 ll-u-0143 ll-u-0267 ll-u-0286 ll-u-0282 ll-u-0310 ll-u-0319 ll-u-0321 ll-u-0366 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0529"
                 : clsx(
-                    "block min-h-7 min-w-0 cursor-pointer text-start leading-7 text-text underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-text-dark dark:focus-visible:outline-muted-dark",
-                    task.pinned ? "font-semibold" : "font-medium",
+                    "ll-u-0057 ll-u-0083 ll-u-0125 ll-u-0143 ll-u-0267 ll-u-0282 ll-u-0317 ll-u-0321 ll-u-0366 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0505 ll-u-0529",
+                    task.pinned ? "ll-u-0287" : "ll-u-0286",
                   )
             }
           >
@@ -4627,16 +4669,16 @@ function TaskItemComponent({
         aria-label={dateTitle}
         title={dateTitle}
         onClick={() => onOpenTaskActions?.(task, actionButtonRef.current)}
-        className="flex items-center rounded-lg p-1 text-placeholder focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:focus-visible:outline-muted-dark"
+        className="ll-u-0059 ll-u-0156 ll-u-0189 ll-u-0229 ll-u-0311 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0529"
       >
-        <span className="relative inline-flex">
+        <span className="ll-u-0008 ll-u-0063">
           <AppIcon
             name={task.pinned ? "push-pin" : "calendar-today"}
             aria-hidden="true"
             focusable="false"
           />
         </span>
-        <span className="sr-only">{pinLabel}</span>
+        <span className="ll-u-0005">{pinLabel}</span>
       </button>
     </div>
   );
@@ -4824,14 +4866,14 @@ function TaskListCard({
   );
   const historyListId = `task-history-${reactId.replace(/:/g, "")}`;
   const inputClass =
-    "rounded-xl border border-border bg-inputBackground px-3 py-2 text-text focus:border-muted focus:outline-none focus:ring-2 focus:ring-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark";
+    "ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0317 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524";
   const primaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 font-semibold text-primaryText hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark";
+    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0287 ll-u-0312 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501 ll-u-0529";
   const secondaryButtonClass =
-    "inline-flex items-center justify-center h-12 w-12 rounded-xl border-border font-semibold text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:text-text-dark dark:focus-visible:outline-muted-dark";
+    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0075 ll-u-0102 ll-u-0191 ll-u-0200 ll-u-0287 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0505 ll-u-0529";
   const destructiveButtonClass =
-    "inline-flex items-center justify-center rounded-xl bg-error px-4 py-2 font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-50 dark:bg-error-dark dark:focus-visible:outline-error-dark";
-  const iconButtonClass = clsx(secondaryButtonClass, "px-2");
+    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0216 ll-u-0240 ll-u-0244 ll-u-0287 ll-u-0318 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0392 ll-u-0477 ll-u-0528";
+  const iconButtonClass = clsx(secondaryButtonClass, "ll-u-0238");
   const activeTaskActionTask =
     activeTaskActionTaskId === null || activeTaskActionTaskId === undefined
       ? null
@@ -4857,22 +4899,22 @@ function TaskListCard({
   return (
     <section
       className={clsx(
-        "h-full overflow-y-auto",
-        isActive ? "pointer-events-auto" : "pointer-events-none",
+        "ll-u-0080 ll-u-0178",
+        isActive ? "ll-u-0001" : "ll-u-0002",
       )}
       style={{ backgroundColor: taskList.background ?? undefined }}
     >
-      <div className="min-h-full px-4">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <h2 className="font-display m-0 text-xl font-semibold">
+      <div className="ll-u-0087 ll-u-0240">
+        <div className="ll-u-0059 ll-u-0152 ll-u-0168">
+          <div className="ll-u-0059 ll-u-0152 ll-u-0168">
+            <div className="ll-u-0059 ll-u-0152 ll-u-0168">
+              <div className="ll-u-0059 ll-u-0155 ll-u-0156 ll-u-0158 ll-u-0167">
+                <div className="ll-u-0059 ll-u-0152 ll-u-0164">
+                  <h2 className="ll-u-0536 ll-u-0040 ll-u-0275 ll-u-0287">
                     {taskList.name}
                   </h2>
                 </div>
-                <div className="relative left-2 flex flex-wrap justify-end">
+                <div className="ll-u-0008 ll-u-0027 ll-u-0059 ll-u-0155 ll-u-0160">
                   <Dialog
                     open={isActive && showEditListDialog}
                     onOpenChange={(open: boolean) => {
@@ -4898,7 +4940,7 @@ function TaskListCard({
                           aria-hidden="true"
                           focusable="false"
                         />
-                        <span className="sr-only">
+                        <span className="ll-u-0005">
                           {t("taskList.editDetails")}
                         </span>
                       </button>
@@ -4927,11 +4969,11 @@ function TaskListCard({
                             );
                         }}
                       >
-                        <div className="mt-4 flex flex-col gap-3">
+                        <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
                           {editError ? (
                             <Alert variant="error">{editError}</Alert>
                           ) : null}
-                          <label className="flex flex-col gap-1">
+                          <label className="ll-u-0059 ll-u-0152 ll-u-0163">
                             <span>{t("app.taskListName")}</span>
                             <input
                               type="text"
@@ -4943,7 +4985,7 @@ function TaskListCard({
                               className={inputClass}
                             />
                           </label>
-                          <div className="flex flex-col gap-2">
+                          <div className="ll-u-0059 ll-u-0152 ll-u-0165">
                             <span>{t("taskList.selectColor")}</span>
                             <ColorPicker
                               colors={COLORS}
@@ -4983,7 +5025,7 @@ function TaskListCard({
                             disabled={deletingList}
                             className={clsx(
                               destructiveButtonClass,
-                              "mt-6 w-full",
+                              "ll-u-0048 ll-u-0111",
                             )}
                           >
                             {deletingList
@@ -5036,7 +5078,7 @@ function TaskListCard({
                           aria-hidden="true"
                           focusable="false"
                         />
-                        <span className="sr-only">{t("taskList.share")}</span>
+                        <span className="ll-u-0005">{t("taskList.share")}</span>
                       </button>
                     </DialogTrigger>
                     <DialogContent
@@ -5047,15 +5089,15 @@ function TaskListCard({
                         <Alert variant="error">{shareError}</Alert>
                       ) : null}
                       {shareCode ? (
-                        <div className="mt-4 flex flex-col gap-3">
-                          <label className="flex flex-col gap-1.5">
+                        <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
+                          <label className="ll-u-0059 ll-u-0152 ll-u-0164">
                             <span>{t("taskList.shareCode")}</span>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="ll-u-0059 ll-u-0155 ll-u-0165">
                               <input
                                 type="text"
                                 value={shareCode}
                                 readOnly
-                                className={clsx(inputClass, "font-mono")}
+                                className={clsx(inputClass, "ll-u-0268")}
                               />
                               <button
                                 type="button"
@@ -5111,7 +5153,7 @@ function TaskListCard({
                           </button>
                         </div>
                       ) : (
-                        <div className="mt-4 flex flex-col gap-3">
+                        <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
                           <button
                             type="button"
                             onClick={() => {
@@ -5159,7 +5201,7 @@ function TaskListCard({
               {taskError ? <Alert variant="error">{taskError}</Alert> : null}
             </div>
             <form
-              className="flex items-center"
+              className="ll-u-0059 ll-u-0156"
               onSubmit={(event) => {
                 event.preventDefault();
                 if (newTaskText.trim() === "") return;
@@ -5199,11 +5241,8 @@ function TaskListCard({
                 });
               }}
             >
-              <div className="relative min-w-0 flex-1">
-                <CommandPrimitive
-                  shouldFilter={false}
-                  className="bg-transparent"
-                >
+              <div className="ll-u-0008 ll-u-0125 ll-u-0129">
+                <CommandPrimitive shouldFilter={false} className="ll-u-0225">
                   <input
                     ref={newTaskInputRef}
                     type="text"
@@ -5238,12 +5277,12 @@ function TaskListCard({
                       if (event.key === "Escape") setHistoryOpen(false);
                     }}
                     placeholder={t("pages.tasklist.addTaskPlaceholder")}
-                    className="w-full rounded-xl border border-border bg-inputBackground px-3 py-2 text-text shadow-sm focus:border-muted focus:outline-none focus:ring-2 focus:ring-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark"
+                    className="ll-u-0111 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
                   />
                   {historyOpen && historyOptions.length > 0 ? (
                     <CommandPrimitive.List
                       id={historyListId}
-                      className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-border bg-surface p-1 shadow-lg dark:border-border-dark dark:bg-surface-dark"
+                      className="ll-u-0006 ll-u-0025 ll-u-0020 ll-u-0019 ll-u-0033 ll-u-0043 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0229 ll-u-0329 ll-u-0460 ll-u-0485"
                     >
                       {historyOptions.map((text) => (
                         <CommandPrimitive.Item
@@ -5287,7 +5326,7 @@ function TaskListCard({
                               },
                             });
                           }}
-                          className="cursor-pointer rounded-lg px-3 py-2 text-sm outline-none data-[selected=true]:bg-background dark:data-[selected=true]:bg-background-dark"
+                          className="ll-u-0143 ll-u-0189 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0345 ll-u-0398 ll-u-0534"
                         >
                           {text}
                         </CommandPrimitive.Item>
@@ -5303,14 +5342,14 @@ function TaskListCard({
                 aria-label={t("common.add")}
                 title={t("common.add")}
                 className={clsx(
-                  "inline-flex h-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-placeholder transition-all duration-300 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed dark:text-text-dark dark:focus-visible:outline-muted-dark dark:disabled:opacity-50",
+                  "ll-u-0063 ll-u-0074 ll-u-0131 ll-u-0156 ll-u-0159 ll-u-0176 ll-u-0191 ll-u-0311 ll-u-0338 ll-u-0342 ll-u-0343 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0505 ll-u-0529 ll-u-0531",
                   isInputFocused
-                    ? "ml-2 w-8 pointer-events-auto opacity-100"
-                    : "ml-0 w-0 pointer-events-none opacity-0",
+                    ? "ll-u-0056 ll-u-0099 ll-u-0001 ll-u-0325"
+                    : "ll-u-0055 ll-u-0089 ll-u-0002 ll-u-0322",
                 )}
               >
-                <span className="sr-only">{t("common.add")}</span>
-                <span className="relative left-[1px]">
+                <span className="ll-u-0005">{t("common.add")}</span>
+                <span className="ll-u-0008 ll-u-0028">
                   <AppIcon name="send" aria-hidden="true" focusable="false" />
                 </span>
               </button>
@@ -5318,7 +5357,7 @@ function TaskListCard({
             {addTaskError ? (
               <Alert variant="error">{addTaskError}</Alert>
             ) : null}
-            <div className="flex items-center justify-between gap-2 pb-6">
+            <div className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0165 ll-u-0261">
               <button
                 type="button"
                 disabled={tasks.length < 2}
@@ -5334,7 +5373,7 @@ function TaskListCard({
                     },
                   });
                 }}
-                className="inline-flex items-center justify-center rounded-xl font-medium text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:text-text-dark dark:focus-visible:outline-muted-dark"
+                className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0286 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0505 ll-u-0529"
               >
                 <AppIcon name="sort" aria-hidden="true" focusable="false" />
                 {t("pages.tasklist.sort")}
@@ -5367,12 +5406,12 @@ function TaskListCard({
                     },
                   }).finally(() => setDeleteCompletedPending(false));
                 }}
-                className="inline-flex items-center justify-center rounded-xl font-medium text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-60 dark:text-text-dark dark:focus-visible:outline-error-dark"
+                className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0286 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0393 ll-u-0505 ll-u-0528"
               >
                 {deleteCompletedPending
                   ? t("common.deleting")
                   : t("pages.tasklist.deleteCompleted")}
-                <span className="pr-1">
+                <span className="ll-u-0257">
                   <AppIcon name="delete" aria-hidden="true" focusable="false" />
                 </span>
               </button>
@@ -5422,11 +5461,11 @@ function TaskListCard({
               strategy={verticalListSortingStrategy}
             >
               {tasks.length === 0 ? (
-                <p className="text-muted dark:text-muted-dark">
+                <p className="ll-u-0310 ll-u-0499">
                   {t("pages.tasklist.noTasks")}
                 </p>
               ) : (
-                <div className="flex flex-col gap-1">
+                <div className="ll-u-0059 ll-u-0152 ll-u-0163">
                   {tasks.map((task) => (
                     <TaskItem
                       key={task.id}
@@ -5555,7 +5594,7 @@ function TaskListCard({
                 : t("pages.tasklist.clearDate"),
             ].join(" / ")}
           >
-            <div className="flex min-h-0 flex-1 flex-col gap-4 pt-2">
+            <div className="ll-u-0059 ll-u-0082 ll-u-0129 ll-u-0152 ll-u-0168 ll-u-0252">
               <button
                 type="button"
                 aria-pressed={activeTaskActionTask.pinned}
@@ -5590,9 +5629,9 @@ function TaskListCard({
                     },
                   });
                 }}
-                className="flex min-h-12 w-full items-center justify-between rounded-2xl border border-border bg-background px-4 py-3 text-start text-sm font-semibold text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:focus-visible:outline-muted-dark"
+                className="ll-u-0059 ll-u-0085 ll-u-0111 ll-u-0156 ll-u-0158 ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0210 ll-u-0240 ll-u-0246 ll-u-0267 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0529"
               >
-                <span className="flex items-center gap-3">
+                <span className="ll-u-0059 ll-u-0156 ll-u-0167">
                   <AppIcon
                     name="push-pin"
                     size={18}
@@ -5603,7 +5642,7 @@ function TaskListCard({
                     ? t("pages.tasklist.unpinTask")
                     : t("pages.tasklist.pinTask")}
                 </span>
-                <span className="text-xs text-muted dark:text-muted-dark">
+                <span className="ll-u-0276 ll-u-0310 ll-u-0499">
                   {activeTaskActionTask.pinned ? t("common.done") : ""}
                 </span>
               </button>
@@ -5632,11 +5671,11 @@ function TaskListCard({
                     },
                   });
                 }}
-                className="inline-flex min-h-11 w-fit items-center self-start rounded-xl text-sm font-semibold text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error dark:text-muted-dark"
+                className="ll-u-0063 ll-u-0084 ll-u-0110 ll-u-0156 ll-u-0173 ll-u-0191 ll-u-0274 ll-u-0287 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0499"
               >
                 {t("pages.tasklist.clearDate")}
               </button>
-              <div className="min-h-0 flex-1 overflow-y-auto rounded-[24px] border border-border bg-background p-3 dark:border-border-dark dark:bg-background-dark">
+              <div className="ll-u-0082 ll-u-0129 ll-u-0178 ll-u-0185 ll-u-0193 ll-u-0200 ll-u-0210 ll-u-0232 ll-u-0460 ll-u-0473">
                 <Calendar
                   mode="single"
                   selected={parseTaskDateValue(activeTaskActionTask.date)}
@@ -5847,8 +5886,8 @@ function SortableTaskListItem({
         opacity: isDragging ? 0.5 : 1,
       }}
       className={clsx(
-        "flex items-center gap-2 rounded-[10px] p-2",
-        isActive ? "bg-background dark:bg-surface-dark" : "bg-transparent",
+        "ll-u-0059 ll-u-0156 ll-u-0165 ll-u-0183 ll-u-0230",
+        isActive ? "ll-u-0210 ll-u-0485" : "ll-u-0225",
       )}
     >
       <button
@@ -5857,14 +5896,14 @@ function SortableTaskListItem({
         title={dragHintLabel}
         aria-label={dragHintLabel}
         type="button"
-        className="flex touch-none items-center rounded-lg p-1 text-muted hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:hover:text-text-dark dark:focus-visible:outline-muted-dark"
+        className="ll-u-0059 ll-u-0144 ll-u-0156 ll-u-0189 ll-u-0229 ll-u-0310 ll-u-0365 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0520 ll-u-0529"
       >
         <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
       </button>
 
       <span
         aria-hidden="true"
-        className="h-3 w-3 rounded-full border border-border dark:border-border-dark"
+        className="ll-u-0066 ll-u-0092 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0460"
         style={{
           backgroundColor: resolveTaskListBackground(taskList.background),
         }}
@@ -5873,14 +5912,12 @@ function SortableTaskListItem({
       <button
         type="button"
         onClick={() => onSelect(taskList.id)}
-        className="flex flex-1 flex-col items-start gap-0.5 text-start"
+        className="ll-u-0059 ll-u-0129 ll-u-0152 ll-u-0157 ll-u-0162 ll-u-0267"
       >
-        <span className={clsx(isActive ? "font-bold" : "font-medium")}>
+        <span className={clsx(isActive ? "ll-u-0285" : "ll-u-0286")}>
           {taskList.name}
         </span>
-        <span className="text-xs text-muted dark:text-muted-dark">
-          {taskCountLabel}
-        </span>
+        <span className="ll-u-0276 ll-u-0310 ll-u-0499">{taskCountLabel}</span>
       </button>
     </div>
   );
@@ -5911,30 +5948,30 @@ function CalendarTaskItem({
     <div
       ref={itemRef}
       className={clsx(
-        "flex items-start gap-2 border-b border-border px-3 py-2 last:border-b-0 dark:border-border-dark",
-        isHighlighted && "bg-background dark:bg-surface-dark",
+        "ll-u-0059 ll-u-0157 ll-u-0165 ll-u-0196 ll-u-0200 ll-u-0239 ll-u-0244 ll-u-0352 ll-u-0460",
+        isHighlighted && "ll-u-0210 ll-u-0485",
       )}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex min-w-0 items-center justify-between gap-2">
+      <div className="ll-u-0059 ll-u-0125 ll-u-0129 ll-u-0152 ll-u-0163">
+        <div className="ll-u-0059 ll-u-0125 ll-u-0156 ll-u-0158 ll-u-0165">
           <button
             type="button"
             onClick={() => onSelectDate(task.dateValue)}
-            className="shrink-0 rounded-md text-xs text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:focus-visible:outline-muted-dark"
+            className="ll-u-0131 ll-u-0190 ll-u-0276 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0529"
           >
             {dateDisplayValue}
           </button>
           <button
             type="button"
             onClick={() => onOpenTaskList(task.taskListId)}
-            className="inline-flex min-w-0 items-center justify-end gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:focus-visible:outline-muted-dark"
+            className="ll-u-0063 ll-u-0125 ll-u-0156 ll-u-0160 ll-u-0165 ll-u-0190 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0529"
           >
             <span
               aria-hidden="true"
-              className="h-4 w-4 shrink-0 rounded-full border border-border dark:border-border-dark"
+              className="ll-u-0068 ll-u-0095 ll-u-0131 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0460"
               style={{ backgroundColor: task.taskListBackground }}
             />
-            <span className="truncate text-xs font-medium text-text dark:text-text-dark">
+            <span className="ll-u-0175 ll-u-0276 ll-u-0286 ll-u-0317 ll-u-0505">
               {task.taskListName}
             </span>
           </button>
@@ -5942,7 +5979,7 @@ function CalendarTaskItem({
         <button
           type="button"
           onClick={() => onSelectDate(task.dateValue)}
-          className="truncate rounded-md text-start font-medium leading-6 text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-text-dark dark:focus-visible:outline-muted-dark"
+          className="ll-u-0175 ll-u-0190 ll-u-0267 ll-u-0286 ll-u-0281 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0505 ll-u-0529"
         >
           {task.task.text}
         </button>
@@ -6086,21 +6123,21 @@ function CalendarScreen({
   const dateDotColors = monthDateDotColors[displayedMonthKey] ?? {};
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-background dark:bg-background-dark">
-      <div className="flex h-full min-h-0 flex-col p-4">
-        {showCompactHeaderOffset ? <div className="h-[88px]" /> : null}
+    <section className="ll-u-0059 ll-u-0080 ll-u-0082 ll-u-0152 ll-u-0210 ll-u-0473">
+      <div className="ll-u-0059 ll-u-0080 ll-u-0082 ll-u-0152 ll-u-0233">
+        {showCompactHeaderOffset ? <div className="ll-u-0078" /> : null}
         {calendarError ? <Alert variant="error">{calendarError}</Alert> : null}
         {datedTasks.length > 0 ? (
           <div
             className={clsx(
-              "min-h-0 flex-1 overflow-y-auto pb-12",
-              "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]",
-              "flex flex-col gap-3",
+              "ll-u-0082 ll-u-0129 ll-u-0178 ll-u-0263",
+              "ll-u-0451 ll-u-0454",
+              "ll-u-0059 ll-u-0152 ll-u-0167",
             )}
           >
-            <div className="w-full lg:sticky lg:top-0 lg:self-start">
+            <div className="ll-u-0111 ll-u-0449 ll-u-0450 ll-u-0455">
               <Calendar
-                className="w-full"
+                className="ll-u-0111"
                 mode="single"
                 selected={selectedCalendarDate}
                 onSelect={(next) =>
@@ -6118,16 +6155,18 @@ function CalendarScreen({
                     const colors = dateDotColors[dateKey] ?? [];
                     return (
                       <DayPickerDayButton {...props}>
-                        <span className="relative flex h-full w-full items-center justify-center">
-                          <span className={clsx(colors.length > 0 && "pb-2")}>
+                        <span className="ll-u-0008 ll-u-0059 ll-u-0080 ll-u-0111 ll-u-0156 ll-u-0159">
+                          <span
+                            className={clsx(colors.length > 0 && "ll-u-0259")}
+                          >
                             {props.day.date.getDate()}
                           </span>
                           {colors.length > 0 ? (
-                            <span className="pointer-events-none absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-0.5">
+                            <span className="ll-u-0002 ll-u-0006 ll-u-0023 ll-u-0026 ll-u-0059 ll-u-0132 ll-u-0162">
                               {colors.map((color, index) => (
                                 <span
                                   key={`${dateKey}-${color}-${index}`}
-                                  className="h-1.5 w-1.5 rounded-full border border-primary dark:border-primary-dark"
+                                  className="ll-u-0064 ll-u-0090 ll-u-0188 ll-u-0193 ll-u-0203 ll-u-0463"
                                   style={{ backgroundColor: color }}
                                 />
                               ))}
@@ -6140,7 +6179,7 @@ function CalendarScreen({
                 }}
               />
             </div>
-            <div className="min-h-0 overflow-y-auto rounded-xl border border-border dark:border-border-dark lg:h-full">
+            <div className="ll-u-0082 ll-u-0178 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0460 ll-u-0452">
               {visibleDatedTasks.length > 0 ? (
                 visibleDatedTasks.map((task) => {
                   const taskId = getDatedTaskId(task);
@@ -6160,14 +6199,14 @@ function CalendarScreen({
                   );
                 })
               ) : (
-                <p className="p-4 text-sm text-muted dark:text-muted-dark">
+                <p className="ll-u-0233 ll-u-0274 ll-u-0310 ll-u-0499">
                   {t("app.calendarNoDatedTasks")}
                 </p>
               )}
             </div>
           </div>
         ) : (
-          <p className="text-sm text-muted dark:text-muted-dark">
+          <p className="ll-u-0274 ll-u-0310 ll-u-0499">
             {t("app.calendarNoDatedTasks")}
           </p>
         )}
@@ -6187,13 +6226,13 @@ function CalendarEntryButton({ onOpen }: CalendarEntryButtonProps) {
     <button
       type="button"
       onClick={onOpen}
-      className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text shadow-sm hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark"
+      className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0165 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529"
     >
       <AppIcon
         name="calendar-today"
         aria-hidden="true"
         focusable="false"
-        className="h-5 w-5"
+        className="ll-u-0069 ll-u-0096"
       />
       <span>{t("app.calendarCheckButton")}</span>
     </button>
@@ -6245,9 +6284,9 @@ function TaskListSidebarPanel({
   const [joiningList, setJoiningList] = useState(false);
   const [joinListError, setJoinListError] = useState<string | null>(null);
   const dialogPrimaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primaryText shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark";
+    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0330 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501 ll-u-0529";
   const dialogSecondaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold text-text shadow-sm hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark";
+    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529";
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -6288,16 +6327,16 @@ function TaskListSidebarPanel({
   };
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0168">
       <DrawerHeader>
-        <h2 id="drawer-task-lists-title" className="sr-only">
+        <h2 id="drawer-task-lists-title" className="ll-u-0005">
           {t("app.drawerTitle")}
         </h2>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0165">
+          <div className="ll-u-0059 ll-u-0125 ll-u-0129 ll-u-0156 ll-u-0165">
             <p
               id="drawer-task-lists-description"
-              className="m-0 min-w-0 flex-1 truncate text-sm text-muted dark:text-muted-dark"
+              className="ll-u-0040 ll-u-0125 ll-u-0129 ll-u-0175 ll-u-0274 ll-u-0310 ll-u-0499"
             >
               {userEmail}
             </p>
@@ -6307,7 +6346,7 @@ function TaskListSidebarPanel({
               title={t("settings.title")}
               aria-label={t("settings.title")}
               data-vaul-no-drag
-              className="inline-flex items-center justify-center rounded-xl p-2 text-muted hover:bg-background hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:text-muted-dark dark:hover:bg-surface-dark dark:hover:text-text-dark dark:focus-visible:outline-muted-dark"
+              className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0365 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0518 ll-u-0520 ll-u-0529"
             >
               <AppIcon name="settings" aria-hidden="true" focusable="false" />
             </button>
@@ -6317,7 +6356,7 @@ function TaskListSidebarPanel({
 
       <CalendarEntryButton onOpen={onOpenCalendar} />
 
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
+      <div className="ll-u-0059 ll-u-0129 ll-u-0152 ll-u-0167 ll-u-0178">
         {hasTaskLists ? (
           <DndContext
             sensors={sensorsList}
@@ -6344,12 +6383,10 @@ function TaskListSidebarPanel({
             </SortableContext>
           </DndContext>
         ) : (
-          <p className="text-sm text-muted dark:text-muted-dark">
-            {t("app.emptyState")}
-          </p>
+          <p className="ll-u-0274 ll-u-0310 ll-u-0499">{t("app.emptyState")}</p>
         )}
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="ll-u-0060 ll-u-0151 ll-u-0165">
           <Dialog
             open={showCreateListDialog}
             onOpenChange={(open: boolean) => {
@@ -6375,18 +6412,18 @@ function TaskListSidebarPanel({
                   void handleCreateList();
                 }}
               >
-                <div className="mt-4 flex flex-col gap-3">
-                  <label className="flex flex-col gap-1">
+                <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
+                  <label className="ll-u-0059 ll-u-0152 ll-u-0163">
                     <span>{t("app.taskListName")}</span>
                     <input
                       type="text"
                       value={createListInput}
                       onChange={(e) => setCreateListInput(e.target.value)}
                       placeholder={t("app.taskListNamePlaceholder")}
-                      className="rounded-xl border border-border bg-inputBackground px-3 py-2 text-sm text-text shadow-sm focus:border-muted focus:outline-none focus:ring-2 focus:ring-border dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark"
+                      className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
                     />
                   </label>
-                  <div className="flex flex-col gap-2">
+                  <div className="ll-u-0059 ll-u-0152 ll-u-0165">
                     <span>{t("taskList.selectColor")}</span>
                     <ColorPicker
                       colors={COLORS}
@@ -6442,11 +6479,11 @@ function TaskListSidebarPanel({
                   void handleJoinList();
                 }}
               >
-                <div className="mt-4 flex flex-col gap-3">
+                <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
                   {joinListError ? (
                     <Alert variant="error">{joinListError}</Alert>
                   ) : null}
-                  <label className="flex flex-col gap-1">
+                  <label className="ll-u-0059 ll-u-0152 ll-u-0163">
                     <span>{t("taskList.shareCode")}</span>
                     <input
                       type="text"
@@ -6456,7 +6493,7 @@ function TaskListSidebarPanel({
                         setJoinListError(null);
                       }}
                       placeholder={t("app.shareCodePlaceholder")}
-                      className="rounded-xl border border-border bg-inputBackground px-3 py-2 text-sm text-text shadow-sm focus:border-muted focus:outline-none focus:ring-2 focus:ring-border dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark"
+                      className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
                     />
                   </label>
                 </div>
@@ -6494,6 +6531,7 @@ function AppShellPage() {
   const settings = useSettings();
   const {
     hasStartupError,
+    taskListDocsStatus,
     taskListOrderStatus,
     taskLists: stateTaskLists,
   } = useTaskListIndexState();
@@ -6626,8 +6664,10 @@ function AppShellPage() {
   }, [authStatus]);
 
   const isAuthLoading = authStatus === "loading";
-  const isTaskListsHydrating = taskListOrderStatus !== "ready";
-  const hasResolvedTaskLists = taskListOrderStatus === "ready";
+  const isTaskListsHydrating =
+    taskListOrderStatus !== "ready" ||
+    (stateTaskLists.length === 0 && taskListDocsStatus === "loading");
+  const hasResolvedTaskLists = !isTaskListsHydrating;
   const hasTaskLists = taskLists.length > 0;
   const selectedTaskList = taskLists.find(
     (taskList) => taskList.id === selectedTaskListId,
@@ -6643,11 +6683,11 @@ function AppShellPage() {
   );
   const isRtl = carouselDirection === "rtl";
   const taskListsPanelSkeleton = (
-    <div className="flex flex-col gap-3 p-2">
-      <div className="h-8 w-32 animate-pulse rounded-lg bg-border dark:bg-border-dark" />
-      <div className="h-10 w-full animate-pulse rounded-xl bg-border dark:bg-border-dark" />
-      <div className="h-10 w-full animate-pulse rounded-xl bg-border dark:bg-border-dark" />
-      <div className="h-10 w-full animate-pulse rounded-xl bg-border dark:bg-border-dark" />
+    <div className="ll-u-0059 ll-u-0152 ll-u-0167 ll-u-0230">
+      <div className="ll-u-0072 ll-u-0103 ll-u-0141 ll-u-0189 ll-u-0214 ll-u-0475" />
+      <div className="ll-u-0074 ll-u-0111 ll-u-0141 ll-u-0191 ll-u-0214 ll-u-0475" />
+      <div className="ll-u-0074 ll-u-0111 ll-u-0141 ll-u-0191 ll-u-0214 ll-u-0475" />
+      <div className="ll-u-0074 ll-u-0111 ll-u-0141 ll-u-0191 ll-u-0214 ll-u-0475" />
     </div>
   );
 
@@ -6851,8 +6891,8 @@ function AppShellPage() {
   );
 
   const mobileSlideTransitionClass = isViewAnimationReady
-    ? "motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:duration-0"
-    : "transition-none";
+    ? "ll-u-0399 ll-u-0400 ll-u-0401 ll-u-0402 ll-u-0403"
+    : "ll-u-0341";
   const compactForwardTransform = isRtl
     ? "translateX(-100%)"
     : "translateX(100%)";
@@ -6869,17 +6909,17 @@ function AppShellPage() {
     return compactForwardTransform;
   };
   const renderDetailSkeleton = (taskRowCount: number) => (
-    <div className="flex h-full flex-col gap-4 p-4 pt-24">
-      <div className="h-6 w-40 animate-pulse rounded bg-border dark:bg-border-dark" />
-      <div className="flex flex-col gap-2">
+    <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0168 ll-u-0233 ll-u-0256">
+      <div className="ll-u-0070 ll-u-0104 ll-u-0141 ll-u-0181 ll-u-0214 ll-u-0475" />
+      <div className="ll-u-0059 ll-u-0152 ll-u-0165">
         {Array.from({ length: taskRowCount }, (_, index) => (
           <div
             key={index}
             className={clsx(
-              "h-10 animate-pulse rounded-lg bg-border dark:bg-border-dark",
+              "ll-u-0074 ll-u-0141 ll-u-0189 ll-u-0214 ll-u-0475",
               index === taskRowCount - 1 && taskRowCount > 3
-                ? "w-3/4"
-                : "w-full",
+                ? "ll-u-0094"
+                : "ll-u-0111",
             )}
           />
         ))}
@@ -6894,9 +6934,9 @@ function AppShellPage() {
     <div
       aria-hidden={currentView !== view}
       className={clsx(
-        "absolute inset-0 h-full overflow-hidden will-change-transform",
+        "ll-u-0006 ll-u-0011 ll-u-0080 ll-u-0176 ll-u-0344",
         mobileSlideTransitionClass,
-        currentView === view ? "z-20" : "pointer-events-none z-10",
+        currentView === view ? "ll-u-0030" : "ll-u-0002 ll-u-0029",
         className,
       )}
       style={{ transform: getCompactPanelTransform(view) }}
@@ -6906,18 +6946,18 @@ function AppShellPage() {
   );
 
   const detailContent = (
-    <div className="h-full overflow-hidden">
+    <div className="ll-u-0080 ll-u-0176">
       {isAuthLoading ? (
         renderDetailSkeleton(4)
       ) : hasStartupError ? (
-        <div className="flex h-full items-center justify-center p-4">
+        <div className="ll-u-0059 ll-u-0080 ll-u-0156 ll-u-0159 ll-u-0233">
           <Alert variant="error">{t("app.error")}</Alert>
         </div>
       ) : isTaskListsHydrating ? (
         renderDetailSkeleton(3)
       ) : hasTaskLists ? (
         <Carousel
-          className="h-full"
+          className="ll-u-0080"
           index={selectedTaskListIndex}
           direction={carouselDirection}
           scrollEnabled={!isTaskSorting && !isTaskDragInteracting}
@@ -6940,16 +6980,16 @@ function AppShellPage() {
           {taskLists.map((taskList) => (
             <div
               key={taskList.id}
-              className="flex h-full w-full flex-col"
+              className="ll-u-0059 ll-u-0080 ll-u-0111 ll-u-0152"
               style={{
                 backgroundColor: resolveTaskListBackground(taskList.background),
               }}
             >
-              <div className="h-[88px]" />
+              <div className="ll-u-0078" />
               <div
                 className={clsx(
-                  "h-full overflow-y-auto",
-                  isWideLayout && "mx-auto max-w-3xl min-w-[480px]",
+                  "ll-u-0080 ll-u-0178",
+                  isWideLayout && "ll-u-0041 ll-u-0113 ll-u-0128",
                 )}
               >
                 <TaskListCard
@@ -6988,10 +7028,8 @@ function AppShellPage() {
           ))}
         </Carousel>
       ) : (
-        <div className="flex h-full items-center justify-center p-4">
-          <p className="text-muted dark:text-muted-dark">
-            {t("app.emptyState")}
-          </p>
+        <div className="ll-u-0059 ll-u-0080 ll-u-0156 ll-u-0159 ll-u-0233">
+          <p className="ll-u-0310 ll-u-0499">{t("app.emptyState")}</p>
         </div>
       )}
     </div>
@@ -7008,7 +7046,7 @@ function AppShellPage() {
   );
 
   const taskListsRootContent = (
-    <div className="h-full overflow-y-auto bg-surface p-4 dark:bg-surface-dark">
+    <div className="ll-u-0080 ll-u-0178 ll-u-0223 ll-u-0233 ll-u-0485">
       {error ? <Alert variant="error">{error}</Alert> : null}
       {isAuthLoading ? taskListsPanelSkeleton : drawerPanel}
     </div>
@@ -7019,25 +7057,25 @@ function AppShellPage() {
   }
 
   return (
-    <div className="h-full min-h-full w-full overflow-hidden text-text dark:text-text-dark">
+    <div className="ll-u-0080 ll-u-0087 ll-u-0111 ll-u-0176 ll-u-0317 ll-u-0505">
       <div
         className={clsx(
-          "flex h-full",
+          "ll-u-0059 ll-u-0080",
           isWideLayout
             ? isRtl
-              ? "flex-row-reverse items-start"
-              : "flex-row items-start"
-            : "flex-col",
+              ? "ll-u-0154 ll-u-0157"
+              : "ll-u-0153 ll-u-0157"
+            : "ll-u-0152",
         )}
       >
         {isWideLayout ? (
           <aside
             className={clsx(
-              "sticky top-0 w-[360px] max-w-[420px] shrink-0 self-stretch border-border",
-              isRtl ? "border-l" : "border-r",
+              "ll-u-0010 ll-u-0015 ll-u-0108 ll-u-0118 ll-u-0131 ll-u-0174 ll-u-0200",
+              isRtl ? "ll-u-0197" : "ll-u-0195",
             )}
           >
-            <div className="flex h-full flex-col overflow-y-auto bg-surface p-4 dark:border-border-dark dark:bg-surface-dark">
+            <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0178 ll-u-0223 ll-u-0233 ll-u-0460 ll-u-0485">
               {isAuthLoading ? taskListsPanelSkeleton : drawerPanel}
             </div>
           </aside>
@@ -7046,19 +7084,19 @@ function AppShellPage() {
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col"
+          className="ll-u-0059 ll-u-0080 ll-u-0082 ll-u-0111 ll-u-0125 ll-u-0129 ll-u-0152"
         >
           {isWideLayout ? (
-            <div className="h-full overflow-hidden">
+            <div className="ll-u-0080 ll-u-0176">
               {currentView === "settings" ? (
-                <div className="h-full overflow-y-auto">
+                <div className="ll-u-0080 ll-u-0178">
                   <SettingsView
                     showBackButton={false}
                     onOpenLicenses={() => openLicenses("replace")}
                   />
                 </div>
               ) : currentView === "licenses" ? (
-                <div className="h-full overflow-y-auto">
+                <div className="ll-u-0080 ll-u-0178">
                   <LicensesView
                     onBack={() => openSettings("replace")}
                     showBackButton={true}
@@ -7071,12 +7109,12 @@ function AppShellPage() {
               )}
             </div>
           ) : (
-            <div className="relative h-full overflow-hidden">
+            <div className="ll-u-0008 ll-u-0080 ll-u-0176">
               {renderCompactPanel("taskLists", taskListsRootContent)}
               {renderCompactPanel(
                 "detail",
                 <>
-                  <div className="absolute z-20 w-full">
+                  <div className="ll-u-0006 ll-u-0030 ll-u-0111">
                     <AppHeader
                       backLabel={t("common.back")}
                       onBack={handleBackToTaskLists}
@@ -7087,29 +7125,29 @@ function AppShellPage() {
               )}
               {renderCompactPanel(
                 "settings",
-                <div className="h-full overflow-y-auto">
+                <div className="ll-u-0080 ll-u-0178">
                   <SettingsView
                     onBack={handleBackToTaskLists}
                     showBackButton={true}
                     onOpenLicenses={() => openLicenses("push")}
                   />
                 </div>,
-                "bg-background dark:bg-background-dark",
+                "ll-u-0210 ll-u-0473",
               )}
               {renderCompactPanel(
                 "licenses",
-                <div className="h-full overflow-y-auto">
+                <div className="ll-u-0080 ll-u-0178">
                   <LicensesView
                     onBack={handleBackToTaskLists}
                     showBackButton={true}
                   />
                 </div>,
-                "bg-background dark:bg-background-dark",
+                "ll-u-0210 ll-u-0473",
               )}
               {renderCompactPanel(
                 "calendar",
                 <>
-                  <div className="absolute z-20 w-full">
+                  <div className="ll-u-0006 ll-u-0030 ll-u-0111">
                     <AppHeader
                       backLabel={t("common.back")}
                       onBack={handleBackToTaskLists}
@@ -7117,7 +7155,7 @@ function AppShellPage() {
                   </div>
                   {calendarContent}
                 </>,
-                "bg-background dark:bg-background-dark",
+                "ll-u-0210 ll-u-0473",
               )}
             </div>
           )}
@@ -7223,7 +7261,7 @@ function IndexPage() {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-7 w-7 text-[#4d4d4d] dark:text-[#d7d7d7]"
+          className="ll-u-0071 ll-u-0098 ll-u-0299 ll-u-0492"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -7243,7 +7281,7 @@ function IndexPage() {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-7 w-7 text-[#4d4d4d] dark:text-[#d7d7d7]"
+          className="ll-u-0071 ll-u-0098 ll-u-0299 ll-u-0492"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -7263,7 +7301,7 @@ function IndexPage() {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-7 w-7 text-[#4d4d4d] dark:text-[#d7d7d7]"
+          className="ll-u-0071 ll-u-0098 ll-u-0299 ll-u-0492"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -7281,29 +7319,29 @@ function IndexPage() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-white text-text dark:bg-[#111111] dark:text-text-dark">
-      <header className="sticky top-0 z-40 border-b border-black/10 bg-white/92 backdrop-blur dark:border-white/10 dark:bg-[#111111]/92">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-3.5">
-          <div className="flex items-center gap-3 sm:gap-4">
+    <div className="ll-u-0088 ll-u-0226 ll-u-0317 ll-u-0467 ll-u-0505">
+      <header className="ll-u-0010 ll-u-0015 ll-u-0032 ll-u-0196 ll-u-0199 ll-u-0227 ll-u-0335 ll-u-0466 ll-u-0468">
+        <div className="ll-u-0041 ll-u-0059 ll-u-0116 ll-u-0152 ll-u-0165 ll-u-0240 ll-u-0246 ll-u-0419 ll-u-0420 ll-u-0421 ll-u-0434 ll-u-0436">
+          <div className="ll-u-0059 ll-u-0156 ll-u-0167 ll-u-0423">
             <img
               src="/brand/logo.svg"
               alt=""
               aria-hidden="true"
-              className="block h-9 w-auto sm:h-12"
+              className="ll-u-0057 ll-u-0073 ll-u-0109 ll-u-0408"
             />
-            <p className="text-base font-semibold tracking-[0.16em] text-[#1a1a1a] dark:text-[#f2f2f2] sm:text-lg sm:tracking-[0.18em]">
+            <p className="ll-u-0272 ll-u-0287 ll-u-0290 ll-u-0297 ll-u-0493 ll-u-0446 ll-u-0448">
               Lightlist
             </p>
           </div>
-          <div className="flex items-center justify-between gap-3 sm:justify-end">
-            <label className="inline-flex items-center gap-2 text-sm">
-              <span className="sr-only">Language</span>
+          <div className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0167 ll-u-0422">
+            <label className="ll-u-0063 ll-u-0156 ll-u-0165 ll-u-0274">
+              <span className="ll-u-0005">Language</span>
               <select
                 value={currentLang}
                 onChange={(event) =>
                   handleLangChange(normalizeLanguage(event.target.value))
                 }
-                className="max-w-[calc(100vw-8.5rem)] rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm text-text outline-none transition focus:border-[#666666] dark:border-white/10 dark:bg-[#171717] dark:text-text-dark dark:focus:border-white/30 sm:max-w-none sm:px-4 sm:py-2"
+                className="ll-u-0121 ll-u-0188 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0239 ll-u-0243 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0370 ll-u-0466 ll-u-0470 ll-u-0505 ll-u-0523 ll-u-0415 ll-u-0432 ll-u-0435"
               >
                 {SUPPORTED_LANGUAGES.map((language) => (
                   <option key={language} value={language}>
@@ -7314,7 +7352,7 @@ function IndexPage() {
             </label>
             <a
               href="/login/"
-              className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#171717] px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-[#2d2d2d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#171717] dark:bg-[#f2f2f2] dark:text-[#111111] dark:hover:bg-[#dedede] dark:focus-visible:outline-[#f2f2f2] sm:px-5 sm:py-2"
+              className="ll-u-0063 ll-u-0131 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0205 ll-u-0240 ll-u-0243 ll-u-0274 ll-u-0287 ll-u-0318 ll-u-0337 ll-u-0358 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0385 ll-u-0471 ll-u-0488 ll-u-0513 ll-u-0526 ll-u-0433 ll-u-0435"
             >
               Login
             </a>
@@ -7325,52 +7363,52 @@ function IndexPage() {
       <main id="main-content" tabIndex={-1}>
         <section
           aria-labelledby="landing-hero-title"
-          className="px-6 pb-20 pt-6 sm:pb-24 sm:pt-10"
+          className="ll-u-0241 ll-u-0264 ll-u-0254 ll-u-0441 ll-u-0439"
         >
-          <div className="mx-auto max-w-6xl">
-            <div className="mx-auto max-w-3xl text-center">
+          <div className="ll-u-0041 ll-u-0116">
+            <div className="ll-u-0041 ll-u-0113 ll-u-0265">
               <h1
                 id="landing-hero-title"
-                className="font-display whitespace-pre-line text-[2.6rem] font-semibold tracking-[-0.05em] text-[#121212] dark:text-[#f5f5f5] sm:text-6xl lg:text-7xl"
+                className="ll-u-0536 ll-u-0295 ll-u-0278 ll-u-0287 ll-u-0289 ll-u-0301 ll-u-0494 ll-u-0445 ll-u-0457"
               >
                 {t("pages.index.headline")}
               </h1>
-              <p className="mx-auto mt-6 max-w-2xl whitespace-pre-line text-lg leading-8 text-[#5d5d5d] dark:text-[#c9c9c9] sm:text-xl">
+              <p className="ll-u-0041 ll-u-0048 ll-u-0112 ll-u-0295 ll-u-0273 ll-u-0283 ll-u-0300 ll-u-0491 ll-u-0447">
                 {t("pages.index.subheadline")}
               </p>
-              <div className="mt-10 flex flex-col items-center gap-4">
+              <div className="ll-u-0050 ll-u-0059 ll-u-0152 ll-u-0156 ll-u-0168">
                 <a
                   href="/login/"
-                  className="inline-flex items-center justify-center rounded-full bg-[#171717] px-8 py-4 text-base font-semibold text-white transition hover:bg-[#2d2d2d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#171717] dark:bg-[#f2f2f2] dark:text-[#111111] dark:hover:bg-[#dedede] dark:focus-visible:outline-[#f2f2f2]"
+                  className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0205 ll-u-0242 ll-u-0247 ll-u-0272 ll-u-0287 ll-u-0318 ll-u-0337 ll-u-0358 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0385 ll-u-0471 ll-u-0488 ll-u-0513 ll-u-0526"
                 >
                   {t("pages.index.getStarted")}
                 </a>
               </div>
             </div>
 
-            <div className="mx-auto mt-16 max-w-5xl">
-              <div className="relative mx-auto max-w-[920px] pt-8 sm:pt-4">
-                <div className="mx-auto w-[88%] overflow-hidden rounded-[30px] border border-black/10 bg-white p-3 shadow-[0_26px_70px_rgba(17,17,17,0.1)] dark:border-white/10 dark:bg-[#171717] dark:shadow-[0_26px_70px_rgba(0,0,0,0.34)] sm:w-[78%] sm:p-4">
-                  <div className="overflow-hidden rounded-[24px] border border-black/10 bg-[#fafafa] dark:border-white/10 dark:bg-[#121212]">
+            <div className="ll-u-0041 ll-u-0051 ll-u-0115">
+              <div className="ll-u-0008 ll-u-0041 ll-u-0120 ll-u-0255 ll-u-0438">
+                <div className="ll-u-0041 ll-u-0107 ll-u-0176 ll-u-0187 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0232 ll-u-0328 ll-u-0466 ll-u-0470 ll-u-0507 ll-u-0412 ll-u-0429">
+                  <div className="ll-u-0176 ll-u-0185 ll-u-0193 ll-u-0199 ll-u-0207 ll-u-0466 ll-u-0469">
                     <img
                       src="/screenshot_ja_desktop.png"
                       alt={t("pages.index.preview.desktopAlt")}
                       width={1280}
                       height={800}
-                      className="w-full"
+                      className="ll-u-0111"
                     />
                   </div>
                 </div>
 
-                <div className="absolute right-0 top-0 z-20 w-[34%] min-w-[150px] max-w-[220px] sm:right-[8%] sm:top-[8%] sm:w-[24%]">
-                  <div className="overflow-hidden rounded-[24px] border border-black/10 bg-white p-2.5 shadow-[0_18px_40px_rgba(17,17,17,0.12)] dark:border-white/10 dark:bg-[#171717] dark:shadow-[0_18px_40px_rgba(0,0,0,0.3)] sm:rounded-[28px] sm:p-3">
-                    <div className="overflow-hidden rounded-[18px] border border-black/10 bg-[#fafafa] dark:border-white/10 dark:bg-[#121212] sm:rounded-[22px]">
+                <div className="ll-u-0006 ll-u-0020 ll-u-0015 ll-u-0030 ll-u-0106 ll-u-0126 ll-u-0117 ll-u-0406 ll-u-0405 ll-u-0411">
+                  <div className="ll-u-0176 ll-u-0185 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0231 ll-u-0327 ll-u-0466 ll-u-0470 ll-u-0506 ll-u-0425 ll-u-0428">
+                    <div className="ll-u-0176 ll-u-0184 ll-u-0193 ll-u-0199 ll-u-0207 ll-u-0466 ll-u-0469 ll-u-0424">
                       <img
                         src="/screenshot_ja_mobile.png"
                         alt={t("pages.index.preview.mobileAlt")}
                         width={720}
                         height={1560}
-                        className="w-full"
+                        className="ll-u-0111"
                       />
                     </div>
                   </div>
@@ -7382,33 +7420,33 @@ function IndexPage() {
 
         <section
           aria-labelledby="landing-features-title"
-          className="border-t border-black/10 px-6 py-20 dark:border-white/10 sm:py-24"
+          className="ll-u-0194 ll-u-0199 ll-u-0241 ll-u-0250 ll-u-0466 ll-u-0437"
         >
-          <div className="mx-auto max-w-6xl">
-            <div className="mx-auto max-w-2xl text-center">
+          <div className="ll-u-0041 ll-u-0116">
+            <div className="ll-u-0041 ll-u-0112 ll-u-0265">
               <h2
                 id="landing-features-title"
-                className="font-display text-3xl font-semibold tracking-[-0.04em] text-[#151515] dark:text-[#f2f2f2] sm:text-4xl"
+                className="ll-u-0536 ll-u-0271 ll-u-0287 ll-u-0288 ll-u-0302 ll-u-0493 ll-u-0443"
               >
                 {t("pages.index.features.title")}
               </h2>
-              <p className="mt-4 text-base leading-7 text-[#666666] dark:text-[#bbbbbb]">
+              <p className="ll-u-0046 ll-u-0272 ll-u-0282 ll-u-0303 ll-u-0490">
                 {t("pages.index.preview.title")}
               </p>
             </div>
-            <div className="mt-10 grid gap-4 lg:grid-cols-3">
+            <div className="ll-u-0050 ll-u-0060 ll-u-0168 ll-u-0453">
               {features.map(({ key, icon }) => (
                 <div
                   key={key}
-                  className="rounded-[28px] border border-black/10 bg-white p-7 dark:border-white/10 dark:bg-[#171717]"
+                  className="ll-u-0186 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0236 ll-u-0466 ll-u-0470"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f5f5f5] dark:bg-white/5">
+                  <div className="ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0206 ll-u-0487">
                     {icon}
                   </div>
-                  <h3 className="font-display mt-5 text-xl font-semibold text-[#1c1c1c] dark:text-[#f2f2f2]">
+                  <h3 className="ll-u-0536 ll-u-0047 ll-u-0275 ll-u-0287 ll-u-0298 ll-u-0493">
                     {t(`pages.index.features.${key}.title`)}
                   </h3>
-                  <p className="mt-3 text-sm leading-7 text-[#666666] dark:text-[#b8b8b8]">
+                  <p className="ll-u-0045 ll-u-0274 ll-u-0282 ll-u-0303 ll-u-0489">
                     {t(`pages.index.features.${key}.description`)}
                   </p>
                 </div>
@@ -7419,28 +7457,28 @@ function IndexPage() {
 
         <section
           aria-labelledby="landing-cta-title"
-          className="border-t border-black/10 px-6 py-20 dark:border-white/10 sm:py-24"
+          className="ll-u-0194 ll-u-0199 ll-u-0241 ll-u-0250 ll-u-0466 ll-u-0437"
         >
-          <div className="mx-auto max-w-4xl text-center">
+          <div className="ll-u-0041 ll-u-0114 ll-u-0265">
             <img
               src="/brand/logo.svg"
               alt=""
               aria-hidden="true"
-              className="mx-auto h-20 w-auto sm:h-24"
+              className="ll-u-0041 ll-u-0077 ll-u-0109 ll-u-0409"
             />
             <h2
               id="landing-cta-title"
-              className="font-display mt-8 text-3xl font-semibold tracking-[-0.04em] text-[#121212] dark:text-[#f5f5f5] sm:text-5xl"
+              className="ll-u-0536 ll-u-0049 ll-u-0271 ll-u-0287 ll-u-0288 ll-u-0301 ll-u-0494 ll-u-0444"
             >
               {t("pages.index.cta.title")}
             </h2>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#666666] dark:text-[#bbbbbb] sm:text-lg">
+            <p className="ll-u-0041 ll-u-0047 ll-u-0112 ll-u-0272 ll-u-0283 ll-u-0303 ll-u-0490 ll-u-0446">
               {t("pages.index.cta.description")}
             </p>
-            <div className="mt-10">
+            <div className="ll-u-0050">
               <a
                 href="/login/"
-                className="inline-flex items-center justify-center rounded-full bg-[#171717] px-8 py-4 text-base font-semibold text-white transition hover:bg-[#2d2d2d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#171717] dark:bg-[#f2f2f2] dark:text-[#111111] dark:hover:bg-[#dedede] dark:focus-visible:outline-[#f2f2f2]"
+                className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0205 ll-u-0242 ll-u-0247 ll-u-0272 ll-u-0287 ll-u-0318 ll-u-0337 ll-u-0358 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0385 ll-u-0471 ll-u-0488 ll-u-0513 ll-u-0526"
               >
                 {t("pages.index.cta.button")}
               </a>
@@ -7449,10 +7487,8 @@ function IndexPage() {
         </section>
       </main>
 
-      <footer className="border-t border-black/10 px-6 py-10 text-center dark:border-white/10">
-        <p className="text-sm text-muted dark:text-muted-dark">
-          {t("copyright")}
-        </p>
+      <footer className="ll-u-0194 ll-u-0199 ll-u-0241 ll-u-0249 ll-u-0265 ll-u-0466">
+        <p className="ll-u-0274 ll-u-0310 ll-u-0499">{t("copyright")}</p>
       </footer>
     </div>
   );
@@ -7483,11 +7519,8 @@ function FormInput({
   placeholder,
 }: FormInputProps) {
   return (
-    <div className="flex flex-col gap-1">
-      <label
-        htmlFor={id}
-        className="text-sm font-medium text-text dark:text-text-dark"
-      >
+    <div className="ll-u-0059 ll-u-0152 ll-u-0163">
+      <label htmlFor={id} className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
         {label}
       </label>
       <input
@@ -7499,13 +7532,10 @@ function FormInput({
         placeholder={placeholder}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
-        className="rounded-xl border border-border bg-inputBackground px-3 py-2 text-sm text-text shadow-sm focus:border-muted focus:outline-none focus:ring-2 focus:ring-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark"
+        className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
       />
       {error ? (
-        <p
-          id={`${id}-error`}
-          className="text-xs text-error dark:text-error-dark"
-        >
+        <p id={`${id}-error`} className="ll-u-0276 ll-u-0308 ll-u-0497">
           {error}
         </p>
       ) : null}
@@ -7623,41 +7653,41 @@ function LoginPage() {
 
   const tabButtonClass = (isActive: boolean) =>
     [
-      "inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted dark:focus-visible:outline-muted-dark",
+      "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0339 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0529",
       isActive
-        ? "bg-surface text-text shadow-sm dark:bg-surface-dark dark:text-text-dark"
-        : "text-muted hover:bg-surface/70 dark:text-muted-dark dark:hover:bg-surface-dark/60",
+        ? "ll-u-0223 ll-u-0317 ll-u-0330 ll-u-0485 ll-u-0505"
+        : "ll-u-0310 ll-u-0364 ll-u-0499 ll-u-0519",
     ].join(" ");
 
   const primaryButtonClass =
-    "inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primaryText shadow-sm transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-70 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark";
+    "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0330 ll-u-0339 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0480 ll-u-0501 ll-u-0529";
 
   const secondaryButtonClass =
-    "inline-flex w-full items-center justify-center rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text shadow-sm transition-colors hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-70 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark";
+    "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0339 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529";
   const selectedLanguage = normalizeLanguage(
     i18n.resolvedLanguage ?? i18n.language,
   );
 
   return (
-    <div className="min-h-screen w-full bg-background text-text dark:bg-background-dark dark:text-text-dark">
+    <div className="ll-u-0088 ll-u-0111 ll-u-0210 ll-u-0317 ll-u-0473 ll-u-0505">
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4 py-10 sm:px-6"
+        className="ll-u-0041 ll-u-0059 ll-u-0088 ll-u-0111 ll-u-0124 ll-u-0152 ll-u-0159 ll-u-0240 ll-u-0249 ll-u-0434"
       >
-        <div className="w-full rounded-2xl border border-border bg-surface p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark sm:p-8">
-          <div className="mb-6 text-center">
-            <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+        <div className="ll-u-0111 ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0235 ll-u-0330 ll-u-0460 ll-u-0485 ll-u-0431">
+          <div className="ll-u-0054 ll-u-0265">
+            <h1 className="ll-u-0536 ll-u-0270 ll-u-0287 ll-u-0291 ll-u-0442">
               {t("title")}
             </h1>
           </div>
-          <div className="mb-6 flex justify-end">
+          <div className="ll-u-0054 ll-u-0059 ll-u-0160">
             <select
               value={selectedLanguage}
               onChange={(event) =>
                 void i18n.changeLanguage(normalizeLanguage(event.target.value))
               }
-              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-muted dark:border-border-dark dark:bg-background-dark dark:text-text-dark dark:focus:border-muted-dark"
+              className="ll-u-0190 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0371 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0522"
               aria-label="Language"
             >
               {SUPPORTED_LANGUAGES.map((language) => (
@@ -7669,7 +7699,7 @@ function LoginPage() {
           </div>
 
           <div
-            className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-background p-1 dark:bg-surface-dark"
+            className="ll-u-0054 ll-u-0060 ll-u-0151 ll-u-0165 ll-u-0191 ll-u-0210 ll-u-0229 ll-u-0485"
             role="tablist"
             aria-label={t("title")}
           >
@@ -7702,9 +7732,9 @@ function LoginPage() {
               id="auth-panel-signin"
               role="tabpanel"
               aria-labelledby="auth-tab-signin"
-              className="space-y-4"
+              className="ll-u-0169"
             >
-              <form onSubmit={handleSignIn} className="space-y-4">
+              <form onSubmit={handleSignIn} className="ll-u-0169">
                 <FormInput
                   id="signin-email"
                   label={t("auth.form.email")}
@@ -7753,9 +7783,9 @@ function LoginPage() {
               id="auth-panel-signup"
               role="tabpanel"
               aria-labelledby="auth-tab-signup"
-              className="space-y-4"
+              className="ll-u-0169"
             >
-              <form onSubmit={handleSignUp} className="space-y-4">
+              <form onSubmit={handleSignUp} className="ll-u-0169">
                 <FormInput
                   id="signup-email"
                   label={t("auth.form.email")}
@@ -7803,15 +7833,15 @@ function LoginPage() {
           )}
 
           {activeTab === "reset" && (
-            <section className="space-y-4">
-              <form onSubmit={handlePasswordReset} className="space-y-4">
+            <section className="ll-u-0169">
+              <form onSubmit={handlePasswordReset} className="ll-u-0169">
                 {resetSent ? (
                   <Alert variant="success">
                     {t("auth.passwordReset.success")}
                   </Alert>
                 ) : (
                   <>
-                    <p className="text-sm text-muted dark:text-muted-dark">
+                    <p className="ll-u-0274 ll-u-0310 ll-u-0499">
                       {t("auth.passwordReset.instruction")}
                     </p>
                     <FormInput
@@ -7850,7 +7880,7 @@ function LoginPage() {
           )}
         </div>
 
-        <p className="mt-6 text-center text-xs text-muted dark:text-muted-dark">
+        <p className="ll-u-0048 ll-u-0265 ll-u-0276 ll-u-0310 ll-u-0499">
           {t("copyright")}
         </p>
       </main>
@@ -7881,11 +7911,8 @@ function PasswordResetFormInput({
   placeholder,
 }: PasswordResetFormInputProps) {
   return (
-    <div className="flex flex-col gap-1">
-      <label
-        htmlFor={id}
-        className="text-sm font-medium text-text dark:text-text-dark"
-      >
+    <div className="ll-u-0059 ll-u-0152 ll-u-0163">
+      <label htmlFor={id} className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
         {label}
       </label>
       <input
@@ -7897,13 +7924,10 @@ function PasswordResetFormInput({
         placeholder={placeholder}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
-        className="rounded-xl border border-border bg-inputBackground px-3 py-2 text-sm text-text shadow-sm focus:border-muted focus:outline-none focus:ring-2 focus:ring-border disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-inputBackground-dark dark:text-text-dark dark:focus:border-muted-dark dark:focus:ring-border-dark"
+        className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
       />
       {error ? (
-        <p
-          id={`${id}-error`}
-          className="text-xs text-error dark:text-error-dark"
-        >
+        <p id={`${id}-error`} className="ll-u-0276 ll-u-0308 ll-u-0497">
           {error}
         </p>
       ) : null}
@@ -7921,10 +7945,10 @@ function PasswordResetPage() {
   const [resetSuccess, setResetSuccess] = useState(false);
 
   const primaryButtonClass =
-    "inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primaryText shadow-sm transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-70 dark:bg-primary-dark dark:text-primaryText-dark dark:focus-visible:outline-muted-dark";
+    "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0330 ll-u-0339 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0480 ll-u-0501 ll-u-0529";
 
   const secondaryButtonClass =
-    "inline-flex w-full items-center justify-center rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text shadow-sm transition-colors hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-70 dark:border-border-dark dark:bg-surface-dark dark:text-text-dark dark:hover:bg-background-dark dark:focus-visible:outline-muted-dark";
+    "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0339 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529";
 
   useEffect(() => {
     const oobCode = new URLSearchParams(window.location.search).get("oobCode");
@@ -7991,7 +8015,7 @@ function PasswordResetPage() {
   const content = (() => {
     if (codeValid === false) {
       return (
-        <div className="space-y-4">
+        <div className="ll-u-0169">
           <Alert variant="error">
             {errors.general || t("auth.passwordReset.invalidCode")}
           </Alert>
@@ -8008,11 +8032,11 @@ function PasswordResetPage() {
 
     if (resetSuccess) {
       return (
-        <div className="space-y-4">
+        <div className="ll-u-0169">
           <Alert variant="success">
             {t("auth.passwordReset.resetSuccess")}
           </Alert>
-          <div className="flex justify-center">
+          <div className="ll-u-0059 ll-u-0159">
             <Spinner />
           </div>
         </div>
@@ -8020,10 +8044,10 @@ function PasswordResetPage() {
     }
 
     return (
-      <div className="space-y-4">
+      <div className="ll-u-0169">
         {errors.general && <Alert variant="error">{errors.general}</Alert>}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="ll-u-0169">
           <PasswordResetFormInput
             id="password"
             label={t("auth.passwordReset.newPassword")}
@@ -8069,21 +8093,21 @@ function PasswordResetPage() {
   })();
 
   return (
-    <div className="min-h-screen w-full bg-background text-text dark:bg-background-dark dark:text-text-dark">
+    <div className="ll-u-0088 ll-u-0111 ll-u-0210 ll-u-0317 ll-u-0473 ll-u-0505">
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-4 py-10 sm:px-6"
+        className="ll-u-0041 ll-u-0059 ll-u-0088 ll-u-0111 ll-u-0124 ll-u-0152 ll-u-0159 ll-u-0240 ll-u-0249 ll-u-0434"
       >
-        <div className="w-full rounded-2xl border border-border bg-surface p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark sm:p-8">
-          <div className="mb-6 text-center">
-            <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+        <div className="ll-u-0111 ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0235 ll-u-0330 ll-u-0460 ll-u-0485 ll-u-0431">
+          <div className="ll-u-0054 ll-u-0265">
+            <h1 className="ll-u-0536 ll-u-0270 ll-u-0287 ll-u-0291 ll-u-0442">
               {t("auth.passwordReset.title")}
             </h1>
           </div>
           {content}
         </div>
-        <p className="mt-6 text-center text-xs text-muted dark:text-muted-dark">
+        <p className="ll-u-0048 ll-u-0265 ll-u-0276 ll-u-0310 ll-u-0499">
           {t("copyright")}
         </p>
       </main>
@@ -8170,17 +8194,17 @@ function ShareCodePreviewPage() {
 
   if (error) {
     return (
-      <div className="flex h-full flex-col bg-background dark:bg-background-dark">
-        <div className="bg-surface p-4 shadow-sm dark:bg-surface-dark">
+      <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0210 ll-u-0473">
+        <div className="ll-u-0223 ll-u-0233 ll-u-0330 ll-u-0485">
           <button
             onClick={() => window.history.back()}
-            className="rounded-full p-2 text-muted hover:bg-background dark:text-muted-dark dark:hover:bg-surface-dark"
+            className="ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
             aria-label={t("common.back")}
           >
-            <AppIcon name="arrow-back" className="h-6 w-6" />
+            <AppIcon name="arrow-back" className="ll-u-0070 ll-u-0097" />
           </button>
         </div>
-        <div className="p-4">
+        <div className="ll-u-0233">
           <Alert variant="error">{error}</Alert>
         </div>
       </div>
@@ -8191,18 +8215,18 @@ function ShareCodePreviewPage() {
 
   if (!taskList) {
     return (
-      <div className="flex h-full flex-col bg-background dark:bg-background-dark">
-        <div className="bg-surface p-4 shadow-sm dark:bg-surface-dark">
+      <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0210 ll-u-0473">
+        <div className="ll-u-0223 ll-u-0233 ll-u-0330 ll-u-0485">
           <button
             onClick={() => window.history.back()}
-            className="rounded-full p-2 text-muted hover:bg-background dark:text-muted-dark dark:hover:bg-surface-dark"
+            className="ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
             aria-label={t("common.back")}
           >
-            <AppIcon name="arrow-back" className="h-6 w-6" />
+            <AppIcon name="arrow-back" className="ll-u-0070 ll-u-0097" />
           </button>
         </div>
-        <div className="p-4">
-          <p className="text-center text-muted dark:text-muted-dark">
+        <div className="ll-u-0233">
+          <p className="ll-u-0265 ll-u-0310 ll-u-0499">
             {t("pages.sharecode.notFound")}
           </p>
         </div>
@@ -8211,20 +8235,20 @@ function ShareCodePreviewPage() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-background dark:bg-background-dark">
-      <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 dark:border-border-dark dark:bg-surface-dark">
+    <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0210 ll-u-0473">
+      <header className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0196 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0246 ll-u-0460 ll-u-0485">
         <button
           onClick={() => window.history.back()}
-          className="rounded-full p-2 text-muted hover:bg-background dark:text-muted-dark dark:hover:bg-surface-dark"
+          className="ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
           aria-label={t("common.back")}
         >
-          <AppIcon name="arrow-back" className="h-6 w-6" />
+          <AppIcon name="arrow-back" className="ll-u-0070 ll-u-0097" />
         </button>
         {user && (
           <button
             onClick={handleAddToOrder}
             disabled={addToOrderLoading}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+            className="ll-u-0189 ll-u-0213 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0286 ll-u-0318 ll-u-0339 ll-u-0360 ll-u-0392 ll-u-0474 ll-u-0515"
           >
             {addToOrderLoading
               ? t("common.loading")
@@ -8233,45 +8257,45 @@ function ShareCodePreviewPage() {
         )}
       </header>
 
-      <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto">
+      <main id="main-content" tabIndex={-1} className="ll-u-0129 ll-u-0178">
         {addToOrderError && (
-          <div className="p-4 pb-0">
+          <div className="ll-u-0233 ll-u-0258">
             <Alert variant="error">{addToOrderError}</Alert>
           </div>
         )}
 
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
+        <div className="ll-u-0041 ll-u-0059 ll-u-0111 ll-u-0113 ll-u-0152 ll-u-0168 ll-u-0240 ll-u-0248">
           <section
-            className="rounded-2xl border border-border p-4 dark:border-border-dark"
+            className="ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0233 ll-u-0460"
             style={{ backgroundColor: taskList.background ?? undefined }}
           >
-            <header className="flex items-center justify-between gap-3">
-              <h1 className="font-display text-xl font-semibold text-text dark:text-text-dark">
+            <header className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0167">
+              <h1 className="ll-u-0536 ll-u-0275 ll-u-0287 ll-u-0317 ll-u-0505">
                 {taskList.name}
               </h1>
             </header>
-            <ul className="mt-4 flex flex-col gap-2">
+            <ul className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0165">
               {taskList.tasks.length === 0 ? (
-                <li className="text-sm text-muted dark:text-muted-dark">
+                <li className="ll-u-0274 ll-u-0310 ll-u-0499">
                   {t("pages.tasklist.noTasks")}
                 </li>
               ) : (
                 taskList.tasks.map((task) => (
                   <li
                     key={task.id}
-                    className="rounded-xl border border-border/70 bg-surface/80 px-3 py-2 dark:border-border-dark/70 dark:bg-surface-dark/80"
+                    className="ll-u-0191 ll-u-0193 ll-u-0201 ll-u-0224 ll-u-0239 ll-u-0244 ll-u-0461 ll-u-0486"
                     style={{ opacity: task.completed ? 0.5 : 1 }}
                   >
                     {task.date ? (
-                      <div className="text-xs text-muted dark:text-muted-dark">
+                      <div className="ll-u-0276 ll-u-0310 ll-u-0499">
                         {task.date}
                       </div>
                     ) : null}
                     <div
                       className={
                         task.completed
-                          ? "text-sm text-muted line-through dark:text-muted-dark"
-                          : "text-sm text-text dark:text-text-dark"
+                          ? "ll-u-0274 ll-u-0310 ll-u-0319 ll-u-0499"
+                          : "ll-u-0274 ll-u-0317 ll-u-0505"
                       }
                     >
                       {task.text}
@@ -8302,7 +8326,16 @@ const Page =
   (pageKey && PAGE_COMPONENTS[pageKey as keyof typeof PAGE_COMPONENTS]) ||
   PAGE_COMPONENTS["404"];
 
-createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+
+if (!rootElement) {
+  throw new Error("Missing root element");
+}
+
+const root = webBootstrapState.root ?? createRoot(rootElement);
+webBootstrapState.root = root;
+
+root.render(
   <StrictMode>
     <AppWrapper>
       <Page />

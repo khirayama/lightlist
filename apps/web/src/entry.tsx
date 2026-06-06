@@ -2240,11 +2240,34 @@ function buildHistory(
 }
 
 function buildTaskUpdateData(params: {
+  previousTasks?: TaskListStoreTask[];
   tasks: TaskListStoreTask[];
+  deletedTaskIds?: string[];
 }): Record<string, unknown> {
   const updates: Record<string, unknown> = {};
+  const previousById = new Map(
+    (params.previousTasks ?? []).map((task) => [task.id, task]),
+  );
+  params.deletedTaskIds?.forEach((taskId) => {
+    updates[`tasks.${taskId}`] = deleteField();
+  });
   params.tasks.forEach((task) => {
-    updates[`tasks.${task.id}`] = task;
+    const previous = previousById.get(task.id);
+    if (!previous) {
+      updates[`tasks.${task.id}`] = task;
+      return;
+    }
+    if (previous.text !== task.text) updates[`tasks.${task.id}.text`] = task.text;
+    if (previous.completed !== task.completed) {
+      updates[`tasks.${task.id}.completed`] = task.completed;
+    }
+    if (previous.date !== task.date) updates[`tasks.${task.id}.date`] = task.date;
+    if (previous.order !== task.order) {
+      updates[`tasks.${task.id}.order`] = task.order;
+    }
+    if (previous.pinned !== task.pinned) {
+      updates[`tasks.${task.id}.pinned`] = task.pinned;
+    }
   });
   return updates;
 }
@@ -2387,7 +2410,7 @@ export async function addTask(
       settings,
     );
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-      ...buildTaskUpdateData({ tasks: nextTasks }),
+      ...buildTaskUpdateData({ previousTasks: tasks, tasks: nextTasks }),
       history: buildHistory(taskList, parsed.text),
       updatedAt: now,
     });
@@ -2489,7 +2512,7 @@ export async function updateTask(
           ])
         : getSortedTasks(updatedTasks, settings);
     const nextUpdates: Record<string, unknown> = {
-      ...buildTaskUpdateData({ tasks: nextTasks }),
+      ...buildTaskUpdateData({ previousTasks: tasks, tasks: nextTasks }),
       updatedAt: now,
     };
     if (
@@ -2518,17 +2541,20 @@ async function deleteTask(taskListId: string, taskId: string) {
 export async function deleteCompletedTasks(taskListId: string) {
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
+    const tasks = getOrderedTasks(taskList);
+    const completedTasks = tasks.filter((task) => task.completed);
     const remainingTasks = getSortedTasks(
-      getOrderedTasks(taskList).filter((task) => !task.completed),
+      tasks.filter((task) => !task.completed),
       await getResolvedTaskSettings(),
     );
     const nextData: Record<string, unknown> = {
-      tasks: {},
+      ...buildTaskUpdateData({
+        previousTasks: tasks,
+        tasks: remainingTasks,
+        deletedTaskIds: completedTasks.map((task) => task.id),
+      }),
       updatedAt: Date.now(),
     };
-    remainingTasks.forEach((task) => {
-      (nextData.tasks as Record<string, TaskListStoreTask>)[task.id] = task;
-    });
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), nextData);
   });
 }
@@ -2536,9 +2562,10 @@ export async function deleteCompletedTasks(taskListId: string) {
 export async function sortTasks(taskListId: string) {
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
-    const sortedTasks = getAutoSortedTasks(getDisplayOrderedTasks(taskList));
+    const tasks = getDisplayOrderedTasks(taskList);
+    const sortedTasks = getAutoSortedTasks(tasks);
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-      ...buildTaskUpdateData({ tasks: sortedTasks }),
+      ...buildTaskUpdateData({ previousTasks: tasks, tasks: sortedTasks }),
       updatedAt: Date.now(),
     });
   });
@@ -2563,7 +2590,7 @@ export async function updateTasksOrder(
     tasks.splice(newIndex, 0, draggedTask);
     const nextTasks = renumberTasks(tasks);
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-      ...buildTaskUpdateData({ tasks: nextTasks }),
+      ...buildTaskUpdateData({ previousTasks: getDisplayOrderedTasks(taskList), tasks: nextTasks }),
       updatedAt: Date.now(),
     });
   });

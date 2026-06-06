@@ -538,15 +538,13 @@ private class OrderedTaskListViewModel<Item>: ObservableObject {
                         return
                     }
 
-                    snapshot?.documentChanges.forEach { change in
-                        let taskListId = change.document.documentID
-                        if change.type == .removed {
-                            self.taskListsById.removeValue(forKey: taskListId)
-                            return
-                        }
-                        self.taskListsById[taskListId] = self.mapper(
-                            taskListId,
-                            change.document.data()
+                    chunk.forEach { taskListId in
+                        self.taskListsById.removeValue(forKey: taskListId)
+                    }
+                    snapshot?.documents.forEach { document in
+                        self.taskListsById[document.documentID] = self.mapper(
+                            document.documentID,
+                            document.data()
                         )
                     }
 
@@ -2951,18 +2949,27 @@ private struct TaskListDetailPage: View {
         }
     }
 
-    private func buildTaskUpdateData(_ tasks: [TaskSummary], deletedTaskIds: [String] = []) -> [String: Any] {
+    private func buildTaskUpdateData(previousTasks: [TaskSummary], tasks: [TaskSummary], deletedTaskIds: [String] = []) -> [String: Any] {
         var updates: [String: Any] = ["updatedAt": nowMillis()]
+        let previousById = Dictionary(uniqueKeysWithValues: previousTasks.map { ($0.id, $0) })
         for taskId in deletedTaskIds {
             updates["tasks.\(taskId)"] = FieldValue.delete()
         }
         for task in tasks {
-            updates["tasks.\(task.id).id"] = task.id
-            updates["tasks.\(task.id).text"] = task.text
-            updates["tasks.\(task.id).completed"] = task.completed
-            updates["tasks.\(task.id).date"] = task.date
-            updates["tasks.\(task.id).order"] = task.order
-            updates["tasks.\(task.id).pinned"] = task.pinned
+            guard let previous = previousById[task.id] else {
+                updates["tasks.\(task.id).id"] = task.id
+                updates["tasks.\(task.id).text"] = task.text
+                updates["tasks.\(task.id).completed"] = task.completed
+                updates["tasks.\(task.id).date"] = task.date
+                updates["tasks.\(task.id).order"] = task.order
+                updates["tasks.\(task.id).pinned"] = task.pinned
+                continue
+            }
+            if previous.text != task.text { updates["tasks.\(task.id).text"] = task.text }
+            if previous.completed != task.completed { updates["tasks.\(task.id).completed"] = task.completed }
+            if previous.date != task.date { updates["tasks.\(task.id).date"] = task.date }
+            if previous.order != task.order { updates["tasks.\(task.id).order"] = task.order }
+            if previous.pinned != task.pinned { updates["tasks.\(task.id).pinned"] = task.pinned }
         }
         return updates
     }
@@ -3008,19 +3015,21 @@ private struct TaskListDetailPage: View {
         })
     }
 
-    private func persistTasks(_ tasks: [TaskSummary], deletedTaskIds: [String] = []) {
+    private func persistTasks(_ tasks: [TaskSummary], deletedTaskIds: [String] = [], previousTasks: [TaskSummary]? = nil) {
+        let previousTasks = previousTasks ?? displayTasks
         let normalized = normalizedTasks(tasks)
         setPendingTasks(normalized)
-        updateTaskList(buildTaskUpdateData(normalized, deletedTaskIds: deletedTaskIds))
+        updateTaskList(buildTaskUpdateData(previousTasks: previousTasks, tasks: normalized, deletedTaskIds: deletedTaskIds))
     }
 
     private func performTaskMutation(
         buildNextTasks: ([TaskSummary]) -> [TaskSummary],
-        persist: ([TaskSummary]) -> Void
+        persist: ([TaskSummary], [TaskSummary]) -> Void
     ) {
-        let nextTasks = reconciledTasks(buildNextTasks(displayTasks))
+        let previousTasks = displayTasks
+        let nextTasks = reconciledTasks(buildNextTasks(previousTasks))
         setPendingTasks(nextTasks)
-        persist(nextTasks)
+        persist(previousTasks, nextTasks)
     }
 
     private func deleteTaskList() {
@@ -3599,8 +3608,8 @@ private struct TaskListDetailPage: View {
                         : current
                 }
             },
-            persist: { nextTasks in
-                updateTaskList(buildTaskUpdateData(nextTasks))
+            persist: { previousTasks, nextTasks in
+                persistTasks(nextTasks, previousTasks: previousTasks)
             }
         )
     }
@@ -3639,8 +3648,10 @@ private struct TaskListDetailPage: View {
                         : current
                 }
             },
-            persist: { nextTasks in
-                var updates = buildTaskUpdateData(nextTasks)
+            persist: { previousTasks, nextTasks in
+                let normalized = normalizedTasks(nextTasks)
+                setPendingTasks(normalized)
+                var updates = buildTaskUpdateData(previousTasks: previousTasks, tasks: normalized)
                 if textChanged {
                     updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
                 }
@@ -3672,8 +3683,8 @@ private struct TaskListDetailPage: View {
                         : current
                 }
             },
-            persist: { nextTasks in
-                updateTaskList(buildTaskUpdateData(nextTasks))
+            persist: { previousTasks, nextTasks in
+                persistTasks(nextTasks, previousTasks: previousTasks)
             }
         )
     }
@@ -3705,8 +3716,8 @@ private struct TaskListDetailPage: View {
                 }
                 return updatedTasks
             },
-            persist: { nextTasks in
-                updateTaskList(buildTaskUpdateData(nextTasks))
+            persist: { previousTasks, nextTasks in
+                persistTasks(nextTasks, previousTasks: previousTasks)
             }
         )
     }
@@ -3737,8 +3748,10 @@ private struct TaskListDetailPage: View {
                     ? [insertedTask] + currentTasks
                     : currentTasks + [insertedTask]
             },
-            persist: { nextTasks in
-                var updates = buildTaskUpdateData(nextTasks)
+            persist: { previousTasks, nextTasks in
+                let normalized = normalizedTasks(nextTasks)
+                setPendingTasks(normalized)
+                var updates = buildTaskUpdateData(previousTasks: previousTasks, tasks: normalized)
                 updates["history"] = buildHistory(newText: parsed.text)
                 updateTaskList(updates)
             }
@@ -3749,14 +3762,14 @@ private struct TaskListDetailPage: View {
         logTaskSort()
         let sorted = getAutoSortedTasks(getDisplayOrderedTasks(taskList.tasks))
         setPendingTasks(sorted)
-        updateTaskList(buildTaskUpdateData(sorted))
+        updateTaskList(buildTaskUpdateData(previousTasks: displayTasks, tasks: sorted))
     }
 
     private func confirmDeleteCompleted() {
         let completed = taskList.tasks.filter { $0.completed }
         logTaskDeleteCompleted(count: completed.count)
         let remaining = taskList.tasks.filter { !$0.completed }
-        persistTasks(remaining, deletedTaskIds: completed.map(\.id))
+        persistTasks(remaining, deletedTaskIds: completed.map(\.id), previousTasks: displayTasks)
     }
 
     private func persistTaskOrder(_ ids: [String]) {
@@ -3764,7 +3777,7 @@ private struct TaskListDetailPage: View {
         let orderedTasks = ids.compactMap { id in displayTasks.first(where: { $0.id == id }) }
         let normalizedTasks = renumberTasks(orderedTasks)
         setPendingTasks(normalizedTasks)
-        updateTaskList(buildTaskUpdateData(normalizedTasks))
+        updateTaskList(buildTaskUpdateData(previousTasks: displayTasks, tasks: normalizedTasks))
     }
 
     private func generateShareCode(taskListId: String) async throws -> String {

@@ -980,15 +980,13 @@ private fun <T> subscribeToOrderedTaskLists(
                     logDebugSync(
                         "taskLists snapshot chunk=${chunk.size} docs=${snapshot?.documents?.size ?: 0} changes=${snapshot?.documentChanges?.size ?: 0} cache=${snapshot?.metadata?.isFromCache} pending=${snapshot?.metadata?.hasPendingWrites()}"
                     )
-                    val nextTaskListsById = taskListsById.toMutableMap()
-                    snapshot?.documentChanges?.forEach { change ->
-                        val taskListId = change.document.id
-                        if (change.type.name == "REMOVED") {
-                            nextTaskListsById.remove(taskListId)
-                        } else {
-                            nextTaskListsById[taskListId] =
-                                parseDocument(taskListId, change.document.data)
-                        }
+                    val nextTaskListsById = taskListsById
+                        .filterKeys { it !in chunk }
+                        .toMutableMap()
+                    snapshot?.documents?.forEach { document ->
+                        val data = document.data ?: return@forEach
+                        nextTaskListsById[document.id] =
+                            parseDocument(document.id, data)
                     }
                     taskListsById = nextTaskListsById
                     publish()
@@ -4065,20 +4063,31 @@ private fun TaskListDetailContent(
     }
 
     fun buildTaskUpdateData(
+        previousTasks: List<TaskSummary>,
         tasks: List<TaskSummary>,
         deletedTaskIds: List<String> = emptyList()
     ): Map<String, Any> {
         val updates = mutableMapOf<String, Any>("updatedAt" to nowMillis())
+        val previousById = previousTasks.associateBy { it.id }
         deletedTaskIds.forEach { taskId ->
             updates["tasks.$taskId"] = FieldValue.delete()
         }
         tasks.forEach { task ->
-            updates["tasks.${task.id}.id"] = task.id
-            updates["tasks.${task.id}.text"] = task.text
-            updates["tasks.${task.id}.completed"] = task.completed
-            updates["tasks.${task.id}.date"] = task.date
-            updates["tasks.${task.id}.order"] = task.order
-            updates["tasks.${task.id}.pinned"] = task.pinned
+            val previous = previousById[task.id]
+            if (previous == null) {
+                updates["tasks.${task.id}.id"] = task.id
+                updates["tasks.${task.id}.text"] = task.text
+                updates["tasks.${task.id}.completed"] = task.completed
+                updates["tasks.${task.id}.date"] = task.date
+                updates["tasks.${task.id}.order"] = task.order
+                updates["tasks.${task.id}.pinned"] = task.pinned
+            } else {
+                if (previous.text != task.text) updates["tasks.${task.id}.text"] = task.text
+                if (previous.completed != task.completed) updates["tasks.${task.id}.completed"] = task.completed
+                if (previous.date != task.date) updates["tasks.${task.id}.date"] = task.date
+                if (previous.order != task.order) updates["tasks.${task.id}.order"] = task.order
+                if (previous.pinned != task.pinned) updates["tasks.${task.id}.pinned"] = task.pinned
+            }
         }
         return updates
     }
@@ -4140,12 +4149,14 @@ private fun TaskListDetailContent(
 
     fun persistNormalizedTasks(
         tasks: List<TaskSummary>,
-        deletedTaskIds: List<String> = emptyList()
+        deletedTaskIds: List<String> = emptyList(),
+        previousTasks: List<TaskSummary> = displayTasks
     ) {
         val normalizedTasks = normalizeTasks(tasks)
         setPendingTasks(normalizedTasks)
         persistTaskListUpdate(
             buildTaskUpdateData(
+                previousTasks = previousTasks,
                 tasks = normalizedTasks,
                 deletedTaskIds = deletedTaskIds
             )
@@ -4154,11 +4165,12 @@ private fun TaskListDetailContent(
 
     fun performTaskMutation(
         buildNextTasks: (List<TaskSummary>) -> List<TaskSummary>,
-        persist: (List<TaskSummary>) -> Unit
+        persist: (List<TaskSummary>, List<TaskSummary>) -> Unit
     ) {
-        val nextTasks = reconcileTasks(buildNextTasks(displayTasks))
+        val previousTasks = displayTasks
+        val nextTasks = reconcileTasks(buildNextTasks(previousTasks))
         setPendingTasks(nextTasks)
-        persist(nextTasks)
+        persist(previousTasks, nextTasks)
     }
 
     val historyOptions = run {
@@ -4218,7 +4230,7 @@ private fun TaskListDetailContent(
         val orderedTasks = ids.mapNotNull { id -> displayTasks.firstOrNull { it.id == id } }
         val normalizedTasks = renumberTasks(orderedTasks)
         setPendingTasks(normalizedTasks)
-        persistTaskListUpdate(buildTaskUpdateData(normalizedTasks))
+        persistTaskListUpdate(buildTaskUpdateData(displayTasks, normalizedTasks))
     }
 
     fun toggleCompletion(task: TaskSummary) {
@@ -4229,8 +4241,8 @@ private fun TaskListDetailContent(
                     if (current.id == task.id) current.copy(completed = !current.completed) else current
                 }
             },
-            persist = { nextTasks ->
-                persistNormalizedTasks(nextTasks)
+            persist = { previousTasks, nextTasks ->
+                persistNormalizedTasks(nextTasks, previousTasks = previousTasks)
             }
         )
     }
@@ -4261,10 +4273,11 @@ private fun TaskListDetailContent(
                         } else current
                     }
                 },
-                persist = { nextTasks ->
+                persist = { previousTasks, nextTasks ->
                     val normalizedTasks = normalizeTasks(nextTasks)
                     setPendingTasks(normalizedTasks)
                     val updates = buildTaskUpdateData(
+                        previousTasks = previousTasks,
                         tasks = normalizedTasks
                     ).toMutableMap<String, Any>()
                     if (textChanged) {
@@ -4310,8 +4323,8 @@ private fun TaskListDetailContent(
                     if (current.id == task.id) current.copy(date = dateStr) else current
                 }
             },
-            persist = { nextTasks ->
-                persistNormalizedTasks(nextTasks)
+            persist = { previousTasks, nextTasks ->
+                persistNormalizedTasks(nextTasks, previousTasks = previousTasks)
             }
         )
     }
@@ -4334,8 +4347,8 @@ private fun TaskListDetailContent(
                     updatedTasks
                 }
             },
-            persist = { nextTasks ->
-                persistNormalizedTasks(nextTasks)
+            persist = { previousTasks, nextTasks ->
+                persistNormalizedTasks(nextTasks, previousTasks = previousTasks)
             }
         )
     }
@@ -4344,14 +4357,14 @@ private fun TaskListDetailContent(
         logTaskSort()
         val sorted = getAutoSortedTasks(getDisplayOrderedTasks(displayTasks))
         setPendingTasks(sorted)
-        persistTaskListUpdate(buildTaskUpdateData(sorted))
+        persistTaskListUpdate(buildTaskUpdateData(displayTasks, sorted))
     }
 
     fun deleteCompletedTasks() {
         val completed = displayTasks.filter { it.completed }
         logTaskDeleteCompleted(count = completed.size)
         val remaining = displayTasks.filter { !it.completed }
-        persistNormalizedTasks(remaining, completed.map { it.id })
+        persistNormalizedTasks(remaining, completed.map { it.id }, previousTasks = displayTasks)
     }
 
     fun removeTaskList() {
@@ -4438,10 +4451,11 @@ private fun TaskListDetailContent(
                     currentTasks + insertedTask
                 }
             },
-            persist = { nextTasks ->
+            persist = { previousTasks, nextTasks ->
                 val normalizedTasks = normalizeTasks(nextTasks)
                 setPendingTasks(normalizedTasks)
                 val updates = buildTaskUpdateData(
+                    previousTasks = previousTasks,
                     tasks = normalizedTasks
                 ).toMutableMap<String, Any>()
                 updates["history"] = buildHistory(parsed.text)

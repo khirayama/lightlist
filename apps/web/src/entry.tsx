@@ -253,22 +253,15 @@ async function enqueueTaskListMutation<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   const previous = taskListMutationQueues.get(taskListId) ?? Promise.resolve();
-  let release: (() => void) | undefined;
-  const current = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const queued = previous.then(
-    () => current,
-    () => current,
+  const run = previous.then(operation, operation);
+  const queued = run.then(
+    () => undefined,
+    () => undefined,
   );
   taskListMutationQueues.set(taskListId, queued);
-  await previous.catch(() => undefined);
   try {
-    return await operation();
+    return await run;
   } finally {
-    if (release) {
-      release();
-    }
     if (taskListMutationQueues.get(taskListId) === queued) {
       taskListMutationQueues.delete(taskListId);
     }
@@ -705,6 +698,11 @@ const i18n = i18next;
 
 const MAIN_CONTENT_ID = "main-content";
 
+const AUTH_FREE_PAGES = new Set(["index", "404", "500", "password_reset"]);
+
+const isAuthFreePage = (): boolean =>
+  AUTH_FREE_PAGES.has(document.body.dataset.page ?? "");
+
 const applyTheme = (theme: Theme) => {
   if (typeof document === "undefined" || typeof window === "undefined") return;
   const isDark =
@@ -978,16 +976,23 @@ function normalizeTaskListStore(taskListData: TaskListStore): TaskListStore {
   return { ...taskListData, tasks: normalizedTasks };
 }
 
+const getTaskListOrderEntries = (
+  taskListOrder: TaskListOrderStore | null,
+): Array<[string, TaskListOrderEntry]> =>
+  taskListOrder
+    ? (Object.entries(taskListOrder).filter(
+        ([key, value]) =>
+          !TASK_LIST_ORDER_METADATA_KEYS.has(key) &&
+          typeof value === "object" &&
+          value !== null &&
+          typeof (value as TaskListOrderEntry).order === "number",
+      ) as Array<[string, TaskListOrderEntry]>)
+    : [];
+
 const getTaskListIdsFromOrder = (
   taskListOrder: TaskListOrderStore | null,
-): string[] => {
-  if (!taskListOrder) {
-    return [];
-  }
-  return Object.keys(taskListOrder).filter(
-    (taskListId) => !TASK_LIST_ORDER_METADATA_KEYS.has(taskListId),
-  );
-};
+): string[] =>
+  getTaskListOrderEntries(taskListOrder).map(([taskListId]) => taskListId);
 
 const getTaskListIdsKey = (taskListIds: string[]): string =>
   taskListIds.length > 0 ? [...taskListIds].sort().join("|") : "";
@@ -1011,16 +1016,9 @@ const mapTaskListStoreToTaskList = (
 const getOrderedTaskListIds = (
   taskListOrder: TaskListOrderStore | null,
 ): string[] =>
-  taskListOrder
-    ? Object.entries(taskListOrder)
-        .flatMap(([taskListId, value]) => {
-          if (typeof value !== "object" || value === null) return [];
-          if (!("order" in value)) return [];
-          return [{ taskListId, order: (value as { order: number }).order }];
-        })
-        .sort((a, b) => a.order - b.order)
-        .map((entry) => entry.taskListId)
-    : [];
+  getTaskListOrderEntries(taskListOrder)
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([taskListId]) => taskListId);
 
 const getTaskListIdChunks = (taskListIds: string[]): string[][] => {
   const chunks: string[][] = [];
@@ -1200,6 +1198,10 @@ function AppStateProvider({ children }: { children: ReactNode }) {
   const sharedTaskListUnsubscribers = useRef(new Map<string, () => void>());
 
   useEffect(() => {
+    if (isAuthFreePage()) {
+      setSession({ authStatus: "unauthenticated", user: null });
+      return;
+    }
     const unsubscribe = onAuthStateChanged(getAuthInstance(), (user) => {
       setSession({
         authStatus: user ? "authenticated" : "unauthenticated",
@@ -1422,10 +1424,6 @@ function AppStateProvider({ children }: { children: ReactNode }) {
             liveSnapshotIndexes.add(index);
             console.error("taskList chunk listener error:", error);
             dispatchTaskLists({
-              type: "setTaskListOrderStatus",
-              taskListOrderStatus: "error",
-            });
-            dispatchTaskLists({
               type: "setTaskListDocsStatus",
               taskListDocsStatus: "error",
             });
@@ -1535,7 +1533,8 @@ function AppStateProvider({ children }: { children: ReactNode }) {
   const hasStartupError =
     settingsState.settingsStatus === "error" ||
     taskListsState.taskListOrderStatus === "error" ||
-    taskListsState.taskListDocsStatus === "error";
+    (taskListsState.taskListDocsStatus === "error" &&
+      Object.keys(taskListsState.taskListsById).length === 0);
 
   const contextValue = useMemo<AppStateContextValue>(
     () => ({
@@ -1603,13 +1602,16 @@ function useTaskList(taskListId: string | null): TaskList | null {
       sharedTaskListsById[taskListId] ??
       null)
     : null;
+  const isOwnTaskList = taskListId
+    ? taskLists.some((item) => item.id === taskListId)
+    : false;
 
   useEffect(() => {
-    if (!taskListId || taskLists.some((item) => item.id === taskListId)) {
+    if (!taskListId || isOwnTaskList) {
       return;
     }
     return registerSharedTaskList(taskListId);
-  }, [registerSharedTaskList, taskListId, taskLists]);
+  }, [isOwnTaskList, registerSharedTaskList, taskListId]);
 
   return taskList;
 }
@@ -1695,11 +1697,7 @@ const getPreferredLanguage = async (language?: Language): Promise<Language> => {
   return normalizeLanguage(settingsStore?.language ?? DEFAULT_LANGUAGE);
 };
 
-export async function signUp(
-  email: string,
-  password: string,
-  language: Language,
-) {
+async function signUp(email: string, password: string, language: Language) {
   const auth = getAuthInstance();
   const db = getDbInstance();
   const userCredential = await createUserWithEmailAndPassword(
@@ -1726,7 +1724,7 @@ export async function signUp(
   await batch.commit();
 }
 
-export async function signIn(email: string, password: string) {
+async function signIn(email: string, password: string) {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
@@ -1751,10 +1749,7 @@ async function signOut() {
   await firebaseSignOut(getAuthInstance());
 }
 
-export async function sendPasswordResetEmail(
-  email: string,
-  language?: Language,
-) {
+async function sendPasswordResetEmail(email: string, language?: Language) {
   const auth = getAuthInstance();
   const actionCodeSettings: ActionCodeSettings = {
     url: import.meta.env.VITE_PASSWORD_RESET_URL,
@@ -1766,11 +1761,11 @@ export async function sendPasswordResetEmail(
   );
 }
 
-export async function verifyPasswordResetCode(code: string) {
+async function verifyPasswordResetCode(code: string) {
   return await firebaseVerifyPasswordResetCode(getAuthInstance(), code);
 }
 
-export async function confirmPasswordReset(code: string, newPassword: string) {
+async function confirmPasswordReset(code: string, newPassword: string) {
   await firebaseConfirmPasswordReset(getAuthInstance(), code, newPassword);
 }
 
@@ -1792,9 +1787,15 @@ async function deleteAccount() {
     const taskListOrderData =
       taskListOrderSnapshot.data() as TaskListOrderStore;
     const taskListIds = getTaskListIdsFromOrder(taskListOrderData);
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       taskListIds.map((taskListId) => deleteTaskList(taskListId)),
     );
+    const rejected = results.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    if (rejected) {
+      throw rejected.reason;
+    }
   }
 
   const batch = writeBatch(db);
@@ -1903,6 +1904,10 @@ const NUMERIC_PATTERNS: DatePattern[] = [
       const date = new Date(currentYear, m, d);
       if (date.getMonth() !== m || date.getDate() !== d) {
         return null;
+      }
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if (date < today) {
+        return new Date(currentYear + 1, m, d);
       }
       return date;
     },
@@ -2109,11 +2114,6 @@ function assertTaskListOrderStore(
   return data as TaskListOrderStore;
 }
 
-const getTaskListOrderEntries = (taskListOrder: TaskListOrderStore) =>
-  Object.entries(taskListOrder).filter(
-    ([key]) => !TASK_LIST_ORDER_METADATA_KEYS.has(key),
-  ) as Array<[string, TaskListOrderEntry]>;
-
 const getValidMemberCount = (taskList: TaskListStore): number => {
   if (!Number.isInteger(taskList.memberCount) || taskList.memberCount < 1) {
     throw new Error("Invalid member count");
@@ -2150,7 +2150,10 @@ function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
 
 async function getTaskListData(taskListId: string): Promise<TaskListStore> {
   const db = getDbInstance();
-  const snapshot = await getDoc(doc(db, "taskLists", taskListId));
+  const taskListRef = doc(db, "taskLists", taskListId);
+  const snapshot = await getDocFromCache(taskListRef).catch(() =>
+    getDoc(taskListRef),
+  );
   if (!snapshot.exists()) throw new Error("Task list not found");
   return normalizeTaskListStore(
     assertTaskListStore(
@@ -2158,21 +2161,6 @@ async function getTaskListData(taskListId: string): Promise<TaskListStore> {
       taskListId,
     ),
   );
-}
-
-async function getResolvedTaskSettings(): Promise<ResolvedTaskSettings> {
-  const uid = requireCurrentUserId();
-  const settingsSnapshot = await getDoc(doc(getDbInstance(), "settings", uid));
-  const settingsStore = settingsSnapshot.exists()
-    ? (settingsSnapshot.data() as SettingsStore)
-    : null;
-  const settings = mapSettingsStore(settingsStore);
-  return {
-    autoSort: Boolean(settings?.autoSort),
-    language: normalizeLanguage(settings?.language ?? DEFAULT_LANGUAGE),
-    taskInsertPosition:
-      settings?.taskInsertPosition === "bottom" ? "bottom" : "top",
-  };
 }
 
 function getOrderedTaskListOrders(taskListOrder: TaskListOrderStore): number[] {
@@ -2223,6 +2211,8 @@ function getSortedTasks(
   return renumberTasks(tasks);
 }
 
+const MAX_TASK_HISTORY_ENTRIES = 300;
+
 function buildHistory(
   taskList: TaskListStore,
   newText: string,
@@ -2230,13 +2220,20 @@ function buildHistory(
 ): string[] {
   const candidate = newText.trim();
   if (!candidate) return taskList.history ?? [];
-  const nextHistory = [candidate, ...(taskList.history ?? [])];
-  if (oldText) {
-    return nextHistory.filter((entry) => entry.trim() !== oldText.trim());
+  const trimmedOldText = oldText?.trim();
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of [candidate, ...(taskList.history ?? [])]) {
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+    if (trimmedOldText && trimmed === trimmedOldText) continue;
+    const normalized = trimmed.toLowerCase();
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(trimmed);
+    if (result.length >= MAX_TASK_HISTORY_ENTRIES) break;
   }
-  return Array.from(new Set(nextHistory.map((entry) => entry.trim()))).filter(
-    Boolean,
-  );
+  return result;
 }
 
 function buildTaskUpdateData(params: {
@@ -2257,11 +2254,13 @@ function buildTaskUpdateData(params: {
       updates[`tasks.${task.id}`] = task;
       return;
     }
-    if (previous.text !== task.text) updates[`tasks.${task.id}.text`] = task.text;
+    if (previous.text !== task.text)
+      updates[`tasks.${task.id}.text`] = task.text;
     if (previous.completed !== task.completed) {
       updates[`tasks.${task.id}.completed`] = task.completed;
     }
-    if (previous.date !== task.date) updates[`tasks.${task.id}.date`] = task.date;
+    if (previous.date !== task.date)
+      updates[`tasks.${task.id}.date`] = task.date;
     if (previous.order !== task.order) {
       updates[`tasks.${task.id}.order`] = task.order;
     }
@@ -2272,7 +2271,7 @@ function buildTaskUpdateData(params: {
   return updates;
 }
 
-export async function createTaskList(name: string, background?: string | null) {
+async function createTaskList(name: string, background?: string | null) {
   const uid = requireCurrentUserId();
   const db = getDbInstance();
   const taskListId = doc(collection(db, "taskLists")).id;
@@ -2304,7 +2303,7 @@ export async function createTaskList(name: string, background?: string | null) {
   return taskListId;
 }
 
-export async function updateTaskList(
+async function updateTaskList(
   taskListId: string,
   updates: { name?: string; background?: string | null },
 ) {
@@ -2314,7 +2313,7 @@ export async function updateTaskList(
   });
 }
 
-export async function deleteTaskList(taskListId: string) {
+async function deleteTaskList(taskListId: string) {
   const uid = requireCurrentUserId();
   const db = getDbInstance();
   const taskListRef = doc(db, "taskLists", taskListId);
@@ -2362,7 +2361,7 @@ export async function deleteTaskList(taskListId: string) {
   await batch.commit();
 }
 
-export async function updateTaskListOrder(
+async function updateTaskListOrder(
   taskListOrders: Array<{ taskListId: string; order: number }>,
 ) {
   const uid = requireCurrentUserId();
@@ -2375,21 +2374,21 @@ export async function updateTaskListOrder(
   });
 }
 
-export async function addTask(
+async function addTask(
   taskListId: string,
   rawText: string,
+  settings: ResolvedTaskSettings,
   options?: { taskId?: string },
 ) {
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
-    const settings = await getResolvedTaskSettings();
     const parsed = resolveTaskInput(rawText, settings.language);
     const now = Date.now();
     const tasks = getOrderedTasks(taskList);
     const nextOrder =
       settings.taskInsertPosition === "bottom"
-        ? Math.max(0, ...tasks.map((task) => task.order)) + 1
-        : 0;
+        ? (tasks[tasks.length - 1]?.order ?? 0) + 1
+        : (tasks[0]?.order ?? 1) - 1;
     const nextTask: TaskListStoreTask = {
       id: options?.taskId ?? doc(collection(getDbInstance(), "taskLists")).id,
       text: parsed.text,
@@ -2399,14 +2398,9 @@ export async function addTask(
       pinned: parsed.pinned,
     };
     const nextTasks = getSortedTasks(
-      [
-        ...tasks.map((task) =>
-          settings.taskInsertPosition === "top"
-            ? { ...task, order: task.order + 1 }
-            : task,
-        ),
-        nextTask,
-      ],
+      settings.taskInsertPosition === "top"
+        ? [nextTask, ...tasks]
+        : [...tasks, nextTask],
       settings,
     );
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
@@ -2417,13 +2411,13 @@ export async function addTask(
   });
 }
 
-export async function updateTask(
+async function updateTask(
   taskListId: string,
   taskId: string,
   updates: Partial<Pick<Task, "completed" | "date" | "pinned" | "text">>,
+  settings: ResolvedTaskSettings,
 ) {
   await enqueueTaskListMutation(taskListId, async () => {
-    const settings = await getResolvedTaskSettings();
     const needsTaskListRead =
       settings.autoSort ||
       typeof updates.text === "string" ||
@@ -2531,21 +2525,17 @@ export async function updateTask(
   });
 }
 
-async function deleteTask(taskListId: string, taskId: string) {
-  await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-    [`tasks.${taskId}`]: deleteField(),
-    updatedAt: Date.now(),
-  });
-}
-
-export async function deleteCompletedTasks(taskListId: string) {
+async function deleteCompletedTasks(
+  taskListId: string,
+  settings: ResolvedTaskSettings,
+) {
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
     const tasks = getOrderedTasks(taskList);
     const completedTasks = tasks.filter((task) => task.completed);
     const remainingTasks = getSortedTasks(
       tasks.filter((task) => !task.completed),
-      await getResolvedTaskSettings(),
+      settings,
     );
     const nextData: Record<string, unknown> = {
       ...buildTaskUpdateData({
@@ -2559,7 +2549,7 @@ export async function deleteCompletedTasks(taskListId: string) {
   });
 }
 
-export async function sortTasks(taskListId: string) {
+async function sortTasks(taskListId: string) {
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
     const tasks = getDisplayOrderedTasks(taskList);
@@ -2571,7 +2561,7 @@ export async function sortTasks(taskListId: string) {
   });
 }
 
-export async function updateTasksOrder(
+async function updateTasksOrder(
   taskListId: string,
   draggedId: string,
   targetId: string,
@@ -2583,14 +2573,11 @@ export async function updateTasksOrder(
     const target = taskList.tasks[targetId];
     if (!dragged || !target) return;
     if (getTaskDisplayGroup(dragged) !== getTaskDisplayGroup(target)) return;
-    const oldIndex = tasks.findIndex((task) => task.id === draggedId);
-    const newIndex = tasks.findIndex((task) => task.id === targetId);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const [draggedTask] = tasks.splice(oldIndex, 1);
-    tasks.splice(newIndex, 0, draggedTask);
-    const nextTasks = renumberTasks(tasks);
+    const reorderedTasks = moveItemBeforeTarget(tasks, draggedId, targetId);
+    if (!reorderedTasks) return;
+    const nextTasks = renumberTasks(reorderedTasks);
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-      ...buildTaskUpdateData({ previousTasks: getDisplayOrderedTasks(taskList), tasks: nextTasks }),
+      ...buildTaskUpdateData({ previousTasks: tasks, tasks: nextTasks }),
       updatedAt: Date.now(),
     });
   });
@@ -2608,12 +2595,12 @@ async function fetchTaskListByShareCode(shareCode: string) {
     : null;
 }
 
-export async function fetchTaskListIdByShareCode(shareCode: string) {
+async function fetchTaskListIdByShareCode(shareCode: string) {
   const shareCodeData = await fetchTaskListByShareCode(shareCode);
   return shareCodeData?.taskListId ?? null;
 }
 
-export async function addSharedTaskListToOrder(taskListId: string) {
+async function addSharedTaskListToOrder(taskListId: string) {
   const uid = requireCurrentUserId();
   const db = getDbInstance();
   const taskListRef = doc(db, "taskLists", taskListId);
@@ -2654,7 +2641,7 @@ export async function addSharedTaskListToOrder(taskListId: string) {
   await batch.commit();
 }
 
-export async function removeShareCode(taskListId: string) {
+async function removeShareCode(taskListId: string) {
   const taskList = await getTaskListData(taskListId);
   if (!taskList.shareCode) return;
   const normalizedCode = normalizeShareCode(taskList.shareCode);
@@ -2676,7 +2663,7 @@ function generateRandomShareCode() {
   ).join("");
 }
 
-export async function generateShareCode(taskListId: string): Promise<string> {
+async function generateShareCode(taskListId: string): Promise<string> {
   const db = getDbInstance();
   for (let attempt = 0; attempt < MAX_SHARE_CODE_ATTEMPTS; attempt += 1) {
     try {
@@ -2977,9 +2964,13 @@ const DialogContent = forwardRef<
   { children, title, description, titleId, descriptionId, className, ...props },
   ref: ForwardedRef<ElementRef<typeof DialogPrimitive.Content>>,
 ) {
-  const generatedTitleId = titleId ?? useId();
+  const fallbackTitleId = useId();
+  const fallbackDescriptionId = useId();
+  const generatedTitleId = titleId ?? fallbackTitleId;
   const generatedDescriptionId =
-    description !== undefined ? (descriptionId ?? useId()) : undefined;
+    description !== undefined
+      ? (descriptionId ?? fallbackDescriptionId)
+      : undefined;
 
   return (
     <DialogPrimitive.Portal>
@@ -3032,9 +3023,13 @@ const ActionSheetContent = forwardRef<
   { children, title, description, titleId, descriptionId, className, ...props },
   ref: ForwardedRef<ElementRef<typeof DialogPrimitive.Content>>,
 ) {
-  const generatedTitleId = titleId ?? useId();
+  const fallbackTitleId = useId();
+  const fallbackDescriptionId = useId();
+  const generatedTitleId = titleId ?? fallbackTitleId;
   const generatedDescriptionId =
-    description !== undefined ? (descriptionId ?? useId()) : undefined;
+    description !== undefined
+      ? (descriptionId ?? fallbackDescriptionId)
+      : undefined;
 
   return (
     <DialogPrimitive.Portal>
@@ -4742,6 +4737,14 @@ function TaskListCard({
 }) {
   const { t, i18n } = useTranslation();
   const reactId = useId();
+  const resolvedTaskSettings = useMemo<ResolvedTaskSettings>(
+    () => ({
+      autoSort,
+      language: normalizeLanguage(i18n.language),
+      taskInsertPosition,
+    }),
+    [autoSort, i18n.language, taskInsertPosition],
+  );
   const [taskError, setTaskError] = useState<string | null>(null);
   const [pendingTasks, setPendingTasks] = useState<Task[] | null>(null);
   const baseTasks = pendingTasks ?? taskList.tasks;
@@ -5252,9 +5255,14 @@ function TaskListCard({
                       ? [optimisticTask, ...currentTasks]
                       : [...currentTasks, optimisticTask],
                   commit: () =>
-                    addTask(taskList.id, newTaskText.trim(), {
-                      taskId: nextTaskId,
-                    }),
+                    addTask(
+                      taskList.id,
+                      newTaskText.trim(),
+                      resolvedTaskSettings,
+                      {
+                        taskId: nextTaskId,
+                      },
+                    ),
                   onSuccess: () => {
                     setNewTaskText("");
                     setAddTaskError(null);
@@ -5339,9 +5347,14 @@ function TaskListCard({
                                   ? [optimisticTask, ...currentTasks]
                                   : [...currentTasks, optimisticTask],
                               commit: () =>
-                                addTask(taskList.id, text, {
-                                  taskId: optimisticTask.id,
-                                }),
+                                addTask(
+                                  taskList.id,
+                                  text,
+                                  resolvedTaskSettings,
+                                  {
+                                    taskId: optimisticTask.id,
+                                  },
+                                ),
                               onSuccess: () => {
                                 setNewTaskText("");
                                 logTaskAdd({ has_date: Boolean(parsed.date) });
@@ -5423,7 +5436,8 @@ function TaskListCard({
                   await runTaskMutation({
                     buildNextTasks: (currentTasks) =>
                       currentTasks.filter((task) => !task.completed),
-                    commit: () => deleteCompletedTasks(taskList.id),
+                    commit: () =>
+                      deleteCompletedTasks(taskList.id, resolvedTaskSettings),
                     onSuccess: () =>
                       logTaskDeleteCompleted({ count: completedTaskCount }),
                     onError: (error) => {
@@ -5498,7 +5512,9 @@ function TaskListCard({
                       key={task.id}
                       task={task}
                       isEditing={editingTaskId === task.id}
-                      editingText={editingTaskText}
+                      editingText={
+                        editingTaskId === task.id ? editingTaskText : ""
+                      }
                       onEditingTextChange={setEditingTaskText}
                       onEditStart={(task) => {
                         setEditingTaskId(task.id);
@@ -5532,9 +5548,12 @@ function TaskListCard({
                                 : currentTask,
                             ),
                           commit: () =>
-                            updateTask(taskList.id, task.id, {
-                              text: currentText,
-                            }),
+                            updateTask(
+                              taskList.id,
+                              task.id,
+                              { text: currentText },
+                              resolvedTaskSettings,
+                            ),
                           onSuccess: () => {
                             setEditingTaskId(null);
                             const fields = ["text", "date"];
@@ -5567,9 +5586,12 @@ function TaskListCard({
                                 : currentTask,
                             ),
                           commit: () =>
-                            updateTask(taskList.id, task.id, {
-                              completed: !task.completed,
-                            }),
+                            updateTask(
+                              taskList.id,
+                              task.id,
+                              { completed: !task.completed },
+                              resolvedTaskSettings,
+                            ),
                           onSuccess: () =>
                             logTaskUpdate({ fields: "completed" }),
                           onError: (error) => {
@@ -5642,9 +5664,12 @@ function TaskListCard({
                           : task,
                       ),
                     commit: () =>
-                      updateTask(taskList.id, activeTaskActionTask.id, {
-                        pinned: !activeTaskActionTask.pinned,
-                      }),
+                      updateTask(
+                        taskList.id,
+                        activeTaskActionTask.id,
+                        { pinned: !activeTaskActionTask.pinned },
+                        resolvedTaskSettings,
+                      ),
                     onSuccess: () => {
                       logTaskUpdate({ fields: "pinned" });
                       onCloseTaskAction?.();
@@ -5684,9 +5709,12 @@ function TaskListCard({
                           : task,
                       ),
                     commit: () =>
-                      updateTask(taskList.id, activeTaskActionTask.id, {
-                        date: "",
-                      }),
+                      updateTask(
+                        taskList.id,
+                        activeTaskActionTask.id,
+                        { date: "" },
+                        resolvedTaskSettings,
+                      ),
                     onSuccess: () => {
                       logTaskUpdate({ fields: "date" });
                       onCloseTaskAction?.();
@@ -5719,9 +5747,12 @@ function TaskListCard({
                             : task,
                         ),
                       commit: () =>
-                        updateTask(taskList.id, activeTaskActionTask.id, {
-                          date: nextDate,
-                        }),
+                        updateTask(
+                          taskList.id,
+                          activeTaskActionTask.id,
+                          { date: nextDate },
+                          resolvedTaskSettings,
+                        ),
                       onSuccess: () => {
                         logTaskUpdate({ fields: "date" });
                         onCloseTaskAction?.();
@@ -7524,6 +7555,12 @@ function IndexPage() {
 // pages/login.tsx
 type AuthTab = "signin" | "signup" | "reset";
 
+const AUTH_PRIMARY_BUTTON_CLASS =
+  "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0330 ll-u-0339 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0480 ll-u-0501 ll-u-0529";
+
+const AUTH_SECONDARY_BUTTON_CLASS =
+  "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0339 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529";
+
 type FormInputProps = {
   id: string;
   label: string;
@@ -7686,11 +7723,8 @@ function LoginPage() {
         : "ll-u-0310 ll-u-0364 ll-u-0499 ll-u-0519",
     ].join(" ");
 
-  const primaryButtonClass =
-    "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0330 ll-u-0339 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0480 ll-u-0501 ll-u-0529";
-
-  const secondaryButtonClass =
-    "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0339 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529";
+  const primaryButtonClass = AUTH_PRIMARY_BUTTON_CLASS;
+  const secondaryButtonClass = AUTH_SECONDARY_BUTTON_CLASS;
   const selectedLanguage = normalizeLanguage(
     i18n.resolvedLanguage ?? i18n.language,
   );
@@ -7916,52 +7950,6 @@ function LoginPage() {
 }
 
 // pages/password_reset.tsx
-type PasswordResetFormInputProps = {
-  id: string;
-  label: string;
-  type: HTMLInputTypeAttribute;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  disabled: boolean;
-  placeholder: string;
-};
-
-function PasswordResetFormInput({
-  id,
-  label,
-  type,
-  value,
-  onChange,
-  error,
-  disabled,
-  placeholder,
-}: PasswordResetFormInputProps) {
-  return (
-    <div className="ll-u-0059 ll-u-0152 ll-u-0163">
-      <label htmlFor={id} className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
-        {label}
-      </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        placeholder={placeholder}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : undefined}
-        className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
-      />
-      {error ? (
-        <p id={`${id}-error`} className="ll-u-0276 ll-u-0308 ll-u-0497">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 function PasswordResetPage() {
   const { t } = useTranslation();
   const [password, setPassword] = useState("");
@@ -7971,11 +7959,8 @@ function PasswordResetPage() {
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  const primaryButtonClass =
-    "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0330 ll-u-0339 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0480 ll-u-0501 ll-u-0529";
-
-  const secondaryButtonClass =
-    "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0339 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529";
+  const primaryButtonClass = AUTH_PRIMARY_BUTTON_CLASS;
+  const secondaryButtonClass = AUTH_SECONDARY_BUTTON_CLASS;
 
   useEffect(() => {
     const oobCode = new URLSearchParams(window.location.search).get("oobCode");
@@ -8075,7 +8060,7 @@ function PasswordResetPage() {
         {errors.general && <Alert variant="error">{errors.general}</Alert>}
 
         <form onSubmit={handleSubmit} className="ll-u-0169">
-          <PasswordResetFormInput
+          <FormInput
             id="password"
             label={t("auth.passwordReset.newPassword")}
             type="password"
@@ -8086,7 +8071,7 @@ function PasswordResetPage() {
             placeholder={t("auth.placeholder.password")}
           />
 
-          <PasswordResetFormInput
+          <FormInput
             id="confirmPassword"
             label={t("auth.passwordReset.confirmNewPassword")}
             type="password"

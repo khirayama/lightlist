@@ -4,11 +4,11 @@
 
 ## 構成
 
-| パス | 説明 |
-|---|---|
-| `apps/web` | Vite multi-page app + React + TypeScript + Tailwind |
-| `apps/ios` | SwiftUI（iOS 17+） |
-| `apps/android` | Kotlin + Gradle |
+| パス           | 説明                                                |
+| -------------- | --------------------------------------------------- |
+| `apps/web`     | Vite multi-page app + React + TypeScript + 通常 CSS |
+| `apps/ios`     | SwiftUI（iOS 17+）                                  |
+| `apps/android` | Kotlin + Gradle                                     |
 
 Web の Firebase Auth / Firestore 実装は `apps/web/src/entry.tsx` に統合。
 

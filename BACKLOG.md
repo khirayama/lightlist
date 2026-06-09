@@ -1,10 +1,7 @@
 ## ONGOING
 
-apps/iosとapps/androidのfirestoreのキャッシュの持ち方？がおかしいところがあるかも。別の端末からの更新をうまく読み取れていないケースあり
-
 ## BACKLOG
 
-MCP対応の検討
 docsの整理。不要に分割されているものは削除。
 example.comなど、リリースに向けて修正。特にAppStore / PlayStoreへの配信時に変えられないことなどはよく確認しながら進める
 

@@ -92,11 +92,12 @@
 - pin prefix は各言語の短い代表語（`ja: ピン`, `es: fijar`, `de: anheften`, `fr: epingler/épingler`, `ko: 고정`, `zh-CN: 置顶`, `hi: पिन`, `ar: تثبيت`, `pt-BR: fixar`, `id: sematkan`）に加え、全言語で `pin` / `pinned` を許可する。
 - 日付解析は `yyyy-mm-dd` / `mm-dd` / `mm/dd` / `mm.dd` と各言語の相対表現を扱い、全言語で英語の相対表現（`today` / `tomorrow` / `day after tomorrow` / `in N days` / `N days later` / 英語曜日名）も併用許可する。
 - 数字はアラビア数字に加えてアラビア語、ペルシャ語、デーヴァナーガリー数字を正規化する。
+- `mm-dd` / `mm/dd` / `mm.dd` の月日指定は当年の日付として解釈し、解決結果が今日より過去になる場合は翌年の同月日へ繰り上げる。
 - Web の parser 仕様を正本とし、iOS / Android も対応言語・先頭一致ルール・解釈順序を揃える。
 - parser は先頭から最大 2 つの修飾子を順不同で剥がし、`pin-prefix -> date -> text` と `date -> pin-prefix -> text` の両方を許可する。
 - Web / iOS / Android の本文編集確定時も同じ parser を通し、先頭日付表現を認識できた場合だけ `date` を更新する。pin prefix を認識できた場合だけ `pinned` を `true` に更新し、prefix がないことを理由に自動解除しない。
 - 本文編集で日付表現を取り除いた結果 `text` が空になる場合は、既存 `text` を維持したまま `date` だけ更新する。
-- `taskInsertPosition` が `top` の場合は先頭、`bottom` の場合は末尾へ追加する。
+- `taskInsertPosition` が `top` の場合は先頭、`bottom` の場合は末尾へ追加する。settings が未取得またはフィールド欠損の場合の既定は Web / iOS / Android ともに `top` とする。
 - Android のタスク追加後は、自動スクロールで追加位置へ移動しない。追加前のスクロール位置を維持する。
 - Android のタスク追加後は入力欄の focus を維持したまま IME を閉じない。
 - Android のタスク入力欄の送信アイコンは Web と同様に入力欄 focus 中だけ横方向アニメーションで表示し、入力文字が空の間は disabled のまま保つ。

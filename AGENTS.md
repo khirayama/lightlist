@@ -28,7 +28,7 @@
 ## プロジェクト構成
 
 - リポジトリ直下に Node の manifest は置かず、Web の Node ツール・lockfile は `apps/web` に集約する。
-- Web: `apps/web`（Vite multi-page app + React + TypeScript + Tailwind）
+- Web: `apps/web`（Vite multi-page app + React + TypeScript + 通常 CSS）
 - Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
 - iOS: `apps/ios`（SwiftUI, iOS 17+）— XcodeGen (`project.yml`) でプロジェクト生成
 - Android: `apps/android`（Kotlin + Gradle）
@@ -38,20 +38,29 @@
 - Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
 - Web の本番静的配信は Cloudflare Pages を正とし、root path 配信を前提に Vite `base` は `/` を維持する。build 出力は `apps/web/dist`、Cloudflare Pages 用 response headers は `apps/web/public/_headers` に置く。
 - Web の HTML entry は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。script path は各 HTML 自身の配置位置を基準に相対指定し、`apps/web/html/index.html` と `apps/web/html/404.html` / `500.html` は `../src/entry.tsx`、`apps/web/html/*/index.html` は `../../src/entry.tsx` を使う。Vite 設定の `/src` alias も維持する。
+- Web は外部スタイル生成ライブラリを使わず、`apps/web/src/styles/globals.css` の通常 CSS と `apps/web/src/styles/compiled-styles.css` でスタイルを保持する。フォント CSS は bundle に巻き込まず、各 HTML entry の `<link rel="stylesheet" href="/fonts/gen-interface-jp/*.css">` で public asset として読む。新規スタイルは通常 CSS または既存の named class を優先する。
 - Firebase デプロイ設定（`firestore.rules`, `firebase.json`, `.firebaserc`, `firestore.indexes.json`）はリポジトリルートに配置。
 - `.gitignore` はルートで共通ローカル生成物（OS / editor / Node / Firebase 設定）を管理し、`apps/web/.gitignore` / `apps/ios/.gitignore` / `apps/android/.gitignore` は各アプリ固有の生成物だけを管理する。
 - `apps/ios` の commit 対象は `project.yml` と `Lightlist/` 配下のソースを基本とし、`xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` は含めない。Firebase plist は `apps/ios/Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` にローカル配置して `.gitignore` で除外し、build configuration に応じて app bundle 内の標準名 `GoogleService-Info.plist` へ 1 つだけコピーする。entitlements は `apps/ios/Lightlist/Lightlist.entitlements` を使う。
 - Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/entry.tsx` に集約する。
 - Web の Auth / settings / taskLists の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
+- Web の Firestore IndexedDB cache に `settings` / `taskListOrder` / `taskLists` の実データがある場合は、placeholder / skeleton より cache hydrate 済み実データ表示を優先する。Web / iOS / Android の `taskLists` chunk は cache snapshot / live snapshot ともに `docChanges()` ではなく snapshot 全体を chunk 単位で反映し、chunk 内の既存保持分を一度外してから snapshot documents で再構築する。
 - Web の task 更新系は Firestore `tasks` map の列挙順を順序根拠に使わず、必ず `order` 昇順の配列へ直してから追加・自動並び替え・D&D 並び替え・完了済み削除を計算する。
 - Web / iOS / Android の UI 更新系 Firestore 書き込みでは transaction を使わず、task 本文 blur・task 並び替え・taskList 並び替え・日付変更・ピン切替・完了切替の保存後も、listener が同じ内容へ追いつくまで local pending state を優先表示して旧表示への瞬間的な逆戻りを防ぐ。Web の local pending task 表示も `autoSort` 有効時は `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内 `date -> order` へ正規化して保持する。
 - Web / iOS / Android の task 更新系 Firestore 書き込みは同一 `taskListId` ごとにクライアント内で直列化し、task 追加直後の後続更新が先行保存を追い越さないようにする。Web の optimistic task 追加は Firestore 保存と同じ `taskId` を使う。
-- Web / iOS / Android の task 更新 UI は、各操作ごとに直接 Firestore payload を組み立てず、`現在表示中 task 群 -> 正規化済み next task 群 -> pending 表示 -> queue 経由の保存` の順で処理する。pending 解放判定も listener 側 task 群を同じ正規化へ通した結果で比較する。
+- Web / iOS / Android の task 更新 UI は、各操作ごとに直接 Firestore payload を組み立てず、`現在表示中 task 群 -> 正規化済み next task 群 -> pending 表示 -> queue 経由の差分保存` の順で処理する。pending 解放判定も listener 側 task 群を同じ正規化へ通した結果で比較する。Firestore へは新規 task の full object、削除 task の `tasks.<id>` delete、既存 task の変更 field と変化した `order` だけを書き込む。
 - Web / iOS / Android の task 一覧の空状態判定も pending 表示を含む現在表示中 task 群を基準にし、空リストへの 1 件目追加を listener 反映待ちにしない。
+- Web の task mutation は書き込み前の taskList read を `getDocFromCache` 優先（失敗時のみ `getDoc`）で行い、settings は Firestore を再読せず UI の購読済み値を `ResolvedTaskSettings` として引数で渡す。
+- `addTask()` の order は top 挿入で `先頭 task の order - 1`、bottom 挿入で `末尾 task の order + 1` を新規 task に与え、正規化（autoSort 無効時は配列順の連番再採番）後の差分だけを保存する。Web / iOS / Android で同一実装とする。
+- Web の taskLists chunk listener の失敗は部分劣化とし、読み込めた chunk の表示を維持する。全画面エラーは settings / taskListOrder の失敗か、taskLists を 1 件も読めない場合だけにする。
+- Web の `index` / `404` / `500` / `password_reset` ページ（`body[data-page]` 判定）では Firebase Auth の状態購読を行わない。
+- iOS の task mutation queue は view 単位の `@StateObject` ではなく `TaskListMutationQueues`（taskListId キーのグローバル登録）で保持する。iOS の `CalendarViewModel` は RootView 常駐ではなく `CalendarScreenView` が自身で bind し、`OrderedTaskListViewModel` は `deinit` で listener を解放する。
 - Web / iOS / Android の `deleteTaskList()` と `addSharedTaskListToOrder()` も transaction を使わず、事前 read 後の batch write で `taskListOrder` と `taskLists.memberCount` を更新する。共有参加は `taskListOrder/{uid}` 欠損時でも merge 書き込みで自動作成し、既に追加済みなら no-op にする。
 - Web / iOS / Android のタスク入力候補は `taskLists.history` を共通の正本として使い、履歴更新はタスク追加時と本文変更時に行う。候補表示条件は trim 後 2 文字以上の部分一致・最大 20 件・完全一致除外で Web 仕様に揃える。
 - task のピン留めは `tasks.*.pinned` だけを追加し、`pinOrder` は持たない。表示順は `未完了 pinned -> 未完了 unpinned -> 完了`、各グループ内は `order` 昇順を正とする。`autoSort` 有効時は各グループ内を `date -> order` で再採番する。pinned task の右端 action はカレンダーではなくピンアイコンを表示し、強めの本文 weight で通常 task と区別する。
-- タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/entry.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。
+- タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/entry.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。`mm-dd` / `mm/dd` / `mm.dd` の月日指定は当年として解釈し、今日より過去なら翌年へ繰り上げる。
+- `taskInsertPosition` の既定（settings 未取得・フィールド欠損時）は Web / iOS / Android ともに `top` とする。
+- `taskLists.history` は重複（小文字比較）を除いて先頭追加し、最大 300 件を保持する。Web / iOS / Android で同一仕様とする。
 - task 入力 parser は、先頭の日付表現に加えて各対応言語の短い pin prefix も扱う。`ja: ピン`, `es: fijar`, `de: anheften`, `fr: epingler/épingler`, `ko: 고정`, `zh-CN: 置顶`, `hi: पिन`, `ar: تثبيت`, `pt-BR: fixar`, `id: sematkan` に加え、全言語で `pin` / `pinned` を許可し、`pin 04/24 task1` と `04/24 pin task1` の両方を解釈する。本文編集では prefix 付与時だけ `pinned = true` にし、prefix 不在で自動解除しない。
 - task 入力 parser の日付表現は、設定言語の相対表現に加えて全言語で英語相対表現（`today` / `tomorrow` / `day after tomorrow` / `in N days` / `N days later` / 英語曜日）も解釈する。
 - locale の正本は `shared/locales/locales.json` 1 ファイルとし、Web / iOS / Android はその JSON を各 app 起動前または build 時にローカル resource へ同期して読む。String Catalog (.xcstrings) は採用しない。
@@ -61,6 +70,7 @@
 - Android の app module は `ContentView.kt` 内の analytics helper が `BuildConfig.DEBUG` を参照するため、`apps/android/app/build.gradle.kts` の `buildFeatures.buildConfig = true` を維持する。
 - Android のパスワードリセット URL は `BuildConfig.PASSWORD_RESET_URL` で管理し、既定値は `https://lightlist.com/password_reset` とする。
 - Android の Firebase 設定は build variant ごとに `google-services.json` を分け、debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json` を使う。release 用ファイルの package 名は `com.lightlist.app` と一致させる。
+- Android の Firebase BoM は v34 以降を前提にし、`firebase-*-ktx` ではなく `firebase-auth` / `firebase-firestore` / `firebase-analytics` / `firebase-crashlytics` の main module を使う。
 - Android の release APK は R8 縮小後も Firebase component registrar の no-arg constructor を保持する必要がある。`apps/android/app/proguard-rules.pro` の `-keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }` を維持し、削除しない。
 - Android の Google Play 提出物は `cd apps/android && just bundle-play` で生成する release AAB（`apps/android/app/build/outputs/bundle/release/app-release.aab`）を正とする。release upload key 署名は `LIGHTLIST_ANDROID_KEYSTORE` / `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` / `LIGHTLIST_ANDROID_KEY_ALIAS` / `LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡し、`versionCode` は Play Console にアップロード済みの値より大きくしてから生成する。
 - Android の認証フォームは Compose Autofill を有効にするため `ContentView.kt` の `OutlinedTextField` に `contentType` を必ず設定し、サインインは既存資格情報、サインアップ/パスワードリセットは新規資格情報として宣言する。
@@ -92,7 +102,7 @@
 - iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を分離し、入力欄の追加ボタンは入力文字がある時だけ表示する。未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で描画し、参考画面に近い密度へ寄せる。
 - iOS / Android の task row は drag handle・完了トグル・本文の縦方向中心を揃える。Android は `task.text` の 1 行目中心を基準とし、複数行でもその基準を維持する。日付ラベルは本文や編集欄の縦位置を押し下げず、同じ本文領域内の直上へ近接表示する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
 - Android Compose の handle 並び替えで `pointerInput` を使う場合、再 compose ごとに変わる gesture lambda を key や detector 本体に直接渡さない。drag 中に state 更新が入っても detector を再生成せず、必要な callback は `rememberUpdatedState` 経由で参照する。
-- iOS の `TaskListDetailPage` は、タスク追加・完了切替・本文編集・日付変更・ピン切替ごとに local pending 表示へ入れた正規化済み task 集合を `tasks.*` 全体として Firestore へ保存する。`autoSort` 無効時も pinned / completed グループ移動後に pending 解放判定がずれないよう partial update にしない。Android は `autoSort` 有効時、同じ順序で再採番した `tasks.*` 全体を保存する。
+- iOS / Android の `TaskListDetailPage` は、タスク追加・完了切替・本文編集・日付変更・ピン切替ごとに local pending 表示へ入れた正規化済み task 集合を保持し、Firestore へは変更前後の差分 field だけを保存する。`autoSort` 有効時も同じ順序で再採番したうえで、変化した `order` だけを書き込む。
 - iOS の SwiftUI 並び替えドラッグは、移動中の行の local 座標系ではなく親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で収集した行高さだけを使う。`frame(in:)` の位置監視を drag state に戻さない。
 - iOS の全画面ルートと sheet / dialog は `frame(maxWidth: .infinity, maxHeight: .infinity)` を維持しつつ、背景ビュー側だけで safe area を無視する。標準ナビゲーションバーを使わない iPhone ヘッダーは `SafeAreaNavigationHeader` と `safeAreaInset(edge: .top)` を使う。`LightlistApp` は hidden `UIViewRepresentable` の `WindowSceneConfigurator` で attach 済み `UIWindow` を初期化し、window 背景色と root view controller の safe area / layout margins も全画面前提に揃える。`ScrollView` ベースの全画面フォームはカードラッパーを持たず、外側 `maxWidth` 制約や `RoundedRectangle` でカード化しない。
 - iOS の custom header 付き画面と sheet / dialog は、header を `safeAreaInset(edge: .top)` に載せ、本文 root も `frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)` で画面高または detent 高いっぱいまで広げる。header inset と重複する大きな `padding(.top)` は本文側で足さず、追加の視覚余白は最小限に留める。

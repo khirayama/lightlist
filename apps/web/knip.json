@@ -1,5 +1,5 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": ["public/sw.js", "html/**/*.html"],
+  "entry": ["public/sw.js", "html/**/*.html", "src/entry.tsx"],
   "ignoreDependencies": ["license-checker-rseidelsohn"]
 }

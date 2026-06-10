@@ -3,33 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lightlist</title>
+    <title>Lightlist | シンプルな共有タスクリスト・ToDoアプリ</title>
     <meta
       name="description"
-      content="シンプルな共有タスクリストアプリ。個人・家族・小チーム向け。"
+      content="Lightlist は個人・家族・小さなチーム向けのシンプルな共有タスクリスト / ToDo アプリ。買い物リストややることをブラウザ・iPhone・Androidで同期して使えます。"
     />
     <meta
       name="keywords"
-      content="shared task list, collaborative todo list, task manager"
+      content="タスクリスト,ToDo,共有タスクリスト,共有リスト,買い物リスト,家族,チーム,Lightlist"
     />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://lightlist.com/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Lightlist" />
-    <meta property="og:title" content="Lightlist" />
+    <meta
+      property="og:title"
+      content="Lightlist | シンプルな共有タスクリスト・ToDoアプリ"
+    />
     <meta
       property="og:description"
-      content="シンプルな共有タスクリストアプリ。個人・家族・小チーム向け。"
+      content="Lightlist は個人・家族・小さなチーム向けのシンプルな共有タスクリスト / ToDo アプリ。買い物リストややることをブラウザ・iPhone・Androidで同期して使えます。"
     />
     <meta property="og:url" content="https://lightlist.com/" />
     <meta property="og:locale" content="ja_JP" />
     <meta property="og:image" content="/screenshot_ja_desktop.png" />
-    <meta property="og:image:alt" content="Lightlist desktop preview" />
+    <meta
+      property="og:image:alt"
+      content="デスクトップ画面のスクリーンショット"
+    />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Lightlist" />
+    <meta
+      name="twitter:title"
+      content="Lightlist | シンプルな共有タスクリスト・ToDoアプリ"
+    />
     <meta
       name="twitter:description"
-      content="シンプルな共有タスクリストアプリ。個人・家族・小チーム向け。"
+      content="Lightlist は個人・家族・小さなチーム向けのシンプルな共有タスクリスト / ToDo アプリ。買い物リストややることをブラウザ・iPhone・Androidで同期して使えます。"
     />
     <meta name="twitter:image" content="/screenshot_ja_desktop.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -60,13 +69,314 @@
     <link rel="stylesheet" href="/fonts/gen-interface-jp/700.css" />
     <link rel="stylesheet" href="/fonts/gen-interface-jp/display-700.css" />
     <link rel="stylesheet" href="/fonts/gen-interface-jp/display-800.css" />
-
-    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" />
-    <link rel="preconnect" href="https://firestore.googleapis.com" />
-    <link rel="preconnect" href="https://apis.google.com" />
   </head>
-  <body data-page="index">
-    <div id="root"></div>
-    <script type="module" src="../src/entry.tsx"></script>
+  <body>
+    <div class="ll-u-0079 ll-u-0111 ll-u-0176 ll-u-0269">
+      <div class="ll-u-0080 ll-u-0111 ll-u-0178">
+        <a
+          href="#main-content"
+          class="ll-u-0002 ll-u-0006 ll-u-0017 ll-u-0038 ll-u-0137 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0322 ll-u-0329 ll-u-0337 ll-u-0368 ll-u-0369 ll-u-0372 ll-u-0377 ll-u-0378 ll-u-0379 ll-u-0380 ll-u-0480 ll-u-0501 ll-u-0525"
+          style="inset-inline-start: 1rem"
+          data-i18n="common.skipToMain"
+          >メインコンテンツへ移動</a
+        >
+        <div class="ll-u-0088 ll-u-0226 ll-u-0317 ll-u-0467 ll-u-0505">
+          <header
+            class="ll-u-0010 ll-u-0015 ll-u-0032 ll-u-0196 ll-u-0199 ll-u-0227 ll-u-0335 ll-u-0466 ll-u-0468"
+          >
+            <div
+              class="ll-u-0041 ll-u-0059 ll-u-0116 ll-u-0152 ll-u-0165 ll-u-0240 ll-u-0246 ll-u-0419 ll-u-0420 ll-u-0421 ll-u-0434 ll-u-0436"
+            >
+              <div class="ll-u-0059 ll-u-0156 ll-u-0167 ll-u-0423">
+                <img
+                  src="/brand/logo.svg"
+                  alt=""
+                  aria-hidden="true"
+                  class="ll-u-0057 ll-u-0073 ll-u-0109 ll-u-0408"
+                />
+                <p
+                  class="ll-u-0272 ll-u-0287 ll-u-0290 ll-u-0297 ll-u-0493 ll-u-0446 ll-u-0448"
+                >
+                  Lightlist
+                </p>
+              </div>
+              <div class="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0167 ll-u-0422">
+                <label class="ll-u-0063 ll-u-0156 ll-u-0165 ll-u-0274">
+                  <span class="ll-u-0005">Language</span>
+                  <select
+                    id="lp-language"
+                    class="ll-u-0121 ll-u-0188 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0239 ll-u-0243 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0370 ll-u-0466 ll-u-0470 ll-u-0505 ll-u-0523 ll-u-0415 ll-u-0432 ll-u-0435"
+                  >
+                    <option value="ja">日本語</option>
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="de">Deutsch</option>
+                    <option value="fr">Français</option>
+                    <option value="ko">한국어</option>
+                    <option value="zh-CN">简体中文</option>
+                    <option value="hi">हिन्दी</option>
+                    <option value="ar">العربية</option>
+                    <option value="pt-BR">Português (Brasil)</option>
+                    <option value="id">Bahasa Indonesia</option>
+                  </select>
+                </label>
+                <a
+                  href="/login/"
+                  class="ll-u-0063 ll-u-0131 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0205 ll-u-0240 ll-u-0243 ll-u-0274 ll-u-0287 ll-u-0318 ll-u-0337 ll-u-0358 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0385 ll-u-0471 ll-u-0488 ll-u-0513 ll-u-0526 ll-u-0433 ll-u-0435"
+                >
+                  Login
+                </a>
+              </div>
+            </div>
+          </header>
+
+          <main id="main-content" tabindex="-1">
+            <section
+              aria-labelledby="landing-hero-title"
+              class="ll-u-0241 ll-u-0264 ll-u-0254 ll-u-0441 ll-u-0439"
+            >
+              <div class="ll-u-0041 ll-u-0116">
+                <div class="ll-u-0041 ll-u-0113 ll-u-0265">
+                  <!-- prettier-ignore -->
+                  <h1 id="landing-hero-title" class="ll-u-0536 ll-u-0295 ll-u-0278 ll-u-0287 ll-u-0289 ll-u-0301 ll-u-0494 ll-u-0445 ll-u-0457" data-i18n="pages.index.headline">タスクリストは、&#10;シンプルでいい。</h1>
+                  <!-- prettier-ignore -->
+                  <p class="ll-u-0041 ll-u-0048 ll-u-0112 ll-u-0295 ll-u-0273 ll-u-0283 ll-u-0300 ll-u-0491 ll-u-0447" data-i18n="pages.index.subheadline">タスク管理アプリに疲れたあなたへ。&#10;余計な機能はない。誰でも、すぐに使いはじめられる。&#10;それでいて、必要なときは共有もできる。</p>
+                  <div
+                    class="ll-u-0050 ll-u-0059 ll-u-0152 ll-u-0156 ll-u-0168"
+                  >
+                    <a
+                      href="/login/"
+                      class="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0205 ll-u-0242 ll-u-0247 ll-u-0272 ll-u-0287 ll-u-0318 ll-u-0337 ll-u-0358 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0385 ll-u-0471 ll-u-0488 ll-u-0513 ll-u-0526"
+                      data-i18n="pages.index.getStarted"
+                    >
+                      無料ではじめる
+                    </a>
+                  </div>
+                </div>
+
+                <div class="ll-u-0041 ll-u-0051 ll-u-0115">
+                  <div
+                    class="ll-u-0008 ll-u-0041 ll-u-0120 ll-u-0255 ll-u-0438"
+                  >
+                    <div
+                      class="ll-u-0041 ll-u-0107 ll-u-0176 ll-u-0187 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0232 ll-u-0328 ll-u-0466 ll-u-0470 ll-u-0507 ll-u-0412 ll-u-0429"
+                    >
+                      <div
+                        class="ll-u-0176 ll-u-0185 ll-u-0193 ll-u-0199 ll-u-0207 ll-u-0466 ll-u-0469"
+                      >
+                        <img
+                          src="/screenshot_ja_desktop.png"
+                          alt="デスクトップ画面のスクリーンショット"
+                          width="1280"
+                          height="800"
+                          class="ll-u-0111"
+                          data-i18n-alt="pages.index.preview.desktopAlt"
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      class="ll-u-0006 ll-u-0020 ll-u-0015 ll-u-0030 ll-u-0106 ll-u-0126 ll-u-0117 ll-u-0406 ll-u-0405 ll-u-0411"
+                    >
+                      <div
+                        class="ll-u-0176 ll-u-0185 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0231 ll-u-0327 ll-u-0466 ll-u-0470 ll-u-0506 ll-u-0425 ll-u-0428"
+                      >
+                        <div
+                          class="ll-u-0176 ll-u-0184 ll-u-0193 ll-u-0199 ll-u-0207 ll-u-0466 ll-u-0469 ll-u-0424"
+                        >
+                          <img
+                            src="/screenshot_ja_mobile.png"
+                            alt="モバイル画面のスクリーンショット"
+                            width="720"
+                            height="1560"
+                            class="ll-u-0111"
+                            data-i18n-alt="pages.index.preview.mobileAlt"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              aria-labelledby="landing-features-title"
+              class="ll-u-0194 ll-u-0199 ll-u-0241 ll-u-0250 ll-u-0466 ll-u-0437"
+            >
+              <div class="ll-u-0041 ll-u-0116">
+                <div class="ll-u-0041 ll-u-0112 ll-u-0265">
+                  <h2
+                    id="landing-features-title"
+                    class="ll-u-0536 ll-u-0271 ll-u-0287 ll-u-0288 ll-u-0302 ll-u-0493 ll-u-0443"
+                    data-i18n="pages.index.features.title"
+                  >
+                    Lightlistの3つのこと
+                  </h2>
+                  <p
+                    class="ll-u-0046 ll-u-0272 ll-u-0282 ll-u-0303 ll-u-0490"
+                    data-i18n="pages.index.preview.title"
+                  >
+                    こんな感じで使います
+                  </p>
+                </div>
+                <div class="ll-u-0050 ll-u-0060 ll-u-0168 ll-u-0453">
+                  <div
+                    class="ll-u-0186 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0236 ll-u-0466 ll-u-0470"
+                  >
+                    <div
+                      class="ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0206 ll-u-0487"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="ll-u-0071 ll-u-0098 ll-u-0299 ll-u-0492"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        aria-hidden="true"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                        />
+                      </svg>
+                    </div>
+                    <h3
+                      class="ll-u-0536 ll-u-0047 ll-u-0275 ll-u-0287 ll-u-0298 ll-u-0493"
+                      data-i18n="pages.index.features.simple.title"
+                    >
+                      これだけでいい
+                    </h3>
+                    <p
+                      class="ll-u-0045 ll-u-0274 ll-u-0282 ll-u-0303 ll-u-0489"
+                      data-i18n="pages.index.features.simple.description"
+                    >
+                      タスクを追加して、完了する。それだけ。説明書もチュートリアルも必要ありません。はじめてでも迷わない、ちょうどいいシンプルさです。
+                    </p>
+                  </div>
+                  <div
+                    class="ll-u-0186 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0236 ll-u-0466 ll-u-0470"
+                  >
+                    <div
+                      class="ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0206 ll-u-0487"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="ll-u-0071 ll-u-0098 ll-u-0299 ll-u-0492"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        aria-hidden="true"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18h3"
+                        />
+                      </svg>
+                    </div>
+                    <h3
+                      class="ll-u-0536 ll-u-0047 ll-u-0275 ll-u-0287 ll-u-0298 ll-u-0493"
+                      data-i18n="pages.index.features.multidevice.title"
+                    >
+                      どこからでも、そのまま使える
+                    </h3>
+                    <p
+                      class="ll-u-0045 ll-u-0274 ll-u-0282 ll-u-0303 ll-u-0489"
+                      data-i18n="pages.index.features.multidevice.description"
+                    >
+                      ブラウザはもちろん、iOSやAndroidアプリからもアクセス可能。どのデバイスからでも同じリストをリアルタイムに確認・編集できます。
+                    </p>
+                  </div>
+                  <div
+                    class="ll-u-0186 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0236 ll-u-0466 ll-u-0470"
+                  >
+                    <div
+                      class="ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0206 ll-u-0487"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="ll-u-0071 ll-u-0098 ll-u-0299 ll-u-0492"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        aria-hidden="true"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
+                        />
+                      </svg>
+                    </div>
+                    <h3
+                      class="ll-u-0536 ll-u-0047 ll-u-0275 ll-u-0287 ll-u-0298 ll-u-0493"
+                      data-i18n="pages.index.features.share.title"
+                    >
+                      必要なとき、共有できる
+                    </h3>
+                    <p
+                      class="ll-u-0045 ll-u-0274 ll-u-0282 ll-u-0303 ll-u-0489"
+                      data-i18n="pages.index.features.share.description"
+                    >
+                      共有コードを発行するだけで、家族・友人・チームとリアルタイム共有。一人で使うだけでも、もちろん十分です。
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              aria-labelledby="landing-cta-title"
+              class="ll-u-0194 ll-u-0199 ll-u-0241 ll-u-0250 ll-u-0466 ll-u-0437"
+            >
+              <div class="ll-u-0041 ll-u-0114 ll-u-0265">
+                <img
+                  src="/brand/logo.svg"
+                  alt=""
+                  aria-hidden="true"
+                  class="ll-u-0041 ll-u-0077 ll-u-0109 ll-u-0409"
+                />
+                <h2
+                  id="landing-cta-title"
+                  class="ll-u-0536 ll-u-0049 ll-u-0271 ll-u-0287 ll-u-0288 ll-u-0301 ll-u-0494 ll-u-0444"
+                  data-i18n="pages.index.cta.title"
+                >
+                  これでいい、ちょうどいい。
+                </h2>
+                <p
+                  class="ll-u-0041 ll-u-0047 ll-u-0112 ll-u-0272 ll-u-0283 ll-u-0303 ll-u-0490 ll-u-0446"
+                  data-i18n="pages.index.cta.description"
+                >
+                  タスク管理をもっとシンプルに。まず一つ、リストをつくってみてください。
+                </p>
+                <div class="ll-u-0050">
+                  <a
+                    href="/login/"
+                    class="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0205 ll-u-0242 ll-u-0247 ll-u-0272 ll-u-0287 ll-u-0318 ll-u-0337 ll-u-0358 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0385 ll-u-0471 ll-u-0488 ll-u-0513 ll-u-0526"
+                    data-i18n="pages.index.cta.button"
+                  >
+                    無料ではじめる
+                  </a>
+                </div>
+              </div>
+            </section>
+          </main>
+
+          <footer
+            class="ll-u-0194 ll-u-0199 ll-u-0241 ll-u-0249 ll-u-0265 ll-u-0466"
+          >
+            <p class="ll-u-0274 ll-u-0310 ll-u-0499" data-i18n="copyright">
+              © 2024 Lightlist. All rights reserved.
+            </p>
+          </footer>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="../src/lp.ts"></script>
   </body>
 </html>

@@ -18,6 +18,7 @@ import {
 } from "react";
 import type {
   ComponentPropsWithoutRef,
+  Context,
   ElementRef,
   ErrorInfo,
   ForwardedRef,
@@ -698,7 +699,7 @@ const i18n = i18next;
 
 const MAIN_CONTENT_ID = "main-content";
 
-const AUTH_FREE_PAGES = new Set(["index", "404", "500", "password_reset"]);
+const AUTH_FREE_PAGES = new Set(["404", "500", "password_reset"]);
 
 const isAuthFreePage = (): boolean =>
   AUTH_FREE_PAGES.has(document.body.dataset.page ?? "");
@@ -1166,25 +1167,26 @@ const taskListsReducer = (
   }
 };
 
-type AppStateContextValue = {
-  session: SessionState;
-  settingsState: SettingsState;
-  taskListsState: TaskListsState;
+type TaskListsContextValue = {
+  taskListOrderStatus: AppState["taskListOrderStatus"];
+  taskListDocsStatus: AppState["taskListDocsStatus"];
   taskLists: TaskList[];
   sharedTaskListsById: Record<string, TaskList>;
   hasStartupError: boolean;
   registerSharedTaskList: (taskListId: string) => () => void;
 };
 
-const AppStateContext = createContext<AppStateContextValue | null>(null);
+const SessionContext = createContext<SessionState | null>(null);
+const SettingsContext = createContext<SettingsState | null>(null);
+const TaskListsContext = createContext<TaskListsContextValue | null>(null);
 
-const useAppStateContext = (): AppStateContextValue => {
-  const context = useContext(AppStateContext);
-  if (!context) {
+function useRequiredContext<T>(context: Context<T | null>): T {
+  const value = useContext(context);
+  if (!value) {
     throw new Error("AppStateProvider is required");
   }
-  return context;
-};
+  return value;
+}
 
 function AppStateProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<SessionState>(serverSessionState);
@@ -1337,8 +1339,11 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     () => getTaskListIdsKey(orderedTaskListIds),
     [orderedTaskListIds],
   );
+  const orderedTaskListIdsRef = useRef(orderedTaskListIds);
+  orderedTaskListIdsRef.current = orderedTaskListIds;
 
   useEffect(() => {
+    const orderedTaskListIds = orderedTaskListIdsRef.current;
     dispatchTaskLists({
       type: "pruneTaskListsById",
       taskListIds: orderedTaskListIds,
@@ -1435,12 +1440,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       isSubscribed = false;
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [
-    orderedTaskListIdsKey,
-    orderedTaskListIds,
-    session.authStatus,
-    session.user,
-  ]);
+  }, [orderedTaskListIdsKey, session.authStatus, session.user]);
 
   const registerSharedTaskList = useCallback((taskListId: string) => {
     const nextCount =
@@ -1536,11 +1536,10 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     (taskListsState.taskListDocsStatus === "error" &&
       Object.keys(taskListsState.taskListsById).length === 0);
 
-  const contextValue = useMemo<AppStateContextValue>(
+  const taskListsContextValue = useMemo<TaskListsContextValue>(
     () => ({
-      session,
-      settingsState,
-      taskListsState,
+      taskListOrderStatus: taskListsState.taskListOrderStatus,
+      taskListDocsStatus: taskListsState.taskListDocsStatus,
       taskLists,
       sharedTaskListsById,
       hasStartupError,
@@ -1549,23 +1548,26 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     [
       hasStartupError,
       registerSharedTaskList,
-      session,
-      settingsState,
       sharedTaskListsById,
       taskLists,
-      taskListsState,
+      taskListsState.taskListDocsStatus,
+      taskListsState.taskListOrderStatus,
     ],
   );
 
   return (
-    <AppStateContext.Provider value={contextValue}>
-      {children}
-    </AppStateContext.Provider>
+    <SessionContext.Provider value={session}>
+      <SettingsContext.Provider value={settingsState}>
+        <TaskListsContext.Provider value={taskListsContextValue}>
+          {children}
+        </TaskListsContext.Provider>
+      </SettingsContext.Provider>
+    </SessionContext.Provider>
   );
 }
 
 function useSessionState(): SessionState {
-  return useAppStateContext().session;
+  return useRequiredContext(SessionContext);
 }
 
 function useAuthStatus(): AppState["authStatus"] {
@@ -1577,7 +1579,7 @@ function useUser(): User | null {
 }
 
 function useSettingsState(): SettingsState {
-  return useAppStateContext().settingsState;
+  return useRequiredContext(SettingsContext);
 }
 
 function useSettings(): AppState["settings"] {
@@ -1585,18 +1587,23 @@ function useSettings(): AppState["settings"] {
 }
 
 function useTaskListIndexState(): TaskListIndexState {
-  const { hasStartupError, taskListsState, taskLists } = useAppStateContext();
+  const {
+    hasStartupError,
+    taskListOrderStatus,
+    taskListDocsStatus,
+    taskLists,
+  } = useRequiredContext(TaskListsContext);
   return {
     hasStartupError,
-    taskListOrderStatus: taskListsState.taskListOrderStatus,
-    taskListDocsStatus: taskListsState.taskListDocsStatus,
+    taskListOrderStatus,
+    taskListDocsStatus,
     taskLists,
   };
 }
 
 function useTaskList(taskListId: string | null): TaskList | null {
   const { taskLists, sharedTaskListsById, registerSharedTaskList } =
-    useAppStateContext();
+    useRequiredContext(TaskListsContext);
   const taskList = taskListId
     ? (taskLists.find((item) => item.id === taskListId) ??
       sharedTaskListsById[taskListId] ??
@@ -2369,9 +2376,7 @@ async function updateTaskListOrder(
   taskListOrders.forEach(({ taskListId, order }) => {
     updates[`${taskListId}.order`] = order;
   });
-  await setDoc(doc(getDbInstance(), "taskListOrder", uid), updates, {
-    merge: true,
-  });
+  await updateDoc(doc(getDbInstance(), "taskListOrder", uid), updates);
 }
 
 async function addTask(
@@ -2451,6 +2456,13 @@ async function updateTask(
       throw new Error("Task text is empty");
     }
     const now = Date.now();
+    const historyUpdate =
+      taskList &&
+      currentTask &&
+      resolvedTextAndDate &&
+      resolvedTextAndDate.text.trim() !== currentTask.text.trim()
+        ? buildHistory(taskList, resolvedTextAndDate.text, currentTask.text)
+        : null;
 
     if (!settings.autoSort && typeof normalizedUpdates.pinned !== "boolean") {
       const nextUpdates: Record<string, unknown> = {
@@ -2459,17 +2471,8 @@ async function updateTask(
       Object.entries(normalizedUpdates).forEach(([key, value]) => {
         nextUpdates[`tasks.${taskId}.${key}`] = value;
       });
-      if (
-        taskList &&
-        currentTask &&
-        resolvedTextAndDate &&
-        resolvedTextAndDate.text.trim() !== currentTask.text.trim()
-      ) {
-        nextUpdates.history = buildHistory(
-          taskList,
-          resolvedTextAndDate.text,
-          currentTask.text,
-        );
+      if (historyUpdate) {
+        nextUpdates.history = historyUpdate;
       }
       await updateDoc(
         doc(getDbInstance(), "taskLists", taskListId),
@@ -2509,17 +2512,8 @@ async function updateTask(
       ...buildTaskUpdateData({ previousTasks: tasks, tasks: nextTasks }),
       updatedAt: now,
     };
-    if (
-      taskList &&
-      currentTask &&
-      resolvedTextAndDate &&
-      resolvedTextAndDate.text.trim() !== currentTask.text.trim()
-    ) {
-      nextUpdates.history = buildHistory(
-        taskList,
-        resolvedTextAndDate.text,
-        currentTask.text,
-      );
+    if (historyUpdate) {
+      nextUpdates.history = historyUpdate;
     }
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), nextUpdates);
   });
@@ -2583,7 +2577,7 @@ async function updateTasksOrder(
   });
 }
 
-const MAX_SHARE_CODE_ATTEMPTS = 20;
+const MAX_SHARE_CODE_ATTEMPTS = 10;
 
 async function fetchTaskListByShareCode(shareCode: string) {
   const normalizedCode = normalizeShareCode(shareCode);
@@ -2671,7 +2665,13 @@ async function generateShareCode(taskListId: string): Promise<string> {
       const shareCodeRef = doc(db, "shareCodes", shareCode);
       const shareCodeSnapshot = await getDoc(shareCodeRef);
       if (shareCodeSnapshot.exists()) continue;
+      const taskList = await getTaskListData(taskListId);
       const batch = writeBatch(db);
+      if (taskList.shareCode) {
+        batch.delete(
+          doc(db, "shareCodes", normalizeShareCode(taskList.shareCode)),
+        );
+      }
       batch.set(shareCodeRef, {
         taskListId,
         createdAt: Date.now(),
@@ -3132,8 +3132,6 @@ function ConfirmDialog({
   isDestructive = false,
   disabled = false,
 }: ConfirmDialogProps) {
-  if (!isOpen) return null;
-
   const primaryButtonClass =
     "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501 ll-u-0529";
   const destructiveButtonClass =
@@ -3933,10 +3931,8 @@ const COLORS: readonly ColorOption[] = [
 const resolveTaskListBackground = (background: string | null): string =>
   background ?? "var(--tasklist-theme-bg)";
 
-const parseTaskDate = (dateStr: string | null | undefined): Date | null => {
-  const parsed = dateStr ? new Date(dateStr) : null;
-  return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
-};
+const parseTaskDate = (dateStr: string | null | undefined): Date | null =>
+  parseTaskDateValue(dateStr ?? undefined) ?? null;
 
 const formatTaskDate = (date: Date): string => {
   const y = date.getFullYear();
@@ -7223,335 +7219,6 @@ function AppShellPage() {
   );
 }
 
-// pages/index.tsx
-const OG_LOCALE_BY_LANGUAGE: Record<Language, string> = {
-  ja: "ja_JP",
-  en: "en_US",
-  es: "es_ES",
-  de: "de_DE",
-  fr: "fr_FR",
-  ko: "ko_KR",
-  "zh-CN": "zh_CN",
-  hi: "hi_IN",
-  ar: "ar_AR",
-  "pt-BR": "pt_BR",
-  id: "id_ID",
-};
-
-const setHeadValue = (
-  selector: string,
-  attribute: "content" | "href",
-  value: string,
-) => {
-  const element = document.querySelector(selector);
-  if (
-    element instanceof HTMLMetaElement ||
-    element instanceof HTMLLinkElement
-  ) {
-    element.setAttribute(attribute, value);
-  }
-};
-
-function IndexPage() {
-  const { t } = useTranslation();
-  const currentLang = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language);
-  const origin = typeof window === "undefined" ? "" : window.location.origin;
-  const pageUrl =
-    currentLang === "ja" ? `${origin}/` : `${origin}/?lang=${currentLang}`;
-  const pageTitle = t("pages.index.seo.title");
-  const pageDescription = t("pages.index.seo.description");
-
-  useEffect(() => {
-    const queryLang = new URLSearchParams(window.location.search).get("lang");
-    if (!queryLang) return;
-    const normalizedLanguage = normalizeLanguage(queryLang);
-    if (i18n.language !== normalizedLanguage) {
-      void i18n.changeLanguage(normalizedLanguage);
-    }
-  }, []);
-
-  useEffect(() => {
-    document.title = pageTitle;
-    setHeadValue('meta[name="description"]', "content", pageDescription);
-    setHeadValue(
-      'meta[name="keywords"]',
-      "content",
-      t("pages.index.seo.keywords"),
-    );
-    setHeadValue('link[rel="canonical"]', "href", pageUrl);
-    setHeadValue('meta[property="og:title"]', "content", pageTitle);
-    setHeadValue('meta[property="og:description"]', "content", pageDescription);
-    setHeadValue('meta[property="og:url"]', "content", pageUrl);
-    setHeadValue(
-      'meta[property="og:locale"]',
-      "content",
-      OG_LOCALE_BY_LANGUAGE[currentLang],
-    );
-    setHeadValue(
-      'meta[property="og:image:alt"]',
-      "content",
-      t("pages.index.preview.desktopAlt"),
-    );
-    setHeadValue('meta[name="twitter:title"]', "content", pageTitle);
-    setHeadValue(
-      'meta[name="twitter:description"]',
-      "content",
-      pageDescription,
-    );
-  }, [currentLang, pageDescription, pageTitle, pageUrl, t]);
-
-  const handleLangChange = (newLang: Language) => {
-    if (i18n.language !== newLang) {
-      void i18n.changeLanguage(newLang);
-    }
-    const url = new URL(window.location.href);
-    if (newLang === "ja") {
-      url.searchParams.delete("lang");
-    } else {
-      url.searchParams.set("lang", newLang);
-    }
-    window.history.replaceState(window.history.state, "", url.toString());
-  };
-
-  const features = [
-    {
-      key: "simple",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="ll-u-0071 ll-u-0098 ll-u-0299 ll-u-0492"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-          />
-        </svg>
-      ),
-    },
-    {
-      key: "multidevice",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="ll-u-0071 ll-u-0098 ll-u-0299 ll-u-0492"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18h3"
-          />
-        </svg>
-      ),
-    },
-    {
-      key: "share",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="ll-u-0071 ll-u-0098 ll-u-0299 ll-u-0492"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
-          />
-        </svg>
-      ),
-    },
-  ] as const;
-
-  return (
-    <div className="ll-u-0088 ll-u-0226 ll-u-0317 ll-u-0467 ll-u-0505">
-      <header className="ll-u-0010 ll-u-0015 ll-u-0032 ll-u-0196 ll-u-0199 ll-u-0227 ll-u-0335 ll-u-0466 ll-u-0468">
-        <div className="ll-u-0041 ll-u-0059 ll-u-0116 ll-u-0152 ll-u-0165 ll-u-0240 ll-u-0246 ll-u-0419 ll-u-0420 ll-u-0421 ll-u-0434 ll-u-0436">
-          <div className="ll-u-0059 ll-u-0156 ll-u-0167 ll-u-0423">
-            <img
-              src="/brand/logo.svg"
-              alt=""
-              aria-hidden="true"
-              className="ll-u-0057 ll-u-0073 ll-u-0109 ll-u-0408"
-            />
-            <p className="ll-u-0272 ll-u-0287 ll-u-0290 ll-u-0297 ll-u-0493 ll-u-0446 ll-u-0448">
-              Lightlist
-            </p>
-          </div>
-          <div className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0167 ll-u-0422">
-            <label className="ll-u-0063 ll-u-0156 ll-u-0165 ll-u-0274">
-              <span className="ll-u-0005">Language</span>
-              <select
-                value={currentLang}
-                onChange={(event) =>
-                  handleLangChange(normalizeLanguage(event.target.value))
-                }
-                className="ll-u-0121 ll-u-0188 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0239 ll-u-0243 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0370 ll-u-0466 ll-u-0470 ll-u-0505 ll-u-0523 ll-u-0415 ll-u-0432 ll-u-0435"
-              >
-                {SUPPORTED_LANGUAGES.map((language) => (
-                  <option key={language} value={language}>
-                    {LANGUAGE_DISPLAY_NAMES[language]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <a
-              href="/login/"
-              className="ll-u-0063 ll-u-0131 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0205 ll-u-0240 ll-u-0243 ll-u-0274 ll-u-0287 ll-u-0318 ll-u-0337 ll-u-0358 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0385 ll-u-0471 ll-u-0488 ll-u-0513 ll-u-0526 ll-u-0433 ll-u-0435"
-            >
-              Login
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <main id="main-content" tabIndex={-1}>
-        <section
-          aria-labelledby="landing-hero-title"
-          className="ll-u-0241 ll-u-0264 ll-u-0254 ll-u-0441 ll-u-0439"
-        >
-          <div className="ll-u-0041 ll-u-0116">
-            <div className="ll-u-0041 ll-u-0113 ll-u-0265">
-              <h1
-                id="landing-hero-title"
-                className="ll-u-0536 ll-u-0295 ll-u-0278 ll-u-0287 ll-u-0289 ll-u-0301 ll-u-0494 ll-u-0445 ll-u-0457"
-              >
-                {t("pages.index.headline")}
-              </h1>
-              <p className="ll-u-0041 ll-u-0048 ll-u-0112 ll-u-0295 ll-u-0273 ll-u-0283 ll-u-0300 ll-u-0491 ll-u-0447">
-                {t("pages.index.subheadline")}
-              </p>
-              <div className="ll-u-0050 ll-u-0059 ll-u-0152 ll-u-0156 ll-u-0168">
-                <a
-                  href="/login/"
-                  className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0205 ll-u-0242 ll-u-0247 ll-u-0272 ll-u-0287 ll-u-0318 ll-u-0337 ll-u-0358 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0385 ll-u-0471 ll-u-0488 ll-u-0513 ll-u-0526"
-                >
-                  {t("pages.index.getStarted")}
-                </a>
-              </div>
-            </div>
-
-            <div className="ll-u-0041 ll-u-0051 ll-u-0115">
-              <div className="ll-u-0008 ll-u-0041 ll-u-0120 ll-u-0255 ll-u-0438">
-                <div className="ll-u-0041 ll-u-0107 ll-u-0176 ll-u-0187 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0232 ll-u-0328 ll-u-0466 ll-u-0470 ll-u-0507 ll-u-0412 ll-u-0429">
-                  <div className="ll-u-0176 ll-u-0185 ll-u-0193 ll-u-0199 ll-u-0207 ll-u-0466 ll-u-0469">
-                    <img
-                      src="/screenshot_ja_desktop.png"
-                      alt={t("pages.index.preview.desktopAlt")}
-                      width={1280}
-                      height={800}
-                      className="ll-u-0111"
-                    />
-                  </div>
-                </div>
-
-                <div className="ll-u-0006 ll-u-0020 ll-u-0015 ll-u-0030 ll-u-0106 ll-u-0126 ll-u-0117 ll-u-0406 ll-u-0405 ll-u-0411">
-                  <div className="ll-u-0176 ll-u-0185 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0231 ll-u-0327 ll-u-0466 ll-u-0470 ll-u-0506 ll-u-0425 ll-u-0428">
-                    <div className="ll-u-0176 ll-u-0184 ll-u-0193 ll-u-0199 ll-u-0207 ll-u-0466 ll-u-0469 ll-u-0424">
-                      <img
-                        src="/screenshot_ja_mobile.png"
-                        alt={t("pages.index.preview.mobileAlt")}
-                        width={720}
-                        height={1560}
-                        className="ll-u-0111"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section
-          aria-labelledby="landing-features-title"
-          className="ll-u-0194 ll-u-0199 ll-u-0241 ll-u-0250 ll-u-0466 ll-u-0437"
-        >
-          <div className="ll-u-0041 ll-u-0116">
-            <div className="ll-u-0041 ll-u-0112 ll-u-0265">
-              <h2
-                id="landing-features-title"
-                className="ll-u-0536 ll-u-0271 ll-u-0287 ll-u-0288 ll-u-0302 ll-u-0493 ll-u-0443"
-              >
-                {t("pages.index.features.title")}
-              </h2>
-              <p className="ll-u-0046 ll-u-0272 ll-u-0282 ll-u-0303 ll-u-0490">
-                {t("pages.index.preview.title")}
-              </p>
-            </div>
-            <div className="ll-u-0050 ll-u-0060 ll-u-0168 ll-u-0453">
-              {features.map(({ key, icon }) => (
-                <div
-                  key={key}
-                  className="ll-u-0186 ll-u-0193 ll-u-0199 ll-u-0226 ll-u-0236 ll-u-0466 ll-u-0470"
-                >
-                  <div className="ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0206 ll-u-0487">
-                    {icon}
-                  </div>
-                  <h3 className="ll-u-0536 ll-u-0047 ll-u-0275 ll-u-0287 ll-u-0298 ll-u-0493">
-                    {t(`pages.index.features.${key}.title`)}
-                  </h3>
-                  <p className="ll-u-0045 ll-u-0274 ll-u-0282 ll-u-0303 ll-u-0489">
-                    {t(`pages.index.features.${key}.description`)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section
-          aria-labelledby="landing-cta-title"
-          className="ll-u-0194 ll-u-0199 ll-u-0241 ll-u-0250 ll-u-0466 ll-u-0437"
-        >
-          <div className="ll-u-0041 ll-u-0114 ll-u-0265">
-            <img
-              src="/brand/logo.svg"
-              alt=""
-              aria-hidden="true"
-              className="ll-u-0041 ll-u-0077 ll-u-0109 ll-u-0409"
-            />
-            <h2
-              id="landing-cta-title"
-              className="ll-u-0536 ll-u-0049 ll-u-0271 ll-u-0287 ll-u-0288 ll-u-0301 ll-u-0494 ll-u-0444"
-            >
-              {t("pages.index.cta.title")}
-            </h2>
-            <p className="ll-u-0041 ll-u-0047 ll-u-0112 ll-u-0272 ll-u-0283 ll-u-0303 ll-u-0490 ll-u-0446">
-              {t("pages.index.cta.description")}
-            </p>
-            <div className="ll-u-0050">
-              <a
-                href="/login/"
-                className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0205 ll-u-0242 ll-u-0247 ll-u-0272 ll-u-0287 ll-u-0318 ll-u-0337 ll-u-0358 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0385 ll-u-0471 ll-u-0488 ll-u-0513 ll-u-0526"
-              >
-                {t("pages.index.cta.button")}
-              </a>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <footer className="ll-u-0194 ll-u-0199 ll-u-0241 ll-u-0249 ll-u-0265 ll-u-0466">
-        <p className="ll-u-0274 ll-u-0310 ll-u-0499">{t("copyright")}</p>
-      </footer>
-    </div>
-  );
-}
-
 // pages/login.tsx
 type AuthTab = "signin" | "signup" | "reset";
 
@@ -8327,7 +7994,6 @@ const PAGE_COMPONENTS = {
   "404": NotFoundPage,
   "500": ServerErrorPage,
   app: AppShellPage,
-  index: IndexPage,
   login: LoginPage,
   password_reset: PasswordResetPage,
   sharecodes: ShareCodePreviewPage,

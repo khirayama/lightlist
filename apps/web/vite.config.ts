@@ -30,8 +30,14 @@ export default defineConfig({
       },
       output: {
         manualChunks(id) {
-          if (id.includes("node_modules/firebase/")) {
+          if (
+            id.includes("node_modules/firebase/") ||
+            id.includes("node_modules/@firebase/")
+          ) {
             return "firebase";
+          }
+          if (id.includes("node_modules/date-fns/")) {
+            return "date-fns";
           }
           if (
             id.includes("node_modules/i18next") ||

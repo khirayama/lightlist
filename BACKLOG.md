@@ -1,5 +1,8 @@
 ## ONGOING
 
+LPを分離
+apps/webの起動を高速化
+
 ## BACKLOG
 
 docsの整理。不要に分割されているものは削除。

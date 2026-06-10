@@ -60,9 +60,9 @@
 - `signOut()` は Firebase Auth のセッションを破棄する。
 - `deleteAccount()` は次の順で処理する。
   - `taskListOrder/{uid}` から所属リストを列挙する。
-  - 各 `taskListId` に対して `deleteTaskList()` を呼ぶ。
+  - 各 `taskListId` に対して `deleteTaskList()` 相当の処理（`memberCount <= 1` のとき `shareCodes` doc 込みで実体削除、それ以外は `memberCount` 減算）を行う。Web / iOS / Android で共通仕様。
   - `settings/{uid}` と `taskListOrder/{uid}` を削除する。
-  - Firebase Auth のユーザーを削除する。
+  - Firebase Auth のユーザーを削除する。auth 削除後は Rules で書き込みできないためこの順を維持し、`requires-recent-login` で最後だけ失敗した場合はエラー表示して再ログイン後の再実行に任せる。
 
 ## Web のパスワードリセット
 

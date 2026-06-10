@@ -93,6 +93,7 @@
 - 日付解析は `yyyy-mm-dd` / `mm-dd` / `mm/dd` / `mm.dd` と各言語の相対表現を扱い、全言語で英語の相対表現（`today` / `tomorrow` / `day after tomorrow` / `in N days` / `N days later` / 英語曜日名）も併用許可する。
 - 数字はアラビア数字に加えてアラビア語、ペルシャ語、デーヴァナーガリー数字を正規化する。
 - `mm-dd` / `mm/dd` / `mm.dd` の月日指定は当年の日付として解釈し、解決結果が今日より過去になる場合は翌年の同月日へ繰り上げる。
+- `tasks.*.date` の `yyyy-MM-dd` 文字列は 3 プラットフォームとも端末ローカルの暦日として解釈・生成する（formatter / parser に UTC を指定しない）。例外は Android Compose Material3 `DatePicker` の `selectedDateMillis` 変換のみで、UTC midnight millis 前提のため変換時だけ UTC を使う。
 - Web の parser 仕様を正本とし、iOS / Android も対応言語・先頭一致ルール・解釈順序を揃える。
 - parser は先頭から最大 2 つの修飾子を順不同で剥がし、`pin-prefix -> date -> text` と `date -> pin-prefix -> text` の両方を許可する。
 - Web / iOS / Android の本文編集確定時も同じ parser を通し、先頭日付表現を認識できた場合だけ `date` を更新する。pin prefix を認識できた場合だけ `pinned` を `true` に更新し、prefix がないことを理由に自動解除しない。

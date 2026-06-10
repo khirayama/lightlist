@@ -23,9 +23,9 @@
 - SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/entry.tsx` に統合済み。独立パッケージは廃止。
 - Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。
 - Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
-- Web の HTML entry は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。script path は各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。
+- Web のアプリ側 HTML entry（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。LP（`apps/web/html/index.html`）はアプリと完全分離し、ja 本文直書きの静的 HTML + `apps/web/src/lp.ts`（vanilla TS。react / firebase / i18next 非依存）で構成する。script path は各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。
 - Web は外部スタイル生成ライブラリを使わず、`apps/web/src/styles/globals.css` の通常 CSS と `apps/web/src/styles/compiled-styles.css` でスタイルを保持する。フォント CSS は bundle に巻き込まず、各 HTML entry の `<link rel="stylesheet" href="/fonts/gen-interface-jp/*.css">` で public asset として読む。新規スタイルは通常 CSS または既存の named class を優先する。
-- Web UI は `firebase/*` を直接 import しない。Web の runtime TS/TSX 実装は `apps/web/src/entry.tsx` に集約する。
+- Web UI は `firebase/*` を直接 import しない。Web のアプリ側 runtime TS/TSX 実装は `apps/web/src/entry.tsx` に集約する（LP のみ `apps/web/src/lp.ts`）。
 - タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/entry.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。`mm/dd` 等の月日指定は当年として解釈し、今日より過去なら翌年へ繰り上げる。`taskInsertPosition` の既定は全プラットフォームで `top`、`taskLists.history` は小文字比較で重複除去し最大 300 件。
 - task 入力 parser は各対応言語の短い pin prefix も扱い、全言語で `pin` / `pinned` を併用許可する。`pin 04/24 task1` と `04/24 pin task1` を同じ規則で解釈し、本文編集では prefix 付与時だけ `pinned = true` にする。
 - task 入力 parser の日付表現は設定言語に加えて全言語で英語相対表現（`today` / `tomorrow` / `day after tomorrow` / `in N days` / `N days later` / 英語曜日）も許可する。
@@ -45,7 +45,7 @@
 - タスクリストは `taskLists.memberCount` で保持ユーザー数を管理し、削除操作は `taskListOrder` からの離脱を基本とする（現在の `memberCount` が 1 以下のときのみ実体削除）。
 - 共有権限モデルは「共有URLを知っているユーザーは未認証でも閲覧・編集可」を固定仕様とし、production readiness 評価の item1（認可モデル再設計）は 2026-03 時点で対応不要とする。
 - 共有コードは bearer credential として扱い、有効な共有コード保有者は未認証でも `taskLists` の `name` `tasks` `history` `background` `shareCode` を更新できる。
-- 共有コード生成は 8 文字の英大文字・数字を暗号学的乱数で作る。Web は `crypto.getRandomValues`、iOS は `SecRandomCopyBytes`、Android は `SecureRandom` を使い、生成・削除は事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。
+- 共有コード生成は 8 文字の英大文字・数字を暗号学的乱数で作る。Web は `crypto.getRandomValues`、iOS は `SecRandomCopyBytes`、Android は `SecureRandom` を使い、生成・削除は事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。試行は最大 10 回で、既存 shareCode の doc は正規化（trim + uppercase）した ID で同 batch 削除する。リスト実体削除（アカウント削除含む）でも `shareCodes` doc を残さない。
 - `taskListOrder/{uid}` は本人が任意の `taskListId` を追加でき、その追加自体を共有済み・参加済みリストの保持権限付与として扱う。
 - `taskLists` / `taskListOrder` / `shareCodes` の `createdAt` / `updatedAt` は Firestore Rules の `int` 型検証と pending snapshot の安定性に合わせ、server timestamp ではなく Unix epoch milliseconds の number を書き込む。Web の `taskLists` 読み取りは既存データや pending snapshot に timestamp-like 値が混在しても `estimate` として解決する。
 - iOS の認証済み画面遷移は `RootView` の `AppRoute` と `NavigationStack` / `NavigationSplitView` で管理し、compact 幅は `TaskListsView` から `TaskListDetailPagerView` / `SettingsView` / `CalendarScreenView` へ遷移し、regular 幅は 360pt サイドバーと `RegularTaskListDetailPagerView` / `SettingsView` / `CalendarScreenView` の detail pane で表示する。
@@ -76,18 +76,20 @@
 - Android の認証フォームは Compose Autofill を有効にするため `ContentView.kt` の `OutlinedTextField` に `contentType` を必ず設定し、サインインは既存資格情報、サインアップ/パスワードリセットは新規資格情報として宣言する。
 - Android の未ログイン起動時の認証画面は、保存済み settings が無い場合に端末ロケールをサポート言語へ丸めて初回表示言語として使い、`Translations` は初回描画前にロード済みインスタンスを `CompositionLocal` へ渡して翻訳キーの生表示を避ける。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` に丸め、それ以外の未対応ロケールは `ja` にフォールバックする。
 - iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。共有コード deep link は未認証でも共有リストプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。Android の deep link は `lightlist://password-reset?...`、`lightlist://sharecodes/...`、`https://lightlist.com/sharecodes/...`、`https://lightlist.com/password_reset?...` を処理する。
-- iOS の認証状態監視と認証画面表示は `RootView` に集約し、子 view に auth listener や認証用 full screen cover を分散させない。
+- iOS の認証状態監視と認証画面表示は `RootView` に集約し、子 view に auth listener や認証用 full screen cover を分散させない。子 view は `currentUserId` を引数で受けて `onAppear` / `onChange` で bind し、`TaskListsView` は `onDisappear` で listener を解除しない。
 - Web の本番 security headers は配信基盤側で管理する。
 - Android の release build は `isMinifyEnabled = true`、`allowBackup = false` を維持する。
 - Android の `just build-release` は debug keystore 署名の内部配布確認用 release APK（`apps/android/app/build/outputs/apk/release/app-release.apk`）を生成する。正式配布用 keystore 署名は別途用意する。
 - Android の Google Play 提出物は `cd apps/android && just bundle-play` で生成する release AAB（`apps/android/app/build/outputs/bundle/release/app-release.aab`）を正とする。release upload key 署名は `LIGHTLIST_ANDROID_KEYSTORE` / `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` / `LIGHTLIST_ANDROID_KEY_ALIAS` / `LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡し、`versionCode` は Play Console にアップロード済みの値より大きくしてから生成する。
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
 - `shared/locales/locales.json` は英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。
-- Web の翻訳資産は `shared/locales/locales.json` を `apps/web/scripts/sync-shared-locales.mjs` で `apps/web/src/locales.json` へ同期して使う。
+- Web の翻訳資産は `shared/locales/locales.json` を `apps/web/scripts/sync-shared-locales.mjs` で `apps/web/src/locales.json` へ同期して使う。同スクリプトは LP 用 subset（`pages.index.*` + `copyright` + `common.skipToMain` の flat key 辞書）を `apps/web/src/lp-locales.json` へ生成する。
 - Android の翻訳資産は `shared/locales/locales.json` を build 時に asset 化して使い、件数表示は `taskList.taskCount_one` / `taskList.taskCount_other` を `count` 付きで解決する。
-- Android の設定値表示やアクセシビリティ文言も shared locale key を正とし、`system` / `top` / `Settings` / 固定曜日名のような raw value や固定言語文字列を直接表示しない。
-- Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/entry.tsx` に集約する。
-- Web の Auth / settings / taskLists の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
+- iOS / Android の設定値表示やアクセシビリティ文言も shared locale key を正とし、`system` / `top` / `Settings` / 固定曜日名のような raw value や固定言語文字列を直接表示しない。
+- タスクの `yyyy-MM-dd` 日付文字列は 3 プラットフォームとも端末ローカルの暦日として解釈・生成する（formatter に UTC を指定しない、Web で `new Date("yyyy-mm-dd")` を使わない）。例外は Android Material3 `DatePicker` の millis 変換のみ。iOS の `yyyy-MM-dd` formatter は `en_US_POSIX` + gregorian を必ず指定する。
+- Firestore のドット記法 field path 書き込みは update 系 API（`updateDoc` / `updateData` / `update`）のみで行い、set + merge に渡さない。
+- Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/entry.tsx` に集約する。LP の `apps/web/src/lp.ts` は `normalizeLanguage` 等の言語ヘルパを同名のまま意図的に複製し、言語選択は `localStorage.i18nextLng` 経由でアプリ側 i18next と引き継ぎ合う。
+- Web の Auth / settings / taskLists の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。context は `SessionContext` / `SettingsContext` / `TaskListsContext` の 3 分割を維持し、taskLists chunk 購読は ID 集合キー変化時のみ張り直す（順序変更で再購読しない）。
 - Web の Firestore IndexedDB cache に `settings` / `taskListOrder` / `taskLists` の実データがある場合は、placeholder / skeleton より cache hydrate 済み実データ表示を優先する。Web / iOS / Android の `taskLists` chunk は cache snapshot / live snapshot ともに `docChanges()` ではなく snapshot 全体を chunk 単位で反映し、chunk 内の既存保持分を一度外してから snapshot documents で再構築する。
 - Web の task 更新系は Firestore `tasks` map の列挙順を順序根拠に使わず、必ず `order` 昇順の配列へ直してから追加・自動並び替え・D&D 並び替え・完了済み削除を計算する。
 - Web / iOS / Android の UI 更新系 Firestore 書き込みでは transaction を使わず、task 本文 blur・task 並び替え・taskList 並び替え・日付変更・ピン切替・完了切替の保存後も、listener が同じ内容へ追いつくまで local pending state を優先表示して旧表示への瞬間的な逆戻りを防ぐ。Web の local pending task 表示も `autoSort` 有効時は `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内 `date -> order` へ正規化して保持する。
@@ -115,7 +117,7 @@
 - Web の開発サーバーと production build は `vite` / `vite build` を使う。
 - iOS / Android の task row は drag handle・完了トグル・本文の縦方向中心を揃える。Android は `task.text` の 1 行目中心を基準とし、複数行でもその基準を維持する。日付ラベルは本文や編集欄の縦位置を押し下げず、同じ本文領域内の直上へ近接表示する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
 - 配信用スクリーンショットの元画像は `apps/ios/screenshots` / `apps/android/screenshots` / `apps/web/screenshots` に置き、生成は `cd apps/web && npm run screenshots:generate -- <target>` または `just screenshots <target>` で行う。出力は iOS が `apps/ios/screenshots/app-store/iphone-6.9`、Android が `apps/android/screenshots/google-play/phone`、Web が `apps/web/public/screenshots/store/{wide,narrow}`。中央基準の cover crop で、iOS は `1290x2796`、Android phone は `1080x1920`、Web manifest screenshots は wide `1920x1080` / narrow `750x1334` を使う。iPad App Store スクリーンショットは別途 iPad 実画面の元画像追加が必要。
-- `apps/web` では画面固有、または 1〜2 箇所でしか使わない UI / helper / hook も含めて runtime TS/TSX を `apps/web/src/entry.tsx` に集約する。
+- `apps/web` では画面固有、または 1〜2 箇所でしか使わない UI / helper / hook も含めてアプリ側 runtime TS/TSX を `apps/web/src/entry.tsx` に集約する。LP のみ `apps/web/src/lp.ts` を使う。
 - Web 認証ページ実装: `apps/web/src/entry.tsx`（HTML entry は `apps/web/html/login/index.html`）
 - 共有ページ実装: `apps/web/src/entry.tsx`（HTML entry は `apps/web/html/sharecodes/index.html`）
 - Firestore デプロイ: ルートの `just deploy-firestore` / `just deploy-firestore-prod`

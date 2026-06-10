@@ -32,7 +32,8 @@ deploy-firestore-prod:
 
 loc:
   @echo "Web (TypeScript/TSX):"
-  @find apps/web/src -type f \( -name "*.ts" -o -name "*.tsx" \) -exec cat {} + | wc -l
+  @find apps/web/src apps/web/html -type f \( -name "*.ts" -o -name "*.tsx" \) \
+    ! -path "apps/web/src/lp.ts" -exec cat {} + | wc -l
   @echo "Android (Kotlin/XML):"
   @find apps/android/app/src/main -type f \( -name "*.kt" -o -name "*.xml" \) -exec cat {} + | wc -l
   @echo "iOS (Swift):"

@@ -2943,7 +2943,7 @@ const DialogOverlay = forwardRef<
       {...rest}
       ref={ref}
       className={clsx(
-        "ll-u-0007 ll-u-0011 ll-u-0036 ll-u-0211 ll-u-0336",
+        "ll-anim-overlay ll-u-0007 ll-u-0011 ll-u-0036 ll-u-0211 ll-u-0336",
         className,
       )}
     />
@@ -2983,7 +2983,7 @@ const DialogContent = forwardRef<
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "ll-u-0007 ll-u-0026 ll-u-0016 ll-u-0037 ll-u-0127 ll-u-0122 ll-u-0132 ll-u-0136 ll-u-0191 ll-u-0208 ll-u-0234 ll-u-0304 ll-u-0326",
+          "ll-anim-dialog ll-u-0007 ll-u-0026 ll-u-0016 ll-u-0037 ll-u-0127 ll-u-0122 ll-u-0132 ll-u-0136 ll-u-0191 ll-u-0208 ll-u-0234 ll-u-0304 ll-u-0326",
           className,
         )}
       >
@@ -3042,7 +3042,7 @@ const ActionSheetContent = forwardRef<
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "ll-u-0007 ll-u-0012 ll-u-0022 ll-u-0037 ll-u-0059 ll-u-0081 ll-u-0111 ll-u-0133 ll-u-0138 ll-u-0152 ll-u-0176 ll-u-0192 ll-u-0223 ll-u-0240 ll-u-0261 ll-u-0253 ll-u-0317 ll-u-0326 ll-u-0407 ll-u-0404 ll-u-0410 ll-u-0413 ll-u-0414 ll-u-0416 ll-u-0417 ll-u-0425 ll-u-0426 ll-u-0427 ll-u-0485 ll-u-0505 ll-u-0535",
+          "ll-anim-sheet ll-u-0007 ll-u-0012 ll-u-0022 ll-u-0037 ll-u-0059 ll-u-0081 ll-u-0111 ll-u-0133 ll-u-0138 ll-u-0152 ll-u-0176 ll-u-0192 ll-u-0223 ll-u-0240 ll-u-0261 ll-u-0253 ll-u-0317 ll-u-0326 ll-u-0407 ll-u-0404 ll-u-0410 ll-u-0413 ll-u-0414 ll-u-0416 ll-u-0417 ll-u-0425 ll-u-0426 ll-u-0427 ll-u-0485 ll-u-0505 ll-u-0535",
           className,
         )}
       >
@@ -3931,6 +3931,49 @@ const COLORS: readonly ColorOption[] = [
 const resolveTaskListBackground = (background: string | null): string =>
   background ?? "var(--tasklist-theme-bg)";
 
+const LAST_TASK_LIST_STORAGE_KEY = "lightlist.lastTaskList";
+
+type LastTaskListSnapshot = {
+  id: string;
+  background: string;
+};
+
+const readLastTaskListSnapshot = (): LastTaskListSnapshot | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(LAST_TASK_LIST_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<LastTaskListSnapshot>;
+    if (
+      typeof parsed.id !== "string" ||
+      typeof parsed.background !== "string"
+    ) {
+      return null;
+    }
+    return { id: parsed.id, background: parsed.background };
+  } catch {
+    return null;
+  }
+};
+
+const writeLastTaskListSnapshot = (snapshot: LastTaskListSnapshot): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(
+      LAST_TASK_LIST_STORAGE_KEY,
+      JSON.stringify(snapshot),
+    );
+  } catch {
+    return;
+  }
+};
+
 const parseTaskDate = (dateStr: string | null | undefined): Date | null =>
   parseTaskDateValue(dateStr ?? undefined) ?? null;
 
@@ -4015,7 +4058,7 @@ function AppHeader({ backLabel, onBack }: AppHeaderProps) {
         onClick={onBack}
         aria-label={backLabel}
         title={backLabel}
-        className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0181 ll-u-0232 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0460 ll-u-0505 ll-u-0529"
+        className="ll-pressable ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0181 ll-u-0232 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0460 ll-u-0505 ll-u-0529"
       >
         <AppIcon
           className="ll-u-0070 ll-u-0097"
@@ -4584,7 +4627,7 @@ function TaskItemComponent({
     <div
       ref={setNodeRef}
       style={style}
-      className="ll-u-0059 ll-u-0165 ll-u-0244"
+      className="ll-task-row ll-u-0059 ll-u-0165 ll-u-0244"
     >
       <button
         {...attributes}
@@ -4599,7 +4642,7 @@ function TaskItemComponent({
         }}
         className="ll-u-0059 ll-u-0144 ll-u-0156 ll-u-0311 ll-u-0382 ll-u-0383 ll-u-0384"
       >
-        <span className="ll-u-0008 ll-u-0021">
+        <span className="ll-u-0008">
           <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
         </span>
       </button>
@@ -4613,7 +4656,7 @@ function TaskItemComponent({
         />
         <div className="ll-u-0059 ll-u-0069 ll-u-0096 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0339 ll-u-0346 ll-u-0348 ll-u-0350 ll-u-0351 ll-u-0460 ll-u-0485 ll-u-0510">
           <svg
-            className="ll-u-0067 ll-u-0093 ll-u-0316 ll-u-0322 ll-u-0340 ll-u-0349 ll-u-0504"
+            className="ll-check-mark ll-u-0067 ll-u-0093 ll-u-0316 ll-u-0322 ll-u-0340 ll-u-0349 ll-u-0504"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -4687,7 +4730,7 @@ function TaskItemComponent({
         aria-label={dateTitle}
         title={dateTitle}
         onClick={() => onOpenTaskActions?.(task, actionButtonRef.current)}
-        className="ll-u-0059 ll-u-0156 ll-u-0189 ll-u-0229 ll-u-0311 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0529"
+        className="ll-pressable ll-u-0059 ll-u-0156 ll-u-0189 ll-u-0229 ll-u-0311 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0529"
       >
         <span className="ll-u-0008 ll-u-0063">
           <AppIcon
@@ -4899,7 +4942,7 @@ function TaskListCard({
     "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0075 ll-u-0102 ll-u-0191 ll-u-0200 ll-u-0287 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0505 ll-u-0529";
   const destructiveButtonClass =
     "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0216 ll-u-0240 ll-u-0244 ll-u-0287 ll-u-0318 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0392 ll-u-0477 ll-u-0528";
-  const iconButtonClass = clsx(secondaryButtonClass, "ll-u-0238");
+  const iconButtonClass = clsx(secondaryButtonClass, "ll-pressable ll-u-0238");
   const activeTaskActionTask =
     activeTaskActionTaskId === null || activeTaskActionTaskId === undefined
       ? null
@@ -5378,7 +5421,7 @@ function TaskListCard({
                 aria-label={t("common.add")}
                 title={t("common.add")}
                 className={clsx(
-                  "ll-u-0063 ll-u-0074 ll-u-0131 ll-u-0156 ll-u-0159 ll-u-0176 ll-u-0191 ll-u-0311 ll-u-0338 ll-u-0342 ll-u-0343 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0505 ll-u-0529 ll-u-0531",
+                  "ll-pressable ll-u-0063 ll-u-0074 ll-u-0131 ll-u-0156 ll-u-0159 ll-u-0176 ll-u-0191 ll-u-0311 ll-u-0338 ll-u-0342 ll-u-0343 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0505 ll-u-0529 ll-u-0531",
                   isInputFocused
                     ? "ll-u-0056 ll-u-0099 ll-u-0001 ll-u-0325"
                     : "ll-u-0055 ll-u-0089 ll-u-0002 ll-u-0322",
@@ -5409,7 +5452,7 @@ function TaskListCard({
                     },
                   });
                 }}
-                className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0286 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0505 ll-u-0529"
+                className="ll-pressable ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0286 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0505 ll-u-0529"
               >
                 <AppIcon name="sort" aria-hidden="true" focusable="false" />
                 {t("pages.tasklist.sort")}
@@ -5443,7 +5486,7 @@ function TaskListCard({
                     },
                   }).finally(() => setDeleteCompletedPending(false));
                 }}
-                className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0286 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0393 ll-u-0505 ll-u-0528"
+                className="ll-pressable ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0286 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0393 ll-u-0505 ll-u-0528"
               >
                 {deleteCompletedPending
                   ? t("common.deleting")
@@ -5895,15 +5938,16 @@ const initializeAppHistory = (
   const stack = getHistoryStackForRoute(route);
   applyHistoryStack(stack);
   const currentRoute = stack[stack.length - 1];
+  const pendingInitialTaskListRoute = route.view === "unknown";
   return {
-    currentView: currentRoute.view,
+    currentView: pendingInitialTaskListRoute ? "detail" : currentRoute.view,
     selectedTaskListId:
       currentRoute.view === "detail" ? currentRoute.taskListId : null,
     activeTaskAction:
       currentRoute.view === "detail"
         ? readTaskActionHistoryState(window.history.state)
         : null,
-    pendingInitialTaskListRoute: route.view === "unknown",
+    pendingInitialTaskListRoute,
   };
 };
 
@@ -6400,7 +6444,7 @@ function TaskListSidebarPanel({
               title={t("settings.title")}
               aria-label={t("settings.title")}
               data-vaul-no-drag
-              className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0365 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0518 ll-u-0520 ll-u-0529"
+              className="ll-pressable ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0365 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0518 ll-u-0520 ll-u-0529"
             >
               <AppIcon name="settings" aria-hidden="true" focusable="false" />
             </button>
@@ -6589,8 +6633,9 @@ function AppShellPage() {
     taskListOrderStatus,
     taskLists: stateTaskLists,
   } = useTaskListIndexState();
+  const [startupTaskListSnapshot] = useState(readLastTaskListSnapshot);
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
-    null,
+    startupTaskListSnapshot?.id ?? null,
   );
   const [error, setError] = useState<string | null>(null);
   const { items: taskLists, reorder: reorderTaskList } = useOptimisticReorder(
@@ -6667,17 +6712,29 @@ function AppShellPage() {
     };
 
     syncView();
-    const animationFrameId = window.requestAnimationFrame(() => {
-      setIsViewAnimationReady(true);
-    });
     window.addEventListener("hashchange", syncView);
     window.addEventListener("popstate", syncView);
     return () => {
-      window.cancelAnimationFrame(animationFrameId);
       window.removeEventListener("hashchange", syncView);
       window.removeEventListener("popstate", syncView);
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      isViewAnimationReady ||
+      authStatus !== "authenticated" ||
+      pendingInitialTaskListRoute
+    ) {
+      return;
+    }
+    const animationFrameId = window.requestAnimationFrame(() => {
+      setIsViewAnimationReady(true);
+    });
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+    };
+  }, [authStatus, isViewAnimationReady, pendingInitialTaskListRoute]);
 
   useEffect(() => {
     if (taskLists.length > 0 && !selectedTaskListId) {
@@ -6710,7 +6767,9 @@ function AppShellPage() {
       parseAppHashRoute(window.location.hash),
     );
     setCurrentView(initializedState.currentView);
-    setSelectedTaskListId(initializedState.selectedTaskListId);
+    if (!initializedState.pendingInitialTaskListRoute) {
+      setSelectedTaskListId(initializedState.selectedTaskListId);
+    }
     setActiveTaskAction(initializedState.activeTaskAction);
     setPendingInitialTaskListRoute(
       initializedState.pendingInitialTaskListRoute,
@@ -6847,7 +6906,12 @@ function AppShellPage() {
       return;
     }
 
-    openTaskList(selectedTaskListId ?? firstTaskListId, "push");
+    const initialTaskListId =
+      selectedTaskListId &&
+      taskLists.some((taskList) => taskList.id === selectedTaskListId)
+        ? selectedTaskListId
+        : firstTaskListId;
+    openTaskList(initialTaskListId, "push");
   }, [
     firstTaskListId,
     hasResolvedTaskLists,
@@ -6855,7 +6919,18 @@ function AppShellPage() {
     isWideLayout,
     pendingInitialTaskListRoute,
     selectedTaskListId,
+    taskLists,
   ]);
+
+  useEffect(() => {
+    if (!selectedTaskList) {
+      return;
+    }
+    writeLastTaskListSnapshot({
+      id: selectedTaskList.id,
+      background: resolveTaskListBackground(selectedTaskList.background),
+    });
+  }, [selectedTaskList]);
 
   useEffect(() => {
     if (activeTaskAction === null) {
@@ -6963,7 +7038,14 @@ function AppShellPage() {
     return compactForwardTransform;
   };
   const renderDetailSkeleton = (taskRowCount: number) => (
-    <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0168 ll-u-0233 ll-u-0256">
+    <div
+      className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0168 ll-u-0233 ll-u-0256"
+      style={
+        startupTaskListSnapshot
+          ? { backgroundColor: startupTaskListSnapshot.background }
+          : undefined
+      }
+    >
       <div className="ll-u-0070 ll-u-0104 ll-u-0141 ll-u-0181 ll-u-0214 ll-u-0475" />
       <div className="ll-u-0059 ll-u-0152 ll-u-0165">
         {Array.from({ length: taskRowCount }, (_, index) => (
@@ -7877,7 +7959,7 @@ function ShareCodePreviewPage() {
         <div className="ll-u-0223 ll-u-0233 ll-u-0330 ll-u-0485">
           <button
             onClick={() => window.history.back()}
-            className="ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
+            className="ll-pressable ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
             aria-label={t("common.back")}
           >
             <AppIcon name="arrow-back" className="ll-u-0070 ll-u-0097" />
@@ -7898,7 +7980,7 @@ function ShareCodePreviewPage() {
         <div className="ll-u-0223 ll-u-0233 ll-u-0330 ll-u-0485">
           <button
             onClick={() => window.history.back()}
-            className="ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
+            className="ll-pressable ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
             aria-label={t("common.back")}
           >
             <AppIcon name="arrow-back" className="ll-u-0070 ll-u-0097" />
@@ -7918,7 +8000,7 @@ function ShareCodePreviewPage() {
       <header className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0196 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0246 ll-u-0460 ll-u-0485">
         <button
           onClick={() => window.history.back()}
-          className="ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
+          className="ll-pressable ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
           aria-label={t("common.back")}
         >
           <AppIcon name="arrow-back" className="ll-u-0070 ll-u-0097" />

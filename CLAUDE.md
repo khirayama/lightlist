@@ -24,7 +24,7 @@
 - Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。
 - Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
 - Web のアプリ側 HTML entry（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。LP（`apps/web/html/index.html`）はアプリと完全分離し、ja 本文直書きの静的 HTML + `apps/web/src/lp.ts`（vanilla TS。react / firebase / i18next 非依存）で構成する。script path は各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。
-- Web は外部スタイル生成ライブラリを使わず、`apps/web/src/styles/globals.css` の通常 CSS と `apps/web/src/styles/compiled-styles.css` でスタイルを保持する。フォント CSS は bundle に巻き込まず、各 HTML entry の `<link rel="stylesheet" href="/fonts/gen-interface-jp/*.css">` で public asset として読む。新規スタイルは通常 CSS または既存の named class を優先する。
+- Web は外部スタイル生成ライブラリを使わず、`apps/web/src/styles/globals.css` の通常 CSS と `apps/web/src/styles/compiled-styles.css` でスタイルを保持する。モーションは `globals.css` の `ll-anim-*` / `ll-pressable` 等の named class で管理し、3 プラットフォームとも OS / ブラウザの reduce motion 設定を尊重する。フォント CSS は bundle に巻き込まず、各 HTML entry の `<link rel="stylesheet" href="/fonts/gen-interface-jp/*.css">` で public asset として読む。新規スタイルは通常 CSS または既存の named class を優先する。
 - Web UI は `firebase/*` を直接 import しない。Web のアプリ側 runtime TS/TSX 実装は `apps/web/src/entry.tsx` に集約する（LP のみ `apps/web/src/lp.ts`）。
 - タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/entry.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。`mm/dd` 等の月日指定は当年として解釈し、今日より過去なら翌年へ繰り上げる。`taskInsertPosition` の既定は全プラットフォームで `top`、`taskLists.history` は小文字比較で重複除去し最大 300 件。
 - task 入力 parser は各対応言語の短い pin prefix も扱い、全言語で `pin` / `pinned` を併用許可する。`pin 04/24 task1` と `04/24 pin task1` を同じ規則で解釈し、本文編集では prefix 付与時だけ `pinned = true` にする。
@@ -33,12 +33,15 @@
 - `.gitignore` はルートで共通ローカル生成物を管理し、`apps/web` / `apps/ios` / `apps/android` 配下は各アプリ固有の生成物だけを管理する。
 - `apps/ios` では `xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` と `apps/ios/Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` を commit しない。
 - iOS の entitlements は `apps/ios/Lightlist/Lightlist.entitlements`、Privacy Manifest は `apps/ios/Lightlist/Resources/PrivacyInfo.xcprivacy` を正とする。
+- iOS の Info.plist は xcodegen の `info:`（`project.yml`）で `Lightlist/Info.plist` へ生成し、`CFBundleLocalizations` / `CFBundleURLTypes` / `UIAppFonts` / `PASSWORD_RESET_URL` は `info.properties` 側に書く。配列・辞書・カスタムキーを `INFOPLIST_KEY_*` で渡しても built product に入らない。development language は `ja`。
+- iOS の App Store 提出物は `cd apps/ios && LIGHTLIST_IOS_TEAM_ID=<Team ID> just archive` で生成する IPA（`apps/ios/build-archive/export/Lightlist.ipa`）を正とする。export 設定は `apps/ios/ExportOptions.plist`、手順は `docs/IOS_APP_STORE_RELEASE.md`。再アップロード時は `project.yml` の `CURRENT_PROJECT_VERSION` を上げる。
 - iOS の bundle identifier と Android の applicationId は `com.lightlist.app` を正とする。
 - iOS の Firebase 設定は `apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist` と `apps/ios/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist` を build configuration ごとに切り替え、app bundle には標準名 `GoogleService-Info.plist` だけを配置する。
 - iOS の Firebase Auth callback と auth state listener から SwiftUI state を更新する処理は MainActor 上で行い、ログイン completion で `error` と `result` がともに空の場合も汎用認証エラーを表示する。
 - Web / iOS / Android のメール/パスワードログインは Firebase Auth 応答待ちを 10 秒で打ち切り、loading state を必ず戻して汎用認証エラーを表示する。
 - iOS の AppIcon は `shared/assets/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。
 - Android の launcher icon は `shared/assets/brand/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
+- UI 配色は Web のモノクロ（Tailwind gray 系）パレットを 3 プラットフォーム共通の正本とする（light: 背景 `#FFFFFF` / 文字 `#111827` / 枠線 `#D1D5DB`、dark: 背景 `#030712` / 面 `#111827` / 文字 `#F9FAFB` / 枠線 `#374151`）。アクセント色は持たず primary は light `#111827` / dark `#F9FAFB`。Android は dynamic color を使わず `ContentView.kt` の明示カラースキーム + `values-night/themes.xml`、iOS は system semantic color で表現し `Color.accentColor` は使わない。
 - UI フォントの正本は `shared/assets/fonts/gen-interface-jp` とし、本文は `Gen Interface JP`、主要見出しは `Gen Interface JP Display` を使う。共有コードなど等幅の意味を持つ表示は monospace を維持する。
 - ライセンス表記の手動管理対象は `shared/licenses/manual-licenses.json` を正本とし、Web は `apps/web/scripts/generate-licenses.mjs`、iOS は `LicensePlist` build tool plugin、Android は Google OSS Licenses plugin で依存ライセンスを生成する。iOS の build tool plugin は初回 build 時に Xcode の trust が必要で、CLI では必要に応じて `xcodebuild -skipPackagePluginValidation` を使う。
 - ブランドロゴの現行 SVG は `shared/assets/brand/logo.svg` と `apps/web/public/brand/logo.svg` を正とし、差し替え前の旧ロゴは `logo_legacy.svg` に退避する。
@@ -62,7 +65,7 @@
 - Android の task action は `ModalBottomSheet` と Compose Material3 `DatePicker` を使い、TalkBack では `paneTitle` を設定して別ペインとして読ませる。sheet 本文は縦スクロール可能にし、`DatePicker` の title / headline / mode toggle は表示しない。
 - Web の task action は狭幅で actual bottom sheet、広幅で centered dialog を使う。route hash は変えずに `history.state` を 1 段積み、戻る操作と `Esc`/dismiss のどちらでも閉じて起点ボタンへ focus を戻す。
 - iOS / Android / Web の task action sheet は、可能な限りキーボードのみで操作できる構成を維持する。
-- iOS のアプリ内アイコンは `ContentView.swift` の metrics を正とし、標準アクションとナビゲーション `22pt`、テキスト横の補助アクション `18pt`、詳細画面の小型アクション `20pt` を基準に目視サイズを揃える。AppIcon 資産とは分けて扱う。
+- iOS のアプリ内アイコンは `ContentView.swift` の metrics を正とし、標準アクションとナビゲーション `22pt`、テキスト横の補助アクション `18pt`、詳細画面の小型アクション `20pt` を基準に目視サイズを揃える。AppIcon 資産とは分けて扱う。タスクリスト詳細の右端 action（ヘッダー共有・操作列ゴミ箱・task row のカレンダー/ピン）は `trailingDateButtonWidth`（48pt）の列幅で中心線を揃え、drag handle のドットは `4pt` で補助アクションと目視サイズを揃える。
 - Android のアプリ内アイコンは `ContentView.kt` の metrics を正とし、標準アクション `24dp`、テキスト横の補助アクション `18dp`、詳細画面の小型アクション `20dp` を基準に目視サイズを揃える。launcher icon 資産とは分けて扱う。
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白と、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰める。
 - iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を分離し、入力欄の追加ボタンは入力文字がある時だけ表示する。未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で描画し、参考画面に近い密度へ寄せる。
@@ -85,7 +88,8 @@
 - `shared/locales/locales.json` は英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。
 - Web の翻訳資産は `shared/locales/locales.json` を `apps/web/scripts/sync-shared-locales.mjs` で `apps/web/src/locales.json` へ同期して使う。同スクリプトは LP 用 subset（`pages.index.*` + `copyright` + `common.skipToMain` の flat key 辞書）を `apps/web/src/lp-locales.json` へ生成する。
 - Android の翻訳資産は `shared/locales/locales.json` を build 時に asset 化して使い、件数表示は `taskList.taskCount_one` / `taskList.taskCount_other` を `count` 付きで解決する。
-- iOS / Android の設定値表示やアクセシビリティ文言も shared locale key を正とし、`system` / `top` / `Settings` / 固定曜日名のような raw value や固定言語文字列を直接表示しない。
+- iOS / Android の設定値表示やアクセシビリティ文言も shared locale key を正とし、`system` / `top` / `Settings` / 固定曜日名のような raw value や固定言語文字列を直接表示しない。アクセシビリティ専用文言は `a11y.*` キーを使う。
+- task / taskList の並び替えはドラッグに加えてスクリーンリーダー代替手段を提供する。Web は dnd-kit `KeyboardSensor` + `DndContext accessibility`（`a11y.drag*`）、iOS は `accessibilityAction(named:)`、Android は semantics `customActions` で `a11y.moveUp` / `a11y.moveDown` を出す。ページャーインジケータとカレンダー日セルは読み上げラベルと選択状態を公開する。
 - タスクの `yyyy-MM-dd` 日付文字列は 3 プラットフォームとも端末ローカルの暦日として解釈・生成する（formatter に UTC を指定しない、Web で `new Date("yyyy-mm-dd")` を使わない）。例外は Android Material3 `DatePicker` の millis 変換のみ。iOS の `yyyy-MM-dd` formatter は `en_US_POSIX` + gregorian を必ず指定する。
 - Firestore のドット記法 field path 書き込みは update 系 API（`updateDoc` / `updateData` / `update`）のみで行い、set + merge に渡さない。
 - Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/entry.tsx` に集約する。LP の `apps/web/src/lp.ts` は `normalizeLanguage` 等の言語ヘルパを同名のまま意図的に複製し、言語選択は `localStorage.i18nextLng` 経由でアプリ側 i18next と引き継ぎ合う。
@@ -102,7 +106,7 @@
 - Web / iOS / Android の `deleteTaskList()` と `addSharedTaskListToOrder()` も transaction を使わず、事前 read 後の batch write で `taskListOrder` と `taskLists.memberCount` を更新する。共有参加は `taskListOrder/{uid}` 欠損時でも merge 書き込みで自動作成し、既に追加済みなら no-op にする。
 - Web / iOS / Android のタスク入力候補は `taskLists.history` を共通の正本として使い、履歴更新はタスク追加時と本文変更時に行う。候補表示条件は trim 後 2 文字以上の部分一致・最大 20 件・完全一致除外で Web 仕様に揃える。
 - task のピン留めは `tasks.*.pinned` だけを追加し、`pinOrder` は持たない。表示順は `未完了 pinned -> 未完了 unpinned -> 完了`、各グループ内は `order` 昇順を正とする。`autoSort` 有効時は各グループ内を `date -> order` で再採番する。pinned task の右端 action はカレンダーではなくピンアイコンを表示し、強めの本文 weight で通常 task と区別する。
-- Web の認証後シェルは `apps/web/src/entry.tsx` 内の app page 実装を単一入口とし、`/app/#/task-lists` を stack root、`/app/#/task-lists/:taskListId` を task list 詳細、`/app/#/settings` を設定画面として扱う。`/app/` は bootstrap alias として client mount 後に `#/task-lists` を積み、初期 task list があれば `#/task-lists/:taskListId` を push する。`/settings` の独立 route は持たない。
+- Web の認証後シェルは `apps/web/src/entry.tsx` 内の app page 実装を単一入口とし、`/app/#/task-lists` を stack root、`/app/#/task-lists/:taskListId` を task list 詳細、`/app/#/settings` を設定画面として扱う。`/app/` は bootstrap alias として client mount 後に `#/task-lists` を積み、taskLists 解決まで詳細スケルトン表示のまま待ってから前回選択リスト（localStorage `lightlist.lastTaskList`）か先頭リストの `#/task-lists/:taskListId` を push する。横スライドアニメーションは初期 route 確定後に有効化する。`/settings` の独立 route は持たない。
 - Web の本番静的配信は Cloudflare Pages を正とし、root path 配信を前提に Vite `base` は `/` を維持する。build 出力は `apps/web/dist`、Cloudflare Pages 用 response headers は `apps/web/public/_headers` に置く。
 - iOS / Android の translation loader と analytics helper は `ContentView.swift` / `ContentView.kt` に同居させる。
 - Android の app module は `ContentView.kt` 内の analytics helper が `BuildConfig.DEBUG` を参照するため、`apps/android/app/build.gradle.kts` の `buildFeatures.buildConfig = true` を維持する。

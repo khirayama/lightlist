@@ -10,12 +10,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
@@ -82,9 +88,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -140,8 +150,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
@@ -234,15 +242,59 @@ private fun shortDebugId(value: String): String {
 }
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFD0BCFF),
-    secondary = Color(0xFFCCC2DC),
-    tertiary = Color(0xFFEFB8C8),
+    primary = Color(0xFFF9FAFB),
+    onPrimary = Color(0xFF111827),
+    primaryContainer = Color(0xFF374151),
+    onPrimaryContainer = Color(0xFFF9FAFB),
+    secondary = Color(0xFFD1D5DB),
+    onSecondary = Color(0xFF111827),
+    secondaryContainer = Color(0xFF374151),
+    onSecondaryContainer = Color(0xFFF9FAFB),
+    tertiary = Color(0xFFD1D5DB),
+    onTertiary = Color(0xFF111827),
+    background = Color(0xFF030712),
+    onBackground = Color(0xFFF9FAFB),
+    surface = Color(0xFF030712),
+    onSurface = Color(0xFFF9FAFB),
+    surfaceVariant = Color(0xFF374151),
+    onSurfaceVariant = Color(0xFFD1D5DB),
+    surfaceContainerLowest = Color(0xFF030712),
+    surfaceContainerLow = Color(0xFF111827),
+    surfaceContainer = Color(0xFF111827),
+    surfaceContainerHigh = Color(0xFF111827),
+    surfaceContainerHighest = Color(0xFF374151),
+    outline = Color(0xFF4B5563),
+    outlineVariant = Color(0xFF374151),
+    error = Color(0xFFEF4444),
+    onError = Color(0xFFF9FAFB),
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF6650A4),
-    secondary = Color(0xFF625B71),
-    tertiary = Color(0xFF7D5260),
+    primary = Color(0xFF111827),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFF9FAFB),
+    onPrimaryContainer = Color(0xFF111827),
+    secondary = Color(0xFF4B5563),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFF9FAFB),
+    onSecondaryContainer = Color(0xFF111827),
+    tertiary = Color(0xFF4B5563),
+    onTertiary = Color(0xFFFFFFFF),
+    background = Color(0xFFFFFFFF),
+    onBackground = Color(0xFF111827),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF111827),
+    surfaceVariant = Color(0xFFF9FAFB),
+    onSurfaceVariant = Color(0xFF4B5563),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFFFFFFF),
+    surfaceContainer = Color(0xFFFFFFFF),
+    surfaceContainerHigh = Color(0xFFFFFFFF),
+    surfaceContainerHighest = Color(0xFFF9FAFB),
+    outline = Color(0xFFD1D5DB),
+    outlineVariant = Color(0xFFD1D5DB),
+    error = Color(0xFFDC2626),
+    onError = Color(0xFFFFFFFF),
 )
 
 private val GenInterfaceJPBodyFontFamily = FontFamily(
@@ -313,17 +365,9 @@ private val LightlistTypography = Typography(
 @Composable
 private fun LightlistTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,
@@ -665,7 +709,7 @@ private object AppIconMetrics {
     val leadingButtonIconSize = 22.dp
     val compactActionIconSize = 20.dp
     val inlineActionIconSize = 18.dp
-    val dragHandleDotSize = 3.5.dp
+    val dragHandleDotSize = 4.dp
     val dragHandleDotSpacing = 2.5.dp
 }
 private object TaskListDetailMetrics {
@@ -676,7 +720,7 @@ private object TaskListDetailMetrics {
     val headerActionIconButtonSize = 40.dp
     val headerActionIconSize = AppIconMetrics.standardActionIconSize
     val headerActionSpacing = 0.dp
-    val headerActionsEndOffset = 12.dp
+    val headerActionsEndOffset = 11.dp
     val inputCornerRadius = 14.dp
     val inputHorizontalPadding = 14.dp
     val inputVerticalPadding = 10.dp
@@ -920,7 +964,7 @@ private data class TaskListDetailsUiState(
 private data class SettingsState(
     val theme: String = "system",
     val language: String = "ja",
-    val taskInsertPosition: String = "bottom",
+    val taskInsertPosition: String = "top",
     val autoSort: Boolean = false,
     val userEmail: String = "",
     val isLoading: Boolean = true
@@ -1336,12 +1380,13 @@ private fun rememberSettingsState(userId: String?): SettingsState {
             val db = Firebase.firestore
             val email = Firebase.auth.currentUser?.email ?: ""
             val listener = db.collection("settings").document(userId)
-                .addSnapshotListener { snapshot, _ ->
-                    val data = snapshot?.data ?: return@addSnapshotListener
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) return@addSnapshotListener
+                    val data = snapshot?.data ?: emptyMap()
                     uiState = SettingsState(
                         theme = data["theme"] as? String ?: "system",
                         language = data["language"] as? String ?: "ja",
-                        taskInsertPosition = data["taskInsertPosition"] as? String ?: "bottom",
+                        taskInsertPosition = data["taskInsertPosition"] as? String ?: "top",
                         autoSort = data["autoSort"] as? Boolean ?: false,
                         userEmail = email,
                         isLoading = false
@@ -1534,9 +1579,9 @@ private suspend fun generateShareCode(taskListId: String): String {
         if (!taskListSnap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
 
         val batch = db.batch()
-        val currentShareCode = taskListSnap.getString("shareCode")
+        val currentShareCode = taskListSnap.getString("shareCode")?.takeIf { it.isNotBlank() }
         if (currentShareCode != null) {
-            batch.delete(db.collection("shareCodes").document(currentShareCode))
+            batch.delete(db.collection("shareCodes").document(currentShareCode.trim().uppercase()))
         }
         batch.set(shareCodeRef, mapOf("taskListId" to taskListId, "createdAt" to nowMillis()))
         batch.update(taskListRef, mapOf("shareCode" to code, "updatedAt" to nowMillis()))
@@ -1551,9 +1596,9 @@ private suspend fun removeShareCode(taskListId: String) {
     val taskListRef = db.collection("taskLists").document(taskListId)
     val snap = taskListRef.get().await()
     if (!snap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
-    val currentShareCode = snap.getString("shareCode") ?: return
+    val currentShareCode = snap.getString("shareCode")?.takeIf { it.isNotBlank() } ?: return
     val batch = db.batch()
-    batch.delete(db.collection("shareCodes").document(currentShareCode))
+    batch.delete(db.collection("shareCodes").document(currentShareCode.trim().uppercase()))
     batch.update(taskListRef, mapOf("shareCode" to null, "updatedAt" to nowMillis()))
     batch.commit().await()
 }
@@ -1606,9 +1651,7 @@ private suspend fun addSharedTaskListToOrder(taskListId: String) {
 }
 
 private fun flattenCalendarTasks(taskLists: List<TaskListDetail>): List<CalendarTask> {
-    val isoFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    }
+    val isoFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     return taskLists.flatMap { taskList ->
         taskList.tasks
             .filter { !it.completed && it.date.isNotBlank() }
@@ -1680,9 +1723,7 @@ private fun formatDateForLocale(
 ): String {
     return try {
         val locale = localeForLanguage(languageTag)
-        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }.parse(dateKey) ?: return dateKey
+        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateKey) ?: return dateKey
         val pattern = DateFormat.getBestDateTimePattern(locale, skeleton)
         SimpleDateFormat(pattern, locale).format(date)
     } catch (_: Exception) {
@@ -1954,6 +1995,7 @@ private fun DetailScreenScaffold(
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .align(Alignment.Center)
+                            .semantics { heading() }
                             .fillMaxWidth()
                             .padding(horizontal = 56.dp)
                     )
@@ -2470,9 +2512,20 @@ private fun CalendarDayCell(
     onTap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val t = LocalTranslations.current
+    val dayLabel = buildList {
+        add("$dayNum")
+        if (isToday) add(t.t("a11y.today"))
+        if (dots.isNotEmpty()) add(t.t("a11y.hasTasks"))
+    }.joinToString(", ")
     Column(
         modifier = modifier
             .aspectRatio(1f)
+            .semantics {
+                contentDescription = dayLabel
+                role = Role.Button
+                selected = isSelected
+            }
             .clickable(onClick = onTap),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -2538,9 +2591,7 @@ private fun CalendarGrid(
         set(year, monthNum, 1)
     }.get(Calendar.DAY_OF_WEEK) - 1
     val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-    val todayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    }.format(java.util.Date())
+    val todayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
         val weekDays = remember(t.languageTag()) {
@@ -2830,7 +2881,7 @@ private fun DragHandleIcon(modifier: Modifier = Modifier) {
                 repeat(2) {
                     Box(
                         Modifier
-                            .size(4.dp)
+                            .size(AppIconMetrics.dragHandleDotSize)
                             .background(
                                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 CircleShape
@@ -2943,7 +2994,8 @@ private fun TaskListsScreen(
         logTaskListReorder()
         val updates = mutableMapOf<String, Any>("updatedAt" to nowMillis())
         ids.forEachIndexed { i, id -> updates["$id.order"] = (i + 1).toDouble() }
-        pendingTaskListOrder = displayTaskLists.toList()
+        val current = displayTaskLists
+        pendingTaskListOrder = ids.mapNotNull { id -> current.firstOrNull { it.id == id } }
         scope.launch {
             try {
                 Firebase.firestore.collection("taskListOrder").document(uid).update(updates).await()
@@ -2952,6 +3004,17 @@ private fun TaskListsScreen(
                 pendingTaskListOrder = null
             }
         }
+    }
+
+    fun moveTaskListBy(taskListId: String, delta: Int): Boolean {
+        val ordered = displayTaskLists.toMutableList()
+        val index = ordered.indexOfFirst { it.id == taskListId }
+        val target = index + delta
+        if (index < 0 || target < 0 || target > ordered.lastIndex) return false
+        val item = ordered.removeAt(index)
+        ordered.add(target, item)
+        commitTaskListOrder(ordered.map { it.id })
+        return true
     }
 
     LaunchedEffect(draggingTaskListId) {
@@ -3139,6 +3202,13 @@ private fun TaskListsScreen(
                                                     else -> 0f
                                                 }
                                             }
+                                        )
+                                    }
+                                    .semantics {
+                                        contentDescription = t.t("app.dragHint")
+                                        customActions = listOf(
+                                            CustomAccessibilityAction(t.t("a11y.moveUp")) { moveTaskListBy(taskList.id, -1) },
+                                            CustomAccessibilityAction(t.t("a11y.moveDown")) { moveTaskListBy(taskList.id, 1) }
                                         )
                                     },
                                 contentAlignment = Alignment.Center
@@ -3626,6 +3696,7 @@ private fun TaskListDetailPagerScreen(
                                 TaskListIndicator(
                                     count = uiState.taskLists.size,
                                     selectedIndex = selectedTaskListIndex,
+                                    labels = uiState.taskLists.map { it.name },
                                     backgroundColor = taskListBackgroundColor,
                                     onSelect = { index ->
                                         val nextTaskList = uiState.taskLists.getOrNull(index) ?: return@TaskListIndicator
@@ -3646,10 +3717,12 @@ private fun TaskListDetailPagerScreen(
 private fun TaskListIndicator(
     count: Int,
     selectedIndex: Int,
+    labels: List<String>,
     backgroundColor: Color,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val t = LocalTranslations.current
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -3662,10 +3735,20 @@ private fun TaskListIndicator(
         ) {
             repeat(count) { index ->
                 val isSelected = index == selectedIndex
+                val positionLabel = t.t(
+                    "a11y.listPosition",
+                    mapOf("index" to "${index + 1}", "total" to "$count")
+                )
+                val dotLabel = labels.getOrNull(index)?.let { "$it, $positionLabel" } ?: positionLabel
                 Box(
                     modifier = Modifier
                         .padding(horizontal = 2.dp, vertical = 4.dp)
                         .size(TaskListDetailMetrics.indicatorTouchSize)
+                        .semantics {
+                            contentDescription = dotLabel
+                            role = Role.Button
+                            selected = isSelected
+                        }
                         .clickable { onSelect(index) },
                     contentAlignment = Alignment.Center
                 ) {
@@ -3705,6 +3788,8 @@ private fun TaskListRow(
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
     onDrag: (change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: Offset) -> Unit,
+    onMoveUp: (() -> Boolean)?,
+    onMoveDown: (() -> Boolean)?,
     completeInlineEdit: () -> Unit,
     moveInlineCaretLeft: () -> Unit,
     moveInlineCaretRight: () -> Unit,
@@ -3732,8 +3817,13 @@ private fun TaskListRow(
                 }
             )
     } else {
+        val rowAlpha by animateFloatAsState(
+            targetValue = if (task.completed) COMPLETED_TASK_ALPHA else 1f,
+            animationSpec = if (reduceMotion) snap() else tween(durationMillis = 200),
+            label = "taskRowAlpha"
+        )
         Modifier
-            .alpha(if (task.completed) COMPLETED_TASK_ALPHA else 1f)
+            .alpha(rowAlpha)
     }
 
     Row(
@@ -3761,6 +3851,13 @@ private fun TaskListRow(
                         onDragCancel = currentOnDragCancel,
                         onDrag = { change, dragAmount -> currentOnDrag(change, dragAmount) }
                     )
+                }
+                .semantics {
+                    contentDescription = t.t("app.dragHint")
+                    customActions = buildList {
+                        onMoveUp?.let { action -> add(CustomAccessibilityAction(t.t("a11y.moveUp")) { action() }) }
+                        onMoveDown?.let { action -> add(CustomAccessibilityAction(t.t("a11y.moveDown")) { action() }) }
+                    }
                 },
             contentAlignment = Alignment.Center
         ) {
@@ -3781,6 +3878,21 @@ private fun TaskListRow(
                 .clickable { onToggleCompletion() },
             contentAlignment = Alignment.Center
         ) {
+            val completionFillColor by animateColorAsState(
+                targetValue = if (task.completed) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+                else Color.Transparent,
+                animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
+                label = "completionFillColor"
+            )
+            val completionFillScale by animateFloatAsState(
+                targetValue = if (task.completed) 1f else 0.4f,
+                animationSpec = if (reduceMotion) {
+                    snap()
+                } else {
+                    spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)
+                },
+                label = "completionFillScale"
+            )
             Box(
                 modifier = Modifier
                     .size(TaskListDetailMetrics.completionDotSize)
@@ -3789,13 +3901,19 @@ private fun TaskListRow(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
                         shape = CircleShape
                     )
-                    .background(
-                        if (task.completed) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
-                        else Color.Transparent,
-                        CircleShape
-                    )
-                    .offset(x = (-3).dp)
-            )
+                    .offset(x = (-3).dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = completionFillScale
+                            scaleY = completionFillScale
+                        }
+                        .background(completionFillColor, CircleShape)
+                )
+            }
         }
         Column(
             modifier = Modifier
@@ -3898,7 +4016,7 @@ private fun TaskListRow(
                                 start = TaskListDetailMetrics.taskTextStartPadding,
                                 top = TaskListDetailMetrics.taskTextTopPadding
                             )
-                            .clickable { onTaskClick() }
+                            .clickable(onClickLabel = t.t("a11y.editTask")) { onTaskClick() }
                     )
                 }
             }
@@ -3910,13 +4028,19 @@ private fun TaskListRow(
                 .height(48.dp)
                 .offset(x = TaskListDetailMetrics.trailingActionEndOffset)
         ) {
-            Icon(
-                imageVector = if (task.pinned) Icons.Default.PushPin else Icons.Default.CalendarToday,
-                contentDescription = t.t("pages.tasklist.setDate"),
-                tint = if (task.pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                modifier = Modifier
-                    .size(TaskListDetailMetrics.trailingDateIconSize)
-            )
+            Crossfade(
+                targetState = task.pinned,
+                animationSpec = if (reduceMotion) snap() else tween(durationMillis = 200),
+                label = "trailingActionIcon"
+            ) { pinned ->
+                Icon(
+                    imageVector = if (pinned) Icons.Default.PushPin else Icons.Default.CalendarToday,
+                    contentDescription = t.t(if (pinned) "pages.tasklist.unpinTask" else "pages.tasklist.setDate"),
+                    tint = if (pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    modifier = Modifier
+                        .size(TaskListDetailMetrics.trailingDateIconSize)
+                )
+            }
         }
     }
 }
@@ -3925,7 +4049,7 @@ private fun TaskListRow(
 @Composable
 private fun TaskListDetailContent(
     taskList: TaskListDetail,
-    taskInsertPosition: String = "bottom",
+    taskInsertPosition: String = "top",
     autoSort: Boolean = false,
     topInset: androidx.compose.ui.unit.Dp = 0.dp
 ) {
@@ -3962,6 +4086,7 @@ private fun TaskListDetailContent(
     var generatingShareCode by remember { mutableStateOf(false) }
     var removingShareCode by remember { mutableStateOf(false) }
     var removingList by remember { mutableStateOf(false) }
+    var removeListError by remember { mutableStateOf<String?>(null) }
     var shareCopySuccess by remember { mutableStateOf(false) }
     var shareError by remember { mutableStateOf<String?>(null) }
     val newTaskFocusRequester = remember { FocusRequester() }
@@ -4042,6 +4167,7 @@ private fun TaskListDetailContent(
         editBackground = null
         shareCopySuccess = false
         shareError = null
+        removeListError = null
     }
 
     fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
@@ -4173,7 +4299,7 @@ private fun TaskListDetailContent(
         persist(previousTasks, nextTasks)
     }
 
-    val historyOptions = run {
+    val historyOptions = remember(newTaskText, taskList.history) {
         val input = newTaskText.trim()
         if (input.length < 2) {
             emptyList()
@@ -4231,6 +4357,17 @@ private fun TaskListDetailContent(
         val normalizedTasks = renumberTasks(orderedTasks)
         setPendingTasks(normalizedTasks)
         persistTaskListUpdate(buildTaskUpdateData(displayTasks, normalizedTasks))
+    }
+
+    fun moveTaskBy(taskId: String, delta: Int): Boolean {
+        val ordered = displayTasks.toMutableList()
+        val index = ordered.indexOfFirst { it.id == taskId }
+        val target = index + delta
+        if (index < 0 || target < 0 || target > ordered.lastIndex) return false
+        val item = ordered.removeAt(index)
+        ordered.add(target, item)
+        commitTaskOrder(ordered.map { it.id })
+        return true
     }
 
     fun toggleCompletion(task: TaskSummary) {
@@ -4370,6 +4507,7 @@ private fun TaskListDetailContent(
     fun removeTaskList() {
         if (removingList) return
         removingList = true
+        removeListError = null
         scope.launch {
             try {
                 val user = Firebase.auth.currentUser ?: return@launch
@@ -4416,6 +4554,8 @@ private fun TaskListDetailContent(
                 showRemoveListConfirm = false
                 showEditDialog = false
             } catch (_: Exception) {
+                showRemoveListConfirm = false
+                removeListError = t.t("common.error")
             } finally {
                 removingList = false
             }
@@ -4501,14 +4641,16 @@ private fun TaskListDetailContent(
                     taskList.name,
                     style = titleTextStyle,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { heading() }
                 )
                 Row(
                     modifier = Modifier.offset(x = TaskListDetailMetrics.headerActionsEndOffset),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = { editName = taskList.name; editBackground = taskList.background; showEditDialog = true },
+                        onClick = { editName = taskList.name; editBackground = taskList.background; removeListError = null; showEditDialog = true },
                         modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
                     ) {
                         Icon(
@@ -4596,7 +4738,7 @@ private fun TaskListDetailContent(
                         }
                     )
                     AnimatedVisibility(
-                        visible = isNewTaskInputFocused,
+                        visible = newTaskText.trim().isNotEmpty(),
                         enter = if (reduceMotion) {
                             EnterTransition.None
                         } else {
@@ -4783,6 +4925,8 @@ private fun TaskListDetailContent(
                         dragOrderedTasks = null
                         taskDragOffset = 0f
                     },
+                    onMoveUp = if (index > 0) ({ moveTaskBy(task.id, -1) }) else null,
+                    onMoveDown = if (index < displayTasks.lastIndex) ({ moveTaskBy(task.id, 1) }) else null,
                     onDrag = { change, dragAmount ->
                         change.consume()
                         taskDragOffset += dragAmount.y
@@ -4830,6 +4974,9 @@ private fun TaskListDetailContent(
             title = { Text(t.t("taskList.editTitle")) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    removeListError?.let { error ->
+                        Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
                     OutlinedTextField(
                         value = editName,
                         onValueChange = { editName = it },
@@ -5382,9 +5529,18 @@ private fun SettingsView(
                                     try {
                                         val taskListRef = db.collection("taskLists").document(taskListId)
                                         val snap = taskListRef.get().await()
+                                        if (!snap.exists()) return@forEach
                                         val memberCount = (snap.data?.get("memberCount") as? Number)?.toInt() ?: 1
                                         if (memberCount <= 1) {
-                                            taskListRef.delete().await()
+                                            db.batch().apply {
+                                                snap.getString("shareCode")
+                                                    ?.takeIf { it.isNotBlank() }
+                                                    ?.let { shareCode ->
+                                                        val normalizedCode = shareCode.trim().uppercase()
+                                                        delete(db.collection("shareCodes").document(normalizedCode))
+                                                    }
+                                                delete(taskListRef)
+                                            }.commit().await()
                                         } else {
                                             taskListRef.update("memberCount", FieldValue.increment(-1)).await()
                                         }

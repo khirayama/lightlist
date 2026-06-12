@@ -2,6 +2,7 @@ name: Lightlist
 options:
   deploymentTarget:
     iOS: "17.0"
+  developmentLanguage: ja
 packages:
   FirebaseSDK:
     url: https://github.com/firebase/firebase-ios-sdk
@@ -20,6 +21,34 @@ targets:
   Lightlist:
     type: application
     platform: iOS
+    info:
+      path: Lightlist/Info.plist
+      properties:
+        CFBundleDevelopmentRegion: ja
+        CFBundleLocalizations:
+          - ja
+          - en
+          - es
+          - de
+          - fr
+          - ko
+          - zh-Hans
+          - hi
+          - ar
+          - pt-BR
+          - id
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLSchemes:
+              - lightlist
+        UIAppFonts:
+          - GenInterfaceJP-Regular.ttf
+          - GenInterfaceJP-Medium.ttf
+          - GenInterfaceJP-SemiBold.ttf
+          - GenInterfaceJP-Bold.ttf
+          - GenInterfaceJPDisplay-Bold.ttf
+          - GenInterfaceJPDisplay-ExtraBold.ttf
+        PASSWORD_RESET_URL: $(PASSWORD_RESET_URL)
     sources:
       - path: Lightlist/Sources
       - path: Lightlist/Resources
@@ -83,18 +112,6 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
-        INFOPLIST_KEY_PASSWORD_RESET_URL: $(PASSWORD_RESET_URL)
-        INFOPLIST_KEY_CFBundleURLTypes:
-          - CFBundleTypeRole: Editor
-            CFBundleURLSchemes:
-              - lightlist
-        INFOPLIST_KEY_UIAppFonts:
-          - GenInterfaceJP-Regular.ttf
-          - GenInterfaceJP-Medium.ttf
-          - GenInterfaceJP-SemiBold.ttf
-          - GenInterfaceJP-Bold.ttf
-          - GenInterfaceJPDisplay-Bold.ttf
-          - GenInterfaceJPDisplay-ExtraBold.ttf
         CODE_SIGN_ENTITLEMENTS: Lightlist/Lightlist.entitlements
         FIREBASE_PLIST_SOURCE: $(SRCROOT)/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.lightlist.app

@@ -104,11 +104,13 @@ import {
   zhCN as dateFnsZhCN,
 } from "date-fns/locale";
 import {
+  Announcements,
   DndContext,
   DragEndEvent,
   DragStartEvent,
   KeyboardSensor,
   PointerSensor,
+  ScreenReaderInstructions,
   SensorDescriptor,
   SensorOptions,
   UniqueIdentifier,
@@ -125,6 +127,41 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DayButton as DayPickerDayButton, DayPicker } from "react-day-picker";
+
+function buildDndAccessibility(
+  t: TFunction,
+  getName: (id: UniqueIdentifier) => string,
+  getIds: () => string[],
+): {
+  announcements: Announcements;
+  screenReaderInstructions: ScreenReaderInstructions;
+} {
+  const positionOf = (id: UniqueIdentifier): number | null => {
+    const index = getIds().indexOf(String(id));
+    return index >= 0 ? index + 1 : null;
+  };
+  return {
+    screenReaderInstructions: { draggable: t("a11y.dragInstructions") },
+    announcements: {
+      onDragStart: ({ active }) =>
+        t("a11y.dragStart", { item: getName(active.id) }),
+      onDragOver: ({ active, over }) => {
+        if (!over) return undefined;
+        const position = positionOf(over.id);
+        if (position === null) return undefined;
+        return t("a11y.dragOver", { item: getName(active.id), position });
+      },
+      onDragEnd: ({ active, over }) => {
+        if (!over) return undefined;
+        const position = positionOf(over.id);
+        if (position === null) return undefined;
+        return t("a11y.dragEnd", { item: getName(active.id), position });
+      },
+      onDragCancel: ({ active }) =>
+        t("a11y.dragCancel", { item: getName(active.id) }),
+    },
+  };
+}
 
 // common.tsx
 type Theme = "system" | "light" | "dark";
@@ -5501,6 +5538,11 @@ function TaskListCard({
             sensors={sensorsList}
             collisionDetection={closestCenter}
             modifiers={[restrictToVerticalAxis]}
+            accessibility={buildDndAccessibility(
+              t,
+              (id) => tasks.find((task) => task.id === id)?.text ?? "",
+              () => tasks.map((task) => task.id),
+            )}
             onDragStart={(event: DragStartEvent) => {
               if (typeof event.active.id === "string") {
                 onSortingChange?.(true);
@@ -6460,6 +6502,12 @@ function TaskListSidebarPanel({
             sensors={sensorsList}
             collisionDetection={closestCenter}
             modifiers={[restrictToVerticalAxis]}
+            accessibility={buildDndAccessibility(
+              t,
+              (id) =>
+                taskLists.find((taskList) => taskList.id === id)?.name ?? "",
+              () => taskLists.map((taskList) => taskList.id),
+            )}
             onDragEnd={handleDragEnd}
           >
             <SortableContext items={taskLists.map((taskList) => taskList.id)}>
@@ -7498,7 +7546,7 @@ function LoginPage() {
                 void i18n.changeLanguage(normalizeLanguage(event.target.value))
               }
               className="ll-u-0190 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0371 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0522"
-              aria-label="Language"
+              aria-label={t("settings.language.title")}
             >
               {SUPPORTED_LANGUAGES.map((language) => (
                 <option key={language} value={language}>

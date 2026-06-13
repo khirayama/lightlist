@@ -22,6 +22,7 @@
 - Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
 - SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/entry.tsx` に統合済み。独立パッケージは廃止。
 - Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。
+- Firebase App Check は 3 プラットフォームで有効化する（Web: reCAPTCHA v3 / iOS: App Attest / Android: Play Integrity、開発時は各 debug provider）。Web は `VITE_FIREBASE_APPCHECK_SITE_KEY` 未設定なら無効。Console 手順と enforcement 制約は `docs/APP_CHECK.md` を正とする。
 - Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
 - Web のアプリ側 HTML entry（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。LP（`apps/web/html/index.html`）はアプリと完全分離し、ja 本文直書きの静的 HTML + `apps/web/src/lp.ts`（vanilla TS。react / firebase / i18next 非依存）で構成する。script path は各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。
 - Web は外部スタイル生成ライブラリを使わず、`apps/web/src/styles/globals.css` の通常 CSS と `apps/web/src/styles/compiled-styles.css` でスタイルを保持する。モーションは `globals.css` の `ll-anim-*` / `ll-pressable` 等の named class で管理し、3 プラットフォームとも OS / ブラウザの reduce motion 設定を尊重する。フォント CSS は bundle に巻き込まず、各 HTML entry の `<link rel="stylesheet" href="/fonts/gen-interface-jp/*.css">` で public asset として読む。新規スタイルは通常 CSS または既存の named class を優先する。
@@ -65,6 +66,7 @@
 - Android の task action は `ModalBottomSheet` と Compose Material3 `DatePicker` を使い、TalkBack では `paneTitle` を設定して別ペインとして読ませる。sheet 本文は縦スクロール可能にし、`DatePicker` の title / headline / mode toggle は表示しない。
 - Web の task action は狭幅で actual bottom sheet、広幅で centered dialog を使う。route hash は変えずに `history.state` を 1 段積み、戻る操作と `Esc`/dismiss のどちらでも閉じて起点ボタンへ focus を戻す。
 - iOS / Android / Web の task action sheet は、可能な限りキーボードのみで操作できる構成を維持する。
+- iOS / Android はタスク操作（完了/ピン切替・追加・完了済み削除・ドラッグ開始・並び替え入れ替え）で触覚フィードバックを返し、両プラットフォームで挙動を揃える。iOS は `UIImpactFeedbackGenerator` / `UISelectionFeedbackGenerator` / `UINotificationFeedbackGenerator`、Android は `LocalHapticFeedback` の `HapticFeedbackType` を使う。詳細は `AGENTS.md` を正とする。
 - iOS のアプリ内アイコンは `ContentView.swift` の metrics を正とし、標準アクションとナビゲーション `22pt`、テキスト横の補助アクション `18pt`、詳細画面の小型アクション `20pt` を基準に目視サイズを揃える。AppIcon 資産とは分けて扱う。タスクリスト詳細の右端 action（ヘッダー共有・操作列ゴミ箱・task row のカレンダー/ピン）は `trailingDateButtonWidth`（48pt）の列幅で中心線を揃え、drag handle のドットは `4pt` で補助アクションと目視サイズを揃える。
 - Android のアプリ内アイコンは `ContentView.kt` の metrics を正とし、標準アクション `24dp`、テキスト横の補助アクション `18dp`、詳細画面の小型アクション `20dp` を基準に目視サイズを揃える。launcher icon 資産とは分けて扱う。
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白と、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰める。

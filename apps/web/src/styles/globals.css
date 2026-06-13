@@ -147,7 +147,54 @@ body {
   }
 }
 
+@keyframes ll-task-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ll-task-out {
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@keyframes ll-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  .ll-anim-task-enter {
+    animation: ll-task-in 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .ll-anim-task-exit {
+    animation: ll-task-out 0.2s ease-in both;
+  }
+
+  .ll-anim-pop {
+    animation: ll-pop-in 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .ll-check-circle {
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease;
+  }
+
   .ll-anim-overlay[data-state="open"] {
     animation: ll-fade-in 0.2s ease-out both;
   }

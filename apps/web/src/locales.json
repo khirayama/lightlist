@@ -127,11 +127,26 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^اليوم(?:[\\s　]|$)", "offset": 0 },
-        { "pattern": "^غد(?:ا|ًا)?(?:[\\s　]|$)", "offset": 1 },
-        { "pattern": "^بعد\\s+غد(?:[\\s　]|$)", "offset": 2 },
-        { "pattern": "^بعد\\s+(\\d+)\\s+أيام?(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^اليوم(?:[\\s　]|$)",
+          "offset": 0
+        },
+        {
+          "pattern": "^غد(?:ا|ًا)?(?:[\\s　]|$)",
+          "offset": 1
+        },
+        {
+          "pattern": "^بعد\\s+غد(?:[\\s　]|$)",
+          "offset": 2
+        },
+        {
+          "pattern": "^بعد\\s+(\\d+)\\s+أيام?(?:[\\s　]|$)",
+          "offsetGroup": 1
+        },
+        {
+          "pattern": "^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
         "الأحد": 0,
@@ -144,7 +159,9 @@
         "السبت": 6
       }
     },
-    "pinPrefixes": ["تثبيت"],
+    "pinPrefixes": [
+      "تثبيت"
+    ],
     "taskList": {
       "taskCount": "{{count}} مهمة",
       "taskCount_one": "{{count}} مهمة",
@@ -311,6 +328,20 @@
         "description": "حدث خطأ غير متوقع. يرجى إعادة تحميل الصفحة.",
         "reload": "إعادة تحميل الصفحة"
       }
+    },
+    "a11y": {
+      "listPosition": "العنصر {{index}} من {{total}}",
+      "moveUp": "نقل لأعلى",
+      "moveDown": "نقل لأسفل",
+      "today": "اليوم",
+      "hasTasks": "توجد مهام",
+      "addTask": "إضافة مهمة",
+      "editTask": "تعديل المهمة",
+      "dragStart": "تم التقاط {{item}}",
+      "dragOver": "جارٍ نقل {{item}} إلى الموضع {{position}}",
+      "dragEnd": "تم نقل {{item}} إلى الموضع {{position}}",
+      "dragCancel": "تم إلغاء نقل {{item}}",
+      "dragInstructions": "لإعادة الترتيب، اضغط على مفتاح المسافة أو Enter للالتقاط، واستخدم مفاتيح الأسهم للنقل، ثم اضغط على المفتاح نفسه للإفلات. اضغط على Escape للإلغاء."
     }
   },
   "de": {
@@ -441,23 +472,52 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^heute(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^morgen(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^übermorgen(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^in\\s+(\\d+)\\s+tagen?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^heute(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^morgen(?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^übermorgen(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^in\\s+(\\d+)\\s+tagen?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "sonntag": 0, "so": 0,
-        "montag": 1, "mo": 1,
-        "dienstag": 2, "di": 2,
-        "mittwoch": 3, "mi": 3,
-        "donnerstag": 4, "do": 4,
-        "freitag": 5, "fr": 5,
-        "samstag": 6, "sa": 6
+        "sonntag": 0,
+        "so": 0,
+        "montag": 1,
+        "mo": 1,
+        "dienstag": 2,
+        "di": 2,
+        "mittwoch": 3,
+        "mi": 3,
+        "donnerstag": 4,
+        "do": 4,
+        "freitag": 5,
+        "fr": 5,
+        "samstag": 6,
+        "sa": 6
       }
     },
-    "pinPrefixes": ["anheften"],
+    "pinPrefixes": [
+      "anheften"
+    ],
     "taskList": {
       "taskCount": "{{count}} Aufgaben",
       "taskCount_one": "{{count}} Aufgabe",
@@ -624,6 +684,20 @@
         "description": "Ein unerwarteter Fehler ist aufgetreten. Bitte lade die Seite neu.",
         "reload": "Seite neu laden"
       }
+    },
+    "a11y": {
+      "listPosition": "Element {{index}} von {{total}}",
+      "moveUp": "Nach oben verschieben",
+      "moveDown": "Nach unten verschieben",
+      "today": "Heute",
+      "hasTasks": "Mit Aufgaben",
+      "addTask": "Aufgabe hinzufügen",
+      "editTask": "Aufgabe bearbeiten",
+      "dragStart": "{{item}} aufgenommen",
+      "dragOver": "{{item}} wird an Position {{position}} verschoben",
+      "dragEnd": "{{item}} an Position {{position}} verschoben",
+      "dragCancel": "Verschieben von {{item}} abgebrochen",
+      "dragInstructions": "Zum Umsortieren mit der Leertaste oder Eingabetaste aufnehmen, mit den Pfeiltasten verschieben und mit derselben Taste wieder ablegen. Mit Escape abbrechen."
     }
   },
   "en": {
@@ -754,18 +828,51 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^today(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^tomorrow(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^day after tomorrow(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^in\\s+(\\d+)\\s+days?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(\\d+)\\s+days?\\s+later(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(mon|tue|wed|thu|fri|sat|sun)(?:day)?(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^today(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^tomorrow(?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^day after tomorrow(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^in\\s+(\\d+)\\s+days?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(\\d+)\\s+days?\\s+later(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(mon|tue|wed|thu|fri|sat|sun)(?:day)?(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6
+        "sun": 0,
+        "mon": 1,
+        "tue": 2,
+        "wed": 3,
+        "thu": 4,
+        "fri": 5,
+        "sat": 6
       }
     },
-    "pinPrefixes": ["pin", "pinned"],
+    "pinPrefixes": [
+      "pin",
+      "pinned"
+    ],
     "taskList": {
       "taskCount": "{{count}} tasks",
       "taskCount_one": "{{count}} task",
@@ -932,6 +1039,20 @@
         "description": "An unexpected error occurred. Please try reloading the page.",
         "reload": "Reload Page"
       }
+    },
+    "a11y": {
+      "listPosition": "item {{index}} of {{total}}",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "today": "Today",
+      "hasTasks": "Has tasks",
+      "addTask": "Add task",
+      "editTask": "Edit task",
+      "dragStart": "Picked up {{item}}",
+      "dragOver": "Moving {{item}} to position {{position}}",
+      "dragEnd": "{{item}} moved to position {{position}}",
+      "dragCancel": "Moving {{item}} was cancelled",
+      "dragInstructions": "To reorder, press Space or Enter to pick up, use the arrow keys to move, and press the same key again to drop. Press Escape to cancel."
     }
   },
   "es": {
@@ -1062,23 +1183,56 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^hoy(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^mañana(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^pasado\\s+mañana(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^(?:en|dentro\\s+de)\\s+(\\d+)\\s+d[ií]as?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^hoy(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^mañana(?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^pasado\\s+mañana(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^(?:en|dentro\\s+de)\\s+(\\d+)\\s+d[ií]as?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "domingo": 0, "dom": 0,
-        "lunes": 1, "lun": 1,
-        "martes": 2, "mar": 2,
-        "miércoles": 3, "miercoles": 3, "mié": 3, "mie": 3,
-        "jueves": 4, "jue": 4,
-        "viernes": 5, "vie": 5,
-        "sábado": 6, "sabado": 6, "sáb": 6, "sab": 6
+        "domingo": 0,
+        "dom": 0,
+        "lunes": 1,
+        "lun": 1,
+        "martes": 2,
+        "mar": 2,
+        "miércoles": 3,
+        "miercoles": 3,
+        "mié": 3,
+        "mie": 3,
+        "jueves": 4,
+        "jue": 4,
+        "viernes": 5,
+        "vie": 5,
+        "sábado": 6,
+        "sabado": 6,
+        "sáb": 6,
+        "sab": 6
       }
     },
-    "pinPrefixes": ["fijar"],
+    "pinPrefixes": [
+      "fijar"
+    ],
     "taskList": {
       "taskCount": "{{count}} tareas",
       "taskCount_one": "{{count}} tarea",
@@ -1245,6 +1399,20 @@
         "description": "Ocurrió un error inesperado. Intenta recargar la página.",
         "reload": "Recargar página"
       }
+    },
+    "a11y": {
+      "listPosition": "elemento {{index}} de {{total}}",
+      "moveUp": "Mover hacia arriba",
+      "moveDown": "Mover hacia abajo",
+      "today": "Hoy",
+      "hasTasks": "Con tareas",
+      "addTask": "Añadir tarea",
+      "editTask": "Editar tarea",
+      "dragStart": "{{item}} levantado",
+      "dragOver": "Moviendo {{item}} a la posición {{position}}",
+      "dragEnd": "{{item}} movido a la posición {{position}}",
+      "dragCancel": "Se canceló el movimiento de {{item}}",
+      "dragInstructions": "Para reordenar, pulsa Espacio o Intro para levantar, usa las teclas de flecha para mover y pulsa la misma tecla de nuevo para soltar. Pulsa Escape para cancelar."
     }
   },
   "fr": {
@@ -1375,23 +1543,53 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^aujourd(?:'|’)hui(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^demain(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^apr[eè]s[- ]demain(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^dans\\s+(\\d+)\\s+jours?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^aujourd(?:'|’)hui(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^demain(?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^apr[eè]s[- ]demain(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^dans\\s+(\\d+)\\s+jours?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "dimanche": 0, "dim": 0,
-        "lundi": 1, "lun": 1,
-        "mardi": 2, "mar": 2,
-        "mercredi": 3, "mer": 3,
-        "jeudi": 4, "jeu": 4,
-        "vendredi": 5, "ven": 5,
-        "samedi": 6, "sam": 6
+        "dimanche": 0,
+        "dim": 0,
+        "lundi": 1,
+        "lun": 1,
+        "mardi": 2,
+        "mar": 2,
+        "mercredi": 3,
+        "mer": 3,
+        "jeudi": 4,
+        "jeu": 4,
+        "vendredi": 5,
+        "ven": 5,
+        "samedi": 6,
+        "sam": 6
       }
     },
-    "pinPrefixes": ["epingler", "épingler"],
+    "pinPrefixes": [
+      "epingler",
+      "épingler"
+    ],
     "taskList": {
       "taskCount": "{{count}} tâches",
       "taskCount_one": "{{count}} tâche",
@@ -1558,6 +1756,20 @@
         "description": "Une erreur inattendue est survenue. Veuillez recharger la page.",
         "reload": "Recharger la page"
       }
+    },
+    "a11y": {
+      "listPosition": "élément {{index}} sur {{total}}",
+      "moveUp": "Déplacer vers le haut",
+      "moveDown": "Déplacer vers le bas",
+      "today": "Aujourd'hui",
+      "hasTasks": "Tâches présentes",
+      "addTask": "Ajouter une tâche",
+      "editTask": "Modifier la tâche",
+      "dragStart": "{{item}} saisi",
+      "dragOver": "Déplacement de {{item}} vers la position {{position}}",
+      "dragEnd": "{{item}} déplacé à la position {{position}}",
+      "dragCancel": "Déplacement de {{item}} annulé",
+      "dragInstructions": "Pour réorganiser, appuyez sur Espace ou Entrée pour saisir, utilisez les flèches pour déplacer, puis appuyez de nouveau sur la même touche pour déposer. Appuyez sur Échap pour annuler."
     }
   },
   "hi": {
@@ -1688,17 +1900,40 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^आज(?:[\\s　]|$)", "offset": 0 },
-        { "pattern": "^कल(?:[\\s　]|$)", "offset": 1 },
-        { "pattern": "^परसों(?:[\\s　]|$)", "offset": 2 },
-        { "pattern": "^(\\d+)\\s*दिन\\s*बाद(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^आज(?:[\\s　]|$)",
+          "offset": 0
+        },
+        {
+          "pattern": "^कल(?:[\\s　]|$)",
+          "offset": 1
+        },
+        {
+          "pattern": "^परसों(?:[\\s　]|$)",
+          "offset": 2
+        },
+        {
+          "pattern": "^(\\d+)\\s*दिन\\s*बाद(?:[\\s　]|$)",
+          "offsetGroup": 1
+        },
+        {
+          "pattern": "^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
-        "रविवार": 0, "सोमवार": 1, "मंगलवार": 2, "बुधवार": 3, "गुरुवार": 4, "शुक्रवार": 5, "शनिवार": 6
+        "रविवार": 0,
+        "सोमवार": 1,
+        "मंगलवार": 2,
+        "बुधवार": 3,
+        "गुरुवार": 4,
+        "शुक्रवार": 5,
+        "शनिवार": 6
       }
     },
-    "pinPrefixes": ["पिन"],
+    "pinPrefixes": [
+      "पिन"
+    ],
     "taskList": {
       "taskCount": "{{count}} टास्क",
       "taskCount_one": "{{count}} टास्क",
@@ -1865,6 +2100,20 @@
         "description": "एक अप्रत्याशित त्रुटि हुई। कृपया पेज रीलोड करें।",
         "reload": "पेज रीलोड करें"
       }
+    },
+    "a11y": {
+      "listPosition": "{{total}} में से {{index}}वाँ आइटम",
+      "moveUp": "ऊपर ले जाएँ",
+      "moveDown": "नीचे ले जाएँ",
+      "today": "आज",
+      "hasTasks": "कार्य हैं",
+      "addTask": "कार्य जोड़ें",
+      "editTask": "कार्य संपादित करें",
+      "dragStart": "{{item}} उठाया गया",
+      "dragOver": "{{item}} को स्थान {{position}} पर ले जाया जा रहा है",
+      "dragEnd": "{{item}} को स्थान {{position}} पर ले जाया गया",
+      "dragCancel": "{{item}} को ले जाना रद्द किया गया",
+      "dragInstructions": "क्रम बदलने के लिए, उठाने हेतु Space या Enter दबाएँ, तीर कुंजियों से ले जाएँ और छोड़ने के लिए वही कुंजी फिर दबाएँ। रद्द करने के लिए Escape दबाएँ।"
     }
   },
   "id": {
@@ -1995,17 +2244,46 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^hari\\s+ini(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^besok(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^lusa(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^dalam\\s+(\\d+)\\s+hari(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^hari\\s+ini(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^besok(?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^lusa(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^dalam\\s+(\\d+)\\s+hari(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "minggu": 0, "senin": 1, "selasa": 2, "rabu": 3, "kamis": 4, "jumat": 5, "jum'at": 5, "sabtu": 6
+        "minggu": 0,
+        "senin": 1,
+        "selasa": 2,
+        "rabu": 3,
+        "kamis": 4,
+        "jumat": 5,
+        "jum'at": 5,
+        "sabtu": 6
       }
     },
-    "pinPrefixes": ["sematkan"],
+    "pinPrefixes": [
+      "sematkan"
+    ],
     "taskList": {
       "taskCount": "{{count}} tugas",
       "taskCount_one": "{{count}} tugas",
@@ -2172,6 +2450,20 @@
         "description": "Terjadi kesalahan tak terduga. Silakan muat ulang halaman.",
         "reload": "Muat ulang halaman"
       }
+    },
+    "a11y": {
+      "listPosition": "item {{index}} dari {{total}}",
+      "moveUp": "Pindahkan ke atas",
+      "moveDown": "Pindahkan ke bawah",
+      "today": "Hari ini",
+      "hasTasks": "Ada tugas",
+      "addTask": "Tambah tugas",
+      "editTask": "Edit tugas",
+      "dragStart": "{{item}} diangkat",
+      "dragOver": "Memindahkan {{item}} ke posisi {{position}}",
+      "dragEnd": "{{item}} dipindahkan ke posisi {{position}}",
+      "dragCancel": "Pemindahan {{item}} dibatalkan",
+      "dragInstructions": "Untuk mengubah urutan, tekan Spasi atau Enter untuk mengangkat, gunakan tombol panah untuk memindahkan, lalu tekan tombol yang sama lagi untuk meletakkan. Tekan Escape untuk membatalkan."
     }
   },
   "ja": {
@@ -2302,15 +2594,40 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^今日(?:[\\s　]|$)", "offset": 0 },
-        { "pattern": "^明日(?:[\\s　]|$)", "offset": 1 },
-        { "pattern": "^明後日(?:[\\s　]|$)", "offset": 2 },
-        { "pattern": "^(\\d+)日後(?:に)?(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^([月火水木金土日])曜?(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^今日(?:[\\s　]|$)",
+          "offset": 0
+        },
+        {
+          "pattern": "^明日(?:[\\s　]|$)",
+          "offset": 1
+        },
+        {
+          "pattern": "^明後日(?:[\\s　]|$)",
+          "offset": 2
+        },
+        {
+          "pattern": "^(\\d+)日後(?:に)?(?:[\\s　]|$)",
+          "offsetGroup": 1
+        },
+        {
+          "pattern": "^([月火水木金土日])曜?(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
-      "weekdays": { "日": 0, "月": 1, "火": 2, "水": 3, "木": 4, "金": 5, "土": 6 }
+      "weekdays": {
+        "日": 0,
+        "月": 1,
+        "火": 2,
+        "水": 3,
+        "木": 4,
+        "金": 5,
+        "土": 6
+      }
     },
-    "pinPrefixes": ["ピン"],
+    "pinPrefixes": [
+      "ピン"
+    ],
     "taskList": {
       "taskCount": "{{count}}個のタスク",
       "taskCount_one": "{{count}}個のタスク",
@@ -2477,6 +2794,20 @@
         "description": "予期しないエラーが発生しました。ページを再読み込みしてください。",
         "reload": "ページを再読み込み"
       }
+    },
+    "a11y": {
+      "listPosition": "{{total}}件中{{index}}件目",
+      "moveUp": "上へ移動",
+      "moveDown": "下へ移動",
+      "today": "今日",
+      "hasTasks": "タスクあり",
+      "addTask": "タスクを追加",
+      "editTask": "タスクを編集",
+      "dragStart": "{{item}}を持ち上げました",
+      "dragOver": "{{item}}を{{position}}番目に移動",
+      "dragEnd": "{{item}}を{{position}}番目に移動しました",
+      "dragCancel": "{{item}}の移動をキャンセルしました",
+      "dragInstructions": "並び替えるには、スペースキーまたはEnterキーで持ち上げ、矢印キーで移動し、もう一度同じキーで確定します。Escキーでキャンセルします。"
     }
   },
   "ko": {
@@ -2607,17 +2938,47 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^오늘(?:[\\s　]|$)", "offset": 0 },
-        { "pattern": "^내일(?:[\\s　]|$)", "offset": 1 },
-        { "pattern": "^모레(?:[\\s　]|$)", "offset": 2 },
-        { "pattern": "^(\\d+)\\s*일\\s*후(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^오늘(?:[\\s　]|$)",
+          "offset": 0
+        },
+        {
+          "pattern": "^내일(?:[\\s　]|$)",
+          "offset": 1
+        },
+        {
+          "pattern": "^모레(?:[\\s　]|$)",
+          "offset": 2
+        },
+        {
+          "pattern": "^(\\d+)\\s*일\\s*후(?:[\\s　]|$)",
+          "offsetGroup": 1
+        },
+        {
+          "pattern": "^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
-        "일요일": 0, "일": 0, "월요일": 1, "월": 1, "화요일": 2, "화": 2, "수요일": 3, "수": 3, "목요일": 4, "목": 4, "금요일": 5, "금": 5, "토요일": 6, "토": 6
+        "일요일": 0,
+        "일": 0,
+        "월요일": 1,
+        "월": 1,
+        "화요일": 2,
+        "화": 2,
+        "수요일": 3,
+        "수": 3,
+        "목요일": 4,
+        "목": 4,
+        "금요일": 5,
+        "금": 5,
+        "토요일": 6,
+        "토": 6
       }
     },
-    "pinPrefixes": ["고정"],
+    "pinPrefixes": [
+      "고정"
+    ],
     "taskList": {
       "taskCount": "작업 {{count}}개",
       "taskCount_one": "작업 {{count}}개",
@@ -2784,6 +3145,20 @@
         "description": "예기치 않은 오류가 발생했습니다. 페이지를 새로고침해 주세요.",
         "reload": "페이지 새로고침"
       }
+    },
+    "a11y": {
+      "listPosition": "{{total}}개 중 {{index}}번째",
+      "moveUp": "위로 이동",
+      "moveDown": "아래로 이동",
+      "today": "오늘",
+      "hasTasks": "작업 있음",
+      "addTask": "작업 추가",
+      "editTask": "작업 편집",
+      "dragStart": "{{item}}을(를) 들어 올렸습니다",
+      "dragOver": "{{item}}을(를) {{position}}번째로 이동 중",
+      "dragEnd": "{{item}}을(를) {{position}}번째로 이동했습니다",
+      "dragCancel": "{{item}} 이동을 취소했습니다",
+      "dragInstructions": "순서를 바꾸려면 스페이스 키 또는 Enter 키로 들어 올리고, 화살표 키로 이동한 뒤 같은 키를 다시 눌러 놓습니다. Esc 키로 취소합니다."
     }
   },
   "pt-BR": {
@@ -2914,23 +3289,61 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^hoje(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^amanh[ãa](?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^depois\\s+de\\s+amanh[ãa](?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^em\\s+(\\d+)\\s+dias?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^hoje(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^amanh[ãa](?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^depois\\s+de\\s+amanh[ãa](?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^em\\s+(\\d+)\\s+dias?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "domingo": 0, "dom": 0,
-        "segunda": 1, "segunda-feira": 1, "seg": 1,
-        "terça": 2, "terca": 2, "terça-feira": 2, "terca-feira": 2, "ter": 2,
-        "quarta": 3, "quarta-feira": 3, "qua": 3,
-        "quinta": 4, "quinta-feira": 4, "qui": 4,
-        "sexta": 5, "sexta-feira": 5, "sex": 5,
-        "sábado": 6, "sabado": 6, "sáb": 6, "sab": 6
+        "domingo": 0,
+        "dom": 0,
+        "segunda": 1,
+        "segunda-feira": 1,
+        "seg": 1,
+        "terça": 2,
+        "terca": 2,
+        "terça-feira": 2,
+        "terca-feira": 2,
+        "ter": 2,
+        "quarta": 3,
+        "quarta-feira": 3,
+        "qua": 3,
+        "quinta": 4,
+        "quinta-feira": 4,
+        "qui": 4,
+        "sexta": 5,
+        "sexta-feira": 5,
+        "sex": 5,
+        "sábado": 6,
+        "sabado": 6,
+        "sáb": 6,
+        "sab": 6
       }
     },
-    "pinPrefixes": ["fixar"],
+    "pinPrefixes": [
+      "fixar"
+    ],
     "taskList": {
       "taskCount": "{{count}} tarefas",
       "taskCount_one": "{{count}} tarefa",
@@ -3097,6 +3510,20 @@
         "description": "Ocorreu um erro inesperado. Tente recarregar a página.",
         "reload": "Recarregar página"
       }
+    },
+    "a11y": {
+      "listPosition": "item {{index}} de {{total}}",
+      "moveUp": "Mover para cima",
+      "moveDown": "Mover para baixo",
+      "today": "Hoje",
+      "hasTasks": "Com tarefas",
+      "addTask": "Adicionar tarefa",
+      "editTask": "Editar tarefa",
+      "dragStart": "{{item}} levantado",
+      "dragOver": "Movendo {{item}} para a posição {{position}}",
+      "dragEnd": "{{item}} movido para a posição {{position}}",
+      "dragCancel": "Movimento de {{item}} cancelado",
+      "dragInstructions": "Para reordenar, pressione Espaço ou Enter para levantar, use as setas para mover e pressione a mesma tecla novamente para soltar. Pressione Esc para cancelar."
     }
   },
   "zh-CN": {
@@ -3227,23 +3654,49 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^今天(?:[\\s　]|$)", "offset": 0 },
-        { "pattern": "^明天(?:[\\s　]|$)", "offset": 1 },
-        { "pattern": "^后天(?:[\\s　]|$)", "offset": 2 },
-        { "pattern": "^(\\d+)\\s*天后(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(星期[一二三四五六日天]|周[一二三四五六日天])(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^今天(?:[\\s　]|$)",
+          "offset": 0
+        },
+        {
+          "pattern": "^明天(?:[\\s　]|$)",
+          "offset": 1
+        },
+        {
+          "pattern": "^后天(?:[\\s　]|$)",
+          "offset": 2
+        },
+        {
+          "pattern": "^(\\d+)\\s*天后(?:[\\s　]|$)",
+          "offsetGroup": 1
+        },
+        {
+          "pattern": "^(星期[一二三四五六日天]|周[一二三四五六日天])(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
-        "星期日": 0, "星期天": 0, "周日": 0, "周天": 0,
-        "星期一": 1, "周一": 1,
-        "星期二": 2, "周二": 2,
-        "星期三": 3, "周三": 3,
-        "星期四": 4, "周四": 4,
-        "星期五": 5, "周五": 5,
-        "星期六": 6, "周六": 6
+        "星期日": 0,
+        "星期天": 0,
+        "周日": 0,
+        "周天": 0,
+        "星期一": 1,
+        "周一": 1,
+        "星期二": 2,
+        "周二": 2,
+        "星期三": 3,
+        "周三": 3,
+        "星期四": 4,
+        "周四": 4,
+        "星期五": 5,
+        "周五": 5,
+        "星期六": 6,
+        "周六": 6
       }
     },
-    "pinPrefixes": ["置顶"],
+    "pinPrefixes": [
+      "置顶"
+    ],
     "taskList": {
       "taskCount": "{{count}} 个任务",
       "taskCount_one": "{{count}} 个任务",
@@ -3410,6 +3863,20 @@
         "description": "发生了意外错误。请尝试重新加载页面。",
         "reload": "重新加载页面"
       }
+    },
+    "a11y": {
+      "listPosition": "第{{index}}项，共{{total}}项",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "today": "今天",
+      "hasTasks": "有任务",
+      "addTask": "添加任务",
+      "editTask": "编辑任务",
+      "dragStart": "已拿起{{item}}",
+      "dragOver": "正在将{{item}}移到第{{position}}位",
+      "dragEnd": "已将{{item}}移到第{{position}}位",
+      "dragCancel": "已取消移动{{item}}",
+      "dragInstructions": "要重新排序，请按空格键或回车键拿起，使用方向键移动，再按同一按键放下。按 Esc 键取消。"
     }
   }
 }

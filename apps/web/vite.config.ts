@@ -1,12 +1,31 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
+import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+
+const pagePathRedirect = (): Plugin => ({
+  name: "page-path-redirect",
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      const match = req.url?.match(
+        /^\/(app|login|sharecodes|password_reset)(\?.*)?$/,
+      );
+      if (match) {
+        res.statusCode = 301;
+        res.setHeader("Location", `/${match[1]}/${match[2] ?? ""}`);
+        res.end();
+        return;
+      }
+      next();
+    });
+  },
+});
 
 export default defineConfig({
   root: resolve(__dirname, "html"),
   base: "/",
   appType: "mpa",
-  plugins: [react()],
+  plugins: [pagePathRedirect(), react()],
   publicDir: resolve(__dirname, "public"),
   resolve: {
     alias: {

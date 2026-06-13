@@ -46,6 +46,9 @@ import {
 } from "react-i18next";
 import type { WithTranslation } from "react-i18next";
 import { getApps, initializeApp } from "firebase/app";
+import type { FirebaseApp } from "firebase/app";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+import type { AppCheck } from "firebase/app-check";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import type { Analytics } from "firebase/analytics";
 import {
@@ -104,11 +107,13 @@ import {
   zhCN as dateFnsZhCN,
 } from "date-fns/locale";
 import {
+  Announcements,
   DndContext,
   DragEndEvent,
   DragStartEvent,
   KeyboardSensor,
   PointerSensor,
+  ScreenReaderInstructions,
   SensorDescriptor,
   SensorOptions,
   UniqueIdentifier,
@@ -125,6 +130,41 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DayButton as DayPickerDayButton, DayPicker } from "react-day-picker";
+
+function buildDndAccessibility(
+  t: TFunction,
+  getName: (id: UniqueIdentifier) => string,
+  getIds: () => string[],
+): {
+  announcements: Announcements;
+  screenReaderInstructions: ScreenReaderInstructions;
+} {
+  const positionOf = (id: UniqueIdentifier): number | null => {
+    const index = getIds().indexOf(String(id));
+    return index >= 0 ? index + 1 : null;
+  };
+  return {
+    screenReaderInstructions: { draggable: t("a11y.dragInstructions") },
+    announcements: {
+      onDragStart: ({ active }) =>
+        t("a11y.dragStart", { item: getName(active.id) }),
+      onDragOver: ({ active, over }) => {
+        if (!over) return undefined;
+        const position = positionOf(over.id);
+        if (position === null) return undefined;
+        return t("a11y.dragOver", { item: getName(active.id), position });
+      },
+      onDragEnd: ({ active, over }) => {
+        if (!over) return undefined;
+        const position = positionOf(over.id);
+        if (position === null) return undefined;
+        return t("a11y.dragEnd", { item: getName(active.id), position });
+      },
+      onDragCancel: ({ active }) =>
+        t("a11y.dragCancel", { item: getName(active.id) }),
+    },
+  };
+}
 
 // common.tsx
 type Theme = "system" | "light" | "dark";
@@ -286,11 +326,13 @@ type WebBootstrapState = {
   auth?: Auth;
   db?: Firestore;
   analytics?: Analytics | null;
+  appCheck?: AppCheck;
   root?: Root;
 };
 
 declare global {
   var __LIGHTLIST_WEB_BOOTSTRAP__: WebBootstrapState | undefined;
+  var FIREBASE_APPCHECK_DEBUG_TOKEN: string | boolean | undefined;
 }
 
 const webBootstrapState =
@@ -300,17 +342,42 @@ const webBootstrapState =
 let cachedAuth: Auth | null = webBootstrapState.auth ?? null;
 let cachedDb: Firestore | null = webBootstrapState.db ?? null;
 
-const getApp = () =>
-  getApps().length === 0
-    ? initializeApp({
-        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-        appId: import.meta.env.VITE_FIREBASE_APP_ID,
-      })
-    : getApps()[0];
+let cachedAppCheck: AppCheck | null = webBootstrapState.appCheck ?? null;
+
+const setupAppCheck = (app: FirebaseApp): void => {
+  if (cachedAppCheck) {
+    return;
+  }
+  const siteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
+  if (!siteKey) {
+    return;
+  }
+  const debugToken = import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN;
+  if (debugToken) {
+    globalThis.FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
+  }
+  cachedAppCheck = initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(siteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+  webBootstrapState.appCheck = cachedAppCheck;
+};
+
+const getApp = (): FirebaseApp => {
+  const app =
+    getApps().length === 0
+      ? initializeApp({
+          apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+          authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+          projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+          storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+          appId: import.meta.env.VITE_FIREBASE_APP_ID,
+        })
+      : getApps()[0];
+  setupAppCheck(app);
+  return app;
+};
 
 const getAuthInstance = (): Auth => {
   if (cachedAuth) {
@@ -4548,6 +4615,8 @@ function TaskItemComponent({
   task,
   isEditing,
   editingText,
+  animateEnter,
+  isExiting,
   onEditingTextChange,
   onEditStart,
   onEditEnd,
@@ -4558,6 +4627,8 @@ function TaskItemComponent({
   task: Task;
   isEditing: boolean;
   editingText: string;
+  animateEnter: boolean;
+  isExiting: boolean;
   onEditingTextChange: (text: string) => void;
   onEditStart: (task: Task) => void;
   onEditEnd: (task: Task, text?: string) => void;
@@ -4583,7 +4654,9 @@ function TaskItemComponent({
     opacity: rowOpacity,
   };
   const [isHandlePointerDown, setIsHandlePointerDown] = useState(false);
+  const animateEnterRef = useRef(animateEnter);
   const actionButtonRef = useRef<HTMLButtonElement | null>(null);
+  const editInputRef = useRef<HTMLInputElement | null>(null);
   const taskTextId = `task-item-text-${task.id}`;
   const selectedDate = parseTaskDateValue(task.date);
   const setDateLabel = t("pages.tasklist.setDate");
@@ -4623,11 +4696,23 @@ function TaskItemComponent({
     [onDragInteractionChange],
   );
 
+  useEffect(() => {
+    if (!isEditing) return;
+    const input = editInputRef.current;
+    if (!input) return;
+    const end = input.value.length;
+    input.setSelectionRange(end, end);
+  }, [isEditing]);
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="ll-task-row ll-u-0059 ll-u-0165 ll-u-0244"
+      className={clsx(
+        "ll-task-row ll-u-0059 ll-u-0165 ll-u-0243",
+        animateEnterRef.current && "ll-anim-task-enter",
+        isExiting && "ll-anim-task-exit",
+      )}
     >
       <button
         {...attributes}
@@ -4654,7 +4739,7 @@ function TaskItemComponent({
           aria-labelledby={taskTextId}
           className="ll-u-0347 ll-u-0006 ll-u-0011 ll-u-0029 ll-u-0080 ll-u-0111 ll-u-0143 ll-u-0322"
         />
-        <div className="ll-u-0059 ll-u-0069 ll-u-0096 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0339 ll-u-0346 ll-u-0348 ll-u-0350 ll-u-0351 ll-u-0460 ll-u-0485 ll-u-0510">
+        <div className="ll-check-circle ll-u-0059 ll-u-0069 ll-u-0096 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0339 ll-u-0346 ll-u-0348 ll-u-0350 ll-u-0351 ll-u-0460 ll-u-0485 ll-u-0510">
           <svg
             className="ll-check-mark ll-u-0067 ll-u-0093 ll-u-0316 ll-u-0322 ll-u-0340 ll-u-0349 ll-u-0504"
             fill="none"
@@ -4681,6 +4766,7 @@ function TaskItemComponent({
         ) : null}
         {isEditing ? (
           <input
+            ref={editInputRef}
             id={taskTextId}
             type="text"
             value={editingText}
@@ -4800,6 +4886,9 @@ function TaskListCard({
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteCompletedPending, setDeleteCompletedPending] = useState(false);
+  const [exitingTaskIds, setExitingTaskIds] =
+    useState<ReadonlySet<string> | null>(null);
+  const knownTaskIdsRef = useRef<ReadonlySet<string> | null>(null);
   const newTaskInputRef = useRef<HTMLInputElement | null>(null);
   const [showEditListDialog, setShowEditListDialog] = useState(false);
   const [editListName, setEditListName] = useState(taskList.name);
@@ -4865,6 +4954,11 @@ function TaskListCard({
     if (isActive) return;
     onDragInteractionChange?.(false);
   }, [isActive, onDragInteractionChange]);
+
+  const knownTaskIds = knownTaskIdsRef.current;
+  useEffect(() => {
+    knownTaskIdsRef.current = new Set(tasks.map((task) => task.id));
+  }, [tasks]);
 
   const applyPendingTasks = useCallback(
     (buildNextTasks: (currentTasks: Task[]) => Task[]) => {
@@ -5356,7 +5450,7 @@ function TaskListCard({
                   {historyOpen && historyOptions.length > 0 ? (
                     <CommandPrimitive.List
                       id={historyListId}
-                      className="ll-u-0006 ll-u-0025 ll-u-0020 ll-u-0019 ll-u-0033 ll-u-0043 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0229 ll-u-0329 ll-u-0460 ll-u-0485"
+                      className="ll-anim-pop ll-u-0006 ll-u-0025 ll-u-0020 ll-u-0019 ll-u-0033 ll-u-0043 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0229 ll-u-0329 ll-u-0460 ll-u-0485"
                     >
                       {historyOptions.map((text) => (
                         <CommandPrimitive.Item
@@ -5472,6 +5566,19 @@ function TaskListCard({
                     return;
                   }
                   setDeleteCompletedPending(true);
+                  if (
+                    !window.matchMedia("(prefers-reduced-motion: reduce)")
+                      .matches
+                  ) {
+                    setExitingTaskIds(
+                      new Set(
+                        tasks
+                          .filter((task) => task.completed)
+                          .map((task) => task.id),
+                      ),
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, 200));
+                  }
                   await runTaskMutation({
                     buildNextTasks: (currentTasks) =>
                       currentTasks.filter((task) => !task.completed),
@@ -5484,7 +5591,10 @@ function TaskListCard({
                         resolveErrorMessage(error, t, "common.error"),
                       );
                     },
-                  }).finally(() => setDeleteCompletedPending(false));
+                  }).finally(() => {
+                    setDeleteCompletedPending(false);
+                    setExitingTaskIds(null);
+                  });
                 }}
                 className="ll-pressable ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0286 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0393 ll-u-0505 ll-u-0528"
               >
@@ -5501,6 +5611,11 @@ function TaskListCard({
             sensors={sensorsList}
             collisionDetection={closestCenter}
             modifiers={[restrictToVerticalAxis]}
+            accessibility={buildDndAccessibility(
+              t,
+              (id) => tasks.find((task) => task.id === id)?.text ?? "",
+              () => tasks.map((task) => task.id),
+            )}
             onDragStart={(event: DragStartEvent) => {
               if (typeof event.active.id === "string") {
                 onSortingChange?.(true);
@@ -5550,6 +5665,10 @@ function TaskListCard({
                     <TaskItem
                       key={task.id}
                       task={task}
+                      animateEnter={
+                        knownTaskIds !== null && !knownTaskIds.has(task.id)
+                      }
+                      isExiting={exitingTaskIds?.has(task.id) ?? false}
                       isEditing={editingTaskId === task.id}
                       editingText={
                         editingTaskId === task.id ? editingTaskText : ""
@@ -6460,6 +6579,12 @@ function TaskListSidebarPanel({
             sensors={sensorsList}
             collisionDetection={closestCenter}
             modifiers={[restrictToVerticalAxis]}
+            accessibility={buildDndAccessibility(
+              t,
+              (id) =>
+                taskLists.find((taskList) => taskList.id === id)?.name ?? "",
+              () => taskLists.map((taskList) => taskList.id),
+            )}
             onDragEnd={handleDragEnd}
           >
             <SortableContext items={taskLists.map((taskList) => taskList.id)}>
@@ -7498,7 +7623,7 @@ function LoginPage() {
                 void i18n.changeLanguage(normalizeLanguage(event.target.value))
               }
               className="ll-u-0190 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0371 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0522"
-              aria-label="Language"
+              aria-label={t("settings.language.title")}
             >
               {SUPPORTED_LANGUAGES.map((language) => (
                 <option key={language} value={language}>

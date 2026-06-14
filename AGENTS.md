@@ -34,7 +34,7 @@
 - Android: `apps/android`（Kotlin + Gradle）
 - SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/entry.tsx` に統合済み。独立パッケージ (`packages/sdk`) は廃止。
 - Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。別途の初期化呼び出しは不要。
-- Firebase App Check は 3 プラットフォームで有効化する。Web は `entry.tsx` の `setupAppCheck()`（reCAPTCHA v3、`VITE_FIREBASE_APPCHECK_SITE_KEY` 未設定なら無効、debug token は `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`）、iOS は `LightlistApp.init()` で `FirebaseApp.configure()` より前に factory を設定（Release: App Attest + entitlement `com.apple.developer.devicecheck.appattest-environment`、DEBUG: debug provider）、Android は `MainActivity.onCreate()` で `FirebaseApp.initializeApp()` 直後に install（variant source set の `AppCheckProviderFactorySelector.kt` で release: Play Integrity / debug: Debug provider を切替）。Console 手順と enforcement の制約は `docs/APP_CHECK.md` を正とする。
+- Firebase App Check は 3 プラットフォームで有効化する。Web は `entry.tsx` の `setupAppCheck()`（reCAPTCHA v3、`VITE_FIREBASE_APPCHECK_SITE_KEY` 未設定なら無効、debug token は `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`）、iOS は `LightlistApp.init()` で `FirebaseApp.configure()` より前に factory を設定（Release: App Attest + entitlement `com.apple.developer.devicecheck.appattest-environment`、DEBUG: debug provider）、Android は `MainActivity.onCreate()` で `FirebaseApp.initializeApp()` 直後に install（variant source set の `AppCheckProviderFactorySelector.kt` で release: Play Integrity / debug: Debug provider を切替）。Console 手順と enforcement の制約は `docs/app-check.md` を正とする。
 - Web UI は `firebase/*` を直接 import しない。Web のアプリ側 runtime TS/TSX 実装は `apps/web/src/entry.tsx` に集約する。LP だけは例外として `apps/web/src/lp.ts` を使う。
 - Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
 - Web の本番静的配信は Cloudflare Pages を正とし、root path 配信を前提に Vite `base` は `/` を維持する。build 出力は `apps/web/dist`、Cloudflare Pages 用 response headers は `apps/web/public/_headers` に置く。
@@ -57,6 +57,8 @@
 - Web / iOS / Android の UI 更新系 Firestore 書き込みでは transaction を使わず、task 本文 blur・task 並び替え・taskList 並び替え・日付変更・ピン切替・完了切替の保存後も、listener が同じ内容へ追いつくまで local pending state を優先表示して旧表示への瞬間的な逆戻りを防ぐ。Web の local pending task 表示も `autoSort` 有効時は `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内 `date -> order` へ正規化して保持する。
 - Web / iOS / Android の task 更新系 Firestore 書き込みは同一 `taskListId` ごとにクライアント内で直列化し、task 追加直後の後続更新が先行保存を追い越さないようにする。Web の optimistic task 追加は Firestore 保存と同じ `taskId` を使う。
 - Web / iOS / Android の task 更新 UI は、各操作ごとに直接 Firestore payload を組み立てず、`現在表示中 task 群 -> 正規化済み next task 群 -> pending 表示 -> queue 経由の差分保存` の順で処理する。pending 解放判定も listener 側 task 群を同じ正規化へ通した結果で比較する。Firestore へは新規 task の full object、削除 task の `tasks.<id>` delete、既存 task の変更 field と変化した `order` だけを書き込む。
+- iOS / Android の task pending（楽観的 overlay）の解放は listener 一致判定だけに依存させない。一致判定は即時解放の fast-path として残しつつ、リスト単位の mutation queue がドレイン（投入済み書き込みが全件コミット完了）した時点でも必ず解放する。一致判定だけだと別端末の並行編集が割り込んで一致が永久に成立せず、pending が解放されないまま View が固着し以降の更新（自端末・他端末とも）を無視する不具合になるため。iOS は `TaskListMutationQueue` の未完了件数が 0 になった `onIdle` で、Android は同 queue の `onIdle` で `pendingDisplay(ed)Tasks` を `nil`/`null` にする。taskList 並び替えの `pendingTaskListOrder` も書き込みコミット完了（iOS は `updateData` completion、Android は `update().await()` 成功後）で解放する。
+- iOS / Android の表示優先順は `dragOrdered* -> pending* -> listener由来`。ドラッグ並び替えの最優先 overlay（`dragOrderedTasks` / `dragOrderedTaskLists`）は `onDragCancel` だけでなく**正常終了（iOS `.onEnded` / Android `onDragEnd`）でも必ず `nil`/`null` に戻す**。戻し忘れると並び替え後に overlay が残り、以降の追加・編集・完了切替・listener 更新をすべて shadow して固着する。永続化（pending を同期設定する `persistTaskOrder` / `commitTaskOrder` 等）を呼んだ**後**に overlay を解放すれば、pending が表示を引き継ぎフリッカしない。並び替えの有無判定は overlay 自身ではなく listener 由来の原順（iOS `getDisplayOrderedTasks(taskList.tasks)` / Android 同関数・`uiState.taskLists`）と比較する。
 - Web / iOS / Android の task 一覧の空状態判定も pending 表示を含む現在表示中 task 群を基準にし、空リストへの 1 件目追加を listener 反映待ちにしない。
 - Web の task mutation は書き込み前の taskList read を `getDocFromCache` 優先（失敗時のみ `getDoc`）で行い、settings は Firestore を再読せず UI の購読済み値を `ResolvedTaskSettings` として引数で渡す。
 - `addTask()` の order は top 挿入で `先頭 task の order - 1`、bottom 挿入で `末尾 task の order + 1` を新規 task に与え、正規化（autoSort 無効時は配列順の連番再採番）後の差分だけを保存する。Web / iOS / Android で同一実装とする。
@@ -84,7 +86,7 @@
 - Android の Firebase 設定は build variant ごとに `google-services.json` を分け、debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json` を使う。release 用ファイルの package 名は `com.lightlist.app` と一致させる。
 - Android の Firebase BoM は v34 以降を前提にし、`firebase-*-ktx` ではなく `firebase-auth` / `firebase-firestore` / `firebase-analytics` / `firebase-crashlytics` の main module を使う。
 - Android の release APK は R8 縮小後も Firebase component registrar の no-arg constructor を保持する必要がある。`apps/android/app/proguard-rules.pro` の `-keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }` を維持し、削除しない。
-- Android の Google Play 提出物は `cd apps/android && just bundle-play` で生成する release AAB（`apps/android/app/build/outputs/bundle/release/app-release.aab`）を正とする。release upload key 署名は `LIGHTLIST_ANDROID_KEYSTORE` / `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` / `LIGHTLIST_ANDROID_KEY_ALIAS` / `LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡し、`versionCode` は Play Console にアップロード済みの値より大きくしてから生成する。
+- Android の Google Play 提出物は `cd apps/android && just bundle-play` で生成する release AAB（`apps/android/app/build/outputs/bundle/release/app-release.aab`）を正とする。release upload key 署名は `LIGHTLIST_ANDROID_KEYSTORE` / `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` / `LIGHTLIST_ANDROID_KEY_ALIAS` / `LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡し、`versionCode` は既定 1 で `LIGHTLIST_VERSION_CODE` を Gradle property または環境変数で渡して上書きでき、Play Console にアップロード済みの値より大きくしてから生成する。
 - Android の認証フォームは Compose Autofill を有効にするため `ContentView.kt` の `OutlinedTextField` に `contentType` を必ず設定し、サインインは既存資格情報、サインアップ/パスワードリセットは新規資格情報として宣言する。
 - Android の未ログイン起動時の認証画面は、保存済み settings が無い場合に端末ロケールをサポート言語へ丸めて初回表示言語として使い、`Translations` は初回描画前にロード済みインスタンスを `CompositionLocal` へ渡して翻訳キーの生表示を避ける。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` に丸め、それ以外の未対応ロケールは `ja` にフォールバックする。
 - iOS の RTL 対応は `ContentView.swift` 内の `LightlistApp` で `.environment(\.layoutDirection, ...)` をルートに設定し、SwiftUI の自動反転に委ねる。再起動不要。
@@ -130,9 +132,9 @@
 - iOS の Firebase Analytics は `FirebaseApp.configure()` で自動有効化し、Crashlytics も `ContentView.swift` 内の `LightlistApp` で初期化する。
 - iOS の Firebase Auth callback と auth state listener から SwiftUI state を更新する処理は MainActor 上で行い、ログイン completion で `error` と `result` がともに空の場合も汎用認証エラーを表示する。
 - iOS の App Store 提出: Release ビルドは `PASSWORD_RESET_URL=https://lightlist.com/password_reset`。`ITSAppUsesNonExemptEncryption: NO` で暗号化輸出規制を申告し、`Lightlist/Resources/PrivacyInfo.xcprivacy` で Privacy Manifest を宣言する（メールアドレス、クラッシュデータ、Product Interaction、UserDefaults API）。
-- iOS の App Store 提出物は `cd apps/ios && LIGHTLIST_IOS_TEAM_ID=<Team ID> just archive` で生成する IPA（`apps/ios/build-archive/export/Lightlist.ipa`）を正とする。署名は automatic signing + `-allowProvisioningUpdates`、export 設定は `apps/ios/ExportOptions.plist`（method `app-store-connect`）。再アップロード時は `project.yml` の `CURRENT_PROJECT_VERSION` を上げる。手順詳細は `docs/IOS_APP_STORE_RELEASE.md`。
+- iOS の App Store 提出物は `cd apps/ios && LIGHTLIST_IOS_TEAM_ID=<Team ID> just archive` で生成する IPA（`apps/ios/build-archive/export/Lightlist.ipa`）を正とする。署名は automatic signing + `-allowProvisioningUpdates`、export 設定は `apps/ios/ExportOptions.plist`（method `app-store-connect`）。再アップロード時は `project.yml` の `CURRENT_PROJECT_VERSION` を上げる。手順詳細は `docs/release-ios.md`。
 - iOS の Info.plist は xcodegen の `info:`（`project.yml`）で `Lightlist/Info.plist` へ生成し、`CFBundleLocalizations` にサポート 11 言語（`zh-CN` は `zh-Hans` 表記）、`CFBundleURLTypes`（`lightlist` scheme）、`UIAppFonts`、`PASSWORD_RESET_URL` を宣言する。`GENERATE_INFOPLIST_FILE: YES` と併用できるが、`INFOPLIST_KEY_*` が効くのは Apple 定義のスカラーキーのみで、配列・辞書・カスタムキー（`CFBundleURLTypes` / `UIAppFonts` / `PASSWORD_RESET_URL` 等）は `INFOPLIST_KEY_` 形式では built product に入らない。必ず `info.properties` 側へ書く。`CFBundleDevelopmentRegion` は生成側の `DEVELOPMENT_LANGUAGE` が勝つため、xcodegen `options.developmentLanguage: ja` で揃える。
-- iOS の bundle identifier と Android の applicationId は `com.lightlist.app` を正とする。
+- iOS の bundle identifier と Android の applicationId は `com.lightlist.app` を正とする。Android の Gradle `namespace` と Kotlin パッケージも `com.lightlist.app` に揃える。
 - iOS の AppIcon は `shared/assets/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。
 - Android の launcher icon は `shared/assets/brand/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
 - UI フォントの正本は `shared/assets/fonts/gen-interface-jp` とし、本文は `Gen Interface JP`、主要見出しは `Gen Interface JP Display` を使う。共有コードなど等幅の意味を持つ表示は monospace を維持する。
@@ -167,7 +169,7 @@
   - `apps/web/html/500.html`（カスタム500ページ, `data-page="500"`）
 - 共通 import:
   - Web アプリ内: `@/*`
-- Web Analytics の実装は `apps/web/src/entry.tsx` に集約。PII をパラメータに含めない。イベント設計は `docs/ANALYTICS.md` を参照。
+- Web Analytics の実装は `apps/web/src/entry.tsx` に集約。PII をパラメータに含めない。イベント設計は `docs/analytics.md` を参照。
 
 ## 主要コマンド
 

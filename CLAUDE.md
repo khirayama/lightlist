@@ -22,7 +22,7 @@
 - Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
 - SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/entry.tsx` に統合済み。独立パッケージは廃止。
 - Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。
-- Firebase App Check は 3 プラットフォームで有効化する（Web: reCAPTCHA v3 / iOS: App Attest / Android: Play Integrity、開発時は各 debug provider）。Web は `VITE_FIREBASE_APPCHECK_SITE_KEY` 未設定なら無効。Console 手順と enforcement 制約は `docs/APP_CHECK.md` を正とする。
+- Firebase App Check は 3 プラットフォームで有効化する（Web: reCAPTCHA v3 / iOS: App Attest / Android: Play Integrity、開発時は各 debug provider）。Web は `VITE_FIREBASE_APPCHECK_SITE_KEY` 未設定なら無効。Console 手順と enforcement 制約は `docs/app-check.md` を正とする。
 - Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
 - Web のアプリ側 HTML entry（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。LP（`apps/web/html/index.html`）はアプリと完全分離し、ja 本文直書きの静的 HTML + `apps/web/src/lp.ts`（vanilla TS。react / firebase / i18next 非依存）で構成する。script path は各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。
 - Web は外部スタイル生成ライブラリを使わず、`apps/web/src/styles/globals.css` の通常 CSS と `apps/web/src/styles/compiled-styles.css` でスタイルを保持する。モーションは `globals.css` の `ll-anim-*` / `ll-pressable` 等の named class で管理し、3 プラットフォームとも OS / ブラウザの reduce motion 設定を尊重する。フォント CSS は bundle に巻き込まず、各 HTML entry の `<link rel="stylesheet" href="/fonts/gen-interface-jp/*.css">` で public asset として読む。新規スタイルは通常 CSS または既存の named class を優先する。
@@ -35,8 +35,8 @@
 - `apps/ios` では `xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` と `apps/ios/Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` を commit しない。
 - iOS の entitlements は `apps/ios/Lightlist/Lightlist.entitlements`、Privacy Manifest は `apps/ios/Lightlist/Resources/PrivacyInfo.xcprivacy` を正とする。
 - iOS の Info.plist は xcodegen の `info:`（`project.yml`）で `Lightlist/Info.plist` へ生成し、`CFBundleLocalizations` / `CFBundleURLTypes` / `UIAppFonts` / `PASSWORD_RESET_URL` は `info.properties` 側に書く。配列・辞書・カスタムキーを `INFOPLIST_KEY_*` で渡しても built product に入らない。development language は `ja`。
-- iOS の App Store 提出物は `cd apps/ios && LIGHTLIST_IOS_TEAM_ID=<Team ID> just archive` で生成する IPA（`apps/ios/build-archive/export/Lightlist.ipa`）を正とする。export 設定は `apps/ios/ExportOptions.plist`、手順は `docs/IOS_APP_STORE_RELEASE.md`。再アップロード時は `project.yml` の `CURRENT_PROJECT_VERSION` を上げる。
-- iOS の bundle identifier と Android の applicationId は `com.lightlist.app` を正とする。
+- iOS の App Store 提出物は `cd apps/ios && LIGHTLIST_IOS_TEAM_ID=<Team ID> just archive` で生成する IPA（`apps/ios/build-archive/export/Lightlist.ipa`）を正とする。export 設定は `apps/ios/ExportOptions.plist`、手順は `docs/release-ios.md`。再アップロード時は `project.yml` の `CURRENT_PROJECT_VERSION` を上げる。
+- iOS の bundle identifier と Android の applicationId は `com.lightlist.app` を正とする。Android の Gradle `namespace` と Kotlin パッケージも `com.lightlist.app` に揃える。
 - iOS の Firebase 設定は `apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist` と `apps/ios/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist` を build configuration ごとに切り替え、app bundle には標準名 `GoogleService-Info.plist` だけを配置する。
 - iOS の Firebase Auth callback と auth state listener から SwiftUI state を更新する処理は MainActor 上で行い、ログイン completion で `error` と `result` がともに空の場合も汎用認証エラーを表示する。
 - Web / iOS / Android のメール/パスワードログインは Firebase Auth 応答待ちを 10 秒で打ち切り、loading state を必ず戻して汎用認証エラーを表示する。
@@ -85,7 +85,7 @@
 - Web の本番 security headers は配信基盤側で管理する。
 - Android の release build は `isMinifyEnabled = true`、`allowBackup = false` を維持する。
 - Android の `just build-release` は debug keystore 署名の内部配布確認用 release APK（`apps/android/app/build/outputs/apk/release/app-release.apk`）を生成する。正式配布用 keystore 署名は別途用意する。
-- Android の Google Play 提出物は `cd apps/android && just bundle-play` で生成する release AAB（`apps/android/app/build/outputs/bundle/release/app-release.aab`）を正とする。release upload key 署名は `LIGHTLIST_ANDROID_KEYSTORE` / `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` / `LIGHTLIST_ANDROID_KEY_ALIAS` / `LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡し、`versionCode` は Play Console にアップロード済みの値より大きくしてから生成する。
+- Android の Google Play 提出物は `cd apps/android && just bundle-play` で生成する release AAB（`apps/android/app/build/outputs/bundle/release/app-release.aab`）を正とする。release upload key 署名は `LIGHTLIST_ANDROID_KEYSTORE` / `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` / `LIGHTLIST_ANDROID_KEY_ALIAS` / `LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡し、`versionCode` は既定 1 で `LIGHTLIST_VERSION_CODE` を Gradle property または環境変数で渡して上書きでき、Play Console にアップロード済みの値より大きくしてから生成する。
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
 - `shared/locales/locales.json` は英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。
 - Web の翻訳資産は `shared/locales/locales.json` を `apps/web/scripts/sync-shared-locales.mjs` で `apps/web/src/locales.json` へ同期して使う。同スクリプトは LP 用 subset（`pages.index.*` + `copyright` + `common.skipToMain` の flat key 辞書）を `apps/web/src/lp-locales.json` へ生成する。
@@ -101,6 +101,8 @@
 - Web / iOS / Android の UI 更新系 Firestore 書き込みでは transaction を使わず、task 本文 blur・task 並び替え・taskList 並び替え・日付変更・ピン切替・完了切替の保存後も、listener が同じ内容へ追いつくまで local pending state を優先表示して旧表示への瞬間的な逆戻りを防ぐ。Web の local pending task 表示も `autoSort` 有効時は `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内 `date -> order` へ正規化して保持する。
 - Web / iOS / Android の task 更新系 Firestore 書き込みは同一 `taskListId` ごとにクライアント内で直列化し、task 追加直後の後続更新が先行保存を追い越さないようにする。Web の optimistic task 追加は Firestore 保存と同じ `taskId` を使う。
 - Web / iOS / Android の task 更新 UI は、`表示中 task 群 -> 正規化済み next task 群 -> pending 表示 -> queue 経由の差分保存` の順で統一し、pending 解放判定も listener 側 task 群を同じ正規化へ通して比較する。Firestore へは新規 task の full object、削除 task の `tasks.<id>` delete、既存 task の変更 field と変化した `order` だけを書き込む。
+- iOS / Android の task pending（楽観的 overlay）は listener 一致判定だけで解放しない。一致判定は即時解放の fast-path として残し、さらにリスト単位 mutation queue のドレイン（投入済み書き込みの全件コミット完了 = `onIdle`）でも必ず解放する。別端末の並行編集で一致が永久に成立せず View が固着するのを防ぐため。`pendingTaskListOrder` も並び替え書き込みのコミット完了で解放する。
+- iOS / Android の表示優先順は `ドラッグ overlay -> pending -> listener`。ドラッグ並び替えの overlay（`dragOrderedTasks` / `dragOrderedTaskLists`）は `onDragCancel` だけでなく正常終了（`.onEnded` / `onDragEnd`）でも必ず `nil`/`null` に戻す。戻し忘れると並び替え後に追加・編集・完了切替・listener 更新が overlay に隠れて固着する。並び替え有無は overlay ではなく listener 由来の原順と比較して判定する。
 - Web / iOS / Android の task 一覧の空状態判定も pending 表示を含む現在表示中 task 群を基準にし、空リストへの 1 件目追加を listener 反映待ちにしない。
 - Web の task mutation は taskList read をキャッシュ優先（`getDocFromCache` → 失敗時 `getDoc`）で行い、settings は UI の購読済み値を `ResolvedTaskSettings` として引数で渡す。`addTask()` の order は top で `先頭 - 1`、bottom で `末尾 + 1` を 3 プラットフォーム共通とする。
 - Web の taskLists chunk listener の失敗は部分劣化とし、全画面エラーは settings / taskListOrder 失敗か taskLists が 1 件も読めない場合だけにする。`index` / `404` / `500` / `password_reset` ページでは Firebase Auth を購読しない。

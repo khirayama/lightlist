@@ -67,5 +67,5 @@ just deploy-firestore-prod   # production
 
 ## ドキュメント
 
-- [`docs/`](./docs/) - 設計ドキュメント
+- [`docs/README.md`](./docs/README.md) - ドメイン仕様・必須設定・制約
 - [`AGENTS.md`](./AGENTS.md) - 開発ガイドライン

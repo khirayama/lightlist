@@ -4,7 +4,7 @@
 
 ### bundle identifier
 
-- App Store に出す bundle identifier は `com.lightlist.app` を正とする。
+- bundle identifier は `com.lightlist.app` を正とする。
 - 一度 App Store Connect でアプリに紐づけた bundle identifier は実質変更不可。変更したい場合は別アプリとして新規作成する前提になる。
 - Firebase iOS app、App Store Connect、Universal Links / custom scheme の設定は `com.lightlist.app` に揃える。
 
@@ -15,9 +15,9 @@
 
 ### 暗号化輸出規制 / プライバシー
 
-- `ITSAppUsesNonExemptEncryption: NO` を Info.plist で申告済み（標準 HTTPS のみ）。提出ごとの輸出コンプライアンス質問は不要になる。
+- `ITSAppUsesNonExemptEncryption: NO` を Info.plist で申告済み（標準 HTTPS のみ）。提出ごとの輸出コンプライアンス質問は不要。
 - Privacy Manifest は `Lightlist/Resources/PrivacyInfo.xcprivacy` を正とする（メールアドレス、クラッシュデータ、Product Interaction、UserDefaults API、トラッキングなし）。
-- App Store Connect の「App のプライバシー」回答は PrivacyInfo.xcprivacy と整合させる。
+- App Store Connect の「App のプライバシー」回答は `PrivacyInfo.xcprivacy` と整合させる。
 
 ## あなたがやること
 
@@ -30,8 +30,8 @@
 
 ### 2. 署名
 
-- 署名は automatic signing（`CODE_SIGN_STYLE=Automatic` + `-allowProvisioningUpdates`）を使う。
-- archive を実行する Mac に App Store Connect へアクセスできる Apple ID を Xcode へログインしておく。
+- automatic signing（`CODE_SIGN_STYLE=Automatic` + `-allowProvisioningUpdates`）を使う。
+- archive を実行する Mac に、App Store Connect へアクセスできる Apple ID を Xcode へログインしておく。
 
 ### 3. Firebase 設定
 
@@ -42,7 +42,7 @@
 
 - associated domains は `applinks:lightlist.com`（`Lightlist/Lightlist.entitlements`）。
 - Universal Links を有効にするには `https://lightlist.com/.well-known/apple-app-site-association` を配置する（Content-Type: `application/json`、リダイレクトなし）。
-- AASA の `appIDs` は `<TEAM_ID>.com.lightlist.app` とし、paths は `/sharecodes/*` と `/password_reset` を対象にする。
+- AASA の `appIDs` は `<TEAM_ID>.com.lightlist.app`、paths は `/sharecodes/*` と `/password_reset` を対象にする。
 - `lightlist://password-reset?oobCode=...` と `lightlist://sharecodes/CODE` の custom scheme も確認する。
 - AASA 未配置でも審査はブロックされない（https リンクは Web へフォールバックする）。
 
@@ -56,7 +56,7 @@ LIGHTLIST_IOS_TEAM_ID=XXXXXXXXXX just archive
 ```
 
 - 出力 IPA は `apps/ios/build-archive/export/Lightlist.ipa`。
-- アップロードは Xcode Organizer、Transporter app、または `xcrun altool` / `xcrun notarytool` 相当の `xcodebuild -exportArchive` 後に Transporter で行う。
+- アップロードは Xcode Organizer、Transporter app、または `xcodebuild -exportArchive` 後に Transporter で行う。
 - export 設定は `apps/ios/ExportOptions.plist`（method `app-store-connect`、automatic signing、dSYM upload あり）。
 
 ### 6. Store listing
@@ -69,7 +69,7 @@ LIGHTLIST_IOS_TEAM_ID=XXXXXXXXXX just archive
 
 ### 7. App Review 対応
 
-- アプリ内アカウント作成があるため、App Review には動作確認用のデモアカウント（メール + パスワード）を提供する。
+- アプリ内アカウント作成があるため、App Review に動作確認用のデモアカウント（メール + パスワード）を提供する。
 - アカウント削除導線はアプリ内 Settings に実装済み（App Store 必須要件）。
 - 共有コードの未認証閲覧・編集は仕様であることを Review Notes に記載すると審査がスムーズ。
 

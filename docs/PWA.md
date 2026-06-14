@@ -1,11 +1,12 @@
 # PWA
 
-## 実装範囲
+Web は manifest と service worker を持つ最小構成の PWA。
 
-- Web は manifest と service worker を持つ最小構成の PWA。
+## 構成ファイル
+
 - manifest は `apps/web/public/manifest.webmanifest`。
 - service worker は `apps/web/public/sw.js`。
-- `public/` 配下のファイルは `/manifest.webmanifest` や `/sw.js` のようにルートパスで参照する。
+- `public/` 配下のファイルは `/manifest.webmanifest` や `/sw.js` のようにルートパスで参照する。相対パス参照を前提にしない。
 
 ## manifest
 
@@ -17,14 +18,8 @@
 - `display`: `standalone`
 - `background_color`: `#ffffff`
 - `theme_color`: `#ffffff`
-- screenshots
-  - wide: `/screenshots/store/wide/*.png`（`1920x1080`）
-  - narrow: `/screenshots/store/narrow/*.png`（`750x1334`）
-  - 各画像は `manifest.webmanifest` の `screenshots` member で参照する。
-- icons
-  - `/icons/icon-192.png`
-  - `/icons/icon-512.png`
-  - `/icons/maskable-512.png`
+- screenshots: wide `/screenshots/store/wide/*.png`（`1920x1080`）、narrow `/screenshots/store/narrow/*.png`（`750x1334`）。各画像は `screenshots` member で参照する。
+- icons: `/icons/icon-192.png` / `/icons/icon-512.png` / `/icons/maskable-512.png`
 
 ## service worker
 
@@ -38,17 +33,8 @@
 - 登録成功後に `registration.update()` を呼ぶ。
 - 登録失敗時は握りつぶす。
 
-## やらないこと
+## 範囲外
 
 - オフラインキャッシュ戦略は持たない。
 - 更新通知 UI は持たない。
-
-## すること
-
-- manifest と service worker は最小構成のまま維持する。
-- `AppWrapper` からの登録条件は HTTPS または localhost 系に限定する。
-
-## しないこと
-
-- キャッシュ戦略やオフライン対応を、現行実装にないまま docs へ書き足さない。
-- `public/` 配下のファイルを相対パス参照する前提にしない。
+- 現行実装にないキャッシュ戦略やオフライン対応を docs へ書き足さない。

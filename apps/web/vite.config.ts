@@ -50,6 +50,12 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (
+            id.includes("node_modules/firebase/analytics") ||
+            id.includes("node_modules/@firebase/analytics")
+          ) {
+            return "firebase-analytics";
+          }
+          if (
             id.includes("node_modules/firebase/") ||
             id.includes("node_modules/@firebase/")
           ) {

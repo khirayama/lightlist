@@ -11,6 +11,7 @@ import {
   useReducer,
   useState,
   useMemo,
+  useDeferredValue,
   Children,
   memo,
   useLayoutEffect,
@@ -49,7 +50,6 @@ import { getApps, initializeApp } from "firebase/app";
 import type { FirebaseApp } from "firebase/app";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import type { AppCheck } from "firebase/app-check";
-import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import type { Analytics } from "firebase/analytics";
 import {
   ActionCodeSettings,
@@ -93,19 +93,6 @@ import type {
 import { Drawer as DrawerPrimitive } from "vaul";
 import { Command as CommandPrimitive } from "cmdk";
 import type { Locale } from "date-fns";
-import {
-  ar as dateFnsAr,
-  de as dateFnsDe,
-  enUS,
-  es as dateFnsEs,
-  fr as dateFnsFr,
-  hi as dateFnsHi,
-  id as dateFnsId,
-  ja as dateFnsJa,
-  ko as dateFnsKo,
-  ptBR as dateFnsPtBR,
-  zhCN as dateFnsZhCN,
-} from "date-fns/locale";
 import {
   Announcements,
   DndContext,
@@ -417,9 +404,17 @@ const getDbInstance = (): Firestore => {
 };
 
 let cached: Analytics | null | undefined = webBootstrapState.analytics;
+type FirebaseAnalyticsModule = typeof import("firebase/analytics");
+let analyticsModulePromise: Promise<FirebaseAnalyticsModule> | null = null;
+
+const getAnalyticsModule = () => {
+  analyticsModulePromise ??= import("firebase/analytics");
+  return analyticsModulePromise;
+};
 
 const getAnalyticsInstance = async (): Promise<Analytics | null> => {
   if (cached !== undefined) return cached;
+  const { getAnalytics, isSupported } = await getAnalyticsModule();
   const supported = await isSupported();
   if (!supported) {
     cached = null;
@@ -443,6 +438,7 @@ const log = async (eventName: string, params?: Record<string, unknown>) => {
   }
   const analytics = await getAnalyticsInstance();
   if (!analytics) return;
+  const { logEvent } = await getAnalyticsModule();
   logEvent(analytics, eventName, params);
 };
 
@@ -1495,6 +1491,10 @@ function AppStateProvider({ children }: { children: ReactNode }) {
           (error: FirestoreError) => {
             liveSnapshotIndexes.add(index);
             console.error("taskList chunk listener error:", error);
+            logException(
+              `taskList chunk listener error: ${error.code}`,
+              false,
+            );
             dispatchTaskLists({
               type: "setTaskListDocsStatus",
               taskListDocsStatus: "error",
@@ -1532,6 +1532,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         },
         (error: FirestoreError) => {
           console.error("shared taskList listener error:", error);
+          logException(`shared taskList listener error: ${error.code}`, false);
           dispatchTaskLists({
             type: "setSharedTaskList",
             taskListId,
@@ -1704,7 +1705,26 @@ const withAuthLanguage = async <T,>(
   }
 };
 
-// INITIAL_TASK_LIST_NAME_BY_LANGUAGE removed
+type RelativeDatePatternConfig = {
+  pattern: string;
+  options?: string;
+  offset?: number;
+  offsetGroup?: number;
+  weekdayGroup?: number;
+};
+
+type TranslationBundle = {
+  app?: { initialTaskListName?: string };
+  datePatterns?: {
+    relative?: RelativeDatePatternConfig[];
+    weekdays?: Record<string, number | undefined>;
+  };
+  pinPrefixes?: string[];
+};
+
+const getTranslationBundle = (language: Language): TranslationBundle =>
+  (i18next.getResourceBundle(language, "translation") ??
+    {}) as TranslationBundle;
 
 const requireCurrentUser = (): FirebaseAuthUser => {
   const user = getAuthInstance().currentUser;
@@ -1733,10 +1753,10 @@ const createInitialTaskListStore = (
   language: Language,
   now: number,
 ): TaskListStore => {
-  const bundle = i18next.getResourceBundle(language, "translation") as any;
+  const bundle = getTranslationBundle(language);
   return {
     id: taskListId,
-    name: bundle?.app?.initialTaskListName ?? "📒PERSONAL",
+    name: bundle.app?.initialTaskListName ?? "📒PERSONAL",
     tasks: {},
     history: [],
     shareCode: null,
@@ -1989,11 +2009,11 @@ const NUMERIC_PATTERNS: DatePattern[] = [
 ];
 
 const getRelativePatterns = (language: Language): DatePattern[] => {
-  const bundle = i18next.getResourceBundle(language, "translation") as any;
-  const patterns = bundle?.datePatterns?.relative ?? [];
-  const weekdays = bundle?.datePatterns?.weekdays ?? {};
+  const bundle = getTranslationBundle(language);
+  const patterns = bundle.datePatterns?.relative ?? [];
+  const weekdays = bundle.datePatterns?.weekdays ?? {};
 
-  return patterns.map((p: any) => ({
+  return patterns.map((p) => ({
     regex: new RegExp(p.pattern, p.options || ""),
     getOffset: (match: RegExpMatchArray) => {
       if (p.offset !== undefined) return p.offset;
@@ -2004,16 +2024,15 @@ const getRelativePatterns = (language: Language): DatePattern[] => {
         if (target === undefined) {
           const lowerTarget = match[p.weekdayGroup].toLowerCase();
           const lowerWeekdays = Object.fromEntries(
-            Object.entries(weekdays).map(([k, v]) => [k.toLowerCase(), v]),
+            Object.entries(weekdays).map(
+              ([k, v]): [string, number | undefined] => [k.toLowerCase(), v],
+            ),
           );
           const finalTarget = lowerWeekdays[lowerTarget];
           if (finalTarget === undefined) return null;
-          return getNextWeekdayOffset(
-            finalTarget as number,
-            new Date().getDay(),
-          );
+          return getNextWeekdayOffset(finalTarget, new Date().getDay());
         }
-        return getNextWeekdayOffset(target as number, new Date().getDay());
+        return getNextWeekdayOffset(target, new Date().getDay());
       }
       return null;
     },
@@ -2026,9 +2045,9 @@ const escapeRegex = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 const getPinPrefixRegex = (language: Language): RegExp => {
-  const bundle = i18next.getResourceBundle(language, "translation") as any;
+  const bundle = getTranslationBundle(language);
   const tokens = Array.from(
-    new Set([...GLOBAL_PIN_PREFIXES, ...(bundle?.pinPrefixes ?? [])]),
+    new Set([...GLOBAL_PIN_PREFIXES, ...(bundle.pinPrefixes ?? [])]),
   ).sort((left, right) => right.length - left.length);
   return new RegExp(
     String.raw`^(?:${tokens.map(escapeRegex).join("|")})(?=\s|$)`,
@@ -4525,19 +4544,56 @@ const useOptimisticReorder = <T extends { id: string }>(
   return { items, reorder };
 };
 
-const DATE_FNS_LOCALE_BY_LANGUAGE: Record<string, Locale> = {
-  ja: dateFnsJa,
-  en: enUS,
-  es: dateFnsEs,
-  de: dateFnsDe,
-  fr: dateFnsFr,
-  ko: dateFnsKo,
-  "zh-CN": dateFnsZhCN,
-  hi: dateFnsHi,
-  ar: dateFnsAr,
-  "pt-BR": dateFnsPtBR,
-  id: dateFnsId,
+type DateFnsLocaleLoader = () => Promise<Locale>;
+const DATE_FNS_LOCALE_LOADERS: Record<Language, DateFnsLocaleLoader> = {
+  ja: () => import("date-fns/locale/ja").then((module) => module.ja),
+  en: () => import("date-fns/locale/en-US").then((module) => module.enUS),
+  es: () => import("date-fns/locale/es").then((module) => module.es),
+  de: () => import("date-fns/locale/de").then((module) => module.de),
+  fr: () => import("date-fns/locale/fr").then((module) => module.fr),
+  ko: () => import("date-fns/locale/ko").then((module) => module.ko),
+  "zh-CN": () =>
+    import("date-fns/locale/zh-CN").then((module) => module.zhCN),
+  hi: () => import("date-fns/locale/hi").then((module) => module.hi),
+  ar: () => import("date-fns/locale/ar").then((module) => module.ar),
+  "pt-BR": () =>
+    import("date-fns/locale/pt-BR").then((module) => module.ptBR),
+  id: () => import("date-fns/locale/id").then((module) => module.id),
 };
+const dateFnsLocaleCache = new Map<Language, Locale>();
+
+function useDateFnsLocale(language: Language): Locale | undefined {
+  const [locale, setLocale] = useState<Locale | undefined>(() =>
+    dateFnsLocaleCache.get(language),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const cachedLocale = dateFnsLocaleCache.get(language);
+    if (cachedLocale) {
+      setLocale(cachedLocale);
+      return;
+    }
+
+    setLocale(undefined);
+    DATE_FNS_LOCALE_LOADERS[language]()
+      .then((loadedLocale) => {
+        dateFnsLocaleCache.set(language, loadedLocale);
+        if (!cancelled) {
+          setLocale(loadedLocale);
+        }
+      })
+      .catch((error) => {
+        logException(`date-fns locale load failed: ${String(error)}`, false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [language]);
+
+  return locale;
+}
 
 function Calendar({
   className,
@@ -4548,7 +4604,8 @@ function Calendar({
 }: ComponentProps<typeof DayPicker>) {
   const { i18n } = useTranslation();
   const language = normalizeLanguage(i18n.language);
-  const resolvedLocale = locale ?? DATE_FNS_LOCALE_BY_LANGUAGE[language];
+  const loadedLocale = useDateFnsLocale(language);
+  const resolvedLocale = locale ?? loadedLocale;
 
   return (
     <DayPicker
@@ -4611,6 +4668,20 @@ const formatTaskDateValue = (value: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+const taskDateFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+const getTaskDateFormatter = (language: string): Intl.DateTimeFormat => {
+  const cachedFormatter = taskDateFormatterCache.get(language);
+  if (cachedFormatter) return cachedFormatter;
+  const formatter = new Intl.DateTimeFormat(language, {
+    month: "short",
+    day: "numeric",
+    weekday: "short",
+  });
+  taskDateFormatterCache.set(language, formatter);
+  return formatter;
+};
+
 function TaskItemComponent({
   task,
   isEditing,
@@ -4661,11 +4732,7 @@ function TaskItemComponent({
   const selectedDate = parseTaskDateValue(task.date);
   const setDateLabel = t("pages.tasklist.setDate");
   const dateDisplayValue = selectedDate
-    ? new Intl.DateTimeFormat(i18n.language, {
-        month: "short",
-        day: "numeric",
-        weekday: "short",
-      }).format(selectedDate)
+    ? getTaskDateFormatter(i18n.language).format(selectedDate)
     : null;
   const dateTitle = dateDisplayValue
     ? `${setDateLabel}: ${dateDisplayValue}`
@@ -4833,6 +4900,300 @@ function TaskItemComponent({
 
 const TaskItem = memo(TaskItemComponent);
 
+const TASK_CARD_INPUT_CLASS =
+  "ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0317 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524";
+const TASK_CARD_PRIMARY_BUTTON_CLASS =
+  "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0287 ll-u-0312 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501 ll-u-0529";
+const TASK_CARD_SECONDARY_BUTTON_CLASS =
+  "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0075 ll-u-0102 ll-u-0191 ll-u-0200 ll-u-0287 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0505 ll-u-0529";
+const TASK_CARD_DESTRUCTIVE_BUTTON_CLASS =
+  "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0216 ll-u-0240 ll-u-0244 ll-u-0287 ll-u-0318 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0392 ll-u-0477 ll-u-0528";
+const TASK_CARD_ICON_BUTTON_CLASS = clsx(
+  TASK_CARD_SECONDARY_BUTTON_CLASS,
+  "ll-pressable ll-u-0238",
+);
+
+function EditTaskListDialog({
+  taskList,
+  isActive,
+  onActivate,
+  onDeleted,
+}: {
+  taskList: TaskList;
+  isActive: boolean;
+  onActivate?: (taskListId: string) => void;
+  onDeleted?: () => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(taskList.name);
+  const [background, setBackground] = useState<string | null>(
+    taskList.background,
+  );
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <Dialog
+      open={isActive && open}
+      onOpenChange={(nextOpen: boolean) => {
+        onActivate?.(taskList.id);
+        setOpen(nextOpen);
+        if (nextOpen) {
+          setName(taskList.name);
+          setBackground(taskList.background);
+          setError(null);
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          onClick={() => onActivate?.(taskList.id)}
+          className={TASK_CARD_ICON_BUTTON_CLASS}
+          aria-label={t("taskList.editDetails")}
+          title={t("taskList.editDetails")}
+        >
+          <AppIcon name="edit" aria-hidden="true" focusable="false" />
+          <span className="ll-u-0005">{t("taskList.editDetails")}</span>
+        </button>
+      </DialogTrigger>
+      <DialogContent
+        title={t("taskList.editDetails")}
+        description={t("app.taskListName")}
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!name.trim()) return;
+            void updateTaskList(taskList.id, {
+              ...(name.trim() !== taskList.name ? { name: name.trim() } : {}),
+              ...(background !== taskList.background ? { background } : {}),
+            })
+              .then(() => setOpen(false))
+              .catch((updateError) =>
+                setError(resolveErrorMessage(updateError, t, "common.error")),
+              );
+          }}
+        >
+          <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
+            {error ? <Alert variant="error">{error}</Alert> : null}
+            <label className="ll-u-0059 ll-u-0152 ll-u-0163">
+              <span>{t("app.taskListName")}</span>
+              <input
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder={t("app.taskListNamePlaceholder")}
+                className={TASK_CARD_INPUT_CLASS}
+              />
+            </label>
+            <div className="ll-u-0059 ll-u-0152 ll-u-0165">
+              <span>{t("taskList.selectColor")}</span>
+              <ColorPicker
+                colors={COLORS}
+                selectedColor={background ?? null}
+                onSelect={setBackground}
+                ariaLabelPrefix={t("taskList.selectColor")}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!window.confirm(t("taskList.deleteListConfirm.message"))) {
+                  return;
+                }
+                setDeleting(true);
+                setError(null);
+                void deleteTaskList(taskList.id)
+                  .then(() => {
+                    setOpen(false);
+                    onDeleted?.();
+                  })
+                  .catch((deleteError) =>
+                    setError(
+                      resolveErrorMessage(deleteError, t, "common.error"),
+                    ),
+                  )
+                  .finally(() => setDeleting(false));
+              }}
+              disabled={deleting}
+              className={clsx(
+                TASK_CARD_DESTRUCTIVE_BUTTON_CLASS,
+                "ll-u-0048 ll-u-0111",
+              )}
+            >
+              {deleting ? t("common.deleting") : t("taskList.deleteList")}
+            </button>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <button
+                type="button"
+                className={TASK_CARD_SECONDARY_BUTTON_CLASS}
+              >
+                {t("common.cancel")}
+              </button>
+            </DialogClose>
+            <button
+              type="submit"
+              disabled={!name.trim()}
+              className={TASK_CARD_PRIMARY_BUTTON_CLASS}
+            >
+              {t("taskList.editDetails")}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ShareTaskListDialog({
+  taskList,
+  isActive,
+  onActivate,
+}: {
+  taskList: TaskList;
+  isActive: boolean;
+  onActivate?: (taskListId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [shareCode, setShareCode] = useState<string | null>(
+    taskList.shareCode ?? null,
+  );
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setShareCode(taskList.shareCode ?? null);
+  }, [taskList.shareCode, open]);
+
+  return (
+    <Dialog
+      open={isActive && open}
+      onOpenChange={(nextOpen: boolean) => {
+        onActivate?.(taskList.id);
+        setOpen(nextOpen);
+        if (nextOpen) {
+          setShareCode(taskList.shareCode ?? null);
+          setCopySuccess(false);
+          setError(null);
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          onClick={() => onActivate?.(taskList.id)}
+          className={TASK_CARD_ICON_BUTTON_CLASS}
+          aria-label={t("taskList.share")}
+          title={t("taskList.share")}
+        >
+          <AppIcon name="share" aria-hidden="true" focusable="false" />
+          <span className="ll-u-0005">{t("taskList.share")}</span>
+        </button>
+      </DialogTrigger>
+      <DialogContent
+        title={t("taskList.shareTitle")}
+        description={t("taskList.shareDescription")}
+      >
+        {error ? <Alert variant="error">{error}</Alert> : null}
+        {shareCode ? (
+          <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
+            <label className="ll-u-0059 ll-u-0152 ll-u-0164">
+              <span>{t("taskList.shareCode")}</span>
+              <div className="ll-u-0059 ll-u-0155 ll-u-0165">
+                <input
+                  type="text"
+                  value={shareCode}
+                  readOnly
+                  className={clsx(TASK_CARD_INPUT_CLASS, "ll-u-0268")}
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(
+                        `${window.location.origin}/sharecodes/?code=${shareCode}`,
+                      );
+                      setCopySuccess(true);
+                      setTimeout(() => setCopySuccess(false), 2000);
+                    } catch {
+                      setError(t("common.error"));
+                    }
+                  }}
+                  className={TASK_CARD_SECONDARY_BUTTON_CLASS}
+                >
+                  {copySuccess ? t("common.copied") : t("common.copy")}
+                </button>
+              </div>
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setRemoving(true);
+                setError(null);
+                void removeShareCode(taskList.id)
+                  .then(() => {
+                    setShareCode(null);
+                    logShareCodeRemove();
+                  })
+                  .catch((removeError) =>
+                    setError(
+                      resolveErrorMessage(removeError, t, "common.error"),
+                    ),
+                  )
+                  .finally(() => setRemoving(false));
+              }}
+              disabled={removing}
+              className={TASK_CARD_DESTRUCTIVE_BUTTON_CLASS}
+            >
+              {removing ? t("common.deleting") : t("taskList.removeShare")}
+            </button>
+          </div>
+        ) : (
+          <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
+            <button
+              type="button"
+              onClick={() => {
+                setGenerating(true);
+                setError(null);
+                void generateShareCode(taskList.id)
+                  .then((code) => {
+                    setShareCode(code);
+                    logShareCodeGenerate();
+                  })
+                  .catch((generateError) =>
+                    setError(
+                      resolveErrorMessage(generateError, t, "common.error"),
+                    ),
+                  )
+                  .finally(() => setGenerating(false));
+              }}
+              disabled={generating}
+              className={TASK_CARD_PRIMARY_BUTTON_CLASS}
+            >
+              {generating ? t("common.loading") : t("taskList.generateShare")}
+            </button>
+          </div>
+        )}
+        <DialogFooter>
+          <DialogClose asChild>
+            <button type="button" className={TASK_CARD_SECONDARY_BUTTON_CLASS}>
+              {t("common.close")}
+            </button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function TaskListCard({
   taskList,
   autoSort,
@@ -4882,6 +5243,7 @@ function TaskListCard({
   const editingTaskIdRef = useRef<string | null>(null);
   editingTaskIdRef.current = editingTaskId;
   const [newTaskText, setNewTaskText] = useState("");
+  const deferredNewTaskText = useDeferredValue(newTaskText);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -4890,28 +5252,8 @@ function TaskListCard({
     useState<ReadonlySet<string> | null>(null);
   const knownTaskIdsRef = useRef<ReadonlySet<string> | null>(null);
   const newTaskInputRef = useRef<HTMLInputElement | null>(null);
-  const [showEditListDialog, setShowEditListDialog] = useState(false);
-  const [editListName, setEditListName] = useState(taskList.name);
-  const [editListBackground, setEditListBackground] = useState<string | null>(
-    taskList.background,
-  );
-  const [deletingList, setDeletingList] = useState(false);
-  const [showShareDialog, setShowShareDialog] = useState(false);
-  const [shareCode, setShareCode] = useState<string | null>(
-    taskList.shareCode ?? null,
-  );
-  const [generatingShareCode, setGeneratingShareCode] = useState(false);
-  const [removingShareCode, setRemovingShareCode] = useState(false);
-  const [shareCopySuccess, setShareCopySuccess] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [shareError, setShareError] = useState<string | null>(null);
   const taskActionTriggerRef = useRef<HTMLButtonElement | null>(null);
   const previousTaskActionTaskIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!showShareDialog) return;
-    setShareCode(taskList.shareCode ?? null);
-  }, [taskList.shareCode, showShareDialog]);
 
   const normalizePendingTasks = useCallback(
     (nextTasks: Task[]): Task[] => {
@@ -4992,8 +5334,8 @@ function TaskListCard({
     [applyPendingTasks],
   );
 
-  const historyOptions = (() => {
-    const input = newTaskText.trim();
+  const historyOptions = useMemo(() => {
+    const input = deferredNewTaskText.trim();
     if (
       !taskList.history ||
       taskList.history.length === 0 ||
@@ -5017,30 +5359,29 @@ function TaskListCard({
       if (options.length >= 20) break;
     }
     return options;
-  })();
+  }, [deferredNewTaskText, taskList.history]);
 
   useEffect(() => {
     if (historyOptions.length === 0) setHistoryOpen(false);
   }, [historyOptions.length]);
 
-  const completedTaskCount = tasks.reduce(
-    (count, task) => count + (task.completed ? 1 : 0),
-    0,
+  const completedTaskCount = useMemo(
+    () => tasks.reduce((count, task) => count + (task.completed ? 1 : 0), 0),
+    [tasks],
   );
   const historyListId = `task-history-${reactId.replace(/:/g, "")}`;
-  const inputClass =
-    "ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0317 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524";
-  const primaryButtonClass =
-    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0287 ll-u-0312 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501 ll-u-0529";
-  const secondaryButtonClass =
-    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0075 ll-u-0102 ll-u-0191 ll-u-0200 ll-u-0287 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0505 ll-u-0529";
-  const destructiveButtonClass =
-    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0216 ll-u-0240 ll-u-0244 ll-u-0287 ll-u-0318 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0392 ll-u-0477 ll-u-0528";
-  const iconButtonClass = clsx(secondaryButtonClass, "ll-pressable ll-u-0238");
-  const activeTaskActionTask =
-    activeTaskActionTaskId === null || activeTaskActionTaskId === undefined
-      ? null
-      : (tasks.find((task) => task.id === activeTaskActionTaskId) ?? null);
+  const inputClass = TASK_CARD_INPUT_CLASS;
+  const primaryButtonClass = TASK_CARD_PRIMARY_BUTTON_CLASS;
+  const secondaryButtonClass = TASK_CARD_SECONDARY_BUTTON_CLASS;
+  const destructiveButtonClass = TASK_CARD_DESTRUCTIVE_BUTTON_CLASS;
+  const iconButtonClass = TASK_CARD_ICON_BUTTON_CLASS;
+  const activeTaskActionTask = useMemo(
+    () =>
+      activeTaskActionTaskId === null || activeTaskActionTaskId === undefined
+        ? null
+        : (tasks.find((task) => task.id === activeTaskActionTaskId) ?? null),
+    [activeTaskActionTaskId, tasks],
+  );
   useEffect(() => {
     const previousTaskActionTaskId = previousTaskActionTaskIdRef.current;
     previousTaskActionTaskIdRef.current = activeTaskActionTaskId ?? null;
@@ -5078,287 +5419,17 @@ function TaskListCard({
                   </h2>
                 </div>
                 <div className="ll-u-0008 ll-u-0027 ll-u-0059 ll-u-0155 ll-u-0160">
-                  <Dialog
-                    open={isActive && showEditListDialog}
-                    onOpenChange={(open: boolean) => {
-                      onActivate?.(taskList.id);
-                      setShowEditListDialog(open);
-                      if (open) {
-                        setEditListName(taskList.name);
-                        setEditListBackground(taskList.background);
-                        setEditError(null);
-                      }
-                    }}
-                  >
-                    <DialogTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => onActivate?.(taskList.id)}
-                        className={iconButtonClass}
-                        aria-label={t("taskList.editDetails")}
-                        title={t("taskList.editDetails")}
-                      >
-                        <AppIcon
-                          name="edit"
-                          aria-hidden="true"
-                          focusable="false"
-                        />
-                        <span className="ll-u-0005">
-                          {t("taskList.editDetails")}
-                        </span>
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent
-                      title={t("taskList.editDetails")}
-                      description={t("app.taskListName")}
-                    >
-                      <form
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          if (!editListName.trim()) return;
-                          void updateTaskList(taskList.id, {
-                            ...(editListName.trim() !== taskList.name
-                              ? { name: editListName.trim() }
-                              : {}),
-                            ...(editListBackground !== taskList.background
-                              ? { background: editListBackground }
-                              : {}),
-                          })
-                            .then(() => setShowEditListDialog(false))
-                            .catch((error) =>
-                              setEditError(
-                                resolveErrorMessage(error, t, "common.error"),
-                              ),
-                            );
-                        }}
-                      >
-                        <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
-                          {editError ? (
-                            <Alert variant="error">{editError}</Alert>
-                          ) : null}
-                          <label className="ll-u-0059 ll-u-0152 ll-u-0163">
-                            <span>{t("app.taskListName")}</span>
-                            <input
-                              type="text"
-                              value={editListName}
-                              onChange={(event) =>
-                                setEditListName(event.target.value)
-                              }
-                              placeholder={t("app.taskListNamePlaceholder")}
-                              className={inputClass}
-                            />
-                          </label>
-                          <div className="ll-u-0059 ll-u-0152 ll-u-0165">
-                            <span>{t("taskList.selectColor")}</span>
-                            <ColorPicker
-                              colors={COLORS}
-                              selectedColor={editListBackground ?? null}
-                              onSelect={setEditListBackground}
-                              ariaLabelPrefix={t("taskList.selectColor")}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (
-                                !window.confirm(
-                                  t("taskList.deleteListConfirm.message"),
-                                )
-                              ) {
-                                return;
-                              }
-                              setDeletingList(true);
-                              setEditError(null);
-                              void deleteTaskList(taskList.id)
-                                .then(() => {
-                                  setShowEditListDialog(false);
-                                  onDeleted?.();
-                                })
-                                .catch((error) =>
-                                  setEditError(
-                                    resolveErrorMessage(
-                                      error,
-                                      t,
-                                      "common.error",
-                                    ),
-                                  ),
-                                )
-                                .finally(() => setDeletingList(false));
-                            }}
-                            disabled={deletingList}
-                            className={clsx(
-                              destructiveButtonClass,
-                              "ll-u-0048 ll-u-0111",
-                            )}
-                          >
-                            {deletingList
-                              ? t("common.deleting")
-                              : t("taskList.deleteList")}
-                          </button>
-                        </div>
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <button
-                              type="button"
-                              className={secondaryButtonClass}
-                            >
-                              {t("common.cancel")}
-                            </button>
-                          </DialogClose>
-                          <button
-                            type="submit"
-                            disabled={!editListName.trim()}
-                            className={primaryButtonClass}
-                          >
-                            {t("taskList.editDetails")}
-                          </button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                  <Dialog
-                    open={isActive && showShareDialog}
-                    onOpenChange={(open: boolean) => {
-                      onActivate?.(taskList.id);
-                      setShowShareDialog(open);
-                      if (open) {
-                        setShareCode(taskList.shareCode ?? null);
-                        setShareCopySuccess(false);
-                        setShareError(null);
-                      }
-                    }}
-                  >
-                    <DialogTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => onActivate?.(taskList.id)}
-                        className={iconButtonClass}
-                        aria-label={t("taskList.share")}
-                        title={t("taskList.share")}
-                      >
-                        <AppIcon
-                          name="share"
-                          aria-hidden="true"
-                          focusable="false"
-                        />
-                        <span className="ll-u-0005">{t("taskList.share")}</span>
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent
-                      title={t("taskList.shareTitle")}
-                      description={t("taskList.shareDescription")}
-                    >
-                      {shareError ? (
-                        <Alert variant="error">{shareError}</Alert>
-                      ) : null}
-                      {shareCode ? (
-                        <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
-                          <label className="ll-u-0059 ll-u-0152 ll-u-0164">
-                            <span>{t("taskList.shareCode")}</span>
-                            <div className="ll-u-0059 ll-u-0155 ll-u-0165">
-                              <input
-                                type="text"
-                                value={shareCode}
-                                readOnly
-                                className={clsx(inputClass, "ll-u-0268")}
-                              />
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    await navigator.clipboard.writeText(
-                                      `${window.location.origin}/sharecodes/?code=${shareCode}`,
-                                    );
-                                    setShareCopySuccess(true);
-                                    setTimeout(
-                                      () => setShareCopySuccess(false),
-                                      2000,
-                                    );
-                                  } catch {
-                                    setShareError(t("common.error"));
-                                  }
-                                }}
-                                className={secondaryButtonClass}
-                              >
-                                {shareCopySuccess
-                                  ? t("common.copied")
-                                  : t("common.copy")}
-                              </button>
-                            </div>
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRemovingShareCode(true);
-                              setShareError(null);
-                              void removeShareCode(taskList.id)
-                                .then(() => {
-                                  setShareCode(null);
-                                  logShareCodeRemove();
-                                })
-                                .catch((error) =>
-                                  setShareError(
-                                    resolveErrorMessage(
-                                      error,
-                                      t,
-                                      "common.error",
-                                    ),
-                                  ),
-                                )
-                                .finally(() => setRemovingShareCode(false));
-                            }}
-                            disabled={removingShareCode}
-                            className={destructiveButtonClass}
-                          >
-                            {removingShareCode
-                              ? t("common.deleting")
-                              : t("taskList.removeShare")}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setGeneratingShareCode(true);
-                              setShareError(null);
-                              void generateShareCode(taskList.id)
-                                .then((code) => {
-                                  setShareCode(code);
-                                  logShareCodeGenerate();
-                                })
-                                .catch((error) =>
-                                  setShareError(
-                                    resolveErrorMessage(
-                                      error,
-                                      t,
-                                      "common.error",
-                                    ),
-                                  ),
-                                )
-                                .finally(() => setGeneratingShareCode(false));
-                            }}
-                            disabled={generatingShareCode}
-                            className={primaryButtonClass}
-                          >
-                            {generatingShareCode
-                              ? t("common.loading")
-                              : t("taskList.generateShare")}
-                          </button>
-                        </div>
-                      )}
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <button
-                            type="button"
-                            className={secondaryButtonClass}
-                          >
-                            {t("common.close")}
-                          </button>
-                        </DialogClose>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <EditTaskListDialog
+                    taskList={taskList}
+                    isActive={isActive}
+                    onActivate={onActivate}
+                    onDeleted={onDeleted}
+                  />
+                  <ShareTaskListDialog
+                    taskList={taskList}
+                    isActive={isActive}
+                    onActivate={onActivate}
+                  />
                 </div>
               </div>
               {taskError ? <Alert variant="error">{taskError}</Alert> : null}
@@ -5788,17 +5859,12 @@ function TaskListCard({
                 ? t("pages.tasklist.unpinTask")
                 : t("pages.tasklist.pinTask"),
               activeTaskActionTask.date
-                ? `${t("pages.tasklist.setDate")}: ${new Intl.DateTimeFormat(
+                ? `${t("pages.tasklist.setDate")}: ${getTaskDateFormatter(
                     i18n.language,
-                    {
-                      month: "short",
-                      day: "numeric",
-                      weekday: "short",
-                    },
                   ).format(
                     parseTaskDateValue(activeTaskActionTask.date) ?? new Date(),
                   )}`
-                : t("pages.tasklist.clearDate"),
+                : t("pages.tasklist.setDate"),
             ].join(" / ")}
           >
             <div className="ll-u-0059 ll-u-0082 ll-u-0129 ll-u-0152 ll-u-0168 ll-u-0252">
@@ -5858,7 +5924,9 @@ function TaskListCard({
               </button>
               <button
                 type="button"
+                disabled={!activeTaskActionTask.date}
                 onClick={() => {
+                  if (!activeTaskActionTask.date) return;
                   void runTaskMutation({
                     buildNextTasks: (currentTasks) =>
                       currentTasks.map((task) =>

@@ -1,4 +1,4 @@
-package com.example.lightlist
+package com.lightlist.app
 
 import android.content.Context
 import android.content.Intent
@@ -88,6 +88,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentType
@@ -212,12 +214,22 @@ import com.google.android.gms.oss.licenses.v2.OssLicensesMenuActivity
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
 import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import java.text.DateFormatSymbols
 
 import org.json.JSONObject
 
 private const val COMPLETED_TASK_ALPHA = 0.64f
+private val TaskListBackgroundOptions = listOf<String?>(
+    null,
+    "#F87171",
+    "#FBBF24",
+    "#34D399",
+    "#38BDF8",
+    "#818CF8",
+    "#A78BFA"
+)
 private val shareCodeRandom = SecureRandom()
 
 private fun nowMillis(): Long = System.currentTimeMillis()
@@ -374,6 +386,18 @@ private fun LightlistTheme(
         typography = LightlistTypography,
         content = content,
     )
+}
+
+@Composable
+private fun rememberReduceMotion(): Boolean {
+    val context = LocalContext.current
+    return remember {
+        android.provider.Settings.Global.getFloat(
+            context.contentResolver,
+            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f
+        ) == 0f
+    }
 }
 
 class Translations {
@@ -565,6 +589,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         FirebaseApp.initializeApp(this)
+        FirebaseAppCheck.getInstance().installAppCheckProviderFactory(appCheckProviderFactory())
 
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
@@ -646,12 +671,20 @@ private class TaskListMutationQueue(
     private val scope: CoroutineScope
 ) {
     private var tail: Job? = null
+    private var pendingCount = 0
 
-    fun enqueue(block: suspend () -> Unit) {
+    fun enqueue(onIdle: () -> Unit = {}, block: suspend () -> Unit) {
+        pendingCount += 1
         val previous = tail
         tail = scope.launch {
             previous?.join()
             block()
+            withContext(Dispatchers.Main) {
+                pendingCount -= 1
+                if (pendingCount == 0) {
+                    onIdle()
+                }
+            }
         }
     }
 }
@@ -734,8 +767,8 @@ private object TaskListDetailMetrics {
     val actionControlIconSpacing = 6.dp
     val sectionBottomSpacing = 14.dp
     val actionsBottomSpacing = 24.dp
-    val taskRowSpacing = 4.dp
-    val taskRowVerticalPadding = 6.dp
+    val taskRowSpacing = 3.dp
+    val taskRowVerticalPadding = 4.dp
     val taskContentHeight = 48.dp
     val taskTextTopPadding = 13.dp
     val taskDateTopInset = (-3).dp
@@ -1734,7 +1767,8 @@ private fun formatDateForLocale(
 private data class ParsedTaskInput(
     val text: String,
     val date: String?,
-    val pinnedFromInput: Boolean
+    val pinned: Boolean,
+    val pinnedChanged: Boolean
 )
 
 data class TaskDatePattern(
@@ -1884,16 +1918,19 @@ private fun resolveTaskInput(text: String, t: Translations, currentTask: TaskSum
         }
     }
     return if (currentTask != null) {
+        val pinned = if (pinnedFromInput) true else currentTask.pinned
         ParsedTaskInput(
             text = if (remaining.isEmpty()) currentTask.text else remaining,
             date = parsedDate ?: currentTask.date,
-            pinnedFromInput = pinnedFromInput
+            pinned = pinned,
+            pinnedChanged = pinned != currentTask.pinned
         )
     } else {
         ParsedTaskInput(
             text = remaining,
             date = parsedDate ?: "",
-            pinnedFromInput = pinnedFromInput
+            pinned = pinnedFromInput,
+            pinnedChanged = pinnedFromInput
         )
     }
 }
@@ -2903,14 +2940,8 @@ private fun TaskListsScreen(
     onOpenCalendar: (() -> Unit)? = null
 ) {
     val t = LocalTranslations.current
-    val context = LocalContext.current
-    val reduceMotion = remember {
-        android.provider.Settings.Global.getFloat(
-            context.contentResolver,
-            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
-            1f
-        ) == 0f
-    }
+    val haptic = LocalHapticFeedback.current
+    val reduceMotion = rememberReduceMotion()
     val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListSummary)
     val userEmail = Firebase.auth.currentUser?.email ?: ""
 
@@ -2973,6 +3004,7 @@ private fun TaskListsScreen(
                 ordered[currentIdx] = ordered[currentIdx + 1].also { ordered[currentIdx + 1] = ordered[currentIdx] }
                 dragOrderedTaskLists = ordered.toList()
                 taskListDragOffset -= (nextHeight + taskListSpacingPx)
+                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                 return
             }
         }
@@ -2985,6 +3017,7 @@ private fun TaskListsScreen(
                 ordered[currentIdx] = ordered[currentIdx - 1].also { ordered[currentIdx - 1] = ordered[currentIdx] }
                 dragOrderedTaskLists = ordered.toList()
                 taskListDragOffset += (prevHeight + taskListSpacingPx)
+                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
             }
         }
     }
@@ -2999,6 +3032,7 @@ private fun TaskListsScreen(
         scope.launch {
             try {
                 Firebase.firestore.collection("taskListOrder").document(uid).update(updates).await()
+                pendingTaskListOrder = null
             } catch (e: Exception) {
                 logException(firestoreErrorDescription("task list order update", e), fatal = false)
                 pendingTaskListOrder = null
@@ -3121,7 +3155,11 @@ private fun TaskListsScreen(
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(displayTaskLists, key = { it.id }) { taskList ->
+                    items(
+                        items = displayTaskLists,
+                        key = { it.id },
+                        contentType = { "taskList" }
+                    ) { taskList ->
                         val isDragged = draggingTaskListId == taskList.id
                         val isSelected = selectedTaskListId == taskList.id
                         Row(
@@ -3153,6 +3191,7 @@ private fun TaskListsScreen(
                                     .pointerInput(taskList.id) {
                                         detectDragGestures(
                                             onDragStart = { _ ->
+                                                haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                                                 draggingTaskListId = taskList.id
                                                 dragOrderedTaskLists = uiState.taskLists
                                                 taskListItemHeights = lazyListState.layoutInfo.visibleItemsInfo
@@ -3166,6 +3205,7 @@ private fun TaskListsScreen(
                                                 if (ordered != null && ordered.map { it.id } != uiState.taskLists.map { it.id }) {
                                                     commitTaskListOrder(ordered.map { it.id })
                                                 }
+                                                dragOrderedTaskLists = null
                                                 draggingTaskListId = null
                                                 taskListDragOffset = 0f
                                             },
@@ -3300,7 +3340,6 @@ private fun TaskListsScreen(
     }
 
     if (showCreateDialog) {
-        val colorOptions = listOf(null, "#F87171", "#FBBF24", "#34D399", "#38BDF8", "#818CF8", "#A78BFA")
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
             title = { Text(t.t("app.createTaskList")) },
@@ -3316,7 +3355,7 @@ private fun TaskListsScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(t.t("taskList.selectColor"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            colorOptions.forEach { color ->
+                            TaskListBackgroundOptions.forEach { color ->
                                 val isSelected = createBackground == color
                                 Box(
                                     modifier = Modifier
@@ -3770,6 +3809,7 @@ private fun TaskListIndicator(
 
 @Composable
 private fun TaskListRow(
+    modifier: Modifier = Modifier,
     task: TaskSummary,
     index: Int,
     isEditing: Boolean,
@@ -3827,7 +3867,7 @@ private fun TaskListRow(
     }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(
                 top = if (index == 0) 0.dp else TaskListDetailMetrics.taskRowSpacing,
@@ -4045,6 +4085,92 @@ private fun TaskListRow(
     }
 }
 
+private fun taskDisplayGroup(task: TaskSummary): Int {
+    return if (task.completed) 2 else if (task.pinned) 0 else 1
+}
+
+private fun getDisplayOrderedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
+    return tasks.sortedWith(compareBy<TaskSummary> { taskDisplayGroup(it) }.thenBy { it.order })
+}
+
+private fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
+    return tasks
+        .sortedWith(
+            compareBy<TaskSummary> { taskDisplayGroup(it) }
+                .thenBy { if (it.date.isBlank()) "9999-12-31" else it.date }
+                .thenBy { it.order }
+        )
+        .mapIndexed { index, task ->
+            task.copy(order = (index + 1).toDouble())
+        }
+}
+
+private fun renumberTasks(tasks: List<TaskSummary>): List<TaskSummary> {
+    return tasks.mapIndexed { index, task ->
+        task.copy(order = (index + 1).toDouble())
+    }
+}
+
+private fun normalizeTasks(tasks: List<TaskSummary>, autoSort: Boolean): List<TaskSummary> {
+    return if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks)
+}
+
+private fun reconcileTasks(tasks: List<TaskSummary>, autoSort: Boolean): List<TaskSummary> {
+    return getDisplayOrderedTasks(normalizeTasks(tasks, autoSort))
+}
+
+private fun buildTaskUpdateData(
+    previousTasks: List<TaskSummary>,
+    tasks: List<TaskSummary>,
+    deletedTaskIds: List<String> = emptyList()
+): Map<String, Any> {
+    val updates = mutableMapOf<String, Any>("updatedAt" to nowMillis())
+    val previousById = previousTasks.associateBy { it.id }
+    deletedTaskIds.forEach { taskId ->
+        updates["tasks.$taskId"] = FieldValue.delete()
+    }
+    tasks.forEach { task ->
+        val previous = previousById[task.id]
+        if (previous == null) {
+            updates["tasks.${task.id}.id"] = task.id
+            updates["tasks.${task.id}.text"] = task.text
+            updates["tasks.${task.id}.completed"] = task.completed
+            updates["tasks.${task.id}.date"] = task.date
+            updates["tasks.${task.id}.order"] = task.order
+            updates["tasks.${task.id}.pinned"] = task.pinned
+        } else {
+            if (previous.text != task.text) updates["tasks.${task.id}.text"] = task.text
+            if (previous.completed != task.completed) updates["tasks.${task.id}.completed"] = task.completed
+            if (previous.date != task.date) updates["tasks.${task.id}.date"] = task.date
+            if (previous.order != task.order) updates["tasks.${task.id}.order"] = task.order
+            if (previous.pinned != task.pinned) updates["tasks.${task.id}.pinned"] = task.pinned
+        }
+    }
+    return updates
+}
+
+private fun buildHistory(
+    newText: String,
+    history: List<String>,
+    oldText: String? = null
+): List<String> {
+    val candidate = newText.trim()
+    if (candidate.isEmpty()) return history
+    val trimmedOldText = oldText?.trim()
+    val result = mutableListOf<String>()
+    val seen = mutableSetOf<String>()
+    for (entry in listOf(candidate) + history) {
+        val trimmed = entry.trim()
+        if (trimmed.isEmpty()) continue
+        if (trimmedOldText != null && trimmed == trimmedOldText) continue
+        val normalized = trimmed.lowercase()
+        if (!seen.add(normalized)) continue
+        result.add(trimmed)
+        if (result.size >= 300) break
+    }
+    return result
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TaskListDetailContent(
@@ -4054,14 +4180,8 @@ private fun TaskListDetailContent(
     topInset: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val t = LocalTranslations.current
-    val context = LocalContext.current
-    val reduceMotion = remember {
-        android.provider.Settings.Global.getFloat(
-            context.contentResolver,
-            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
-            1f
-        ) == 0f
-    }
+    val haptic = LocalHapticFeedback.current
+    val reduceMotion = rememberReduceMotion()
     val scope = rememberCoroutineScope()
     val db = Firebase.firestore
     var newTaskText by remember { mutableStateOf("") }
@@ -4090,14 +4210,6 @@ private fun TaskListDetailContent(
     var shareCopySuccess by remember { mutableStateOf(false) }
     var shareError by remember { mutableStateOf<String?>(null) }
     val newTaskFocusRequester = remember { FocusRequester() }
-
-    fun taskDisplayGroup(task: TaskSummary): Int {
-        return if (task.completed) 2 else if (task.pinned) 0 else 1
-    }
-
-    fun getDisplayOrderedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
-        return tasks.sortedWith(compareBy<TaskSummary> { taskDisplayGroup(it) }.thenBy { it.order })
-    }
 
     val displayTasks = remember(taskList.tasks, dragOrderedTasks, pendingDisplayedTasks) {
         dragOrderedTasks ?: pendingDisplayedTasks ?: getDisplayOrderedTasks(taskList.tasks)
@@ -4170,87 +4282,13 @@ private fun TaskListDetailContent(
         removeListError = null
     }
 
-    fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
-        return tasks
-            .sortedWith(
-                compareBy<TaskSummary> { taskDisplayGroup(it) }
-                    .thenBy { if (it.date.isBlank()) "9999-12-31" else it.date }
-                    .thenBy { it.order }
-            )
-            .mapIndexed { index, task ->
-                task.copy(order = (index + 1).toDouble())
-            }
-    }
-
-    fun renumberTasks(tasks: List<TaskSummary>): List<TaskSummary> {
-        return tasks.mapIndexed { index, task ->
-            task.copy(order = (index + 1).toDouble())
-        }
-    }
-
-    fun buildTaskUpdateData(
-        previousTasks: List<TaskSummary>,
-        tasks: List<TaskSummary>,
-        deletedTaskIds: List<String> = emptyList()
-    ): Map<String, Any> {
-        val updates = mutableMapOf<String, Any>("updatedAt" to nowMillis())
-        val previousById = previousTasks.associateBy { it.id }
-        deletedTaskIds.forEach { taskId ->
-            updates["tasks.$taskId"] = FieldValue.delete()
-        }
-        tasks.forEach { task ->
-            val previous = previousById[task.id]
-            if (previous == null) {
-                updates["tasks.${task.id}.id"] = task.id
-                updates["tasks.${task.id}.text"] = task.text
-                updates["tasks.${task.id}.completed"] = task.completed
-                updates["tasks.${task.id}.date"] = task.date
-                updates["tasks.${task.id}.order"] = task.order
-                updates["tasks.${task.id}.pinned"] = task.pinned
-            } else {
-                if (previous.text != task.text) updates["tasks.${task.id}.text"] = task.text
-                if (previous.completed != task.completed) updates["tasks.${task.id}.completed"] = task.completed
-                if (previous.date != task.date) updates["tasks.${task.id}.date"] = task.date
-                if (previous.order != task.order) updates["tasks.${task.id}.order"] = task.order
-                if (previous.pinned != task.pinned) updates["tasks.${task.id}.pinned"] = task.pinned
-            }
-        }
-        return updates
-    }
-
-    fun buildHistory(newText: String, oldText: String? = null): List<String> {
-        val candidate = newText.trim()
-        if (candidate.isEmpty()) return taskList.history
-        val trimmedOldText = oldText?.trim()
-        val result = mutableListOf<String>()
-        val seen = mutableSetOf<String>()
-        for (entry in listOf(candidate) + taskList.history) {
-            val trimmed = entry.trim()
-            if (trimmed.isEmpty()) continue
-            if (trimmedOldText != null && trimmed == trimmedOldText) continue
-            val normalized = trimmed.lowercase()
-            if (!seen.add(normalized)) continue
-            result.add(trimmed)
-            if (result.size >= 300) break
-        }
-        return result
-    }
-
-    fun normalizeTasks(tasks: List<TaskSummary>): List<TaskSummary> {
-        return if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks)
-    }
-
-    fun reconcileTasks(tasks: List<TaskSummary>): List<TaskSummary> {
-        return getDisplayOrderedTasks(normalizeTasks(tasks))
-    }
-
     fun setPendingTasks(tasks: List<TaskSummary>) {
         pendingDisplayedTasks = tasks
     }
 
     LaunchedEffect(taskList.tasks, pendingDisplayedTasks) {
         val pending = pendingDisplayedTasks ?: return@LaunchedEffect
-        if (pending == reconcileTasks(taskList.tasks)) {
+        if (pending == reconcileTasks(taskList.tasks, autoSort)) {
             pendingDisplayedTasks = null
         }
     }
@@ -4258,7 +4296,7 @@ private fun TaskListDetailContent(
     fun persistTaskListUpdate(updates: Map<String, Any>) {
         val taskListDebugId = shortDebugId(taskList.id)
         logDebugSync("task update enqueue taskList=$taskListDebugId fields=${updates.keys.sorted().joinToString(",")}")
-        mutationQueue.enqueue {
+        mutationQueue.enqueue(onIdle = { pendingDisplayedTasks = null }) {
             try {
                 logDebugSync("task update start taskList=$taskListDebugId fields=${updates.size}")
                 db.collection("taskLists").document(taskList.id).update(updates).await()
@@ -4278,7 +4316,7 @@ private fun TaskListDetailContent(
         deletedTaskIds: List<String> = emptyList(),
         previousTasks: List<TaskSummary> = displayTasks
     ) {
-        val normalizedTasks = normalizeTasks(tasks)
+        val normalizedTasks = normalizeTasks(tasks, autoSort)
         setPendingTasks(normalizedTasks)
         persistTaskListUpdate(
             buildTaskUpdateData(
@@ -4294,7 +4332,7 @@ private fun TaskListDetailContent(
         persist: (List<TaskSummary>, List<TaskSummary>) -> Unit
     ) {
         val previousTasks = displayTasks
-        val nextTasks = reconcileTasks(buildNextTasks(previousTasks))
+        val nextTasks = reconcileTasks(buildNextTasks(previousTasks), autoSort)
         setPendingTasks(nextTasks)
         persist(previousTasks, nextTasks)
     }
@@ -4335,6 +4373,7 @@ private fun TaskListDetailContent(
                 ordered[currentIdx] = ordered[currentIdx + 1].also { ordered[currentIdx + 1] = ordered[currentIdx] }
                 dragOrderedTasks = ordered.toList()
                 taskDragOffset -= (nextHeight + taskSpacingPx)
+                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                 return
             }
         }
@@ -4347,6 +4386,7 @@ private fun TaskListDetailContent(
                 ordered[currentIdx] = ordered[currentIdx - 1].also { ordered[currentIdx - 1] = ordered[currentIdx] }
                 dragOrderedTasks = ordered.toList()
                 taskDragOffset += (prevHeight + taskSpacingPx)
+                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
             }
         }
     }
@@ -4372,6 +4412,9 @@ private fun TaskListDetailContent(
 
     fun toggleCompletion(task: TaskSummary) {
         logTaskUpdate(fields = "completed")
+        haptic.performHapticFeedback(
+            if (task.completed) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn
+        )
         performTaskMutation(
             buildNextTasks = { currentTasks ->
                 currentTasks.map { current ->
@@ -4389,7 +4432,7 @@ private fun TaskListDetailContent(
         val resolved = resolveTaskInput(text, t, task)
         val textChanged = resolved.text != task.text
         val dateChanged = (resolved.date ?: task.date) != task.date
-        val pinnedChanged = resolved.pinnedFromInput && !task.pinned
+        val pinnedChanged = resolved.pinnedChanged
         editingTaskId = null
         if (!(trimmed.isEmpty() && !dateChanged) && (textChanged || dateChanged || pinnedChanged)) {
             val changedFields = listOfNotNull(
@@ -4411,14 +4454,14 @@ private fun TaskListDetailContent(
                     }
                 },
                 persist = { previousTasks, nextTasks ->
-                    val normalizedTasks = normalizeTasks(nextTasks)
+                    val normalizedTasks = normalizeTasks(nextTasks, autoSort)
                     setPendingTasks(normalizedTasks)
                     val updates = buildTaskUpdateData(
                         previousTasks = previousTasks,
                         tasks = normalizedTasks
                     ).toMutableMap<String, Any>()
                     if (textChanged) {
-                        updates["history"] = buildHistory(resolved.text, task.text)
+                        updates["history"] = buildHistory(resolved.text, taskList.history, task.text)
                     }
                     persistTaskListUpdate(updates)
                 }
@@ -4468,6 +4511,9 @@ private fun TaskListDetailContent(
 
     fun togglePinned(task: TaskSummary) {
         logTaskUpdate(fields = "pinned")
+        haptic.performHapticFeedback(
+            if (task.pinned) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn
+        )
         performTaskMutation(
             buildNextTasks = { currentTasks ->
                 val currentTask = currentTasks.firstOrNull { it.id == task.id } ?: task
@@ -4500,6 +4546,7 @@ private fun TaskListDetailContent(
     fun deleteCompletedTasks() {
         val completed = displayTasks.filter { it.completed }
         logTaskDeleteCompleted(count = completed.size)
+        haptic.performHapticFeedback(HapticFeedbackType.Reject)
         val remaining = displayTasks.filter { !it.completed }
         persistNormalizedTasks(remaining, completed.map { it.id }, previousTasks = displayTasks)
     }
@@ -4538,7 +4585,7 @@ private fun TaskListDetailContent(
                         taskListSnapshot.getString("shareCode")
                             ?.takeIf { it.isNotBlank() }
                             ?.let { shareCode ->
-                                delete(db.collection("shareCodes").document(shareCode))
+                                delete(db.collection("shareCodes").document(shareCode.trim().uppercase()))
                             }
                         delete(taskListRef)
                     } else {
@@ -4568,6 +4615,7 @@ private fun TaskListDetailContent(
         if (trimmed.isEmpty()) return
         val parsed = resolveTaskInput(trimmed, t)
         logTaskAdd(hasDate = !parsed.date.isNullOrEmpty())
+        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
         newTaskText = ""
         val taskId = java.util.UUID.randomUUID().toString()
         val tasks = displayTasks
@@ -4581,7 +4629,7 @@ private fun TaskListDetailContent(
             completed = false,
             date = parsed.date ?: "",
             order = order,
-            pinned = parsed.pinnedFromInput
+            pinned = parsed.pinned
         )
         performTaskMutation(
             buildNextTasks = { currentTasks ->
@@ -4592,13 +4640,13 @@ private fun TaskListDetailContent(
                 }
             },
             persist = { previousTasks, nextTasks ->
-                val normalizedTasks = normalizeTasks(nextTasks)
+                val normalizedTasks = normalizeTasks(nextTasks, autoSort)
                 setPendingTasks(normalizedTasks)
                 val updates = buildTaskUpdateData(
                     previousTasks = previousTasks,
                     tasks = normalizedTasks
                 ).toMutableMap<String, Any>()
-                updates["history"] = buildHistory(parsed.text)
+                updates["history"] = buildHistory(parsed.text, taskList.history)
                 persistTaskListUpdate(updates)
             }
         )
@@ -4878,6 +4926,7 @@ private fun TaskListDetailContent(
                 val isEditing = editingTaskId == task.id
                 val isDragged = draggingTaskId == task.id
                 TaskListRow(
+                    modifier = if (!isDragged && !reduceMotion) Modifier.animateItem() else Modifier,
                     task = task,
                     index = index,
                     isEditing = isEditing,
@@ -4903,6 +4952,7 @@ private fun TaskListDetailContent(
                         )
                     },
                     onDragStart = {
+                        haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                         draggingTaskId = task.id
                         dragOrderedTasks = displayTasks
                         taskItemHeights = lazyListState.layoutInfo.visibleItemsInfo
@@ -4913,9 +4963,11 @@ private fun TaskListDetailContent(
                     onDragEnd = {
                         taskAutoScrollSpeed = 0f
                         val ordered = dragOrderedTasks
-                        if (ordered != null && ordered.map { it.id } != displayTasks.map { it.id }) {
+                        val originalIds = getDisplayOrderedTasks(taskList.tasks).map { it.id }
+                        if (ordered != null && ordered.map { it.id } != originalIds) {
                             commitTaskOrder(ordered.map { it.id })
                         }
+                        dragOrderedTasks = null
                         draggingTaskId = null
                         taskDragOffset = 0f
                     },
@@ -4963,8 +5015,13 @@ private fun TaskListDetailContent(
         }
     }
 
+    LaunchedEffect(shareCopySuccess) {
+        if (!shareCopySuccess) return@LaunchedEffect
+        delay(2_000)
+        shareCopySuccess = false
+    }
+
     if (showEditDialog) {
-        val colorOptions = listOf(null, "#F87171", "#FBBF24", "#34D399", "#38BDF8", "#818CF8", "#A78BFA")
         AlertDialog(
             onDismissRequest = {
                 if (!removingList) {
@@ -4988,7 +5045,7 @@ private fun TaskListDetailContent(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(t.t("taskList.selectColor"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            colorOptions.forEach { color ->
+                            TaskListBackgroundOptions.forEach { color ->
                                 val isSelected = editBackground == color
                                 Box(
                                     modifier = Modifier
@@ -5036,13 +5093,20 @@ private fun TaskListDetailContent(
                             if (updates.size > 1) {
                                 scope.launch {
                                     try {
+                                        removeListError = null
                                         db.collection("taskLists").document(taskList.id).update(
                                             updates.toMap()
                                         ).await()
-                                    } catch (_: Exception) {}
+                                        showEditDialog = false
+                                    } catch (e: Exception) {
+                                        removeListError = t.t("common.error")
+                                        logException(firestoreErrorDescription("task list update", e), fatal = false)
+                                    }
                                 }
                             }
-                            showEditDialog = false
+                            if (updates.size <= 1) {
+                                showEditDialog = false
+                            }
                         }
                     },
                     enabled = editName.trim().isNotEmpty() && !removingList
@@ -5285,10 +5349,12 @@ private fun TaskListDetailContent(
                         }
                         OutlinedButton(
                             onClick = {
+                                if (task.date.isBlank()) return@OutlinedButton
                                 commitDate(task, "")
                                 actionSheetState = null
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = task.date.isNotBlank()
                         ) {
                             Text(t.t("pages.tasklist.clearDate"))
                         }

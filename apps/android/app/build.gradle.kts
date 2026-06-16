@@ -19,6 +19,11 @@ val passwordResetUrl =
     providers.gradleProperty("PASSWORD_RESET_URL")
         .orElse("https://lightlist.com/password_reset")
         .get()
+val versionCodeValue =
+    providers.gradleProperty("LIGHTLIST_VERSION_CODE")
+        .map(String::toInt)
+        .orElse(1)
+        .get()
 val releaseKeystorePath =
     providers.gradleProperty("LIGHTLIST_ANDROID_KEYSTORE")
         .orElse(providers.environmentVariable("LIGHTLIST_ANDROID_KEYSTORE"))
@@ -55,7 +60,7 @@ if (requireReleaseSigning && !hasReleaseSigning) {
 }
 
 android {
-    namespace = "com.example.lightlist"
+    namespace = "com.lightlist.app"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -66,7 +71,7 @@ android {
         applicationId = lightlistApplicationId
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
+        versionCode = versionCodeValue
         versionName = "1.0"
         buildConfigField("String", "PASSWORD_RESET_URL", "\"$passwordResetUrl\"")
 
@@ -101,8 +106,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
         buildConfig = true
@@ -133,6 +138,9 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.appcheck)
+    releaseImplementation(libs.firebase.appcheck.playintegrity)
+    debugImplementation(libs.firebase.appcheck.debug)
     implementation("com.google.android.gms:play-services-oss-licenses:17.5.1")
     implementation(libs.kotlinx.coroutines.play.services)
     testImplementation(libs.junit)

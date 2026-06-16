@@ -10,6 +10,7 @@ Web の本番配信と Firestore デプロイ。iOS / Android のストア提出
 - Direct Upload: `cd apps/web && npm run cf:deploy`。`CLOUDFLARE_PAGES_PROJECT_NAME` が必須。CI で `wrangler pages deploy` を使う場合は `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` を設定する。Pages project は事前に作成しておく。
 - ローカル確認: `cd apps/web && npm run cf:preview`。
 - response headers は `apps/web/public/_headers` を使う。static asset response にのみ適用されるため、Pages Functions を追加した場合は Function 側で header を返す。
+- 初期 HTML の module scripts は初回表示に必要な runtime に絞る。Analytics とカレンダー locale payload は初期 HTML から直接読まず、実使用時の chunk として読み込む。
 
 ## Web の env
 

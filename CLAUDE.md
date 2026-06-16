@@ -24,7 +24,7 @@
 - Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。
 - Firebase App Check は 3 プラットフォームで有効化する（Web: reCAPTCHA v3 / iOS: App Attest / Android: Play Integrity、開発時は各 debug provider）。Web は `VITE_FIREBASE_APPCHECK_SITE_KEY` 未設定なら無効。Console 手順と enforcement 制約は `docs/app-check.md` を正とする。
 - Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
-- Web のアプリ側 HTML entry（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。LP（`apps/web/html/index.html`）はアプリと完全分離し、ja 本文直書きの静的 HTML + `apps/web/src/lp.ts`（vanilla TS。react / firebase / i18next 非依存）で構成する。script path は各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。
+- Web のアプリ側 HTML entry（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。LP（`apps/web/html/index.html`）はアプリと完全分離し、ja 本文直書きの静的 HTML + `apps/web/src/lp.ts`（vanilla TS。react / firebase / i18next 非依存）で構成する。script path は各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。Firebase Analytics とカレンダー用 date-fns locale は静的 import に戻さず、実使用時の dynamic import + Vite chunk として保持する。
 - Web は外部スタイル生成ライブラリを使わず、`apps/web/src/styles/globals.css` の通常 CSS と `apps/web/src/styles/compiled-styles.css` でスタイルを保持する。モーションは `globals.css` の `ll-anim-*` / `ll-pressable` 等の named class で管理し、3 プラットフォームとも OS / ブラウザの reduce motion 設定を尊重する。フォント CSS は bundle に巻き込まず、各 HTML entry の `<link rel="stylesheet" href="/fonts/gen-interface-jp/*.css">` で public asset として読む。新規スタイルは通常 CSS または既存の named class を優先する。
 - Web UI は `firebase/*` を直接 import しない。Web のアプリ側 runtime TS/TSX 実装は `apps/web/src/entry.tsx` に集約する（LP のみ `apps/web/src/lp.ts`）。
 - タスク入力先頭の日付読み取り仕様は Web の `apps/web/src/entry.tsx` を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。`mm/dd` 等の月日指定は当年として解釈し、今日より過去なら翌年へ繰り上げる。`taskInsertPosition` の既定は全プラットフォームで `top`、`taskLists.history` は小文字比較で重複除去し最大 300 件。
@@ -42,7 +42,7 @@
 - Web / iOS / Android のメール/パスワードログインは Firebase Auth 応答待ちを 10 秒で打ち切り、loading state を必ず戻して汎用認証エラーを表示する。
 - iOS の AppIcon は `shared/assets/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。
 - Android の launcher icon は `shared/assets/brand/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
-- UI 配色は Web のモノクロ（Tailwind gray 系）パレットを 3 プラットフォーム共通の正本とする（light: 背景 `#FFFFFF` / 文字 `#111827` / 枠線 `#D1D5DB`、dark: 背景 `#030712` / 面 `#111827` / 文字 `#F9FAFB` / 枠線 `#374151`）。アクセント色は持たず primary は light `#111827` / dark `#F9FAFB`。Android は dynamic color を使わず `ContentView.kt` の明示カラースキーム + `values-night/themes.xml`、iOS は system semantic color で表現し `Color.accentColor` は使わない。
+- UI 配色は Web のモノクロ（Tailwind gray 系）パレットを 3 プラットフォーム共通の正本とする（light: 背景 `#FFFFFF` / 文字 `#111827` / 枠線 `#D1D5DB`、dark: 背景 `#030712` / 面 `#111827` / 文字 `#F9FAFB` / 枠線 `#374151`）。アクセント色は持たず primary は light `#111827` / dark `#F9FAFB`。Android は dynamic color を使わず `ContentView.kt` の明示カラースキーム + `values-night/themes.xml`、iOS は system semantic color で表現し `Color.accentColor` は使わない。iOS の accent は `AccentColor.colorset` に light `#111827` / dark `#F9FAFB` を定義してモノクロ化する（空にするとシステム青に戻る）。`borderedProminent` ボタン・リンク・シェブロン・`Toggle` がこのアセットに従い、autoSort `Toggle` は `.tint(.primary)` も付ける。
 - UI フォントの正本は `shared/assets/fonts/gen-interface-jp` とし、本文は `Gen Interface JP`、主要見出しは `Gen Interface JP Display` を使う。共有コードなど等幅の意味を持つ表示は monospace を維持する。
 - ライセンス表記の手動管理対象は `shared/licenses/manual-licenses.json` を正本とし、Web は `apps/web/scripts/generate-licenses.mjs`、iOS は `LicensePlist` build tool plugin、Android は Google OSS Licenses plugin で依存ライセンスを生成する。iOS の build tool plugin は初回 build 時に Xcode の trust が必要で、CLI では必要に応じて `xcodebuild -skipPackagePluginValidation` を使う。
 - ブランドロゴの現行 SVG は `shared/assets/brand/logo.svg` と `apps/web/public/brand/logo.svg` を正とし、差し替え前の旧ロゴは `logo_legacy.svg` に退避する。
@@ -62,6 +62,7 @@
 - Android の `TaskListDetailPage` の icon 配置は local metrics を正とし、ヘッダー右上 action・操作列 icon・task row 右端 action・drag handle の見た目サイズと左右端の x 軸整列を揃える。個別 `offset` ではなく hit area と列幅で視覚的な一直線を作る。
 - Android の `TaskListDetailPage` の本文系テキスト（新規入力欄、task 本文、インライン編集欄、日付ラベル）は local `TextStyle` を共有し、`includeFontPadding = false` と固定 line height で言語や font fallback による高さ揺れを吸収する。新規入力欄は local metrics の最小高さを持たせる。
 - Web / iOS / Android の task 右端 action は、task ごとの sheet / dialog でピン留め切替・日付選択・日付クリアをまとめて扱う。ピン留め切替・日付選択・日付クリアは即時保存し、保存後は sheet を閉じる。
+- 日付クリア action は対象 task に日付がある場合だけ有効にし、日付未設定 task では disabled として no-op 保存を発生させない。
 - task action の visible UI には `pages.tasklist.setDate` タイトルや task 名を表示しない。用途説明はアクセシビリティ名として保持する。
 - Android の task action は `ModalBottomSheet` と Compose Material3 `DatePicker` を使い、TalkBack では `paneTitle` を設定して別ペインとして読ませる。sheet 本文は縦スクロール可能にし、`DatePicker` の title / headline / mode toggle は表示しない。
 - Web の task action は狭幅で actual bottom sheet、広幅で centered dialog を使う。route hash は変えずに `history.state` を 1 段積み、戻る操作と `Esc`/dismiss のどちらでも閉じて起点ボタンへ focus を戻す。
@@ -70,7 +71,7 @@
 - iOS のアプリ内アイコンは `ContentView.swift` の metrics を正とし、標準アクションとナビゲーション `22pt`、テキスト横の補助アクション `18pt`、詳細画面の小型アクション `20pt` を基準に目視サイズを揃える。AppIcon 資産とは分けて扱う。タスクリスト詳細の右端 action（ヘッダー共有・操作列ゴミ箱・task row のカレンダー/ピン）は `trailingDateButtonWidth`（48pt）の列幅で中心線を揃え、drag handle のドットは `4pt` で補助アクションと目視サイズを揃える。
 - Android のアプリ内アイコンは `ContentView.kt` の metrics を正とし、標準アクション `24dp`、テキスト横の補助アクション `18dp`、詳細画面の小型アクション `20dp` を基準に目視サイズを揃える。launcher icon 資産とは分けて扱う。
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白と、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰める。
-- iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を分離し、入力欄の追加ボタンは入力文字がある時だけ表示する。未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で描画し、参考画面に近い密度へ寄せる。
+- iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を分離し、入力欄の追加ボタンは入力文字がある時だけ表示する。未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で描画し、参考画面に近い密度へ寄せる。完了トグルの塗り円（チェックマーク無し）と task 本文 weight（通常/完了 = SemiBold、`pinned && !completed` = Bold）は Web を含む 3 platform で統一する。
 - Android Compose の handle 並び替えでは、`pointerInput` に再 compose ごとに変わる gesture lambda を直接渡さず、drag session 中も detector を維持する。更新が必要な callback は `rememberUpdatedState` 経由で参照する。
 - iOS / Android の `TaskListDetailPage` は、タスク追加・完了切替・本文編集・日付変更・ピン切替ごとに local pending 表示へ入れた正規化済み task 集合を保持し、Firestore へは変更前後の差分 field だけを保存する。`autoSort` 有効時も同じ順序で再採番したうえで、変化した `order` だけを書き込む。
 - iOS の SwiftUI 並び替えドラッグは、移動中の行の local 座標系ではなく親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で収集した行高さだけを使う。`frame(in:)` の位置監視を drag state に戻さない。
@@ -79,7 +80,7 @@
 - パスワードリセットURLは `VITE_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
 - iOS のパスワードリセット URL は Info.plist の `PASSWORD_RESET_URL`、Android は `BuildConfig.PASSWORD_RESET_URL` を使い、既定値は `https://lightlist.com/password_reset` とする。
 - Android の認証フォームは Compose Autofill を有効にするため `ContentView.kt` の `OutlinedTextField` に `contentType` を必ず設定し、サインインは既存資格情報、サインアップ/パスワードリセットは新規資格情報として宣言する。
-- Android の未ログイン起動時の認証画面は、保存済み settings が無い場合に端末ロケールをサポート言語へ丸めて初回表示言語として使い、`Translations` は初回描画前にロード済みインスタンスを `CompositionLocal` へ渡して翻訳キーの生表示を避ける。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` に丸め、それ以外の未対応ロケールは `ja` にフォールバックする。
+- iOS / Android の未ログイン起動時の認証画面は、保存済み settings が無い場合に端末ロケールをサポート言語へ丸めて初回表示言語として使う（iOS は `resolveDeviceLanguage()`、Android は `resolveDeviceLanguage()`）。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` に丸め、それ以外の未対応ロケールは `ja` にフォールバックする。`ja` 固定にしない。Android の `Translations` は初回描画前にロード済みインスタンスを `CompositionLocal` へ渡して翻訳キーの生表示を避ける。
 - iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。共有コード deep link は未認証でも共有リストプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。Android の deep link は `lightlist://password-reset?...`、`lightlist://sharecodes/...`、`https://lightlist.com/sharecodes/...`、`https://lightlist.com/password_reset?...` を処理する。
 - iOS の認証状態監視と認証画面表示は `RootView` に集約し、子 view に auth listener や認証用 full screen cover を分散させない。子 view は `currentUserId` を引数で受けて `onAppear` / `onChange` で bind し、`TaskListsView` は `onDisappear` で listener を解除しない。
 - Web の本番 security headers は配信基盤側で管理する。

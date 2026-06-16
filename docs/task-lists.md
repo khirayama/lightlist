@@ -24,6 +24,12 @@
 - `deleteCompletedTasks()`: 完了済みを削除し、残りを再採番する。
 - Firestore へは差分だけ書き込む。新規 task は full object、削除 task は `tasks.<id>` delete、既存 task は変化した field と `order` だけ。
 
+## タスク action
+
+- task action はピン留め切替、日付選択、日付クリアを同じ sheet / dialog にまとめる。
+- 日付クリアは対象 task に `date` がある場合だけ実行可能にする。日付未設定 task では disabled とし、no-op の保存を発生させない。
+- ピン留め切替、日付選択、日付クリアはいずれも即時保存し、成功時に sheet / dialog を閉じる。失敗時は local pending を解放し、同じ画面上で汎用エラーを表示して再操作できる状態へ戻す。
+
 ## 表示順
 
 - `未完了 pinned -> 未完了 unpinned -> 完了` の順。各グループ内は `order` 昇順。
@@ -47,6 +53,7 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 
 - `history` は重複（小文字比較）を除いて先頭追加し、最大 300 件を保持する。更新はタスク追加時と本文変更時。
 - 候補は `taskLists.history` を正本に、trim 後 2 文字以上の部分一致だけを最大 20 件、完全一致を除外して表示する。候補選択は入力欄への挿入ではなく、その文言を即追加する。
+- 候補の絞り込みは入力欄の文字反映をブロックしない。候補リストの表示は入力より遅れて更新されてもよいが、選択時は表示中の候補文字列をそのまま追加する。
 
 ## 同期の制約
 
@@ -56,3 +63,5 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 - 表示優先順は `ドラッグ overlay -> local pending -> listener`。ドラッグ overlay はキャンセルだけでなく正常終了でも必ず解放する。
 - 空状態判定も pending を含む現在表示中 task 群を基準にし、空リストへの 1 件目追加を listener 反映待ちにしない。
 - UI 更新系で transaction は使わない。
+- listener 失敗は読み込めているデータを維持して部分劣化させる。全画面エラーにするのは設定・保持リスト順序の失敗、または taskLists を 1 件も表示できない場合だけ。
+- taskList 名・背景・共有コードなどの sheet / dialog 内保存は、失敗時に閉じず、同じ sheet / dialog 内に汎用エラーを表示する。

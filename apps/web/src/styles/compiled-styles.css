@@ -2297,7 +2297,7 @@
     --ll-ring-offset-color: #111827;
   }
   .ll-u-0510:is(.dark *):is(:where(.ll-u-0347):checked ~ *) {
-    background-color: #fff;
+    background-color: #374151;
   }
   .ll-u-0511:is(.dark *):focus-within {
     outline-color: #374151;

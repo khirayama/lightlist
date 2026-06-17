@@ -1491,10 +1491,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
           (error: FirestoreError) => {
             liveSnapshotIndexes.add(index);
             console.error("taskList chunk listener error:", error);
-            logException(
-              `taskList chunk listener error: ${error.code}`,
-              false,
-            );
+            logException(`taskList chunk listener error: ${error.code}`, false);
             dispatchTaskLists({
               type: "setTaskListDocsStatus",
               taskListDocsStatus: "error",
@@ -2218,11 +2215,8 @@ const normalizeShareCode = (shareCode: string): string =>
   shareCode.trim().toUpperCase();
 
 function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
-  const getDateValue = (task: TaskListStoreTask): number => {
-    if (!task.date) return Number.POSITIVE_INFINITY;
-    const parsed = Date.parse(task.date);
-    return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
-  };
+  const getDateKey = (task: TaskListStoreTask): string =>
+    task.date || "9999-12-31";
 
   return [...tasks]
     .sort((a, b) => {
@@ -2231,10 +2225,10 @@ function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
       if (aGroup !== bGroup) {
         return aGroup - bGroup;
       }
-      const aDate = getDateValue(a);
-      const bDate = getDateValue(b);
+      const aDate = getDateKey(a);
+      const bDate = getDateKey(b);
       if (aDate !== bDate) {
-        return aDate - bDate;
+        return aDate < bDate ? -1 : 1;
       }
       return a.order - b.order;
     })
@@ -4552,12 +4546,10 @@ const DATE_FNS_LOCALE_LOADERS: Record<Language, DateFnsLocaleLoader> = {
   de: () => import("date-fns/locale/de").then((module) => module.de),
   fr: () => import("date-fns/locale/fr").then((module) => module.fr),
   ko: () => import("date-fns/locale/ko").then((module) => module.ko),
-  "zh-CN": () =>
-    import("date-fns/locale/zh-CN").then((module) => module.zhCN),
+  "zh-CN": () => import("date-fns/locale/zh-CN").then((module) => module.zhCN),
   hi: () => import("date-fns/locale/hi").then((module) => module.hi),
   ar: () => import("date-fns/locale/ar").then((module) => module.ar),
-  "pt-BR": () =>
-    import("date-fns/locale/pt-BR").then((module) => module.ptBR),
+  "pt-BR": () => import("date-fns/locale/pt-BR").then((module) => module.ptBR),
   id: () => import("date-fns/locale/id").then((module) => module.id),
 };
 const dateFnsLocaleCache = new Map<Language, Locale>();
@@ -4806,21 +4798,7 @@ function TaskItemComponent({
           aria-labelledby={taskTextId}
           className="ll-u-0347 ll-u-0006 ll-u-0011 ll-u-0029 ll-u-0080 ll-u-0111 ll-u-0143 ll-u-0322"
         />
-        <div className="ll-check-circle ll-u-0059 ll-u-0069 ll-u-0096 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0339 ll-u-0346 ll-u-0348 ll-u-0350 ll-u-0351 ll-u-0460 ll-u-0485 ll-u-0510">
-          <svg
-            className="ll-check-mark ll-u-0067 ll-u-0093 ll-u-0316 ll-u-0322 ll-u-0340 ll-u-0349 ll-u-0504"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={3}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4.5 12.75l6 6 9-13.5"
-            />
-          </svg>
-        </div>
+        <div className="ll-check-circle ll-u-0059 ll-u-0069 ll-u-0096 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0339 ll-u-0346 ll-u-0348 ll-u-0350 ll-u-0351 ll-u-0460 ll-u-0485 ll-u-0510" />
       </div>
       <div className="ll-u-0008 ll-u-0059 ll-u-0125 ll-u-0129 ll-u-0152">
         {dateDisplayValue ? (
@@ -4846,7 +4824,7 @@ function TaskItemComponent({
             }}
             autoFocus
             className={clsx(
-              "ll-u-0125 ll-u-0111 ll-u-0225 ll-u-0228 ll-u-0286 ll-u-0282 ll-u-0381",
+              "ll-u-0125 ll-u-0111 ll-u-0225 ll-u-0228 ll-u-0287 ll-u-0282 ll-u-0381",
               task.completed
                 ? "ll-u-0310 ll-u-0319 ll-u-0499"
                 : "ll-u-0317 ll-u-0505",
@@ -4866,10 +4844,10 @@ function TaskItemComponent({
             }}
             className={
               task.completed
-                ? "ll-u-0057 ll-u-0083 ll-u-0125 ll-u-0143 ll-u-0267 ll-u-0286 ll-u-0282 ll-u-0310 ll-u-0319 ll-u-0321 ll-u-0366 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0529"
+                ? "ll-u-0057 ll-u-0083 ll-u-0125 ll-u-0143 ll-u-0267 ll-u-0287 ll-u-0282 ll-u-0310 ll-u-0319 ll-u-0321 ll-u-0366 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0529"
                 : clsx(
                     "ll-u-0057 ll-u-0083 ll-u-0125 ll-u-0143 ll-u-0267 ll-u-0282 ll-u-0317 ll-u-0321 ll-u-0366 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0505 ll-u-0529",
-                    task.pinned ? "ll-u-0287" : "ll-u-0286",
+                    task.pinned ? "ll-u-0285" : "ll-u-0287",
                   )
             }
           >
@@ -5234,6 +5212,8 @@ function TaskListCard({
   const [taskError, setTaskError] = useState<string | null>(null);
   const [pendingTasks, setPendingTasks] = useState<Task[] | null>(null);
   const baseTasks = pendingTasks ?? taskList.tasks;
+  const taskListTasksRef = useRef(taskList.tasks);
+  taskListTasksRef.current = taskList.tasks;
   const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
     baseTasks,
     (draggedId, targetId) => updateTasksOrder(taskList.id, draggedId, targetId),
@@ -5304,9 +5284,12 @@ function TaskListCard({
 
   const applyPendingTasks = useCallback(
     (buildNextTasks: (currentTasks: Task[]) => Task[]) => {
-      setPendingTasks(normalizePendingTasks(buildNextTasks(tasks)));
+      setPendingTasks((prev) => {
+        const current = prev ?? taskListTasksRef.current;
+        return normalizePendingTasks(buildNextTasks(current));
+      });
     },
-    [normalizePendingTasks, tasks],
+    [normalizePendingTasks],
   );
 
   const runTaskMutation = useCallback(
@@ -5329,10 +5312,17 @@ function TaskListCard({
       } catch (error) {
         setPendingTasks(null);
         onError?.(error);
+      } finally {
+        if (!taskListMutationQueues.has(taskList.id)) {
+          setTimeout(() => setPendingTasks(null), 0);
+        }
       }
     },
-    [applyPendingTasks],
+    [applyPendingTasks, taskList.id],
   );
+
+  const runTaskMutationRef = useRef(runTaskMutation);
+  runTaskMutationRef.current = runTaskMutation;
 
   const historyOptions = useMemo(() => {
     const input = deferredNewTaskText.trim();
@@ -5438,12 +5428,15 @@ function TaskListCard({
               className="ll-u-0059 ll-u-0156"
               onSubmit={(event) => {
                 event.preventDefault();
-                if (newTaskText.trim() === "") return;
+                const textToAdd = newTaskText.trim();
+                if (textToAdd === "") return;
                 const parsed = resolveTaskInput(
-                  newTaskText.trim(),
+                  textToAdd,
                   normalizeLanguage(i18n.language),
                 );
                 setHistoryOpen(false);
+                setNewTaskText("");
+                setAddTaskError(null);
                 newTaskInputRef.current?.focus();
                 const nextTaskId = crypto.randomUUID();
                 const optimisticTask = {
@@ -5459,20 +5452,16 @@ function TaskListCard({
                       ? [optimisticTask, ...currentTasks]
                       : [...currentTasks, optimisticTask],
                   commit: () =>
-                    addTask(
-                      taskList.id,
-                      newTaskText.trim(),
-                      resolvedTaskSettings,
-                      {
-                        taskId: nextTaskId,
-                      },
-                    ),
+                    addTask(taskList.id, textToAdd, resolvedTaskSettings, {
+                      taskId: nextTaskId,
+                    }),
                   onSuccess: () => {
-                    setNewTaskText("");
-                    setAddTaskError(null);
                     logTaskAdd({ has_date: Boolean(parsed.date) });
                   },
                   onError: (error) => {
+                    setNewTaskText((current) =>
+                      current === "" ? textToAdd : current,
+                    );
                     setAddTaskError(
                       resolveErrorMessage(error, t, "common.error"),
                     );
@@ -5531,8 +5520,10 @@ function TaskListCard({
                             event.preventDefault()
                           }
                           onSelect={() => {
+                            const previousText = newTaskText;
                             setAddTaskError(null);
                             setHistoryOpen(false);
+                            setNewTaskText("");
                             newTaskInputRef.current?.focus();
                             const parsed = resolveTaskInput(
                               text,
@@ -5560,10 +5551,12 @@ function TaskListCard({
                                   },
                                 ),
                               onSuccess: () => {
-                                setNewTaskText("");
                                 logTaskAdd({ has_date: Boolean(parsed.date) });
                               },
                               onError: (error) => {
+                                setNewTaskText((current) =>
+                                  current === "" ? previousText : current,
+                                );
                                 setAddTaskError(
                                   resolveErrorMessage(error, t, "common.error"),
                                 );
@@ -5607,7 +5600,23 @@ function TaskListCard({
                 disabled={tasks.length < 2}
                 onClick={() => {
                   void runTaskMutation({
-                    buildNextTasks: (currentTasks) => currentTasks,
+                    buildNextTasks: (currentTasks) => {
+                      if (autoSort) return currentTasks;
+                      const asStore = currentTasks.map((task, index) => ({
+                        ...task,
+                        order: (index + 1) * 1.0,
+                      }));
+                      const sorted = getAutoSortedTasks(asStore);
+                      return sorted.map(
+                        ({ id, text, completed, date, pinned }) => ({
+                          id,
+                          text,
+                          completed,
+                          date,
+                          pinned,
+                        }),
+                      );
+                    },
                     commit: () => sortTasks(taskList.id),
                     onSuccess: () => logTaskSort(),
                     onError: (error) => {
@@ -5650,22 +5659,24 @@ function TaskListCard({
                     );
                     await new Promise((resolve) => setTimeout(resolve, 200));
                   }
-                  await runTaskMutation({
-                    buildNextTasks: (currentTasks) =>
-                      currentTasks.filter((task) => !task.completed),
-                    commit: () =>
-                      deleteCompletedTasks(taskList.id, resolvedTaskSettings),
-                    onSuccess: () =>
-                      logTaskDeleteCompleted({ count: completedTaskCount }),
-                    onError: (error) => {
-                      setTaskError(
-                        resolveErrorMessage(error, t, "common.error"),
-                      );
-                    },
-                  }).finally(() => {
-                    setDeleteCompletedPending(false);
-                    setExitingTaskIds(null);
-                  });
+                  await runTaskMutationRef
+                    .current({
+                      buildNextTasks: (currentTasks) =>
+                        currentTasks.filter((task) => !task.completed),
+                      commit: () =>
+                        deleteCompletedTasks(taskList.id, resolvedTaskSettings),
+                      onSuccess: () =>
+                        logTaskDeleteCompleted({ count: completedTaskCount }),
+                      onError: (error) => {
+                        setTaskError(
+                          resolveErrorMessage(error, t, "common.error"),
+                        );
+                      },
+                    })
+                    .finally(() => {
+                      setDeleteCompletedPending(false);
+                      setExitingTaskIds(null);
+                    });
                 }}
                 className="ll-pressable ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0286 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0393 ll-u-0505 ll-u-0528"
               >
@@ -7512,6 +7523,7 @@ type FormInputProps = {
   error?: string;
   disabled: boolean;
   placeholder: string;
+  autoComplete?: string;
 };
 
 function FormInput({
@@ -7523,6 +7535,7 @@ function FormInput({
   error,
   disabled,
   placeholder,
+  autoComplete,
 }: FormInputProps) {
   return (
     <div className="ll-u-0059 ll-u-0152 ll-u-0163">
@@ -7536,6 +7549,7 @@ function FormInput({
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         placeholder={placeholder}
+        autoComplete={autoComplete}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
         className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
@@ -7747,6 +7761,7 @@ function LoginPage() {
                   error={errors.email}
                   disabled={loading}
                   placeholder={t("auth.placeholder.email")}
+                  autoComplete="email"
                 />
                 <FormInput
                   id="signin-password"
@@ -7757,6 +7772,7 @@ function LoginPage() {
                   error={errors.password}
                   disabled={loading}
                   placeholder={t("auth.placeholder.password")}
+                  autoComplete="current-password"
                 />
                 {errors.general && (
                   <Alert variant="error">{errors.general}</Alert>
@@ -7798,6 +7814,7 @@ function LoginPage() {
                   error={errors.email}
                   disabled={loading}
                   placeholder={t("auth.placeholder.email")}
+                  autoComplete="email"
                 />
                 <FormInput
                   id="signup-password"
@@ -7808,6 +7825,7 @@ function LoginPage() {
                   error={errors.password}
                   disabled={loading}
                   placeholder={t("auth.placeholder.password")}
+                  autoComplete="new-password"
                 />
                 <FormInput
                   id="signup-confirm"
@@ -7818,6 +7836,7 @@ function LoginPage() {
                   error={errors.confirmPassword}
                   disabled={loading}
                   placeholder={t("auth.placeholder.password")}
+                  autoComplete="new-password"
                 />
                 {errors.general && (
                   <Alert variant="error">{errors.general}</Alert>
@@ -7856,6 +7875,7 @@ function LoginPage() {
                       error={errors.email}
                       disabled={resetLoading}
                       placeholder={t("auth.placeholder.email")}
+                      autoComplete="email"
                     />
                     {errors.general && (
                       <Alert variant="error">{errors.general}</Alert>
@@ -8011,6 +8031,7 @@ function PasswordResetPage() {
             error={errors.password}
             disabled={loading}
             placeholder={t("auth.placeholder.password")}
+            autoComplete="new-password"
           />
 
           <FormInput
@@ -8022,6 +8043,7 @@ function PasswordResetPage() {
             error={errors.confirmPassword}
             disabled={loading}
             placeholder={t("auth.placeholder.password")}
+            autoComplete="new-password"
           />
 
           <button

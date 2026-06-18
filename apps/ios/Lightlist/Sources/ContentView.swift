@@ -688,6 +688,21 @@ private func normalizeLanguageCode(_ language: String) -> String {
     supportedLanguages.first(where: { $0.code == language })?.code ?? "ja"
 }
 
+private func resolveDeviceLanguage() -> String {
+    let identifier = Locale.preferredLanguages.first ?? "ja"
+    let primary = identifier.split(separator: "-").first.map { $0.lowercased() } ?? "ja"
+    switch primary {
+    case "zh":
+        return "zh-CN"
+    case "pt":
+        return "pt-BR"
+    case "ja", "en", "es", "de", "fr", "ko", "hi", "ar", "id":
+        return primary
+    default:
+        return "ja"
+    }
+}
+
 private func localeIdentifier(for language: String) -> String {
     switch normalizeLanguageCode(language) {
     case "en":
@@ -718,7 +733,8 @@ private func localeIdentifier(for language: String) -> String {
 private struct ParsedTaskInput {
     let text: String
     let date: String?
-    let pinnedFromInput: Bool
+    let pinned: Bool
+    let pinnedChanged: Bool
 }
 
 private struct TaskDatePattern {
@@ -892,13 +908,20 @@ private func resolveTaskInput(_ text: String, translations: Translations, curren
     }
 
     if let currentTask {
+        let pinned = pinnedFromInput ? true : currentTask.pinned
         return ParsedTaskInput(
             text: remaining.isEmpty ? currentTask.text : remaining,
             date: parsedDate ?? currentTask.date,
-            pinnedFromInput: pinnedFromInput
+            pinned: pinned,
+            pinnedChanged: pinned != currentTask.pinned
         )
     }
-    return ParsedTaskInput(text: remaining, date: parsedDate ?? "", pinnedFromInput: pinnedFromInput)
+    return ParsedTaskInput(
+        text: remaining,
+        date: parsedDate ?? "",
+        pinned: pinnedFromInput,
+        pinnedChanged: pinnedFromInput
+    )
 }
 
 private func passwordResetURLString() -> String {
@@ -1140,7 +1163,7 @@ struct RootView: View {
                 settingsListener?.remove()
                 guard let uid = user?.uid else {
                     theme = "system"
-                    translations.load(language: "ja")
+                    translations.load(language: resolveDeviceLanguage())
                     return
                 }
                 settingsListener = Firestore.firestore()
@@ -2900,12 +2923,23 @@ private struct TaskListDetailPage: View {
         return f
     }()
 
+    private static var dateDisplayFormatters: [String: DateFormatter] = [:]
+
+    private static func dateDisplayFormatter(for language: String) -> DateFormatter {
+        let identifier = localeIdentifier(for: language)
+        if let formatter = dateDisplayFormatters[identifier] {
+            return formatter
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: identifier)
+        formatter.setLocalizedDateFormatFromTemplate("MMMEd")
+        dateDisplayFormatters[identifier] = formatter
+        return formatter
+    }
+
     private func formatDateDisplay(_ dateStr: String) -> String {
         guard let date = Self.isoFormatter.date(from: dateStr) else { return dateStr }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: localeIdentifier(for: translations.language))
-        formatter.setLocalizedDateFormatFromTemplate("MMMEd")
-        return formatter.string(from: date)
+        return Self.dateDisplayFormatter(for: translations.language).string(from: date)
     }
 
     @ViewBuilder
@@ -3110,7 +3144,8 @@ private struct TaskListDetailPage: View {
                 if currentMemberCount <= 1 {
                     if let currentCode = taskListSnapshot.data()?["shareCode"] as? String,
                        !currentCode.isEmpty {
-                        batch.deleteDocument(self.db.collection("shareCodes").document(currentCode))
+                        let normalizedCode = currentCode.trimmingCharacters(in: .whitespaces).uppercased()
+                        batch.deleteDocument(self.db.collection("shareCodes").document(normalizedCode))
                     }
                     batch.deleteDocument(taskListRef)
                 } else {
@@ -3525,9 +3560,19 @@ private struct TaskListDetailPage: View {
                                 updates["background"] = editBackground as Any
                             }
                             if updates.count > 1 {
-                                db.collection("taskLists").document(taskList.id).updateData(updates)
+                                Task { @MainActor in
+                                    removeListError = nil
+                                    do {
+                                        try await db.collection("taskLists").document(taskList.id).updateData(updates)
+                                        showEditSheet = false
+                                    } catch {
+                                        removeListError = translations.t("common.error")
+                                        logException(description: "iOS task list update failed", fatal: false)
+                                    }
+                                }
+                            } else {
+                                showEditSheet = false
                             }
-                            showEditSheet = false
                         }
                     }
                     .disabled(editName.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -3563,6 +3608,7 @@ private struct TaskListDetailPage: View {
                     commitDate(task, dateStr: "")
                     actionSheetState = nil
                 }
+                .disabled(task.date.isEmpty)
                 .foregroundStyle(.red)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .buttonStyle(.bordered)
@@ -3702,7 +3748,7 @@ private struct TaskListDetailPage: View {
         let resolved = resolveTaskInput(editingText, translations: translations, currentTask: task)
         let textChanged = resolved.text != task.text
         let dateChanged = resolved.date != task.date
-        let pinnedChanged = resolved.pinnedFromInput && !task.pinned
+        let pinnedChanged = resolved.pinnedChanged
         editingTaskId = nil
         guard !(trimmed.isEmpty && !dateChanged), textChanged || dateChanged || pinnedChanged else { return }
         let changedFields = [textChanged ? "text" : nil, dateChanged ? "date" : nil, pinnedChanged ? "pinned" : nil]
@@ -3797,7 +3843,7 @@ private struct TaskListDetailPage: View {
             completed: false,
             date: parsed.date ?? "",
             order: order,
-            pinned: parsed.pinnedFromInput
+            pinned: parsed.pinned
         )
         performTaskMutation(
             buildNextTasks: { currentTasks in
@@ -3817,15 +3863,15 @@ private struct TaskListDetailPage: View {
 
     private func handleSortTasks() {
         logTaskSort()
-        let sorted = getAutoSortedTasks(getDisplayOrderedTasks(taskList.tasks))
+        let sorted = getAutoSortedTasks(displayTasks)
         setPendingTasks(sorted)
         updateTaskList(buildTaskUpdateData(previousTasks: displayTasks, tasks: sorted))
     }
 
     private func confirmDeleteCompleted() {
-        let completed = taskList.tasks.filter { $0.completed }
+        let completed = displayTasks.filter { $0.completed }
         logTaskDeleteCompleted(count: completed.count)
-        let remaining = taskList.tasks.filter { !$0.completed }
+        let remaining = displayTasks.filter { !$0.completed }
         persistTasks(remaining, deletedTaskIds: completed.map(\.id), previousTasks: displayTasks)
     }
 
@@ -4321,6 +4367,7 @@ private struct SettingsView: View {
                             get: { settings.autoSort },
                             set: { logSettingsAutoSortChange(enabled: $0); viewModel.updateSettings(["autoSort": $0]) }
                         ))
+                        .tint(.primary)
                         .padding(.vertical, 4)
                     }
                     settingsCard(title: translations.t("settings.userInfo.title")) {

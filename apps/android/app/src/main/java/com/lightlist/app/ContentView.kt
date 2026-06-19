@@ -4538,7 +4538,7 @@ private fun TaskListDetailContent(
 
     fun sortTasks() {
         logTaskSort()
-        val sorted = getAutoSortedTasks(getDisplayOrderedTasks(displayTasks))
+        val sorted = getAutoSortedTasks(displayTasks)
         setPendingTasks(sorted)
         persistTaskListUpdate(buildTaskUpdateData(displayTasks, sorted))
     }

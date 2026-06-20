@@ -24,7 +24,7 @@
 固定仕様。認可モデルの再設計は現時点で対応しない。
 
 - 共有 URL を知っているユーザーは、未認証でも共有リストを閲覧・編集できる。
-- 共有コードは bearer credential として扱う。コードを知る利用者は認証状態に関わらず、対象リストの `name` / `tasks` / `history` / `background` / `shareCode` を更新できる。
+- 共有コードは bearer credential として扱う。コードを知る利用者は認証状態に関わらず、対象リストの `name` / `tasks` / `history` / `background` / `shareCode` を更新できる。これは `shareCode` フィールド自体の書き換えも含む（コード保持者がコードを再生成・削除する操作に相当）。
 - 自分の一覧へ追加する操作だけは認証が必要。
 - 認証済みユーザーが `taskListOrder/{uid}` へ `taskListId` を追加することが、保持リストとしての権限付与の正本になる。
 

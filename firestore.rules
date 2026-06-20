@@ -116,6 +116,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(allowedTaskListKeys())
         && request.resource.data.id == resource.data.id
         && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt is int
         && isValidMemberCountUpdate();
 
       // 削除権限: 最後の保持者のみ実体削除可能

@@ -46,6 +46,16 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Secrets / signing credentials
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+*.cer
+*.mobileprovision
+*.provisionprofile
+
 # Firebase local configuration
 apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist
 apps/ios/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist
@@ -53,3 +63,15 @@ apps/android/app/google-services.json
 apps/android/app/src/release/google-services.json
 GoogleService-Info.plist
 google-services.json
+
+# Firebase local emulator / debug
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
+.firebase/
+
+# Crashlytics
+crashlytics-build.properties
+com_crashlytics_export_strings.xml

@@ -9,3 +9,4 @@ captures/
 local.properties
 emulator.log
 app/build/
+*.hprof

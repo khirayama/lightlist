@@ -1,5 +1,6 @@
 build/
 build-*/
+build-archive/
 Derived/
 DerivedData/
 xcuserdata/
@@ -12,5 +13,10 @@ xcuserdata/
 *.mode2v3
 *.perspectivev3
 *.gcno
+*.dSYM.zip
+*.dSYM
 Lightlist.xcodeproj/xcuserdata/
 Tuist/.build/
+.build/
+.swiftpm/
+Lightlist/Resources/Firebase/*/GoogleService-Info.plist

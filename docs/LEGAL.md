@@ -16,6 +16,6 @@ Web / iOS / Android はアプリ内設定画面からライセンス表記へ遷
 
 ## 運用
 
-- Web のライセンス JSON 生成は `npm run dev` / `build` / `lint` / `typecheck` の前処理に含める。
+- Web のライセンス JSON 生成は `npm run dev` / `build` / `lint` / `typecheck` の前処理に含める。前処理は毎回 `shared/locales/locales.json` の同期とライセンス JSON の再生成を行う。
 - iOS の `LicensePlist` build tool plugin は初回 build 時に Xcode 上で trust が必要になる。
 - iOS の unattended build で plugin trust dialog を回避する場合は `xcodebuild` に `-skipPackagePluginValidation` を付ける。

@@ -90,6 +90,7 @@
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
 - `shared/locales/locales.json` は英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。
 - Web の翻訳資産は `shared/locales/locales.json` を `apps/web/scripts/sync-shared-locales.mjs` で `apps/web/src/locales.json` へ同期して使う。同スクリプトは LP 用 subset（`pages.index.*` + `copyright` + `common.skipToMain` の flat key 辞書）を `apps/web/src/lp-locales.json` へ生成する。
+- Web の前処理はシンプルさを優先し、`npm run dev|build|lint|typecheck` のたびに `apps/web/scripts/sync-shared-locales.mjs` と `licenses:generate` をそのまま実行する。
 - Android の翻訳資産は `shared/locales/locales.json` を build 時に asset 化して使い、件数表示は `taskList.taskCount_one` / `taskList.taskCount_other` を `count` 付きで解決する。
 - iOS / Android の設定値表示やアクセシビリティ文言も shared locale key を正とし、`system` / `top` / `Settings` / 固定曜日名のような raw value や固定言語文字列を直接表示しない。アクセシビリティ専用文言は `a11y.*` キーを使う。
 - task / taskList の並び替えはドラッグに加えてスクリーンリーダー代替手段を提供する。Web は dnd-kit `KeyboardSensor` + `DndContext accessibility`（`a11y.drag*`）、iOS は `accessibilityAction(named:)`、Android は semantics `customActions` で `a11y.moveUp` / `a11y.moveDown` を出す。ページャーインジケータとカレンダー日セルは読み上げラベルと選択状態を公開する。

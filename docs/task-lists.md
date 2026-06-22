@@ -48,6 +48,7 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 - pin prefix は各言語の短い代表語（`ja: ピン`, `es: fijar`, `de: anheften`, `fr: epingler/épingler`, `ko: 고정`, `zh-CN: 置顶`, `hi: पिन`, `ar: تثبيت`, `pt-BR: fixar`, `id: sematkan`）に加え、全言語で `pin` / `pinned` を許可する。
 - 本文編集では prefix 付与時だけ `pinned` を `true` にし、prefix 不在を理由に自動解除しない。日付表現を取り除いた結果 `text` が空になる場合は、既存 `text` を維持して `date` だけ更新する。
 - `date` の `"yyyy-MM-dd"` 文字列は 3 プラットフォームとも端末ローカルの暦日として解釈・生成する（formatter / parser に UTC を指定しない）。例外は Android Material3 `DatePicker` の millis 変換のみ。
+- Web の日付設定とカレンダー確認で使う月表示は、利用可能な横幅を7曜日へ均等配分する。日付ボタンの大きさは固定し、各列の中央へ配置する。
 
 ## 入力候補（history）
 

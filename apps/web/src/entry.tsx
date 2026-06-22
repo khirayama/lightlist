@@ -2,7 +2,6 @@ import {
   StrictMode,
   Component,
   createContext,
-  forwardRef,
   useCallback,
   useContext,
   useEffect,
@@ -15,14 +14,11 @@ import {
   Children,
   memo,
   useLayoutEffect,
-  HTMLInputTypeAttribute,
 } from "react";
 import type {
-  ComponentPropsWithoutRef,
+  HTMLInputTypeAttribute,
   Context,
-  ElementRef,
   ErrorInfo,
-  ForwardedRef,
   ReactNode,
   SVGProps,
   ComponentProps,
@@ -33,7 +29,6 @@ import type {
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import "@/styles/globals.css";
-import "i18next";
 import i18next from "i18next";
 import type { Resource, TFunction } from "i18next";
 import rawLocales from "./locales.json";
@@ -52,7 +47,6 @@ import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import type { AppCheck } from "firebase/app-check";
 import type { Analytics } from "firebase/analytics";
 import {
-  ActionCodeSettings,
   confirmPasswordReset as firebaseConfirmPasswordReset,
   createUserWithEmailAndPassword,
   deleteUser,
@@ -64,7 +58,11 @@ import {
   verifyBeforeUpdateEmail,
   verifyPasswordResetCode as firebaseVerifyPasswordResetCode,
 } from "firebase/auth";
-import type { Auth, User as FirebaseAuthUser } from "firebase/auth";
+import type {
+  ActionCodeSettings,
+  Auth,
+  User as FirebaseAuthUser,
+} from "firebase/auth";
 import {
   collection,
   deleteField,
@@ -774,6 +772,9 @@ const applyTheme = (theme: Theme) => {
     (theme === "system" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.classList.toggle("dark", isDark);
+  try {
+    localStorage.setItem("lightlist.theme", theme);
+  } catch {}
 };
 
 interface ErrorBoundaryProps extends WithTranslation {
@@ -813,23 +814,23 @@ class ErrorBoundaryBase extends Component<
       }
 
       return (
-        <div className="ll-u-0059 ll-u-0086 ll-u-0111 ll-u-0152 ll-u-0156 ll-u-0159 ll-u-0223 ll-u-0233 ll-u-0317 ll-u-0473 ll-u-0505">
-          <div className="ll-u-0111 ll-u-0123 ll-u-0169 ll-u-0265">
-            <div className="ll-u-0041 ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0222 ll-u-0482">
+        <div className="ll-flex ll-min-h-dvh ll-w-full ll-flex-col ll-items-center ll-justify-center ll-bg-white-b ll-p-4 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
+          <div className="ll-w-full ll-max-w-md ll-space-y-4 ll-text-center">
+            <div className="ll-mx-auto ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-full ll-bg-red-100 ll-dark-bg-red-900-20">
               <AppIcon
                 name="alert-circle"
-                className="ll-u-0070 ll-u-0097 ll-u-0313 ll-u-0503"
+                className="ll-h-6 ll-w-6 ll-text-red-600v ll-dark-text-red-400v"
               />
             </div>
-            <h2 className="ll-u-0536 ll-u-0273 ll-u-0287">
+            <h2 className="ll-font-display ll-text-lg ll-font-semibold">
               {t("pages.error.title")}
             </h2>
-            <p className="ll-u-0274 ll-u-0310 ll-u-0499">
+            <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
               {t("pages.error.description")}
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0286 ll-u-0312 ll-u-0367 ll-u-0381 ll-u-0373 ll-u-0375 ll-u-0376 ll-u-0480 ll-u-0501 ll-u-0521"
+              className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-lg ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-medium ll-text-gray-50 ll-hover-opacity-90 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-900 ll-focus-ring-offset-2 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-hover-opacity-90"
             >
               {t("pages.error.reload")}
             </button>
@@ -924,11 +925,11 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
 
   return (
     <ErrorBoundary>
-      <div className="ll-u-0079 ll-u-0111 ll-u-0176 ll-u-0269">
-        <div className="ll-u-0080 ll-u-0111 ll-u-0178">
+      <div className="ll-h-dvh ll-w-full ll-overflow-hidden ll-font-sans">
+        <div className="ll-h-full ll-w-full ll-overflow-y-auto">
           <a
             href={`#${MAIN_CONTENT_ID}`}
-            className="ll-u-0002 ll-u-0006 ll-u-0017 ll-u-0038 ll-u-0137 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0322 ll-u-0329 ll-u-0337 ll-u-0368 ll-u-0369 ll-u-0372 ll-u-0377 ll-u-0378 ll-u-0379 ll-u-0380 ll-u-0480 ll-u-0501 ll-u-0525"
+            className="ll-pointer-events-none ll-absolute ll-top-2 ll-z-2000 ll-translate-y-neg-16 ll-rounded-lg ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-opacity-0 ll-shadow-lg ll-transition ll-focus-pointer-events-auto ll-focus-translate-y-0 ll-focus-opacity-100 ll-focus-outline-1 ll-focus-outline-2 ll-focus-outline-offset-2 ll-focus-outline-gray-600 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-outline-gray-300"
             style={{ insetInlineStart: "1rem" }}
           >
             {t("common.skipToMain")}
@@ -1333,7 +1334,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       isSubscribed = false;
       unsubscribe();
     };
-  }, [session.authStatus, session.user]);
+  }, [session.authStatus, session.user?.uid]);
 
   useEffect(() => {
     if (session.authStatus !== "authenticated" || !session.user) {
@@ -1392,7 +1393,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       isSubscribed = false;
       unsubscribe();
     };
-  }, [session.authStatus, session.user]);
+  }, [session.authStatus, session.user?.uid]);
 
   const orderedTaskListIds = useMemo(
     () => getOrderedTaskListIds(taskListsState.taskListOrder),
@@ -1881,11 +1882,13 @@ async function deleteAccount() {
     const results = await Promise.allSettled(
       taskListIds.map((taskListId) => deleteTaskList(taskListId)),
     );
-    const rejected = results.find(
+    const rejected = results.filter(
       (result): result is PromiseRejectedResult => result.status === "rejected",
     );
-    if (rejected) {
-      throw rejected.reason;
+    if (rejected.length > 0) {
+      throw rejected.length === 1
+        ? rejected[0].reason
+        : new AggregateError(rejected.map((r) => r.reason));
     }
   }
 
@@ -2005,12 +2008,15 @@ const NUMERIC_PATTERNS: DatePattern[] = [
   },
 ];
 
+const relativePatternsCache = new Map<Language, DatePattern[]>();
 const getRelativePatterns = (language: Language): DatePattern[] => {
+  const cached = relativePatternsCache.get(language);
+  if (cached) return cached;
   const bundle = getTranslationBundle(language);
   const patterns = bundle.datePatterns?.relative ?? [];
   const weekdays = bundle.datePatterns?.weekdays ?? {};
 
-  return patterns.map((p) => ({
+  const result = patterns.map((p) => ({
     regex: new RegExp(p.pattern, p.options || ""),
     getOffset: (match: RegExpMatchArray) => {
       if (p.offset !== undefined) return p.offset;
@@ -2034,6 +2040,8 @@ const getRelativePatterns = (language: Language): DatePattern[] => {
       return null;
     },
   }));
+  relativePatternsCache.set(language, result);
+  return result;
 };
 
 const GLOBAL_PIN_PREFIXES = ["pin", "pinned"] as const;
@@ -2041,15 +2049,20 @@ const GLOBAL_PIN_PREFIXES = ["pin", "pinned"] as const;
 const escapeRegex = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
+const pinPrefixRegexCache = new Map<Language, RegExp>();
 const getPinPrefixRegex = (language: Language): RegExp => {
+  const cached = pinPrefixRegexCache.get(language);
+  if (cached) return cached;
   const bundle = getTranslationBundle(language);
   const tokens = Array.from(
     new Set([...GLOBAL_PIN_PREFIXES, ...(bundle.pinPrefixes ?? [])]),
   ).sort((left, right) => right.length - left.length);
-  return new RegExp(
+  const result = new RegExp(
     String.raw`^(?:${tokens.map(escapeRegex).join("|")})(?=\s|$)`,
     "iu",
   );
+  pinPrefixRegexCache.set(language, result);
+  return result;
 };
 
 const parsePinPrefix = (
@@ -2424,14 +2437,10 @@ async function deleteTaskList(taskListId: string) {
   }
   const now = Date.now();
   const batch = writeBatch(db);
-  batch.set(
-    taskListOrderRef,
-    {
-      [taskListId]: deleteField(),
-      updatedAt: now,
-    },
-    { merge: true },
-  );
+  batch.update(taskListOrderRef, {
+    [taskListId]: deleteField(),
+    updatedAt: now,
+  });
   if (getValidMemberCount(taskList) <= 1) {
     if (taskList.shareCode) {
       batch.delete(
@@ -2834,10 +2843,13 @@ interface AlertProps {
 }
 
 const ALERT_VARIANT_CLASSES: Record<AlertVariant, string> = {
-  info: "ll-u-0200 ll-u-0210 ll-u-0317 ll-u-0460 ll-u-0485 ll-u-0505",
-  success: "ll-u-0202 ll-u-0215 ll-u-0307 ll-u-0462 ll-u-0476 ll-u-0496",
-  warning: "ll-u-0198 ll-u-0209 ll-u-0306 ll-u-0459 ll-u-0472 ll-u-0495",
-  error: "ll-u-0204 ll-u-0221 ll-u-0315 ll-u-0465 ll-u-0482 ll-u-0502",
+  info: "ll-border-gray-300 ll-bg-gray-50 ll-text-gray-900 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-50",
+  success:
+    "ll-border-emerald-200 ll-bg-emerald-50 ll-text-emerald-900 ll-dark-border-emerald-900-40 ll-dark-bg-emerald-900-20 ll-dark-text-emerald-100",
+  warning:
+    "ll-border-amber-200 ll-bg-amber-50 ll-text-amber-900 ll-dark-border-amber-900-40 ll-dark-bg-amber-900-20 ll-dark-text-amber-100",
+  error:
+    "ll-border-red-200 ll-bg-red-50 ll-text-red-900 ll-dark-border-red-900-40 ll-dark-bg-red-900-20 ll-dark-text-red-100",
 };
 
 function Alert({
@@ -2870,7 +2882,7 @@ function Alert({
       role={role}
       aria-live={ariaLive}
       className={clsx(
-        "ll-u-0191 ll-u-0193 ll-u-0239 ll-u-0244 ll-u-0274",
+        "ll-rounded-xl ll-border ll-px-3 ll-py-2 ll-text-sm",
         ALERT_VARIANT_CLASSES[variant],
         className,
       )}
@@ -2933,23 +2945,23 @@ function Spinner({
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className={clsx("ll-u-0059 ll-u-0156 ll-u-0159", className)}
+      className={clsx("ll-flex ll-items-center ll-justify-center", className)}
     >
-      <div className="ll-u-0141">
+      <div className="ll-animate-pulse">
         <img
           src="/brand/logo.svg"
           alt=""
           aria-hidden="true"
-          className="ll-u-0057 ll-u-0076 ll-u-0109"
+          className="ll-block ll-h-14 ll-w-auto"
         />
       </div>
-      <span className="ll-u-0005">Loading...</span>
+      <span className="ll-sr-only">読み込み中</span>
     </div>
   );
 
   if (fullPage) {
     return (
-      <div className="ll-u-0059 ll-u-0079 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0210 ll-u-0473">
+      <div className="ll-flex ll-h-dvh ll-w-full ll-items-center ll-justify-center ll-bg-gray-50 ll-dark-bg-gray-950">
         {content}
       </div>
     );
@@ -2977,7 +2989,7 @@ function ColorPicker({
   ariaLabelPrefix: string;
 }) {
   return (
-    <div className="ll-u-0059 ll-u-0155 ll-u-0165">
+    <div className="ll-flex ll-flex-wrap ll-gap-2">
       {colors.map((color) => {
         const isSelected = selectedColor === color.value;
         const ariaLabel =
@@ -2994,9 +3006,9 @@ function ColorPicker({
             title={color.label}
             onClick={() => onSelect(color.value)}
             className={clsx(
-              "ll-u-0059 ll-u-0072 ll-u-0099 ll-u-0156 ll-u-0159 ll-u-0183 ll-u-0193 ll-u-0200 ll-u-0279 ll-u-0287 ll-u-0310 ll-u-0460 ll-u-0499",
+              "ll-flex ll-h-8 ll-w-8 ll-items-center ll-justify-center ll-rounded-10px ll-border ll-border-gray-300 ll-text-10px ll-font-semibold ll-text-gray-600 ll-dark-border-gray-700 ll-dark-text-gray-300",
               isSelected
-                ? "ll-u-0331 ll-u-0332 ll-u-0333 ll-u-0334 ll-u-0508 ll-u-0509"
+                ? "ll-ring-2 ll-ring-gray-900 ll-ring-offset-2 ll-ring-offset-white ll-dark-ring-gray-50 ll-dark-ring-offset-gray-900"
                 : "",
             )}
             style={{ backgroundColor: previewColor }}
@@ -3013,37 +3025,38 @@ const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogClose = DialogPrimitive.Close;
 
-const DialogOverlay = forwardRef<
-  ElementRef<typeof DialogPrimitive.Overlay>,
-  ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(function DialogOverlay(props, ref) {
-  const { className, ...rest } = props;
+function DialogOverlay({
+  className,
+  ref,
+  ...rest
+}: ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
     <DialogPrimitive.Overlay
       {...rest}
       ref={ref}
       className={clsx(
-        "ll-anim-overlay ll-u-0007 ll-u-0011 ll-u-0036 ll-u-0211 ll-u-0336",
+        "ll-anim-overlay ll-fixed ll-inset-0 ll-z-1200 ll-bg-black-40 ll-backdrop-blur-sm",
         className,
       )}
     />
   );
-});
+}
 
-const DialogContent = forwardRef<
-  ElementRef<typeof DialogPrimitive.Content>,
-  ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
-    title: ComponentPropsWithoutRef<typeof DialogPrimitive.Title>["children"];
-    description?: ComponentPropsWithoutRef<
-      typeof DialogPrimitive.Description
-    >["children"];
-    titleId?: string;
-    descriptionId?: string;
-  }
->(function DialogContent(
-  { children, title, description, titleId, descriptionId, className, ...props },
-  ref: ForwardedRef<ElementRef<typeof DialogPrimitive.Content>>,
-) {
+function DialogContent({
+  children,
+  title,
+  description,
+  titleId,
+  descriptionId,
+  className,
+  ref,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Content> & {
+  title: ComponentProps<typeof DialogPrimitive.Title>["children"];
+  description?: ComponentProps<typeof DialogPrimitive.Description>["children"];
+  titleId?: string;
+  descriptionId?: string;
+}) {
   const fallbackTitleId = useId();
   const fallbackDescriptionId = useId();
   const generatedTitleId = titleId ?? fallbackTitleId;
@@ -3063,21 +3076,21 @@ const DialogContent = forwardRef<
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "ll-anim-dialog ll-u-0007 ll-u-0026 ll-u-0016 ll-u-0037 ll-u-0127 ll-u-0122 ll-u-0132 ll-u-0136 ll-u-0191 ll-u-0208 ll-u-0234 ll-u-0304 ll-u-0326",
+          "ll-anim-dialog ll-fixed ll-left-half ll-top-half ll-z-1300 ll-min-w-320px ll-max-w-dialog ll-translate-x-neg-half ll-translate-y-neg-half ll-rounded-xl ll-bg-dialog ll-p-5 ll-text-dialog-fg ll-shadow-2xl",
           className,
         )}
       >
-        <div className="ll-u-0059 ll-u-0152 ll-u-0165">
+        <div className="ll-flex ll-flex-col ll-gap-2">
           <DialogPrimitive.Title
             id={generatedTitleId}
-            className="ll-u-0040 ll-u-0273 ll-u-0287"
+            className="ll-m-0 ll-text-lg ll-font-semibold"
           >
             {title}
           </DialogPrimitive.Title>
           {description !== undefined ? (
             <DialogPrimitive.Description
               id={generatedDescriptionId}
-              className="ll-u-0040 ll-u-0274 ll-u-0305"
+              className="ll-m-0 ll-text-sm ll-text-dialog-muted"
             >
               {description}
             </DialogPrimitive.Description>
@@ -3087,22 +3100,23 @@ const DialogContent = forwardRef<
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
-});
+}
 
-const ActionSheetContent = forwardRef<
-  ElementRef<typeof DialogPrimitive.Content>,
-  ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
-    title: ComponentPropsWithoutRef<typeof DialogPrimitive.Title>["children"];
-    description?: ComponentPropsWithoutRef<
-      typeof DialogPrimitive.Description
-    >["children"];
-    titleId?: string;
-    descriptionId?: string;
-  }
->(function ActionSheetContent(
-  { children, title, description, titleId, descriptionId, className, ...props },
-  ref: ForwardedRef<ElementRef<typeof DialogPrimitive.Content>>,
-) {
+function ActionSheetContent({
+  children,
+  title,
+  description,
+  titleId,
+  descriptionId,
+  className,
+  ref,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Content> & {
+  title: ComponentProps<typeof DialogPrimitive.Title>["children"];
+  description?: ComponentProps<typeof DialogPrimitive.Description>["children"];
+  titleId?: string;
+  descriptionId?: string;
+}) {
   const fallbackTitleId = useId();
   const fallbackDescriptionId = useId();
   const generatedTitleId = titleId ?? fallbackTitleId;
@@ -3122,17 +3136,17 @@ const ActionSheetContent = forwardRef<
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "ll-anim-sheet ll-u-0007 ll-u-0012 ll-u-0022 ll-u-0037 ll-u-0059 ll-u-0081 ll-u-0111 ll-u-0133 ll-u-0138 ll-u-0152 ll-u-0176 ll-u-0192 ll-u-0223 ll-u-0240 ll-u-0261 ll-u-0253 ll-u-0317 ll-u-0326 ll-u-0407 ll-u-0404 ll-u-0410 ll-u-0413 ll-u-0414 ll-u-0416 ll-u-0417 ll-u-0425 ll-u-0426 ll-u-0427 ll-u-0485 ll-u-0505 ll-u-0535",
+          "ll-anim-sheet ll-fixed ll-inset-x-0 ll-bottom-0 ll-z-1300 ll-flex ll-max-h-sheet ll-w-full ll-translate-x-0 ll-translate-y-0 ll-flex-col ll-overflow-hidden ll-rounded-t-28px ll-bg-white-b ll-px-4 ll-pb-6 ll-pt-4 ll-text-gray-900 ll-shadow-2xl ll-sm-left-half ll-sm-top-half ll-sm-h-sheet ll-sm-w-dialog ll-sm-max-w-dialog ll-sm-translate-x-neg-half ll-sm-translate-y-neg-half ll-sm-rounded-28px ll-sm-border ll-sm-border-gray-300 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-sm-dark-border-gray-700",
           className,
         )}
       >
-        <DialogPrimitive.Title id={generatedTitleId} className="ll-u-0005">
+        <DialogPrimitive.Title id={generatedTitleId} className="ll-sr-only">
           {title}
         </DialogPrimitive.Title>
         {description !== undefined ? (
           <DialogPrimitive.Description
             id={generatedDescriptionId}
-            className="ll-u-0005"
+            className="ll-sr-only"
           >
             {description}
           </DialogPrimitive.Description>
@@ -3141,11 +3155,11 @@ const ActionSheetContent = forwardRef<
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
-});
+}
 
 function DialogFooter({ children }: { children: ReactNode }) {
   return (
-    <div className="ll-u-0046 ll-u-0059 ll-u-0155 ll-u-0156 ll-u-0160 ll-u-0165">
+    <div className="ll-mt-4 ll-flex ll-flex-wrap ll-items-center ll-justify-end ll-gap-2">
       {children}
     </div>
   );
@@ -3213,11 +3227,11 @@ function ConfirmDialog({
   disabled = false,
 }: ConfirmDialogProps) {
   const primaryButtonClass =
-    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501 ll-u-0529";
+    "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300";
   const destructiveButtonClass =
-    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0216 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0318 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0392 ll-u-0477 ll-u-0528";
+    "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-bg-red-600 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-white ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-red-400 ll-dark-focus-visible-outline-red-400";
   const secondaryButtonClass =
-    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529";
+    "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-gray-300";
 
   return (
     <Dialog
@@ -3230,7 +3244,7 @@ function ConfirmDialog({
     >
       <DialogContent title={title} description={message}>
         {additionalInfo ? (
-          <p className="ll-u-0044 ll-u-0274 ll-u-0310 ll-u-0499">
+          <p className="ll-mt-2 ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
             {additionalInfo}
           </p>
         ) : null}
@@ -3264,14 +3278,14 @@ function ConfirmDialog({
 function SettingsSection({ children, tone = "default" }: SettingsSectionProps) {
   if (tone === "danger") {
     return (
-      <section className="ll-u-0191 ll-u-0193 ll-u-0204 ll-u-0223 ll-u-0233 ll-u-0465 ll-u-0485 ll-u-0430">
+      <section className="ll-rounded-xl ll-border ll-border-red-200 ll-bg-white-b ll-p-4 ll-dark-border-red-900-40 ll-dark-bg-gray-900b ll-sm-p-5">
         {children}
       </section>
     );
   }
 
   return (
-    <section className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0233 ll-u-0460 ll-u-0485 ll-u-0430">
+    <section className="ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-p-4 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-5">
       {children}
     </section>
   );
@@ -3288,11 +3302,11 @@ function SelectRow({
   return (
     <label
       htmlFor={id}
-      className={`ll-u-0060 ll-u-0165 ll-u-0246 ll-u-0418 ll-u-0420 ll-u-0337 ll-u-0353 ll-u-0354 ll-u-0355 ll-u-0356 ll-u-0511 ${
+      className={`ll-grid ll-gap-2 ll-py-3 ll-sm-grid-cols-sidebar ll-sm-items-center ll-transition ll-focus-within-outline-1 ll-focus-within-outline-2 ll-focus-within-outline-offset-2 ll-focus-within-outline-gray-300 ll-dark-focus-within-outline-gray-700 ${
         disabled ? "opacity-60" : ""
       }`}
     >
-      <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505 ll-u-0440">
+      <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50 ll-sm-pr-3">
         {label}
       </span>
       <select
@@ -3300,7 +3314,7 @@ function SelectRow({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="ll-u-0111 ll-u-0190 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0371 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0522"
+        className="ll-w-full ll-rounded-md ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-focus-border-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-border-gray-300"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -3479,30 +3493,30 @@ function SettingsView({
   ] as const;
 
   const skeletonSelect = (
-    <div className="ll-u-0073 ll-u-0111 ll-u-0141 ll-u-0190 ll-u-0214 ll-u-0475" />
+    <div className="ll-h-9 ll-w-full ll-animate-pulse ll-rounded-md ll-bg-gray-300 ll-dark-bg-gray-700" />
   );
 
   return (
-    <div className="ll-u-0087 ll-u-0111 ll-u-0210 ll-u-0317 ll-u-0473 ll-u-0505">
-      <div className="ll-u-0041 ll-u-0059 ll-u-0111 ll-u-0113 ll-u-0152 ll-u-0168 ll-u-0240 ll-u-0262 ll-u-0254 ll-u-0434 ll-u-0456">
-        <header className="ll-u-0059 ll-u-0156 ll-u-0167 ll-u-0237">
+    <div className="ll-min-h-full ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
+      <div className="ll-mx-auto ll-flex ll-w-full ll-max-w-3xl ll-flex-col ll-gap-4 ll-px-4 ll-pb-10 ll-pt-6 ll-sm-px-6 ll-lg-pt-8">
+        <header className="ll-flex ll-items-center ll-gap-3 ll-px-1">
           {showBackButton ? (
             <button
               type="button"
               onClick={onBack}
               title={t("common.back")}
               aria-label={t("common.back")}
-              className="ll-u-0063 ll-u-0074 ll-u-0101 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0310 ll-u-0337 ll-u-0361 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0386 ll-u-0499 ll-u-0518 ll-u-0527"
+              className="ll-inline-flex ll-h-10 ll-w-10 ll-items-center ll-justify-center ll-rounded-full ll-text-gray-600 ll-transition ll-hover-bg-gray-300 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-300 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-focus-visible-outline-gray-700"
             >
               <AppIcon
                 name="arrow-back"
-                className="ll-u-0069 ll-u-0096"
+                className="ll-h-5 ll-w-5"
                 aria-hidden="true"
                 focusable="false"
               />
             </button>
           ) : null}
-          <h1 className="ll-u-0536 ll-u-0125 ll-u-0129 ll-u-0270 ll-u-0287 ll-u-0291">
+          <h1 className="ll-font-display ll-min-w-0 ll-flex-1 ll-text-2xl ll-font-semibold ll-tracking-tight">
             {t("settings.title")}
           </h1>
         </header>
@@ -3514,11 +3528,11 @@ function SettingsView({
         ) : (
           <>
             <SettingsSection>
-              <fieldset className="ll-u-0059 ll-u-0152 ll-u-0161">
-                <legend className="ll-u-0274 ll-u-0287 ll-u-0292 ll-u-0310 ll-u-0499">
+              <fieldset className="ll-flex ll-flex-col ll-gap-0">
+                <legend className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
                   {t("settings.preferences.title")}
                 </legend>
-                <div className="ll-u-0044 ll-u-0171 ll-u-0172 ll-u-0458">
+                <div className="ll-mt-2 ll-divide-y ll-divide-gray-300 ll-dark-divide-gray-700">
                   {settings ? (
                     <>
                       <SelectRow
@@ -3556,20 +3570,20 @@ function SettingsView({
                     </>
                   ) : (
                     <>
-                      <div className="ll-u-0060 ll-u-0165 ll-u-0246 ll-u-0418 ll-u-0420">
-                        <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
+                      <div className="ll-grid ll-gap-2 ll-py-3 ll-sm-grid-cols-sidebar ll-sm-items-center">
+                        <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
                           {t("settings.language.title")}
                         </span>
                         {skeletonSelect}
                       </div>
-                      <div className="ll-u-0060 ll-u-0165 ll-u-0246 ll-u-0418 ll-u-0420">
-                        <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
+                      <div className="ll-grid ll-gap-2 ll-py-3 ll-sm-grid-cols-sidebar ll-sm-items-center">
+                        <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
                           {t("settings.theme.title")}
                         </span>
                         {skeletonSelect}
                       </div>
-                      <div className="ll-u-0060 ll-u-0165 ll-u-0246 ll-u-0418 ll-u-0420">
-                        <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
+                      <div className="ll-grid ll-gap-2 ll-py-3 ll-sm-grid-cols-sidebar ll-sm-items-center">
+                        <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
                           {t("settings.taskInsertPosition.title")}
                         </span>
                         {skeletonSelect}
@@ -3578,7 +3592,7 @@ function SettingsView({
                   )}
                 </div>
                 <label
-                  className={`ll-u-0043 ll-u-0059 ll-u-0143 ll-u-0156 ll-u-0158 ll-u-0168 ll-u-0194 ll-u-0200 ll-u-0246 ll-u-0337 ll-u-0353 ll-u-0354 ll-u-0355 ll-u-0356 ll-u-0460 ll-u-0511 ${
+                  className={`ll-mt-1 ll-flex ll-cursor-pointer ll-items-center ll-justify-between ll-gap-4 ll-border-t ll-border-gray-300 ll-py-3 ll-transition ll-focus-within-outline-1 ll-focus-within-outline-2 ll-focus-within-outline-offset-2 ll-focus-within-outline-gray-300 ll-dark-border-gray-700 ll-dark-focus-within-outline-gray-700 ${
                     settingsDisabled ? "cursor-not-allowed opacity-60" : ""
                   }`}
                 >
@@ -3590,26 +3604,26 @@ function SettingsView({
                       void handleAutoSortChange(event.target.checked)
                     }
                     disabled={settingsDisabled}
-                    className="ll-u-0347 ll-u-0005"
+                    className="ll-peer ll-sr-only"
                   />
-                  <span className="ll-u-0059 ll-u-0152 ll-u-0162">
-                    <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
+                  <span className="ll-flex ll-flex-col ll-gap-0x5">
+                    <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
                       {t("settings.autoSort.title")}
                     </span>
-                    <span className="ll-u-0276 ll-u-0310 ll-u-0499">
+                    <span className="ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
                       {t("settings.autoSort.enable")}
                     </span>
                   </span>
                   <span
                     aria-hidden="true"
-                    className={`ll-u-0008 ll-u-0063 ll-u-0071 ll-u-0102 ll-u-0156 ll-u-0188 ll-u-0193 ll-u-0337 ${
+                    className={`ll-relative ll-inline-flex ll-h-7 ll-w-12 ll-items-center ll-rounded-full ll-border ll-transition ${
                       settings?.autoSort
-                        ? "border-primary ll-u-0219 ll-u-0463 dark:bg-primary-dark"
-                        : "border-border ll-u-0214 ll-u-0460 dark:bg-surface-dark"
+                        ? "border-primary ll-bg-gray-900 ll-dark-border-gray-50 dark:bg-primary-dark"
+                        : "border-border ll-bg-gray-300 ll-dark-border-gray-700 dark:bg-surface-dark"
                     }`}
                   >
                     <span
-                      className={`ll-u-0062 ll-u-0069 ll-u-0096 ll-u-0188 ll-u-0223 ll-u-0330 ll-u-0337 ll-u-0473 ${
+                      className={`ll-inline-block ll-h-5 ll-w-5 ll-rounded-full ll-bg-white-b ll-shadow-sm ll-transition ll-dark-bg-gray-950 ${
                         settings?.autoSort ? "translate-x-6" : "translate-x-1"
                       }`}
                     />
@@ -3619,54 +3633,56 @@ function SettingsView({
             </SettingsSection>
 
             <SettingsSection>
-              <div className="ll-u-0059 ll-u-0152 ll-u-0167">
-                <h2 className="ll-u-0274 ll-u-0287 ll-u-0292 ll-u-0317 ll-u-0505">
+              <div className="ll-flex ll-flex-col ll-gap-3">
+                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-900 ll-dark-text-gray-50">
                   {t("settings.legal.title")}
                 </h2>
                 <button
                   type="button"
                   onClick={onOpenLicenses}
                   disabled={!onOpenLicenses}
-                  className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0167 ll-u-0189 ll-u-0237 ll-u-0244 ll-u-0266 ll-u-0337 ll-u-0359 ll-u-0390 ll-u-0395 ll-u-0514"
+                  className="ll-flex ll-items-center ll-justify-between ll-gap-3 ll-rounded-lg ll-px-1 ll-py-2 ll-text-left ll-transition ll-hover-bg-gray-50 ll-disabled-cursor-default ll-disabled-hover-bg-transparent ll-dark-hover-bg-gray-950"
                 >
-                  <span className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
+                  <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
                     {t("settings.licenses.openSource")}
                   </span>
-                  <span className="ll-u-0274 ll-u-0310 ll-u-0499">&gt;</span>
+                  <span className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
+                    &gt;
+                  </span>
                 </button>
               </div>
             </SettingsSection>
 
             <SettingsSection>
-              <div className="ll-u-0059 ll-u-0152 ll-u-0167">
-                <h2 className="ll-u-0274 ll-u-0287 ll-u-0292 ll-u-0317 ll-u-0505">
+              <div className="ll-flex ll-flex-col ll-gap-3">
+                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-900 ll-dark-text-gray-50">
                   {t("settings.actions.title")}
                 </h2>
-                <div className="ll-u-0196 ll-u-0200 ll-u-0260 ll-u-0460">
-                  <p className="ll-u-0276 ll-u-0286 ll-u-0292 ll-u-0310 ll-u-0499">
+                <div className="ll-border-b ll-border-gray-300 ll-pb-3 ll-dark-border-gray-700">
+                  <p className="ll-text-xs ll-font-medium ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
                     {t("settings.userInfo.title")}
                   </p>
-                  <div className="ll-u-0043 ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0165">
+                  <div className="ll-mt-1 ll-flex ll-items-center ll-justify-between ll-gap-2">
                     {user ? (
-                      <p className="ll-u-0294 ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
+                      <p className="ll-break-all ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
                         {user.email}
                       </p>
                     ) : (
-                      <div className="ll-u-0069 ll-u-0105 ll-u-0141 ll-u-0181 ll-u-0214 ll-u-0475" />
+                      <div className="ll-h-5 ll-w-48 ll-animate-pulse ll-rounded ll-bg-gray-300 ll-dark-bg-gray-700" />
                     )}
                     {!showEmailChangeForm && (
                       <button
                         type="button"
                         onClick={() => setShowEmailChangeForm(true)}
                         disabled={actionsDisabled}
-                        className="ll-u-0131 ll-u-0276 ll-u-0310 ll-u-0320 ll-u-0365 ll-u-0391 ll-u-0393 ll-u-0499 ll-u-0520"
+                        className="ll-shrink-0b ll-text-xs ll-text-gray-600 ll-underline ll-hover-text-gray-900 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-300 ll-dark-hover-text-gray-50"
                       >
                         {t("settings.emailChange.changeButton")}
                       </button>
                     )}
                   </div>
                   {showEmailChangeForm && (
-                    <div className="ll-u-0045 ll-u-0059 ll-u-0152 ll-u-0167">
+                    <div className="ll-mt-3 ll-flex ll-flex-col ll-gap-3">
                       {emailChangeSuccess ? (
                         <Alert variant="success">
                           {t("settings.emailChange.successMessage")}
@@ -3679,7 +3695,7 @@ function SettingsView({
                           <div>
                             <label
                               htmlFor="new-email"
-                              className="ll-u-0052 ll-u-0057 ll-u-0276 ll-u-0286 ll-u-0310 ll-u-0499"
+                              className="ll-mb-1 ll-block ll-text-xs ll-font-medium ll-text-gray-600 ll-dark-text-gray-300"
                             >
                               {t("settings.emailChange.newEmailLabel")}
                             </label>
@@ -3692,15 +3708,15 @@ function SettingsView({
                               placeholder={t(
                                 "settings.emailChange.newEmailPlaceholder",
                               )}
-                              className="ll-u-0111 ll-u-0190 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0371 ll-u-0393 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0522"
+                              className="ll-w-full ll-rounded-md ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-focus-border-gray-600 ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-border-gray-300"
                             />
                           </div>
-                          <div className="ll-u-0059 ll-u-0165">
+                          <div className="ll-flex ll-gap-2">
                             <button
                               type="button"
                               onClick={handleEmailChangeClose}
                               disabled={isChangingEmail}
-                              className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0337 ll-u-0357 ll-u-0359 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0512 ll-u-0518"
+                              className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-transition ll-hover-border-gray-600 ll-hover-bg-gray-50 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-hover-border-gray-300 ll-dark-hover-bg-gray-900"
                             >
                               {t("common.cancel")}
                             </button>
@@ -3708,7 +3724,7 @@ function SettingsView({
                               type="button"
                               onClick={() => void handleEmailChangeSubmit()}
                               disabled={isChangingEmail || !newEmail.trim()}
-                              className="ll-u-0063 ll-u-0129 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0337 ll-u-0367 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501"
+                              className="ll-inline-flex ll-flex-1 ll-items-center ll-justify-center ll-rounded-2xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-transition ll-hover-opacity-90 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900"
                             >
                               {isChangingEmail
                                 ? t("settings.emailChange.submitting")
@@ -3721,7 +3737,7 @@ function SettingsView({
                         <button
                           type="button"
                           onClick={handleEmailChangeClose}
-                          className="ll-u-0276 ll-u-0310 ll-u-0320 ll-u-0365 ll-u-0499 ll-u-0520"
+                          className="ll-text-xs ll-text-gray-600 ll-underline ll-hover-text-gray-900 ll-dark-text-gray-300 ll-dark-hover-text-gray-50"
                         >
                           {t("common.close")}
                         </button>
@@ -3729,12 +3745,12 @@ function SettingsView({
                     </div>
                   )}
                 </div>
-                <div className="ll-u-0060 ll-u-0166">
+                <div className="ll-grid ll-gap-2x5">
                   <button
                     type="button"
                     onClick={() => setShowSignOutConfirm(true)}
                     disabled={actionsDisabled}
-                    className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0246 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0337 ll-u-0357 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0386 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0512 ll-u-0518 ll-u-0527"
+                    className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-3 ll-text-sm ll-font-semibold ll-text-gray-900 ll-shadow-sm ll-transition ll-hover-border-gray-600 ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-hover-border-gray-300 ll-dark-hover-bg-gray-900 ll-dark-focus-visible-outline-gray-700"
                   >
                     {signOutLabel}
                   </button>
@@ -3742,7 +3758,7 @@ function SettingsView({
                     type="button"
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={actionsDisabled}
-                    className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0182 ll-u-0193 ll-u-0204 ll-u-0221 ll-u-0240 ll-u-0246 ll-u-0274 ll-u-0287 ll-u-0314 ll-u-0330 ll-u-0337 ll-u-0363 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0389 ll-u-0391 ll-u-0393 ll-u-0464 ll-u-0483 ll-u-0502 ll-u-0517 ll-u-0530"
+                    className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-2xl ll-border ll-border-red-200 ll-bg-red-50 ll-px-4 ll-py-3 ll-text-sm ll-font-semibold ll-text-red-700 ll-shadow-sm ll-transition ll-hover-bg-red-100 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-red-800 ll-dark-bg-red-950-30 ll-dark-text-red-100 ll-dark-hover-bg-red-900-40 ll-dark-focus-visible-outline-red-500"
                   >
                     {deleteAccountLabel}
                   </button>
@@ -3794,18 +3810,20 @@ function LicenseCard({ entry }: { entry: LicenseEntry }) {
   const sourceUrl = entry.repository ?? entry.source;
 
   return (
-    <details className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0246 ll-u-0460 ll-u-0485">
-      <summary className="ll-u-0143 ll-u-0150">
-        <div className="ll-u-0059 ll-u-0157 ll-u-0158 ll-u-0167">
-          <div className="ll-u-0125">
-            <p className="ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0505">
+    <details className="ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-3 ll-dark-border-gray-700 ll-dark-bg-gray-900b">
+      <summary className="ll-cursor-pointer ll-list-none">
+        <div className="ll-flex ll-items-start ll-justify-between ll-gap-3">
+          <div className="ll-min-w-0">
+            <p className="ll-text-sm ll-font-semibold ll-text-gray-900 ll-dark-text-gray-50">
               {entry.name}
             </p>
-            <p className="ll-u-0043 ll-u-0276 ll-u-0310 ll-u-0499">
+            <p className="ll-mt-1 ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
               {[entry.version, entry.license].filter(Boolean).join(" / ")}
             </p>
           </div>
-          <span className="ll-u-0042 ll-u-0274 ll-u-0310 ll-u-0499">&gt;</span>
+          <span className="ll-mt-0x5 ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
+            &gt;
+          </span>
         </div>
       </summary>
       {sourceUrl ? (
@@ -3813,12 +3831,12 @@ function LicenseCard({ entry }: { entry: LicenseEntry }) {
           href={sourceUrl}
           target="_blank"
           rel="noreferrer"
-          className="ll-u-0045 ll-u-0063 ll-u-0276 ll-u-0310 ll-u-0320 ll-u-0365 ll-u-0499 ll-u-0520"
+          className="ll-mt-3 ll-inline-flex ll-text-xs ll-text-gray-600 ll-underline ll-hover-text-gray-900 ll-dark-text-gray-300 ll-dark-hover-text-gray-50"
         >
           {sourceUrl}
         </a>
       ) : null}
-      <pre className="ll-u-0045 ll-u-0177 ll-u-0296 ll-u-0293 ll-u-0189 ll-u-0210 ll-u-0232 ll-u-0276 ll-u-0280 ll-u-0317 ll-u-0473 ll-u-0505">
+      <pre className="ll-mt-3 ll-overflow-x-auto ll-whitespace-pre-wrap ll-break-words ll-rounded-lg ll-bg-gray-50 ll-p-3 ll-text-xs ll-leading-5 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
         {entry.licenseText ?? entry.text ?? ""}
       </pre>
     </details>
@@ -3861,26 +3879,26 @@ function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
   }, [t]);
 
   return (
-    <div className="ll-u-0087 ll-u-0111 ll-u-0210 ll-u-0317 ll-u-0473 ll-u-0505">
-      <div className="ll-u-0041 ll-u-0059 ll-u-0111 ll-u-0114 ll-u-0152 ll-u-0168 ll-u-0240 ll-u-0262 ll-u-0254 ll-u-0434 ll-u-0456">
-        <header className="ll-u-0059 ll-u-0156 ll-u-0167 ll-u-0237">
+    <div className="ll-min-h-full ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
+      <div className="ll-mx-auto ll-flex ll-w-full ll-max-w-4xl ll-flex-col ll-gap-4 ll-px-4 ll-pb-10 ll-pt-6 ll-sm-px-6 ll-lg-pt-8">
+        <header className="ll-flex ll-items-center ll-gap-3 ll-px-1">
           {showBackButton ? (
             <button
               type="button"
               onClick={onBack}
               title={t("common.back")}
               aria-label={t("common.back")}
-              className="ll-u-0063 ll-u-0074 ll-u-0101 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0310 ll-u-0337 ll-u-0361 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0386 ll-u-0499 ll-u-0518 ll-u-0527"
+              className="ll-inline-flex ll-h-10 ll-w-10 ll-items-center ll-justify-center ll-rounded-full ll-text-gray-600 ll-transition ll-hover-bg-gray-300 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-300 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-focus-visible-outline-gray-700"
             >
               <AppIcon
                 name="arrow-back"
-                className="ll-u-0069 ll-u-0096"
+                className="ll-h-5 ll-w-5"
                 aria-hidden="true"
                 focusable="false"
               />
             </button>
           ) : null}
-          <h1 className="ll-u-0536 ll-u-0125 ll-u-0129 ll-u-0270 ll-u-0287 ll-u-0291">
+          <h1 className="ll-font-display ll-min-w-0 ll-flex-1 ll-text-2xl ll-font-semibold ll-tracking-tight">
             {t("settings.licenses.title")}
           </h1>
         </header>
@@ -3892,11 +3910,11 @@ function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
         {payload ? (
           <>
             <SettingsSection>
-              <div className="ll-u-0059 ll-u-0152 ll-u-0167">
-                <h2 className="ll-u-0274 ll-u-0287 ll-u-0292 ll-u-0317 ll-u-0505">
+              <div className="ll-flex ll-flex-col ll-gap-3">
+                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-900 ll-dark-text-gray-50">
                   {t("settings.licenses.openSource")}
                 </h2>
-                <div className="ll-u-0059 ll-u-0152 ll-u-0167">
+                <div className="ll-flex ll-flex-col ll-gap-3">
                   {payload.openSourceLicenses.map((entry) => (
                     <LicenseCard
                       key={`${entry.name}-${entry.version ?? ""}`}
@@ -3908,11 +3926,11 @@ function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
             </SettingsSection>
 
             <SettingsSection>
-              <div className="ll-u-0059 ll-u-0152 ll-u-0167">
-                <h2 className="ll-u-0274 ll-u-0287 ll-u-0292 ll-u-0317 ll-u-0505">
+              <div className="ll-flex ll-flex-col ll-gap-3">
+                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-900 ll-dark-text-gray-50">
                   {t("settings.licenses.bundledAssets")}
                 </h2>
-                <div className="ll-u-0059 ll-u-0152 ll-u-0167">
+                <div className="ll-flex ll-flex-col ll-gap-3">
                   {payload.bundledLicenses.map((entry) => (
                     <LicenseCard key={entry.id ?? entry.name} entry={entry} />
                   ))}
@@ -3935,23 +3953,23 @@ function NotFoundPage() {
   }, [t]);
 
   return (
-    <div className="ll-u-0059 ll-u-0086 ll-u-0111 ll-u-0152 ll-u-0156 ll-u-0159 ll-u-0223 ll-u-0233 ll-u-0317 ll-u-0473 ll-u-0505">
-      <div className="ll-u-0111 ll-u-0123 ll-u-0169 ll-u-0265">
-        <div className="ll-u-0041 ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0217 ll-u-0478">
+    <div className="ll-flex ll-min-h-dvh ll-w-full ll-flex-col ll-items-center ll-justify-center ll-bg-white-b ll-p-4 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
+      <div className="ll-w-full ll-max-w-md ll-space-y-4 ll-text-center">
+        <div className="ll-mx-auto ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-full ll-bg-gray-100 ll-dark-bg-gray-800">
           <AppIcon
             name="alert-circle"
-            className="ll-u-0070 ll-u-0097 ll-u-0309 ll-u-0498"
+            className="ll-h-6 ll-w-6 ll-text-gray-600v ll-dark-text-gray-400"
           />
         </div>
-        <h1 className="ll-u-0536 ll-u-0273 ll-u-0287">
+        <h1 className="ll-font-display ll-text-lg ll-font-semibold">
           {t("pages.notFound.title")}
         </h1>
-        <p className="ll-u-0274 ll-u-0310 ll-u-0499">
+        <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
           {t("pages.notFound.description")}
         </p>
         <a
           href="/"
-          className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0286 ll-u-0312 ll-u-0367 ll-u-0381 ll-u-0373 ll-u-0375 ll-u-0376 ll-u-0480 ll-u-0501 ll-u-0521"
+          className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-lg ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-medium ll-text-gray-50 ll-hover-opacity-90 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-900 ll-focus-ring-offset-2 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-hover-opacity-90"
         >
           {t("pages.notFound.backHome")}
         </a>
@@ -3969,23 +3987,23 @@ function ServerErrorPage() {
   }, [t]);
 
   return (
-    <div className="ll-u-0059 ll-u-0086 ll-u-0111 ll-u-0152 ll-u-0156 ll-u-0159 ll-u-0223 ll-u-0233 ll-u-0317 ll-u-0473 ll-u-0505">
-      <div className="ll-u-0111 ll-u-0123 ll-u-0169 ll-u-0265">
-        <div className="ll-u-0041 ll-u-0059 ll-u-0075 ll-u-0102 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0222 ll-u-0482">
+    <div className="ll-flex ll-min-h-dvh ll-w-full ll-flex-col ll-items-center ll-justify-center ll-bg-white-b ll-p-4 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
+      <div className="ll-w-full ll-max-w-md ll-space-y-4 ll-text-center">
+        <div className="ll-mx-auto ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-full ll-bg-red-100 ll-dark-bg-red-900-20">
           <AppIcon
             name="alert-circle"
-            className="ll-u-0070 ll-u-0097 ll-u-0313 ll-u-0503"
+            className="ll-h-6 ll-w-6 ll-text-red-600v ll-dark-text-red-400v"
           />
         </div>
-        <h1 className="ll-u-0536 ll-u-0273 ll-u-0287">
+        <h1 className="ll-font-display ll-text-lg ll-font-semibold">
           {t("pages.serverError.title")}
         </h1>
-        <p className="ll-u-0274 ll-u-0310 ll-u-0499">
+        <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
           {t("pages.serverError.description")}
         </p>
         <a
           href="/"
-          className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0286 ll-u-0312 ll-u-0367 ll-u-0381 ll-u-0373 ll-u-0375 ll-u-0376 ll-u-0480 ll-u-0501 ll-u-0521"
+          className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-lg ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-medium ll-text-gray-50 ll-hover-opacity-90 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-900 ll-focus-ring-offset-2 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-hover-opacity-90"
         >
           {t("pages.serverError.backHome")}
         </a>
@@ -4057,13 +4075,6 @@ const writeLastTaskListSnapshot = (snapshot: LastTaskListSnapshot): void => {
 const parseTaskDate = (dateStr: string | null | undefined): Date | null =>
   parseTaskDateValue(dateStr ?? undefined) ?? null;
 
-const formatTaskDate = (date: Date): string => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-
 const createDateFromKey = (dateKey: string): Date | null => {
   const [y, m, d] = dateKey.split("-").map(Number);
   return [y, m, d].some(Number.isNaN) ? null : new Date(y, m - 1, d);
@@ -4132,21 +4143,21 @@ type AppHeaderProps = { backLabel: string; onBack: () => void };
 
 function AppHeader({ backLabel, onBack }: AppHeaderProps) {
   return (
-    <header className="ll-u-0059 ll-u-0156 ll-u-0237 ll-u-0243">
+    <header className="ll-flex ll-items-center ll-px-1 ll-py-1x5">
       <button
         type="button"
         onClick={onBack}
         aria-label={backLabel}
         title={backLabel}
-        className="ll-pressable ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0181 ll-u-0232 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0460 ll-u-0505 ll-u-0529"
+        className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded ll-p-3 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-border-gray-700 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
       >
         <AppIcon
-          className="ll-u-0070 ll-u-0097"
+          className="ll-h-6 ll-w-6"
           name="arrow-back"
           aria-hidden="true"
           focusable="false"
         />
-        <span className="ll-u-0005">{backLabel}</span>
+        <span className="ll-sr-only">{backLabel}</span>
       </button>
     </header>
   );
@@ -4155,56 +4166,57 @@ function AppHeader({ backLabel, onBack }: AppHeaderProps) {
 const Drawer = DrawerPrimitive.Root;
 const DrawerPortal = DrawerPrimitive.Portal;
 
-const DrawerOverlay = forwardRef<
-  ElementRef<typeof DrawerPrimitive.Overlay>,
-  ComponentPropsWithoutRef<typeof DrawerPrimitive.Overlay>
->(function DrawerOverlay({ className, ...props }, ref) {
+function DrawerOverlay({
+  className,
+  ref,
+  ...props
+}: ComponentProps<typeof DrawerPrimitive.Overlay>) {
   return (
     <DrawerPrimitive.Overlay
       ref={ref}
       className={clsx(
-        "ll-u-0007 ll-u-0011 ll-u-0034 ll-u-0212 ll-u-0336",
+        "ll-fixed ll-inset-0 ll-z-1000 ll-bg-black-50 ll-backdrop-blur-sm",
         className,
       )}
       {...props}
     />
   );
-});
+}
 
-const DrawerContent = forwardRef<
-  ElementRef<typeof DrawerPrimitive.Content>,
-  ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & {
-    className?: string;
-    overlayClassName?: string;
-  }
->(function DrawerContent(
-  { className, children, overlayClassName, style, ...props },
+function DrawerContent({
+  className,
+  children,
+  overlayClassName,
+  style,
   ref,
-) {
+  ...props
+}: ComponentProps<typeof DrawerPrimitive.Content> & {
+  overlayClassName?: string;
+}) {
   return (
     <DrawerPortal>
       <DrawerOverlay className={overlayClassName} />
       <DrawerPrimitive.Content
         ref={ref}
         className={clsx(
-          "ll-u-0007 ll-u-0013 ll-u-0035 ll-u-0111 ll-u-0119 ll-u-0345",
+          "ll-fixed ll-inset-y-0 ll-z-1100 ll-w-full ll-max-w-460px ll-outline-none",
           className,
         )}
         style={{ insetInlineStart: 0, ...style }}
         {...props}
       >
-        <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0168 ll-u-0178 ll-u-0223 ll-u-0233 ll-u-0317 ll-u-0326 ll-u-0485 ll-u-0505">
+        <div className="ll-flex ll-h-full ll-flex-col ll-gap-4 ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-text-gray-900 ll-shadow-2xl ll-dark-bg-gray-900b ll-dark-text-gray-50">
           {children}
         </div>
       </DrawerPrimitive.Content>
     </DrawerPortal>
   );
-});
+}
 
 function DrawerHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={clsx("ll-u-0059 ll-u-0152 ll-u-0167 ll-u-0267", className)}
+      className={clsx("ll-flex ll-flex-col ll-gap-3 ll-text-start", className)}
       {...props}
     />
   );
@@ -4382,21 +4394,26 @@ function Carousel({
   }, [count, direction, onIndexChange]);
 
   return (
-    <div className={clsx("ll-u-0008 ll-u-0111 ll-u-0176", className)}>
+    <div
+      role="region"
+      aria-roledescription="carousel"
+      aria-label={ariaLabel}
+      className={clsx("ll-relative ll-w-full ll-overflow-hidden", className)}
+    >
       {showIndicators && count > 0 ? (
         <nav
           aria-label={ariaLabel}
           className={clsx(
             indicatorInFlow
-              ? "ll-u-0059 ll-u-0159 ll-u-0162"
-              : "ll-u-0002 ll-u-0006 ll-u-0025 ll-u-0020 ll-u-0031 ll-u-0059 ll-u-0159 ll-u-0162",
+              ? "ll-flex ll-justify-center ll-gap-0x5"
+              : "ll-pointer-events-none ll-absolute ll-left-0 ll-right-0 ll-z-30 ll-flex ll-justify-center ll-gap-0x5",
             indicatorInFlow
               ? indicatorPosition === "top"
-                ? "ll-u-0053"
-                : "ll-u-0044"
+                ? "ll-mb-2"
+                : "ll-mt-2"
               : indicatorPosition === "top"
-                ? "ll-u-0018"
-                : "ll-u-0024",
+                ? "ll-top-14"
+                : "ll-bottom-4",
           )}
         >
           {Array.from({ length: count }).map((_, idx) => (
@@ -4409,21 +4426,19 @@ function Carousel({
                 onIndexChange(idx);
               }}
               className={clsx(
-                "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0230 ll-u-0338",
-                !indicatorInFlow && "ll-u-0001",
-                "ll-u-0362 ll-u-0516",
+                "ll-inline-flex ll-items-center ll-justify-center ll-rounded-full ll-p-2 ll-transition-all",
+                !indicatorInFlow && "ll-pointer-events-auto",
+                "ll-hover-bg-gray-900-10 ll-dark-hover-bg-gray-50-10",
               )}
-              aria-label={
-                getIndicatorLabel?.(idx, count) ?? `Go to slide ${idx + 1}`
-              }
+              aria-label={getIndicatorLabel?.(idx, count) ?? `${idx + 1}`}
               aria-current={idx === currentIndex ? "true" : undefined}
             >
               <span
                 className={clsx(
-                  "ll-u-0065 ll-u-0091 ll-u-0188 ll-u-0338",
+                  "ll-h-2 ll-w-2 ll-rounded-full ll-transition-all",
                   idx === currentIndex
-                    ? "ll-u-0139 ll-u-0219 ll-u-0480"
-                    : "ll-u-0220 ll-u-0481",
+                    ? "ll-scale-110 ll-bg-gray-900 ll-dark-bg-gray-50"
+                    : "ll-bg-gray-900-20 ll-dark-bg-gray-50-20",
                 )}
               />
             </button>
@@ -4434,8 +4449,10 @@ function Carousel({
         ref={containerRef}
         onScroll={scrollEnabled ? handleScroll : undefined}
         className={clsx(
-          "ll-u-0059 ll-u-0080 ll-u-0111 ll-u-0146 ll-u-0147 no-scrollbar ll-u-0180",
-          scrollEnabled ? "ll-u-0177 ll-u-0179" : "ll-u-0176",
+          "ll-flex ll-h-full ll-w-full ll-snap-x ll-snap-mandatory no-scrollbar ll-scroll-smooth",
+          scrollEnabled
+            ? "ll-overflow-x-auto ll-overflow-y-hidden"
+            : "ll-overflow-hidden",
         )}
         style={{
           scrollbarWidth: "none",
@@ -4446,7 +4463,10 @@ function Carousel({
         {Children.map(children, (child, idx) => (
           <div
             key={idx}
-            className="ll-u-0080 ll-u-0111 ll-u-0130 ll-u-0148 ll-u-0149"
+            role="group"
+            aria-roledescription="slide"
+            aria-label={getIndicatorLabel?.(idx, count) ?? `${idx + 1}`}
+            className="ll-h-full ll-w-full ll-shrink-0 ll-snap-start ll-snap-always"
             aria-hidden={idx !== currentIndex}
           >
             {child}
@@ -4602,30 +4622,32 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={clsx("ll-u-0230", className)}
+      className={clsx("ll-p-2", className)}
       locale={resolvedLocale}
       classNames={{
-        months: "ll-u-0059 ll-u-0152",
-        month: "ll-u-0169",
-        month_caption: "ll-u-0008 ll-u-0059 ll-u-0156 ll-u-0159 ll-u-0251",
-        caption_label: "ll-u-0274 ll-u-0287",
-        nav: "ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0170",
+        months: "ll-flex ll-w-full ll-flex-col",
+        month: "ll-w-full ll-space-y-4",
+        month_caption:
+          "ll-relative ll-flex ll-items-center ll-justify-center ll-pt-1",
+        caption_label: "ll-text-sm ll-font-semibold",
+        nav: "ll-flex ll-items-center ll-justify-between ll-space-x-1",
         button_previous:
-          "ll-u-0072 ll-u-0099 ll-u-0189 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0228 ll-u-0310 ll-u-0359 ll-u-0365 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0392 ll-u-0460 ll-u-0485 ll-u-0499 ll-u-0514 ll-u-0520 ll-u-0529",
+          "ll-h-8 ll-w-8 ll-rounded-lg ll-border ll-border-gray-300 ll-bg-white-b ll-p-0 ll-text-gray-600 ll-hover-bg-gray-50 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-300 ll-dark-hover-bg-gray-950 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
         button_next:
-          "ll-u-0072 ll-u-0099 ll-u-0189 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0228 ll-u-0310 ll-u-0359 ll-u-0365 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0392 ll-u-0460 ll-u-0485 ll-u-0499 ll-u-0514 ll-u-0520 ll-u-0529",
-        month_grid: "ll-u-0111",
-        weekdays: "ll-u-0059",
-        weekday: "ll-u-0100 ll-u-0277 ll-u-0286 ll-u-0311 ll-u-0500",
-        week: "ll-u-0044 ll-u-0059 ll-u-0111",
-        day: "ll-u-0008 ll-u-0073 ll-u-0100 ll-u-0228 ll-u-0265 ll-u-0274",
+          "ll-h-8 ll-w-8 ll-rounded-lg ll-border ll-border-gray-300 ll-bg-white-b ll-p-0 ll-text-gray-600 ll-hover-bg-gray-50 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-300 ll-dark-hover-bg-gray-950 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+        month_grid: "ll-w-full",
+        weekdays: "ll-flex",
+        weekday:
+          "ll-flex-1 ll-text-0x8rem ll-font-medium ll-text-gray-400 ll-dark-text-gray-500",
+        week: "ll-mt-2 ll-flex ll-w-full",
+        day: "ll-relative ll-flex ll-h-9 ll-flex-1 ll-justify-center ll-p-0 ll-text-center ll-text-sm",
         day_button:
-          "ll-u-0073 ll-u-0100 ll-u-0189 ll-u-0228 ll-u-0286 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0396 ll-u-0397 ll-u-0505 ll-u-0529 ll-u-0532 ll-u-0533",
-        selected: "ll-u-0189 ll-u-0214 ll-u-0484",
-        today: "ll-u-0193 ll-u-0200 ll-u-0460",
-        outside: "ll-u-0311 ll-u-0323 ll-u-0500",
-        disabled: "ll-u-0311 ll-u-0323 ll-u-0500",
-        hidden: "ll-u-0003",
+          "ll-h-9 ll-w-9 ll-rounded-lg ll-p-0 ll-font-medium ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-aria-selected-bg-gray-900 ll-aria-selected-text-gray-50 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-aria-selected-bg-gray-50 ll-dark-aria-selected-text-gray-900",
+        selected: "ll-rounded-lg ll-bg-gray-300 ll-dark-bg-white",
+        today: "ll-border ll-border-gray-300 ll-dark-border-gray-700",
+        outside: "ll-text-gray-400 ll-opacity-50 ll-dark-text-gray-500",
+        disabled: "ll-text-gray-400 ll-opacity-50 ll-dark-text-gray-500",
+        hidden: "ll-invisible",
         ...classNames,
       }}
       {...props}
@@ -4649,15 +4671,7 @@ const parseTaskDateValue = (value: string | undefined): Date | undefined => {
     }
     return new Date(year, month - 1, day);
   }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-};
-
-const formatTaskDateValue = (value: Date): string => {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return undefined;
 };
 
 const taskDateFormatterCache = new Map<string, Intl.DateTimeFormat>();
@@ -4768,7 +4782,7 @@ function TaskItemComponent({
       ref={setNodeRef}
       style={style}
       className={clsx(
-        "ll-task-row ll-u-0059 ll-u-0165 ll-u-0243",
+        "ll-task-row ll-flex ll-gap-2 ll-py-1x5",
         animateEnterRef.current && "ll-anim-task-enter",
         isExiting && "ll-anim-task-exit",
       )}
@@ -4784,26 +4798,26 @@ function TaskItemComponent({
           setIsHandlePointerDown(true);
           listeners?.onPointerDown?.(event);
         }}
-        className="ll-u-0059 ll-u-0144 ll-u-0156 ll-u-0311 ll-u-0382 ll-u-0383 ll-u-0384"
+        className="ll-flex ll-touch-none ll-items-center ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2"
       >
-        <span className="ll-u-0008">
+        <span className="ll-relative">
           <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
         </span>
       </button>
-      <div className="ll-u-0008 ll-u-0059 ll-u-0156 ll-u-0159">
+      <div className="ll-relative ll-flex ll-items-center ll-justify-center">
         <input
           type="checkbox"
           checked={task.completed}
           onChange={() => onToggle(task)}
           aria-labelledby={taskTextId}
-          className="ll-u-0347 ll-u-0006 ll-u-0011 ll-u-0029 ll-u-0080 ll-u-0111 ll-u-0143 ll-u-0322"
+          className="ll-peer ll-absolute ll-inset-0 ll-z-10 ll-h-full ll-w-full ll-cursor-pointer ll-opacity-0"
         />
-        <div className="ll-check-circle ll-u-0059 ll-u-0069 ll-u-0096 ll-u-0156 ll-u-0159 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0339 ll-u-0346 ll-u-0348 ll-u-0350 ll-u-0351 ll-u-0460 ll-u-0485 ll-u-0510" />
+        <div className="ll-check-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-border-gray-300 ll-bg-white-b ll-transition-colors ll-peer-checked-border-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-peer-checked-bg-gray-700" />
       </div>
-      <div className="ll-u-0008 ll-u-0059 ll-u-0125 ll-u-0129 ll-u-0152">
+      <div className="ll-relative ll-flex ll-min-w-0 ll-flex-1 ll-flex-col">
         {dateDisplayValue ? (
           <span
-            className="ll-u-0006 ll-u-0014 ll-u-0276 ll-u-0284 ll-u-0310 ll-u-0499"
+            className="ll-absolute ll-top-neg-2 ll-text-xs ll-leading-none ll-text-gray-600 ll-dark-text-gray-300"
             style={{ insetInlineStart: 0 }}
           >
             {dateDisplayValue}
@@ -4824,10 +4838,10 @@ function TaskItemComponent({
             }}
             autoFocus
             className={clsx(
-              "ll-u-0125 ll-u-0111 ll-u-0225 ll-u-0228 ll-u-0287 ll-u-0282 ll-u-0381",
+              "ll-min-w-0 ll-w-full ll-bg-transparent ll-p-0 ll-font-semibold ll-leading-7 ll-focus-outline-none",
               task.completed
-                ? "ll-u-0310 ll-u-0319 ll-u-0499"
-                : "ll-u-0317 ll-u-0505",
+                ? "ll-text-gray-600 ll-line-through ll-dark-text-gray-300"
+                : "ll-text-gray-900 ll-dark-text-gray-50",
             )}
           />
         ) : (
@@ -4844,10 +4858,10 @@ function TaskItemComponent({
             }}
             className={
               task.completed
-                ? "ll-u-0057 ll-u-0083 ll-u-0125 ll-u-0143 ll-u-0267 ll-u-0287 ll-u-0282 ll-u-0310 ll-u-0319 ll-u-0321 ll-u-0366 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0529"
+                ? "ll-block ll-min-h-7 ll-min-w-0 ll-cursor-pointer ll-text-start ll-font-semibold ll-leading-7 ll-text-gray-600 ll-line-through ll-underline-offset-4 ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
                 : clsx(
-                    "ll-u-0057 ll-u-0083 ll-u-0125 ll-u-0143 ll-u-0267 ll-u-0282 ll-u-0317 ll-u-0321 ll-u-0366 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0505 ll-u-0529",
-                    task.pinned ? "ll-u-0285" : "ll-u-0287",
+                    "ll-block ll-min-h-7 ll-min-w-0 ll-cursor-pointer ll-text-start ll-leading-7 ll-text-gray-900 ll-underline-offset-4 ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+                    task.pinned ? "ll-font-bold" : "ll-font-semibold",
                   )
             }
           >
@@ -4861,16 +4875,16 @@ function TaskItemComponent({
         aria-label={dateTitle}
         title={dateTitle}
         onClick={() => onOpenTaskActions?.(task, actionButtonRef.current)}
-        className="ll-pressable ll-u-0059 ll-u-0156 ll-u-0189 ll-u-0229 ll-u-0311 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0529"
+        className="ll-pressable ll-flex ll-items-center ll-rounded-lg ll-p-1 ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
       >
-        <span className="ll-u-0008 ll-u-0063">
+        <span className="ll-relative ll-inline-flex">
           <AppIcon
             name={task.pinned ? "push-pin" : "calendar-today"}
             aria-hidden="true"
             focusable="false"
           />
         </span>
-        <span className="ll-u-0005">{pinLabel}</span>
+        <span className="ll-sr-only">{pinLabel}</span>
       </button>
     </div>
   );
@@ -4879,16 +4893,16 @@ function TaskItemComponent({
 const TaskItem = memo(TaskItemComponent);
 
 const TASK_CARD_INPUT_CLASS =
-  "ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0317 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524";
+  "ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white ll-px-3 ll-py-2 ll-text-gray-900 ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700";
 const TASK_CARD_PRIMARY_BUTTON_CLASS =
-  "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0287 ll-u-0312 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501 ll-u-0529";
+  "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-font-semibold ll-text-gray-50 ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300";
 const TASK_CARD_SECONDARY_BUTTON_CLASS =
-  "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0075 ll-u-0102 ll-u-0191 ll-u-0200 ll-u-0287 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0505 ll-u-0529";
+  "ll-inline-flex ll-items-center ll-justify-center ll-h-12 ll-w-12 ll-rounded-xl ll-border-gray-300 ll-font-semibold ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300";
 const TASK_CARD_DESTRUCTIVE_BUTTON_CLASS =
-  "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0216 ll-u-0240 ll-u-0244 ll-u-0287 ll-u-0318 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0392 ll-u-0477 ll-u-0528";
+  "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-bg-red-600 ll-px-4 ll-py-2 ll-font-semibold ll-text-white ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-red-400 ll-dark-focus-visible-outline-red-400";
 const TASK_CARD_ICON_BUTTON_CLASS = clsx(
   TASK_CARD_SECONDARY_BUTTON_CLASS,
-  "ll-pressable ll-u-0238",
+  "ll-pressable ll-px-2",
 );
 
 function EditTaskListDialog({
@@ -4933,7 +4947,7 @@ function EditTaskListDialog({
           title={t("taskList.editDetails")}
         >
           <AppIcon name="edit" aria-hidden="true" focusable="false" />
-          <span className="ll-u-0005">{t("taskList.editDetails")}</span>
+          <span className="ll-sr-only">{t("taskList.editDetails")}</span>
         </button>
       </DialogTrigger>
       <DialogContent
@@ -4954,9 +4968,9 @@ function EditTaskListDialog({
               );
           }}
         >
-          <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
+          <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
             {error ? <Alert variant="error">{error}</Alert> : null}
-            <label className="ll-u-0059 ll-u-0152 ll-u-0163">
+            <label className="ll-flex ll-flex-col ll-gap-1">
               <span>{t("app.taskListName")}</span>
               <input
                 type="text"
@@ -4966,7 +4980,7 @@ function EditTaskListDialog({
                 className={TASK_CARD_INPUT_CLASS}
               />
             </label>
-            <div className="ll-u-0059 ll-u-0152 ll-u-0165">
+            <div className="ll-flex ll-flex-col ll-gap-2">
               <span>{t("taskList.selectColor")}</span>
               <ColorPicker
                 colors={COLORS}
@@ -4998,7 +5012,7 @@ function EditTaskListDialog({
               disabled={deleting}
               className={clsx(
                 TASK_CARD_DESTRUCTIVE_BUTTON_CLASS,
-                "ll-u-0048 ll-u-0111",
+                "ll-mt-6 ll-w-full",
               )}
             >
               {deleting ? t("common.deleting") : t("taskList.deleteList")}
@@ -5073,7 +5087,7 @@ function ShareTaskListDialog({
           title={t("taskList.share")}
         >
           <AppIcon name="share" aria-hidden="true" focusable="false" />
-          <span className="ll-u-0005">{t("taskList.share")}</span>
+          <span className="ll-sr-only">{t("taskList.share")}</span>
         </button>
       </DialogTrigger>
       <DialogContent
@@ -5082,15 +5096,15 @@ function ShareTaskListDialog({
       >
         {error ? <Alert variant="error">{error}</Alert> : null}
         {shareCode ? (
-          <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
-            <label className="ll-u-0059 ll-u-0152 ll-u-0164">
+          <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
+            <label className="ll-flex ll-flex-col ll-gap-1x5">
               <span>{t("taskList.shareCode")}</span>
-              <div className="ll-u-0059 ll-u-0155 ll-u-0165">
+              <div className="ll-flex ll-flex-wrap ll-gap-2">
                 <input
                   type="text"
                   value={shareCode}
                   readOnly
-                  className={clsx(TASK_CARD_INPUT_CLASS, "ll-u-0268")}
+                  className={clsx(TASK_CARD_INPUT_CLASS, "ll-font-mono")}
                 />
                 <button
                   type="button"
@@ -5135,7 +5149,7 @@ function ShareTaskListDialog({
             </button>
           </div>
         ) : (
-          <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
+          <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
             <button
               type="button"
               onClick={() => {
@@ -5390,25 +5404,35 @@ function TaskListCard({
     }
   }, [activeTaskActionTaskId]);
 
+  const taskDndAccessibility = useMemo(
+    () =>
+      buildDndAccessibility(
+        t,
+        (id) => tasks.find((task) => task.id === id)?.text ?? "",
+        () => tasks.map((task) => task.id),
+      ),
+    [t, tasks],
+  );
+
   return (
     <section
       className={clsx(
-        "ll-u-0080 ll-u-0178",
-        isActive ? "ll-u-0001" : "ll-u-0002",
+        "ll-h-full ll-overflow-y-auto",
+        isActive ? "ll-pointer-events-auto" : "ll-pointer-events-none",
       )}
       style={{ backgroundColor: taskList.background ?? undefined }}
     >
-      <div className="ll-u-0087 ll-u-0240">
-        <div className="ll-u-0059 ll-u-0152 ll-u-0168">
-          <div className="ll-u-0059 ll-u-0152 ll-u-0168">
-            <div className="ll-u-0059 ll-u-0152 ll-u-0168">
-              <div className="ll-u-0059 ll-u-0155 ll-u-0156 ll-u-0158 ll-u-0167">
-                <div className="ll-u-0059 ll-u-0152 ll-u-0164">
-                  <h2 className="ll-u-0536 ll-u-0040 ll-u-0275 ll-u-0287">
+      <div className="ll-min-h-full ll-px-4">
+        <div className="ll-flex ll-flex-col ll-gap-4">
+          <div className="ll-flex ll-flex-col ll-gap-4">
+            <div className="ll-flex ll-flex-col ll-gap-4">
+              <div className="ll-flex ll-flex-wrap ll-items-center ll-justify-between ll-gap-3">
+                <div className="ll-flex ll-flex-col ll-gap-1x5">
+                  <h2 className="ll-font-display ll-m-0 ll-text-xl ll-font-semibold">
                     {taskList.name}
                   </h2>
                 </div>
-                <div className="ll-u-0008 ll-u-0027 ll-u-0059 ll-u-0155 ll-u-0160">
+                <div className="ll-relative ll-left-2 ll-flex ll-flex-wrap ll-justify-end">
                   <EditTaskListDialog
                     taskList={taskList}
                     isActive={isActive}
@@ -5425,7 +5449,7 @@ function TaskListCard({
               {taskError ? <Alert variant="error">{taskError}</Alert> : null}
             </div>
             <form
-              className="ll-u-0059 ll-u-0156"
+              className="ll-flex ll-items-center"
               onSubmit={(event) => {
                 event.preventDefault();
                 const textToAdd = newTaskText.trim();
@@ -5469,8 +5493,11 @@ function TaskListCard({
                 });
               }}
             >
-              <div className="ll-u-0008 ll-u-0125 ll-u-0129">
-                <CommandPrimitive shouldFilter={false} className="ll-u-0225">
+              <div className="ll-relative ll-min-w-0 ll-flex-1">
+                <CommandPrimitive
+                  shouldFilter={false}
+                  className="ll-bg-transparent"
+                >
                   <input
                     ref={newTaskInputRef}
                     type="text"
@@ -5505,12 +5532,12 @@ function TaskListCard({
                       if (event.key === "Escape") setHistoryOpen(false);
                     }}
                     placeholder={t("pages.tasklist.addTaskPlaceholder")}
-                    className="ll-u-0111 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
+                    className="ll-w-full ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white ll-px-3 ll-py-2 ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
                   />
                   {historyOpen && historyOptions.length > 0 ? (
                     <CommandPrimitive.List
                       id={historyListId}
-                      className="ll-anim-pop ll-u-0006 ll-u-0025 ll-u-0020 ll-u-0019 ll-u-0033 ll-u-0043 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0229 ll-u-0329 ll-u-0460 ll-u-0485"
+                      className="ll-anim-pop ll-absolute ll-left-0 ll-right-0 ll-top-full ll-z-50 ll-mt-1 ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-p-1 ll-shadow-lg ll-dark-border-gray-700 ll-dark-bg-gray-900b"
                     >
                       {historyOptions.map((text) => (
                         <CommandPrimitive.Item
@@ -5563,7 +5590,7 @@ function TaskListCard({
                               },
                             });
                           }}
-                          className="ll-u-0143 ll-u-0189 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0345 ll-u-0398 ll-u-0534"
+                          className="ll-cursor-pointer ll-rounded-lg ll-px-3 ll-py-2 ll-text-sm ll-outline-none ll-data-selected-bg-gray-50 ll-dark-data-selected-bg-gray-950"
                         >
                           {text}
                         </CommandPrimitive.Item>
@@ -5579,14 +5606,14 @@ function TaskListCard({
                 aria-label={t("common.add")}
                 title={t("common.add")}
                 className={clsx(
-                  "ll-pressable ll-u-0063 ll-u-0074 ll-u-0131 ll-u-0156 ll-u-0159 ll-u-0176 ll-u-0191 ll-u-0311 ll-u-0338 ll-u-0342 ll-u-0343 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0505 ll-u-0529 ll-u-0531",
+                  "ll-pressable ll-inline-flex ll-h-10 ll-shrink-0b ll-items-center ll-justify-center ll-overflow-hidden ll-rounded-xl ll-text-gray-400 ll-transition-all ll-duration-300 ll-ease-in-out ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-disabled-opacity-50",
                   isInputFocused
-                    ? "ll-u-0056 ll-u-0099 ll-u-0001 ll-u-0325"
-                    : "ll-u-0055 ll-u-0089 ll-u-0002 ll-u-0322",
+                    ? "ll-ml-2 ll-w-8 ll-pointer-events-auto ll-opacity-100"
+                    : "ll-ml-0 ll-w-0 ll-pointer-events-none ll-opacity-0",
                 )}
               >
-                <span className="ll-u-0005">{t("common.add")}</span>
-                <span className="ll-u-0008 ll-u-0028">
+                <span className="ll-sr-only">{t("common.add")}</span>
+                <span className="ll-relative ll-left-px">
                   <AppIcon name="send" aria-hidden="true" focusable="false" />
                 </span>
               </button>
@@ -5594,7 +5621,7 @@ function TaskListCard({
             {addTaskError ? (
               <Alert variant="error">{addTaskError}</Alert>
             ) : null}
-            <div className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0165 ll-u-0261">
+            <div className="ll-flex ll-items-center ll-justify-between ll-gap-2 ll-pb-6">
               <button
                 type="button"
                 disabled={tasks.length < 2}
@@ -5626,7 +5653,7 @@ function TaskListCard({
                     },
                   });
                 }}
-                className="ll-pressable ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0286 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0505 ll-u-0529"
+                className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-font-medium ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
               >
                 <AppIcon name="sort" aria-hidden="true" focusable="false" />
                 {t("pages.tasklist.sort")}
@@ -5678,12 +5705,12 @@ function TaskListCard({
                       setExitingTaskIds(null);
                     });
                 }}
-                className="ll-pressable ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0286 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0391 ll-u-0393 ll-u-0505 ll-u-0528"
+                className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-font-medium ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-50 ll-dark-focus-visible-outline-red-400"
               >
                 {deleteCompletedPending
                   ? t("common.deleting")
                   : t("pages.tasklist.deleteCompleted")}
-                <span className="ll-u-0257">
+                <span className="ll-pr-1">
                   <AppIcon name="delete" aria-hidden="true" focusable="false" />
                 </span>
               </button>
@@ -5693,11 +5720,7 @@ function TaskListCard({
             sensors={sensorsList}
             collisionDetection={closestCenter}
             modifiers={[restrictToVerticalAxis]}
-            accessibility={buildDndAccessibility(
-              t,
-              (id) => tasks.find((task) => task.id === id)?.text ?? "",
-              () => tasks.map((task) => task.id),
-            )}
+            accessibility={taskDndAccessibility}
             onDragStart={(event: DragStartEvent) => {
               if (typeof event.active.id === "string") {
                 onSortingChange?.(true);
@@ -5738,11 +5761,11 @@ function TaskListCard({
               strategy={verticalListSortingStrategy}
             >
               {tasks.length === 0 ? (
-                <p className="ll-u-0310 ll-u-0499">
+                <p className="ll-text-gray-600 ll-dark-text-gray-300">
                   {t("pages.tasklist.noTasks")}
                 </p>
               ) : (
-                <div className="ll-u-0059 ll-u-0152 ll-u-0163">
+                <div className="ll-flex ll-flex-col ll-gap-1">
                   {tasks.map((task) => (
                     <TaskItem
                       key={task.id}
@@ -5878,7 +5901,7 @@ function TaskListCard({
                 : t("pages.tasklist.setDate"),
             ].join(" / ")}
           >
-            <div className="ll-u-0059 ll-u-0082 ll-u-0129 ll-u-0152 ll-u-0168 ll-u-0252">
+            <div className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-gap-4 ll-pt-2">
               <button
                 type="button"
                 aria-pressed={activeTaskActionTask.pinned}
@@ -5916,9 +5939,9 @@ function TaskListCard({
                     },
                   });
                 }}
-                className="ll-u-0059 ll-u-0085 ll-u-0111 ll-u-0156 ll-u-0158 ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0210 ll-u-0240 ll-u-0246 ll-u-0267 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0529"
+                className="ll-flex ll-min-h-12 ll-w-full ll-items-center ll-justify-between ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-gray-50 ll-px-4 ll-py-3 ll-text-start ll-text-sm ll-font-semibold ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
               >
-                <span className="ll-u-0059 ll-u-0156 ll-u-0167">
+                <span className="ll-flex ll-items-center ll-gap-3">
                   <AppIcon
                     name="push-pin"
                     size={18}
@@ -5929,7 +5952,7 @@ function TaskListCard({
                     ? t("pages.tasklist.unpinTask")
                     : t("pages.tasklist.pinTask")}
                 </span>
-                <span className="ll-u-0276 ll-u-0310 ll-u-0499">
+                <span className="ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
                   {activeTaskActionTask.pinned ? t("common.done") : ""}
                 </span>
               </button>
@@ -5963,16 +5986,16 @@ function TaskListCard({
                     },
                   });
                 }}
-                className="ll-u-0063 ll-u-0084 ll-u-0110 ll-u-0156 ll-u-0173 ll-u-0191 ll-u-0274 ll-u-0287 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0387 ll-u-0499"
+                className="ll-inline-flex ll-min-h-11 ll-w-fit ll-items-center ll-self-start ll-rounded-xl ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-600 ll-dark-text-gray-300"
               >
                 {t("pages.tasklist.clearDate")}
               </button>
-              <div className="ll-u-0082 ll-u-0129 ll-u-0178 ll-u-0185 ll-u-0193 ll-u-0200 ll-u-0210 ll-u-0232 ll-u-0460 ll-u-0473">
+              <div className="ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-rounded-24px ll-border ll-border-gray-300 ll-bg-gray-50 ll-p-3 ll-dark-border-gray-700 ll-dark-bg-gray-950">
                 <Calendar
                   mode="single"
                   selected={parseTaskDateValue(activeTaskActionTask.date)}
                   onSelect={(next) => {
-                    const nextDate = next ? formatTaskDateValue(next) : "";
+                    const nextDate = next ? formatDate(next) : "";
                     void runTaskMutation({
                       buildNextTasks: (currentTasks) =>
                         currentTasks.map((task) =>
@@ -6182,8 +6205,8 @@ function SortableTaskListItem({
         opacity: isDragging ? 0.5 : 1,
       }}
       className={clsx(
-        "ll-u-0059 ll-u-0156 ll-u-0165 ll-u-0183 ll-u-0230",
-        isActive ? "ll-u-0210 ll-u-0485" : "ll-u-0225",
+        "ll-flex ll-items-center ll-gap-2 ll-rounded-10px ll-p-2",
+        isActive ? "ll-bg-gray-50 ll-dark-bg-gray-900b" : "ll-bg-transparent",
       )}
     >
       <button
@@ -6192,14 +6215,14 @@ function SortableTaskListItem({
         title={dragHintLabel}
         aria-label={dragHintLabel}
         type="button"
-        className="ll-u-0059 ll-u-0144 ll-u-0156 ll-u-0189 ll-u-0229 ll-u-0310 ll-u-0365 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0520 ll-u-0529"
+        className="ll-flex ll-touch-none ll-items-center ll-rounded-lg ll-p-1 ll-text-gray-600 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300"
       >
         <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
       </button>
 
       <span
         aria-hidden="true"
-        className="ll-u-0066 ll-u-0092 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0460"
+        className="ll-h-3 ll-w-3 ll-rounded-full ll-border ll-border-gray-300 ll-dark-border-gray-700"
         style={{
           backgroundColor: resolveTaskListBackground(taskList.background),
         }}
@@ -6208,12 +6231,14 @@ function SortableTaskListItem({
       <button
         type="button"
         onClick={() => onSelect(taskList.id)}
-        className="ll-u-0059 ll-u-0129 ll-u-0152 ll-u-0157 ll-u-0162 ll-u-0267"
+        className="ll-flex ll-flex-1 ll-flex-col ll-items-start ll-gap-0x5 ll-text-start"
       >
-        <span className={clsx(isActive ? "ll-u-0285" : "ll-u-0286")}>
+        <span className={clsx(isActive ? "ll-font-bold" : "ll-font-medium")}>
           {taskList.name}
         </span>
-        <span className="ll-u-0276 ll-u-0310 ll-u-0499">{taskCountLabel}</span>
+        <span className="ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
+          {taskCountLabel}
+        </span>
       </button>
     </div>
   );
@@ -6234,40 +6259,39 @@ function CalendarTaskItem({
   itemRef,
   isHighlighted,
 }: CalendarTaskItemProps) {
-  const dateDisplayValue = new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    weekday: "short",
-  }).format(task.dateValue);
+  const dateDisplayValue = useMemo(() => {
+    const lang = document.documentElement.lang || "ja";
+    return getTaskDateFormatter(lang).format(task.dateValue);
+  }, [task.dateValue]);
 
   return (
     <div
       ref={itemRef}
       className={clsx(
-        "ll-u-0059 ll-u-0157 ll-u-0165 ll-u-0196 ll-u-0200 ll-u-0239 ll-u-0244 ll-u-0352 ll-u-0460",
-        isHighlighted && "ll-u-0210 ll-u-0485",
+        "ll-flex ll-items-start ll-gap-2 ll-border-b ll-border-gray-300 ll-px-3 ll-py-2 ll-last-border-b-0 ll-dark-border-gray-700",
+        isHighlighted && "ll-bg-gray-50 ll-dark-bg-gray-900b",
       )}
     >
-      <div className="ll-u-0059 ll-u-0125 ll-u-0129 ll-u-0152 ll-u-0163">
-        <div className="ll-u-0059 ll-u-0125 ll-u-0156 ll-u-0158 ll-u-0165">
+      <div className="ll-flex ll-min-w-0 ll-flex-1 ll-flex-col ll-gap-1">
+        <div className="ll-flex ll-min-w-0 ll-items-center ll-justify-between ll-gap-2">
           <button
             type="button"
             onClick={() => onSelectDate(task.dateValue)}
-            className="ll-u-0131 ll-u-0190 ll-u-0276 ll-u-0310 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0529"
+            className="ll-shrink-0b ll-rounded-md ll-text-xs ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
           >
             {dateDisplayValue}
           </button>
           <button
             type="button"
             onClick={() => onOpenTaskList(task.taskListId)}
-            className="ll-u-0063 ll-u-0125 ll-u-0156 ll-u-0160 ll-u-0165 ll-u-0190 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0529"
+            className="ll-inline-flex ll-min-w-0 ll-items-center ll-justify-end ll-gap-2 ll-rounded-md ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
           >
             <span
               aria-hidden="true"
-              className="ll-u-0068 ll-u-0095 ll-u-0131 ll-u-0188 ll-u-0193 ll-u-0200 ll-u-0460"
+              className="ll-h-4 ll-w-4 ll-shrink-0b ll-rounded-full ll-border ll-border-gray-300 ll-dark-border-gray-700"
               style={{ backgroundColor: task.taskListBackground }}
             />
-            <span className="ll-u-0175 ll-u-0276 ll-u-0286 ll-u-0317 ll-u-0505">
+            <span className="ll-truncate ll-text-xs ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
               {task.taskListName}
             </span>
           </button>
@@ -6275,7 +6299,7 @@ function CalendarTaskItem({
         <button
           type="button"
           onClick={() => onSelectDate(task.dateValue)}
-          className="ll-u-0175 ll-u-0190 ll-u-0267 ll-u-0286 ll-u-0281 ll-u-0317 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0505 ll-u-0529"
+          className="ll-truncate ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
         >
           {task.task.text}
         </button>
@@ -6300,7 +6324,6 @@ function CalendarScreen({
     Date | undefined
   >(undefined);
   const [displayedMonth, setDisplayedMonth] = useState<Date>(() => new Date());
-  const [calendarError] = useState<string | null>(null);
   const datedTaskRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const datedTasks = useMemo<DatedTask[]>(() => {
@@ -6316,7 +6339,7 @@ function CalendarScreen({
           taskListBackground: resolveTaskListBackground(taskList.background),
           task,
           dateValue: parsedDate,
-          dateKey: formatTaskDate(parsedDate),
+          dateKey: formatDate(parsedDate),
         });
       }
     }
@@ -6375,7 +6398,7 @@ function CalendarScreen({
   }, [datedTasksByMonth]);
 
   const selectedCalendarDateKey = useMemo(
-    () => (selectedCalendarDate ? formatTaskDate(selectedCalendarDate) : null),
+    () => (selectedCalendarDate ? formatDate(selectedCalendarDate) : null),
     [selectedCalendarDate],
   );
 
@@ -6385,7 +6408,7 @@ function CalendarScreen({
   ) => {
     setSelectedCalendarDate(next);
     if (!next) return;
-    const dateKey = formatTaskDate(next);
+    const dateKey = formatDate(next);
     const targetTask = tasksInMonth.find((task) => task.dateKey === dateKey);
     if (!targetTask) return;
     const targetElement = datedTaskRefs.current[getDatedTaskId(targetTask)];
@@ -6409,31 +6432,26 @@ function CalendarScreen({
     });
   };
 
-  const handleOpenTaskListFromCalendar = (taskListId: string) => {
-    onSelectTaskList(taskListId);
-  };
-
   const displayedMonthKey = formatMonthKey(displayedMonth);
   const visibleDatedTasks = datedTasksByMonth[displayedMonthKey] ?? [];
   const calendarTaskDates = monthTaskDates[displayedMonthKey] ?? [];
   const dateDotColors = monthDateDotColors[displayedMonthKey] ?? {};
 
   return (
-    <section className="ll-u-0059 ll-u-0080 ll-u-0082 ll-u-0152 ll-u-0210 ll-u-0473">
-      <div className="ll-u-0059 ll-u-0080 ll-u-0082 ll-u-0152 ll-u-0233">
-        {showCompactHeaderOffset ? <div className="ll-u-0078" /> : null}
-        {calendarError ? <Alert variant="error">{calendarError}</Alert> : null}
+    <section className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
+      <div className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-p-4">
+        {showCompactHeaderOffset ? <div className="ll-h-88px" /> : null}
         {datedTasks.length > 0 ? (
           <div
             className={clsx(
-              "ll-u-0082 ll-u-0129 ll-u-0178 ll-u-0263",
-              "ll-u-0451 ll-u-0454",
-              "ll-u-0059 ll-u-0152 ll-u-0167",
+              "ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-pb-12",
+              "ll-lg-grid ll-lg-grid-cols-main",
+              "ll-flex ll-flex-col ll-gap-3",
             )}
           >
-            <div className="ll-u-0111 ll-u-0449 ll-u-0450 ll-u-0455">
+            <div className="ll-w-full ll-lg-sticky ll-lg-top-0 ll-lg-self-start">
               <Calendar
-                className="ll-u-0111"
+                className="ll-w-full"
                 mode="single"
                 selected={selectedCalendarDate}
                 onSelect={(next) =>
@@ -6447,22 +6465,22 @@ function CalendarScreen({
                 modifiers={{ hasTask: calendarTaskDates }}
                 components={{
                   DayButton: (props) => {
-                    const dateKey = formatTaskDate(props.day.date);
+                    const dateKey = formatDate(props.day.date);
                     const colors = dateDotColors[dateKey] ?? [];
                     return (
                       <DayPickerDayButton {...props}>
-                        <span className="ll-u-0008 ll-u-0059 ll-u-0080 ll-u-0111 ll-u-0156 ll-u-0159">
+                        <span className="ll-relative ll-flex ll-h-full ll-w-full ll-items-center ll-justify-center">
                           <span
-                            className={clsx(colors.length > 0 && "ll-u-0259")}
+                            className={clsx(colors.length > 0 && "ll-pb-2")}
                           >
                             {props.day.date.getDate()}
                           </span>
                           {colors.length > 0 ? (
-                            <span className="ll-u-0002 ll-u-0006 ll-u-0023 ll-u-0026 ll-u-0059 ll-u-0132 ll-u-0162">
+                            <span className="ll-pointer-events-none ll-absolute ll-bottom-1 ll-left-half ll-flex ll-translate-x-neg-half ll-gap-0x5">
                               {colors.map((color, index) => (
                                 <span
                                   key={`${dateKey}-${color}-${index}`}
-                                  className="ll-u-0064 ll-u-0090 ll-u-0188 ll-u-0193 ll-u-0203 ll-u-0463"
+                                  className="ll-h-1x5 ll-w-1x5 ll-rounded-full ll-border ll-border-gray-900 ll-dark-border-gray-50"
                                   style={{ backgroundColor: color }}
                                 />
                               ))}
@@ -6475,7 +6493,7 @@ function CalendarScreen({
                 }}
               />
             </div>
-            <div className="ll-u-0082 ll-u-0178 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0460 ll-u-0452">
+            <div className="ll-min-h-0 ll-overflow-y-auto ll-rounded-xl ll-border ll-border-gray-300 ll-dark-border-gray-700 ll-lg-h-full">
               {visibleDatedTasks.length > 0 ? (
                 visibleDatedTasks.map((task) => {
                   const taskId = getDatedTaskId(task);
@@ -6483,7 +6501,7 @@ function CalendarScreen({
                     <CalendarTaskItem
                       key={taskId}
                       task={task}
-                      onOpenTaskList={handleOpenTaskListFromCalendar}
+                      onOpenTaskList={onSelectTaskList}
                       onSelectDate={(date) =>
                         handleSelectCalendarDate(date, visibleDatedTasks)
                       }
@@ -6495,14 +6513,14 @@ function CalendarScreen({
                   );
                 })
               ) : (
-                <p className="ll-u-0233 ll-u-0274 ll-u-0310 ll-u-0499">
+                <p className="ll-p-4 ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
                   {t("app.calendarNoDatedTasks")}
                 </p>
               )}
             </div>
           </div>
         ) : (
-          <p className="ll-u-0274 ll-u-0310 ll-u-0499">
+          <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
             {t("app.calendarNoDatedTasks")}
           </p>
         )}
@@ -6522,13 +6540,13 @@ function CalendarEntryButton({ onOpen }: CalendarEntryButtonProps) {
     <button
       type="button"
       onClick={onOpen}
-      className="ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0165 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529"
+      className="ll-inline-flex ll-items-center ll-justify-center ll-gap-2 ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-shadow-sm ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-gray-300"
     >
       <AppIcon
         name="calendar-today"
         aria-hidden="true"
         focusable="false"
-        className="ll-u-0069 ll-u-0096"
+        className="ll-h-5 ll-w-5"
       />
       <span>{t("app.calendarCheckButton")}</span>
     </button>
@@ -6580,9 +6598,19 @@ function TaskListSidebarPanel({
   const [joiningList, setJoiningList] = useState(false);
   const [joinListError, setJoinListError] = useState<string | null>(null);
   const dialogPrimaryButtonClass =
-    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0219 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0330 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0392 ll-u-0480 ll-u-0501 ll-u-0529";
+    "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-shadow-sm ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300";
   const dialogSecondaryButtonClass =
-    "ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529";
+    "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-shadow-sm ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-gray-300";
+
+  const taskListDndAccessibility = useMemo(
+    () =>
+      buildDndAccessibility(
+        t,
+        (id) => taskLists.find((taskList) => taskList.id === id)?.name ?? "",
+        () => taskLists.map((taskList) => taskList.id),
+      ),
+    [t, taskLists],
+  );
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -6623,16 +6651,16 @@ function TaskListSidebarPanel({
   };
 
   return (
-    <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0168">
+    <div className="ll-flex ll-h-full ll-flex-col ll-gap-4">
       <DrawerHeader>
-        <h2 id="drawer-task-lists-title" className="ll-u-0005">
+        <h2 id="drawer-task-lists-title" className="ll-sr-only">
           {t("app.drawerTitle")}
         </h2>
-        <div className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0165">
-          <div className="ll-u-0059 ll-u-0125 ll-u-0129 ll-u-0156 ll-u-0165">
+        <div className="ll-flex ll-items-center ll-justify-between ll-gap-2">
+          <div className="ll-flex ll-min-w-0 ll-flex-1 ll-items-center ll-gap-2">
             <p
               id="drawer-task-lists-description"
-              className="ll-u-0040 ll-u-0125 ll-u-0129 ll-u-0175 ll-u-0274 ll-u-0310 ll-u-0499"
+              className="ll-m-0 ll-min-w-0 ll-flex-1 ll-truncate ll-text-sm ll-text-gray-600 ll-dark-text-gray-300"
             >
               {userEmail}
             </p>
@@ -6642,7 +6670,7 @@ function TaskListSidebarPanel({
               title={t("settings.title")}
               aria-label={t("settings.title")}
               data-vaul-no-drag
-              className="ll-pressable ll-u-0063 ll-u-0156 ll-u-0159 ll-u-0191 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0365 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0499 ll-u-0518 ll-u-0520 ll-u-0529"
+              className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-p-2 ll-text-gray-600 ll-hover-bg-gray-50 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300"
             >
               <AppIcon name="settings" aria-hidden="true" focusable="false" />
             </button>
@@ -6652,18 +6680,13 @@ function TaskListSidebarPanel({
 
       <CalendarEntryButton onOpen={onOpenCalendar} />
 
-      <div className="ll-u-0059 ll-u-0129 ll-u-0152 ll-u-0167 ll-u-0178">
+      <div className="ll-flex ll-flex-1 ll-flex-col ll-gap-3 ll-overflow-y-auto">
         {hasTaskLists ? (
           <DndContext
             sensors={sensorsList}
             collisionDetection={closestCenter}
             modifiers={[restrictToVerticalAxis]}
-            accessibility={buildDndAccessibility(
-              t,
-              (id) =>
-                taskLists.find((taskList) => taskList.id === id)?.name ?? "",
-              () => taskLists.map((taskList) => taskList.id),
-            )}
+            accessibility={taskListDndAccessibility}
             onDragEnd={handleDragEnd}
           >
             <SortableContext items={taskLists.map((taskList) => taskList.id)}>
@@ -6685,10 +6708,12 @@ function TaskListSidebarPanel({
             </SortableContext>
           </DndContext>
         ) : (
-          <p className="ll-u-0274 ll-u-0310 ll-u-0499">{t("app.emptyState")}</p>
+          <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
+            {t("app.emptyState")}
+          </p>
         )}
 
-        <div className="ll-u-0060 ll-u-0151 ll-u-0165">
+        <div className="ll-grid ll-grid-cols-2 ll-gap-2">
           <Dialog
             open={showCreateListDialog}
             onOpenChange={(open: boolean) => {
@@ -6714,18 +6739,18 @@ function TaskListSidebarPanel({
                   void handleCreateList();
                 }}
               >
-                <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
-                  <label className="ll-u-0059 ll-u-0152 ll-u-0163">
+                <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
+                  <label className="ll-flex ll-flex-col ll-gap-1">
                     <span>{t("app.taskListName")}</span>
                     <input
                       type="text"
                       value={createListInput}
                       onChange={(e) => setCreateListInput(e.target.value)}
                       placeholder={t("app.taskListNamePlaceholder")}
-                      className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
+                      className="ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-dark-border-gray-700 ll-dark-bg-gray-900 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
                     />
                   </label>
-                  <div className="ll-u-0059 ll-u-0152 ll-u-0165">
+                  <div className="ll-flex ll-flex-col ll-gap-2">
                     <span>{t("taskList.selectColor")}</span>
                     <ColorPicker
                       colors={COLORS}
@@ -6781,11 +6806,11 @@ function TaskListSidebarPanel({
                   void handleJoinList();
                 }}
               >
-                <div className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0167">
+                <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
                   {joinListError ? (
                     <Alert variant="error">{joinListError}</Alert>
                   ) : null}
-                  <label className="ll-u-0059 ll-u-0152 ll-u-0163">
+                  <label className="ll-flex ll-flex-col ll-gap-1">
                     <span>{t("taskList.shareCode")}</span>
                     <input
                       type="text"
@@ -6795,7 +6820,7 @@ function TaskListSidebarPanel({
                         setJoinListError(null);
                       }}
                       placeholder={t("app.shareCodePlaceholder")}
-                      className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
+                      className="ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-dark-border-gray-700 ll-dark-bg-gray-900 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
                     />
                   </label>
                 </div>
@@ -7000,11 +7025,11 @@ function AppShellPage() {
   );
   const isRtl = carouselDirection === "rtl";
   const taskListsPanelSkeleton = (
-    <div className="ll-u-0059 ll-u-0152 ll-u-0167 ll-u-0230">
-      <div className="ll-u-0072 ll-u-0103 ll-u-0141 ll-u-0189 ll-u-0214 ll-u-0475" />
-      <div className="ll-u-0074 ll-u-0111 ll-u-0141 ll-u-0191 ll-u-0214 ll-u-0475" />
-      <div className="ll-u-0074 ll-u-0111 ll-u-0141 ll-u-0191 ll-u-0214 ll-u-0475" />
-      <div className="ll-u-0074 ll-u-0111 ll-u-0141 ll-u-0191 ll-u-0214 ll-u-0475" />
+    <div className="ll-flex ll-flex-col ll-gap-3 ll-p-2">
+      <div className="ll-h-8 ll-w-32 ll-animate-pulse ll-rounded-lg ll-bg-gray-300 ll-dark-bg-gray-700" />
+      <div className="ll-h-10 ll-w-full ll-animate-pulse ll-rounded-xl ll-bg-gray-300 ll-dark-bg-gray-700" />
+      <div className="ll-h-10 ll-w-full ll-animate-pulse ll-rounded-xl ll-bg-gray-300 ll-dark-bg-gray-700" />
+      <div className="ll-h-10 ll-w-full ll-animate-pulse ll-rounded-xl ll-bg-gray-300 ll-dark-bg-gray-700" />
     </div>
   );
 
@@ -7224,8 +7249,8 @@ function AppShellPage() {
   );
 
   const mobileSlideTransitionClass = isViewAnimationReady
-    ? "ll-u-0399 ll-u-0400 ll-u-0401 ll-u-0402 ll-u-0403"
-    : "ll-u-0341";
+    ? "ll-motion-safe-transition-transform ll-motion-safe-duration-300 ll-motion-safe-ease-out-expo ll-motion-reduce-transition-none ll-motion-reduce-duration-0"
+    : "ll-transition-none";
   const compactForwardTransform = isRtl
     ? "translateX(-100%)"
     : "translateX(100%)";
@@ -7243,23 +7268,23 @@ function AppShellPage() {
   };
   const renderDetailSkeleton = (taskRowCount: number) => (
     <div
-      className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0168 ll-u-0233 ll-u-0256"
+      className="ll-flex ll-h-full ll-flex-col ll-gap-4 ll-p-4 ll-pt-24"
       style={
         startupTaskListSnapshot
           ? { backgroundColor: startupTaskListSnapshot.background }
           : undefined
       }
     >
-      <div className="ll-u-0070 ll-u-0104 ll-u-0141 ll-u-0181 ll-u-0214 ll-u-0475" />
-      <div className="ll-u-0059 ll-u-0152 ll-u-0165">
+      <div className="ll-h-6 ll-w-40 ll-animate-pulse ll-rounded ll-bg-gray-300 ll-dark-bg-gray-700" />
+      <div className="ll-flex ll-flex-col ll-gap-2">
         {Array.from({ length: taskRowCount }, (_, index) => (
           <div
             key={index}
             className={clsx(
-              "ll-u-0074 ll-u-0141 ll-u-0189 ll-u-0214 ll-u-0475",
+              "ll-h-10 ll-animate-pulse ll-rounded-lg ll-bg-gray-300 ll-dark-bg-gray-700",
               index === taskRowCount - 1 && taskRowCount > 3
-                ? "ll-u-0094"
-                : "ll-u-0111",
+                ? "ll-w-3q4"
+                : "ll-w-full",
             )}
           />
         ))}
@@ -7274,9 +7299,9 @@ function AppShellPage() {
     <div
       aria-hidden={currentView !== view}
       className={clsx(
-        "ll-u-0006 ll-u-0011 ll-u-0080 ll-u-0176 ll-u-0344",
+        "ll-absolute ll-inset-0 ll-h-full ll-overflow-hidden ll-will-change-transform",
         mobileSlideTransitionClass,
-        currentView === view ? "ll-u-0030" : "ll-u-0002 ll-u-0029",
+        currentView === view ? "ll-z-20" : "ll-pointer-events-none ll-z-10",
         className,
       )}
       style={{ transform: getCompactPanelTransform(view) }}
@@ -7286,18 +7311,18 @@ function AppShellPage() {
   );
 
   const detailContent = (
-    <div className="ll-u-0080 ll-u-0176">
+    <div className="ll-h-full ll-overflow-hidden">
       {isAuthLoading ? (
         renderDetailSkeleton(4)
       ) : hasStartupError ? (
-        <div className="ll-u-0059 ll-u-0080 ll-u-0156 ll-u-0159 ll-u-0233">
+        <div className="ll-flex ll-h-full ll-items-center ll-justify-center ll-p-4">
           <Alert variant="error">{t("app.error")}</Alert>
         </div>
       ) : isTaskListsHydrating ? (
         renderDetailSkeleton(3)
       ) : hasTaskLists ? (
         <Carousel
-          className="ll-u-0080"
+          className="ll-h-full"
           index={selectedTaskListIndex}
           direction={carouselDirection}
           scrollEnabled={!isTaskSorting && !isTaskDragInteracting}
@@ -7320,16 +7345,16 @@ function AppShellPage() {
           {taskLists.map((taskList) => (
             <div
               key={taskList.id}
-              className="ll-u-0059 ll-u-0080 ll-u-0111 ll-u-0152"
+              className="ll-flex ll-h-full ll-w-full ll-flex-col"
               style={{
                 backgroundColor: resolveTaskListBackground(taskList.background),
               }}
             >
-              <div className="ll-u-0078" />
+              <div className="ll-h-88px" />
               <div
                 className={clsx(
-                  "ll-u-0080 ll-u-0178",
-                  isWideLayout && "ll-u-0041 ll-u-0113 ll-u-0128",
+                  "ll-h-full ll-overflow-y-auto",
+                  isWideLayout && "ll-mx-auto ll-max-w-3xl ll-min-w-480px",
                 )}
               >
                 <TaskListCard
@@ -7368,8 +7393,10 @@ function AppShellPage() {
           ))}
         </Carousel>
       ) : (
-        <div className="ll-u-0059 ll-u-0080 ll-u-0156 ll-u-0159 ll-u-0233">
-          <p className="ll-u-0310 ll-u-0499">{t("app.emptyState")}</p>
+        <div className="ll-flex ll-h-full ll-items-center ll-justify-center ll-p-4">
+          <p className="ll-text-gray-600 ll-dark-text-gray-300">
+            {t("app.emptyState")}
+          </p>
         </div>
       )}
     </div>
@@ -7386,7 +7413,7 @@ function AppShellPage() {
   );
 
   const taskListsRootContent = (
-    <div className="ll-u-0080 ll-u-0178 ll-u-0223 ll-u-0233 ll-u-0485">
+    <div className="ll-h-full ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-dark-bg-gray-900b">
       {error ? <Alert variant="error">{error}</Alert> : null}
       {isAuthLoading ? taskListsPanelSkeleton : drawerPanel}
     </div>
@@ -7397,25 +7424,25 @@ function AppShellPage() {
   }
 
   return (
-    <div className="ll-u-0080 ll-u-0087 ll-u-0111 ll-u-0176 ll-u-0317 ll-u-0505">
+    <div className="ll-h-full ll-min-h-full ll-w-full ll-overflow-hidden ll-text-gray-900 ll-dark-text-gray-50">
       <div
         className={clsx(
-          "ll-u-0059 ll-u-0080",
+          "ll-flex ll-h-full",
           isWideLayout
             ? isRtl
-              ? "ll-u-0154 ll-u-0157"
-              : "ll-u-0153 ll-u-0157"
-            : "ll-u-0152",
+              ? "ll-flex-row-reverse ll-items-start"
+              : "ll-flex-row ll-items-start"
+            : "ll-flex-col",
         )}
       >
         {isWideLayout ? (
           <aside
             className={clsx(
-              "ll-u-0010 ll-u-0015 ll-u-0108 ll-u-0118 ll-u-0131 ll-u-0174 ll-u-0200",
-              isRtl ? "ll-u-0197" : "ll-u-0195",
+              "ll-sticky ll-top-0 ll-w-360px ll-max-w-420px ll-shrink-0b ll-self-stretch ll-border-gray-300",
+              isRtl ? "ll-border-l" : "ll-border-r",
             )}
           >
-            <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0178 ll-u-0223 ll-u-0233 ll-u-0460 ll-u-0485">
+            <div className="ll-flex ll-h-full ll-flex-col ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-dark-border-gray-700 ll-dark-bg-gray-900b">
               {isAuthLoading ? taskListsPanelSkeleton : drawerPanel}
             </div>
           </aside>
@@ -7424,19 +7451,19 @@ function AppShellPage() {
         <main
           id="main-content"
           tabIndex={-1}
-          className="ll-u-0059 ll-u-0080 ll-u-0082 ll-u-0111 ll-u-0125 ll-u-0129 ll-u-0152"
+          className="ll-flex ll-h-full ll-min-h-0 ll-w-full ll-min-w-0 ll-flex-1 ll-flex-col"
         >
           {isWideLayout ? (
-            <div className="ll-u-0080 ll-u-0176">
+            <div className="ll-h-full ll-overflow-hidden">
               {currentView === "settings" ? (
-                <div className="ll-u-0080 ll-u-0178">
+                <div className="ll-h-full ll-overflow-y-auto">
                   <SettingsView
                     showBackButton={false}
                     onOpenLicenses={() => openLicenses("replace")}
                   />
                 </div>
               ) : currentView === "licenses" ? (
-                <div className="ll-u-0080 ll-u-0178">
+                <div className="ll-h-full ll-overflow-y-auto">
                   <LicensesView
                     onBack={() => openSettings("replace")}
                     showBackButton={true}
@@ -7449,12 +7476,12 @@ function AppShellPage() {
               )}
             </div>
           ) : (
-            <div className="ll-u-0008 ll-u-0080 ll-u-0176">
+            <div className="ll-relative ll-h-full ll-overflow-hidden">
               {renderCompactPanel("taskLists", taskListsRootContent)}
               {renderCompactPanel(
                 "detail",
                 <>
-                  <div className="ll-u-0006 ll-u-0030 ll-u-0111">
+                  <div className="ll-absolute ll-z-20 ll-w-full">
                     <AppHeader
                       backLabel={t("common.back")}
                       onBack={handleBackToTaskLists}
@@ -7465,29 +7492,29 @@ function AppShellPage() {
               )}
               {renderCompactPanel(
                 "settings",
-                <div className="ll-u-0080 ll-u-0178">
+                <div className="ll-h-full ll-overflow-y-auto">
                   <SettingsView
                     onBack={handleBackToTaskLists}
                     showBackButton={true}
                     onOpenLicenses={() => openLicenses("push")}
                   />
                 </div>,
-                "ll-u-0210 ll-u-0473",
+                "ll-bg-gray-50 ll-dark-bg-gray-950",
               )}
               {renderCompactPanel(
                 "licenses",
-                <div className="ll-u-0080 ll-u-0178">
+                <div className="ll-h-full ll-overflow-y-auto">
                   <LicensesView
                     onBack={handleBackToTaskLists}
                     showBackButton={true}
                   />
                 </div>,
-                "ll-u-0210 ll-u-0473",
+                "ll-bg-gray-50 ll-dark-bg-gray-950",
               )}
               {renderCompactPanel(
                 "calendar",
                 <>
-                  <div className="ll-u-0006 ll-u-0030 ll-u-0111">
+                  <div className="ll-absolute ll-z-20 ll-w-full">
                     <AppHeader
                       backLabel={t("common.back")}
                       onBack={handleBackToTaskLists}
@@ -7495,7 +7522,7 @@ function AppShellPage() {
                   </div>
                   {calendarContent}
                 </>,
-                "ll-u-0210 ll-u-0473",
+                "ll-bg-gray-50 ll-dark-bg-gray-950",
               )}
             </div>
           )}
@@ -7509,10 +7536,10 @@ function AppShellPage() {
 type AuthTab = "signin" | "signup" | "reset";
 
 const AUTH_PRIMARY_BUTTON_CLASS =
-  "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0219 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0312 ll-u-0330 ll-u-0339 ll-u-0367 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0480 ll-u-0501 ll-u-0529";
+  "ll-inline-flex ll-w-full ll-items-center ll-justify-center ll-rounded-lg ll-bg-gray-900 ll-px-4 ll-py-2x5 ll-text-sm ll-font-semibold ll-text-gray-50 ll-shadow-sm ll-transition-colors ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-70 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300";
 
 const AUTH_SECONDARY_BUTTON_CLASS =
-  "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0245 ll-u-0274 ll-u-0287 ll-u-0317 ll-u-0330 ll-u-0339 ll-u-0359 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0391 ll-u-0394 ll-u-0460 ll-u-0485 ll-u-0505 ll-u-0514 ll-u-0529";
+  "ll-inline-flex ll-w-full ll-items-center ll-justify-center ll-rounded-lg ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-2x5 ll-text-sm ll-font-semibold ll-text-gray-900 ll-shadow-sm ll-transition-colors ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-70 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-gray-300";
 
 type FormInputProps = {
   id: string;
@@ -7538,8 +7565,11 @@ function FormInput({
   autoComplete,
 }: FormInputProps) {
   return (
-    <div className="ll-u-0059 ll-u-0152 ll-u-0163">
-      <label htmlFor={id} className="ll-u-0274 ll-u-0286 ll-u-0317 ll-u-0505">
+    <div className="ll-flex ll-flex-col ll-gap-1">
+      <label
+        htmlFor={id}
+        className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50"
+      >
         {label}
       </label>
       <input
@@ -7552,10 +7582,13 @@ function FormInput({
         autoComplete={autoComplete}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
-        className="ll-u-0191 ll-u-0193 ll-u-0200 ll-u-0218 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0330 ll-u-0371 ll-u-0381 ll-u-0373 ll-u-0374 ll-u-0391 ll-u-0393 ll-u-0460 ll-u-0479 ll-u-0505 ll-u-0522 ll-u-0524"
+        className="ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
       />
       {error ? (
-        <p id={`${id}-error`} className="ll-u-0276 ll-u-0308 ll-u-0497">
+        <p
+          id={`${id}-error`}
+          className="ll-text-xs ll-text-red-600 ll-dark-text-red-400"
+        >
           {error}
         </p>
       ) : null}
@@ -7610,7 +7643,7 @@ function LoginPage() {
   };
 
   const handleSignIn = (e: React.FormEvent) => {
-    handleAuthAction(
+    void handleAuthAction(
       e,
       async () => {
         await signIn(email, password);
@@ -7623,7 +7656,7 @@ function LoginPage() {
 
   const handleSignUp = (e: React.FormEvent) => {
     const resolvedLanguage = normalizeLanguage(i18n.language);
-    handleAuthAction(
+    void handleAuthAction(
       e,
       async () => {
         await signUp(email, password, resolvedLanguage);
@@ -7673,10 +7706,10 @@ function LoginPage() {
 
   const tabButtonClass = (isActive: boolean) =>
     [
-      "ll-u-0063 ll-u-0111 ll-u-0156 ll-u-0159 ll-u-0189 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0287 ll-u-0339 ll-u-0382 ll-u-0383 ll-u-0384 ll-u-0388 ll-u-0529",
+      "ll-inline-flex ll-w-full ll-items-center ll-justify-center ll-rounded-lg ll-px-3 ll-py-2 ll-text-sm ll-font-semibold ll-transition-colors ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300",
       isActive
-        ? "ll-u-0223 ll-u-0317 ll-u-0330 ll-u-0485 ll-u-0505"
-        : "ll-u-0310 ll-u-0364 ll-u-0499 ll-u-0519",
+        ? "ll-bg-white-b ll-text-gray-900 ll-shadow-sm ll-dark-bg-gray-900b ll-dark-text-gray-50"
+        : "ll-text-gray-600 ll-hover-bg-white-70 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900-60",
     ].join(" ");
 
   const primaryButtonClass = AUTH_PRIMARY_BUTTON_CLASS;
@@ -7686,25 +7719,25 @@ function LoginPage() {
   );
 
   return (
-    <div className="ll-u-0088 ll-u-0111 ll-u-0210 ll-u-0317 ll-u-0473 ll-u-0505">
+    <div className="ll-min-h-screen ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
       <main
         id="main-content"
         tabIndex={-1}
-        className="ll-u-0041 ll-u-0059 ll-u-0088 ll-u-0111 ll-u-0124 ll-u-0152 ll-u-0159 ll-u-0240 ll-u-0249 ll-u-0434"
+        className="ll-mx-auto ll-flex ll-min-h-screen ll-w-full ll-max-w-xl ll-flex-col ll-justify-center ll-px-4 ll-py-10 ll-sm-px-6"
       >
-        <div className="ll-u-0111 ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0235 ll-u-0330 ll-u-0460 ll-u-0485 ll-u-0431">
-          <div className="ll-u-0054 ll-u-0265">
-            <h1 className="ll-u-0536 ll-u-0270 ll-u-0287 ll-u-0291 ll-u-0442">
+        <div className="ll-w-full ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-p-6 ll-shadow-sm ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-8">
+          <div className="ll-mb-6 ll-text-center">
+            <h1 className="ll-font-display ll-text-2xl ll-font-semibold ll-tracking-tight ll-sm-text-3xl">
               {t("title")}
             </h1>
           </div>
-          <div className="ll-u-0054 ll-u-0059 ll-u-0160">
+          <div className="ll-mb-6 ll-flex ll-justify-end">
             <select
               value={selectedLanguage}
               onChange={(event) =>
                 void i18n.changeLanguage(normalizeLanguage(event.target.value))
               }
-              className="ll-u-0190 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0239 ll-u-0244 ll-u-0274 ll-u-0317 ll-u-0345 ll-u-0337 ll-u-0371 ll-u-0460 ll-u-0473 ll-u-0505 ll-u-0522"
+              className="ll-rounded-md ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-focus-border-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-border-gray-300"
               aria-label={t("settings.language.title")}
             >
               {SUPPORTED_LANGUAGES.map((language) => (
@@ -7716,7 +7749,7 @@ function LoginPage() {
           </div>
 
           <div
-            className="ll-u-0054 ll-u-0060 ll-u-0151 ll-u-0165 ll-u-0191 ll-u-0210 ll-u-0229 ll-u-0485"
+            className="ll-mb-6 ll-grid ll-grid-cols-2 ll-gap-2 ll-rounded-xl ll-bg-gray-50 ll-p-1 ll-dark-bg-gray-900b"
             role="tablist"
             aria-label={t("title")}
           >
@@ -7749,9 +7782,9 @@ function LoginPage() {
               id="auth-panel-signin"
               role="tabpanel"
               aria-labelledby="auth-tab-signin"
-              className="ll-u-0169"
+              className="ll-space-y-4"
             >
-              <form onSubmit={handleSignIn} className="ll-u-0169">
+              <form onSubmit={handleSignIn} className="ll-space-y-4">
                 <FormInput
                   id="signin-email"
                   label={t("auth.form.email")}
@@ -7802,9 +7835,9 @@ function LoginPage() {
               id="auth-panel-signup"
               role="tabpanel"
               aria-labelledby="auth-tab-signup"
-              className="ll-u-0169"
+              className="ll-space-y-4"
             >
-              <form onSubmit={handleSignUp} className="ll-u-0169">
+              <form onSubmit={handleSignUp} className="ll-space-y-4">
                 <FormInput
                   id="signup-email"
                   label={t("auth.form.email")}
@@ -7855,15 +7888,15 @@ function LoginPage() {
           )}
 
           {activeTab === "reset" && (
-            <section className="ll-u-0169">
-              <form onSubmit={handlePasswordReset} className="ll-u-0169">
+            <section className="ll-space-y-4">
+              <form onSubmit={handlePasswordReset} className="ll-space-y-4">
                 {resetSent ? (
                   <Alert variant="success">
                     {t("auth.passwordReset.success")}
                   </Alert>
                 ) : (
                   <>
-                    <p className="ll-u-0274 ll-u-0310 ll-u-0499">
+                    <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
                       {t("auth.passwordReset.instruction")}
                     </p>
                     <FormInput
@@ -7903,7 +7936,7 @@ function LoginPage() {
           )}
         </div>
 
-        <p className="ll-u-0048 ll-u-0265 ll-u-0276 ll-u-0310 ll-u-0499">
+        <p className="ll-mt-6 ll-text-center ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
           {t("copyright")}
         </p>
       </main>
@@ -7989,7 +8022,7 @@ function PasswordResetPage() {
   const content = (() => {
     if (codeValid === false) {
       return (
-        <div className="ll-u-0169">
+        <div className="ll-space-y-4">
           <Alert variant="error">
             {errors.general || t("auth.passwordReset.invalidCode")}
           </Alert>
@@ -8006,11 +8039,11 @@ function PasswordResetPage() {
 
     if (resetSuccess) {
       return (
-        <div className="ll-u-0169">
+        <div className="ll-space-y-4">
           <Alert variant="success">
             {t("auth.passwordReset.resetSuccess")}
           </Alert>
-          <div className="ll-u-0059 ll-u-0159">
+          <div className="ll-flex ll-justify-center">
             <Spinner />
           </div>
         </div>
@@ -8018,10 +8051,10 @@ function PasswordResetPage() {
     }
 
     return (
-      <div className="ll-u-0169">
+      <div className="ll-space-y-4">
         {errors.general && <Alert variant="error">{errors.general}</Alert>}
 
-        <form onSubmit={handleSubmit} className="ll-u-0169">
+        <form onSubmit={handleSubmit} className="ll-space-y-4">
           <FormInput
             id="password"
             label={t("auth.passwordReset.newPassword")}
@@ -8069,21 +8102,21 @@ function PasswordResetPage() {
   })();
 
   return (
-    <div className="ll-u-0088 ll-u-0111 ll-u-0210 ll-u-0317 ll-u-0473 ll-u-0505">
+    <div className="ll-min-h-screen ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
       <main
         id="main-content"
         tabIndex={-1}
-        className="ll-u-0041 ll-u-0059 ll-u-0088 ll-u-0111 ll-u-0124 ll-u-0152 ll-u-0159 ll-u-0240 ll-u-0249 ll-u-0434"
+        className="ll-mx-auto ll-flex ll-min-h-screen ll-w-full ll-max-w-xl ll-flex-col ll-justify-center ll-px-4 ll-py-10 ll-sm-px-6"
       >
-        <div className="ll-u-0111 ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0223 ll-u-0235 ll-u-0330 ll-u-0460 ll-u-0485 ll-u-0431">
-          <div className="ll-u-0054 ll-u-0265">
-            <h1 className="ll-u-0536 ll-u-0270 ll-u-0287 ll-u-0291 ll-u-0442">
+        <div className="ll-w-full ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-p-6 ll-shadow-sm ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-8">
+          <div className="ll-mb-6 ll-text-center">
+            <h1 className="ll-font-display ll-text-2xl ll-font-semibold ll-tracking-tight ll-sm-text-3xl">
               {t("auth.passwordReset.title")}
             </h1>
           </div>
           {content}
         </div>
-        <p className="ll-u-0048 ll-u-0265 ll-u-0276 ll-u-0310 ll-u-0499">
+        <p className="ll-mt-6 ll-text-center ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
           {t("copyright")}
         </p>
       </main>
@@ -8170,17 +8203,17 @@ function ShareCodePreviewPage() {
 
   if (error) {
     return (
-      <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0210 ll-u-0473">
-        <div className="ll-u-0223 ll-u-0233 ll-u-0330 ll-u-0485">
+      <div className="ll-flex ll-h-full ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
+        <div className="ll-bg-white-b ll-p-4 ll-shadow-sm ll-dark-bg-gray-900b">
           <button
             onClick={() => window.history.back()}
-            className="ll-pressable ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
+            className="ll-pressable ll-rounded-full ll-p-2 ll-text-gray-600 ll-hover-bg-gray-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900"
             aria-label={t("common.back")}
           >
-            <AppIcon name="arrow-back" className="ll-u-0070 ll-u-0097" />
+            <AppIcon name="arrow-back" className="ll-h-6 ll-w-6" />
           </button>
         </div>
-        <div className="ll-u-0233">
+        <div className="ll-p-4">
           <Alert variant="error">{error}</Alert>
         </div>
       </div>
@@ -8191,18 +8224,18 @@ function ShareCodePreviewPage() {
 
   if (!taskList) {
     return (
-      <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0210 ll-u-0473">
-        <div className="ll-u-0223 ll-u-0233 ll-u-0330 ll-u-0485">
+      <div className="ll-flex ll-h-full ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
+        <div className="ll-bg-white-b ll-p-4 ll-shadow-sm ll-dark-bg-gray-900b">
           <button
             onClick={() => window.history.back()}
-            className="ll-pressable ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
+            className="ll-pressable ll-rounded-full ll-p-2 ll-text-gray-600 ll-hover-bg-gray-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900"
             aria-label={t("common.back")}
           >
-            <AppIcon name="arrow-back" className="ll-u-0070 ll-u-0097" />
+            <AppIcon name="arrow-back" className="ll-h-6 ll-w-6" />
           </button>
         </div>
-        <div className="ll-u-0233">
-          <p className="ll-u-0265 ll-u-0310 ll-u-0499">
+        <div className="ll-p-4">
+          <p className="ll-text-center ll-text-gray-600 ll-dark-text-gray-300">
             {t("pages.sharecode.notFound")}
           </p>
         </div>
@@ -8211,20 +8244,20 @@ function ShareCodePreviewPage() {
   }
 
   return (
-    <div className="ll-u-0059 ll-u-0080 ll-u-0152 ll-u-0210 ll-u-0473">
-      <header className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0196 ll-u-0200 ll-u-0223 ll-u-0240 ll-u-0246 ll-u-0460 ll-u-0485">
+    <div className="ll-flex ll-h-full ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
+      <header className="ll-flex ll-items-center ll-justify-between ll-border-b ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-3 ll-dark-border-gray-700 ll-dark-bg-gray-900b">
         <button
           onClick={() => window.history.back()}
-          className="ll-pressable ll-u-0188 ll-u-0230 ll-u-0310 ll-u-0359 ll-u-0499 ll-u-0518"
+          className="ll-pressable ll-rounded-full ll-p-2 ll-text-gray-600 ll-hover-bg-gray-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900"
           aria-label={t("common.back")}
         >
-          <AppIcon name="arrow-back" className="ll-u-0070 ll-u-0097" />
+          <AppIcon name="arrow-back" className="ll-h-6 ll-w-6" />
         </button>
         {user && (
           <button
             onClick={handleAddToOrder}
             disabled={addToOrderLoading}
-            className="ll-u-0189 ll-u-0213 ll-u-0240 ll-u-0244 ll-u-0274 ll-u-0286 ll-u-0318 ll-u-0339 ll-u-0360 ll-u-0392 ll-u-0474 ll-u-0515"
+            className="ll-rounded-lg ll-bg-blue-600 ll-px-4 ll-py-2 ll-text-sm ll-font-medium ll-text-white ll-transition-colors ll-hover-bg-blue-700 ll-disabled-opacity-50 ll-dark-bg-blue-500 ll-dark-hover-bg-blue-600"
           >
             {addToOrderLoading
               ? t("common.loading")
@@ -8233,45 +8266,49 @@ function ShareCodePreviewPage() {
         )}
       </header>
 
-      <main id="main-content" tabIndex={-1} className="ll-u-0129 ll-u-0178">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="ll-flex-1 ll-overflow-y-auto"
+      >
         {addToOrderError && (
-          <div className="ll-u-0233 ll-u-0258">
+          <div className="ll-p-4 ll-pb-0">
             <Alert variant="error">{addToOrderError}</Alert>
           </div>
         )}
 
-        <div className="ll-u-0041 ll-u-0059 ll-u-0111 ll-u-0113 ll-u-0152 ll-u-0168 ll-u-0240 ll-u-0248">
+        <div className="ll-mx-auto ll-flex ll-w-full ll-max-w-3xl ll-flex-col ll-gap-4 ll-px-4 ll-py-6">
           <section
-            className="ll-u-0182 ll-u-0193 ll-u-0200 ll-u-0233 ll-u-0460"
+            className="ll-rounded-2xl ll-border ll-border-gray-300 ll-p-4 ll-dark-border-gray-700"
             style={{ backgroundColor: taskList.background ?? undefined }}
           >
-            <header className="ll-u-0059 ll-u-0156 ll-u-0158 ll-u-0167">
-              <h1 className="ll-u-0536 ll-u-0275 ll-u-0287 ll-u-0317 ll-u-0505">
+            <header className="ll-flex ll-items-center ll-justify-between ll-gap-3">
+              <h1 className="ll-font-display ll-text-xl ll-font-semibold ll-text-gray-900 ll-dark-text-gray-50">
                 {taskList.name}
               </h1>
             </header>
-            <ul className="ll-u-0046 ll-u-0059 ll-u-0152 ll-u-0165">
+            <ul className="ll-mt-4 ll-flex ll-flex-col ll-gap-2">
               {taskList.tasks.length === 0 ? (
-                <li className="ll-u-0274 ll-u-0310 ll-u-0499">
+                <li className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
                   {t("pages.tasklist.noTasks")}
                 </li>
               ) : (
                 taskList.tasks.map((task) => (
                   <li
                     key={task.id}
-                    className="ll-u-0191 ll-u-0193 ll-u-0201 ll-u-0224 ll-u-0239 ll-u-0244 ll-u-0461 ll-u-0486"
+                    className="ll-rounded-xl ll-border ll-border-gray-300-70 ll-bg-white-80 ll-px-3 ll-py-2 ll-dark-border-gray-700-70 ll-dark-bg-gray-900-80"
                     style={{ opacity: task.completed ? 0.5 : 1 }}
                   >
                     {task.date ? (
-                      <div className="ll-u-0276 ll-u-0310 ll-u-0499">
+                      <div className="ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
                         {task.date}
                       </div>
                     ) : null}
                     <div
                       className={
                         task.completed
-                          ? "ll-u-0274 ll-u-0310 ll-u-0319 ll-u-0499"
-                          : "ll-u-0274 ll-u-0317 ll-u-0505"
+                          ? "ll-text-sm ll-text-gray-600 ll-line-through ll-dark-text-gray-300"
+                          : "ll-text-sm ll-text-gray-900 ll-dark-text-gray-50"
                       }
                     >
                       {task.text}

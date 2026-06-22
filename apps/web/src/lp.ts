@@ -1,4 +1,5 @@
 import "@/styles/globals.css";
+import "@/styles/lp-styles.css";
 import lpLocales from "./lp-locales.json";
 
 type Language =

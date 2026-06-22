@@ -24,21 +24,42 @@
     <meta
       name="theme-color"
       media="(prefers-color-scheme: dark)"
-      content="#0b0b0b"
+      content="#030712"
     />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("lightlist.theme");
+          var d =
+            t === "dark" ||
+            (t !== "light" &&
+              matchMedia("(prefers-color-scheme:dark)").matches);
+          if (d) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
     <link rel="stylesheet" href="/fonts/gen-interface-jp/400.css" />
     <link rel="stylesheet" href="/fonts/gen-interface-jp/500.css" />
     <link rel="stylesheet" href="/fonts/gen-interface-jp/600.css" />
     <link rel="stylesheet" href="/fonts/gen-interface-jp/700.css" />
     <link rel="stylesheet" href="/fonts/gen-interface-jp/display-700.css" />
     <link rel="stylesheet" href="/fonts/gen-interface-jp/display-800.css" />
-
-    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" />
-    <link rel="preconnect" href="https://firestore.googleapis.com" />
-    <link rel="preconnect" href="https://apis.google.com" />
   </head>
   <body data-page="404">
     <div id="root"></div>
     <script type="module" src="../src/entry.tsx"></script>
+    <noscript>
+      <div
+        style="
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+          font-family: sans-serif;
+        "
+      >
+        <p>404 - Page not found</p>
+      </div>
+    </noscript>
   </body>
 </html>

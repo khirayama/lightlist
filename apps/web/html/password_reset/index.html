@@ -24,8 +24,20 @@
     <meta
       name="theme-color"
       media="(prefers-color-scheme: dark)"
-      content="#0b0b0b"
+      content="#030712"
     />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("lightlist.theme");
+          var d =
+            t === "dark" ||
+            (t !== "light" &&
+              matchMedia("(prefers-color-scheme:dark)").matches);
+          if (d) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
     <link rel="stylesheet" href="/fonts/gen-interface-jp/400.css" />
     <link rel="stylesheet" href="/fonts/gen-interface-jp/500.css" />
     <link rel="stylesheet" href="/fonts/gen-interface-jp/600.css" />

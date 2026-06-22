@@ -1,6 +1,6 @@
 {
   "ar": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "تخطَّ إلى المحتوى الرئيسي",
     "pages.index.getStarted": "ابدأ مجانًا",
     "pages.index.headline": "بسيط بما يكفي.\nهذا هو الهدف.",
@@ -23,7 +23,7 @@
     "pages.index.cta.button": "ابدأ مجانًا"
   },
   "de": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "Zum Hauptinhalt springen",
     "pages.index.getStarted": "Kostenlos starten",
     "pages.index.headline": "Einfach genug.\nGenau das ist der Punkt.",
@@ -46,7 +46,7 @@
     "pages.index.cta.button": "Kostenlos starten"
   },
   "en": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "Skip to main content",
     "pages.index.getStarted": "Get started for free",
     "pages.index.headline": "Simple enough.\nThat's the point.",
@@ -69,7 +69,7 @@
     "pages.index.cta.button": "Get started for free"
   },
   "es": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "Saltar al contenido principal",
     "pages.index.getStarted": "Comienza gratis",
     "pages.index.headline": "Suficientemente simple.\nEse es el punto.",
@@ -92,7 +92,7 @@
     "pages.index.cta.button": "Comienza gratis"
   },
   "fr": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "Aller au contenu principal",
     "pages.index.getStarted": "Commencer gratuitement",
     "pages.index.headline": "Assez simple.\nC'est tout l'objectif.",
@@ -115,7 +115,7 @@
     "pages.index.cta.button": "Commencer gratuitement"
   },
   "hi": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "मुख्य सामग्री पर जाएँ",
     "pages.index.getStarted": "मुफ़्त में शुरू करें",
     "pages.index.headline": "इतना सरल कि बस काम हो जाए।\nयही मकसद है।",
@@ -138,7 +138,7 @@
     "pages.index.cta.button": "मुफ़्त में शुरू करें"
   },
   "id": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "Lewati ke konten utama",
     "pages.index.getStarted": "Mulai gratis",
     "pages.index.headline": "Cukup sederhana.\nItulah intinya.",
@@ -161,7 +161,7 @@
     "pages.index.cta.button": "Mulai gratis"
   },
   "ja": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "メインコンテンツへ移動",
     "pages.index.getStarted": "無料ではじめる",
     "pages.index.headline": "タスクリストは、\nシンプルでいい。",
@@ -184,7 +184,7 @@
     "pages.index.cta.button": "無料ではじめる"
   },
   "ko": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "본문으로 건너뛰기",
     "pages.index.getStarted": "무료로 시작하기",
     "pages.index.headline": "충분히 단순하게.\n그게 핵심입니다.",
@@ -207,7 +207,7 @@
     "pages.index.cta.button": "무료로 시작하기"
   },
   "pt-BR": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "Ir para o conteúdo principal",
     "pages.index.getStarted": "Comece grátis",
     "pages.index.headline": "Simples o suficiente.\nEsse é o ponto.",
@@ -230,7 +230,7 @@
     "pages.index.cta.button": "Comece grátis"
   },
   "zh-CN": {
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common.skipToMain": "跳转到主要内容",
     "pages.index.getStarted": "免费开始",
     "pages.index.headline": "足够简单。\n这正是重点。",

@@ -56,10 +56,22 @@ export default defineConfig({
             return "firebase-analytics";
           }
           if (
+            id.includes("node_modules/firebase/auth") ||
+            id.includes("node_modules/@firebase/auth")
+          ) {
+            return "firebase-auth";
+          }
+          if (
+            id.includes("node_modules/firebase/app-check") ||
+            id.includes("node_modules/@firebase/app-check")
+          ) {
+            return "firebase-appcheck";
+          }
+          if (
             id.includes("node_modules/firebase/") ||
             id.includes("node_modules/@firebase/")
           ) {
-            return "firebase";
+            return "firebase-firestore";
           }
           if (id.includes("node_modules/date-fns/")) {
             return "date-fns";

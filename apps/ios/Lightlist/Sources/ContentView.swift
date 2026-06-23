@@ -2,11 +2,11 @@ import SwiftUI
 import Foundation
 import Security
 import FirebaseAppCheck
-import FirebaseAuth
+@preconcurrency import FirebaseAuth
 import FirebaseAnalytics
 import FirebaseCore
 import FirebaseCrashlytics
-import FirebaseFirestore
+@preconcurrency import FirebaseFirestore
 
 private let authSignInTimeoutSeconds: TimeInterval = 10
 private let shareCodeCharacters = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -48,10 +48,20 @@ private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
     }
 
     if (scheme == "https" || scheme == "http"),
-       host == "lightlist.com",
-       pathComponents.count >= 2,
-       pathComponents[0].lowercased() == "sharecodes" {
-        return .shareCode(pathComponents[1].uppercased())
+       host == "lightlist.com" {
+        if pathComponents.count >= 2,
+           pathComponents[0].lowercased() == "sharecodes" {
+            return .shareCode(pathComponents[1].uppercased())
+        }
+
+        if pathComponents.first?.lowercased() == "password_reset" {
+            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let code = components.queryItems?.first(where: { $0.name == "oobCode" })?.value,
+                  !code.isEmpty else {
+                return nil
+            }
+            return .passwordReset(code: code)
+        }
     }
 
     return nil
@@ -225,7 +235,7 @@ func logSettingsAutoSortChange(enabled: Bool) { log("app_settings_auto_sort_chan
 
 func logException(description: String, fatal: Bool) {
     log("app_exception", ["description": description, "fatal": fatal])
-    let error = NSError(domain: "com.company.lightlist", code: 0, userInfo: [NSLocalizedDescriptionKey: description])
+    let error = NSError(domain: "com.lightlist", code: 0, userInfo: [NSLocalizedDescriptionKey: description])
     Crashlytics.crashlytics().record(error: error)
 }
 
@@ -382,6 +392,10 @@ private enum TaskListMutationQueues {
         queues[taskListId] = queue
         return queue
     }
+
+    static func remove(for taskListId: String) {
+        queues.removeValue(forKey: taskListId)
+    }
 }
 
 private struct CalendarTask: Identifiable {
@@ -498,7 +512,7 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
     )
 }
 
-private class OrderedTaskListViewModel<Item>: ObservableObject {
+@MainActor private class OrderedTaskListViewModel<Item>: ObservableObject {
     @Published private(set) var taskLists: [Item] = []
     @Published private(set) var status: LoadStatus = .idle
 
@@ -613,13 +627,6 @@ private class OrderedTaskListViewModel<Item>: ObservableObject {
 }
 
 private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> {
-    private static let isoFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
 
     init() {
         super.init(mapper: mapTaskListDetail)
@@ -631,7 +638,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
                 taskList.tasks
                     .filter { !$0.completed && !$0.date.isEmpty }
                     .compactMap { task -> CalendarTask? in
-                        guard let dateValue = Self.isoFormatter.date(from: task.date) else { return nil }
+                        guard let dateValue = isoDateFormatter.date(from: task.date) else { return nil }
                         return CalendarTask(
                             taskListId: taskList.id,
                             taskListName: taskList.name,
@@ -758,19 +765,33 @@ private func normalizeTaskDateDigits(_ value: String) -> String {
     String(value.map { taskDateDigitMap[$0] ?? $0 })
 }
 
+private let isoDateFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.calendar = Calendar(identifier: .gregorian)
+    f.dateFormat = "yyyy-MM-dd"
+    return f
+}()
+
 private func formatTaskInputDate(_ date: Date) -> String {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.dateFormat = "yyyy-MM-dd"
-    return formatter.string(from: date)
+    isoDateFormatter.string(from: date)
 }
+
+private let taskListColorOptions: [String?] = [nil, "#F87171", "#FBBF24", "#34D399", "#38BDF8", "#818CF8", "#A78BFA"]
+
+@MainActor private let lightImpactGenerator = UIImpactFeedbackGenerator(style: .light)
+@MainActor private let mediumImpactGenerator = UIImpactFeedbackGenerator(style: .medium)
+@MainActor private let selectionFeedbackGenerator = UISelectionFeedbackGenerator()
+@MainActor private let notificationFeedbackGenerator = UINotificationFeedbackGenerator()
+
+private let gregorianCalendar = Calendar(identifier: .gregorian)
 
 private func taskInputDateFrom(year: Int, month: Int, day: Int) -> Date? {
     var components = DateComponents()
     components.year = year
     components.month = month
     components.day = day
-    return Calendar.current.date(from: components)
+    return gregorianCalendar.date(from: components)
 }
 
 private func nextTaskWeekdayOffset(targetDay: Int, currentDay: Int) -> Int {
@@ -779,7 +800,7 @@ private func nextTaskWeekdayOffset(targetDay: Int, currentDay: Int) -> Int {
 }
 
 private func makeTaskOffsetDate(_ offset: Int) -> Date? {
-    Calendar.current.date(byAdding: .day, value: offset, to: Date())
+    gregorianCalendar.date(byAdding: .day, value: offset, to: Date())
 }
 
 private func resolveTaskDate(from source: String, patterns: [TaskDatePattern]) -> (date: Date, matchedLength: Int)? {
@@ -1472,7 +1493,7 @@ private struct SignInView: View {
             TextField(translations.t("auth.form.email"), text: $email)
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: .infinity)
 
@@ -1562,7 +1583,7 @@ private struct SignUpView: View {
             TextField(translations.t("auth.form.email"), text: $email)
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: .infinity)
 
@@ -1615,18 +1636,35 @@ private struct SignUpView: View {
 
         isLoading = true
         errorMessage = nil
+        var didComplete = false
         let normalizedLanguage = normalizeLanguageCode(language)
         let auth = Auth.auth()
         let db = Firestore.firestore()
+
+        let timeoutTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(authSignInTimeoutSeconds * 1_000_000_000))
+            guard !Task.isCancelled, !didComplete else { return }
+            didComplete = true
+            isLoading = false
+            logException(description: "iOS sign up timed out", fatal: false)
+            errorMessage = translations.t("auth.error.general")
+        }
+
         auth.createUser(withEmail: trimmedEmail, password: password) { result, error in
             Task { @MainActor in
+                guard !didComplete else { return }
+
                 if let error {
+                    didComplete = true
+                    timeoutTask.cancel()
                     isLoading = false
                     errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
                     return
                 }
 
                 guard let uid = result?.user.uid else {
+                    didComplete = true
+                    timeoutTask.cancel()
                     isLoading = false
                     errorMessage = translations.t("auth.error.general")
                     return
@@ -1640,8 +1678,8 @@ private struct SignUpView: View {
                     "language": normalizedLanguage,
                     "taskInsertPosition": "top",
                     "autoSort": false,
-                    "createdAt": nowMillis(),
-                    "updatedAt": nowMillis(),
+                    "createdAt": now,
+                    "updatedAt": now,
                 ], forDocument: db.collection("settings").document(uid))
                 batch.setData([
                     "id": taskListId,
@@ -1651,23 +1689,27 @@ private struct SignUpView: View {
                     "shareCode": NSNull(),
                     "background": NSNull(),
                     "memberCount": 1,
-                    "createdAt": nowMillis(),
-                    "updatedAt": nowMillis(),
+                    "createdAt": now,
+                    "updatedAt": now,
                 ], forDocument: db.collection("taskLists").document(taskListId))
                 batch.setData([
                     taskListId: ["order": 1.0],
                     "createdAt": now,
                     "updatedAt": now,
                 ], forDocument: db.collection("taskListOrder").document(uid))
-                batch.commit { commitError in
-                    Task { @MainActor in
-                        isLoading = false
-                        if let commitError {
-                            errorMessage = resolveAuthErrorMessage(translations: translations, error: commitError)
-                        } else {
-                            logSignUp()
-                        }
-                    }
+                do {
+                    try await batch.commit()
+                    guard !didComplete else { return }
+                    didComplete = true
+                    timeoutTask.cancel()
+                    isLoading = false
+                    logSignUp()
+                } catch {
+                    guard !didComplete else { return }
+                    didComplete = true
+                    timeoutTask.cancel()
+                    isLoading = false
+                    errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
                 }
             }
         }
@@ -1694,7 +1736,7 @@ private struct PasswordResetRequestView: View {
             TextField(translations.t("auth.form.email"), text: $email)
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: .infinity)
 
@@ -2037,7 +2079,7 @@ private struct TaskListsView: View {
                 self.dragStartLocationY = (self.dragStartLocationY ?? 0) - scrolledBy
                 let correction = self.checkTaskListSwap()
                 if correction != 0 {
-                    UISelectionFeedbackGenerator().selectionChanged()
+                    selectionFeedbackGenerator.selectionChanged()
                     self.dragStartLocationY = (self.dragStartLocationY ?? 0) - correction
                 }
             }
@@ -2162,7 +2204,7 @@ private struct TaskListsView: View {
                                             DragGesture(minimumDistance: 2, coordinateSpace: .named("taskListList"))
                                                 .onChanged { value in
                                                     if draggingTaskListId == nil {
-                                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                                        mediumImpactGenerator.impactOccurred()
                                                         draggingTaskListId = taskList.id
                                                         dragOrderedTaskLists = viewModel.taskLists
                                                         dragStartLocationY = value.location.y
@@ -2171,7 +2213,7 @@ private struct TaskListsView: View {
                                                     dragOffset = value.location.y - startY
                                                     let correction = checkTaskListSwap()
                                                     if correction != 0 {
-                                                        UISelectionFeedbackGenerator().selectionChanged()
+                                                        selectionFeedbackGenerator.selectionChanged()
                                                         dragStartLocationY = startY - correction
                                                     }
                                                     updateAutoScroll(fingerY: value.location.y)
@@ -2285,7 +2327,7 @@ private struct TaskListsView: View {
                 .padding(.bottom, 24)
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             viewModel.bind(uid: currentUserId)
         }
@@ -2320,7 +2362,7 @@ private struct TaskListsView: View {
         }
         .sheet(isPresented: $showCreateSheet) {
             NavigationStack {
-                let colorOptions: [String?] = [nil, "#F87171", "#FBBF24", "#34D399", "#38BDF8", "#818CF8", "#A78BFA"]
+                let colorOptions = taskListColorOptions
                 VStack(spacing: 24) {
                     TextField(translations.t("app.taskListName"), text: $createName)
                         .textFieldStyle(.roundedBorder)
@@ -2348,7 +2390,7 @@ private struct TaskListsView: View {
                                         )
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel(colorLabel(c))
+                                .accessibilityLabel(colorLabel(c, translations: translations))
                             }
                         }
                         .padding(.horizontal)
@@ -2459,9 +2501,11 @@ private struct TaskListsView: View {
             updates["\(id).order"] = Double(i + 1)
         }
         pendingTaskListOrder = displayTaskLists
-        Firestore.firestore().collection("taskListOrder").document(uid).updateData(updates) { _ in
+        Firestore.firestore().collection("taskListOrder").document(uid).updateData(updates) { error in
             Task { @MainActor in
-                pendingTaskListOrder = nil
+                if error == nil {
+                    pendingTaskListOrder = nil
+                }
             }
         }
     }
@@ -2496,10 +2540,12 @@ private struct TaskListsView: View {
         ] as [String: Any], forDocument: db.collection("taskListOrder").document(uid), merge: true)
 
         batch.commit { error in
-            if error == nil {
-                logTaskListCreate()
-                showCreateSheet = false
-                openTaskList(taskListId)
+            Task { @MainActor in
+                if error == nil {
+                    logTaskListCreate()
+                    showCreateSheet = false
+                    openTaskList(taskListId)
+                }
             }
         }
     }
@@ -2780,14 +2826,14 @@ private struct ScrollViewAccessor: UIViewRepresentable {
 }
 
 private struct RowFrameKey: PreferenceKey {
-    static var defaultValue: [String: CGFloat] = [:]
+    nonisolated(unsafe) static var defaultValue: [String: CGFloat] = [:]
     static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
         value.merge(nextValue()) { $1 }
     }
 }
 
 private struct TaskListRowFrameKey: PreferenceKey {
-    static var defaultValue: [String: CGFloat] = [:]
+    nonisolated(unsafe) static var defaultValue: [String: CGFloat] = [:]
     static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
         value.merge(nextValue()) { $1 }
     }
@@ -2887,7 +2933,7 @@ private struct TaskListDetailPage: View {
                 self.taskDragStartLocationY = (self.taskDragStartLocationY ?? 0) - scrolledBy
                 let correction = self.checkTaskSwap()
                 if correction != 0 {
-                    UISelectionFeedbackGenerator().selectionChanged()
+                    selectionFeedbackGenerator.selectionChanged()
                     self.taskDragStartLocationY = (self.taskDragStartLocationY ?? 0) - correction
                 }
             }
@@ -2896,7 +2942,7 @@ private struct TaskListDetailPage: View {
 
     private func handleTaskDragChanged(task: TaskSummary, displayTasks: [TaskSummary], fingerY: CGFloat) {
         if draggingTaskId == nil {
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            mediumImpactGenerator.impactOccurred()
             draggingTaskId = task.id
             dragOrderedTasks = displayTasks
             taskDragStartLocationY = fingerY
@@ -2905,7 +2951,7 @@ private struct TaskListDetailPage: View {
         taskDragOffset = fingerY - startY
         let correction = checkTaskSwap()
         if correction != 0 {
-            UISelectionFeedbackGenerator().selectionChanged()
+            selectionFeedbackGenerator.selectionChanged()
             taskDragStartLocationY = startY - correction
         }
         updateTaskAutoScroll(fingerY: fingerY)
@@ -2915,15 +2961,7 @@ private struct TaskListDetailPage: View {
         taskAutoScroller.stop()
     }
 
-    private static let isoFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
-
-    private static var dateDisplayFormatters: [String: DateFormatter] = [:]
+    @MainActor private static var dateDisplayFormatters: [String: DateFormatter] = [:]
 
     private static func dateDisplayFormatter(for language: String) -> DateFormatter {
         let identifier = localeIdentifier(for: language)
@@ -2938,7 +2976,7 @@ private struct TaskListDetailPage: View {
     }
 
     private func formatDateDisplay(_ dateStr: String) -> String {
-        guard let date = Self.isoFormatter.date(from: dateStr) else { return dateStr }
+        guard let date = isoDateFormatter.date(from: dateStr) else { return dateStr }
         return Self.dateDisplayFormatter(for: translations.language).string(from: date)
     }
 
@@ -2950,7 +2988,7 @@ private struct TaskListDetailPage: View {
         let accessibilityLabel = translations.t(task.completed ? "pages.tasklist.markIncomplete" : "pages.tasklist.markComplete")
 
         Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            lightImpactGenerator.impactOccurred()
             toggleCompletion(task)
         } label: {
             ZStack {
@@ -3135,10 +3173,10 @@ private struct TaskListDetailPage: View {
                 }
 
                 let batch = db.batch()
-                batch.setData([
+                batch.updateData([
                     taskList.id: FieldValue.delete(),
                     "updatedAt": nowMillis(),
-                ], forDocument: taskListOrderRef, merge: true)
+                ], forDocument: taskListOrderRef)
 
                 let currentMemberCount = (taskListSnapshot.data()?["memberCount"] as? NSNumber)?.intValue ?? 1
                 if currentMemberCount <= 1 {
@@ -3157,6 +3195,7 @@ private struct TaskListDetailPage: View {
                 try await batch.commit()
 
                 await MainActor.run {
+                    TaskListMutationQueues.remove(for: taskList.id)
                     logTaskListDelete()
                     showDeleteListAlert = false
                     showEditSheet = false
@@ -3424,7 +3463,7 @@ private struct TaskListDetailPage: View {
                         }
                         .disabled(taskList.tasks.count < 2)
                         Spacer()
-                        Button { UINotificationFeedbackGenerator().notificationOccurred(.warning); showDeleteCompletedAlert = true } label: {
+                        Button { notificationFeedbackGenerator.notificationOccurred(.warning); showDeleteCompletedAlert = true } label: {
                             HStack(spacing: 0) {
                                 Text(translations.t("pages.tasklist.deleteCompleted"))
                                     .font(.system(size: 15, weight: .semibold))
@@ -3472,6 +3511,7 @@ private struct TaskListDetailPage: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .focusEffectDisabled()
         .alert(translations.t("pages.tasklist.deleteCompletedConfirmTitle"), isPresented: $showDeleteCompletedAlert) {
             Button(translations.t("auth.button.delete"), role: .destructive) { confirmDeleteCompleted() }
             Button(translations.t("common.cancel"), role: .cancel) {}
@@ -3499,7 +3539,7 @@ private struct TaskListDetailPage: View {
     @ViewBuilder
     private var editSheet: some View {
         NavigationStack {
-            let colorOptions: [String?] = [nil, "#F87171", "#FBBF24", "#34D399", "#38BDF8", "#818CF8", "#A78BFA"]
+            let colorOptions = taskListColorOptions
             VStack(spacing: 24) {
                 TextField(translations.t("app.taskListName"), text: $editName)
                     .textFieldStyle(.roundedBorder)
@@ -3517,7 +3557,7 @@ private struct TaskListDetailPage: View {
                             let isSelected = editBackground == c
                             colorOptionButton(color: c, isSelected: isSelected) { editBackground = c }
                             .buttonStyle(.plain)
-                            .accessibilityLabel(colorLabel(c))
+                            .accessibilityLabel(colorLabel(c, translations: translations))
                         }
                     }
                     .padding(.horizontal)
@@ -3614,9 +3654,9 @@ private struct TaskListDetailPage: View {
                 .buttonStyle(.bordered)
                 .padding(.horizontal)
                 DatePicker("", selection: Binding(
-                    get: { Self.isoFormatter.date(from: task.date) ?? Date() },
+                    get: { isoDateFormatter.date(from: task.date) ?? Date() },
                     set: {
-                        commitDate(task, dateStr: Self.isoFormatter.string(from: $0))
+                        commitDate(task, dateStr: isoDateFormatter.string(from: $0))
                         actionSheetState = nil
                     }
                 ), displayedComponents: .date)
@@ -3801,7 +3841,7 @@ private struct TaskListDetailPage: View {
 
     private func togglePinned(_ task: TaskSummary) {
         logTaskUpdate(fields: "pinned")
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        lightImpactGenerator.impactOccurred()
         let nextPinned = !task.pinned
         performTaskMutation(
             buildNextTasks: { currentTasks in
@@ -3829,14 +3869,14 @@ private struct TaskListDetailPage: View {
         guard !trimmed.isEmpty else { return }
         let parsed = resolveTaskInput(trimmed, translations: translations)
         logTaskAdd(hasDate: !(parsed.date ?? "").isEmpty)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        lightImpactGenerator.impactOccurred()
         newTaskText = ""
         isNewTaskFocused = true
         let taskId = UUID().uuidString
-        let tasks = taskList.tasks
+        let currentTasks = displayTasks
         let order: Double = taskInsertPosition == "top"
-            ? (tasks.first?.order ?? 1.0) - 1.0
-            : (tasks.last?.order ?? 0.0) + 1.0
+            ? (currentTasks.first?.order ?? 1.0) - 1.0
+            : (currentTasks.last?.order ?? 0.0) + 1.0
         let insertedTask = TaskSummary(
             id: taskId,
             text: parsed.text,
@@ -4223,6 +4263,7 @@ private struct SharedTaskListPreviewView: View {
     }
 }
 
+@MainActor
 private final class SettingsViewModel: ObservableObject {
     struct Settings {
         var theme: String = "system"
@@ -4407,7 +4448,7 @@ private struct SettingsView: View {
             .padding(.vertical, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .navigationTitle(AppRoute.settings.title)
+        .navigationTitle(translations.t("settings.title"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.bind(uid: currentUserId)
@@ -4562,7 +4603,7 @@ private struct SettingsView: View {
                 TextField(translations.t("settings.emailChange.newEmailLabel"), text: $newEmail)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
                     .textFieldStyle(.roundedBorder)
                 if let error = emailChangeError {
                     Text(error).foregroundStyle(.red).font(AppTypography.caption())
@@ -4619,13 +4660,13 @@ private struct SettingsView: View {
 
 private struct LicensesView: View {
     @EnvironmentObject var translations: Translations
-    private let generatedLicenses = loadGeneratedLicenses()
-    private let manualLicenses = loadManualLicenses()
+    private static let cachedGeneratedLicenses = loadGeneratedLicenses()
+    private static let cachedManualLicenses = loadManualLicenses()
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                if generatedLicenses.isEmpty {
+                if Self.cachedGeneratedLicenses.isEmpty {
                     Text(translations.t("settings.licenses.loadError"))
                         .foregroundStyle(.red)
                         .font(AppTypography.caption())
@@ -4636,7 +4677,7 @@ private struct LicensesView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 4)
 
-                        ForEach(generatedLicenses) { license in
+                        ForEach(Self.cachedGeneratedLicenses) { license in
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(license.title)
                                     .font(AppTypography.bodyMedium())
@@ -4660,7 +4701,7 @@ private struct LicensesView: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
 
-                    ForEach(manualLicenses) { license in
+                    ForEach(Self.cachedManualLicenses) { license in
                         VStack(alignment: .leading, spacing: 8) {
                             Text(license.name)
                                 .font(AppTypography.bodyMedium())
@@ -4771,10 +4812,20 @@ private struct CalendarTaskRow: View {
     let task: CalendarTask
     let isHighlighted: Bool
 
+    @MainActor private static var formatters: [String: DateFormatter] = [:]
+
     private var dateLabel: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: localeIdentifier(for: translations.language))
-        formatter.setLocalizedDateFormatFromTemplate("MMMEd")
+        let identifier = localeIdentifier(for: translations.language)
+        let formatter: DateFormatter
+        if let cached = Self.formatters[identifier] {
+            formatter = cached
+        } else {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: identifier)
+            f.setLocalizedDateFormatFromTemplate("MMMEd")
+            Self.formatters[identifier] = f
+            formatter = f
+        }
         return formatter.string(from: task.dateValue)
     }
 
@@ -4843,10 +4894,20 @@ private struct CalendarScreenView: View {
         return calendar.shortStandaloneWeekdaySymbols
     }
 
+    @MainActor private static var monthTitleFormatters: [String: DateFormatter] = [:]
+
     private var monthTitle: String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.setLocalizedDateFormatFromTemplate("yMMMM")
+        let identifier = localeIdentifier(for: translations.language)
+        let formatter: DateFormatter
+        if let cached = Self.monthTitleFormatters[identifier] {
+            formatter = cached
+        } else {
+            let f = DateFormatter()
+            f.locale = locale
+            f.setLocalizedDateFormatFromTemplate("yMMMM")
+            Self.monthTitleFormatters[identifier] = f
+            formatter = f
+        }
         return formatter.string(from: displayedMonth)
     }
 
@@ -4903,6 +4964,7 @@ private struct CalendarScreenView: View {
     var body: some View {
         calendarContent
             .onAppear { viewModel.bind(uid: currentUserId) }
+            .onDisappear { viewModel.reset() }
             .onChange(of: currentUserId) { _, nextUid in
                 viewModel.bind(uid: nextUid)
             }
@@ -5011,16 +5073,16 @@ private struct CalendarScreenView: View {
     }
 }
 
-private func colorLabel(_ hex: String?) -> String {
+@MainActor private func colorLabel(_ hex: String?, translations: Translations) -> String {
     switch hex {
-    case nil: return "色なし"
-    case "#F87171": return "赤"
-    case "#FBBF24": return "黄"
-    case "#34D399": return "緑"
-    case "#38BDF8": return "青"
-    case "#818CF8": return "インディゴ"
-    case "#A78BFA": return "紫"
-    default: return "カスタム色"
+    case nil: return translations.t("taskList.backgroundNone")
+    case "#F87171": return translations.t("taskList.colorRed")
+    case "#FBBF24": return translations.t("taskList.colorYellow")
+    case "#34D399": return translations.t("taskList.colorGreen")
+    case "#38BDF8": return translations.t("taskList.colorBlue")
+    case "#818CF8": return translations.t("taskList.colorIndigo")
+    case "#A78BFA": return translations.t("taskList.colorPurple")
+    default: return translations.t("taskList.colorCustom")
     }
 }
 

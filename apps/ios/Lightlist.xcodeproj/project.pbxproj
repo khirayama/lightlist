@@ -16,7 +16,6 @@
 		89CB2AA3EC79089749AE0FDC /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 61AEA985F66E533B9C565E43 /* FirebaseAuth */; };
 		940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */; };
 		AC435305172D0AB359635835 /* GenInterfaceJP-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F069413852FDD95B929B55BB /* GenInterfaceJP-Medium.ttf */; };
-		AED11886C733A359C1C4C94D /* GenInterfaceJPDisplay-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */; };
 		D5EB3F6E45B0895306033B0A /* locales.json in Resources */ = {isa = PBXBuildFile; fileRef = 0FA110DD158815A8840D5EEC /* locales.json */; };
 		DCA7F06671A939FE685A39D4 /* GenInterfaceJPDisplay-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */; };
 		EDB0B08DEFFC531DC60C7995 /* GenInterfaceJP-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EF706C384D72391FD32EA55D /* GenInterfaceJP-SemiBold.ttf */; };
@@ -42,7 +41,6 @@
 		03E96005FE689A03AE608611 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0FA110DD158815A8840D5EEC /* locales.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = locales.json; sourceTree = "<group>"; };
 		2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJPDisplay-Bold.ttf"; sourceTree = "<group>"; };
-		44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJPDisplay-ExtraBold.ttf"; sourceTree = "<group>"; };
 		5F18EECC750B7FE6A93E5288 /* LightlistTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LightlistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		68C6F4984473353E9DA7D44D /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		931A2D9664B0C1631B7FC40E /* GenInterfaceJP-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GenInterfaceJP-Regular.ttf"; sourceTree = "<group>"; };
@@ -129,7 +127,6 @@
 				931A2D9664B0C1631B7FC40E /* GenInterfaceJP-Regular.ttf */,
 				EF706C384D72391FD32EA55D /* GenInterfaceJP-SemiBold.ttf */,
 				2D9EE5E7170EFBBDB62489D7 /* GenInterfaceJPDisplay-Bold.ttf */,
-				44CC5883B2E9BD527630563A /* GenInterfaceJPDisplay-ExtraBold.ttf */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
@@ -247,7 +244,6 @@
 				F7675E7D98C4D697EA7B7314 /* GenInterfaceJP-Regular.ttf in Resources */,
 				EDB0B08DEFFC531DC60C7995 /* GenInterfaceJP-SemiBold.ttf in Resources */,
 				DCA7F06671A939FE685A39D4 /* GenInterfaceJPDisplay-Bold.ttf in Resources */,
-				AED11886C733A359C1C4C94D /* GenInterfaceJPDisplay-ExtraBold.ttf in Resources */,
 				940830B69B9DAAF495734462 /* Preview Assets.xcassets in Resources */,
 				F6104E32C9FDC56BF1726978 /* PrivacyInfo.xcprivacy in Resources */,
 				D5EB3F6E45B0895306033B0A /* locales.json in Resources */,
@@ -451,7 +447,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
@@ -535,7 +531,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -609,7 +605,7 @@
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 12.14.0;
+				minimumVersion = 12.15.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

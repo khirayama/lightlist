@@ -158,6 +158,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -405,7 +408,8 @@ class Translations {
     private var currentLanguage = "ja"
 
     companion object {
-        private val supported = listOf("ja","en","es","de","fr","ko","zh-CN","hi","ar","pt-BR","id")
+        val supported = listOf("ja","en","es","de","fr","ko","zh-CN","hi","ar","pt-BR","id")
+        fun isSupported(language: String): Boolean = supported.contains(language)
         private var allLocales: JSONObject? = null
 
         fun from(context: Context, language: String): Translations {
@@ -534,32 +538,32 @@ private fun log(eventName: String, block: Bundle.() -> Unit) {
     log(eventName, Bundle().apply(block))
 }
 
-fun logSignUp() = log(FirebaseAnalytics.Event.SIGN_UP) { putString(FirebaseAnalytics.Param.METHOD, "email") }
-fun logLogin() = log(FirebaseAnalytics.Event.LOGIN) { putString(FirebaseAnalytics.Param.METHOD, "email") }
-fun logSignOut() = log("app_sign_out")
-fun logDeleteAccount() = log("app_delete_account")
-fun logPasswordResetEmailSent() = log("app_password_reset_email_sent")
-fun logEmailChangeRequested() = log("app_email_change_requested")
-fun logTaskListCreate() = log("app_task_list_create")
-fun logTaskListReorder() = log("app_task_list_reorder")
-fun logTaskAdd(hasDate: Boolean) = log("app_task_add") { putBoolean("has_date", hasDate) }
-fun logTaskUpdate(fields: String) = log("app_task_update") { putString("fields", fields) }
-fun logTaskReorder() = log("app_task_reorder")
-fun logTaskSort() = log("app_task_sort")
-fun logTaskDeleteCompleted(count: Int) = log("app_task_delete_completed") { putInt("count", count) }
-fun logShareCodeGenerate() = log("app_share_code_generate")
-fun logShareCodeRemove() = log("app_share_code_remove")
-fun logShareCodeJoin() = log("app_share_code_join")
-fun logShare() = log(FirebaseAnalytics.Event.SHARE) {
+private fun logSignUp() = log(FirebaseAnalytics.Event.SIGN_UP) { putString(FirebaseAnalytics.Param.METHOD, "email") }
+private fun logLogin() = log(FirebaseAnalytics.Event.LOGIN) { putString(FirebaseAnalytics.Param.METHOD, "email") }
+private fun logSignOut() = log("app_sign_out")
+private fun logDeleteAccount() = log("app_delete_account")
+private fun logPasswordResetEmailSent() = log("app_password_reset_email_sent")
+private fun logEmailChangeRequested() = log("app_email_change_requested")
+private fun logTaskListCreate() = log("app_task_list_create")
+private fun logTaskListReorder() = log("app_task_list_reorder")
+private fun logTaskAdd(hasDate: Boolean) = log("app_task_add") { putBoolean("has_date", hasDate) }
+private fun logTaskUpdate(fields: String) = log("app_task_update") { putString("fields", fields) }
+private fun logTaskReorder() = log("app_task_reorder")
+private fun logTaskSort() = log("app_task_sort")
+private fun logTaskDeleteCompleted(count: Int) = log("app_task_delete_completed") { putInt("count", count) }
+private fun logShareCodeGenerate() = log("app_share_code_generate")
+private fun logShareCodeRemove() = log("app_share_code_remove")
+private fun logShareCodeJoin() = log("app_share_code_join")
+private fun logShare() = log(FirebaseAnalytics.Event.SHARE) {
     putString(FirebaseAnalytics.Param.METHOD, "share_code")
     putString(FirebaseAnalytics.Param.CONTENT_TYPE, "task_list")
 }
-fun logSettingsThemeChange(theme: String) = log("app_settings_theme_change") { putString("theme", theme) }
-fun logSettingsLanguageChange(language: String) = log("app_settings_language_change") { putString("language", language) }
-fun logSettingsTaskInsertPositionChange(position: String) = log("app_settings_task_insert_position_change") { putString("position", position) }
-fun logSettingsAutoSortChange(enabled: Boolean) = log("app_settings_auto_sort_change") { putBoolean("enabled", enabled) }
+private fun logSettingsThemeChange(theme: String) = log("app_settings_theme_change") { putString("theme", theme) }
+private fun logSettingsLanguageChange(language: String) = log("app_settings_language_change") { putString("language", language) }
+private fun logSettingsTaskInsertPositionChange(position: String) = log("app_settings_task_insert_position_change") { putString("position", position) }
+private fun logSettingsAutoSortChange(enabled: Boolean) = log("app_settings_auto_sort_change") { putBoolean("enabled", enabled) }
 
-fun logException(description: String, fatal: Boolean) {
+private fun logException(description: String, fatal: Boolean) {
     log("app_exception") { putString("description", description); putBoolean("fatal", fatal) }
     FirebaseCrashlytics.getInstance().recordException(RuntimeException(description))
 }
@@ -853,14 +857,7 @@ private fun resolveAuthErrorMessage(
 }
 
 private fun normalizeLanguageCode(language: String): String {
-    return if (
-        listOf("ja", "en", "es", "de", "fr", "ko", "zh-CN", "hi", "ar", "pt-BR", "id")
-            .contains(language)
-    ) {
-        language
-    } else {
-        "ja"
-    }
+    return if (Translations.isSupported(language)) language else "ja"
 }
 
 private fun resolveDeviceLanguage(context: Context): String {
@@ -872,7 +869,7 @@ private fun resolveDeviceLanguage(context: Context): String {
         languageTag == "pt-BR" -> "pt-BR"
         language == "zh" -> "zh-CN"
         language == "pt" -> "pt-BR"
-        language in listOf("ja", "en", "es", "de", "fr", "ko", "hi", "ar", "id") -> language
+        Translations.isSupported(language) -> language
         else -> "ja"
     }
 }
@@ -889,8 +886,10 @@ private fun resolveStartupLanguage(
     }
 }
 
+private val EMAIL_REGEX = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+
 private fun isValidEmail(email: String): Boolean {
-    return Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email)
+    return EMAIL_REGEX.matches(email)
 }
 
 private fun validateEmailField(translations: Translations, email: String): String? {
@@ -1202,7 +1201,7 @@ fun RootScreen(
                         ) { backStackEntry ->
                             val initialTaskListId =
                                 backStackEntry.arguments?.getString(AppRoute.TaskList.argumentName).orEmpty()
-                            TaskListDetailPagerScreen(navController, currentUserId, initialTaskListId)
+                            TaskListDetailPagerScreen(navController, currentUserId, initialTaskListId, externalSettingsState = settingsState)
                         }
                         composable(AppRoute.Settings.route) { SettingsView(navController = navController) }
                     }
@@ -1955,7 +1954,6 @@ private fun resolveTaskListBackgroundColor(background: String?): Color {
 @Composable
 private fun ScreenScaffold(
     title: String,
-    onBack: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Box(
@@ -2333,8 +2331,13 @@ private fun SignUpView(
             errorMessage = null
             scope.launch {
                 try {
-                    signUpWithInitialData(trimmedEmail, password, language)
+                    withTimeout(10_000) {
+                        signUpWithInitialData(trimmedEmail, password, language)
+                    }
                     logSignUp()
+                } catch (e: TimeoutCancellationException) {
+                    logException("Android sign up timed out", fatal = false)
+                    errorMessage = t.t("auth.error.general")
                 } catch (e: Exception) {
                     errorMessage = resolveAuthErrorMessage(t, e)
                 } finally {
@@ -2384,7 +2387,9 @@ private fun PasswordResetRequestView(
         label = { Text(t.t("auth.form.email")) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
         singleLine = true,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().semantics {
+            contentType = ContentType.Username + ContentType.EmailAddress
+        }
     )
     listOf(emailError, errorMessage).filterNotNull().forEach { message ->
         Spacer(Modifier.height(8.dp))
@@ -2408,9 +2413,14 @@ private fun PasswordResetRequestView(
             successMessage = null
             scope.launch {
                 try {
-                    sendPasswordResetEmail(trimmedEmail, language)
+                    withTimeout(10_000) {
+                        sendPasswordResetEmail(trimmedEmail, language)
+                    }
                     logPasswordResetEmailSent()
                     successMessage = t.t("auth.passwordReset.success")
+                } catch (e: TimeoutCancellationException) {
+                    logException("Android password reset timed out", fatal = false)
+                    errorMessage = t.t("auth.error.general")
                 } catch (e: Exception) {
                     errorMessage = resolveAuthErrorMessage(t, e)
                 } finally {
@@ -2744,10 +2754,11 @@ private fun CalendarScreen(
     userId: String?,
     selectedTaskListIdState: MutableState<String?>? = null,
     onOpenTaskList: (() -> Unit)? = null,
-    showTopBar: Boolean = true
+    showTopBar: Boolean = true,
+    externalTaskLists: List<TaskListDetail>? = null
 ) {
     val t = LocalTranslations.current
-    val calendarTaskLists = rememberOrderedTaskLists(userId, ::parseTaskListDetail)
+    val calendarTaskLists = externalTaskLists ?: rememberOrderedTaskLists(userId, ::parseTaskListDetail)
     val calendarTasks = remember(calendarTaskLists) {
         flattenCalendarTasks(calendarTaskLists)
     }
@@ -3032,7 +3043,6 @@ private fun TaskListsScreen(
         scope.launch {
             try {
                 Firebase.firestore.collection("taskListOrder").document(uid).update(updates).await()
-                pendingTaskListOrder = null
             } catch (e: Exception) {
                 logException(firestoreErrorDescription("task list order update", e), fatal = false)
                 pendingTaskListOrder = null
@@ -3519,6 +3529,8 @@ private fun TabletRootScreen(
 ) {
     val selectedTaskListState = rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPane by rememberSaveable { mutableStateOf(TabletPane.TaskList) }
+    val settingsState = rememberSettingsState(userId)
+    val sharedTaskLists = rememberOrderedTaskLists(userId, ::parseTaskListDetail)
 
     LaunchedEffect(initialSelectedTaskListId) {
         val taskListId = initialSelectedTaskListId ?: return@LaunchedEffect
@@ -3575,7 +3587,8 @@ private fun TabletRootScreen(
                     onOpenTaskList = {
                         selectedPane = TabletPane.TaskList
                     },
-                    showTopBar = false
+                    showTopBar = false,
+                    externalTaskLists = sharedTaskLists
                 )
             } else {
                 TaskListDetailPagerScreen(
@@ -3583,7 +3596,8 @@ private fun TabletRootScreen(
                     userId = userId,
                     selectedTaskListIdState = selectedTaskListState,
                     showTopBar = false,
-                    onEmpty = { selectedTaskListState.value = null }
+                    onEmpty = { selectedTaskListState.value = null },
+                    externalSettingsState = settingsState
                 )
             }
         }
@@ -3597,11 +3611,12 @@ private fun TaskListDetailPagerScreen(
     initialTaskListId: String = "__initial__",
     selectedTaskListIdState: MutableState<String?>? = null,
     showTopBar: Boolean = true,
-    onEmpty: (() -> Unit)? = if (navController != null) ({ navController.navigateUp() }) else null
+    onEmpty: (() -> Unit)? = if (navController != null) ({ navController.navigateUp() }) else null,
+    externalSettingsState: SettingsState? = null
 ) {
     val t = LocalTranslations.current
     val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
-    val settingsState = rememberSettingsState(userId)
+    val settingsState = externalSettingsState ?: rememberSettingsState(userId)
     var internalSelectedTaskListId by rememberSaveable(initialTaskListId) {
         mutableStateOf(initialTaskListId)
     }
@@ -4201,6 +4216,9 @@ private fun TaskListDetailContent(
     var showEditDialog by remember { mutableStateOf(false) }
     var showRemoveListConfirm by remember { mutableStateOf(false) }
     var currentShareCode by remember { mutableStateOf(taskList.shareCode) }
+    LaunchedEffect(taskList.shareCode) {
+        currentShareCode = taskList.shareCode
+    }
     var editName by remember { mutableStateOf("") }
     var editBackground by remember { mutableStateOf<String?>(null) }
     var generatingShareCode by remember { mutableStateOf(false) }
@@ -4211,7 +4229,7 @@ private fun TaskListDetailContent(
     var shareError by remember { mutableStateOf<String?>(null) }
     val newTaskFocusRequester = remember { FocusRequester() }
 
-    val displayTasks = remember(taskList.tasks, dragOrderedTasks, pendingDisplayedTasks) {
+    val displayTasks = remember(taskList.tasks, dragOrderedTasks, pendingDisplayedTasks, autoSort) {
         dragOrderedTasks ?: pendingDisplayedTasks ?: getDisplayOrderedTasks(taskList.tasks)
     }
     val taskDensity = LocalDensity.current
@@ -4286,7 +4304,7 @@ private fun TaskListDetailContent(
         pendingDisplayedTasks = tasks
     }
 
-    LaunchedEffect(taskList.tasks, pendingDisplayedTasks) {
+    LaunchedEffect(taskList.tasks, pendingDisplayedTasks, autoSort) {
         val pending = pendingDisplayedTasks ?: return@LaunchedEffect
         if (pending == reconcileTasks(taskList.tasks, autoSort)) {
             pendingDisplayedTasks = null
@@ -5591,26 +5609,28 @@ private fun SettingsView(
                                     ?.keys
                                     ?.filter { it != "createdAt" && it != "updatedAt" }
                                     ?: emptyList()
-                                taskListIds.forEach { taskListId ->
-                                    try {
-                                        val taskListRef = db.collection("taskLists").document(taskListId)
-                                        val snap = taskListRef.get().await()
-                                        if (!snap.exists()) return@forEach
-                                        val memberCount = (snap.data?.get("memberCount") as? Number)?.toInt() ?: 1
-                                        if (memberCount <= 1) {
-                                            db.batch().apply {
-                                                snap.getString("shareCode")
-                                                    ?.takeIf { it.isNotBlank() }
-                                                    ?.let { shareCode ->
-                                                        val normalizedCode = shareCode.trim().uppercase()
-                                                        delete(db.collection("shareCodes").document(normalizedCode))
-                                                    }
-                                                delete(taskListRef)
-                                            }.commit().await()
-                                        } else {
-                                            taskListRef.update("memberCount", FieldValue.increment(-1)).await()
+                                coroutineScope {
+                                    taskListIds.map { taskListId ->
+                                        async {
+                                            val taskListRef = db.collection("taskLists").document(taskListId)
+                                            val snap = taskListRef.get().await()
+                                            if (!snap.exists()) return@async
+                                            val memberCount = (snap.data?.get("memberCount") as? Number)?.toInt() ?: 1
+                                            if (memberCount <= 1) {
+                                                db.batch().apply {
+                                                    snap.getString("shareCode")
+                                                        ?.takeIf { it.isNotBlank() }
+                                                        ?.let { shareCode ->
+                                                            val normalizedCode = shareCode.trim().uppercase()
+                                                            delete(db.collection("shareCodes").document(normalizedCode))
+                                                        }
+                                                    delete(taskListRef)
+                                                }.commit().await()
+                                            } else {
+                                                taskListRef.update("memberCount", FieldValue.increment(-1)).await()
+                                            }
                                         }
-                                    } catch (_: Exception) {}
+                                    }.awaitAll()
                                 }
                             }
                             db.batch().apply {
@@ -5742,7 +5762,10 @@ private fun SettingsView(
                         onValueChange = { newEmail = it },
                         label = { Text(t.t("settings.emailChange.newEmailLabel")) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        singleLine = true
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().semantics {
+                            contentType = ContentType.NewUsername + ContentType.EmailAddress
+                        }
                     )
                     emailChangeError?.let {
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

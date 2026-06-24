@@ -61,11 +61,7 @@ if (requireReleaseSigning && !hasReleaseSigning) {
 
 android {
     namespace = "com.lightlist.app"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = lightlistApplicationId

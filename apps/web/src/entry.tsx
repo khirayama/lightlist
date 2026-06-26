@@ -1712,7 +1712,7 @@ type RelativeDatePatternConfig = {
 };
 
 type TranslationBundle = {
-  app?: { initialTaskListName?: string };
+  app: { initialTaskListName: string };
   datePatterns?: {
     relative?: RelativeDatePatternConfig[];
     weekdays?: Record<string, number | undefined>;
@@ -1721,8 +1721,10 @@ type TranslationBundle = {
 };
 
 const getTranslationBundle = (language: Language): TranslationBundle =>
-  (i18next.getResourceBundle(language, "translation") ??
-    {}) as TranslationBundle;
+  i18next.getResourceBundle(language, "translation") as TranslationBundle;
+
+const getInitialTaskListName = (language: Language): string =>
+  getTranslationBundle(language).app.initialTaskListName;
 
 const requireCurrentUser = (): FirebaseAuthUser => {
   const user = getAuthInstance().currentUser;
@@ -1751,10 +1753,9 @@ const createInitialTaskListStore = (
   language: Language,
   now: number,
 ): TaskListStore => {
-  const bundle = getTranslationBundle(language);
   return {
     id: taskListId,
-    name: bundle.app?.initialTaskListName ?? "📒PERSONAL",
+    name: getInitialTaskListName(language),
     tasks: {},
     history: [],
     shareCode: null,

@@ -669,20 +669,6 @@ private func resolvePasswordResetErrorMessage(translations: Translations, error:
     }
 }
 
-private let initialTaskListNameByLanguage: [String: String] = [
-    "ja": "📒個人",
-    "en": "📒PERSONAL",
-    "es": "📒PERSONAL",
-    "de": "📒PERSÖNLICH",
-    "fr": "📒PERSONNEL",
-    "ko": "📒개인",
-    "zh-CN": "📒个人",
-    "hi": "📒व्यक्तिगत",
-    "ar": "📒شخصية",
-    "pt-BR": "📒PESSOAL",
-    "id": "📒PRIBADI",
-]
-
 private enum AuthScreen: Int, CaseIterable, Identifiable {
     case signIn
     case signUp
@@ -1683,7 +1669,7 @@ private struct SignUpView: View {
                 ], forDocument: db.collection("settings").document(uid))
                 batch.setData([
                     "id": taskListId,
-                    "name": initialTaskListNameByLanguage[normalizedLanguage] ?? initialTaskListNameByLanguage["ja"] ?? "📒個人",
+                    "name": translations.t("app.initialTaskListName"),
                     "tasks": [:],
                     "history": [],
                     "shareCode": NSNull(),
@@ -4448,8 +4434,11 @@ private struct SettingsView: View {
             .padding(.vertical, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(translations.t("settings.title"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color(.systemGroupedBackground), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .onAppear {
             viewModel.bind(uid: currentUserId)
         }
@@ -4527,19 +4516,20 @@ private struct SettingsView: View {
     private func settingsCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(AppTypography.captionSemibold())
+                .font(AppTypography.subheadlineMedium())
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 4)
-                .padding(.bottom, 6)
+                .padding(.bottom, 8)
                 .accessibilityAddTraits(.isHeader)
-            VStack(spacing: 0) {
-                content()
-            }
-            .padding(16)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            content()
         }
-        .frame(maxWidth: 480)
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color(.separator).opacity(0.55), lineWidth: 1)
+        }
+        .frame(maxWidth: 768)
         .frame(maxWidth: .infinity)
     }
 
@@ -4553,7 +4543,7 @@ private struct SettingsView: View {
                     .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
-            .padding(.vertical, 4)
+            .frame(minHeight: 44)
         }
         .buttonStyle(.plain)
     }

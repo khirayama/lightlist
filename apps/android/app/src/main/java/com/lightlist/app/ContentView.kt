@@ -270,6 +270,7 @@ private val DarkColorScheme = darkColorScheme(
     background = Color(0xFF030712),
     onBackground = Color(0xFFF9FAFB),
     surface = Color(0xFF030712),
+    surfaceDim = Color(0xFF030712),
     onSurface = Color(0xFFF9FAFB),
     surfaceVariant = Color(0xFF374151),
     onSurfaceVariant = Color(0xFFD1D5DB),
@@ -298,6 +299,7 @@ private val LightColorScheme = lightColorScheme(
     background = Color(0xFFFFFFFF),
     onBackground = Color(0xFF111827),
     surface = Color(0xFFFFFFFF),
+    surfaceDim = Color(0xFFF9FAFB),
     onSurface = Color(0xFF111827),
     surfaceVariant = Color(0xFFF9FAFB),
     onSurfaceVariant = Color(0xFF4B5563),
@@ -412,17 +414,23 @@ class Translations {
         fun isSupported(language: String): Boolean = supported.contains(language)
         private var allLocales: JSONObject? = null
 
-        fun from(context: Context, language: String): Translations {
-            if (allLocales == null) {
-                try {
-                    val json = context.assets.open("locales.json").bufferedReader().readText()
-                    allLocales = JSONObject(json)
-                } catch (_: Exception) {}
+        private fun loadLocales(context: Context): JSONObject {
+            allLocales?.let { return it }
+            val locales = try {
+                JSONObject(context.assets.open("locales.json").bufferedReader().readText())
+            } catch (_: Exception) {
+                JSONObject()
             }
+            allLocales = locales
+            return locales
+        }
+
+        fun from(context: Context, language: String): Translations {
+            val locales = loadLocales(context)
             return Translations().apply {
                 val lang = if (supported.contains(language)) language else "ja"
                 currentLanguage = lang
-                dict = allLocales?.optJSONObject(lang) ?: JSONObject()
+                dict = locales.optJSONObject(lang) ?: JSONObject()
             }
         }
 
@@ -483,13 +491,7 @@ class Translations {
     fun load(context: Context, language: String) {
         val lang = if (supported.contains(language)) language else "ja"
         currentLanguage = lang
-        if (allLocales == null) {
-            try {
-                val json = context.assets.open("locales.json").bufferedReader().readText()
-                allLocales = JSONObject(json)
-            } catch (_: Exception) {}
-        }
-        dict = allLocales?.optJSONObject(lang) ?: JSONObject()
+        dict = loadLocales(context).optJSONObject(lang) ?: JSONObject()
     }
 
     fun languageTag(): String = currentLanguage
@@ -815,20 +817,6 @@ private val AUTH_ERROR_KEY_MAP = mapOf(
     "ERROR_INVALID_ACTION_CODE" to "auth.passwordReset.invalidCode"
 )
 
-private val INITIAL_TASK_LIST_NAME_BY_LANGUAGE = mapOf(
-    "ja" to "\uD83D\uDCD2個人",
-    "en" to "\uD83D\uDCD2PERSONAL",
-    "es" to "\uD83D\uDCD2PERSONAL",
-    "de" to "\uD83D\uDCD2PERSÖNLICH",
-    "fr" to "\uD83D\uDCD2PERSONNEL",
-    "ko" to "\uD83D\uDCD2개인",
-    "zh-CN" to "\uD83D\uDCD2个人",
-    "hi" to "\uD83D\uDCD2व्यक्तिगत",
-    "ar" to "\uD83D\uDCD2شخصية",
-    "pt-BR" to "\uD83D\uDCD2PESSOAL",
-    "id" to "\uD83D\uDCD2PRIBADI"
-)
-
 private fun resolveAuthErrorMessage(
     translations: Translations,
     error: Throwable?,
@@ -924,7 +912,12 @@ private fun validateConfirmPasswordField(
     }
 }
 
-private suspend fun signUpWithInitialData(email: String, password: String, language: String) {
+private suspend fun signUpWithInitialData(
+    email: String,
+    password: String,
+    language: String,
+    initialTaskListName: String
+) {
     val auth = Firebase.auth
     val db = Firebase.firestore
     val normalizedLanguage = normalizeLanguageCode(language)
@@ -942,8 +935,7 @@ private suspend fun signUpWithInitialData(email: String, password: String, langu
     )
     val taskListData = hashMapOf<String, Any?>(
         "id" to taskListId,
-        "name" to (INITIAL_TASK_LIST_NAME_BY_LANGUAGE[normalizedLanguage]
-            ?: INITIAL_TASK_LIST_NAME_BY_LANGUAGE.getValue("ja")),
+        "name" to initialTaskListName,
         "tasks" to emptyMap<String, Any>(),
         "history" to emptyList<Any>(),
         "shareCode" to null,
@@ -2332,7 +2324,12 @@ private fun SignUpView(
             scope.launch {
                 try {
                     withTimeout(10_000) {
-                        signUpWithInitialData(trimmedEmail, password, language)
+                        signUpWithInitialData(
+                            trimmedEmail,
+                            password,
+                            language,
+                            t.t("app.initialTaskListName")
+                        )
                     }
                     logSignUp()
                 } catch (e: TimeoutCancellationException) {
@@ -5399,19 +5396,23 @@ private val supportedLanguages = listOf(
 
 @Composable
 private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column {
-        Text(
-            title,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(Modifier.padding(16.dp), content = content)
+    val shape = RoundedCornerShape(12.dp)
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            content()
         }
     }
 }
@@ -5475,7 +5476,8 @@ private fun SettingsView(
     DetailScreenScaffold(
         title = t.t("settings.title"),
         onBack = if (navController != null) ({ navController.navigateUp() }) else null,
-        showTopBar = showTopBar
+        showTopBar = showTopBar,
+        backgroundColor = MaterialTheme.colorScheme.surfaceDim
     ) {
         Column(
             Modifier

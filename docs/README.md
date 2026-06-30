@@ -15,8 +15,7 @@
 
 - [app-check.md](./app-check.md) — Firebase App Check の構成と Console 手順
 - [analytics.md](./analytics.md) — Analytics イベント設計
-- [deployment.md](./deployment.md) — Web 配信（Cloudflare Pages）と Firestore デプロイ
-- [pwa.md](./pwa.md) — Web の PWA 最小構成
+- [deployment.md](./deployment.md) — Web 配信、PWA、Cloudflare Pages、Firestore デプロイ
 - [legal.md](./legal.md) — ライセンス表記
 - [screenshots.md](./screenshots.md) — 配信用スクリーンショット生成
 
@@ -28,6 +27,7 @@
 ## 前提
 
 - モノレポ構成。`apps/web`（Vite + React + TypeScript）/ `apps/ios`（SwiftUI, iOS 17+）/ `apps/android`（Kotlin + Gradle）。
+- Web は `apps/web` の実装をアプリケーション仕様の正とし、iOS / Android は同じドメイン仕様へ揃える。
 - 3 プラットフォームとも Firebase Authentication + Cloud Firestore を直接使う。
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
 

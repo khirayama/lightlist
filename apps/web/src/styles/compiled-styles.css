@@ -78,9 +78,6 @@
     --color-emerald-100: oklch(95% 0.052 163.051);
     --color-emerald-200: oklch(90.5% 0.093 164.15);
     --color-emerald-900: oklch(37.8% 0.077 168.94);
-    --color-blue-500: oklch(62.3% 0.214 259.815);
-    --color-blue-600: oklch(54.6% 0.245 262.881);
-    --color-blue-700: oklch(48.8% 0.243 264.376);
     --color-gray-100: oklch(96.7% 0.003 264.542);
     --color-gray-400: oklch(70.7% 0.022 261.325);
     --color-gray-600: oklch(44.6% 0.03 256.802);
@@ -1010,9 +1007,6 @@
       );
     }
   }
-  .ll-bg-blue-600 {
-    background-color: var(--color-blue-600);
-  }
   .ll-bg-gray-300 {
     background-color: #d1d5db;
   }
@@ -1450,9 +1444,6 @@
     .ll-hover-bg-gray-50:hover {
       background-color: #f9fafb;
     }
-    .ll-hover-bg-blue-700:hover {
-      background-color: var(--color-blue-700);
-    }
     .ll-hover-bg-gray-300:hover {
       background-color: #d1d5db;
     }
@@ -1748,9 +1739,6 @@
   .ll-dark-bg-gray-950:is(.dark *) {
     background-color: #030712;
   }
-  .ll-dark-bg-blue-500:is(.dark *) {
-    background-color: var(--color-blue-500);
-  }
   .ll-dark-bg-gray-700:is(.dark *) {
     background-color: #374151;
   }
@@ -1864,9 +1852,6 @@
     }
     .ll-dark-hover-bg-gray-950:is(.dark *):hover {
       background-color: #030712;
-    }
-    .ll-dark-hover-bg-blue-600:is(.dark *):hover {
-      background-color: var(--color-blue-600);
     }
     .ll-dark-hover-bg-gray-50-10:is(.dark *):hover {
       background-color: oklab(98.4625% -0.000643373 -0.00158/0.1);

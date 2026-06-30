@@ -8258,7 +8258,7 @@ function ShareCodePreviewPage() {
           <button
             onClick={handleAddToOrder}
             disabled={addToOrderLoading}
-            className="ll-rounded-lg ll-bg-blue-600 ll-px-4 ll-py-2 ll-text-sm ll-font-medium ll-text-white ll-transition-colors ll-hover-bg-blue-700 ll-disabled-opacity-50 ll-dark-bg-blue-500 ll-dark-hover-bg-blue-600"
+            className={TASK_CARD_PRIMARY_BUTTON_CLASS}
           >
             {addToOrderLoading
               ? t("common.loading")

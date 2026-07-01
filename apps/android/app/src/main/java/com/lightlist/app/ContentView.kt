@@ -5528,8 +5528,13 @@ private fun SettingsView(
                         label = t.t("settings.licenses.openSource"),
                         value = ""
                     ) {
-                        OssLicensesMenuActivity.setActivityTitle(t.t("settings.licenses.openSource"))
-                        context.startActivity(Intent(context, OssLicensesMenuActivity::class.java))
+                        try {
+                            OssLicensesMenuActivity.setActivityTitle(t.t("settings.licenses.openSource"))
+                            context.startActivity(Intent(context, OssLicensesMenuActivity::class.java))
+                        } catch (e: Exception) {
+                            logException(firestoreErrorDescription("open source licenses", e), fatal = false)
+                            errorMessage = t.t("settings.licenses.loadError")
+                        }
                     }
                     HorizontalDivider()
                     SettingsSelectRow(

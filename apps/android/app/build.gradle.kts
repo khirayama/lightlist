@@ -3,7 +3,19 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
-    id("com.google.android.gms.oss-licenses-plugin")
+    id("com.google.android.gms.oss-licenses-plugin") apply false
+}
+
+val requestedTaskNames = gradle.startParameter.taskNames
+val shouldGenerateOssLicenses =
+    requestedTaskNames.any { taskName ->
+        taskName == "bundle-play" ||
+            taskName == "bundleRelease" ||
+            taskName.endsWith(":bundleRelease")
+    }
+
+if (shouldGenerateOssLicenses) {
+    apply(plugin = "com.google.android.gms.oss-licenses-plugin")
 }
 
 val generatedSharedAssetsDir = layout.buildDirectory.dir("generated/assets/shared/main").get().asFile

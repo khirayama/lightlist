@@ -461,9 +461,6 @@
   .ll-inset-x-0 {
     inset-inline: calc(var(--spacing) * 0);
   }
-  .ll-inset-y-0 {
-    inset-block: calc(var(--spacing) * 0);
-  }
   .ll-top-neg-2 {
     top: calc(var(--spacing) * -2);
   }
@@ -517,12 +514,6 @@
   }
   .ll-z-50 {
     z-index: 50;
-  }
-  .ll-z-1000 {
-    z-index: 1000;
-  }
-  .ll-z-1100 {
-    z-index: 1100;
   }
   .ll-z-1200 {
     z-index: 1200;
@@ -722,9 +713,6 @@
   .ll-max-w-420px {
     max-width: 420px;
   }
-  .ll-max-w-460px {
-    max-width: 460px;
-  }
   .ll-max-w-dialog {
     max-width: min(640px, 90vw);
   }
@@ -917,6 +905,9 @@
   .ll-rounded-10px {
     border-radius: 10px;
   }
+  .ll-rounded-14px {
+    border-radius: 14px;
+  }
   .ll-rounded-24px {
     border-radius: 24px;
   }
@@ -995,18 +986,6 @@
       );
     }
   }
-  .ll-bg-black-50 {
-    background-color: #00000080;
-  }
-  @supports (color: color-mix(in lab, red, red)) {
-    .ll-bg-black-50 {
-      background-color: color-mix(
-        in oklab,
-        var(--color-black) 50%,
-        transparent
-      );
-    }
-  }
   .ll-bg-gray-300 {
     background-color: #d1d5db;
   }
@@ -1025,8 +1004,8 @@
   .ll-bg-gray-900 {
     background-color: #111827;
   }
-  .ll-bg-gray-900-20 {
-    background-color: oklab(21.0084% -0.00295345 -0.031625/0.2);
+  .ll-bg-gray-900-40 {
+    background-color: oklab(21.0084% -0.00295345 -0.031625/0.4);
   }
   .ll-bg-red-50 {
     background-color: var(--color-red-50);
@@ -1039,6 +1018,9 @@
   }
   .ll-bg-white-80 {
     background-color: oklab(100% 0 5.96046e-8/0.8);
+  }
+  .ll-bg-white-92 {
+    background-color: rgb(255 255 255 / 0.92);
   }
   .ll-bg-transparent {
     background-color: #0000;
@@ -1072,6 +1054,9 @@
   }
   .ll-px-3 {
     padding-inline: calc(var(--spacing) * 3);
+  }
+  .ll-px-3x5 {
+    padding-inline: calc(var(--spacing) * 3.5);
   }
   .ll-px-4 {
     padding-inline: calc(var(--spacing) * 4);
@@ -1766,8 +1751,8 @@
   .ll-dark-bg-gray-50:is(.dark *) {
     background-color: #f9fafb;
   }
-  .ll-dark-bg-gray-50-20:is(.dark *) {
-    background-color: oklab(98.4625% -0.000643373 -0.00158/0.2);
+  .ll-dark-bg-gray-50-40:is(.dark *) {
+    background-color: oklab(98.4625% -0.000643373 -0.00158/0.4);
   }
   .ll-dark-bg-red-900-20:is(.dark *) {
     background-color: #82181a33;
@@ -1798,6 +1783,9 @@
   }
   .ll-dark-bg-gray-900b:is(.dark *) {
     background-color: #111827;
+  }
+  .ll-dark-bg-gray-900-92:is(.dark *) {
+    background-color: rgb(17 24 39 / 0.92);
   }
   .ll-dark-bg-gray-900-80:is(.dark *) {
     background-color: oklab(21.0084% -0.00295345 -0.031625/0.8);

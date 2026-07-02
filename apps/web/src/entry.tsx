@@ -88,7 +88,6 @@ import type {
   FirestoreError,
   QuerySnapshot,
 } from "firebase/firestore";
-import { Drawer as DrawerPrimitive } from "vaul";
 import { Command as CommandPrimitive } from "cmdk";
 import type { Locale } from "date-fns";
 import {
@@ -765,6 +764,34 @@ const AUTH_FREE_PAGES = new Set(["404", "500", "password_reset"]);
 const isAuthFreePage = (): boolean =>
   AUTH_FREE_PAGES.has(document.body.dataset.page ?? "");
 
+const LAST_UID_STORAGE_KEY = "lightlist.lastUid";
+
+const readLastUid = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    return window.localStorage.getItem(LAST_UID_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeLastUid = (uid: string | null): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    if (uid) {
+      window.localStorage.setItem(LAST_UID_STORAGE_KEY, uid);
+    } else {
+      window.localStorage.removeItem(LAST_UID_STORAGE_KEY);
+    }
+  } catch {
+    return;
+  }
+};
+
 const applyTheme = (theme: Theme) => {
   if (typeof document === "undefined" || typeof window === "undefined") return;
   const isDark =
@@ -957,6 +984,7 @@ declare module "i18next" {
 }
 
 type SessionState = Pick<AppState, "authStatus" | "user">;
+type SessionContextValue = SessionState & { activeUid: string | null };
 type SettingsState = Pick<AppState, "settings" | "settingsStatus">;
 type TaskListIndexState = {
   hasStartupError: boolean;
@@ -1240,7 +1268,7 @@ type TaskListsContextValue = {
   registerSharedTaskList: (taskListId: string) => () => void;
 };
 
-const SessionContext = createContext<SessionState | null>(null);
+const SessionContext = createContext<SessionContextValue | null>(null);
 const SettingsContext = createContext<SettingsState | null>(null);
 const TaskListsContext = createContext<TaskListsContextValue | null>(null);
 
@@ -1262,6 +1290,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
   );
   const sharedTaskListRefCounts = useRef(new Map<string, number>());
   const sharedTaskListUnsubscribers = useRef(new Map<string, () => void>());
+  const [storedLastUid] = useState(readLastUid);
 
   useEffect(() => {
     if (isAuthFreePage()) {
@@ -1269,6 +1298,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       return;
     }
     const unsubscribe = onAuthStateChanged(getAuthInstance(), (user) => {
+      writeLastUid(user?.uid ?? null);
       setSession({
         authStatus: user ? "authenticated" : "unauthenticated",
         user: toUser(user),
@@ -1279,15 +1309,19 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const activeUid =
+    session.user?.uid ??
+    (session.authStatus === "loading" ? storedLastUid : null);
+
   useEffect(() => {
-    if (session.authStatus !== "authenticated" || !session.user) {
+    if (!activeUid) {
       setSettingsState(serverSettingsState);
       return;
     }
 
     let hasLiveSnapshot = false;
     let isSubscribed = true;
-    const settingsRef = doc(getDbInstance(), "settings", session.user.uid);
+    const settingsRef = doc(getDbInstance(), "settings", activeUid);
 
     setSettingsState((current) => ({
       settings: current.settings,
@@ -1334,21 +1368,17 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       isSubscribed = false;
       unsubscribe();
     };
-  }, [session.authStatus, session.user?.uid]);
+  }, [activeUid]);
 
   useEffect(() => {
-    if (session.authStatus !== "authenticated" || !session.user) {
+    if (!activeUid) {
       dispatchTaskLists({ type: "reset", taskListOrderStatus: "idle" });
       return;
     }
 
     let hasLiveSnapshot = false;
     let isSubscribed = true;
-    const taskListOrderRef = doc(
-      getDbInstance(),
-      "taskListOrder",
-      session.user.uid,
-    );
+    const taskListOrderRef = doc(getDbInstance(), "taskListOrder", activeUid);
 
     dispatchTaskLists({ type: "reset", taskListOrderStatus: "loading" });
 
@@ -1393,7 +1423,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       isSubscribed = false;
       unsubscribe();
     };
-  }, [session.authStatus, session.user?.uid]);
+  }, [activeUid]);
 
   const orderedTaskListIds = useMemo(
     () => getOrderedTaskListIds(taskListsState.taskListOrder),
@@ -1413,7 +1443,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       taskListIds: orderedTaskListIds,
     });
 
-    if (session.authStatus !== "authenticated" || !session.user) {
+    if (!activeUid) {
       return;
     }
 
@@ -1505,7 +1535,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       isSubscribed = false;
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [orderedTaskListIdsKey, session.authStatus, session.user]);
+  }, [orderedTaskListIdsKey, activeUid]);
 
   const registerSharedTaskList = useCallback((taskListId: string) => {
     const nextCount =
@@ -1621,8 +1651,13 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     ],
   );
 
+  const sessionContextValue = useMemo<SessionContextValue>(
+    () => ({ ...session, activeUid }),
+    [session, activeUid],
+  );
+
   return (
-    <SessionContext.Provider value={session}>
+    <SessionContext.Provider value={sessionContextValue}>
       <SettingsContext.Provider value={settingsState}>
         <TaskListsContext.Provider value={taskListsContextValue}>
           {children}
@@ -1632,7 +1667,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
   );
 }
 
-function useSessionState(): SessionState {
+function useSessionState(): SessionContextValue {
   return useRequiredContext(SessionContext);
 }
 
@@ -3183,7 +3218,6 @@ type SelectRowProps = {
 
 type SettingsSectionProps = {
   children: ReactNode;
-  tone?: "default" | "danger";
 };
 
 type LicenseEntry = {
@@ -3276,17 +3310,9 @@ function ConfirmDialog({
   );
 }
 
-function SettingsSection({ children, tone = "default" }: SettingsSectionProps) {
-  if (tone === "danger") {
-    return (
-      <section className="ll-rounded-xl ll-border ll-border-red-200 ll-bg-white-b ll-p-4 ll-dark-border-red-900-40 ll-dark-bg-gray-900b ll-sm-p-5">
-        {children}
-      </section>
-    );
-  }
-
+function SettingsSection({ children }: SettingsSectionProps) {
   return (
-    <section className="ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-p-4 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-5">
+    <section className="ll-rounded-xl ll-bg-white-b ll-p-4 ll-dark-bg-gray-900b">
       {children}
     </section>
   );
@@ -3478,7 +3504,7 @@ function SettingsView({
   const deleteAccountLabel =
     pendingAction === "deleteAccount"
       ? t("settings.deletingAccount")
-      : t("settings.deleteAccount");
+      : t("settings.danger.deleteAccount");
   const languageOptions = SUPPORTED_LANGUAGES.map((language) => ({
     value: language,
     label: LANGUAGE_DISPLAY_NAMES[language],
@@ -3528,6 +3554,98 @@ function SettingsView({
           <Alert variant="error">{t("auth.error.general")}</Alert>
         ) : (
           <>
+            <SettingsSection>
+              <div className="ll-flex ll-flex-col ll-gap-2">
+                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
+                  {t("settings.userInfo.title")}
+                </h2>
+                <div>
+                  <div className="ll-mt-1 ll-flex ll-items-center ll-justify-between ll-gap-2">
+                    {user ? (
+                      <p className="ll-break-all ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
+                        {user.email}
+                      </p>
+                    ) : (
+                      <div className="ll-h-5 ll-w-48 ll-animate-pulse ll-rounded ll-bg-gray-300 ll-dark-bg-gray-700" />
+                    )}
+                    {!showEmailChangeForm && (
+                      <button
+                        type="button"
+                        onClick={() => setShowEmailChangeForm(true)}
+                        disabled={actionsDisabled}
+                        className="ll-shrink-0b ll-text-xs ll-text-gray-600 ll-underline ll-hover-text-gray-900 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-300 ll-dark-hover-text-gray-50"
+                      >
+                        {t("settings.emailChange.changeButton")}
+                      </button>
+                    )}
+                  </div>
+                  {showEmailChangeForm && (
+                    <div className="ll-mt-3 ll-flex ll-flex-col ll-gap-3">
+                      {emailChangeSuccess ? (
+                        <Alert variant="success">
+                          {t("settings.emailChange.successMessage")}
+                        </Alert>
+                      ) : (
+                        <>
+                          {emailChangeError && (
+                            <Alert variant="error">{emailChangeError}</Alert>
+                          )}
+                          <div>
+                            <label
+                              htmlFor="new-email"
+                              className="ll-mb-1 ll-block ll-text-xs ll-font-medium ll-text-gray-600 ll-dark-text-gray-300"
+                            >
+                              {t("settings.emailChange.newEmailLabel")}
+                            </label>
+                            <input
+                              id="new-email"
+                              type="email"
+                              value={newEmail}
+                              onChange={(e) => setNewEmail(e.target.value)}
+                              disabled={isChangingEmail}
+                              placeholder={t(
+                                "settings.emailChange.newEmailPlaceholder",
+                              )}
+                              className="ll-w-full ll-rounded-md ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-focus-border-gray-600 ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-border-gray-300"
+                            />
+                          </div>
+                          <div className="ll-flex ll-gap-2">
+                            <button
+                              type="button"
+                              onClick={handleEmailChangeClose}
+                              disabled={isChangingEmail}
+                              className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-transition ll-hover-border-gray-600 ll-hover-bg-gray-50 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-hover-border-gray-300 ll-dark-hover-bg-gray-900"
+                            >
+                              {t("common.cancel")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleEmailChangeSubmit()}
+                              disabled={isChangingEmail || !newEmail.trim()}
+                              className="ll-inline-flex ll-flex-1 ll-items-center ll-justify-center ll-rounded-2xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-transition ll-hover-opacity-90 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900"
+                            >
+                              {isChangingEmail
+                                ? t("settings.emailChange.submitting")
+                                : t("settings.emailChange.submitButton")}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      {emailChangeSuccess && (
+                        <button
+                          type="button"
+                          onClick={handleEmailChangeClose}
+                          className="ll-text-xs ll-text-gray-600 ll-underline ll-hover-text-gray-900 ll-dark-text-gray-300 ll-dark-hover-text-gray-50"
+                        >
+                          {t("common.close")}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </SettingsSection>
+
             <SettingsSection>
               <fieldset className="ll-flex ll-flex-col ll-gap-0">
                 <legend className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
@@ -3634,8 +3752,8 @@ function SettingsView({
             </SettingsSection>
 
             <SettingsSection>
-              <div className="ll-flex ll-flex-col ll-gap-3">
-                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-900 ll-dark-text-gray-50">
+              <div className="ll-flex ll-flex-col ll-gap-2">
+                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
                   {t("settings.legal.title")}
                 </h2>
                 <button
@@ -3655,111 +3773,25 @@ function SettingsView({
             </SettingsSection>
 
             <SettingsSection>
-              <div className="ll-flex ll-flex-col ll-gap-3">
-                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-900 ll-dark-text-gray-50">
+              <div className="ll-flex ll-flex-col ll-gap-2">
+                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
                   {t("settings.actions.title")}
                 </h2>
-                <div className="ll-border-b ll-border-gray-300 ll-pb-3 ll-dark-border-gray-700">
-                  <p className="ll-text-xs ll-font-medium ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
-                    {t("settings.userInfo.title")}
-                  </p>
-                  <div className="ll-mt-1 ll-flex ll-items-center ll-justify-between ll-gap-2">
-                    {user ? (
-                      <p className="ll-break-all ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
-                        {user.email}
-                      </p>
-                    ) : (
-                      <div className="ll-h-5 ll-w-48 ll-animate-pulse ll-rounded ll-bg-gray-300 ll-dark-bg-gray-700" />
-                    )}
-                    {!showEmailChangeForm && (
-                      <button
-                        type="button"
-                        onClick={() => setShowEmailChangeForm(true)}
-                        disabled={actionsDisabled}
-                        className="ll-shrink-0b ll-text-xs ll-text-gray-600 ll-underline ll-hover-text-gray-900 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-300 ll-dark-hover-text-gray-50"
-                      >
-                        {t("settings.emailChange.changeButton")}
-                      </button>
-                    )}
-                  </div>
-                  {showEmailChangeForm && (
-                    <div className="ll-mt-3 ll-flex ll-flex-col ll-gap-3">
-                      {emailChangeSuccess ? (
-                        <Alert variant="success">
-                          {t("settings.emailChange.successMessage")}
-                        </Alert>
-                      ) : (
-                        <>
-                          {emailChangeError && (
-                            <Alert variant="error">{emailChangeError}</Alert>
-                          )}
-                          <div>
-                            <label
-                              htmlFor="new-email"
-                              className="ll-mb-1 ll-block ll-text-xs ll-font-medium ll-text-gray-600 ll-dark-text-gray-300"
-                            >
-                              {t("settings.emailChange.newEmailLabel")}
-                            </label>
-                            <input
-                              id="new-email"
-                              type="email"
-                              value={newEmail}
-                              onChange={(e) => setNewEmail(e.target.value)}
-                              disabled={isChangingEmail}
-                              placeholder={t(
-                                "settings.emailChange.newEmailPlaceholder",
-                              )}
-                              className="ll-w-full ll-rounded-md ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-focus-border-gray-600 ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-border-gray-300"
-                            />
-                          </div>
-                          <div className="ll-flex ll-gap-2">
-                            <button
-                              type="button"
-                              onClick={handleEmailChangeClose}
-                              disabled={isChangingEmail}
-                              className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-transition ll-hover-border-gray-600 ll-hover-bg-gray-50 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-hover-border-gray-300 ll-dark-hover-bg-gray-900"
-                            >
-                              {t("common.cancel")}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleEmailChangeSubmit()}
-                              disabled={isChangingEmail || !newEmail.trim()}
-                              className="ll-inline-flex ll-flex-1 ll-items-center ll-justify-center ll-rounded-2xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-transition ll-hover-opacity-90 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900"
-                            >
-                              {isChangingEmail
-                                ? t("settings.emailChange.submitting")
-                                : t("settings.emailChange.submitButton")}
-                            </button>
-                          </div>
-                        </>
-                      )}
-                      {emailChangeSuccess && (
-                        <button
-                          type="button"
-                          onClick={handleEmailChangeClose}
-                          className="ll-text-xs ll-text-gray-600 ll-underline ll-hover-text-gray-900 ll-dark-text-gray-300 ll-dark-hover-text-gray-50"
-                        >
-                          {t("common.close")}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="ll-grid ll-gap-2x5">
+                <div className="ll-flex ll-flex-col">
                   <button
                     type="button"
                     onClick={() => setShowSignOutConfirm(true)}
                     disabled={actionsDisabled}
-                    className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-3 ll-text-sm ll-font-semibold ll-text-gray-900 ll-shadow-sm ll-transition ll-hover-border-gray-600 ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-hover-border-gray-300 ll-dark-hover-bg-gray-900 ll-dark-focus-visible-outline-gray-700"
+                    className="ll-flex ll-w-full ll-items-center ll-rounded-lg ll-px-1 ll-py-3 ll-text-left ll-text-sm ll-font-medium ll-text-gray-900 ll-transition ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-50 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-gray-700"
                   >
                     {signOutLabel}
                   </button>
+                  <div className="ll-border-t ll-border-gray-300 ll-dark-border-gray-700" />
                   <button
                     type="button"
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={actionsDisabled}
-                    className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-2xl ll-border ll-border-red-200 ll-bg-red-50 ll-px-4 ll-py-3 ll-text-sm ll-font-semibold ll-text-red-700 ll-shadow-sm ll-transition ll-hover-bg-red-100 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-red-800 ll-dark-bg-red-950-30 ll-dark-text-red-100 ll-dark-hover-bg-red-900-40 ll-dark-focus-visible-outline-red-500"
+                    className="ll-flex ll-w-full ll-items-center ll-rounded-lg ll-px-1 ll-py-3 ll-text-left ll-text-sm ll-font-medium ll-text-red-600 ll-transition ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-red-400 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-red-500"
                   >
                     {deleteAccountLabel}
                   </button>
@@ -3811,7 +3843,7 @@ function LicenseCard({ entry }: { entry: LicenseEntry }) {
   const sourceUrl = entry.repository ?? entry.source;
 
   return (
-    <details className="ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-3 ll-dark-border-gray-700 ll-dark-bg-gray-900b">
+    <details className="ll-rounded-xl ll-bg-white-b ll-px-4 ll-py-3 ll-dark-bg-gray-900b">
       <summary className="ll-cursor-pointer ll-list-none">
         <div className="ll-flex ll-items-start ll-justify-between ll-gap-3">
           <div className="ll-min-w-0">
@@ -4164,56 +4196,6 @@ function AppHeader({ backLabel, onBack }: AppHeaderProps) {
   );
 }
 
-const Drawer = DrawerPrimitive.Root;
-const DrawerPortal = DrawerPrimitive.Portal;
-
-function DrawerOverlay({
-  className,
-  ref,
-  ...props
-}: ComponentProps<typeof DrawerPrimitive.Overlay>) {
-  return (
-    <DrawerPrimitive.Overlay
-      ref={ref}
-      className={clsx(
-        "ll-fixed ll-inset-0 ll-z-1000 ll-bg-black-50 ll-backdrop-blur-sm",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function DrawerContent({
-  className,
-  children,
-  overlayClassName,
-  style,
-  ref,
-  ...props
-}: ComponentProps<typeof DrawerPrimitive.Content> & {
-  overlayClassName?: string;
-}) {
-  return (
-    <DrawerPortal>
-      <DrawerOverlay className={overlayClassName} />
-      <DrawerPrimitive.Content
-        ref={ref}
-        className={clsx(
-          "ll-fixed ll-inset-y-0 ll-z-1100 ll-w-full ll-max-w-460px ll-outline-none",
-          className,
-        )}
-        style={{ insetInlineStart: 0, ...style }}
-        {...props}
-      >
-        <div className="ll-flex ll-h-full ll-flex-col ll-gap-4 ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-text-gray-900 ll-shadow-2xl ll-dark-bg-gray-900b ll-dark-text-gray-50">
-          {children}
-        </div>
-      </DrawerPrimitive.Content>
-    </DrawerPortal>
-  );
-}
-
 function DrawerHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
@@ -4439,7 +4421,7 @@ function Carousel({
                   "ll-h-2 ll-w-2 ll-rounded-full ll-transition-all",
                   idx === currentIndex
                     ? "ll-scale-110 ll-bg-gray-900 ll-dark-bg-gray-50"
-                    : "ll-bg-gray-900-20 ll-dark-bg-gray-50-20",
+                    : "ll-bg-gray-900-40 ll-dark-bg-gray-50-40",
                 )}
               />
             </button>
@@ -4633,18 +4615,18 @@ function Calendar({
         caption_label: "ll-text-sm ll-font-semibold",
         nav: "ll-flex ll-items-center ll-justify-between ll-space-x-1",
         button_previous:
-          "ll-h-8 ll-w-8 ll-rounded-lg ll-border ll-border-gray-300 ll-bg-white-b ll-p-0 ll-text-gray-600 ll-hover-bg-gray-50 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-300 ll-dark-hover-bg-gray-950 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+          "ll-h-8 ll-w-8 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
         button_next:
-          "ll-h-8 ll-w-8 ll-rounded-lg ll-border ll-border-gray-300 ll-bg-white-b ll-p-0 ll-text-gray-600 ll-hover-bg-gray-50 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-300 ll-dark-hover-bg-gray-950 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+          "ll-h-8 ll-w-8 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
         month_grid: "ll-w-full",
         weekdays: "ll-flex",
         weekday:
-          "ll-flex-1 ll-text-0x8rem ll-font-medium ll-text-gray-400 ll-dark-text-gray-500",
+          "ll-flex-1 ll-text-0x8rem ll-font-medium ll-text-gray-600 ll-dark-text-gray-300",
         week: "ll-mt-2 ll-flex ll-w-full",
         day: "ll-relative ll-flex ll-h-9 ll-flex-1 ll-justify-center ll-p-0 ll-text-center ll-text-sm",
         day_button:
-          "ll-h-9 ll-w-9 ll-rounded-lg ll-p-0 ll-font-medium ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-aria-selected-bg-gray-900 ll-aria-selected-text-gray-50 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-aria-selected-bg-gray-50 ll-dark-aria-selected-text-gray-900",
-        selected: "ll-rounded-lg ll-bg-gray-300 ll-dark-bg-white",
+          "ll-h-9 ll-w-9 ll-rounded-full ll-p-0 ll-font-medium ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-aria-selected-bg-gray-900 ll-aria-selected-text-gray-50 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-aria-selected-bg-gray-50 ll-dark-aria-selected-text-gray-900",
+        selected: "ll-rounded-full ll-bg-gray-300 ll-dark-bg-white",
         today: "ll-border ll-border-gray-300 ll-dark-border-gray-700",
         outside: "ll-text-gray-400 ll-opacity-50 ll-dark-text-gray-500",
         disabled: "ll-text-gray-400 ll-opacity-50 ll-dark-text-gray-500",
@@ -4714,7 +4696,7 @@ function TaskItemComponent({
   onOpenTaskActions?: (task: Task, trigger: HTMLButtonElement | null) => void;
   onDragInteractionChange?: (active: boolean) => void;
 }) {
-  const completedTaskOpacity = 0.5;
+  const completedTaskOpacity = 0.55;
   const { t, i18n } = useTranslation();
   const {
     attributes,
@@ -4813,7 +4795,7 @@ function TaskItemComponent({
           aria-labelledby={taskTextId}
           className="ll-peer ll-absolute ll-inset-0 ll-z-10 ll-h-full ll-w-full ll-cursor-pointer ll-opacity-0"
         />
-        <div className="ll-check-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-border-gray-300 ll-bg-white-b ll-transition-colors ll-peer-checked-border-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-peer-checked-bg-gray-700" />
+        <div className="ll-check-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-border-gray-300 ll-bg-transparent ll-transition-colors ll-peer-checked-border-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-border-gray-700 ll-dark-peer-checked-bg-gray-700" />
       </div>
       <div className="ll-relative ll-flex ll-min-w-0 ll-flex-1 ll-flex-col">
         {dateDisplayValue ? (
@@ -4859,9 +4841,9 @@ function TaskItemComponent({
             }}
             className={
               task.completed
-                ? "ll-block ll-min-h-7 ll-min-w-0 ll-cursor-pointer ll-text-start ll-font-semibold ll-leading-7 ll-text-gray-600 ll-line-through ll-underline-offset-4 ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+                ? "ll-task-text-wrap ll-block ll-min-h-7 ll-min-w-0 ll-cursor-pointer ll-text-start ll-font-semibold ll-leading-7 ll-text-gray-600 ll-line-through ll-underline-offset-4 ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
                 : clsx(
-                    "ll-block ll-min-h-7 ll-min-w-0 ll-cursor-pointer ll-text-start ll-leading-7 ll-text-gray-900 ll-underline-offset-4 ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+                    "ll-task-text-wrap ll-block ll-min-h-7 ll-min-w-0 ll-cursor-pointer ll-text-start ll-leading-7 ll-text-gray-900 ll-underline-offset-4 ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300",
                     task.pinned ? "ll-font-bold" : "ll-font-semibold",
                   )
             }
@@ -5533,7 +5515,7 @@ function TaskListCard({
                       if (event.key === "Escape") setHistoryOpen(false);
                     }}
                     placeholder={t("pages.tasklist.addTaskPlaceholder")}
-                    className="ll-w-full ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white ll-px-3 ll-py-2 ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
+                    className="ll-w-full ll-rounded-14px ll-border ll-border-gray-300 ll-bg-white-92 ll-px-3x5 ll-py-2x5 ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900-92 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
                   />
                   {historyOpen && historyOptions.length > 0 ? (
                     <CommandPrimitive.List
@@ -6269,8 +6251,8 @@ function CalendarTaskItem({
     <div
       ref={itemRef}
       className={clsx(
-        "ll-flex ll-items-start ll-gap-2 ll-border-b ll-border-gray-300 ll-px-3 ll-py-2 ll-last-border-b-0 ll-dark-border-gray-700",
-        isHighlighted && "ll-bg-gray-50 ll-dark-bg-gray-900b",
+        "ll-flex ll-items-start ll-gap-2 ll-border-b ll-border-gray-300 ll-px-4 ll-py-2x5 ll-last-border-b-0 ll-dark-border-gray-700",
+        isHighlighted && "ll-bg-gray-50 ll-dark-bg-gray-700",
       )}
     >
       <div className="ll-flex ll-min-w-0 ll-flex-1 ll-flex-col ll-gap-1">
@@ -6300,7 +6282,7 @@ function CalendarTaskItem({
         <button
           type="button"
           onClick={() => onSelectDate(task.dateValue)}
-          className="ll-truncate ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
+          className="ll-task-text-wrap ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
         >
           {task.task.text}
         </button>
@@ -6481,7 +6463,7 @@ function CalendarScreen({
                               {colors.map((color, index) => (
                                 <span
                                   key={`${dateKey}-${color}-${index}`}
-                                  className="ll-h-1x5 ll-w-1x5 ll-rounded-full ll-border ll-border-gray-900 ll-dark-border-gray-50"
+                                  className="ll-h-1x5 ll-w-1x5 ll-rounded-full"
                                   style={{ backgroundColor: color }}
                                 />
                               ))}
@@ -6494,7 +6476,7 @@ function CalendarScreen({
                 }}
               />
             </div>
-            <div className="ll-min-h-0 ll-overflow-y-auto ll-rounded-xl ll-border ll-border-gray-300 ll-dark-border-gray-700 ll-lg-h-full">
+            <div className="ll-min-h-0 ll-overflow-y-auto ll-rounded-xl ll-bg-white-b ll-dark-bg-gray-900b ll-lg-h-full">
               {visibleDatedTasks.length > 0 ? (
                 visibleDatedTasks.map((task) => {
                   const taskId = getDatedTaskId(task);
@@ -6854,7 +6836,10 @@ function TaskListSidebarPanel({
 
 function AppShellPage() {
   const { t, i18n } = useTranslation();
-  const { authStatus } = useSessionState();
+  const { authStatus, activeUid } = useSessionState();
+  const isSessionActive =
+    authStatus === "authenticated" ||
+    (authStatus === "loading" && activeUid !== null);
   const user = useUser();
   const settings = useSettings();
   const {
@@ -6953,7 +6938,7 @@ function AppShellPage() {
   useEffect(() => {
     if (
       isViewAnimationReady ||
-      authStatus !== "authenticated" ||
+      !isSessionActive ||
       pendingInitialTaskListRoute
     ) {
       return;
@@ -6964,7 +6949,7 @@ function AppShellPage() {
     return () => {
       window.cancelAnimationFrame(animationFrameId);
     };
-  }, [authStatus, isViewAnimationReady, pendingInitialTaskListRoute]);
+  }, [isSessionActive, isViewAnimationReady, pendingInitialTaskListRoute]);
 
   useEffect(() => {
     if (taskLists.length > 0 && !selectedTaskListId) {
@@ -6985,7 +6970,7 @@ function AppShellPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || authStatus !== "authenticated") {
+    if (typeof window === "undefined" || !isSessionActive) {
       return;
     }
 
@@ -7004,9 +6989,9 @@ function AppShellPage() {
     setPendingInitialTaskListRoute(
       initializedState.pendingInitialTaskListRoute,
     );
-  }, [authStatus]);
+  }, [isSessionActive]);
 
-  const isAuthLoading = authStatus === "loading";
+  const isSessionPending = !isSessionActive && authStatus === "loading";
   const isTaskListsHydrating =
     taskListOrderStatus !== "ready" ||
     (stateTaskLists.length === 0 && taskListDocsStatus === "loading");
@@ -7313,7 +7298,7 @@ function AppShellPage() {
 
   const detailContent = (
     <div className="ll-h-full ll-overflow-hidden">
-      {isAuthLoading ? (
+      {isSessionPending ? (
         renderDetailSkeleton(4)
       ) : hasStartupError ? (
         <div className="ll-flex ll-h-full ll-items-center ll-justify-center ll-p-4">
@@ -7416,7 +7401,9 @@ function AppShellPage() {
   const taskListsRootContent = (
     <div className="ll-h-full ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-dark-bg-gray-900b">
       {error ? <Alert variant="error">{error}</Alert> : null}
-      {isAuthLoading ? taskListsPanelSkeleton : drawerPanel}
+      {isSessionPending || isTaskListsHydrating
+        ? taskListsPanelSkeleton
+        : drawerPanel}
     </div>
   );
 
@@ -7444,7 +7431,9 @@ function AppShellPage() {
             )}
           >
             <div className="ll-flex ll-h-full ll-flex-col ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-dark-border-gray-700 ll-dark-bg-gray-900b">
-              {isAuthLoading ? taskListsPanelSkeleton : drawerPanel}
+              {isSessionPending || isTaskListsHydrating
+                ? taskListsPanelSkeleton
+                : drawerPanel}
             </div>
           </aside>
         ) : null}
@@ -7726,7 +7715,7 @@ function LoginPage() {
         tabIndex={-1}
         className="ll-mx-auto ll-flex ll-min-h-screen ll-w-full ll-max-w-xl ll-flex-col ll-justify-center ll-px-4 ll-py-10 ll-sm-px-6"
       >
-        <div className="ll-w-full ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-p-6 ll-shadow-sm ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-8">
+        <div className="ll-w-full ll-rounded-24px ll-border ll-border-gray-300 ll-bg-white-b ll-p-6 ll-shadow-sm ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-8">
           <div className="ll-mb-6 ll-text-center">
             <h1 className="ll-font-display ll-text-2xl ll-font-semibold ll-tracking-tight ll-sm-text-3xl">
               {t("title")}
@@ -8109,7 +8098,7 @@ function PasswordResetPage() {
         tabIndex={-1}
         className="ll-mx-auto ll-flex ll-min-h-screen ll-w-full ll-max-w-xl ll-flex-col ll-justify-center ll-px-4 ll-py-10 ll-sm-px-6"
       >
-        <div className="ll-w-full ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-p-6 ll-shadow-sm ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-8">
+        <div className="ll-w-full ll-rounded-24px ll-border ll-border-gray-300 ll-bg-white-b ll-p-6 ll-shadow-sm ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-8">
           <div className="ll-mb-6 ll-text-center">
             <h1 className="ll-font-display ll-text-2xl ll-font-semibold ll-tracking-tight ll-sm-text-3xl">
               {t("auth.passwordReset.title")}
@@ -8280,7 +8269,7 @@ function ShareCodePreviewPage() {
 
         <div className="ll-mx-auto ll-flex ll-w-full ll-max-w-3xl ll-flex-col ll-gap-4 ll-px-4 ll-py-6">
           <section
-            className="ll-rounded-2xl ll-border ll-border-gray-300 ll-p-4 ll-dark-border-gray-700"
+            className="ll-rounded-24px ll-border ll-border-gray-300 ll-p-4 ll-dark-border-gray-700"
             style={{ backgroundColor: taskList.background ?? undefined }}
           >
             <header className="ll-flex ll-items-center ll-justify-between ll-gap-3">
@@ -8308,8 +8297,8 @@ function ShareCodePreviewPage() {
                     <div
                       className={
                         task.completed
-                          ? "ll-text-sm ll-text-gray-600 ll-line-through ll-dark-text-gray-300"
-                          : "ll-text-sm ll-text-gray-900 ll-dark-text-gray-50"
+                          ? "ll-task-text-wrap ll-text-sm ll-text-gray-600 ll-line-through ll-dark-text-gray-300"
+                          : "ll-task-text-wrap ll-text-sm ll-text-gray-900 ll-dark-text-gray-50"
                       }
                     >
                       {task.text}
@@ -8343,6 +8332,11 @@ const rootElement = document.getElementById("root");
 
 if (!rootElement) {
   throw new Error("Missing root element");
+}
+
+if (!isAuthFreePage()) {
+  getAuthInstance();
+  getDbInstance();
 }
 
 const root = webBootstrapState.root ?? createRoot(rootElement);

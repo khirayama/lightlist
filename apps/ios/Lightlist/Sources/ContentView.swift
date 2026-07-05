@@ -67,6 +67,31 @@ private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
     return nil
 }
 
+private enum AppPalette {
+    private static func dynamic(light: UIColor, dark: UIColor) -> Color {
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark ? dark : light
+        })
+    }
+
+    static let pageBackground = dynamic(
+        light: UIColor(red: 0xF9 / 255, green: 0xFA / 255, blue: 0xFB / 255, alpha: 1),
+        dark: UIColor(red: 0x03 / 255, green: 0x07 / 255, blue: 0x12 / 255, alpha: 1)
+    )
+    static let cardSurface = dynamic(
+        light: .white,
+        dark: UIColor(red: 0x11 / 255, green: 0x18 / 255, blue: 0x27 / 255, alpha: 1)
+    )
+    static let rowHighlight = dynamic(
+        light: UIColor(red: 0xF9 / 255, green: 0xFA / 255, blue: 0xFB / 255, alpha: 1),
+        dark: UIColor(red: 0x37 / 255, green: 0x41 / 255, blue: 0x51 / 255, alpha: 1)
+    )
+    static let mutedText = dynamic(
+        light: UIColor(red: 0x4B / 255, green: 0x56 / 255, blue: 0x63 / 255, alpha: 1),
+        dark: UIColor(red: 0xD1 / 255, green: 0xD5 / 255, blue: 0xDB / 255, alpha: 1)
+    )
+}
+
 private enum AppTypography {
     static func body() -> Font {
         .custom("GenInterfaceJP-Regular", size: 17, relativeTo: .body)
@@ -1112,7 +1137,12 @@ struct RootView: View {
                     case .settings:
                         SettingsView(currentUserId: currentUserId)
                     case .calendar:
-                        CalendarScreenView(currentUserId: currentUserId)
+                        CalendarScreenView(
+                            currentUserId: currentUserId,
+                            onOpenTaskList: { taskListId in
+                                path.append(AppRoute.taskList(taskListId: taskListId))
+                            }
+                        )
                             .navigationTitle(translations.t("app.calendar"))
                             .navigationBarTitleDisplayMode(.inline)
                     }
@@ -1149,7 +1179,13 @@ struct RootView: View {
                 if selectedRegularPane == .settings {
                     SettingsView(currentUserId: currentUserId)
                 } else if selectedRegularPane == .calendar {
-                    CalendarScreenView(currentUserId: currentUserId)
+                    CalendarScreenView(
+                        currentUserId: currentUserId,
+                        onOpenTaskList: { taskListId in
+                            selectedTaskListId = taskListId
+                            selectedRegularPane = .taskList
+                        }
+                    )
                 } else {
                     RegularTaskListDetailPagerView(
                         selectedTaskListId: $selectedTaskListId,
@@ -1244,7 +1280,8 @@ private enum TaskListDetailMetrics {
     static let inputHorizontalPadding: CGFloat = 14
     static let inputVerticalPadding: CGFloat = 10
     static let inputBorderWidth: CGFloat = 1
-    static let actionRowTopPadding: CGFloat = 2
+    static let actionRowTopPadding: CGFloat = 14
+    static let actionRowBottomPadding: CGFloat = 10
     static let actionIconSize: CGFloat = AppIconMetrics.inlineActionIconSize
     static let addActionIconSize: CGFloat = AppIconMetrics.compactActionIconSize
     static let taskRowSpacing: CGFloat = 8
@@ -2826,7 +2863,7 @@ private struct TaskListRowFrameKey: PreferenceKey {
 }
 
 private struct TaskListDetailPage: View {
-    private let completedTaskOpacity = 0.64
+    private let completedTaskOpacity = 0.55
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let taskList: TaskListDetail
@@ -3289,6 +3326,9 @@ private struct TaskListDetailPage: View {
                                 .font(.system(size: 16, weight: task.pinned && !task.completed ? .bold : .semibold))
                                 .strikethrough(task.completed)
                                 .foregroundStyle(task.completed ? .secondary : .primary)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("\(translations.t("a11y.editTask")): \(task.text)")
@@ -3390,7 +3430,7 @@ private struct TaskListDetailPage: View {
                                 .clipShape(RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous)
-                                        .stroke(Color(.separator).opacity(0.45), lineWidth: TaskListDetailMetrics.inputBorderWidth)
+                                        .stroke(Color(.separator), lineWidth: TaskListDetailMetrics.inputBorderWidth)
                                 )
                                 .popover(isPresented: $isHistoryPopoverPresented) {
                                     ScrollView {
@@ -3462,6 +3502,7 @@ private struct TaskListDetailPage: View {
                     }
                     .foregroundStyle(.secondary)
                     .padding(.top, TaskListDetailMetrics.actionRowTopPadding)
+                    .padding(.bottom, TaskListDetailMetrics.actionRowBottomPadding)
                 }
 
                 if displayTasks.isEmpty {
@@ -4377,6 +4418,15 @@ private struct SettingsView: View {
         ScrollView {
             VStack(spacing: 16) {
                 if let settings = viewModel.settings {
+                    settingsCard(title: translations.t("settings.userInfo.title")) {
+                        Text(viewModel.userEmail)
+                            .foregroundStyle(.primary)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        Divider()
+                        settingsRow(label: translations.t("settings.emailChange.title"), value: "") {
+                            showEmailChangeForm = true
+                        }
+                    }
                     settingsCard(title: translations.t("settings.preferences.title")) {
                         settingsRow(label: translations.t("settings.language.title"), value: displayName(for: settings.language)) {
                             showLanguagePicker = true
@@ -4390,18 +4440,20 @@ private struct SettingsView: View {
                             showPositionPicker = true
                         }
                         Divider()
-                        Toggle(translations.t("settings.autoSort.enable"), isOn: Binding(
+                        Toggle(isOn: Binding(
                             get: { settings.autoSort },
                             set: { logSettingsAutoSortChange(enabled: $0); viewModel.updateSettings(["autoSort": $0]) }
-                        ))
+                        )) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(translations.t("settings.autoSort.title"))
+                                    .foregroundStyle(.primary)
+                                Text(translations.t("settings.autoSort.enable"))
+                                    .font(AppTypography.caption())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                         .tint(.primary)
-                        .padding(.vertical, 4)
-                    }
-                    settingsCard(title: translations.t("settings.userInfo.title")) {
-                        Text(viewModel.userEmail)
-                            .foregroundStyle(.primary)
-                        Divider()
-                        Button(translations.t("settings.emailChange.title")) { showEmailChangeForm = true }
+                        .padding(.vertical, 8)
                     }
                     settingsCard(title: translations.t("settings.legal.title")) {
                         settingsRow(label: translations.t("settings.licenses.openSource"), value: "") {
@@ -4409,14 +4461,23 @@ private struct SettingsView: View {
                         }
                     }
                     settingsCard(title: translations.t("settings.actions.title")) {
-                        Button(translations.t("auth.button.signOut")) {
+                        Button {
                             showSignOutAlert = true
+                        } label: {
+                            Text(translations.t("settings.danger.signOut"))
+                                .foregroundStyle(.primary)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
+                        .buttonStyle(.plain)
                         Divider()
-                        Button(isDeletingAccount ? "..." : translations.t("auth.deleteAccountConfirm.title")) {
+                        Button {
                             showDeleteAlert = true
+                        } label: {
+                            Text(isDeletingAccount ? translations.t("settings.deletingAccount") : translations.t("settings.danger.deleteAccount"))
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
-                        .foregroundStyle(.red)
+                        .buttonStyle(.plain)
                         .disabled(isDeletingAccount)
                     }
                     if let errorMessage {
@@ -4434,10 +4495,10 @@ private struct SettingsView: View {
             .padding(.vertical, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .background(AppPalette.pageBackground.ignoresSafeArea())
         .navigationTitle(translations.t("settings.title"))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color(.systemGroupedBackground), for: .navigationBar)
+        .toolbarBackground(AppPalette.pageBackground, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .onAppear {
             viewModel.bind(uid: currentUserId)
@@ -4517,18 +4578,14 @@ private struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(AppTypography.subheadlineMedium())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppPalette.mutedText)
                 .padding(.bottom, 8)
                 .accessibilityAddTraits(.isHeader)
             content()
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(AppPalette.cardSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color(.separator).opacity(0.55), lineWidth: 1)
-        }
         .frame(maxWidth: 768)
         .frame(maxWidth: .infinity)
     }
@@ -4538,7 +4595,7 @@ private struct SettingsView: View {
             HStack {
                 Text(label).foregroundStyle(.primary)
                 Spacer()
-                Text(value).foregroundStyle(.secondary)
+                Text(value).foregroundStyle(AppPalette.mutedText)
                 Image(systemName: "chevron.right")
                     .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
                     .foregroundStyle(.tertiary)
@@ -4664,7 +4721,7 @@ private struct LicensesView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(translations.t("settings.licenses.openSource"))
                             .font(AppTypography.captionSemibold())
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppPalette.mutedText)
                             .padding(.horizontal, 4)
 
                         ForEach(Self.cachedGeneratedLicenses) { license in
@@ -4679,8 +4736,8 @@ private struct LicensesView: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(16)
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .background(AppPalette.cardSurface)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
                     }
                 }
@@ -4721,6 +4778,7 @@ private struct LicensesView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 24)
         }
+        .background(AppPalette.pageBackground.ignoresSafeArea())
         .navigationTitle(translations.t("settings.licenses.title"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -4759,7 +4817,7 @@ private struct CalendarDayCell: View {
                 Text("\(Self.cal.component(.day, from: day))")
                     .font(AppTypography.subheadline())
                     .foregroundStyle(isSelected ? Color(.systemBackground) : Color.primary)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 40, height: 40)
                     .background(
                         Group {
                             if isSelected {
@@ -4771,6 +4829,7 @@ private struct CalendarDayCell: View {
                             }
                         }
                     )
+                    .padding(2)
 
                 if dots.isEmpty {
                     Color.clear.frame(height: 6)
@@ -4801,6 +4860,8 @@ private struct CalendarTaskRow: View {
     @EnvironmentObject var translations: Translations
     let task: CalendarTask
     let isHighlighted: Bool
+    let onSelectDate: () -> Void
+    let onOpenTaskList: () -> Void
 
     @MainActor private static var formatters: [String: DateFormatter] = [:]
 
@@ -4821,31 +4882,46 @@ private struct CalendarTaskRow: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 8) {
-                Text(dateLabel)
-                    .font(AppTypography.caption())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 80, alignment: .leading)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Button(action: onSelectDate) {
+                        Text(dateLabel)
+                            .font(AppTypography.caption())
+                            .foregroundStyle(AppPalette.mutedText)
+                    }
+                    .buttonStyle(.plain)
 
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(task.taskListBackground.flatMap { Color(hex: $0) } ?? Color(.separator))
-                        .frame(width: AppIconMetrics.calendarTaskColorDotSize, height: AppIconMetrics.calendarTaskColorDotSize)
-                    Text(task.taskListName)
-                        .font(AppTypography.caption())
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    Spacer(minLength: 8)
+
+                    Button(action: onOpenTaskList) {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(task.taskListBackground.flatMap { Color(hex: $0) } ?? Color(.separator))
+                                .frame(width: 16, height: 16)
+                            Text(task.taskListName)
+                                .font(AppTypography.captionSemibold())
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(task.taskListName)
                 }
-                .frame(width: 90, alignment: .leading)
 
-                Text(task.text)
-                    .font(AppTypography.body())
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button(action: onSelectDate) {
+                    Text(task.text)
+                        .font(AppTypography.body())
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(isHighlighted ? Color(.secondarySystemBackground) : Color.clear)
+            .background(isHighlighted ? AppPalette.rowHighlight : Color.clear)
 
             Divider().padding(.leading, 16)
         }
@@ -4856,6 +4932,7 @@ private struct CalendarScreenView: View {
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let currentUserId: String?
+    var onOpenTaskList: ((String) -> Void)? = nil
     @StateObject private var viewModel = CalendarViewModel()
 
     private var calendarTasks: [CalendarTask] { viewModel.calendarTasks }
@@ -4899,14 +4976,6 @@ private struct CalendarScreenView: View {
             formatter = f
         }
         return formatter.string(from: displayedMonth)
-    }
-
-    private var visibleTasks: [CalendarTask] {
-        guard let selectedDate else {
-            return tasksInMonth
-        }
-        let key = dateKey(selectedDate)
-        return tasksInMonth.filter { $0.date == key }
     }
 
     private var tasksInMonth: [CalendarTask] {
@@ -4991,7 +5060,7 @@ private struct CalendarScreenView: View {
                     ForEach(weekdaySymbols, id: \.self) { d in
                         Text(d)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppPalette.mutedText)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 4)
                     }
@@ -5017,8 +5086,6 @@ private struct CalendarScreenView: View {
             .padding(.horizontal, 8)
             .padding(.bottom, 8)
 
-            Divider()
-
             if tasksInMonth.isEmpty {
                 VStack {
                     Spacer()
@@ -5027,22 +5094,17 @@ private struct CalendarScreenView: View {
                         .font(AppTypography.subheadline())
                     Spacer()
                 }
-            } else if visibleTasks.isEmpty {
-                VStack {
-                    Spacer()
-                    Text(translations.t("app.calendarNoTasksOnSelectedDate"))
-                        .foregroundStyle(.secondary)
-                        .font(AppTypography.subheadline())
-                    Spacer()
-                }
+                .frame(maxWidth: .infinity)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 0) {
-                            ForEach(visibleTasks) { task in
+                            ForEach(tasksInMonth) { task in
                                 CalendarTaskRow(
                                     task: task,
-                                    isHighlighted: selectedDate.map { dateKey($0) == task.date } ?? false
+                                    isHighlighted: selectedDate.map { dateKey($0) == task.date } ?? false,
+                                    onSelectDate: { selectedDate = task.dateValue },
+                                    onOpenTaskList: { onOpenTaskList?(task.taskListId) }
                                 )
                                 .id(task.id)
                             }
@@ -5051,15 +5113,22 @@ private struct CalendarScreenView: View {
                     .onChange(of: selectedDate) { _, date in
                         guard let date else { return }
                         let key = dateKey(date)
-                        if let first = visibleTasks.first(where: { $0.date == key }) {
+                        if let first = tasksInMonth.first(where: { $0.date == key }) {
                             withAnimation(reduceMotion ? .none : .default) {
                                 proxy.scrollTo(first.id, anchor: UnitPoint.top)
                             }
                         }
                     }
                 }
+                .background(AppPalette.cardSurface)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
         }
+        .background(AppPalette.pageBackground.ignoresSafeArea())
+        .toolbarBackground(AppPalette.pageBackground, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
     }
 }
 

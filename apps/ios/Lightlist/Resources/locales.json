@@ -1,7 +1,7 @@
 {
   "ar": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "جارٍ التحميل...",
       "back": "رجوع",
@@ -14,8 +14,7 @@
       "copied": "تم النسخ",
       "error": "حدث خطأ",
       "done": "تم",
-      "selected": "محدد",
-      "ok": "موافق"
+      "selected": "محدد"
     },
     "auth": {
       "tabs": {
@@ -101,7 +100,6 @@
       "cancel": "إلغاء",
       "error": "حدث خطأ",
       "dragHint": "اسحب لإعادة الترتيب",
-      "openMenu": "فتح القائمة",
       "drawerTitle": "قوائم المهام",
       "drawerNoEmail": "لا يوجد بريد إلكتروني متاح",
       "taskListLocator": {
@@ -115,11 +113,8 @@
       "join": "انضمام",
       "joining": "جارٍ الانضمام...",
       "calendarCheckButton": "عرض في التقويم",
-      "calendarAllDates": "كل التواريخ",
       "calendarNoDatedTasks": "لا توجد مهام بتاريخ",
       "calendarNoTasksOnSelectedDate": "لا توجد مهام في التاريخ المحدد",
-      "rtlRestartTitle": "إعادة التشغيل مطلوبة",
-      "rtlRestartMessage": "أعد تشغيل التطبيق لتطبيق تغييرات التخطيط من اليمين إلى اليسار.",
       "loadError": "تعذر تحميل قوائم المهام.",
       "calendar": "التقويم",
       "calendarPreviousMonth": "الشهر السابق",
@@ -127,11 +122,26 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^اليوم(?:[\\s　]|$)", "offset": 0 },
-        { "pattern": "^غد(?:ا|ًا)?(?:[\\s　]|$)", "offset": 1 },
-        { "pattern": "^بعد\\s+غد(?:[\\s　]|$)", "offset": 2 },
-        { "pattern": "^بعد\\s+(\\d+)\\s+أيام?(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^اليوم(?:[\\s　]|$)",
+          "offset": 0
+        },
+        {
+          "pattern": "^غد(?:ا|ًا)?(?:[\\s　]|$)",
+          "offset": 1
+        },
+        {
+          "pattern": "^بعد\\s+غد(?:[\\s　]|$)",
+          "offset": 2
+        },
+        {
+          "pattern": "^بعد\\s+(\\d+)\\s+أيام?(?:[\\s　]|$)",
+          "offsetGroup": 1
+        },
+        {
+          "pattern": "^(الاثنين|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت|الأحد)(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
         "الأحد": 0,
@@ -144,7 +154,9 @@
         "السبت": 6
       }
     },
-    "pinPrefixes": ["تثبيت"],
+    "pinPrefixes": [
+      "تثبيت"
+    ],
     "taskList": {
       "taskCount": "{{count}} مهمة",
       "taskCount_one": "{{count}} مهمة",
@@ -189,9 +201,7 @@
         "dark": "داكن"
       },
       "language": {
-        "title": "اللغة",
-        "japanese": "اليابانية",
-        "english": "الإنجليزية"
+        "title": "اللغة"
       },
       "taskInsertPosition": {
         "title": "موضع المهمة الجديدة",
@@ -203,7 +213,6 @@
         "enable": "فرز المهام تلقائيًا"
       },
       "danger": {
-        "title": "منطقة الخطر",
         "signOut": "تسجيل الخروج",
         "deleteAccount": "حذف الحساب"
       },
@@ -211,7 +220,6 @@
         "title": "إجراءات الحساب"
       },
       "deleteAccount": "حذف الحساب",
-      "deleteAccountConfirm": "حذف حسابك وجميع بياناتك؟",
       "signingOut": "جارٍ تسجيل الخروج...",
       "deletingAccount": "جارٍ حذف الحساب...",
       "emailChange": {
@@ -272,17 +280,12 @@
       "sharecode": {
         "notFound": "لم يتم العثور على قائمة المهام هذه",
         "error": "فشل تحميل قائمة المهام",
-        "addTaskError": "فشل إضافة المهمة",
-        "updateError": "فشل تحديث المهمة",
-        "reorderError": "فشلت إعادة ترتيب المهام",
-        "deleteError": "فشل حذف المهام المكتملة",
         "addToOrderError": "فشلت إضافة قائمة المهام هذه",
         "addToOrder": "إضافة إلى قوائمي"
       },
       "tasklist": {
         "addTaskPlaceholder": "أدخل مهمة...",
         "setDate": "تحديد التاريخ",
-        "setDateShort": "تعيين",
         "markComplete": "غير مكتملة، اضغط لوضع علامة مكتملة",
         "markIncomplete": "مكتملة، اضغط لوضع علامة غير مكتملة",
         "noTasks": "لا توجد مهام",
@@ -291,7 +294,6 @@
         "deleteCompleted": "حذف المهام المكتملة",
         "deleteCompletedConfirm": "حذف {{count}} من المهام المكتملة؟",
         "clearDate": "مسح التاريخ",
-        "clearDateShort": "مسح",
         "pinTask": "تثبيت المهمة",
         "unpinTask": "إلغاء تثبيت المهمة",
         "deleteCompletedConfirmTitle": "حذف المهام المكتملة؟"
@@ -311,11 +313,25 @@
         "description": "حدث خطأ غير متوقع. يرجى إعادة تحميل الصفحة.",
         "reload": "إعادة تحميل الصفحة"
       }
+    },
+    "a11y": {
+      "listPosition": "العنصر {{index}} من {{total}}",
+      "moveUp": "نقل لأعلى",
+      "moveDown": "نقل لأسفل",
+      "today": "اليوم",
+      "hasTasks": "توجد مهام",
+      "addTask": "إضافة مهمة",
+      "editTask": "تعديل المهمة",
+      "dragStart": "تم التقاط {{item}}",
+      "dragOver": "جارٍ نقل {{item}} إلى الموضع {{position}}",
+      "dragEnd": "تم نقل {{item}} إلى الموضع {{position}}",
+      "dragCancel": "تم إلغاء نقل {{item}}",
+      "dragInstructions": "لإعادة الترتيب، اضغط على مفتاح المسافة أو Enter للالتقاط، واستخدم مفاتيح الأسهم للنقل، ثم اضغط على المفتاح نفسه للإفلات. اضغط على Escape للإلغاء."
     }
   },
   "de": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "Wird geladen...",
       "back": "Zurück",
@@ -328,8 +344,7 @@
       "copied": "Kopiert",
       "error": "Ein Fehler ist aufgetreten",
       "done": "Fertig",
-      "selected": "Ausgewählt",
-      "ok": "OK"
+      "selected": "Ausgewählt"
     },
     "auth": {
       "tabs": {
@@ -415,7 +430,6 @@
       "cancel": "Abbrechen",
       "error": "Ein Fehler ist aufgetreten",
       "dragHint": "Zum Neuordnen ziehen",
-      "openMenu": "Menü öffnen",
       "drawerTitle": "Aufgabenlisten",
       "drawerNoEmail": "Keine E-Mail verfügbar",
       "taskListLocator": {
@@ -429,11 +443,8 @@
       "join": "Beitreten",
       "joining": "Wird beigetreten...",
       "calendarCheckButton": "Im Kalender anzeigen",
-      "calendarAllDates": "Alle Daten",
       "calendarNoDatedTasks": "Keine Aufgaben mit Datum",
       "calendarNoTasksOnSelectedDate": "Keine Aufgaben am ausgewählten Datum",
-      "rtlRestartTitle": "Neustart erforderlich",
-      "rtlRestartMessage": "Starte die App neu, um das Rechts-nach-Links-Layout anzuwenden.",
       "loadError": "Aufgabenlisten konnten nicht geladen werden.",
       "calendar": "Kalender",
       "calendarPreviousMonth": "Vorheriger Monat",
@@ -441,23 +452,52 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^heute(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^morgen(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^übermorgen(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^in\\s+(\\d+)\\s+tagen?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^heute(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^morgen(?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^übermorgen(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^in\\s+(\\d+)\\s+tagen?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mo|di|mi|do|fr|sa|so)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "sonntag": 0, "so": 0,
-        "montag": 1, "mo": 1,
-        "dienstag": 2, "di": 2,
-        "mittwoch": 3, "mi": 3,
-        "donnerstag": 4, "do": 4,
-        "freitag": 5, "fr": 5,
-        "samstag": 6, "sa": 6
+        "sonntag": 0,
+        "so": 0,
+        "montag": 1,
+        "mo": 1,
+        "dienstag": 2,
+        "di": 2,
+        "mittwoch": 3,
+        "mi": 3,
+        "donnerstag": 4,
+        "do": 4,
+        "freitag": 5,
+        "fr": 5,
+        "samstag": 6,
+        "sa": 6
       }
     },
-    "pinPrefixes": ["anheften"],
+    "pinPrefixes": [
+      "anheften"
+    ],
     "taskList": {
       "taskCount": "{{count}} Aufgaben",
       "taskCount_one": "{{count}} Aufgabe",
@@ -502,9 +542,7 @@
         "dark": "Dunkel"
       },
       "language": {
-        "title": "Sprache",
-        "japanese": "Japanisch",
-        "english": "Englisch"
+        "title": "Sprache"
       },
       "taskInsertPosition": {
         "title": "Position neuer Aufgabe",
@@ -516,7 +554,6 @@
         "enable": "Aufgaben automatisch sortieren"
       },
       "danger": {
-        "title": "Gefahrenbereich",
         "signOut": "Abmelden",
         "deleteAccount": "Konto löschen"
       },
@@ -524,7 +561,6 @@
         "title": "Kontoaktionen"
       },
       "deleteAccount": "Konto löschen",
-      "deleteAccountConfirm": "Konto und alle Daten löschen?",
       "signingOut": "Wird abgemeldet...",
       "deletingAccount": "Konto wird gelöscht...",
       "emailChange": {
@@ -585,17 +621,12 @@
       "sharecode": {
         "notFound": "Diese Aufgabenliste wurde nicht gefunden",
         "error": "Aufgabenliste konnte nicht geladen werden",
-        "addTaskError": "Aufgabe konnte nicht hinzugefügt werden",
-        "updateError": "Aufgabe konnte nicht aktualisiert werden",
-        "reorderError": "Aufgaben konnten nicht neu sortiert werden",
-        "deleteError": "Abgeschlossene Aufgaben konnten nicht gelöscht werden",
         "addToOrderError": "Diese Aufgabenliste konnte nicht hinzugefügt werden",
         "addToOrder": "Zu meinen Listen hinzufügen"
       },
       "tasklist": {
         "addTaskPlaceholder": "Aufgabe eingeben...",
         "setDate": "Datum festlegen",
-        "setDateShort": "Setzen",
         "markComplete": "Nicht erledigt. Tippe, um als erledigt zu markieren",
         "markIncomplete": "Erledigt. Tippe, um als nicht erledigt zu markieren",
         "noTasks": "Keine Aufgaben",
@@ -604,7 +635,6 @@
         "deleteCompleted": "Abgeschlossene Aufgaben löschen",
         "deleteCompletedConfirm": "{{count}} abgeschlossene Aufgaben löschen?",
         "clearDate": "Datum löschen",
-        "clearDateShort": "Löschen",
         "pinTask": "Aufgabe anheften",
         "unpinTask": "Aufgabe lösen",
         "deleteCompletedConfirmTitle": "Erledigte Aufgaben löschen?"
@@ -624,11 +654,25 @@
         "description": "Ein unerwarteter Fehler ist aufgetreten. Bitte lade die Seite neu.",
         "reload": "Seite neu laden"
       }
+    },
+    "a11y": {
+      "listPosition": "Element {{index}} von {{total}}",
+      "moveUp": "Nach oben verschieben",
+      "moveDown": "Nach unten verschieben",
+      "today": "Heute",
+      "hasTasks": "Mit Aufgaben",
+      "addTask": "Aufgabe hinzufügen",
+      "editTask": "Aufgabe bearbeiten",
+      "dragStart": "{{item}} aufgenommen",
+      "dragOver": "{{item}} wird an Position {{position}} verschoben",
+      "dragEnd": "{{item}} an Position {{position}} verschoben",
+      "dragCancel": "Verschieben von {{item}} abgebrochen",
+      "dragInstructions": "Zum Umsortieren mit der Leertaste oder Eingabetaste aufnehmen, mit den Pfeiltasten verschieben und mit derselben Taste wieder ablegen. Mit Escape abbrechen."
     }
   },
   "en": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "Loading...",
       "back": "Back",
@@ -641,8 +685,7 @@
       "copied": "Copied",
       "error": "An error occurred",
       "done": "Done",
-      "selected": "Selected",
-      "ok": "OK"
+      "selected": "Selected"
     },
     "auth": {
       "tabs": {
@@ -728,7 +771,6 @@
       "cancel": "Cancel",
       "error": "An error occurred",
       "dragHint": "Drag to reorder",
-      "openMenu": "Open Menu",
       "drawerTitle": "Task Lists",
       "drawerNoEmail": "No email available",
       "taskListLocator": {
@@ -742,11 +784,8 @@
       "join": "Join",
       "joining": "Joining...",
       "calendarCheckButton": "View in Calendar",
-      "calendarAllDates": "All dates",
       "calendarNoDatedTasks": "No tasks have a date",
       "calendarNoTasksOnSelectedDate": "No tasks on the selected date",
-      "rtlRestartTitle": "Restart Required",
-      "rtlRestartMessage": "Restart the app to apply right-to-left layout changes.",
       "loadError": "Failed to load task lists.",
       "calendar": "Calendar",
       "calendarPreviousMonth": "Previous month",
@@ -754,18 +793,51 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^today(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^tomorrow(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^day after tomorrow(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^in\\s+(\\d+)\\s+days?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(\\d+)\\s+days?\\s+later(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(mon|tue|wed|thu|fri|sat|sun)(?:day)?(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^today(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^tomorrow(?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^day after tomorrow(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^in\\s+(\\d+)\\s+days?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(\\d+)\\s+days?\\s+later(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(mon|tue|wed|thu|fri|sat|sun)(?:day)?(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6
+        "sun": 0,
+        "mon": 1,
+        "tue": 2,
+        "wed": 3,
+        "thu": 4,
+        "fri": 5,
+        "sat": 6
       }
     },
-    "pinPrefixes": ["pin", "pinned"],
+    "pinPrefixes": [
+      "pin",
+      "pinned"
+    ],
     "taskList": {
       "taskCount": "{{count}} tasks",
       "taskCount_one": "{{count}} task",
@@ -810,9 +882,7 @@
         "dark": "Dark"
       },
       "language": {
-        "title": "Language",
-        "japanese": "Japanese",
-        "english": "English"
+        "title": "Language"
       },
       "taskInsertPosition": {
         "title": "New task position",
@@ -824,7 +894,6 @@
         "enable": "Auto sort tasks"
       },
       "danger": {
-        "title": "Danger Zone",
         "signOut": "Sign Out",
         "deleteAccount": "Delete Account"
       },
@@ -832,7 +901,6 @@
         "title": "Account actions"
       },
       "deleteAccount": "Delete account",
-      "deleteAccountConfirm": "Delete your account and all data?",
       "signingOut": "Signing out...",
       "deletingAccount": "Deleting account...",
       "emailChange": {
@@ -893,17 +961,12 @@
       "sharecode": {
         "notFound": "This task list not found",
         "error": "Failed to load task list",
-        "addTaskError": "Failed to add task",
-        "updateError": "Failed to update task",
-        "reorderError": "Failed to reorder tasks",
-        "deleteError": "Failed to delete completed tasks",
         "addToOrderError": "Failed to add this task list",
         "addToOrder": "Add to My Lists"
       },
       "tasklist": {
         "addTaskPlaceholder": "Enter task...",
         "setDate": "Set date",
-        "setDateShort": "Set",
         "markComplete": "Not completed, tap to mark as completed",
         "markIncomplete": "Completed, tap to mark as not completed",
         "noTasks": "No tasks",
@@ -912,7 +975,6 @@
         "deleteCompleted": "Delete completed tasks",
         "deleteCompletedConfirm": "Delete {{count}} completed tasks?",
         "clearDate": "Clear Date",
-        "clearDateShort": "Clear",
         "pinTask": "Pin task",
         "unpinTask": "Unpin task",
         "deleteCompletedConfirmTitle": "Delete completed tasks?"
@@ -932,11 +994,25 @@
         "description": "An unexpected error occurred. Please try reloading the page.",
         "reload": "Reload Page"
       }
+    },
+    "a11y": {
+      "listPosition": "item {{index}} of {{total}}",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "today": "Today",
+      "hasTasks": "Has tasks",
+      "addTask": "Add task",
+      "editTask": "Edit task",
+      "dragStart": "Picked up {{item}}",
+      "dragOver": "Moving {{item}} to position {{position}}",
+      "dragEnd": "{{item}} moved to position {{position}}",
+      "dragCancel": "Moving {{item}} was cancelled",
+      "dragInstructions": "To reorder, press Space or Enter to pick up, use the arrow keys to move, and press the same key again to drop. Press Escape to cancel."
     }
   },
   "es": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "Cargando...",
       "back": "Atrás",
@@ -949,8 +1025,7 @@
       "copied": "Copiado",
       "error": "Ocurrió un error",
       "done": "Listo",
-      "selected": "Seleccionado",
-      "ok": "Aceptar"
+      "selected": "Seleccionado"
     },
     "auth": {
       "tabs": {
@@ -1036,7 +1111,6 @@
       "cancel": "Cancelar",
       "error": "Ocurrió un error",
       "dragHint": "Arrastra para reordenar",
-      "openMenu": "Abrir menú",
       "drawerTitle": "Listas de tareas",
       "drawerNoEmail": "No hay correo disponible",
       "taskListLocator": {
@@ -1050,11 +1124,8 @@
       "join": "Unirse",
       "joining": "Uniéndose...",
       "calendarCheckButton": "Ver en calendario",
-      "calendarAllDates": "Todas las fechas",
       "calendarNoDatedTasks": "No hay tareas con fecha",
       "calendarNoTasksOnSelectedDate": "No hay tareas en la fecha seleccionada",
-      "rtlRestartTitle": "Reinicio requerido",
-      "rtlRestartMessage": "Reinicia la aplicación para aplicar los cambios de diseño de derecha a izquierda.",
       "loadError": "Error al cargar las listas de tareas.",
       "calendar": "Calendario",
       "calendarPreviousMonth": "Mes anterior",
@@ -1062,23 +1133,56 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^hoy(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^mañana(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^pasado\\s+mañana(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^(?:en|dentro\\s+de)\\s+(\\d+)\\s+d[ií]as?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^hoy(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^mañana(?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^pasado\\s+mañana(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^(?:en|dentro\\s+de)\\s+(\\d+)\\s+d[ií]as?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(lunes|martes|mi[eé]rcoles|jueves|viernes|s[áa]bado|domingo|lun|mar|mi[eé]|jue|vie|s[áa]b|dom)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "domingo": 0, "dom": 0,
-        "lunes": 1, "lun": 1,
-        "martes": 2, "mar": 2,
-        "miércoles": 3, "miercoles": 3, "mié": 3, "mie": 3,
-        "jueves": 4, "jue": 4,
-        "viernes": 5, "vie": 5,
-        "sábado": 6, "sabado": 6, "sáb": 6, "sab": 6
+        "domingo": 0,
+        "dom": 0,
+        "lunes": 1,
+        "lun": 1,
+        "martes": 2,
+        "mar": 2,
+        "miércoles": 3,
+        "miercoles": 3,
+        "mié": 3,
+        "mie": 3,
+        "jueves": 4,
+        "jue": 4,
+        "viernes": 5,
+        "vie": 5,
+        "sábado": 6,
+        "sabado": 6,
+        "sáb": 6,
+        "sab": 6
       }
     },
-    "pinPrefixes": ["fijar"],
+    "pinPrefixes": [
+      "fijar"
+    ],
     "taskList": {
       "taskCount": "{{count}} tareas",
       "taskCount_one": "{{count}} tarea",
@@ -1123,9 +1227,7 @@
         "dark": "Oscuro"
       },
       "language": {
-        "title": "Idioma",
-        "japanese": "Japonés",
-        "english": "Inglés"
+        "title": "Idioma"
       },
       "taskInsertPosition": {
         "title": "Posición de nueva tarea",
@@ -1137,7 +1239,6 @@
         "enable": "Ordenar tareas automáticamente"
       },
       "danger": {
-        "title": "Zona de riesgo",
         "signOut": "Cerrar sesión",
         "deleteAccount": "Eliminar cuenta"
       },
@@ -1145,7 +1246,6 @@
         "title": "Acciones de cuenta"
       },
       "deleteAccount": "Eliminar cuenta",
-      "deleteAccountConfirm": "¿Eliminar tu cuenta y todos tus datos?",
       "signingOut": "Cerrando sesión...",
       "deletingAccount": "Eliminando cuenta...",
       "emailChange": {
@@ -1206,17 +1306,12 @@
       "sharecode": {
         "notFound": "No se encontró esta lista",
         "error": "No se pudo cargar la lista",
-        "addTaskError": "No se pudo añadir la tarea",
-        "updateError": "No se pudo actualizar la tarea",
-        "reorderError": "No se pudieron reordenar las tareas",
-        "deleteError": "No se pudieron eliminar las tareas completadas",
         "addToOrderError": "No se pudo agregar esta lista",
         "addToOrder": "Agregar a mis listas"
       },
       "tasklist": {
         "addTaskPlaceholder": "Escribe una tarea...",
         "setDate": "Establecer fecha",
-        "setDateShort": "Fijar",
         "markComplete": "Sin completar. Toca para marcar como completada",
         "markIncomplete": "Completada. Toca para marcar como pendiente",
         "noTasks": "No hay tareas",
@@ -1225,7 +1320,6 @@
         "deleteCompleted": "Eliminar tareas completadas",
         "deleteCompletedConfirm": "¿Eliminar {{count}} tareas completadas?",
         "clearDate": "Borrar fecha",
-        "clearDateShort": "Borrar",
         "pinTask": "Fijar tarea",
         "unpinTask": "Desfijar tarea",
         "deleteCompletedConfirmTitle": "¿Eliminar tareas completadas?"
@@ -1245,11 +1339,25 @@
         "description": "Ocurrió un error inesperado. Intenta recargar la página.",
         "reload": "Recargar página"
       }
+    },
+    "a11y": {
+      "listPosition": "elemento {{index}} de {{total}}",
+      "moveUp": "Mover hacia arriba",
+      "moveDown": "Mover hacia abajo",
+      "today": "Hoy",
+      "hasTasks": "Con tareas",
+      "addTask": "Añadir tarea",
+      "editTask": "Editar tarea",
+      "dragStart": "{{item}} levantado",
+      "dragOver": "Moviendo {{item}} a la posición {{position}}",
+      "dragEnd": "{{item}} movido a la posición {{position}}",
+      "dragCancel": "Se canceló el movimiento de {{item}}",
+      "dragInstructions": "Para reordenar, pulsa Espacio o Intro para levantar, usa las teclas de flecha para mover y pulsa la misma tecla de nuevo para soltar. Pulsa Escape para cancelar."
     }
   },
   "fr": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "Chargement...",
       "back": "Retour",
@@ -1262,8 +1370,7 @@
       "copied": "Copié",
       "error": "Une erreur est survenue",
       "done": "Terminé",
-      "selected": "Sélectionné",
-      "ok": "OK"
+      "selected": "Sélectionné"
     },
     "auth": {
       "tabs": {
@@ -1349,7 +1456,6 @@
       "cancel": "Annuler",
       "error": "Une erreur est survenue",
       "dragHint": "Glissez pour réorganiser",
-      "openMenu": "Ouvrir le menu",
       "drawerTitle": "Listes de tâches",
       "drawerNoEmail": "Aucun e-mail disponible",
       "taskListLocator": {
@@ -1363,11 +1469,8 @@
       "join": "Rejoindre",
       "joining": "Connexion en cours...",
       "calendarCheckButton": "Voir dans le calendrier",
-      "calendarAllDates": "Toutes les dates",
       "calendarNoDatedTasks": "Aucune tâche avec une date",
       "calendarNoTasksOnSelectedDate": "Aucune tâche à la date sélectionnée",
-      "rtlRestartTitle": "Redémarrage requis",
-      "rtlRestartMessage": "Redémarrez l'application pour appliquer la mise en page de droite à gauche.",
       "loadError": "Impossible de charger les listes de tâches.",
       "calendar": "Calendrier",
       "calendarPreviousMonth": "Mois précédent",
@@ -1375,23 +1478,53 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^aujourd(?:'|’)hui(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^demain(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^apr[eè]s[- ]demain(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^dans\\s+(\\d+)\\s+jours?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^aujourd(?:'|’)hui(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^demain(?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^apr[eè]s[- ]demain(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^dans\\s+(\\d+)\\s+jours?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|lun|mar|mer|jeu|ven|sam|dim)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "dimanche": 0, "dim": 0,
-        "lundi": 1, "lun": 1,
-        "mardi": 2, "mar": 2,
-        "mercredi": 3, "mer": 3,
-        "jeudi": 4, "jeu": 4,
-        "vendredi": 5, "ven": 5,
-        "samedi": 6, "sam": 6
+        "dimanche": 0,
+        "dim": 0,
+        "lundi": 1,
+        "lun": 1,
+        "mardi": 2,
+        "mar": 2,
+        "mercredi": 3,
+        "mer": 3,
+        "jeudi": 4,
+        "jeu": 4,
+        "vendredi": 5,
+        "ven": 5,
+        "samedi": 6,
+        "sam": 6
       }
     },
-    "pinPrefixes": ["epingler", "épingler"],
+    "pinPrefixes": [
+      "epingler",
+      "épingler"
+    ],
     "taskList": {
       "taskCount": "{{count}} tâches",
       "taskCount_one": "{{count}} tâche",
@@ -1436,9 +1569,7 @@
         "dark": "Sombre"
       },
       "language": {
-        "title": "Langue",
-        "japanese": "Japonais",
-        "english": "Anglais"
+        "title": "Langue"
       },
       "taskInsertPosition": {
         "title": "Position de la nouvelle tâche",
@@ -1450,7 +1581,6 @@
         "enable": "Trier automatiquement les tâches"
       },
       "danger": {
-        "title": "Zone dangereuse",
         "signOut": "Se déconnecter",
         "deleteAccount": "Supprimer le compte"
       },
@@ -1458,7 +1588,6 @@
         "title": "Actions du compte"
       },
       "deleteAccount": "Supprimer le compte",
-      "deleteAccountConfirm": "Supprimer votre compte et toutes vos données ?",
       "signingOut": "Déconnexion...",
       "deletingAccount": "Suppression du compte...",
       "emailChange": {
@@ -1519,17 +1648,12 @@
       "sharecode": {
         "notFound": "Cette liste de tâches est introuvable",
         "error": "Échec du chargement de la liste de tâches",
-        "addTaskError": "Échec de l'ajout de la tâche",
-        "updateError": "Échec de la mise à jour de la tâche",
-        "reorderError": "Échec de la réorganisation des tâches",
-        "deleteError": "Échec de la suppression des tâches terminées",
         "addToOrderError": "Échec de l'ajout de cette liste",
         "addToOrder": "Ajouter à mes listes"
       },
       "tasklist": {
         "addTaskPlaceholder": "Saisir une tâche...",
         "setDate": "Définir la date",
-        "setDateShort": "Définir",
         "markComplete": "Non terminée. Touchez pour marquer comme terminée",
         "markIncomplete": "Terminée. Touchez pour marquer comme non terminée",
         "noTasks": "Aucune tâche",
@@ -1538,7 +1662,6 @@
         "deleteCompleted": "Supprimer les tâches terminées",
         "deleteCompletedConfirm": "Supprimer {{count}} tâches terminées ?",
         "clearDate": "Effacer la date",
-        "clearDateShort": "Effacer",
         "pinTask": "Épingler la tâche",
         "unpinTask": "Désépingler la tâche",
         "deleteCompletedConfirmTitle": "Supprimer les tâches terminées ?"
@@ -1558,11 +1681,25 @@
         "description": "Une erreur inattendue est survenue. Veuillez recharger la page.",
         "reload": "Recharger la page"
       }
+    },
+    "a11y": {
+      "listPosition": "élément {{index}} sur {{total}}",
+      "moveUp": "Déplacer vers le haut",
+      "moveDown": "Déplacer vers le bas",
+      "today": "Aujourd'hui",
+      "hasTasks": "Tâches présentes",
+      "addTask": "Ajouter une tâche",
+      "editTask": "Modifier la tâche",
+      "dragStart": "{{item}} saisi",
+      "dragOver": "Déplacement de {{item}} vers la position {{position}}",
+      "dragEnd": "{{item}} déplacé à la position {{position}}",
+      "dragCancel": "Déplacement de {{item}} annulé",
+      "dragInstructions": "Pour réorganiser, appuyez sur Espace ou Entrée pour saisir, utilisez les flèches pour déplacer, puis appuyez de nouveau sur la même touche pour déposer. Appuyez sur Échap pour annuler."
     }
   },
   "hi": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "लोड हो रहा है...",
       "back": "वापस",
@@ -1575,8 +1712,7 @@
       "copied": "कॉपी हो गया",
       "error": "एक त्रुटि हुई",
       "done": "हो गया",
-      "selected": "चयनित",
-      "ok": "ठीक है"
+      "selected": "चयनित"
     },
     "auth": {
       "tabs": {
@@ -1662,7 +1798,6 @@
       "cancel": "रद्द करें",
       "error": "एक त्रुटि हुई",
       "dragHint": "क्रम बदलने के लिए खींचें",
-      "openMenu": "मेनू खोलें",
       "drawerTitle": "टास्क सूचियाँ",
       "drawerNoEmail": "कोई ईमेल उपलब्ध नहीं",
       "taskListLocator": {
@@ -1676,11 +1811,8 @@
       "join": "शामिल हों",
       "joining": "शामिल हो रहे हैं...",
       "calendarCheckButton": "कैलेंडर में देखें",
-      "calendarAllDates": "सभी तिथियाँ",
       "calendarNoDatedTasks": "किसी भी टास्क में तिथि सेट नहीं है",
       "calendarNoTasksOnSelectedDate": "चयनित तिथि पर कोई टास्क नहीं",
-      "rtlRestartTitle": "रीस्टार्ट आवश्यक",
-      "rtlRestartMessage": "दाएँ-से-बाएँ लेआउट लागू करने के लिए ऐप को पुनः प्रारंभ करें।",
       "loadError": "कार्य सूचियाँ लोड नहीं हो सकीं।",
       "calendar": "कैलेंडर",
       "calendarPreviousMonth": "पिछला महीना",
@@ -1688,17 +1820,40 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^आज(?:[\\s　]|$)", "offset": 0 },
-        { "pattern": "^कल(?:[\\s　]|$)", "offset": 1 },
-        { "pattern": "^परसों(?:[\\s　]|$)", "offset": 2 },
-        { "pattern": "^(\\d+)\\s*दिन\\s*बाद(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^आज(?:[\\s　]|$)",
+          "offset": 0
+        },
+        {
+          "pattern": "^कल(?:[\\s　]|$)",
+          "offset": 1
+        },
+        {
+          "pattern": "^परसों(?:[\\s　]|$)",
+          "offset": 2
+        },
+        {
+          "pattern": "^(\\d+)\\s*दिन\\s*बाद(?:[\\s　]|$)",
+          "offsetGroup": 1
+        },
+        {
+          "pattern": "^(सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
-        "रविवार": 0, "सोमवार": 1, "मंगलवार": 2, "बुधवार": 3, "गुरुवार": 4, "शुक्रवार": 5, "शनिवार": 6
+        "रविवार": 0,
+        "सोमवार": 1,
+        "मंगलवार": 2,
+        "बुधवार": 3,
+        "गुरुवार": 4,
+        "शुक्रवार": 5,
+        "शनिवार": 6
       }
     },
-    "pinPrefixes": ["पिन"],
+    "pinPrefixes": [
+      "पिन"
+    ],
     "taskList": {
       "taskCount": "{{count}} टास्क",
       "taskCount_one": "{{count}} टास्क",
@@ -1743,9 +1898,7 @@
         "dark": "डार्क"
       },
       "language": {
-        "title": "भाषा",
-        "japanese": "जापानी",
-        "english": "अंग्रेज़ी"
+        "title": "भाषा"
       },
       "taskInsertPosition": {
         "title": "नई टास्क की स्थिति",
@@ -1757,7 +1910,6 @@
         "enable": "टास्क स्वतः क्रमबद्ध करें"
       },
       "danger": {
-        "title": "खतरे का क्षेत्र",
         "signOut": "साइन आउट",
         "deleteAccount": "खाता हटाएँ"
       },
@@ -1765,7 +1917,6 @@
         "title": "खाता क्रियाएँ"
       },
       "deleteAccount": "खाता हटाएँ",
-      "deleteAccountConfirm": "क्या आपका खाता और सारा डेटा हटाना है?",
       "signingOut": "साइन आउट हो रहा है...",
       "deletingAccount": "खाता हटाया जा रहा है...",
       "emailChange": {
@@ -1826,17 +1977,12 @@
       "sharecode": {
         "notFound": "यह टास्क सूची नहीं मिली",
         "error": "टास्क सूची लोड नहीं हो सकी",
-        "addTaskError": "टास्क जोड़ने में विफल",
-        "updateError": "टास्क अपडेट करने में विफल",
-        "reorderError": "टास्क क्रम बदलने में विफल",
-        "deleteError": "पूर्ण किए गए टास्क हटाने में विफल",
         "addToOrderError": "इस टास्क सूची को जोड़ने में विफल",
         "addToOrder": "मेरी सूचियों में जोड़ें"
       },
       "tasklist": {
         "addTaskPlaceholder": "टास्क दर्ज करें...",
         "setDate": "तिथि सेट करें",
-        "setDateShort": "सेट",
         "markComplete": "अपूर्ण, पूर्ण के रूप में चिह्नित करने के लिए टैप करें",
         "markIncomplete": "पूर्ण, अपूर्ण के रूप में चिह्नित करने के लिए टैप करें",
         "noTasks": "कोई टास्क नहीं",
@@ -1845,7 +1991,6 @@
         "deleteCompleted": "पूर्ण किए गए टास्क हटाएँ",
         "deleteCompletedConfirm": "क्या {{count}} पूर्ण किए गए टास्क हटाने हैं?",
         "clearDate": "तारीख हटाएं",
-        "clearDateShort": "हटाएं",
         "pinTask": "टास्क पिन करें",
         "unpinTask": "टास्क अनपिन करें",
         "deleteCompletedConfirmTitle": "पूर्ण किए गए कार्य हटाएं?"
@@ -1865,11 +2010,25 @@
         "description": "एक अप्रत्याशित त्रुटि हुई। कृपया पेज रीलोड करें।",
         "reload": "पेज रीलोड करें"
       }
+    },
+    "a11y": {
+      "listPosition": "{{total}} में से {{index}}वाँ आइटम",
+      "moveUp": "ऊपर ले जाएँ",
+      "moveDown": "नीचे ले जाएँ",
+      "today": "आज",
+      "hasTasks": "कार्य हैं",
+      "addTask": "कार्य जोड़ें",
+      "editTask": "कार्य संपादित करें",
+      "dragStart": "{{item}} उठाया गया",
+      "dragOver": "{{item}} को स्थान {{position}} पर ले जाया जा रहा है",
+      "dragEnd": "{{item}} को स्थान {{position}} पर ले जाया गया",
+      "dragCancel": "{{item}} को ले जाना रद्द किया गया",
+      "dragInstructions": "क्रम बदलने के लिए, उठाने हेतु Space या Enter दबाएँ, तीर कुंजियों से ले जाएँ और छोड़ने के लिए वही कुंजी फिर दबाएँ। रद्द करने के लिए Escape दबाएँ।"
     }
   },
   "id": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "Memuat...",
       "back": "Kembali",
@@ -1882,8 +2041,7 @@
       "copied": "Tersalin",
       "error": "Terjadi kesalahan",
       "done": "Selesai",
-      "selected": "Dipilih",
-      "ok": "OK"
+      "selected": "Dipilih"
     },
     "auth": {
       "tabs": {
@@ -1969,7 +2127,6 @@
       "cancel": "Batal",
       "error": "Terjadi kesalahan",
       "dragHint": "Seret untuk mengurutkan ulang",
-      "openMenu": "Buka menu",
       "drawerTitle": "Daftar tugas",
       "drawerNoEmail": "Email tidak tersedia",
       "taskListLocator": {
@@ -1983,11 +2140,8 @@
       "join": "Gabung",
       "joining": "Sedang bergabung...",
       "calendarCheckButton": "Lihat di kalender",
-      "calendarAllDates": "Semua tanggal",
       "calendarNoDatedTasks": "Tidak ada tugas bertanggal",
       "calendarNoTasksOnSelectedDate": "Tidak ada tugas pada tanggal yang dipilih",
-      "rtlRestartTitle": "Perlu memulai ulang",
-      "rtlRestartMessage": "Mulai ulang aplikasi untuk menerapkan perubahan tata letak kanan ke kiri.",
       "loadError": "Gagal memuat daftar tugas.",
       "calendar": "Kalender",
       "calendarPreviousMonth": "Bulan sebelumnya",
@@ -1995,17 +2149,46 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^hari\\s+ini(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^besok(?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^lusa(?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^dalam\\s+(\\d+)\\s+hari(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^hari\\s+ini(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^besok(?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^lusa(?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^dalam\\s+(\\d+)\\s+hari(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "minggu": 0, "senin": 1, "selasa": 2, "rabu": 3, "kamis": 4, "jumat": 5, "jum'at": 5, "sabtu": 6
+        "minggu": 0,
+        "senin": 1,
+        "selasa": 2,
+        "rabu": 3,
+        "kamis": 4,
+        "jumat": 5,
+        "jum'at": 5,
+        "sabtu": 6
       }
     },
-    "pinPrefixes": ["sematkan"],
+    "pinPrefixes": [
+      "sematkan"
+    ],
     "taskList": {
       "taskCount": "{{count}} tugas",
       "taskCount_one": "{{count}} tugas",
@@ -2050,9 +2233,7 @@
         "dark": "Gelap"
       },
       "language": {
-        "title": "Bahasa",
-        "japanese": "Jepang",
-        "english": "Inggris"
+        "title": "Bahasa"
       },
       "taskInsertPosition": {
         "title": "Posisi tugas baru",
@@ -2064,7 +2245,6 @@
         "enable": "Urutkan tugas otomatis"
       },
       "danger": {
-        "title": "Zona bahaya",
         "signOut": "Keluar",
         "deleteAccount": "Hapus akun"
       },
@@ -2072,7 +2252,6 @@
         "title": "Tindakan akun"
       },
       "deleteAccount": "Hapus akun",
-      "deleteAccountConfirm": "Hapus akun dan semua data Anda?",
       "signingOut": "Sedang keluar...",
       "deletingAccount": "Menghapus akun...",
       "emailChange": {
@@ -2085,7 +2264,7 @@
         "changeButton": "Ubah"
       },
       "legal": {
-        "title": "Legal"
+        "title": "Hukum"
       },
       "licenses": {
         "title": "Lisensi",
@@ -2133,17 +2312,12 @@
       "sharecode": {
         "notFound": "Daftar tugas ini tidak ditemukan",
         "error": "Gagal memuat daftar tugas",
-        "addTaskError": "Gagal menambahkan tugas",
-        "updateError": "Gagal memperbarui tugas",
-        "reorderError": "Gagal mengurutkan ulang tugas",
-        "deleteError": "Gagal menghapus tugas yang selesai",
         "addToOrderError": "Gagal menambahkan daftar tugas ini",
         "addToOrder": "Tambahkan ke daftar saya"
       },
       "tasklist": {
         "addTaskPlaceholder": "Masukkan tugas...",
         "setDate": "Atur tanggal",
-        "setDateShort": "Atur",
         "markComplete": "Belum selesai, ketuk untuk menandai selesai",
         "markIncomplete": "Selesai, ketuk untuk menandai belum selesai",
         "noTasks": "Tidak ada tugas",
@@ -2152,7 +2326,6 @@
         "deleteCompleted": "Hapus tugas yang selesai",
         "deleteCompletedConfirm": "Hapus {{count}} tugas yang selesai?",
         "clearDate": "Hapus Tanggal",
-        "clearDateShort": "Hapus",
         "pinTask": "Sematkan tugas",
         "unpinTask": "Lepas sematan tugas",
         "deleteCompletedConfirmTitle": "Hapus tugas yang selesai?"
@@ -2172,11 +2345,25 @@
         "description": "Terjadi kesalahan tak terduga. Silakan muat ulang halaman.",
         "reload": "Muat ulang halaman"
       }
+    },
+    "a11y": {
+      "listPosition": "item {{index}} dari {{total}}",
+      "moveUp": "Pindahkan ke atas",
+      "moveDown": "Pindahkan ke bawah",
+      "today": "Hari ini",
+      "hasTasks": "Ada tugas",
+      "addTask": "Tambah tugas",
+      "editTask": "Edit tugas",
+      "dragStart": "{{item}} diangkat",
+      "dragOver": "Memindahkan {{item}} ke posisi {{position}}",
+      "dragEnd": "{{item}} dipindahkan ke posisi {{position}}",
+      "dragCancel": "Pemindahan {{item}} dibatalkan",
+      "dragInstructions": "Untuk mengubah urutan, tekan Spasi atau Enter untuk mengangkat, gunakan tombol panah untuk memindahkan, lalu tekan tombol yang sama lagi untuk meletakkan. Tekan Escape untuk membatalkan."
     }
   },
   "ja": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "読み込み中...",
       "back": "戻る",
@@ -2189,8 +2376,7 @@
       "copied": "コピーしました",
       "error": "エラーが発生しました",
       "done": "完了",
-      "selected": "選択中",
-      "ok": "OK"
+      "selected": "選択中"
     },
     "auth": {
       "tabs": {
@@ -2276,7 +2462,6 @@
       "cancel": "キャンセル",
       "error": "エラーが発生しました",
       "dragHint": "ドラッグして並び替え",
-      "openMenu": "メニューを開く",
       "drawerTitle": "タスクリスト",
       "drawerNoEmail": "メールアドレス未設定",
       "taskListLocator": {
@@ -2290,11 +2475,8 @@
       "join": "参加",
       "joining": "参加中...",
       "calendarCheckButton": "カレンダーで確認",
-      "calendarAllDates": "すべての日付",
       "calendarNoDatedTasks": "日付が設定されたタスクはありません",
       "calendarNoTasksOnSelectedDate": "選択した日付のタスクはありません",
-      "rtlRestartTitle": "再起動が必要です",
-      "rtlRestartMessage": "右から左への表示を反映するにはアプリの再起動が必要です。",
       "loadError": "タスクリストの読み込みに失敗しました",
       "calendar": "カレンダー",
       "calendarPreviousMonth": "前の月",
@@ -2302,15 +2484,40 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^今日(?:[\\s　]|$)", "offset": 0 },
-        { "pattern": "^明日(?:[\\s　]|$)", "offset": 1 },
-        { "pattern": "^明後日(?:[\\s　]|$)", "offset": 2 },
-        { "pattern": "^(\\d+)日後(?:に)?(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^([月火水木金土日])曜?(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^今日(?:[\\s　]|$)",
+          "offset": 0
+        },
+        {
+          "pattern": "^明日(?:[\\s　]|$)",
+          "offset": 1
+        },
+        {
+          "pattern": "^明後日(?:[\\s　]|$)",
+          "offset": 2
+        },
+        {
+          "pattern": "^(\\d+)日後(?:に)?(?:[\\s　]|$)",
+          "offsetGroup": 1
+        },
+        {
+          "pattern": "^([月火水木金土日])曜?(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
-      "weekdays": { "日": 0, "月": 1, "火": 2, "水": 3, "木": 4, "金": 5, "土": 6 }
+      "weekdays": {
+        "日": 0,
+        "月": 1,
+        "火": 2,
+        "水": 3,
+        "木": 4,
+        "金": 5,
+        "土": 6
+      }
     },
-    "pinPrefixes": ["ピン"],
+    "pinPrefixes": [
+      "ピン"
+    ],
     "taskList": {
       "taskCount": "{{count}}個のタスク",
       "taskCount_one": "{{count}}個のタスク",
@@ -2355,9 +2562,7 @@
         "dark": "ダーク"
       },
       "language": {
-        "title": "言語",
-        "japanese": "日本語",
-        "english": "英語"
+        "title": "言語"
       },
       "taskInsertPosition": {
         "title": "追加位置",
@@ -2369,7 +2574,6 @@
         "enable": "タスクを自動で並び替える"
       },
       "danger": {
-        "title": "危険な操作",
         "signOut": "ログアウト",
         "deleteAccount": "アカウント削除"
       },
@@ -2377,7 +2581,6 @@
         "title": "アカウント操作"
       },
       "deleteAccount": "アカウントを削除",
-      "deleteAccountConfirm": "アカウントと全データを削除しますか？",
       "signingOut": "ログアウト中...",
       "deletingAccount": "削除中...",
       "emailChange": {
@@ -2438,17 +2641,12 @@
       "sharecode": {
         "notFound": "タスクリストが見つかりません",
         "error": "タスクリストの読み込みに失敗しました",
-        "addTaskError": "タスクの追加に失敗しました",
-        "updateError": "タスクの更新に失敗しました",
-        "reorderError": "タスクの順序を変更できませんでした",
-        "deleteError": "完了したタスクを削除できませんでした",
         "addToOrderError": "リストの追加に失敗しました",
         "addToOrder": "自分のリストに追加"
       },
       "tasklist": {
         "addTaskPlaceholder": "タスクを入力...",
         "setDate": "期限を設定",
-        "setDateShort": "設定",
         "markComplete": "未完了、タップで完了にする",
         "markIncomplete": "完了済み、タップで未完了にする",
         "noTasks": "タスクがありません",
@@ -2457,7 +2655,6 @@
         "deleteCompleted": "完了タスクを削除",
         "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？",
         "clearDate": "日付をクリア",
-        "clearDateShort": "クリア",
         "pinTask": "タスクをピン留め",
         "unpinTask": "タスクのピン留めを解除",
         "deleteCompletedConfirmTitle": "完了タスクを削除しますか？"
@@ -2477,11 +2674,25 @@
         "description": "予期しないエラーが発生しました。ページを再読み込みしてください。",
         "reload": "ページを再読み込み"
       }
+    },
+    "a11y": {
+      "listPosition": "{{total}}件中{{index}}件目",
+      "moveUp": "上へ移動",
+      "moveDown": "下へ移動",
+      "today": "今日",
+      "hasTasks": "タスクあり",
+      "addTask": "タスクを追加",
+      "editTask": "タスクを編集",
+      "dragStart": "{{item}}を持ち上げました",
+      "dragOver": "{{item}}を{{position}}番目に移動",
+      "dragEnd": "{{item}}を{{position}}番目に移動しました",
+      "dragCancel": "{{item}}の移動をキャンセルしました",
+      "dragInstructions": "並び替えるには、スペースキーまたはEnterキーで持ち上げ、矢印キーで移動し、もう一度同じキーで確定します。Escキーでキャンセルします。"
     }
   },
   "ko": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "로딩 중...",
       "back": "뒤로",
@@ -2494,8 +2705,7 @@
       "copied": "복사됨",
       "error": "오류가 발생했습니다",
       "done": "완료",
-      "selected": "선택됨",
-      "ok": "확인"
+      "selected": "선택됨"
     },
     "auth": {
       "tabs": {
@@ -2581,7 +2791,6 @@
       "cancel": "취소",
       "error": "오류가 발생했습니다",
       "dragHint": "드래그해서 순서 변경",
-      "openMenu": "메뉴 열기",
       "drawerTitle": "작업 목록",
       "drawerNoEmail": "사용 가능한 이메일 없음",
       "taskListLocator": {
@@ -2595,11 +2804,8 @@
       "join": "참가",
       "joining": "참가 중...",
       "calendarCheckButton": "캘린더에서 보기",
-      "calendarAllDates": "모든 날짜",
       "calendarNoDatedTasks": "날짜가 지정된 작업이 없습니다",
       "calendarNoTasksOnSelectedDate": "선택한 날짜에 작업이 없습니다",
-      "rtlRestartTitle": "재시작 필요",
-      "rtlRestartMessage": "오른쪽에서 왼쪽 레이아웃을 적용하려면 앱을 다시 시작하세요.",
       "loadError": "할 일 목록을 불러오지 못했습니다.",
       "calendar": "캘린더",
       "calendarPreviousMonth": "이전 달",
@@ -2607,17 +2813,47 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^오늘(?:[\\s　]|$)", "offset": 0 },
-        { "pattern": "^내일(?:[\\s　]|$)", "offset": 1 },
-        { "pattern": "^모레(?:[\\s　]|$)", "offset": 2 },
-        { "pattern": "^(\\d+)\\s*일\\s*후(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^오늘(?:[\\s　]|$)",
+          "offset": 0
+        },
+        {
+          "pattern": "^내일(?:[\\s　]|$)",
+          "offset": 1
+        },
+        {
+          "pattern": "^모레(?:[\\s　]|$)",
+          "offset": 2
+        },
+        {
+          "pattern": "^(\\d+)\\s*일\\s*후(?:[\\s　]|$)",
+          "offsetGroup": 1
+        },
+        {
+          "pattern": "^(월요일|화요일|수요일|목요일|금요일|토요일|일요일|월|화|수|목|금|토|일)(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
-        "일요일": 0, "일": 0, "월요일": 1, "월": 1, "화요일": 2, "화": 2, "수요일": 3, "수": 3, "목요일": 4, "목": 4, "금요일": 5, "금": 5, "토요일": 6, "토": 6
+        "일요일": 0,
+        "일": 0,
+        "월요일": 1,
+        "월": 1,
+        "화요일": 2,
+        "화": 2,
+        "수요일": 3,
+        "수": 3,
+        "목요일": 4,
+        "목": 4,
+        "금요일": 5,
+        "금": 5,
+        "토요일": 6,
+        "토": 6
       }
     },
-    "pinPrefixes": ["고정"],
+    "pinPrefixes": [
+      "고정"
+    ],
     "taskList": {
       "taskCount": "작업 {{count}}개",
       "taskCount_one": "작업 {{count}}개",
@@ -2662,9 +2898,7 @@
         "dark": "다크"
       },
       "language": {
-        "title": "언어",
-        "japanese": "일본어",
-        "english": "영어"
+        "title": "언어"
       },
       "taskInsertPosition": {
         "title": "새 작업 추가 위치",
@@ -2676,7 +2910,6 @@
         "enable": "작업 자동 정렬"
       },
       "danger": {
-        "title": "위험 영역",
         "signOut": "로그아웃",
         "deleteAccount": "계정 삭제"
       },
@@ -2684,7 +2917,6 @@
         "title": "계정 작업"
       },
       "deleteAccount": "계정 삭제",
-      "deleteAccountConfirm": "계정과 모든 데이터를 삭제할까요?",
       "signingOut": "로그아웃 중...",
       "deletingAccount": "계정 삭제 중...",
       "emailChange": {
@@ -2745,17 +2977,12 @@
       "sharecode": {
         "notFound": "이 작업 목록을 찾을 수 없습니다",
         "error": "작업 목록을 불러오지 못했습니다",
-        "addTaskError": "작업 추가에 실패했습니다",
-        "updateError": "작업 업데이트에 실패했습니다",
-        "reorderError": "작업 순서 변경에 실패했습니다",
-        "deleteError": "완료한 작업 삭제에 실패했습니다",
         "addToOrderError": "이 작업 목록을 추가하지 못했습니다",
         "addToOrder": "내 목록에 추가"
       },
       "tasklist": {
         "addTaskPlaceholder": "작업 입력...",
         "setDate": "날짜 설정",
-        "setDateShort": "설정",
         "markComplete": "미완료, 탭하여 완료로 표시",
         "markIncomplete": "완료됨, 탭하여 미완료로 표시",
         "noTasks": "작업 없음",
@@ -2764,7 +2991,6 @@
         "deleteCompleted": "완료한 작업 삭제",
         "deleteCompletedConfirm": "완료한 작업 {{count}}개를 삭제할까요?",
         "clearDate": "날짜 지우기",
-        "clearDateShort": "지우기",
         "pinTask": "작업 고정",
         "unpinTask": "작업 고정 해제",
         "deleteCompletedConfirmTitle": "완료된 할 일을 삭제하시겠습니까?"
@@ -2784,11 +3010,25 @@
         "description": "예기치 않은 오류가 발생했습니다. 페이지를 새로고침해 주세요.",
         "reload": "페이지 새로고침"
       }
+    },
+    "a11y": {
+      "listPosition": "{{total}}개 중 {{index}}번째",
+      "moveUp": "위로 이동",
+      "moveDown": "아래로 이동",
+      "today": "오늘",
+      "hasTasks": "작업 있음",
+      "addTask": "작업 추가",
+      "editTask": "작업 편집",
+      "dragStart": "{{item}}을(를) 들어 올렸습니다",
+      "dragOver": "{{item}}을(를) {{position}}번째로 이동 중",
+      "dragEnd": "{{item}}을(를) {{position}}번째로 이동했습니다",
+      "dragCancel": "{{item}} 이동을 취소했습니다",
+      "dragInstructions": "순서를 바꾸려면 스페이스 키 또는 Enter 키로 들어 올리고, 화살표 키로 이동한 뒤 같은 키를 다시 눌러 놓습니다. Esc 키로 취소합니다."
     }
   },
   "pt-BR": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "Carregando...",
       "back": "Voltar",
@@ -2801,8 +3041,7 @@
       "copied": "Copiado",
       "error": "Ocorreu um erro",
       "done": "Concluído",
-      "selected": "Selecionado",
-      "ok": "OK"
+      "selected": "Selecionado"
     },
     "auth": {
       "tabs": {
@@ -2888,7 +3127,6 @@
       "cancel": "Cancelar",
       "error": "Ocorreu um erro",
       "dragHint": "Arraste para reordenar",
-      "openMenu": "Abrir menu",
       "drawerTitle": "Listas de tarefas",
       "drawerNoEmail": "Nenhum e-mail disponível",
       "taskListLocator": {
@@ -2902,11 +3140,8 @@
       "join": "Entrar",
       "joining": "Entrando...",
       "calendarCheckButton": "Ver no calendário",
-      "calendarAllDates": "Todas as datas",
       "calendarNoDatedTasks": "Nenhuma tarefa com data",
       "calendarNoTasksOnSelectedDate": "Nenhuma tarefa na data selecionada",
-      "rtlRestartTitle": "Reinicialização necessária",
-      "rtlRestartMessage": "Reinicie o app para aplicar alterações de layout da direita para a esquerda.",
       "loadError": "Falha ao carregar as listas de tarefas.",
       "calendar": "Calendário",
       "calendarPreviousMonth": "Mês anterior",
@@ -2914,23 +3149,61 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^hoje(?:[\\s　]|$)", "offset": 0, "options": "i" },
-        { "pattern": "^amanh[ãa](?:[\\s　]|$)", "offset": 1, "options": "i" },
-        { "pattern": "^depois\\s+de\\s+amanh[ãa](?:[\\s　]|$)", "offset": 2, "options": "i" },
-        { "pattern": "^em\\s+(\\d+)\\s+dias?(?:[\\s　]|$)", "offsetGroup": 1, "options": "i" },
-        { "pattern": "^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)(?:[\\s　]|$)", "weekdayGroup": 1, "options": "i" }
+        {
+          "pattern": "^hoje(?:[\\s　]|$)",
+          "offset": 0,
+          "options": "i"
+        },
+        {
+          "pattern": "^amanh[ãa](?:[\\s　]|$)",
+          "offset": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^depois\\s+de\\s+amanh[ãa](?:[\\s　]|$)",
+          "offset": 2,
+          "options": "i"
+        },
+        {
+          "pattern": "^em\\s+(\\d+)\\s+dias?(?:[\\s　]|$)",
+          "offsetGroup": 1,
+          "options": "i"
+        },
+        {
+          "pattern": "^(segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom)(?:[\\s　]|$)",
+          "weekdayGroup": 1,
+          "options": "i"
+        }
       ],
       "weekdays": {
-        "domingo": 0, "dom": 0,
-        "segunda": 1, "segunda-feira": 1, "seg": 1,
-        "terça": 2, "terca": 2, "terça-feira": 2, "terca-feira": 2, "ter": 2,
-        "quarta": 3, "quarta-feira": 3, "qua": 3,
-        "quinta": 4, "quinta-feira": 4, "qui": 4,
-        "sexta": 5, "sexta-feira": 5, "sex": 5,
-        "sábado": 6, "sabado": 6, "sáb": 6, "sab": 6
+        "domingo": 0,
+        "dom": 0,
+        "segunda": 1,
+        "segunda-feira": 1,
+        "seg": 1,
+        "terça": 2,
+        "terca": 2,
+        "terça-feira": 2,
+        "terca-feira": 2,
+        "ter": 2,
+        "quarta": 3,
+        "quarta-feira": 3,
+        "qua": 3,
+        "quinta": 4,
+        "quinta-feira": 4,
+        "qui": 4,
+        "sexta": 5,
+        "sexta-feira": 5,
+        "sex": 5,
+        "sábado": 6,
+        "sabado": 6,
+        "sáb": 6,
+        "sab": 6
       }
     },
-    "pinPrefixes": ["fixar"],
+    "pinPrefixes": [
+      "fixar"
+    ],
     "taskList": {
       "taskCount": "{{count}} tarefas",
       "taskCount_one": "{{count}} tarefa",
@@ -2975,9 +3248,7 @@
         "dark": "Escuro"
       },
       "language": {
-        "title": "Idioma",
-        "japanese": "Japonês",
-        "english": "Inglês"
+        "title": "Idioma"
       },
       "taskInsertPosition": {
         "title": "Posição da nova tarefa",
@@ -2989,7 +3260,6 @@
         "enable": "Ordenar tarefas automaticamente"
       },
       "danger": {
-        "title": "Zona de perigo",
         "signOut": "Sair",
         "deleteAccount": "Excluir conta"
       },
@@ -2997,7 +3267,6 @@
         "title": "Ações da conta"
       },
       "deleteAccount": "Excluir conta",
-      "deleteAccountConfirm": "Excluir sua conta e todos os dados?",
       "signingOut": "Saindo...",
       "deletingAccount": "Excluindo conta...",
       "emailChange": {
@@ -3058,17 +3327,12 @@
       "sharecode": {
         "notFound": "Esta lista de tarefas não foi encontrada",
         "error": "Falha ao carregar a lista de tarefas",
-        "addTaskError": "Falha ao adicionar tarefa",
-        "updateError": "Falha ao atualizar tarefa",
-        "reorderError": "Falha ao reordenar tarefas",
-        "deleteError": "Falha ao excluir tarefas concluídas",
         "addToOrderError": "Falha ao adicionar esta lista de tarefas",
         "addToOrder": "Adicionar às minhas listas"
       },
       "tasklist": {
         "addTaskPlaceholder": "Digite uma tarefa...",
         "setDate": "Definir data",
-        "setDateShort": "Definir",
         "markComplete": "Não concluída, toque para marcar como concluída",
         "markIncomplete": "Concluída, toque para marcar como não concluída",
         "noTasks": "Sem tarefas",
@@ -3077,7 +3341,6 @@
         "deleteCompleted": "Excluir tarefas concluídas",
         "deleteCompletedConfirm": "Excluir {{count}} tarefas concluídas?",
         "clearDate": "Limpar data",
-        "clearDateShort": "Limpar",
         "pinTask": "Fixar tarefa",
         "unpinTask": "Desafixar tarefa",
         "deleteCompletedConfirmTitle": "Excluir tarefas concluídas?"
@@ -3097,11 +3360,25 @@
         "description": "Ocorreu um erro inesperado. Tente recarregar a página.",
         "reload": "Recarregar página"
       }
+    },
+    "a11y": {
+      "listPosition": "item {{index}} de {{total}}",
+      "moveUp": "Mover para cima",
+      "moveDown": "Mover para baixo",
+      "today": "Hoje",
+      "hasTasks": "Com tarefas",
+      "addTask": "Adicionar tarefa",
+      "editTask": "Editar tarefa",
+      "dragStart": "{{item}} levantado",
+      "dragOver": "Movendo {{item}} para a posição {{position}}",
+      "dragEnd": "{{item}} movido para a posição {{position}}",
+      "dragCancel": "Movimento de {{item}} cancelado",
+      "dragInstructions": "Para reordenar, pressione Espaço ou Enter para levantar, use as setas para mover e pressione a mesma tecla novamente para soltar. Pressione Esc para cancelar."
     }
   },
   "zh-CN": {
     "title": "Lightlist",
-    "copyright": "© 2024 Lightlist. All rights reserved.",
+    "copyright": "© 2024-2026 Lightlist. All rights reserved.",
     "common": {
       "loading": "加载中...",
       "back": "返回",
@@ -3114,8 +3391,7 @@
       "copied": "已复制",
       "error": "发生错误",
       "done": "完成",
-      "selected": "已选择",
-      "ok": "确定"
+      "selected": "已选择"
     },
     "auth": {
       "tabs": {
@@ -3201,7 +3477,6 @@
       "cancel": "取消",
       "error": "发生错误",
       "dragHint": "拖动以重新排序",
-      "openMenu": "打开菜单",
       "drawerTitle": "任务列表",
       "drawerNoEmail": "无可用邮箱",
       "taskListLocator": {
@@ -3215,11 +3490,8 @@
       "join": "加入",
       "joining": "加入中...",
       "calendarCheckButton": "在日历中查看",
-      "calendarAllDates": "全部日期",
       "calendarNoDatedTasks": "没有设置日期的任务",
       "calendarNoTasksOnSelectedDate": "所选日期没有任务",
-      "rtlRestartTitle": "需要重启",
-      "rtlRestartMessage": "请重启应用以应用从右到左布局变更。",
       "loadError": "无法加载任务列表。",
       "calendar": "日历",
       "calendarPreviousMonth": "上个月",
@@ -3227,23 +3499,49 @@
     },
     "datePatterns": {
       "relative": [
-        { "pattern": "^今天(?:[\\s　]|$)", "offset": 0 },
-        { "pattern": "^明天(?:[\\s　]|$)", "offset": 1 },
-        { "pattern": "^后天(?:[\\s　]|$)", "offset": 2 },
-        { "pattern": "^(\\d+)\\s*天后(?:[\\s　]|$)", "offsetGroup": 1 },
-        { "pattern": "^(星期[一二三四五六日天]|周[一二三四五六日天])(?:[\\s　]|$)", "weekdayGroup": 1 }
+        {
+          "pattern": "^今天(?:[\\s　]|$)",
+          "offset": 0
+        },
+        {
+          "pattern": "^明天(?:[\\s　]|$)",
+          "offset": 1
+        },
+        {
+          "pattern": "^后天(?:[\\s　]|$)",
+          "offset": 2
+        },
+        {
+          "pattern": "^(\\d+)\\s*天后(?:[\\s　]|$)",
+          "offsetGroup": 1
+        },
+        {
+          "pattern": "^(星期[一二三四五六日天]|周[一二三四五六日天])(?:[\\s　]|$)",
+          "weekdayGroup": 1
+        }
       ],
       "weekdays": {
-        "星期日": 0, "星期天": 0, "周日": 0, "周天": 0,
-        "星期一": 1, "周一": 1,
-        "星期二": 2, "周二": 2,
-        "星期三": 3, "周三": 3,
-        "星期四": 4, "周四": 4,
-        "星期五": 5, "周五": 5,
-        "星期六": 6, "周六": 6
+        "星期日": 0,
+        "星期天": 0,
+        "周日": 0,
+        "周天": 0,
+        "星期一": 1,
+        "周一": 1,
+        "星期二": 2,
+        "周二": 2,
+        "星期三": 3,
+        "周三": 3,
+        "星期四": 4,
+        "周四": 4,
+        "星期五": 5,
+        "周五": 5,
+        "星期六": 6,
+        "周六": 6
       }
     },
-    "pinPrefixes": ["置顶"],
+    "pinPrefixes": [
+      "置顶"
+    ],
     "taskList": {
       "taskCount": "{{count}} 个任务",
       "taskCount_one": "{{count}} 个任务",
@@ -3288,9 +3586,7 @@
         "dark": "深色"
       },
       "language": {
-        "title": "语言",
-        "japanese": "日语",
-        "english": "英语"
+        "title": "语言"
       },
       "taskInsertPosition": {
         "title": "新任务插入位置",
@@ -3302,7 +3598,6 @@
         "enable": "自动排序任务"
       },
       "danger": {
-        "title": "危险区域",
         "signOut": "退出登录",
         "deleteAccount": "删除账户"
       },
@@ -3310,7 +3605,6 @@
         "title": "账户操作"
       },
       "deleteAccount": "删除账户",
-      "deleteAccountConfirm": "删除你的账户及所有数据？",
       "signingOut": "正在退出...",
       "deletingAccount": "正在删除账户...",
       "emailChange": {
@@ -3371,17 +3665,12 @@
       "sharecode": {
         "notFound": "未找到该任务列表",
         "error": "加载任务列表失败",
-        "addTaskError": "添加任务失败",
-        "updateError": "更新任务失败",
-        "reorderError": "任务重排失败",
-        "deleteError": "删除已完成任务失败",
         "addToOrderError": "添加该任务列表失败",
         "addToOrder": "添加到我的列表"
       },
       "tasklist": {
         "addTaskPlaceholder": "输入任务...",
         "setDate": "设置日期",
-        "setDateShort": "设置",
         "markComplete": "未完成，点按标记为已完成",
         "markIncomplete": "已完成，点按标记为未完成",
         "noTasks": "暂无任务",
@@ -3390,7 +3679,6 @@
         "deleteCompleted": "删除已完成任务",
         "deleteCompletedConfirm": "删除 {{count}} 个已完成任务？",
         "clearDate": "清除日期",
-        "clearDateShort": "清除",
         "pinTask": "置顶任务",
         "unpinTask": "取消置顶任务",
         "deleteCompletedConfirmTitle": "删除已完成的任务？"
@@ -3410,6 +3698,20 @@
         "description": "发生了意外错误。请尝试重新加载页面。",
         "reload": "重新加载页面"
       }
+    },
+    "a11y": {
+      "listPosition": "第{{index}}项，共{{total}}项",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "today": "今天",
+      "hasTasks": "有任务",
+      "addTask": "添加任务",
+      "editTask": "编辑任务",
+      "dragStart": "已拿起{{item}}",
+      "dragOver": "正在将{{item}}移到第{{position}}位",
+      "dragEnd": "已将{{item}}移到第{{position}}位",
+      "dragCancel": "已取消移动{{item}}",
+      "dragInstructions": "要重新排序，请按空格键或回车键拿起，使用方向键移动，再按同一按键放下。按 Esc 键取消。"
     }
   }
 }

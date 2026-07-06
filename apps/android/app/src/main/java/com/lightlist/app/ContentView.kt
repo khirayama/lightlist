@@ -209,6 +209,7 @@ import com.google.firebase.firestore.FieldValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
@@ -223,7 +224,7 @@ import java.text.DateFormatSymbols
 
 import org.json.JSONObject
 
-private const val COMPLETED_TASK_ALPHA = 0.64f
+private const val COMPLETED_TASK_ALPHA = 0.55f
 private val TaskListBackgroundOptions = listOf<String?>(
     null,
     "#F87171",
@@ -510,8 +511,6 @@ class Translations {
         return result
     }
 
-    fun getRawDict(): JSONObject = dict
-
     fun getPinPrefixes(): List<String> {
         val prefixes = dict.optJSONArray("pinPrefixes") ?: return listOf("pin", "pinned")
         val list = mutableListOf<String>()
@@ -755,7 +754,7 @@ private object TaskListDetailMetrics {
     val topBarHeight = 48.dp
     val indicatorContentInset = 42.dp
     val indicatorTouchSize = 24.dp
-    val indicatorDotSize = 7.dp
+    val indicatorDotSize = 8.dp
     val headerActionIconButtonSize = 40.dp
     val headerActionIconSize = AppIconMetrics.standardActionIconSize
     val headerActionSpacing = 0.dp
@@ -784,7 +783,7 @@ private object TaskListDetailMetrics {
     val completionTopPadding = 1.dp
     val completionEndPadding = 2.dp
     val completionTouchWidth = 28.dp
-    val completionDotSize = 18.dp
+    val completionDotSize = 20.dp
     val taskTextStartPadding = 6.dp
     val trailingDateButtonWidth = 24.dp
     val trailingDateIconSize = AppIconMetrics.standardActionIconSize
@@ -972,18 +971,6 @@ private enum class TabletPane {
     Settings,
     Calendar
 }
-
-private data class TaskListsUiState(
-    val taskLists: List<TaskListSummary> = emptyList(),
-    val isLoading: Boolean = false,
-    val hasError: Boolean = false
-)
-
-private data class TaskListDetailsUiState(
-    val taskLists: List<TaskListDetail> = emptyList(),
-    val isLoading: Boolean = false,
-    val hasError: Boolean = false
-)
 
 private data class SettingsState(
     val theme: String = "system",
@@ -1960,7 +1947,8 @@ private fun ScreenScaffold(
                 .fillMaxWidth()
                 .widthIn(max = 480.dp),
             shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
@@ -2683,59 +2671,71 @@ private fun CalendarGrid(
 }
 
 @Composable
-private fun CalendarTaskRow(task: CalendarTask, isHighlighted: Boolean, onClick: () -> Unit) {
+private fun CalendarTaskRow(
+    task: CalendarTask,
+    isHighlighted: Boolean,
+    onSelectDate: () -> Unit,
+    onOpenTaskList: () -> Unit
+) {
     val t = LocalTranslations.current
     val dateLabel = remember(task.dateKey, t.languageTag()) {
         formatDateForLocale(task.dateKey, t.languageTag(), "MMM d EEE")
     }
     Column {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(if (isHighlighted) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
-                .clickable(onClick = onClick)
+                .clickable(onClick = onSelectDate)
                 .padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.Top
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(
-                dateLabel,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.width(80.dp)
-            )
             Row(
-                modifier = Modifier.width(90.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .then(
-                            if (task.taskListBackground == null) {
-                                Modifier.border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = CircleShape
-                                )
-                            } else {
-                                Modifier.background(parseHexColor(task.taskListBackground), CircleShape)
-                            }
-                        )
-                )
                 Text(
-                    task.taskListName,
+                    dateLabel,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.weight(1f))
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onOpenTaskList)
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .then(
+                                if (task.taskListBackground == null) {
+                                    Modifier.border(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        shape = CircleShape
+                                    )
+                                } else {
+                                    Modifier.background(parseHexColor(task.taskListBackground), CircleShape)
+                                }
+                            )
+                    )
+                    Text(
+                        task.taskListName,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
             }
             Text(
                 task.text,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 maxLines = 2,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
@@ -2819,7 +2819,8 @@ private fun CalendarScreen(
     DetailScreenScaffold(
         title = t.t("app.calendar"),
         onBack = if (navController != null) ({ navController.navigateUp() }) else null,
-        showTopBar = showTopBar
+        showTopBar = showTopBar,
+        backgroundColor = MaterialTheme.colorScheme.surfaceDim
     ) {
         Column(
             modifier = Modifier
@@ -2877,12 +2878,15 @@ private fun CalendarScreen(
                 }
             )
 
-            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
 
-            Box(
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .padding(horizontal = 16.dp)
             ) {
                 if (tasksInMonth.isEmpty()) {
                     Box(
@@ -2902,10 +2906,8 @@ private fun CalendarScreen(
                             CalendarTaskRow(
                                 task = task,
                                 isHighlighted = selectedDateKey == task.dateKey,
-                                onClick = {
-                                    selectDate(task.dateKey)
-                                    openTaskList(task.taskListId)
-                                }
+                                onSelectDate = { selectDate(task.dateKey) },
+                                onOpenTaskList = { openTaskList(task.taskListId) }
                             )
                         }
                     }
@@ -4232,7 +4234,7 @@ private fun TaskListDetailContent(
     val taskDensity = LocalDensity.current
     val taskSpacingPx = with(taskDensity) { TaskListDetailMetrics.taskRowSpacing.toPx() }
     val chromeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
-    val inputBackgroundColor = MaterialTheme.colorScheme.surface
+    val inputBackgroundColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
     val detailBodyTextStyle = MaterialTheme.typography.bodyMedium.copy(
         platformStyle = PlatformTextStyle(includeFontPadding = false),
         lineHeightStyle = LineHeightStyle(
@@ -4775,7 +4777,7 @@ private fun TaskListDetailContent(
                             .background(inputBackgroundColor, RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius))
                             .border(
                                 width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
+                                color = MaterialTheme.colorScheme.outlineVariant,
                                 shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius)
                             )
                             .padding(
@@ -5396,13 +5398,10 @@ private val supportedLanguages = listOf(
 
 @Composable
 private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    val shape = RoundedCornerShape(12.dp)
     Surface(
-        shape = shape,
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
@@ -5492,6 +5491,17 @@ private fun SettingsView(
                     CircularProgressIndicator()
                 }
             } else {
+                SettingsSectionCard(title = t.t("settings.userInfo.title")) {
+                    Text(
+                        uiState.userEmail,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                    )
+                    HorizontalDivider()
+                    SettingsSelectRow(label = t.t("settings.emailChange.title"), value = "") {
+                        showEmailChangeDialog = true
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
                 SettingsSectionCard(title = t.t("settings.preferences.title")) {
                     SettingsSelectRow(
                         label = t.t("settings.language.title"),
@@ -5507,20 +5517,25 @@ private fun SettingsView(
                     HorizontalDivider()
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(t.t("settings.autoSort.enable"))
+                        Column(
+                            Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(t.t("settings.autoSort.title"))
+                            Text(
+                                t.t("settings.autoSort.enable"),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Switch(
                             checked = uiState.autoSort,
                             onCheckedChange = { logSettingsAutoSortChange(enabled = it); updateSettings(mapOf("autoSort" to it)) }
                         )
                     }
-                }
-                Spacer(Modifier.height(16.dp))
-                SettingsSectionCard(title = t.t("settings.userInfo.title")) {
-                    Text(uiState.userEmail)
-                    TextButton(onClick = { showEmailChangeDialog = true }) { Text(t.t("settings.emailChange.title")) }
                 }
                 Spacer(Modifier.height(16.dp))
                 SettingsSectionCard(title = t.t("settings.legal.title")) {
@@ -5544,21 +5559,27 @@ private fun SettingsView(
                 }
                 Spacer(Modifier.height(16.dp))
                 SettingsSectionCard(title = t.t("settings.actions.title")) {
-                    OutlinedButton(
-                        onClick = { showSignOutDialog = true },
-                        enabled = !isSigningOut,
-                        modifier = Modifier.fillMaxWidth()
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isSigningOut) { showSignOutDialog = true }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(if (isSigningOut) t.t("common.loading") else t.t("auth.button.signOut"))
+                        Text(if (isSigningOut) t.t("settings.signingOut") else t.t("settings.danger.signOut"))
                     }
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { showDeleteDialog = true },
-                        enabled = !isDeletingAccount,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    HorizontalDivider()
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isDeletingAccount) { showDeleteDialog = true }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(if (isDeletingAccount) t.t("common.loading") else t.t("settings.danger.deleteAccount"))
+                        Text(
+                            if (isDeletingAccount) t.t("settings.deletingAccount") else t.t("settings.danger.deleteAccount"),
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
                 errorMessage?.let {

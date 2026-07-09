@@ -1,5 +1,5 @@
+import babelParser from "@babel/eslint-parser";
 import globals from "globals";
-import tseslint from "typescript-eslint";
 
 export default [
   {
@@ -13,12 +13,25 @@ export default [
   },
   {
     files: ["**/*.{js,cjs,mjs,ts,tsx}"],
+    ignores: ["**/*.d.ts"],
     languageOptions: {
-      parser: tseslint.parser,
+      parser: babelParser,
       parserOptions: {
         ecmaVersion: "latest",
         sourceType: "module",
         ecmaFeatures: { jsx: true },
+        requireConfigFile: false,
+        babelOptions: {
+          babelrc: false,
+          configFile: false,
+          parserOpts: {
+            plugins: [["typescript", { isTSX: true }], "jsx"],
+          },
+          plugins: [
+            "@babel/plugin-syntax-jsx",
+            ["@babel/plugin-syntax-typescript", { isTSX: true }],
+          ],
+        },
       },
       globals: {
         ...globals.browser,
@@ -26,8 +39,30 @@ export default [
         ...globals.es2024,
       },
     },
-    plugins: {
-      "@typescript-eslint": tseslint.plugin,
+    rules: {},
+  },
+  {
+    files: ["**/*.d.ts"],
+    languageOptions: {
+      parser: babelParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        requireConfigFile: false,
+        babelOptions: {
+          babelrc: false,
+          configFile: false,
+          parserOpts: {
+            plugins: [["typescript", { dts: true }]],
+          },
+          plugins: [["@babel/plugin-syntax-typescript", { dts: true }]],
+        },
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.es2024,
+      },
     },
     rules: {},
   },

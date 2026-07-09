@@ -18,8 +18,9 @@ if (shouldGenerateOssLicenses) {
     apply(plugin = "com.google.android.gms.oss-licenses-plugin")
 }
 
-val generatedSharedAssetsDir = layout.buildDirectory.dir("generated/assets/shared/main").get().asFile
-val syncSharedLocales by tasks.registering(Copy::class) {
+val generatedSharedAssetsDir = layout.buildDirectory.dir("generated/assets/shared/main")
+val generatedSharedAssetsDirFile = generatedSharedAssetsDir.get().asFile
+val syncSharedLocales = tasks.register<Copy>("syncSharedLocales") {
     from(rootProject.file("../../shared/locales/locales.json"))
     from(rootProject.file("../../shared/licenses/manual-licenses.json"))
     into(generatedSharedAssetsDir)
@@ -122,7 +123,7 @@ android {
         compose = true
     }
 
-    sourceSets.getByName("main").assets.srcDir(generatedSharedAssetsDir.path)
+    sourceSets.getByName("main").assets.directories.add(generatedSharedAssetsDirFile.path)
 }
 
 tasks.named("preBuild").configure {

@@ -19,6 +19,7 @@
 ## プロジェクト実態（2026-03）
 
 - モノレポ: `apps/web`（Vite multi-page app）/ `apps/ios`（SwiftUI）/ `apps/android`（Kotlin）
+- Web は TypeScript 7 系を採用し、上流 peer 範囲未追随の依存（`i18next` / `react-i18next`）を許容するため `apps/web/.npmrc` の `legacy-peer-deps=true` を維持する。
 - Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
 - SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/entry.tsx` に統合済み。独立パッケージは廃止。
 - Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。

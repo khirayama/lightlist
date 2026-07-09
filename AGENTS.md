@@ -28,6 +28,7 @@
 ## プロジェクト構成
 
 - リポジトリ直下に Node の manifest は置かず、Web の Node ツール・lockfile は `apps/web` に集約する。
+- Web は TypeScript 7 系を採用し、上流 peer 範囲未追随の依存（`i18next` / `react-i18next`）を許容するため `apps/web/.npmrc` の `legacy-peer-deps=true` を維持する。
 - Web: `apps/web`（Vite multi-page app + React + TypeScript + 通常 CSS）
 - Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
 - iOS: `apps/ios`（SwiftUI, iOS 17+）— XcodeGen (`project.yml`) でプロジェクト生成

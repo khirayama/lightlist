@@ -37,6 +37,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 ## Cloudflare Pages
 
 - Git integration: build command は `cd apps/web && npm ci && npm run build`、output directory は `apps/web/dist`。
+- Web は TypeScript 7 系を採用する。`i18next` / `react-i18next` の peer 範囲が追いつくまでは、`apps/web/.npmrc` の `legacy-peer-deps=true` を前提に npm install / ci を行う。
 - Direct Upload: `cd apps/web && npm run cf:deploy`。`CLOUDFLARE_PAGES_PROJECT_NAME` が必須。
 - ローカル確認: `cd apps/web && npm run cf:preview`。
 - CI で `wrangler pages deploy` を使う場合は `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` を設定する。Pages project は事前に作成しておく。

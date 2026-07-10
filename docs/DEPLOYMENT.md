@@ -36,12 +36,12 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 
 ## Cloudflare Pages
 
-- Git integration: build command は `cd apps/web && npm ci && npm run build`、output directory は `apps/web/dist`。
+- Git integration: build command は `cd apps/web && npm ci && npm run cf:build`、output directory は `apps/web/dist`。`LIGHTLIST_IOS_TEAM_ID` に Apple Developer Team ID（10 文字の英大文字・数字）、`LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` に Play App Signing certificate の SHA-256 fingerprint を設定する。後者はカンマ区切りで複数指定でき、生成時に大文字・コロン区切りへ正規化する。どちらかが欠けると `cf:build` は失敗し、Universal Links / Android App Links の関連付けを欠いた本番デプロイを防ぐ。
 - Web は TypeScript 7 系を採用する。`i18next` / `react-i18next` の peer 範囲が追いつくまでは、`apps/web/.npmrc` の `legacy-peer-deps=true` を前提に npm install / ci を行う。
-- Direct Upload: `cd apps/web && npm run cf:deploy`。`CLOUDFLARE_PAGES_PROJECT_NAME` が必須。
-- ローカル確認: `cd apps/web && npm run cf:preview`。
+- Direct Upload: `cd apps/web && npm run cf:deploy`。`CLOUDFLARE_PAGES_PROJECT_NAME`、`LIGHTLIST_IOS_TEAM_ID`、`LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` が必須。
+- ローカル確認: `cd apps/web && npm run cf:preview`。`LIGHTLIST_IOS_TEAM_ID` と `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` が必須。
 - CI で `wrangler pages deploy` を使う場合は `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` を設定する。Pages project は事前に作成しておく。
-- response headers は `apps/web/public/_headers` を使う。Pages Functions を追加した場合、Function response の header は Function 側で返す。
+- response headers は `apps/web/public/_headers` を使う。AASA は build 後に `dist/.well-known/apple-app-site-association`、Digital Asset Links は `dist/.well-known/assetlinks.json` へ生成し、どちらも `application/json`・短い cache lifetime で配信する。通常の `npm run build` は Web 単体開発を許可するため、対応する環境変数が未設定なら関連付けファイルを生成しない。Pages Functions を追加した場合、Function response の header は Function 側で返す。
 - `404.html` は `apps/web/dist/404.html` を custom 404 として使う。`500.html` は build 出力へ含めるが、Cloudflare Pages が自動で custom 500 として扱う前提は置かない。
 
 ## Web env

@@ -7,7 +7,7 @@ Firestore / Firebase Auth へのリクエストを正規アプリ（Web / iOS / 
 | プラットフォーム | 本番 Provider | 開発 Provider |
 | --- | --- | --- |
 | Web | reCAPTCHA v3 | Debug token（env 経由） |
-| iOS | App Attest | `AppCheckDebugProviderFactory`（DEBUG build） |
+| iOS | App Attest（未対応端末は DeviceCheck） | `AppCheckDebugProviderFactory`（DEBUG build） |
 | Android | Play Integrity | `DebugAppCheckProviderFactory`（debug variant） |
 
 ### Web
@@ -20,8 +20,8 @@ Firestore / Firebase Auth へのリクエストを正規アプリ（Web / iOS / 
 ### iOS
 
 - `apps/ios/Lightlist/Sources/ContentView.swift` の `LightlistApp.init()` で、`FirebaseApp.configure()` より前に provider factory を設定する（順序は必須）。
-- Release build は `AppAttestProvider`、DEBUG build は `AppCheckDebugProviderFactory`。
-- App Attest には entitlement `com.apple.developer.devicecheck.appattest-environment`（値 `production`）が必要。`Lightlist.entitlements` に設定済み。Apple Developer Portal の App ID で App Attest capability の有効化が必要。
+- Release build は `DCAppAttestService.shared.isSupported` の端末で `AppAttestProvider`、未対応端末で `DeviceCheckProvider` を使う。DEBUG build は `AppCheckDebugProviderFactory`。
+- App Attest には entitlement `com.apple.developer.devicecheck.appattest-environment`（値 `production`）が必要。`Lightlist.entitlements` に設定済み。Apple Developer Portal の App ID で App Attest capability の有効化が必要。DeviceCheck fallback には Apple Developer Portal で作成した DeviceCheck private key が必要。
 - SPM 依存は `project.yml` の `FirebaseAppCheck`。
 
 ### Android
@@ -38,7 +38,7 @@ Firestore / Firebase Auth へのリクエストを正規アプリ（Web / iOS / 
 ### 1. アプリ登録（Firebase Console → 構築 → App Check → アプリ）
 
 - Web: 「reCAPTCHA」（v3）を選択。事前に <https://www.google.com/recaptcha/admin> で site key を作成する（GCP の API 有効化・課金設定は不要。許可ドメインは `lightlist.com` とプレビュー用ドメイン。`localhost` は debug token を使うため不要）。site key を App Check に登録し、同じ値を deploy 環境変数 `VITE_FIREBASE_APPCHECK_SITE_KEY` に、secret key を App Check の登録欄に設定する。
-- iOS: 「App Attest」を選択。Team ID は Apple Developer のものが自動表示される。token TTL は既定の 1 時間でよい。
+- iOS: 「App Attest」を登録する。Team ID は Apple Developer のものが自動表示される。加えて DeviceCheck provider も登録し、Apple Developer Portal で作成した DeviceCheck private key を設定する。Release build は App Attest 未対応端末で DeviceCheck token を送るため、両方を登録してから enforcement を有効化する。token TTL は既定の 1 時間でよい。
 - Android: 「Play Integrity」を選択。事前に Firebase の Android アプリ設定へ release 署名の SHA-256 fingerprint を登録し、アプリが Google Play に（内部テスト以上で）公開されていること。Play Console → 設定 → アプリの完全性 で Play Integrity API をリンクする。
 
 ### 2. Debug token の登録（各アプリ → メニュー → デバッグトークンを管理）
@@ -57,6 +57,6 @@ Firestore / Firebase Auth へのリクエストを正規アプリ（Web / iOS / 
 
 - App Check は認証とは独立。共有コードによる未認証アクセス（閲覧・編集）も enforcement 後は有効な App Check token が必要だが、正規アプリ経由なら未認証のまま従来どおり動作する（共有権限モデルは変更しない）。
 - enforcement 適用後、site key 未設定の Web デプロイや console 未登録の debug build は Firestore アクセスが全拒否される。適用前に全配信チャネルの設定完了を確認する。
-- iOS の App Attest は simulator では動作しない（DEBUG build は debug provider のため通常開発に影響なし）。Release 検証を実機で行う場合も TestFlight / App Store 配布なら production 環境の App Attest が使われる。
+- iOS の App Attest は simulator では動作しない（DEBUG build は debug provider のため通常開発に影響なし）。Release 検証は実機で行い、App Attest 対応端末と未対応端末の双方で token が取得できることを確認する。TestFlight / App Store 配布で App Attest を使う場合は production 環境が必要。
 - Android の Play Integrity は Google Play 開発者サービスが必要。Play 外配布の release APK（`just build-release` の内部確認用 APK 含む）は attestation に失敗するため、enforcement 後は Play 配布ビルドで確認する。
 - reCAPTCHA v3（classic）は課金アカウント不要で利用できる。Firebase の公式推奨は reCAPTCHA Enterprise で、classic の管理画面は将来 GCP console へ統合される可能性があるが、既存 site key は継続して動作する。Enterprise へ移行する場合は `entry.tsx` の provider を `ReCaptchaEnterpriseProvider` へ替え、App Check の登録も Enterprise site key へ差し替える。

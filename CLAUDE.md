@@ -23,7 +23,7 @@
 - Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
 - SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/entry.tsx` に統合済み。独立パッケージは廃止。
 - Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。
-- Firebase App Check は 3 プラットフォームで有効化する（Web: reCAPTCHA v3 / iOS: App Attest / Android: Play Integrity、開発時は各 debug provider）。Web は `VITE_FIREBASE_APPCHECK_SITE_KEY` 未設定なら無効。Console 手順と enforcement 制約は `docs/app-check.md` を正とする。
+- Firebase App Check は 3 プラットフォームで有効化する（Web: reCAPTCHA v3 / iOS: App Attest、未対応端末は DeviceCheck / Android: Play Integrity、開発時は各 debug provider）。iOS の Firebase Console には App Attest と DeviceCheck の両 provider を登録する。Web は `VITE_FIREBASE_APPCHECK_SITE_KEY` 未設定なら無効。Console 手順と enforcement 制約は `docs/app-check.md` を正とする。
 - Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
 - Web のアプリ側 HTML entry（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。LP（`apps/web/html/index.html`）はアプリと完全分離し、ja 本文直書きの静的 HTML + `apps/web/src/lp.ts`（vanilla TS。react / firebase / i18next 非依存）で構成する。script path は各 HTML ファイル自身の配置位置を基準に相対指定し、Vite 設定の `/src` alias を維持する。Firebase Analytics とカレンダー用 date-fns locale は静的 import に戻さず、実使用時の dynamic import + Vite chunk として保持する。
 - Web は外部スタイル生成ライブラリを使わず、`apps/web/src/styles/globals.css` の通常 CSS と `apps/web/src/styles/compiled-styles.css` でスタイルを保持する。モーションは `globals.css` の `ll-anim-*` / `ll-pressable` 等の named class で管理し、3 プラットフォームとも OS / ブラウザの reduce motion 設定を尊重する。フォント CSS は bundle に巻き込まず、各 HTML entry で public asset として非 render-blocking（preload + `noscript` fallback）で読む。新規スタイルは通常 CSS または既存の named class を優先する。
@@ -34,7 +34,7 @@
 - Firebase デプロイ設定（`firestore.rules`, `firebase.json`, `.firebaserc`）はリポジトリルートに配置。
 - `.gitignore` はルートで共通ローカル生成物を管理し、`apps/web` / `apps/ios` / `apps/android` 配下は各アプリ固有の生成物だけを管理する。
 - `apps/ios` では `xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` と `apps/ios/Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` を commit しない。
-- iOS の entitlements は `apps/ios/Lightlist/Lightlist.entitlements`、Privacy Manifest は `apps/ios/Lightlist/Resources/PrivacyInfo.xcprivacy` を正とする。
+- iOS の entitlements は `apps/ios/Lightlist/Lightlist.entitlements`、Privacy Manifest は `apps/ios/Lightlist/Resources/PrivacyInfo.xcprivacy` を正とする。Privacy Manifest にはメールアドレス、クラッシュデータ、その他の診断データ、Product Interaction、UserDefaults API を宣言し、Crashlytics へユーザー入力や生の例外理由を送らない。
 - iOS の Info.plist は xcodegen の `info:`（`project.yml`）で `Lightlist/Info.plist` へ生成し、`CFBundleLocalizations` / `CFBundleURLTypes` / `UIAppFonts` / `PASSWORD_RESET_URL` は `info.properties` 側に書く。配列・辞書・カスタムキーを `INFOPLIST_KEY_*` で渡しても built product に入らない。development language は `ja`。
 - iOS の App Store 提出物は `cd apps/ios && LIGHTLIST_IOS_TEAM_ID=<Team ID> just archive` で生成する IPA（`apps/ios/build-archive/export/Lightlist.ipa`）を正とする。export 設定は `apps/ios/ExportOptions.plist`、手順は `docs/release-ios.md`。再アップロード時は `project.yml` の `CURRENT_PROJECT_VERSION` を上げる。
 - iOS の bundle identifier と Android の applicationId は `com.lightlist.app` を正とする。Android の Gradle `namespace` と Kotlin パッケージも `com.lightlist.app` に揃える。
@@ -52,10 +52,11 @@
 - タスクリストは `taskLists.memberCount` で保持ユーザー数を管理し、削除操作は `taskListOrder` からの離脱を基本とする（現在の `memberCount` が 1 以下のときのみ実体削除）。
 - 共有権限モデルは「共有URLを知っているユーザーは未認証でも閲覧・編集可」を固定仕様とし、production readiness 評価の item1（認可モデル再設計）は 2026-03 時点で対応不要とする。
 - 共有コードは bearer credential として扱い、有効な共有コード保有者は未認証でも `taskLists` の `name` `tasks` `history` `background` `shareCode` を更新できる。
-- 共有コード生成は 8 文字の英大文字・数字を暗号学的乱数で作る。Web は `crypto.getRandomValues`、iOS は `SecRandomCopyBytes`、Android は `SecureRandom` を使い、生成・削除は事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。試行は最大 10 回で、既存 shareCode の doc は正規化（trim + uppercase）した ID で同 batch 削除する。リスト実体削除（アカウント削除含む）でも `shareCodes` doc を残さない。
+- 共有コード生成は 8 文字の英大文字・数字を暗号学的乱数で作る。Web は `crypto.getRandomValues`、iOS は `SecRandomCopyBytes`、Android は `SecureRandom` を使い、生成・削除は事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。試行は最大 10 回で、既存 shareCode の doc は正規化（trim + uppercase）した ID で同 batch 削除する。外部入力・deep link・既存値は `^[A-Z0-9]{8}$` を検証してから document path に使う。リスト実体削除（アカウント削除含む）でも `shareCodes` doc を残さない。
 - `taskListOrder/{uid}` は本人が任意の `taskListId` を追加でき、その追加自体を共有済み・参加済みリストの保持権限付与として扱う。
 - `taskLists` / `taskListOrder` / `shareCodes` の `createdAt` / `updatedAt` は Firestore Rules の `int` 型検証と pending snapshot の安定性に合わせ、server timestamp ではなく Unix epoch milliseconds の number を書き込む。Web の `taskLists` 読み取りは既存データや pending snapshot に timestamp-like 値が混在しても `estimate` として解決する。
 - iOS の認証済み画面遷移は `RootView` の `AppRoute` と `NavigationStack` / `NavigationSplitView` で管理し、compact 幅は `TaskListsView` から `TaskListDetailPagerView` / `SettingsView` / `CalendarScreenView` へ遷移し、regular 幅は 360pt サイドバーと `RegularTaskListDetailPagerView` / `SettingsView` / `CalendarScreenView` の detail pane で表示する。
+- タスクリスト詳細のページャーは、追加入力欄がフォーカス中にスワイプまたはスクロールで別リストへ切り替わる場合だけ、切替先の追加入力欄へフォーカスを引き継ぐ。
 - iOS の `TaskListDetailPagerView` / `RegularTaskListDetailPagerView` は、選択中タスクリストの `background` を詳細画面背景として使う。compact 幅は safe area を含む全面、regular 幅は detail column 内だけに適用し、sidebar と split 境界線には広げない。各 `TaskListDetailPage` 本文も同じ色を使い、未設定時だけ `Color(.systemBackground)` にフォールバックする。
 - iOS の compact 幅タスクリスト詳細は `TaskListDetailPagerView` 自体を full screen コンテナとして描画し、最外層背景は選択中タスクリストの `background` を `ignoresSafeArea()` で全面へ敷く。本体は画面いっぱいの `VStack` を同じ背景で満たす。ページャーのインジケータだけを固定表示し、タスクリスト名、タスク追加欄、並び替え・完了済み削除操作、タスク行は同じ `ScrollView + LazyVStack` に載せて edge-to-edge にスクロールさせる。regular 幅では detail 側の背景を clip し、divider は sidebar 側の通常背景で固定する。
 - Android の `TaskListDetailPagerScreen` は選択中タスクリストの `background` を詳細ペイン背景として使う。compact 幅は画面全体、regular 幅は右ペインだけに適用し、左ペインと split 境界線は `MaterialTheme.colorScheme.background` / `outlineVariant` で固定する。`TaskListDetailPage` はページャーのインジケータだけを固定表示し、タスクリスト名、タスク追加欄、並び替え・完了済み削除操作、タスク一覧を同じ `LazyColumn` に含める。
@@ -80,11 +81,11 @@
 - iOS の SwiftUI 並び替えドラッグは、移動中の行の local 座標系ではなく親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で収集した行高さだけを使う。`frame(in:)` の位置監視を drag state に戻さない。
 - iOS の全画面ルートと sheet / dialog は `frame(maxWidth: .infinity, maxHeight: .infinity)` を維持しつつ、背景ビュー側だけで safe area を無視する。標準ナビゲーションバーを使わない iPhone ヘッダーは `safeAreaInset(edge: .top)` を使う。`ScrollView` ベースの全画面フォームはカードラッパーを持たず、外側 `maxWidth` 制約や `RoundedRectangle` でカード化しない。
 - iOS の custom header 付き画面と sheet / dialog は、header を `safeAreaInset(edge: .top)` に載せ、本文 root も `frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)` で画面高または detent 高いっぱいまで広げる。header inset と重複する大きな `padding(.top)` は本文側で足さず、追加の視覚余白は最小限に留める。
-- パスワードリセットURLは `VITE_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
+- パスワードリセットURLは `VITE_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。Android native reset の Firebase Hosting link domain は `BuildConfig.PASSWORD_RESET_LINK_DOMAIN` / manifest placeholder で揃え、`LIGHTLIST_FIREBASE_AUTH_LINK_DOMAIN` は Firebase Hosting で構成済みの domain にだけ使う。
 - iOS のパスワードリセット URL は Info.plist の `PASSWORD_RESET_URL`、Android は `BuildConfig.PASSWORD_RESET_URL` を使い、既定値は `https://lightlist.com/password_reset` とする。
 - Android の認証フォームは Compose Autofill を有効にするため `ContentView.kt` の `OutlinedTextField` に `contentType` を必ず設定し、サインインは既存資格情報、サインアップ/パスワードリセットは新規資格情報として宣言する。
-- iOS / Android の未ログイン起動時の認証画面は、保存済み settings が無い場合に端末ロケールをサポート言語へ丸めて初回表示言語として使う（iOS は `resolveDeviceLanguage()`、Android は `resolveDeviceLanguage()`）。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` に丸め、それ以外の未対応ロケールは `ja` にフォールバックする。`ja` 固定にしない。Android の `Translations` は初回描画前にロード済みインスタンスを `CompositionLocal` へ渡して翻訳キーの生表示を避ける。
-- iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。共有コード deep link は未認証でも共有リストプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。Android の deep link は `lightlist://password-reset?...`、`lightlist://sharecodes/...`、`https://lightlist.com/sharecodes/...`、`https://lightlist.com/password_reset?...` を処理する。
+- iOS / Android の未ログイン起動時の認証画面は、保存済み settings が無い場合に端末ロケールをサポート言語へ丸めて初回表示言語として使う（iOS は `resolveDeviceLanguage()`、Android は `resolveDeviceLanguage()`）。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` に丸め、それ以外の未対応ロケールは `ja` にフォールバックする。`ja` 固定にしない。iOS は `RootView` から選択言語の locale / gregorian calendar と、`ar` 時の RTL layout direction を環境へ渡す。Android の `Translations` は初回描画前にロード済みインスタンスを `CompositionLocal` へ渡して翻訳キーの生表示を避ける。
+- iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。共有コード deep link は未認証でも共有リストプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。HTTPS 共有リンクの正規形は `https://lightlist.com/sharecodes/?code=CODE`、パスワードリセットは `https://lightlist.com/password_reset?oobCode=...`。両 native app は各 HTTPS URL と `lightlist://password-reset?...` / `lightlist://sharecodes/CODE` を処理する。
 - iOS の認証状態監視と認証画面表示は `RootView` に集約し、子 view に auth listener や認証用 full screen cover を分散させない。子 view は `currentUserId` を引数で受けて `onAppear` / `onChange` で bind し、`TaskListsView` は `onDisappear` で listener を解除しない。
 - Web の本番 security headers は配信基盤側で管理する。
 - Android の release build は `isMinifyEnabled = true`、`allowBackup = false` を維持する。
@@ -116,7 +117,7 @@
 - Web / iOS / Android のタスク入力候補は `taskLists.history` を共通の正本として使い、履歴更新はタスク追加時と本文変更時に行う。候補表示条件は trim 後 2 文字以上の部分一致・最大 20 件・完全一致除外で Web 仕様に揃える。
 - task のピン留めは `tasks.*.pinned` だけを追加し、`pinOrder` は持たない。表示順は `未完了 pinned -> 未完了 unpinned -> 完了`、各グループ内は `order` 昇順を正とする。`autoSort` 有効時は各グループ内を `date -> order` で再採番する。pinned task の右端 action はカレンダーではなくピンアイコンを表示し、強めの本文 weight で通常 task と区別する。
 - Web の認証後シェルは `apps/web/src/entry.tsx` 内の app page 実装を単一入口とし、`/app/#/task-lists` を stack root、`/app/#/task-lists/:taskListId` を task list 詳細、`/app/#/settings` を設定画面として扱う。`/app/` は bootstrap alias として client mount 後に `#/task-lists` を積み、taskLists 解決まで詳細スケルトン表示のまま待ってから前回選択リスト（localStorage `lightlist.lastTaskList`）か先頭リストの `#/task-lists/:taskListId` を push する。横スライドアニメーションは初期 route 確定後に有効化する。`/settings` の独立 route は持たない。
-- Web の本番静的配信は Cloudflare Pages を正とし、root path 配信を前提に Vite `base` は `/` を維持する。build 出力は `apps/web/dist`、Cloudflare Pages 用 response headers は `apps/web/public/_headers` に置く。
+- Web の本番静的配信は Cloudflare Pages を正とし、root path 配信を前提に Vite `base` は `/` を維持する。build 出力は `apps/web/dist`、Cloudflare Pages 用 response headers は `apps/web/public/_headers` に置く。AASA は `LIGHTLIST_IOS_TEAM_ID`、Digital Asset Links は `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT`（Play App Signing SHA-256、複数はカンマ区切り）を使って build 後に `dist/.well-known/` へ生成するため、Git integration / `cf:preview` / `cf:deploy` に両環境変数を設定する。
 - iOS / Android の translation loader と analytics helper は `ContentView.swift` / `ContentView.kt` に同居させる。
 - Android の app module は `ContentView.kt` 内の analytics helper が `BuildConfig.DEBUG` を参照するため、`apps/android/app/build.gradle.kts` の `buildFeatures.buildConfig = true` を維持する。
 - Android の Firebase 設定は build variant ごとに `google-services.json` を分け、debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json` を使う。release 用ファイルの package 名は `com.lightlist.app` と一致させる。
@@ -134,8 +135,8 @@
 - Web 認証ページ実装: `apps/web/src/entry.tsx`（HTML entry は `apps/web/html/login/index.html`）
 - 共有ページ実装: `apps/web/src/entry.tsx`（HTML entry は `apps/web/html/sharecodes/index.html`）
 - Firestore デプロイ: ルートの `just deploy-firestore` / `just deploy-firestore-prod`
-- Cloudflare Pages ローカル確認: `cd apps/web && npm run cf:preview`
-- Cloudflare Pages Direct Upload: `cd apps/web && npm run cf:deploy`
+- Cloudflare Pages ローカル確認: `cd apps/web && LIGHTLIST_IOS_TEAM_ID=<Team ID> LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT=<Play App Signing SHA-256> npm run cf:preview`
+- Cloudflare Pages Direct Upload: `cd apps/web && LIGHTLIST_IOS_TEAM_ID=<Team ID> LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT=<Play App Signing SHA-256> npm run cf:deploy`
 - Web の本番 env は Vite の `.env.production` / `.env.production.local` または deploy 環境変数で供給し、build 前に `.env` をコピーしない。
 - Android: `cd apps/android && just lint` / `cd apps/android && just build` / `cd apps/android && just build-release` / `cd apps/android && just bundle-play`
 

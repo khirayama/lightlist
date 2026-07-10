@@ -11,8 +11,9 @@
 
 ## 例外送信
 
-- `logException(description, fatal)` は `app_exception` を送信する。
-- iOS / Android は `app_exception` 送信に加えて Crashlytics へも記録し、未捕捉例外ハンドラを設定する。
+- `app_exception` は捕捉済みの非致命例外だけを送信する。`operation` は固定の操作名、`error_category` は Firebase code または例外クラス名に限定する。
+- Android は `recordNonFatalException()` で同じ固定情報だけを Crashlytics の non-fatal として記録する。Crashlytics は未捕捉例外を自動収集するため、アプリで default uncaught exception handler を差し替えない。
+- 例外 message、ユーザー入力、メールアドレス、共有コード、UID、時刻などの一意値を Analytics / Crashlytics へ送らない。
 
 ## イベント一覧
 
@@ -34,4 +35,4 @@
 - `app_settings_language_change`: `language: string`
 - `app_settings_task_insert_position_change`: `position: "top" | "bottom"`
 - `app_settings_auto_sort_change`: `enabled: boolean`
-- `app_exception`: `description: string`, `fatal: boolean`
+- `app_exception`: `operation: string`, `error_category?: string`

@@ -10,6 +10,7 @@
 - 生成・削除は transaction ではなく、事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。既存 `shareCode` の doc は正規化（trim + uppercase）した ID で同 batch 削除する。
 - リスト実体削除（アカウント削除を含む）でも、残った `shareCode` に対応する `shareCodes` doc を残さない。
 - `fetchTaskListIdByShareCode()`: 共有コードから `taskListId` を解決する。
+- 外部入力、deep link、既存の `taskLists.shareCode` から Firestore document path を作る前に、trim + uppercase 後の完全一致 `^[A-Z0-9]{8}$` を必ず検証する。不正な値は未検出として扱い、不正な document path を作らない。
 
 ## リストへの参加
 
@@ -31,6 +32,6 @@
 ## 画面導線
 
 - 共有コードプレビューは未認証でも開く。ログイン済みかつ未参加のときだけ `taskListOrder` へ追加する導線を表示する。
-- Web: `/sharecodes/?code=CODE`
-- iOS: `lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`
-- Android: `lightlist://sharecodes/CODE`、`https://lightlist.com/sharecodes/CODE`
+- Web / HTTPS: `https://lightlist.com/sharecodes/?code=CODE`
+- iOS: `lightlist://sharecodes/CODE`、HTTPS 正規形
+- Android: `lightlist://sharecodes/CODE`、HTTPS 正規形

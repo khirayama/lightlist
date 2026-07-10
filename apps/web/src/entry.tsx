@@ -2260,8 +2260,12 @@ const getValidMemberCount = (taskList: TaskListStore): number => {
   return taskList.memberCount;
 };
 
-const normalizeShareCode = (shareCode: string): string =>
-  shareCode.trim().toUpperCase();
+const shareCodePattern = /^[A-Z0-9]{8}$/;
+
+const normalizeShareCode = (shareCode: string): string | null => {
+  const normalized = shareCode.trim().toUpperCase();
+  return shareCodePattern.test(normalized) ? normalized : null;
+};
 
 function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
   const getDateKey = (task: TaskListStoreTask): string =>
@@ -2479,9 +2483,10 @@ async function deleteTaskList(taskListId: string) {
   });
   if (getValidMemberCount(taskList) <= 1) {
     if (taskList.shareCode) {
-      batch.delete(
-        doc(db, "shareCodes", normalizeShareCode(taskList.shareCode)),
-      );
+      const shareCode = normalizeShareCode(taskList.shareCode);
+      if (shareCode) {
+        batch.delete(doc(db, "shareCodes", shareCode));
+      }
     }
     batch.delete(taskListRef);
   } else {
@@ -2706,6 +2711,7 @@ const MAX_SHARE_CODE_ATTEMPTS = 10;
 
 async function fetchTaskListByShareCode(shareCode: string) {
   const normalizedCode = normalizeShareCode(shareCode);
+  if (!normalizedCode) return null;
   const snapshots = await getDoc(
     doc(getDbInstance(), "shareCodes", normalizedCode),
   );
@@ -2766,7 +2772,9 @@ async function removeShareCode(taskListId: string) {
   const normalizedCode = normalizeShareCode(taskList.shareCode);
   const db = getDbInstance();
   const batch = writeBatch(db);
-  batch.delete(doc(db, "shareCodes", normalizedCode));
+  if (normalizedCode) {
+    batch.delete(doc(db, "shareCodes", normalizedCode));
+  }
   batch.update(doc(db, "taskLists", taskListId), {
     shareCode: null,
     updatedAt: Date.now(),
@@ -2793,9 +2801,10 @@ async function generateShareCode(taskListId: string): Promise<string> {
       const taskList = await getTaskListData(taskListId);
       const batch = writeBatch(db);
       if (taskList.shareCode) {
-        batch.delete(
-          doc(db, "shareCodes", normalizeShareCode(taskList.shareCode)),
-        );
+        const previousShareCode = normalizeShareCode(taskList.shareCode);
+        if (previousShareCode) {
+          batch.delete(doc(db, "shareCodes", previousShareCode));
+        }
       }
       batch.set(shareCodeRef, {
         taskListId,
@@ -4286,6 +4295,8 @@ function Carousel({
   getIndicatorLabel,
   scrollEnabled = true,
   indicatorInFlow = false,
+  onScrollStart,
+  onScrollEnd,
 }: {
   children: React.ReactNode;
   index: number;
@@ -4298,6 +4309,8 @@ function Carousel({
   getIndicatorLabel?: (index: number, total: number) => string;
   scrollEnabled?: boolean;
   indicatorInFlow?: boolean;
+  onScrollStart?: () => void;
+  onScrollEnd?: (index: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef(false);
@@ -4353,6 +4366,9 @@ function Carousel({
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
+    if (!isScrollingRef.current) {
+      onScrollStart?.();
+    }
     isScrollingRef.current = true;
     if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     scrollTimeoutRef.current = setTimeout(() => {
@@ -4369,12 +4385,13 @@ function Carousel({
       );
       const nextIndex = Math.round(inlineOffset / container.clientWidth);
       const clampedIndex = Math.max(0, Math.min(nextIndex, count - 1));
+      onScrollEnd?.(clampedIndex);
       if (clampedIndex !== currentIndexRef.current) {
         skipSmoothSyncRef.current = true;
         onIndexChange(clampedIndex);
       }
     }, 150);
-  }, [count, direction, onIndexChange]);
+  }, [count, direction, onIndexChange, onScrollEnd, onScrollStart]);
 
   return (
     <div
@@ -5036,7 +5053,7 @@ function ShareTaskListDialog({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [shareCode, setShareCode] = useState<string | null>(
-    taskList.shareCode ?? null,
+    taskList.shareCode ? normalizeShareCode(taskList.shareCode) : null,
   );
   const [copySuccess, setCopySuccess] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -5045,7 +5062,9 @@ function ShareTaskListDialog({
 
   useEffect(() => {
     if (!open) return;
-    setShareCode(taskList.shareCode ?? null);
+    setShareCode(
+      taskList.shareCode ? normalizeShareCode(taskList.shareCode) : null,
+    );
   }, [taskList.shareCode, open]);
 
   return (
@@ -5055,7 +5074,9 @@ function ShareTaskListDialog({
         onActivate?.(taskList.id);
         setOpen(nextOpen);
         if (nextOpen) {
-          setShareCode(taskList.shareCode ?? null);
+          setShareCode(
+            taskList.shareCode ? normalizeShareCode(taskList.shareCode) : null,
+          );
           setCopySuccess(false);
           setError(null);
         }
@@ -5174,6 +5195,8 @@ function TaskListCard({
   autoSort,
   taskInsertPosition,
   isActive,
+  shouldFocusNewTaskInput,
+  onNewTaskInputFocusChange,
   onActivate,
   sensorsList,
   onSortingChange,
@@ -5187,6 +5210,8 @@ function TaskListCard({
   autoSort: boolean;
   taskInsertPosition: TaskInsertPosition;
   isActive: boolean;
+  shouldFocusNewTaskInput: boolean;
+  onNewTaskInputFocusChange: (taskListId: string, isFocused: boolean) => void;
   onActivate?: (taskListId: string) => void;
   sensorsList: SensorDescriptor<SensorOptions>[];
   onSortingChange?: (sorting: boolean) => void;
@@ -5231,6 +5256,12 @@ function TaskListCard({
   const newTaskInputRef = useRef<HTMLInputElement | null>(null);
   const taskActionTriggerRef = useRef<HTMLButtonElement | null>(null);
   const previousTaskActionTaskIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isActive && shouldFocusNewTaskInput) {
+      newTaskInputRef.current?.focus();
+    }
+  }, [isActive, shouldFocusNewTaskInput]);
 
   const normalizePendingTasks = useCallback(
     (nextTasks: Task[]): Task[] => {
@@ -5501,10 +5532,12 @@ function TaskListCard({
                     onFocus={() => {
                       setHistoryOpen(true);
                       setIsInputFocused(true);
+                      onNewTaskInputFocusChange(taskList.id, true);
                     }}
                     onBlur={() => {
                       setHistoryOpen(false);
                       setIsInputFocused(false);
+                      onNewTaskInputFocusChange(taskList.id, false);
                     }}
                     onKeyDown={(event) => {
                       if (event.nativeEvent.isComposing) return;
@@ -6852,6 +6885,10 @@ function AppShellPage() {
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
     startupTaskListSnapshot?.id ?? null,
   );
+  const [focusedNewTaskListId, setFocusedNewTaskListId] = useState<
+    string | null
+  >(null);
+  const moveNewTaskFocusOnCarouselScrollRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const { items: taskLists, reorder: reorderTaskList } = useOptimisticReorder(
     stateTaskLists,
@@ -7216,8 +7253,7 @@ function AppShellPage() {
       }}
       onJoinList={async (code) => {
         setError(null);
-        const normalizedCode = code.trim().toUpperCase();
-        const taskListId = await fetchTaskListIdByShareCode(normalizedCode);
+        const taskListId = await fetchTaskListIdByShareCode(code);
         if (!taskListId) {
           throw new Error(t("pages.sharecode.notFound"));
         }
@@ -7312,6 +7348,17 @@ function AppShellPage() {
           index={selectedTaskListIndex}
           direction={carouselDirection}
           scrollEnabled={!isTaskSorting && !isTaskDragInteracting}
+          onScrollStart={() => {
+            moveNewTaskFocusOnCarouselScrollRef.current =
+              focusedNewTaskListId === selectedTaskListId;
+          }}
+          onScrollEnd={(index) => {
+            const taskList = taskLists[index];
+            if (moveNewTaskFocusOnCarouselScrollRef.current && taskList) {
+              setFocusedNewTaskListId(taskList.id);
+            }
+            moveNewTaskFocusOnCarouselScrollRef.current = false;
+          }}
           onIndexChange={(index) => {
             const taskList = taskLists[index];
             if (taskList) {
@@ -7348,6 +7395,16 @@ function AppShellPage() {
                   autoSort={settings?.autoSort ?? false}
                   taskInsertPosition={settings?.taskInsertPosition ?? "top"}
                   isActive={selectedTaskListId === taskList.id}
+                  shouldFocusNewTaskInput={focusedNewTaskListId === taskList.id}
+                  onNewTaskInputFocusChange={(taskListId, isFocused) => {
+                    setFocusedNewTaskListId((currentTaskListId) =>
+                      isFocused
+                        ? taskListId
+                        : currentTaskListId === taskListId
+                          ? null
+                          : currentTaskListId,
+                    );
+                  }}
                   onActivate={openTaskList}
                   sensorsList={sensorsList}
                   onSortingChange={setIsTaskSorting}

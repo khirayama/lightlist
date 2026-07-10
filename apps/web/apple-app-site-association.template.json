@@ -1,0 +1,20 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["__LIGHTLIST_IOS_TEAM_ID__.com.lightlist.app"],
+        "components": [
+          {
+            "/": "/sharecodes/"
+          },
+          {
+            "/": "/sharecodes/*"
+          },
+          {
+            "/": "/password_reset"
+          }
+        ]
+      }
+    ]
+  }
+}

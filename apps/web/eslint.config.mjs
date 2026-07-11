@@ -27,10 +27,6 @@ export default [
           parserOpts: {
             plugins: [["typescript", { isTSX: true }], "jsx"],
           },
-          plugins: [
-            "@babel/plugin-syntax-jsx",
-            ["@babel/plugin-syntax-typescript", { isTSX: true }],
-          ],
         },
       },
       globals: {
@@ -55,7 +51,6 @@ export default [
           parserOpts: {
             plugins: [["typescript", { dts: true }]],
           },
-          plugins: [["@babel/plugin-syntax-typescript", { dts: true }]],
         },
       },
       globals: {

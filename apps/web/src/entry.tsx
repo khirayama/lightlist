@@ -64,6 +64,7 @@ import type {
   User as FirebaseAuthUser,
 } from "firebase/auth";
 import {
+  CACHE_SIZE_UNLIMITED,
   collection,
   deleteField,
   doc,
@@ -384,6 +385,7 @@ const getDbInstance = (): Firestore => {
     cachedDb = initializeFirestore(app, {
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager(),
+        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
       }),
     });
   } catch (error) {
@@ -787,6 +789,40 @@ const writeLastUid = (uid: string | null): void => {
     } else {
       window.localStorage.removeItem(LAST_UID_STORAGE_KEY);
     }
+  } catch {
+    return;
+  }
+};
+
+const TASK_LIST_ORDER_IDS_STORAGE_KEY_PREFIX = "lightlist.taskListOrder.";
+
+const readCachedTaskListOrderIds = (uid: string): string[] => {
+  try {
+    const raw = window.localStorage.getItem(
+      `${TASK_LIST_ORDER_IDS_STORAGE_KEY_PREFIX}${uid}`,
+    );
+    if (!raw) {
+      return [];
+    }
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter((id): id is string => typeof id === "string");
+  } catch {
+    return [];
+  }
+};
+
+const writeCachedTaskListOrderIds = (
+  uid: string,
+  taskListOrder: TaskListOrderStore | null,
+): void => {
+  try {
+    window.localStorage.setItem(
+      `${TASK_LIST_ORDER_IDS_STORAGE_KEY_PREFIX}${uid}`,
+      JSON.stringify(getOrderedTaskListIds(taskListOrder)),
+    );
   } catch {
     return;
   }
@@ -1387,11 +1423,13 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         if (!isSubscribed || hasLiveSnapshot) {
           return;
         }
+        const taskListOrder = snapshot.exists()
+          ? (snapshot.data() as TaskListOrderStore)
+          : null;
+        writeCachedTaskListOrderIds(activeUid, taskListOrder);
         dispatchTaskLists({
           type: "setTaskListOrder",
-          taskListOrder: snapshot.exists()
-            ? (snapshot.data() as TaskListOrderStore)
-            : null,
+          taskListOrder,
           taskListOrderStatus: "ready",
         });
       })
@@ -1401,11 +1439,13 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       taskListOrderRef,
       (snapshot) => {
         hasLiveSnapshot = true;
+        const taskListOrder = snapshot.exists()
+          ? (snapshot.data() as TaskListOrderStore)
+          : null;
+        writeCachedTaskListOrderIds(activeUid, taskListOrder);
         dispatchTaskLists({
           type: "setTaskListOrder",
-          taskListOrder: snapshot.exists()
-            ? (snapshot.data() as TaskListOrderStore)
-            : null,
+          taskListOrder,
           taskListOrderStatus: "ready",
         });
       },
@@ -2314,7 +2354,7 @@ async function getTaskListOrderData(uid: string): Promise<TaskListOrderStore> {
 }
 
 function renumberTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
-  return tasks.map((task, index) => ({ ...task, order: (index + 1) * 1.0 }));
+  return tasks.map((task, index) => ({ ...task, order: index + 1 }));
 }
 
 function getTaskDisplayGroup(
@@ -2333,11 +2373,9 @@ function getOrderedTasks(
 function getDisplayOrderedTasks(
   taskList: Pick<TaskListStore, "tasks">,
 ): TaskListStoreTask[] {
-  return getOrderedTasks(taskList).sort((a, b) => {
-    const aGroup = getTaskDisplayGroup(a);
-    const bGroup = getTaskDisplayGroup(b);
-    if (aGroup !== bGroup) return aGroup - bGroup;
-    return a.order - b.order;
+  return Object.values(taskList.tasks).sort((a, b) => {
+    const groupDifference = getTaskDisplayGroup(a) - getTaskDisplayGroup(b);
+    return groupDifference || a.order - b.order;
   });
 }
 
@@ -2345,10 +2383,7 @@ function getSortedTasks(
   tasks: TaskListStoreTask[],
   settings: ResolvedTaskSettings,
 ): TaskListStoreTask[] {
-  if (settings.autoSort) {
-    return getAutoSortedTasks(tasks);
-  }
-  return renumberTasks(tasks);
+  return settings.autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks);
 }
 
 const MAX_TASK_HISTORY_ENTRIES = 300;
@@ -3051,7 +3086,7 @@ function ColorPicker({
             title={color.label}
             onClick={() => onSelect(color.value)}
             className={clsx(
-              "ll-flex ll-h-8 ll-w-8 ll-items-center ll-justify-center ll-rounded-10px ll-border ll-border-gray-300 ll-text-10px ll-font-semibold ll-text-gray-600 ll-dark-border-gray-700 ll-dark-text-gray-300",
+              "ll-flex ll-h-11 ll-w-11 ll-items-center ll-justify-center ll-rounded-10px ll-border ll-border-gray-300 ll-text-10px ll-font-semibold ll-text-gray-600 ll-dark-border-gray-700 ll-dark-text-gray-300",
               isSelected
                 ? "ll-ring-2 ll-ring-gray-900 ll-ring-offset-2 ll-ring-offset-white ll-dark-ring-gray-50 ll-dark-ring-offset-gray-900"
                 : "",
@@ -3568,8 +3603,8 @@ function SettingsView({
                 <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
                   {t("settings.userInfo.title")}
                 </h2>
-                <div>
-                  <div className="ll-mt-1 ll-flex ll-items-center ll-justify-between ll-gap-2">
+                <div className="ll-mt-1 ll-flex ll-flex-col">
+                  <div className="ll-flex ll-min-h-11 ll-items-center">
                     {user ? (
                       <p className="ll-break-all ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
                         {user.email}
@@ -3577,17 +3612,18 @@ function SettingsView({
                     ) : (
                       <div className="ll-h-5 ll-w-48 ll-animate-pulse ll-rounded ll-bg-gray-300 ll-dark-bg-gray-700" />
                     )}
-                    {!showEmailChangeForm && (
-                      <button
-                        type="button"
-                        onClick={() => setShowEmailChangeForm(true)}
-                        disabled={actionsDisabled}
-                        className="ll-shrink-0b ll-text-xs ll-text-gray-600 ll-underline ll-hover-text-gray-900 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-300 ll-dark-hover-text-gray-50"
-                      >
-                        {t("settings.emailChange.changeButton")}
-                      </button>
-                    )}
                   </div>
+                  <div className="ll-border-t ll-border-gray-300 ll-dark-border-gray-700" />
+                  {!showEmailChangeForm && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEmailChangeForm(true)}
+                      disabled={actionsDisabled}
+                      className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-text-left ll-text-sm ll-font-medium ll-text-gray-900 ll-transition ll-hover-bg-gray-50 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-50 ll-dark-hover-bg-gray-950"
+                    >
+                      {t("settings.emailChange.title")}
+                    </button>
+                  )}
                   {showEmailChangeForm && (
                     <div className="ll-mt-3 ll-flex ll-flex-col ll-gap-3">
                       {emailChangeSuccess ? (
@@ -3773,6 +3809,20 @@ function SettingsView({
                 >
                   <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
                     {t("settings.licenses.openSource")}
+                  </span>
+                  <span className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
+                    &gt;
+                  </span>
+                </button>
+                <div className="ll-border-t ll-border-gray-300 ll-dark-border-gray-700" />
+                <button
+                  type="button"
+                  onClick={onOpenLicenses}
+                  disabled={!onOpenLicenses}
+                  className="ll-flex ll-items-center ll-justify-between ll-gap-3 ll-rounded-lg ll-px-1 ll-py-2 ll-text-left ll-transition ll-hover-bg-gray-50 ll-disabled-cursor-default ll-disabled-hover-bg-transparent ll-dark-hover-bg-gray-950"
+                >
+                  <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
+                    {t("settings.licenses.bundledAssets")}
                   </span>
                   <span className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
                     &gt;
@@ -4137,6 +4187,8 @@ type DatedTask = {
   task: Task;
   dateValue: Date;
   dateKey: string;
+  taskListIndex: number;
+  taskIndex: number;
 };
 
 const getDatedTaskId = (task: DatedTask): string =>
@@ -4632,9 +4684,9 @@ function Calendar({
         caption_label: "ll-text-sm ll-font-semibold",
         nav: "ll-flex ll-items-center ll-justify-between ll-space-x-1",
         button_previous:
-          "ll-h-8 ll-w-8 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+          "ll-pressable ll-h-8 ll-w-8 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
         button_next:
-          "ll-h-8 ll-w-8 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+          "ll-pressable ll-h-8 ll-w-8 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
         month_grid: "ll-w-full",
         weekdays: "ll-flex",
         weekday:
@@ -4642,7 +4694,7 @@ function Calendar({
         week: "ll-mt-2 ll-flex ll-w-full",
         day: "ll-relative ll-flex ll-h-9 ll-flex-1 ll-justify-center ll-p-0 ll-text-center ll-text-sm",
         day_button:
-          "ll-h-9 ll-w-9 ll-rounded-full ll-p-0 ll-font-medium ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-aria-selected-bg-gray-900 ll-aria-selected-text-gray-50 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-aria-selected-bg-gray-50 ll-dark-aria-selected-text-gray-900",
+          "ll-calendar-day ll-h-9 ll-w-9 ll-rounded-full ll-p-0 ll-font-medium ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-aria-selected-bg-gray-900 ll-aria-selected-text-gray-50 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-aria-selected-bg-gray-50 ll-dark-aria-selected-text-gray-900",
         selected: "ll-rounded-full ll-bg-gray-300 ll-dark-bg-white",
         today: "ll-border ll-border-gray-300 ll-dark-border-gray-700",
         outside: "ll-text-gray-400 ll-opacity-50 ll-dark-text-gray-500",
@@ -4722,16 +4774,44 @@ function TaskItemComponent({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id });
+  } = useSortable({
+    id: task.id,
+    transition: {
+      duration: 220,
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+    },
+  });
   const rowOpacity =
-    (isDragging ? 0.5 : 1) * (task.completed ? completedTaskOpacity : 1);
+    (isDragging ? 0.8 : 1) * (task.completed ? completedTaskOpacity : 1);
+  const rowTransform = transform
+    ? {
+        ...transform,
+        scaleX: isDragging ? 1.03 : transform.scaleX,
+        scaleY: isDragging ? 1.03 : transform.scaleY,
+      }
+    : isDragging
+      ? { x: 0, y: 0, scaleX: 1.03, scaleY: 1.03 }
+      : null;
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Transform.toString(rowTransform),
+    transition: transition
+      ? `${transition}, opacity 180ms ease`
+      : "opacity 180ms ease",
     opacity: rowOpacity,
   };
   const [isHandlePointerDown, setIsHandlePointerDown] = useState(false);
   const animateEnterRef = useRef(animateEnter);
+  const rowElementRef = useRef<HTMLDivElement | null>(null);
+  const previousRowLayoutTopRef = useRef<number | null>(null);
+  const previousRowViewportTopRef = useRef<number | null>(null);
+  const layoutAnimationRef = useRef<Animation | null>(null);
+  const setTaskRowRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      setNodeRef(element);
+      rowElementRef.current = element;
+    },
+    [setNodeRef],
+  );
   const actionButtonRef = useRef<HTMLButtonElement | null>(null);
   const editInputRef = useRef<HTMLInputElement | null>(null);
   const taskTextId = `task-item-text-${task.id}`;
@@ -4743,9 +4823,74 @@ function TaskItemComponent({
   const dateTitle = dateDisplayValue
     ? `${setDateLabel}: ${dateDisplayValue}`
     : setDateLabel;
-  const pinLabel = task.pinned
+  const taskActionLabel = task.pinned
     ? t("pages.tasklist.unpinTask")
-    : t("pages.tasklist.pinTask");
+    : dateTitle;
+
+  useIsomorphicLayoutEffect(() => {
+    const element = rowElementRef.current;
+    if (!element) return;
+    if (transform !== null || isDragging) {
+      layoutAnimationRef.current?.cancel();
+      layoutAnimationRef.current = null;
+      previousRowLayoutTopRef.current = null;
+      previousRowViewportTopRef.current = null;
+      return;
+    }
+
+    const nextLayoutTop = element.offsetTop;
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (isExiting || prefersReducedMotion) {
+      layoutAnimationRef.current?.cancel();
+      layoutAnimationRef.current = null;
+      previousRowLayoutTopRef.current = nextLayoutTop;
+      previousRowViewportTopRef.current = element.getBoundingClientRect().top;
+      return;
+    }
+
+    const previousLayoutTop = previousRowLayoutTopRef.current;
+    if (previousLayoutTop === nextLayoutTop) return;
+
+    const previousViewportTop = layoutAnimationRef.current
+      ? element.getBoundingClientRect().top
+      : previousRowViewportTopRef.current;
+    layoutAnimationRef.current?.cancel();
+    layoutAnimationRef.current = null;
+    const nextViewportTop = element.getBoundingClientRect().top;
+    previousRowLayoutTopRef.current = nextLayoutTop;
+    previousRowViewportTopRef.current = nextViewportTop;
+    if (previousViewportTop === null) return;
+
+    const offset = previousViewportTop - nextViewportTop;
+    if (Math.abs(offset) < 1) return;
+    const animation = element.animate(
+      [
+        { transform: `translateY(${offset}px)` },
+        { transform: "translateY(0)" },
+      ],
+      {
+        duration: 220,
+        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      },
+    );
+    layoutAnimationRef.current = animation;
+    const clearAnimation = () => {
+      if (layoutAnimationRef.current === animation) {
+        layoutAnimationRef.current = null;
+      }
+    };
+    animation.addEventListener("finish", clearAnimation, { once: true });
+    animation.addEventListener("cancel", clearAnimation, { once: true });
+  });
+
+  useEffect(
+    () => () => {
+      layoutAnimationRef.current?.cancel();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!isHandlePointerDown) return;
@@ -4779,7 +4924,7 @@ function TaskItemComponent({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={setTaskRowRef}
       style={style}
       className={clsx(
         "ll-task-row ll-flex ll-gap-2 ll-py-1x5",
@@ -4872,8 +5017,8 @@ function TaskItemComponent({
       <button
         ref={actionButtonRef}
         type="button"
-        aria-label={dateTitle}
-        title={dateTitle}
+        aria-label={taskActionLabel}
+        title={taskActionLabel}
         onClick={() => onOpenTaskActions?.(task, actionButtonRef.current)}
         className="ll-pressable ll-flex ll-items-center ll-rounded-lg ll-p-1 ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
       >
@@ -4884,7 +5029,6 @@ function TaskItemComponent({
             focusable="false"
           />
         </span>
-        <span className="ll-sr-only">{pinLabel}</span>
       </button>
     </div>
   );
@@ -4910,11 +5054,13 @@ function EditTaskListDialog({
   isActive,
   onActivate,
   onDeleted,
+  canDelete = true,
 }: {
   taskList: TaskList;
   isActive: boolean;
   onActivate?: (taskListId: string) => void;
   onDeleted?: () => void;
+  canDelete?: boolean;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -4989,34 +5135,38 @@ function EditTaskListDialog({
                 ariaLabelPrefix={t("taskList.selectColor")}
               />
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (!window.confirm(t("taskList.deleteListConfirm.message"))) {
-                  return;
-                }
-                setDeleting(true);
-                setError(null);
-                void deleteTaskList(taskList.id)
-                  .then(() => {
-                    setOpen(false);
-                    onDeleted?.();
-                  })
-                  .catch((deleteError) =>
-                    setError(
-                      resolveErrorMessage(deleteError, t, "common.error"),
-                    ),
-                  )
-                  .finally(() => setDeleting(false));
-              }}
-              disabled={deleting}
-              className={clsx(
-                TASK_CARD_DESTRUCTIVE_BUTTON_CLASS,
-                "ll-mt-6 ll-w-full",
-              )}
-            >
-              {deleting ? t("common.deleting") : t("taskList.deleteList")}
-            </button>
+            {canDelete ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    !window.confirm(t("taskList.deleteListConfirm.message"))
+                  ) {
+                    return;
+                  }
+                  setDeleting(true);
+                  setError(null);
+                  void deleteTaskList(taskList.id)
+                    .then(() => {
+                      setOpen(false);
+                      onDeleted?.();
+                    })
+                    .catch((deleteError) =>
+                      setError(
+                        resolveErrorMessage(deleteError, t, "common.error"),
+                      ),
+                    )
+                    .finally(() => setDeleting(false));
+                }}
+                disabled={deleting}
+                className={clsx(
+                  TASK_CARD_DESTRUCTIVE_BUTTON_CLASS,
+                  "ll-mt-6 ll-w-full",
+                )}
+              >
+                {deleting ? t("common.deleting") : t("taskList.deleteList")}
+              </button>
+            ) : null}
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -5202,6 +5352,7 @@ function TaskListCard({
   onSortingChange,
   onDragInteractionChange,
   onDeleted,
+  canDeleteTaskList = true,
   activeTaskActionTaskId,
   onOpenTaskAction,
   onCloseTaskAction,
@@ -5217,6 +5368,7 @@ function TaskListCard({
   onSortingChange?: (sorting: boolean) => void;
   onDragInteractionChange?: (active: boolean) => void;
   onDeleted?: () => void;
+  canDeleteTaskList?: boolean;
   activeTaskActionTaskId?: string | null;
   onOpenTaskAction?: (taskListId: string, taskId: string) => void;
   onCloseTaskAction?: () => void;
@@ -5383,9 +5535,9 @@ function TaskListCard({
     if (historyOptions.length === 0) setHistoryOpen(false);
   }, [historyOptions.length]);
 
-  const completedTaskCount = useMemo(
-    () => tasks.reduce((count, task) => count + (task.completed ? 1 : 0), 0),
-    [tasks],
+  const completedTaskCount = tasks.reduce(
+    (count, task) => count + (task.completed ? 1 : 0),
+    0,
   );
   const historyListId = `task-history-${reactId.replace(/:/g, "")}`;
   const inputClass = TASK_CARD_INPUT_CLASS;
@@ -5452,6 +5604,7 @@ function TaskListCard({
                     isActive={isActive}
                     onActivate={onActivate}
                     onDeleted={onDeleted}
+                    canDelete={canDeleteTaskList}
                   />
                   <ShareTaskListDialog
                     taskList={taskList}
@@ -5700,7 +5853,7 @@ function TaskListCard({
                           .map((task) => task.id),
                       ),
                     );
-                    await new Promise((resolve) => setTimeout(resolve, 200));
+                    await new Promise((resolve) => setTimeout(resolve, 120));
                   }
                   await runTaskMutationRef
                     .current({
@@ -5917,7 +6070,17 @@ function TaskListCard({
                 : t("pages.tasklist.setDate"),
             ].join(" / ")}
           >
-            <div className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-gap-4 ll-pt-2">
+            <div className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-gap-3">
+              <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-end">
+                <DialogPrimitive.Close asChild>
+                  <button
+                    type="button"
+                    className="ll-inline-flex ll-min-h-11 ll-items-center ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+                  >
+                    {t("common.close")}
+                  </button>
+                </DialogPrimitive.Close>
+              </div>
               <button
                 type="button"
                 aria-pressed={activeTaskActionTask.pinned}
@@ -5955,7 +6118,7 @@ function TaskListCard({
                     },
                   });
                 }}
-                className="ll-flex ll-min-h-12 ll-w-full ll-items-center ll-justify-between ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-gray-50 ll-px-4 ll-py-3 ll-text-start ll-text-sm ll-font-semibold ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
+                className="ll-flex ll-min-h-12 ll-w-full ll-items-center ll-justify-between ll-rounded-xl ll-bg-gray-50 ll-px-4 ll-py-3 ll-text-start ll-text-sm ll-font-semibold ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
               >
                 <span className="ll-flex ll-items-center ll-gap-3">
                   <AppIcon
@@ -5968,8 +6131,23 @@ function TaskListCard({
                     ? t("pages.tasklist.unpinTask")
                     : t("pages.tasklist.pinTask")}
                 </span>
-                <span className="ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
-                  {activeTaskActionTask.pinned ? t("common.done") : ""}
+                <span
+                  aria-hidden="true"
+                  className={clsx(
+                    "ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border",
+                    activeTaskActionTask.pinned
+                      ? "ll-border-gray-900 ll-bg-gray-900 ll-text-gray-50 ll-dark-border-gray-50 ll-dark-bg-gray-50 ll-dark-text-gray-900"
+                      : "ll-border-gray-300 ll-dark-border-gray-700",
+                  )}
+                >
+                  {activeTaskActionTask.pinned ? (
+                    <AppIcon
+                      name="check"
+                      size={14}
+                      aria-hidden="true"
+                      focusable="false"
+                    />
+                  ) : null}
                 </span>
               </button>
               <button
@@ -6002,11 +6180,11 @@ function TaskListCard({
                     },
                   });
                 }}
-                className="ll-inline-flex ll-min-h-11 ll-w-fit ll-items-center ll-self-start ll-rounded-xl ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-600 ll-dark-text-gray-300"
+                className="ll-inline-flex ll-min-h-11 ll-w-fit ll-items-center ll-self-start ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
               >
                 {t("pages.tasklist.clearDate")}
               </button>
-              <div className="ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-rounded-24px ll-border ll-border-gray-300 ll-bg-gray-50 ll-p-3 ll-dark-border-gray-700 ll-dark-bg-gray-950">
+              <div className="ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-rounded-xl ll-bg-gray-50 ll-p-3 ll-dark-bg-gray-950">
                 <Calendar
                   mode="single"
                   selected={parseTaskDateValue(activeTaskActionTask.date)}
@@ -6284,7 +6462,7 @@ function CalendarTaskItem({
     <div
       ref={itemRef}
       className={clsx(
-        "ll-flex ll-items-start ll-gap-2 ll-border-b ll-border-gray-300 ll-px-4 ll-py-2x5 ll-last-border-b-0 ll-dark-border-gray-700",
+        "ll-calendar-task-row ll-flex ll-items-start ll-gap-2 ll-border-b ll-border-gray-300 ll-px-4 ll-py-2x5 ll-last-border-b-0 ll-dark-border-gray-700",
         isHighlighted && "ll-bg-gray-50 ll-dark-bg-gray-700",
       )}
     >
@@ -6344,8 +6522,8 @@ function CalendarScreen({
 
   const datedTasks = useMemo<DatedTask[]>(() => {
     const flattened: DatedTask[] = [];
-    for (const taskList of taskLists) {
-      for (const task of taskList.tasks) {
+    for (const [taskListIndex, taskList] of taskLists.entries()) {
+      for (const [taskIndex, task] of taskList.tasks.entries()) {
         if (task.completed) continue;
         const parsedDate = parseTaskDate(task.date);
         if (!parsedDate) continue;
@@ -6356,15 +6534,17 @@ function CalendarScreen({
           task,
           dateValue: parsedDate,
           dateKey: formatDate(parsedDate),
+          taskListIndex,
+          taskIndex,
         });
       }
     }
     flattened.sort((left, right) => {
       const byDate = left.dateValue.getTime() - right.dateValue.getTime();
       if (byDate !== 0) return byDate;
-      const byTaskText = left.task.text.localeCompare(right.task.text);
-      if (byTaskText !== 0) return byTaskText;
-      return left.taskListName.localeCompare(right.taskListName);
+      const byTaskList = left.taskListIndex - right.taskListIndex;
+      if (byTaskList !== 0) return byTaskList;
+      return left.taskIndex - right.taskIndex;
     });
     return flattened;
   }, [taskLists]);
@@ -6608,7 +6788,7 @@ function TaskListSidebarPanel({
   const [createListInput, setCreateListInput] = useState("");
   const [createListBackground, setCreateListBackground] = useState<
     string | null
-  >(COLORS[0].value);
+  >(null);
   const [showJoinListDialog, setShowJoinListDialog] = useState(false);
   const [joinListInput, setJoinListInput] = useState("");
   const [joiningList, setJoiningList] = useState(false);
@@ -6643,7 +6823,7 @@ function TaskListSidebarPanel({
     if (!name) return;
     await onCreateList(name, createListBackground);
     setCreateListInput("");
-    setCreateListBackground(COLORS[0].value);
+    setCreateListBackground(null);
     setShowCreateListDialog(false);
   };
 
@@ -6736,7 +6916,7 @@ function TaskListSidebarPanel({
               setShowCreateListDialog(open);
               if (!open) {
                 setCreateListInput("");
-                setCreateListBackground(COLORS[0].value);
+                setCreateListBackground(null);
               }
             }}
           >
@@ -8175,12 +8355,22 @@ function PasswordResetPage() {
 function ShareCodePreviewPage() {
   const { t } = useTranslation();
   const user = useUser();
+  const settings = useSettings();
   const [sharecode, setSharecode] = useState<string | null>(null);
   const [sharedTaskListId, setSharedTaskListId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addToOrderLoading, setAddToOrderLoading] = useState(false);
   const [addToOrderError, setAddToOrderError] = useState<string | null>(null);
+  const [activeTaskAction, setActiveTaskAction] = useState<string | null>(null);
+  const sensorsList = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   useEffect(() => {
     const code = new URL(window.location.href).searchParams.get("code");
@@ -8324,47 +8514,20 @@ function ShareCodePreviewPage() {
           </div>
         )}
 
-        <div className="ll-mx-auto ll-flex ll-w-full ll-max-w-3xl ll-flex-col ll-gap-4 ll-px-4 ll-py-6">
-          <section
-            className="ll-rounded-24px ll-border ll-border-gray-300 ll-p-4 ll-dark-border-gray-700"
-            style={{ backgroundColor: taskList.background ?? undefined }}
-          >
-            <header className="ll-flex ll-items-center ll-justify-between ll-gap-3">
-              <h1 className="ll-font-display ll-text-xl ll-font-semibold ll-text-gray-900 ll-dark-text-gray-50">
-                {taskList.name}
-              </h1>
-            </header>
-            <ul className="ll-mt-4 ll-flex ll-flex-col ll-gap-2">
-              {taskList.tasks.length === 0 ? (
-                <li className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-                  {t("pages.tasklist.noTasks")}
-                </li>
-              ) : (
-                taskList.tasks.map((task) => (
-                  <li
-                    key={task.id}
-                    className="ll-rounded-xl ll-border ll-border-gray-300-70 ll-bg-white-80 ll-px-3 ll-py-2 ll-dark-border-gray-700-70 ll-dark-bg-gray-900-80"
-                    style={{ opacity: task.completed ? 0.5 : 1 }}
-                  >
-                    {task.date ? (
-                      <div className="ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
-                        {task.date}
-                      </div>
-                    ) : null}
-                    <div
-                      className={
-                        task.completed
-                          ? "ll-task-text-wrap ll-text-sm ll-text-gray-600 ll-line-through ll-dark-text-gray-300"
-                          : "ll-task-text-wrap ll-text-sm ll-text-gray-900 ll-dark-text-gray-50"
-                      }
-                    >
-                      {task.text}
-                    </div>
-                  </li>
-                ))
-              )}
-            </ul>
-          </section>
+        <div className="ll-mx-auto ll-h-full ll-w-full ll-max-w-3xl">
+          <TaskListCard
+            taskList={taskList}
+            autoSort={settings?.autoSort ?? false}
+            taskInsertPosition={settings?.taskInsertPosition ?? "top"}
+            isActive={true}
+            shouldFocusNewTaskInput={false}
+            onNewTaskInputFocusChange={() => {}}
+            sensorsList={sensorsList}
+            canDeleteTaskList={false}
+            activeTaskActionTaskId={activeTaskAction}
+            onOpenTaskAction={(_, taskId) => setActiveTaskAction(taskId)}
+            onCloseTaskAction={() => setActiveTaskAction(null)}
+          />
         </div>
       </main>
     </div>
@@ -8391,9 +8554,25 @@ if (!rootElement) {
   throw new Error("Missing root element");
 }
 
+const warmUpStartupData = (): void => {
+  const uid = readLastUid();
+  if (!uid) {
+    return;
+  }
+  const db = getDbInstance();
+  void getDocFromCache(doc(db, "settings", uid)).catch(() => {});
+  void getDocFromCache(doc(db, "taskListOrder", uid)).catch(() => {});
+  getTaskListIdChunks(readCachedTaskListOrderIds(uid)).forEach((chunk) => {
+    void getDocsFromCache(
+      query(collection(db, "taskLists"), where("__name__", "in", chunk)),
+    ).catch(() => {});
+  });
+};
+
 if (!isAuthFreePage()) {
   getAuthInstance();
   getDbInstance();
+  warmUpStartupData();
 }
 
 const root = webBootstrapState.root ?? createRoot(rootElement);

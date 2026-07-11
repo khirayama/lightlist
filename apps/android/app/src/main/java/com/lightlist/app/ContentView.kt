@@ -1,5 +1,6 @@
 package com.lightlist.app
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -38,6 +39,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -70,7 +72,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
@@ -80,6 +82,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -88,6 +91,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -117,6 +122,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -131,6 +137,7 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -235,13 +242,25 @@ private val TaskListBackgroundOptions = listOf<String?>(
     "#A78BFA"
 )
 private val shareCodeRandom = SecureRandom()
+private val shareCodePattern = Regex("^[A-Z0-9]{8}$")
+
+private fun normalizedShareCode(rawValue: String?): String? {
+    val shareCode = rawValue?.trim()?.uppercase(Locale.ROOT) ?: return null
+    return shareCode.takeIf(shareCodePattern::matches)
+}
+
+private fun passwordResetCode(rawValue: String?): String? {
+    val code = rawValue?.trim() ?: return null
+    return code.takeIf { it.isNotEmpty() && it.toByteArray().size <= 2048 }
+}
 
 private fun nowMillis(): Long = System.currentTimeMillis()
 
-private fun firestoreErrorDescription(operation: String, error: Exception): String {
-    val code = (error as? FirebaseFirestoreException)?.code?.name ?: error::class.java.simpleName
-    return "Android $operation failed: $code"
-}
+private fun exceptionCategory(error: Exception): String =
+    (error as? FirebaseFirestoreException)?.code?.name ?: error::class.java.simpleName
+
+private fun firestoreErrorDescription(operation: String, error: Exception): String =
+    "Android $operation failed: ${exceptionCategory(error)}"
 
 private fun logDebugSync(message: String) {
     if (BuildConfig.DEBUG) {
@@ -413,7 +432,12 @@ class Translations {
     companion object {
         val supported = listOf("ja","en","es","de","fr","ko","zh-CN","hi","ar","pt-BR","id")
         fun isSupported(language: String): Boolean = supported.contains(language)
+        @Volatile
         private var allLocales: JSONObject? = null
+
+        fun preload(context: Context) {
+            loadLocales(context)
+        }
 
         private fun loadLocales(context: Context): JSONObject {
             allLocales?.let { return it }
@@ -527,10 +551,8 @@ class Translations {
 
 private fun log(eventName: String, params: Bundle? = null) {
     if (BuildConfig.DEBUG) {
-        val map = params?.let { bundle ->
-            bundle.keySet().associateWith { bundle.get(it) }
-        } ?: emptyMap<String, Any?>()
-        Log.d("analytics", "$eventName $map")
+        val parameterNames = params?.keySet()?.sorted().orEmpty()
+        Log.d("analytics", "$eventName params=$parameterNames")
     }
     Firebase.analytics.logEvent(eventName, params)
 }
@@ -564,9 +586,15 @@ private fun logSettingsLanguageChange(language: String) = log("app_settings_lang
 private fun logSettingsTaskInsertPositionChange(position: String) = log("app_settings_task_insert_position_change") { putString("position", position) }
 private fun logSettingsAutoSortChange(enabled: Boolean) = log("app_settings_auto_sort_change") { putBoolean("enabled", enabled) }
 
-private fun logException(description: String, fatal: Boolean) {
-    log("app_exception") { putString("description", description); putBoolean("fatal", fatal) }
-    FirebaseCrashlytics.getInstance().recordException(RuntimeException(description))
+private fun recordNonFatalException(operation: String, error: Exception? = null) {
+    val errorCategory = error?.let(::exceptionCategory)
+    log("app_exception") {
+        putString("operation", operation)
+        errorCategory?.let { putString("error_category", it) }
+    }
+    val message = errorCategory?.let { "Android $operation failed: $it" }
+        ?: "Android $operation failed"
+    FirebaseCrashlytics.getInstance().recordException(IllegalStateException(message))
 }
 
 val LocalTranslations = compositionLocalOf { Translations() }
@@ -587,6 +615,29 @@ sealed class PendingDeepLink {
     data class ShareCode(val shareCode: String) : PendingDeepLink()
 }
 
+private fun warmUpStartupData(context: Context) {
+    Thread {
+        Translations.preload(context)
+        val uid = Firebase.auth.currentUser?.uid ?: return@Thread
+        val db = Firebase.firestore
+        db.collection("settings").document(uid).get(Source.CACHE)
+        db.collection("taskListOrder").document(uid).get(Source.CACHE)
+            .addOnSuccessListener { snapshot ->
+                val orderedTaskListIds = parseOrderedTaskListIds(snapshot.data ?: emptyMap())
+                orderedTaskListIds.chunked(10).forEach { chunk ->
+                    db.collection("taskLists")
+                        .whereIn(FieldPath.documentId(), chunk)
+                        .get(Source.CACHE)
+                }
+            }
+    }.start()
+}
+
+private fun isInitialAutoNavigation(entry: NavBackStackEntry): Boolean {
+    return entry.destination.route == AppRoute.TaskList.route &&
+        entry.arguments?.getString(AppRoute.TaskList.argumentName) == "__initial__"
+}
+
 class MainActivity : ComponentActivity() {
     private var pendingDeepLink by mutableStateOf(parseDeepLink(intent))
 
@@ -595,12 +646,7 @@ class MainActivity : ComponentActivity() {
 
         FirebaseApp.initializeApp(this)
         FirebaseAppCheck.getInstance().installAppCheckProviderFactory(appCheckProviderFactory())
-
-        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            logException(throwable.message ?: "Unknown error", fatal = true)
-            defaultHandler?.uncaughtException(thread, throwable)
-        }
+        warmUpStartupData(applicationContext)
 
         enableEdgeToEdge()
         setContent {
@@ -619,36 +665,52 @@ class MainActivity : ComponentActivity() {
 
     private fun parseDeepLink(intent: Intent?): PendingDeepLink? {
         val data = intent?.data ?: return null
-        val scheme = data.scheme?.lowercase()
-        val host = data.host?.lowercase()
+        val scheme = data.scheme?.lowercase(Locale.ROOT)
+        val host = data.host?.lowercase(Locale.ROOT)
         val pathSegments = data.pathSegments
 
         if (scheme == "lightlist") {
-            if (host == "password-reset") {
-                val code = data.getQueryParameter("oobCode")
-                if (!code.isNullOrBlank()) {
+            if (host == "password-reset" && pathSegments.isEmpty()) {
+                passwordResetCode(data.getQueryParameter("oobCode"))?.let { code ->
                     return PendingDeepLink.PasswordReset(code)
                 }
             }
 
-            if (host == "sharecodes") {
-                val shareCode = pathSegments.firstOrNull()
-                if (!shareCode.isNullOrBlank()) {
-                    return PendingDeepLink.ShareCode(shareCode.uppercase())
+            if (host == "sharecodes" && pathSegments.size == 1) {
+                normalizedShareCode(pathSegments[0])?.let { shareCode ->
+                    return PendingDeepLink.ShareCode(shareCode)
                 }
             }
         }
 
-        if ((scheme == "https" || scheme == "http") && host == "lightlist.com") {
-            if (pathSegments.size >= 2 && pathSegments[0].equals("sharecodes", ignoreCase = true)) {
-                return PendingDeepLink.ShareCode(pathSegments[1].uppercase())
+        if (scheme == "https" && host == "lightlist.com" && (data.port == -1 || data.port == 443)) {
+            if (pathSegments.size == 1 && pathSegments[0].equals("sharecodes", ignoreCase = true)) {
+                normalizedShareCode(data.getQueryParameter("code"))?.let { shareCode ->
+                    return PendingDeepLink.ShareCode(shareCode)
+                }
             }
 
-            if (pathSegments.firstOrNull().equals("password_reset", ignoreCase = true)) {
-                val code = data.getQueryParameter("oobCode")
-                if (!code.isNullOrBlank()) {
+            if (pathSegments.size == 2 && pathSegments[0].equals("sharecodes", ignoreCase = true)) {
+                normalizedShareCode(pathSegments[1])?.let { shareCode ->
+                    return PendingDeepLink.ShareCode(shareCode)
+                }
+            }
+
+            if (pathSegments.size == 1 && pathSegments[0].equals("password_reset", ignoreCase = true)) {
+                passwordResetCode(data.getQueryParameter("oobCode"))?.let { code ->
                     return PendingDeepLink.PasswordReset(code)
                 }
+            }
+        }
+
+        if (
+            scheme == "https" &&
+                host == BuildConfig.PASSWORD_RESET_LINK_DOMAIN.lowercase(Locale.ROOT) &&
+                (data.port == -1 || data.port == 443) &&
+                data.getQueryParameter("mode")?.equals("resetPassword", ignoreCase = true) == true
+        ) {
+            passwordResetCode(data.getQueryParameter("oobCode"))?.let { code ->
+                return PendingDeepLink.PasswordReset(code)
             }
         }
 
@@ -682,12 +744,15 @@ private class TaskListMutationQueue(
         pendingCount += 1
         val previous = tail
         tail = scope.launch {
-            previous?.join()
-            block()
-            withContext(Dispatchers.Main) {
-                pendingCount -= 1
-                if (pendingCount == 0) {
-                    onIdle()
+            try {
+                previous?.join()
+                block()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    pendingCount -= 1
+                    if (pendingCount == 0) {
+                        onIdle()
+                    }
                 }
             }
         }
@@ -961,7 +1026,9 @@ private suspend fun sendPasswordResetEmail(email: String, language: String) {
     auth.setLanguageCode(normalizeLanguageCode(language))
     val actionCodeSettings = ActionCodeSettings.newBuilder()
         .setUrl(BuildConfig.PASSWORD_RESET_URL)
-        .setHandleCodeInApp(false)
+        .setHandleCodeInApp(true)
+        .setAndroidPackageName(BuildConfig.APPLICATION_ID, false, null)
+        .setLinkDomain(BuildConfig.PASSWORD_RESET_LINK_DOMAIN)
         .build()
     auth.sendPasswordResetEmail(email, actionCodeSettings).await()
 }
@@ -978,7 +1045,8 @@ private data class SettingsState(
     val taskInsertPosition: String = "top",
     val autoSort: Boolean = false,
     val userEmail: String = "",
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val hasError: Boolean = false
 )
 
 private fun removeTaskListListeners(listeners: List<ListenerRegistration>) {
@@ -1158,10 +1226,18 @@ fun RootScreen(
                         navController,
                         startDestination = AppRoute.TaskLists.route,
                         enterTransition = {
-                            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(300))
+                            if (isInitialAutoNavigation(targetState)) {
+                                EnterTransition.None
+                            } else {
+                                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(300))
+                            }
                         },
                         exitTransition = {
-                            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(300))
+                            if (isInitialAutoNavigation(targetState)) {
+                                ExitTransition.None
+                            } else {
+                                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(300))
+                            }
                         },
                         popEnterTransition = {
                             slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(300))
@@ -1358,7 +1434,7 @@ private fun <T> rememberOrderedTaskListsState(
                     )
                 },
                 onError = {
-                    uiState = OrderedTaskListsUiState<T>(isLoading = false, hasError = true)
+                    uiState = uiState.copy(isLoading = false, hasError = true)
                 }
             )
 
@@ -1392,7 +1468,10 @@ private fun rememberSettingsState(userId: String?): SettingsState {
             val email = Firebase.auth.currentUser?.email ?: ""
             val listener = db.collection("settings").document(userId)
                 .addSnapshotListener { snapshot, error ->
-                    if (error != null) return@addSnapshotListener
+                    if (error != null) {
+                        uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
+                        return@addSnapshotListener
+                    }
                     val data = snapshot?.data ?: emptyMap()
                     uiState = SettingsState(
                         theme = data["theme"] as? String ?: "system",
@@ -1400,7 +1479,8 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                         taskInsertPosition = data["taskInsertPosition"] as? String ?: "top",
                         autoSort = data["autoSort"] as? Boolean ?: false,
                         userEmail = email,
-                        isLoading = false
+                        isLoading = false,
+                        hasError = false
                     )
                 }
             onDispose { listener.remove() }
@@ -1469,8 +1549,8 @@ private fun rememberSharedTaskListPreviewState(
     }
 
     LaunchedEffect(shareCode) {
-        val normalized = shareCode.trim().uppercase()
-        if (normalized.isEmpty()) {
+        val normalized = normalizedShareCode(shareCode)
+        if (normalized == null) {
             uiState = SharedTaskListPreviewUiState(
                 isLoading = false,
                 errorMessage = t.t("pages.sharecode.notFound")
@@ -1590,9 +1670,9 @@ private suspend fun generateShareCode(taskListId: String): String {
         if (!taskListSnap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
 
         val batch = db.batch()
-        val currentShareCode = taskListSnap.getString("shareCode")?.takeIf { it.isNotBlank() }
-        if (currentShareCode != null) {
-            batch.delete(db.collection("shareCodes").document(currentShareCode.trim().uppercase()))
+        val currentShareCode = taskListSnap.getString("shareCode")
+        normalizedShareCode(currentShareCode)?.let { normalizedCode ->
+            batch.delete(db.collection("shareCodes").document(normalizedCode))
         }
         batch.set(shareCodeRef, mapOf("taskListId" to taskListId, "createdAt" to nowMillis()))
         batch.update(taskListRef, mapOf("shareCode" to code, "updatedAt" to nowMillis()))
@@ -1609,15 +1689,16 @@ private suspend fun removeShareCode(taskListId: String) {
     if (!snap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
     val currentShareCode = snap.getString("shareCode")?.takeIf { it.isNotBlank() } ?: return
     val batch = db.batch()
-    batch.delete(db.collection("shareCodes").document(currentShareCode.trim().uppercase()))
+    normalizedShareCode(currentShareCode)?.let { normalizedCode ->
+        batch.delete(db.collection("shareCodes").document(normalizedCode))
+    }
     batch.update(taskListRef, mapOf("shareCode" to null, "updatedAt" to nowMillis()))
     batch.commit().await()
 }
 
 private suspend fun fetchTaskListIdByShareCode(shareCode: String): String? {
     val db = Firebase.firestore
-    val normalized = shareCode.trim().uppercase()
-    if (normalized.isEmpty()) return null
+    val normalized = normalizedShareCode(shareCode) ?: return null
     val snap = db.collection("shareCodes").document(normalized).get().await()
     if (!snap.exists()) return null
     return snap.getString("taskListId")
@@ -1939,26 +2020,35 @@ private fun ScreenScaffold(
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp, vertical = 24.dp)
     ) {
-        Surface(
+        Column(
             modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .widthIn(max = 480.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 480.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp
             ) {
-                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(24.dp))
-                content()
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(24.dp))
+                    content()
+                }
             }
         }
     }
@@ -2025,6 +2115,12 @@ private fun DetailScreenScaffold(
             Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(
+                        WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                    )
+                )
+                .imePadding()
                 .background(resolvedBackgroundColor)
         ) {
             Column(
@@ -2094,7 +2190,7 @@ private fun AuthView(
             }
         }
         Spacer(Modifier.height(8.dp))
-        TabRow(selectedTabIndex = selectedScreen.ordinal, modifier = Modifier.fillMaxWidth()) {
+        PrimaryTabRow(selectedTabIndex = selectedScreen.ordinal, modifier = Modifier.fillMaxWidth()) {
             listOf(
                 AuthScreen.SignIn to t.t("auth.tabs.signin"),
                 AuthScreen.SignUp to t.t("auth.tabs.signup"),
@@ -2206,7 +2302,7 @@ private fun SignInView(onShowReset: () -> Unit) {
                     }
                     logLogin()
                 } catch (e: TimeoutCancellationException) {
-                    logException("Android sign in timed out", fatal = false)
+                    recordNonFatalException("sign_in_timeout")
                     errorMessage = t.t("auth.error.general")
                 } catch (e: Exception) {
                     errorMessage = resolveAuthErrorMessage(t, e)
@@ -2321,7 +2417,7 @@ private fun SignUpView(
                     }
                     logSignUp()
                 } catch (e: TimeoutCancellationException) {
-                    logException("Android sign up timed out", fatal = false)
+                    recordNonFatalException("sign_up_timeout")
                     errorMessage = t.t("auth.error.general")
                 } catch (e: Exception) {
                     errorMessage = resolveAuthErrorMessage(t, e)
@@ -2404,7 +2500,7 @@ private fun PasswordResetRequestView(
                     logPasswordResetEmailSent()
                     successMessage = t.t("auth.passwordReset.success")
                 } catch (e: TimeoutCancellationException) {
-                    logException("Android password reset timed out", fatal = false)
+                    recordNonFatalException("password_reset_timeout")
                     errorMessage = t.t("auth.error.general")
                 } catch (e: Exception) {
                     errorMessage = resolveAuthErrorMessage(t, e)
@@ -2755,7 +2851,13 @@ private fun CalendarScreen(
     externalTaskLists: List<TaskListDetail>? = null
 ) {
     val t = LocalTranslations.current
-    val calendarTaskLists = externalTaskLists ?: rememberOrderedTaskLists(userId, ::parseTaskListDetail)
+    val calendarUiState = if (externalTaskLists == null) {
+        rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
+    } else {
+        null
+    }
+    val calendarTaskLists = externalTaskLists ?: calendarUiState?.taskLists.orEmpty()
+    val hasLoadError = calendarUiState?.hasError == true
     val calendarTasks = remember(calendarTaskLists) {
         flattenCalendarTasks(calendarTaskLists)
     }
@@ -2831,6 +2933,14 @@ private fun CalendarScreen(
                 .padding(top = 24.dp)
                 .padding(bottom = 24.dp)
         ) {
+            if (hasLoadError && calendarTaskLists.isNotEmpty()) {
+                Text(
+                    t.t("app.loadError"),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                )
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2895,7 +3005,11 @@ private fun CalendarScreen(
                             .padding(32.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(t.t("app.calendarNoDatedTasks"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            if (hasLoadError) t.t("app.loadError") else t.t("app.calendarNoDatedTasks"),
+                            color = if (hasLoadError) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 } else {
                     LazyColumn(
@@ -2972,6 +3086,8 @@ private fun TaskListsScreen(
     var joinListError by remember { mutableStateOf<String?>(null) }
     val displayedUserEmail = userEmail.ifBlank { t.t("app.drawerNoEmail") }
     var pendingTaskListOrder by remember { mutableStateOf<List<TaskListSummary>?>(null) }
+    val taskListOrderMutationQueue = remember(userId) { TaskListMutationQueue(scope) }
+    var taskListOrderMutationRevision by remember(userId) { mutableIntStateOf(0) }
 
     val displayTaskLists = dragOrderedTaskLists ?: pendingTaskListOrder ?: uiState.taskLists
     val density = LocalDensity.current
@@ -3034,17 +3150,24 @@ private fun TaskListsScreen(
 
     fun commitTaskListOrder(ids: List<String>) {
         val uid = Firebase.auth.currentUser?.uid ?: return
+        val mutationRevision = taskListOrderMutationRevision + 1
+        taskListOrderMutationRevision = mutationRevision
         logTaskListReorder()
         val updates = mutableMapOf<String, Any>("updatedAt" to nowMillis())
         ids.forEachIndexed { i, id -> updates["$id.order"] = (i + 1).toDouble() }
         val current = displayTaskLists
         pendingTaskListOrder = ids.mapNotNull { id -> current.firstOrNull { it.id == id } }
-        scope.launch {
+        taskListOrderMutationQueue.enqueue {
             try {
                 Firebase.firestore.collection("taskListOrder").document(uid).update(updates).await()
+                if (taskListOrderMutationRevision == mutationRevision) {
+                    pendingTaskListOrder = null
+                }
             } catch (e: Exception) {
-                logException(firestoreErrorDescription("task list order update", e), fatal = false)
-                pendingTaskListOrder = null
+                recordNonFatalException("task_list_order_update", e)
+                if (taskListOrderMutationRevision == mutationRevision) {
+                    pendingTaskListOrder = null
+                }
             }
         }
     }
@@ -3076,6 +3199,12 @@ private fun TaskListsScreen(
             delay(16L)
         }
     }
+
+    val currentTaskLists by rememberUpdatedState(uiState.taskLists)
+    val currentCheckTaskListSwap by rememberUpdatedState(::checkTaskListSwap)
+    val currentCommitTaskListOrder by rememberUpdatedState(::commitTaskListOrder)
+    val currentHaptic by rememberUpdatedState(haptic)
+    val currentDensity by rememberUpdatedState(density)
 
     Column(
         modifier = Modifier
@@ -3137,23 +3266,25 @@ private fun TaskListsScreen(
 
         Spacer(Modifier.height(24.dp))
 
+        if (uiState.hasError && displayTaskLists.isNotEmpty()) {
+            Text(
+                t.t("app.loadError"),
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
+
         when {
             uiState.isLoading -> {
                 Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             }
-            uiState.hasError -> {
+            displayTaskLists.isEmpty() -> {
                 Text(
-                    t.t("app.loadError"),
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                )
-            }
-            uiState.taskLists.isEmpty() -> {
-                Text(
-                    t.t("app.emptyState"),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    if (uiState.hasError) t.t("app.loadError") else t.t("app.emptyState"),
+                    color = if (uiState.hasError) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                 )
             }
@@ -3197,12 +3328,12 @@ private fun TaskListsScreen(
                                 modifier = Modifier
                                     .width(TaskListDetailMetrics.dragHandleTouchWidth)
                                     .height(48.dp)
-                                    .pointerInput(taskList.id) {
-                                        detectDragGestures(
-                                            onDragStart = { _ ->
-                                                haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                            .pointerInput(taskList.id) {
+                                                detectDragGestures(
+                                                    onDragStart = { _ ->
+                                                currentHaptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                                                 draggingTaskListId = taskList.id
-                                                dragOrderedTaskLists = uiState.taskLists
+                                                dragOrderedTaskLists = currentTaskLists
                                                 taskListItemHeights = lazyListState.layoutInfo.visibleItemsInfo
                                                     .filter { it.key is String }
                                                     .associate { (it.key as String) to it.size.toFloat() }
@@ -3211,8 +3342,8 @@ private fun TaskListsScreen(
                                             onDragEnd = {
                                                 taskListAutoScrollSpeed = 0f
                                                 val ordered = dragOrderedTaskLists
-                                                if (ordered != null && ordered.map { it.id } != uiState.taskLists.map { it.id }) {
-                                                    commitTaskListOrder(ordered.map { it.id })
+                                                if (ordered != null && ordered.map { it.id } != currentTaskLists.map { it.id }) {
+                                                    currentCommitTaskListOrder(ordered.map { it.id })
                                                 }
                                                 dragOrderedTaskLists = null
                                                 draggingTaskListId = null
@@ -3227,15 +3358,15 @@ private fun TaskListsScreen(
                                             onDrag = { change, dragAmount ->
                                                 change.consume()
                                                 taskListDragOffset += dragAmount.y
-                                                checkTaskListSwap()
+                                                currentCheckTaskListSwap()
 
                                                 val viewportHeight = lazyListState.layoutInfo.viewportSize.height.toFloat()
-                                                val edgeZone = with(density) { 80.dp.toPx() }
-                                                val maxSpeed = with(density) { 8.dp.toPx() }
+                                                val edgeZone = with(currentDensity) { 80.dp.toPx() }
+                                                val maxSpeed = with(currentDensity) { 8.dp.toPx() }
                                                 val draggedItemInfo = lazyListState.layoutInfo.visibleItemsInfo
                                                     .firstOrNull { it.key == draggingTaskListId }
                                                 val fingerInViewport = if (draggedItemInfo != null) {
-                                                    (draggedItemInfo.offset + draggedItemInfo.size / 2 + taskListDragOffset).toFloat()
+                                                    draggedItemInfo.offset + draggedItemInfo.size / 2 + taskListDragOffset
                                                 } else {
                                                     viewportHeight / 2
                                                 }
@@ -3300,7 +3431,7 @@ private fun TaskListsScreen(
             }
         }
 
-        if (uiState.taskLists.isEmpty() || uiState.isLoading || uiState.hasError) {
+        if (displayTaskLists.isEmpty() || uiState.isLoading) {
             Spacer(Modifier.weight(1f))
         }
 
@@ -3431,7 +3562,7 @@ private fun TaskListsScreen(
                                     logTaskListCreate()
                                     openTaskList(taskListId)
                                 } catch (e: Exception) {
-                                    logException(firestoreErrorDescription("task list create", e), fatal = false)
+                                    recordNonFatalException("task_list_create", e)
                                 }
                             }
                             showCreateDialog = false
@@ -3478,8 +3609,11 @@ private fun TaskListsScreen(
                 TextButton(
                     onClick = {
                         scope.launch {
-                            val code = joinListInput.trim().uppercase()
-                            if (code.isEmpty()) return@launch
+                            val code = normalizedShareCode(joinListInput)
+                            if (code == null) {
+                                joinListError = t.t("pages.sharecode.notFound")
+                                return@launch
+                            }
                             joiningList = true
                             joinListError = null
                             try {
@@ -3661,6 +3795,9 @@ private fun TaskListDetailPagerScreen(
     val pagerState = rememberPagerState(initialPage = selectedTaskListIndex) {
         uiState.taskLists.size
     }
+    var focusedNewTaskListId by remember { mutableStateOf<String?>(null) }
+    var shouldMoveNewTaskFocusOnPageSettle by remember { mutableStateOf(false) }
+    val currentSelectedTaskListId by rememberUpdatedState(selectedTaskListId)
     val currentTaskList =
         uiState.taskLists.getOrNull(pagerState.currentPage) ?: uiState.taskLists.firstOrNull()
     val taskListBackgroundColor = resolveTaskListBackgroundColor(currentTaskList?.background)
@@ -3677,11 +3814,28 @@ private fun TaskListDetailPagerScreen(
         }
     }
 
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.isScrollInProgress }
+            .collectLatest { isScrolling ->
+                if (isScrolling) {
+                    shouldMoveNewTaskFocusOnPageSettle =
+                        focusedNewTaskListId == currentSelectedTaskListId
+                }
+            }
+    }
+
     LaunchedEffect(pagerState, uiState.taskLists) {
         snapshotFlow { pagerState.settledPage }
             .collectLatest { page ->
                 val taskList = uiState.taskLists.getOrNull(page) ?: return@collectLatest
-                if (taskList.id != selectedTaskListId) {
+                val shouldMoveNewTaskFocus =
+                    shouldMoveNewTaskFocusOnPageSettle ||
+                        focusedNewTaskListId == currentSelectedTaskListId
+                if (shouldMoveNewTaskFocus) {
+                    focusedNewTaskListId = taskList.id
+                }
+                shouldMoveNewTaskFocusOnPageSettle = false
+                if (taskList.id != currentSelectedTaskListId) {
                     updateSelectedTaskListId(taskList.id)
                 }
             }
@@ -3715,7 +3869,7 @@ private fun TaskListDetailPagerScreen(
                             Text(t.t("common.loading"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    uiState.hasError -> {
+                    currentTaskList == null && uiState.hasError -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -3742,7 +3896,15 @@ private fun TaskListDetailPagerScreen(
                                     taskList = taskList,
                                     taskInsertPosition = settingsState.taskInsertPosition,
                                     autoSort = settingsState.autoSort,
-                                    topInset = taskPageTopInset
+                                    topInset = taskPageTopInset,
+                                    shouldFocusNewTaskInput = focusedNewTaskListId == taskList.id,
+                                    onNewTaskInputFocusChange = { isFocused ->
+                                        if (isFocused) {
+                                            focusedNewTaskListId = taskList.id
+                                        } else if (focusedNewTaskListId == taskList.id) {
+                                            focusedNewTaskListId = null
+                                        }
+                                    }
                                 )
                             }
                             if (showIndicator) {
@@ -3756,6 +3918,16 @@ private fun TaskListDetailPagerScreen(
                                         updateSelectedTaskListId(nextTaskList.id)
                                     },
                                     modifier = Modifier.align(Alignment.TopCenter)
+                                )
+                            }
+                            if (uiState.hasError) {
+                                Text(
+                                    t.t("app.loadError"),
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .padding(top = if (showIndicator) 32.dp else 8.dp)
                                 )
                             }
                         }
@@ -4191,7 +4363,9 @@ private fun TaskListDetailContent(
     taskList: TaskListDetail,
     taskInsertPosition: String = "top",
     autoSort: Boolean = false,
-    topInset: androidx.compose.ui.unit.Dp = 0.dp
+    topInset: androidx.compose.ui.unit.Dp = 0.dp,
+    shouldFocusNewTaskInput: Boolean = false,
+    onNewTaskInputFocusChange: (Boolean) -> Unit = {}
 ) {
     val t = LocalTranslations.current
     val haptic = LocalHapticFeedback.current
@@ -4200,6 +4374,7 @@ private fun TaskListDetailContent(
     val db = Firebase.firestore
     var newTaskText by remember { mutableStateOf("") }
     var isNewTaskInputFocused by remember { mutableStateOf(false) }
+    var hasNewTaskInputFocus by remember(taskList.id) { mutableStateOf(false) }
     var editingTaskId by remember { mutableStateOf<String?>(null) }
     var editingTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     var actionSheetState by remember { mutableStateOf<ActionSheetState?>(null) }
@@ -4214,9 +4389,9 @@ private fun TaskListDetailContent(
     var showShareDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showRemoveListConfirm by remember { mutableStateOf(false) }
-    var currentShareCode by remember { mutableStateOf(taskList.shareCode) }
+    var currentShareCode by remember { mutableStateOf(normalizedShareCode(taskList.shareCode)) }
     LaunchedEffect(taskList.shareCode) {
-        currentShareCode = taskList.shareCode
+        currentShareCode = normalizedShareCode(taskList.shareCode)
     }
     var editName by remember { mutableStateOf("") }
     var editBackground by remember { mutableStateOf<String?>(null) }
@@ -4226,7 +4401,14 @@ private fun TaskListDetailContent(
     var removeListError by remember { mutableStateOf<String?>(null) }
     var shareCopySuccess by remember { mutableStateOf(false) }
     var shareError by remember { mutableStateOf<String?>(null) }
+    var taskMutationError by remember { mutableStateOf<String?>(null) }
     val newTaskFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(shouldFocusNewTaskInput) {
+        if (shouldFocusNewTaskInput) {
+            newTaskFocusRequester.requestFocus()
+        }
+    }
 
     val displayTasks = remember(taskList.tasks, dragOrderedTasks, pendingDisplayedTasks, autoSort) {
         dragOrderedTasks ?: pendingDisplayedTasks ?: getDisplayOrderedTasks(taskList.tasks)
@@ -4277,7 +4459,7 @@ private fun TaskListDetailContent(
     val canSort = remember(displayTasks) { displayTasks.size >= 2 }
     val hasCompletedTasks = remember(displayTasks) { displayTasks.any { it.completed } }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var newTaskInputWidthPx by remember { mutableStateOf(0) }
+    var newTaskInputWidthPx by remember { mutableIntStateOf(0) }
     val mutationQueue = remember(taskList.id) { TaskListMutationQueue(scope) }
 
     LaunchedEffect(taskList.id) {
@@ -4291,11 +4473,12 @@ private fun TaskListDetailContent(
         pendingDisplayedTasks = null
         taskItemHeights = emptyMap()
         taskAutoScrollSpeed = 0f
-        currentShareCode = taskList.shareCode
+        currentShareCode = normalizedShareCode(taskList.shareCode)
         editName = ""
         editBackground = null
         shareCopySuccess = false
         shareError = null
+        taskMutationError = null
         removeListError = null
     }
 
@@ -4311,6 +4494,7 @@ private fun TaskListDetailContent(
     }
 
     fun persistTaskListUpdate(updates: Map<String, Any>) {
+        taskMutationError = null
         val taskListDebugId = shortDebugId(taskList.id)
         logDebugSync("task update enqueue taskList=$taskListDebugId fields=${updates.keys.sorted().joinToString(",")}")
         mutationQueue.enqueue(onIdle = { pendingDisplayedTasks = null }) {
@@ -4320,9 +4504,10 @@ private fun TaskListDetailContent(
                 logDebugSync("task update success taskList=$taskListDebugId")
             } catch (e: Exception) {
                 logDebugSync("task update failure taskList=$taskListDebugId ${firestoreErrorDescription("task update", e)}")
-                logException(firestoreErrorDescription("task update", e), fatal = false)
+                recordNonFatalException("task_update", e)
                 withContext(Dispatchers.Main) {
                     pendingDisplayedTasks = null
+                    taskMutationError = t.t("common.error")
                 }
             }
         }
@@ -4600,9 +4785,10 @@ private fun TaskListDetailContent(
                     val currentMemberCount = (taskListSnapshot.getLong("memberCount") ?: 1L).toInt()
                     if (currentMemberCount <= 1) {
                         taskListSnapshot.getString("shareCode")
-                            ?.takeIf { it.isNotBlank() }
                             ?.let { shareCode ->
-                                delete(db.collection("shareCodes").document(shareCode.trim().uppercase()))
+                                normalizedShareCode(shareCode)?.let { normalizedCode ->
+                                    delete(db.collection("shareCodes").document(normalizedCode))
+                                }
                             }
                         delete(taskListRef)
                     } else {
@@ -4727,7 +4913,7 @@ private fun TaskListDetailContent(
                     Spacer(Modifier.width(TaskListDetailMetrics.headerActionSpacing))
                     IconButton(
                         onClick = {
-                            currentShareCode = taskList.shareCode
+                            currentShareCode = normalizedShareCode(taskList.shareCode)
                             shareCopySuccess = false
                             shareError = null
                             showShareDialog = true
@@ -4741,6 +4927,16 @@ private fun TaskListDetailContent(
                         )
                     }
                 }
+            }
+        }
+        taskMutationError?.let { message ->
+            item(key = "taskMutationError", contentType = "error") {
+                Text(
+                    message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = TaskListDetailMetrics.sectionBottomSpacing)
+                )
             }
         }
         item(key = "taskListInput", contentType = "input") {
@@ -4772,6 +4968,13 @@ private fun TaskListDetailContent(
                             .focusRequester(newTaskFocusRequester)
                             .onFocusChanged { state ->
                                 isNewTaskInputFocused = state.isFocused
+                                if (state.isFocused) {
+                                    hasNewTaskInputFocus = true
+                                    onNewTaskInputFocusChange(true)
+                                } else if (hasNewTaskInputFocus) {
+                                    hasNewTaskInputFocus = false
+                                    onNewTaskInputFocusChange(false)
+                                }
                             }
                             .heightIn(min = TaskListDetailMetrics.inputMinHeight)
                             .background(inputBackgroundColor, RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius))
@@ -5007,7 +5210,7 @@ private fun TaskListDetailContent(
                         val draggedItemInfo = lazyListState.layoutInfo.visibleItemsInfo
                             .firstOrNull { it.key == draggingTaskId }
                         val fingerInViewport = if (draggedItemInfo != null) {
-                            (draggedItemInfo.offset + draggedItemInfo.size / 2 + taskDragOffset).toFloat()
+                            draggedItemInfo.offset + draggedItemInfo.size / 2 + taskDragOffset
                         } else {
                             viewportHeight / 2
                         }
@@ -5117,7 +5320,7 @@ private fun TaskListDetailContent(
                                         showEditDialog = false
                                     } catch (e: Exception) {
                                         removeListError = t.t("common.error")
-                                        logException(firestoreErrorDescription("task list update", e), fatal = false)
+                                        recordNonFatalException("task_list_update", e)
                                     }
                                 }
                             }
@@ -5183,7 +5386,7 @@ private fun TaskListDetailContent(
     }
 
     if (showShareDialog) {
-        val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+        val clipboard = LocalClipboard.current
         AlertDialog(
             onDismissRequest = { showShareDialog = false },
             title = { Text(t.t("taskList.shareTitle")) },
@@ -5220,8 +5423,12 @@ private fun TaskListDetailContent(
                                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                                 )
                                 TextButton(onClick = {
-                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(code))
-                                    shareCopySuccess = true
+                                    scope.launch {
+                                        clipboard.setClipEntry(
+                                            ClipEntry(ClipData.newPlainText("share_code", code))
+                                        )
+                                        shareCopySuccess = true
+                                    }
                                 }) {
                                     Text(if (shareCopySuccess) t.t("common.copied") else t.t("common.copy"))
                                 }
@@ -5491,6 +5698,14 @@ private fun SettingsView(
                     CircularProgressIndicator()
                 }
             } else {
+                if (uiState.hasError) {
+                    Text(
+                        t.t("app.loadError"),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
                 SettingsSectionCard(title = t.t("settings.userInfo.title")) {
                     Text(
                         uiState.userEmail,
@@ -5547,7 +5762,7 @@ private fun SettingsView(
                             OssLicensesMenuActivity.setActivityTitle(t.t("settings.licenses.openSource"))
                             context.startActivity(Intent(context, OssLicensesMenuActivity::class.java))
                         } catch (e: Exception) {
-                            logException(firestoreErrorDescription("open source licenses", e), fatal = false)
+                            recordNonFatalException("open_source_licenses", e)
                             errorMessage = t.t("settings.licenses.loadError")
                         }
                     }
@@ -5647,10 +5862,10 @@ private fun SettingsView(
                                             if (memberCount <= 1) {
                                                 db.batch().apply {
                                                     snap.getString("shareCode")
-                                                        ?.takeIf { it.isNotBlank() }
                                                         ?.let { shareCode ->
-                                                            val normalizedCode = shareCode.trim().uppercase()
-                                                            delete(db.collection("shareCodes").document(normalizedCode))
+                                                            normalizedShareCode(shareCode)?.let { normalizedCode ->
+                                                                delete(db.collection("shareCodes").document(normalizedCode))
+                                                            }
                                                         }
                                                     delete(taskListRef)
                                                 }.commit().await()

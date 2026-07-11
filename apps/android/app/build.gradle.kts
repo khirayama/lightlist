@@ -32,6 +32,13 @@ val passwordResetUrl =
     providers.gradleProperty("PASSWORD_RESET_URL")
         .orElse("https://lightlist.com/password_reset")
         .get()
+val passwordResetLinkDomainOverride =
+    providers.gradleProperty("LIGHTLIST_FIREBASE_AUTH_LINK_DOMAIN")
+        .orElse(providers.environmentVariable("LIGHTLIST_FIREBASE_AUTH_LINK_DOMAIN"))
+val debugPasswordResetLinkDomain =
+    passwordResetLinkDomainOverride.orElse("lightlist-dev.firebaseapp.com").get()
+val releasePasswordResetLinkDomain =
+    passwordResetLinkDomainOverride.orElse("lightlist-prod-b0269.firebaseapp.com").get()
 val versionCodeValue =
     providers.gradleProperty("LIGHTLIST_VERSION_CODE")
         .map(String::toInt)
@@ -83,6 +90,12 @@ android {
         versionCode = versionCodeValue
         versionName = "1.0"
         buildConfigField("String", "PASSWORD_RESET_URL", "\"$passwordResetUrl\"")
+        buildConfigField(
+            "String",
+            "PASSWORD_RESET_LINK_DOMAIN",
+            "\"$debugPasswordResetLinkDomain\""
+        )
+        manifestPlaceholders["passwordResetLinkHost"] = debugPasswordResetLinkDomain
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -108,6 +121,13 @@ android {
                     signingConfigs.getByName("debug")
                 }
             isMinifyEnabled = true
+            isShrinkResources = true
+            buildConfigField(
+                "String",
+                "PASSWORD_RESET_LINK_DOMAIN",
+                "\"$releasePasswordResetLinkDomain\""
+            )
+            manifestPlaceholders["passwordResetLinkHost"] = releasePasswordResetLinkDomain
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -121,6 +141,10 @@ android {
     buildFeatures {
         buildConfig = true
         compose = true
+    }
+    lint {
+        disable += "IconDuplicates"
+        disable += "IconLauncherShape"
     }
 
     sourceSets.getByName("main").assets.directories.add(generatedSharedAssetsDirFile.path)
@@ -140,8 +164,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.profileinstaller)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
@@ -150,7 +175,7 @@ dependencies {
     implementation(libs.firebase.appcheck)
     releaseImplementation(libs.firebase.appcheck.playintegrity)
     debugImplementation(libs.firebase.appcheck.debug)
-    implementation("com.google.android.gms:play-services-oss-licenses:17.5.1")
+    implementation(libs.google.play.services.oss.licenses)
     implementation(libs.kotlinx.coroutines.play.services)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

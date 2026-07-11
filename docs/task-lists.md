@@ -4,7 +4,7 @@
 
 ## タスクリスト操作
 
-- `createTaskList(name, background)`: `taskLists` 実体の作成と `taskListOrder` への追加を同時に行う。
+- `createTaskList(name, background)`: `taskLists` 実体の作成と `taskListOrder` への追加を同時に行う。新規作成時の背景色は未設定（`null`）を既定とする。
 - `updateTaskList()`: `name` と `background` を更新する。
 - `updateTaskListOrder()`: 並び替え後に `1.0` 始まりの連番へ振り直す。
 - `deleteTaskList()`: 事前 read 後の batch write で次を行う。transaction は使わない。
@@ -27,6 +27,8 @@
 ## タスク action
 
 - task action はピン留め切替、日付選択、日付クリアを同じ sheet / dialog にまとめる。
+- sheet / dialog の表示順は、右寄せの閉じる操作、ピン留め行、左寄せの日付クリア、月カレンダーとする。ピン留め行とカレンダーはボーダーレスの淡い面・角丸 12 でまとめ、日付クリアは destructive 色にせず補助テキスト action として表示する。
+- visible title と task 名は表示せず、用途は sheet / dialog のアクセシビリティ名で伝える。閉じる操作、ピン留め行、日付クリアは Web / iOS で 44pt/px 以上、Android で 48dp 以上の操作領域を確保する。
 - 日付クリアは対象 task に `date` がある場合だけ実行可能にする。日付未設定 task では disabled とし、no-op の保存を発生させない。
 - ピン留め切替、日付選択、日付クリアはいずれも即時保存し、成功時に sheet / dialog を閉じる。失敗時は local pending を解放し、同じ画面上で汎用エラーを表示して再操作できる状態へ戻す。
 
@@ -43,6 +45,15 @@
 - pinned task は強めの本文 weight で区別し、右端の task action はカレンダーではなくピンアイコンを表示する。
 - Web / iOS の task 本文は URL などの長い連続文字列でも行幅内で折り返し、右端 action や周辺レイアウトを横方向へ押し出さない。
 
+## 追加・削除・並び替えの演出
+
+- タスク追加は約 240ms で fade in し、Web / iOS は上端から短く移動させる。Android は追加行の fade と既存行の layout spring を組み合わせる。
+- 完了済みタスクの削除は約 120ms の fade out 完了後に表示と保存対象から外す。削除方向を示す横移動は付けない。
+- 並び替えで押し退けられる行は約 220ms 相当の減衰した spring / ease-out で新しい位置へ移動する。ドラッグ中の行は opacity `0.8`、scale `1.03` で 3 プラットフォームを揃える。
+- `autoSort` による完了切替・ピン切替・日付変更で配置が変わる場合も、ドラッグ並び替えと同じ約 220ms の移動を適用する。
+- Web のoptimistic表示が同じ配置のlistener表示へ切り替わる場合、進行中の配置アニメーションを再生成・途中終了しない。
+- OS / ブラウザの Reduce Motion 設定が有効な場合、追加・削除・並び替えの演出は無効化し、状態と配置を即時反映する。
+
 ## 入力解析
 
 Web の parser を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。本文編集の確定時も同じ parser を通す。
@@ -55,6 +66,9 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 - 本文編集では prefix 付与時だけ `pinned` を `true` にし、prefix 不在を理由に自動解除しない。日付表現を取り除いた結果 `text` が空になる場合は、既存 `text` を維持して `date` だけ更新する。
 - `date` の `"yyyy-MM-dd"` 文字列は 3 プラットフォームとも端末ローカルの暦日として解釈・生成する（formatter / parser に UTC を指定しない）。例外は Android Material3 `DatePicker` の millis 変換のみ。
 - Web の日付設定とカレンダー確認で使う月表示は、利用可能な横幅を7曜日へ均等配分する。日付ボタンの大きさは固定し、各列の中央へ配置する。
+- カレンダーの同日タスクは、タスクリスト順、次にそのリスト内の表示順で並べる。
+- カレンダーの日付選択は、選択円を約 240ms の短い spring / scale で表示し、対応するタスク行の背景色を約 180ms で切り替える。iOS / Android は日付の直接選択時に selection feedback も返す。
+- カレンダーの選択演出は OS / ブラウザの Reduce Motion 設定に従い、無効時はアニメーションせず即時に状態を反映する。
 
 ## 入力候補（history）
 
@@ -64,7 +78,7 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 
 ## 同期の制約
 
-- task 更新は `現在表示中 task 群 -> 正規化済み next task 群 -> local pending 表示 -> taskListId 単位 queue 経由の差分保存` の順で処理する。
+- task 更新は `現在表示中 task 群 -> 正規化済み next task 群 -> local pending 表示 -> taskListId 単位 queue 経由の差分保存` の順で処理する。正規化と pending 反映は操作ごとに一度だけ行い、その同じ task 群から保存差分を作る。
 - 同一 `taskListId` の書き込みはクライアント内で直列化する。追加直後の更新が先行保存を追い越さないようにする。
 - local pending は listener 一致（同じ正規化を通して比較）で解放するほか、`taskListId` 単位 queue のコミット完了でも必ず解放する。一致だけだと別端末の並行編集で固着するため。
 - 表示優先順は `ドラッグ overlay -> local pending -> listener`。ドラッグ overlay はキャンセルだけでなく正常終了でも必ず解放する。

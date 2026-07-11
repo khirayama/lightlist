@@ -31,7 +31,7 @@
 
 ## 画面導線
 
-- 共有コードプレビューは未認証でも開く。ログイン済みかつ未参加のときだけ `taskListOrder` へ追加する導線を表示する。
+- 共有コードプレビューは未認証でも開く。コード保持者はプレビュー上で名前・背景・タスク・履歴・共有コードを編集できるが、タスクリスト削除はできない。ログイン済みかつ未参加のときだけ `taskListOrder` へ追加する導線を表示する。
 - Web / HTTPS: `https://lightlist.com/sharecodes/?code=CODE`
 - iOS: `lightlist://sharecodes/CODE`、HTTPS 正規形
 - Android: `lightlist://sharecodes/CODE`、HTTPS 正規形

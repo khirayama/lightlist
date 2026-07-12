@@ -1146,7 +1146,9 @@ const getOrderedTaskListIds = (
   taskListOrder: TaskListOrderStore | null,
 ): string[] =>
   getTaskListOrderEntries(taskListOrder)
-    .sort((a, b) => a[1].order - b[1].order)
+    .sort(
+      (a, b) => a[1].order - b[1].order || compareStringIds(a[0], b[0]),
+    )
     .map(([taskListId]) => taskListId);
 
 const getTaskListIdChunks = (taskListIds: string[]): string[][] => {
@@ -2307,6 +2309,11 @@ const normalizeShareCode = (shareCode: string): string | null => {
   return shareCodePattern.test(normalized) ? normalized : null;
 };
 
+function compareStringIds(left: string, right: string): number {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
 function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
   const getDateKey = (task: TaskListStoreTask): string =>
     task.date || "9999-12-31";
@@ -2323,7 +2330,7 @@ function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
       if (aDate !== bDate) {
         return aDate < bDate ? -1 : 1;
       }
-      return a.order - b.order;
+      return a.order - b.order || compareStringIds(a.id, b.id);
     })
     .map((task, index) => ({ ...task, order: (index + 1) * 1.0 }));
 }
@@ -2367,7 +2374,9 @@ function getTaskDisplayGroup(
 function getOrderedTasks(
   taskList: Pick<TaskListStore, "tasks">,
 ): TaskListStoreTask[] {
-  return Object.values(taskList.tasks).sort((a, b) => a.order - b.order);
+  return Object.values(taskList.tasks).sort(
+    (a, b) => a.order - b.order || compareStringIds(a.id, b.id),
+  );
 }
 
 function getDisplayOrderedTasks(
@@ -2375,7 +2384,7 @@ function getDisplayOrderedTasks(
 ): TaskListStoreTask[] {
   return Object.values(taskList.tasks).sort((a, b) => {
     const groupDifference = getTaskDisplayGroup(a) - getTaskDisplayGroup(b);
-    return groupDifference || a.order - b.order;
+    return groupDifference || a.order - b.order || compareStringIds(a.id, b.id);
   });
 }
 
@@ -2537,11 +2546,13 @@ async function updateTaskListOrder(
   taskListOrders: Array<{ taskListId: string; order: number }>,
 ) {
   const uid = requireCurrentUserId();
-  const updates: Record<string, unknown> = { updatedAt: Date.now() };
-  taskListOrders.forEach(({ taskListId, order }) => {
-    updates[`${taskListId}.order`] = order;
+  await enqueueTaskListMutation(`taskListOrder:${uid}`, async () => {
+    const updates: Record<string, unknown> = { updatedAt: Date.now() };
+    taskListOrders.forEach(({ taskListId, order }) => {
+      updates[`${taskListId}.order`] = order;
+    });
+    await updateDoc(doc(getDbInstance(), "taskListOrder", uid), updates);
   });
-  await updateDoc(doc(getDbInstance(), "taskListOrder", uid), updates);
 }
 
 async function addTask(
@@ -4564,11 +4575,18 @@ const reconcileOptimisticItems = <T extends { id: string }>(
 };
 const useOptimisticReorder = <T extends { id: string }>(
   initialItems: T[],
-  onReorder: (draggedId: string, targetId: string) => Promise<void>,
+  onReorder: (
+    draggedId: string,
+    targetId: string,
+    nextItems: T[],
+  ) => Promise<void>,
   { suspendExternalSync = false }: { suspendExternalSync?: boolean } = {},
 ) => {
   const [optimisticItems, setOptimisticItems] = useState<T[] | null>(null);
   const items = optimisticItems ?? initialItems;
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const revisionRef = useRef(0);
 
   useEffect(() => {
     if (suspendExternalSync || !optimisticItems) return;
@@ -4591,20 +4609,30 @@ const useOptimisticReorder = <T extends { id: string }>(
   const reorder = useCallback(
     async (draggedId: string, targetId: string) => {
       if (!draggedId || !targetId || draggedId === targetId) return;
-      setOptimisticItems((currentItems) => {
-        const sourceItems = currentItems ?? initialItems;
-        return (
-          moveItemBeforeTarget(sourceItems, draggedId, targetId) ?? sourceItems
-        );
-      });
+      const sourceItems = itemsRef.current;
+      const nextItems =
+        moveItemBeforeTarget(sourceItems, draggedId, targetId) ?? sourceItems;
+      const revision = revisionRef.current + 1;
+      revisionRef.current = revision;
+      itemsRef.current = nextItems;
+      setOptimisticItems(nextItems);
       try {
-        await onReorder(draggedId, targetId);
+        await onReorder(draggedId, targetId, nextItems);
+        if (revisionRef.current === revision) {
+          setTimeout(() => {
+            if (revisionRef.current === revision) {
+              setOptimisticItems(null);
+            }
+          }, 0);
+        }
       } catch (error) {
-        setOptimisticItems(null);
+        if (revisionRef.current === revision) {
+          setOptimisticItems(null);
+        }
         throw error;
       }
     },
-    [initialItems, onReorder],
+    [onReorder],
   );
 
   return { items, reorder };
@@ -5385,6 +5413,7 @@ function TaskListCard({
   );
   const [taskError, setTaskError] = useState<string | null>(null);
   const [pendingTasks, setPendingTasks] = useState<Task[] | null>(null);
+  const pendingTasksRef = useRef<Task[] | null>(null);
   const baseTasks = pendingTasks ?? taskList.tasks;
   const taskListTasksRef = useRef(taskList.tasks);
   taskListTasksRef.current = taskList.tasks;
@@ -5447,7 +5476,9 @@ function TaskListCard({
 
   useEffect(() => {
     if (!pendingTasks) return;
+    if (taskListMutationQueues.has(taskList.id)) return;
     if (areTasksEqual(pendingTasks, normalizePendingTasks(taskList.tasks))) {
+      pendingTasksRef.current = null;
       setPendingTasks(null);
     }
   }, [normalizePendingTasks, pendingTasks, taskList.tasks]);
@@ -5464,10 +5495,10 @@ function TaskListCard({
 
   const applyPendingTasks = useCallback(
     (buildNextTasks: (currentTasks: Task[]) => Task[]) => {
-      setPendingTasks((prev) => {
-        const current = prev ?? taskListTasksRef.current;
-        return normalizePendingTasks(buildNextTasks(current));
-      });
+      const current = pendingTasksRef.current ?? taskListTasksRef.current;
+      const nextTasks = normalizePendingTasks(buildNextTasks(current));
+      pendingTasksRef.current = nextTasks;
+      setPendingTasks(nextTasks);
     },
     [normalizePendingTasks],
   );
@@ -5490,11 +5521,19 @@ function TaskListCard({
         await commit();
         onSuccess?.();
       } catch (error) {
-        setPendingTasks(null);
+        if (!taskListMutationQueues.has(taskList.id)) {
+          pendingTasksRef.current = null;
+          setPendingTasks(null);
+        }
         onError?.(error);
       } finally {
         if (!taskListMutationQueues.has(taskList.id)) {
-          setTimeout(() => setPendingTasks(null), 0);
+          setTimeout(() => {
+            if (!taskListMutationQueues.has(taskList.id)) {
+              pendingTasksRef.current = null;
+              setPendingTasks(null);
+            }
+          }, 0);
         }
       }
     },
@@ -6007,13 +6046,18 @@ function TaskListCard({
                         onDragInteractionChange?.(active);
                       }}
                       onToggle={(task) => {
+                        const currentTask =
+                          pendingTasksRef.current?.find(
+                            (current) => current.id === task.id,
+                          ) ?? task;
+                        const nextCompleted = !currentTask.completed;
                         void runTaskMutation({
                           buildNextTasks: (currentTasks) =>
                             currentTasks.map((currentTask) =>
                               currentTask.id === task.id
                                 ? {
                                     ...currentTask,
-                                    completed: !task.completed,
+                                    completed: nextCompleted,
                                   }
                                 : currentTask,
                             ),
@@ -6021,7 +6065,7 @@ function TaskListCard({
                             updateTask(
                               taskList.id,
                               task.id,
-                              { completed: !task.completed },
+                              { completed: nextCompleted },
                               resolvedTaskSettings,
                             ),
                           onSuccess: () =>
@@ -7072,21 +7116,9 @@ function AppShellPage() {
   const [error, setError] = useState<string | null>(null);
   const { items: taskLists, reorder: reorderTaskList } = useOptimisticReorder(
     stateTaskLists,
-    async (draggedId, targetId) => {
-      const sourceItems = [...stateTaskLists];
-      const oldIndex = sourceItems.findIndex(
-        (taskList) => taskList.id === draggedId,
-      );
-      const newIndex = sourceItems.findIndex(
-        (taskList) => taskList.id === targetId,
-      );
-      if (oldIndex === -1 || newIndex === -1) {
-        return;
-      }
-      const [draggedTaskList] = sourceItems.splice(oldIndex, 1);
-      sourceItems.splice(newIndex, 0, draggedTaskList);
+    async (_draggedId, _targetId, nextItems) => {
       await updateTaskListOrder(
-        sourceItems.map((taskList, index) => ({
+        nextItems.map((taskList, index) => ({
           taskListId: taskList.id,
           order: index + 1,
         })),

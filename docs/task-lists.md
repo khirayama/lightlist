@@ -6,7 +6,7 @@
 
 - `createTaskList(name, background)`: `taskLists` 実体の作成と `taskListOrder` への追加を同時に行う。新規作成時の背景色は未設定（`null`）を既定とする。
 - `updateTaskList()`: `name` と `background` を更新する。
-- `updateTaskListOrder()`: 並び替え後に `1.0` 始まりの連番へ振り直す。
+- `updateTaskListOrder()`: 並び替え後に `1.0` 始まりの連番へ振り直す。連続操作時は listener 由来の旧順ではなく、ドラッグ開始時に表示していた pending を含む順序へ今回の移動を適用する。
 - `deleteTaskList()`: 事前 read 後の batch write で次を行う。transaction は使わない。
   - 自分の `taskListOrder` から対象を外す。
   - `memberCount` を 1 減らす。
@@ -37,10 +37,15 @@
 - タスクリストの追加入力欄がフォーカス中にページャーをスワイプまたはスクロールして別のリストへ切り替えた場合、切替先リストの追加入力欄へフォーカスを引き継ぐ。
 - 追加入力欄がフォーカス中でない場合、ページ切替によって追加入力欄を新たにフォーカスしない。
 
+## タスク本文の編集切替
+
+- タスク本文の編集中に別のタスクを選択した場合、切替前のタスクへその時点の編集内容を確定してから、切替先の本文で編集状態を初期化する。
+- フォーカス移動後に遅れて届く旧タスクの確定イベントは、現在の編集対象 ID と一致する場合だけ処理する。切替先の本文を旧タスクへ保存しない。
+
 ## 表示順
 
-- `未完了 pinned -> 未完了 unpinned -> 完了` の順。各グループ内は `order` 昇順。
-- `autoSort` 有効時は各グループ内を `date -> order` で再採番する。
+- `未完了 pinned -> 未完了 unpinned -> 完了` の順。各グループ内は `order -> id` 昇順とし、同じ `order` が存在しても端末ごとに順序を変えない。
+- `autoSort` 有効時は各グループ内を `date -> order -> id` で再採番する。
 - D&D はグループ内のみ。グループ移動はピン切替・完了切替で行う。
 - pinned task は強めの本文 weight で区別し、右端の task action はカレンダーではなくピンアイコンを表示する。
 - Web / iOS の task 本文は URL などの長い連続文字列でも行幅内で折り返し、右端 action や周辺レイアウトを横方向へ押し出さない。
@@ -79,9 +84,10 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 ## 同期の制約
 
 - task 更新は `現在表示中 task 群 -> 正規化済み next task 群 -> local pending 表示 -> taskListId 単位 queue 経由の差分保存` の順で処理する。正規化と pending 反映は操作ごとに一度だけ行い、その同じ task 群から保存差分を作る。
-- 同一 `taskListId` の書き込みはクライアント内で直列化する。追加直後の更新が先行保存を追い越さないようにする。
-- local pending は listener 一致（同じ正規化を通して比較）で解放するほか、`taskListId` 単位 queue のコミット完了でも必ず解放する。一致だけだと別端末の並行編集で固着するため。
-- 表示優先順は `ドラッグ overlay -> local pending -> listener`。ドラッグ overlay はキャンセルだけでなく正常終了でも必ず解放する。
+- 同一 `taskListId` の task 書き込みと同一ユーザーの taskList 順書き込みはクライアント内で直列化する。キューは画面の mount / Composition より長く保持し、画面移動で待機中の書き込みをキャンセルしない。
+- local pending は操作世代を持ち、最新世代の queue がドレインした時だけ解放する。内容一致だけでは古い listener snapshot と最新 pending を区別できないため、listener 一致を理由に書き込み中の pending を早期解放しない。
+- 表示優先順は `ドラッグ overlay -> local pending -> listener`。ドラッグは開始時の表示順を基準にし、overlay はキャンセルだけでなく正常終了でも必ず解放する。最新書き込み完了後は pending も必ず解放し、別端末の listener 更新を覆い続けない。
+- 完了・ピン切替はイベント発生時に描画されていた値ではなく、pending を含む現在表示中 task の値から反転する。
 - 空状態判定も pending を含む現在表示中 task 群を基準にし、空リストへの 1 件目追加を listener 反映待ちにしない。
 - UI 更新系で transaction は使わない。
 - listener 失敗は読み込めているデータを維持して部分劣化させる。全画面エラーにするのは設定・保持リスト順序の失敗、または taskLists を 1 件も表示できない場合だけ。

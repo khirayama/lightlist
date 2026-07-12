@@ -73,6 +73,7 @@
 - Android の task action は `ModalBottomSheet` と Compose Material3 `DatePicker` を使い、TalkBack では `paneTitle` を設定して別ペインとして読ませる。sheet 本文は縦スクロール可能にし、`DatePicker` の title / headline / mode toggle は表示しない。
 - Web の task action は狭幅で actual bottom sheet、広幅で centered dialog を使う。route hash は変えずに `history.state` を 1 段積み、戻る操作と `Esc`/dismiss のどちらでも閉じて起点ボタンへ focus を戻す。
 - iOS / Android / Web の task action sheet は、可能な限りキーボードのみで操作できる構成を維持する。
+- task 本文の編集中に別 task へ移る場合は、旧 task の編集値を確定してから新 task の本文で編集状態を初期化する。遅延した blur / focus loss は現在の編集対象 ID と一致する task だけ確定し、新 task の編集値を旧 task へ保存しない。
 - iOS / Android はタスク操作（完了/ピン切替・追加・完了済み削除・ドラッグ開始・並び替え入れ替え）で触覚フィードバックを返し、両プラットフォームで挙動を揃える。iOS は `UIImpactFeedbackGenerator` / `UISelectionFeedbackGenerator` / `UINotificationFeedbackGenerator`、Android は `LocalHapticFeedback` の `HapticFeedbackType` を使う。詳細は `AGENTS.md` を正とする。
 - iOS のアプリ内アイコンは `ContentView.swift` の metrics を正とし、標準アクションとナビゲーション `22pt`、テキスト横の補助アクション `18pt`、詳細画面の小型アクション `20pt` を基準に目視サイズを揃える。AppIcon 資産とは分けて扱う。タスクリスト詳細の右端 action（ヘッダー共有・操作列ゴミ箱・task row のカレンダー/ピン）は `trailingDateButtonWidth`（48pt）の列幅で中心線を揃え、drag handle のドットは `4pt` で補助アクションと目視サイズを揃える。
 - Android のアプリ内アイコンは `ContentView.kt` の metrics を正とし、標準アクション `24dp`、テキスト横の補助アクション `18dp`、詳細画面の小型アクション `20dp` を基準に目視サイズを揃える。launcher icon 資産とは分けて扱う。
@@ -110,13 +111,13 @@
 - Web の task 更新系は Firestore `tasks` map の列挙順を順序根拠に使わず、必ず `order` 昇順の配列へ直してから追加・自動並び替え・D&D 並び替え・完了済み削除を計算する。
 - Web / iOS / Android の UI 更新系 Firestore 書き込みでは transaction を使わず、task 本文 blur・task 並び替え・taskList 並び替え・日付変更・ピン切替・完了切替の保存後も、listener が同じ内容へ追いつくまで local pending state を優先表示して旧表示への瞬間的な逆戻りを防ぐ。Web の local pending task 表示も `autoSort` 有効時は `未完了 pinned -> 未完了 unpinned -> 完了` と各グループ内 `date -> order` へ正規化して保持する。
 - Web / iOS / Android の task 更新系 Firestore 書き込みは同一 `taskListId` ごとにクライアント内で直列化し、task 追加直後の後続更新が先行保存を追い越さないようにする。Web の optimistic task 追加は Firestore 保存と同じ `taskId` を使う。
-- Web / iOS / Android の task 更新 UI は、`表示中 task 群 -> 正規化済み next task 群 -> pending 表示 -> queue 経由の差分保存` の順で統一し、pending 解放判定も listener 側 task 群を同じ正規化へ通して比較する。Firestore へは新規 task の full object、削除 task の `tasks.<id>` delete、既存 task の変更 field と変化した `order` だけを書き込む。
-- iOS / Android の task pending（楽観的 overlay）は listener 一致判定だけで解放しない。一致判定は即時解放の fast-path として残し、さらにリスト単位 mutation queue のドレイン（投入済み書き込みの全件コミット完了 = `onIdle`）でも必ず解放する。別端末の並行編集で一致が永久に成立せず View が固着するのを防ぐため。`pendingTaskListOrder` も並び替え書き込みのコミット完了で解放する。
-- iOS / Android の表示優先順は `ドラッグ overlay -> pending -> listener`。ドラッグ並び替えの overlay（`dragOrderedTasks` / `dragOrderedTaskLists`）は `onDragCancel` だけでなく正常終了（`.onEnded` / `onDragEnd`）でも必ず `nil`/`null` に戻す。戻し忘れると並び替え後に追加・編集・完了切替・listener 更新が overlay に隠れて固着する。並び替え有無は overlay ではなく listener 由来の原順と比較して判定する。
+- Web / iOS / Android の task 更新 UI は、`表示中 task 群 -> 正規化済み next task 群 -> pending 表示 -> queue 経由の差分保存` の順で統一する。完了・ピン切替は pending を含む現在値から反転する。Firestore へは新規 task の full object、削除 task の `tasks.<id>` delete、既存 task の変更 field と変化した `order` だけを書き込む。
+- Web / iOS / Android の task pending（楽観的 overlay）は操作世代を持ち、最新世代の mutation queue がドレインした時だけ解放する。過去の同一状態を示す listener snapshot と区別できないため、書き込み中の内容一致を早期解放に使わない。taskList 並び替え pending も最新コミット完了で解放し、別端末 listener を shadow し続けない。iOS / Android の queue は view / Composition より長い taskListId 単位登録で保持する。
+- Web / iOS / Android の表示優先順は `ドラッグ overlay -> pending -> listener`。ドラッグ開始時は pending を含む現在表示順を固定し、終了時との差分を保存する。overlay はキャンセルだけでなく正常終了でも必ず解放する。task / taskList の同順位は `id` を最終比較条件として決定的にする。
 - Web / iOS / Android の task 一覧の空状態判定も pending 表示を含む現在表示中 task 群を基準にし、空リストへの 1 件目追加を listener 反映待ちにしない。
 - Web の task mutation は taskList read をキャッシュ優先（`getDocFromCache` → 失敗時 `getDoc`）で行い、settings は UI の購読済み値を `ResolvedTaskSettings` として引数で渡す。`addTask()` の order は top で `先頭 - 1`、bottom で `末尾 + 1` を 3 プラットフォーム共通とする。
 - Web の taskLists chunk listener の失敗は部分劣化とし、全画面エラーは settings / taskListOrder 失敗か taskLists が 1 件も読めない場合だけにする。`index` / `404` / `500` / `password_reset` ページでは Firebase Auth を購読しない。
-- iOS の task mutation queue は `TaskListMutationQueues`（taskListId キー）で保持し、`CalendarViewModel` は `CalendarScreenView` が表示中だけ bind する。
+- iOS / Android の task mutation queue は `TaskListMutationQueues`（taskListId キー）で保持し、Android では Composition の終了で書き込みをキャンセルしない。`CalendarViewModel` は `CalendarScreenView` が表示中だけ bind する。
 - Web / iOS / Android の `deleteTaskList()` と `addSharedTaskListToOrder()` も transaction を使わず、事前 read 後の batch write で `taskListOrder` と `taskLists.memberCount` を更新する。共有参加は `taskListOrder/{uid}` 欠損時でも merge 書き込みで自動作成し、既に追加済みなら no-op にする。
 - Web / iOS / Android のタスク入力候補は `taskLists.history` を共通の正本として使い、履歴更新はタスク追加時と本文変更時に行う。候補表示条件は trim 後 2 文字以上の部分一致・最大 20 件・完全一致除外で Web 仕様に揃える。
 - task のピン留めは `tasks.*.pinned` だけを追加し、`pinOrder` は持たない。表示順は `未完了 pinned -> 未完了 unpinned -> 完了`、各グループ内は `order` 昇順を正とする。`autoSort` 有効時は各グループ内を `date -> order` で再採番する。pinned task の右端 action はカレンダーではなくピンアイコンを表示し、強めの本文 weight で通常 task と区別する。

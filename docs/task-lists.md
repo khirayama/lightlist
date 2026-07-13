@@ -2,6 +2,13 @@
 
 データ構造は [data-model.md](./data-model.md)、共有は [sharing.md](./sharing.md) を参照。UI の寸法・レイアウトの細部は `AGENTS.md` を正とする。
 
+## キーボード操作
+
+- Web の compact layout とタスクリスト carousel は、現在表示中の画面・スライドだけを Tab 順と accessibility tree に含める。画面外へ移動した入力欄やボタンへフォーカスを移さない。
+- Web の compact layout で画面を切り替えたときは main landmark へフォーカスを移し、遷移先の先頭から操作を再開できるようにする。初回表示ではフォーカスを奪わない。
+- Web のタスク / タスクリスト並び替えは、drag handle へフォーカスして Space または Enter で開始し、矢印キーで移動、Space または Enter で確定、Escape でキャンセルできる。操作方法と移動結果は読み上げへ通知する。
+- iOS / Android のタスク / タスクリスト並び替えは、drag handle の VoiceOver / TalkBack custom action で上・下へ移動できる。ハードウェアキーボードでは drag handle へフォーカスし、iOS は Option + 上下矢印、Android は Alt + 上下矢印で移動する。修飾なしの矢印キーは通常のフォーカス移動に使う。
+
 ## タスクリスト操作
 
 - `createTaskList(name, background)`: `taskLists` 実体の作成と `taskListOrder` への追加を同時に行う。新規作成時の背景色は未設定（`null`）を既定とする。
@@ -74,6 +81,8 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 - カレンダーの同日タスクは、タスクリスト順、次にそのリスト内の表示順で並べる。
 - カレンダーの日付選択は、選択円を約 240ms の短い spring / scale で表示し、対応するタスク行の背景色を約 180ms で切り替える。iOS / Android は日付の直接選択時に selection feedback も返す。
 - カレンダーの選択演出は OS / ブラウザの Reduce Motion 設定に従い、無効時はアニメーションせず即時に状態を反映する。
+- カレンダーで日付を選択すると、「選択日の表示 + タスクを追加」の主ボタンを表示する。主ボタンは「選択日 + 閉じる → 追加先タスクリスト → 本文 → 横幅いっぱいの追加ボタン」の順で構成した sheet / dialog を開き、選択日は変更せず固定する。角丸・入力面・余白・文字階層は Web を正として 3 プラットフォームで揃え、日付付きタスクがない月でも追加できる。
+- カレンダーからの追加も通常のタスク追加と同じ `taskInsertPosition` / `autoSort` / pin prefix / `history` / taskList 単位 mutation queue を使う。追加したタスクは listener 反映前からカレンダーへ楽観表示し、保存失敗時だけ取り除く。
 
 ## 入力候補（history）
 

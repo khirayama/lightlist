@@ -75,6 +75,7 @@
 - iOS / Android / Web の task action sheet は、可能な限りキーボードのみで操作できる構成を維持する。
 - task 本文の編集中に別 task へ移る場合は、旧 task の編集値を確定してから新 task の本文で編集状態を初期化する。遅延した blur / focus loss は現在の編集対象 ID と一致する task だけ確定し、新 task の編集値を旧 task へ保存しない。
 - iOS / Android はタスク操作（完了/ピン切替・追加・完了済み削除・ドラッグ開始・並び替え入れ替え）で触覚フィードバックを返し、両プラットフォームで挙動を揃える。iOS は `UIImpactFeedbackGenerator` / `UISelectionFeedbackGenerator` / `UINotificationFeedbackGenerator`、Android は `LocalHapticFeedback` の `HapticFeedbackType` を使う。詳細は `AGENTS.md` を正とする。
+- カレンダーの日付選択時は、Web の「選択日 + 閉じる → 追加先タスクリスト → 本文 → 横幅いっぱいの追加ボタン」を正とした task 追加 sheet / dialog を表示する。通常追加と同じ settings・履歴・taskList 単位 mutation queue・楽観表示を使う。
 - iOS のアプリ内アイコンは `ContentView.swift` の metrics を正とし、標準アクションとナビゲーション `22pt`、テキスト横の補助アクション `18pt`、詳細画面の小型アクション `20pt` を基準に目視サイズを揃える。AppIcon 資産とは分けて扱う。タスクリスト詳細の右端 action（ヘッダー共有・操作列ゴミ箱・task row のカレンダー/ピン）は `trailingDateButtonWidth`（48pt）の列幅で中心線を揃え、drag handle のドットは `4pt` で補助アクションと目視サイズを揃える。
 - Android のアプリ内アイコンは `ContentView.kt` の metrics を正とし、標準アクション `24dp`、テキスト横の補助アクション `18dp`、詳細画面の小型アクション `20dp` を基準に目視サイズを揃える。launcher icon 資産とは分けて扱う。
 - Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白と、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰める。
@@ -102,7 +103,7 @@
 - Web の前処理はシンプルさを優先し、`npm run dev|build|lint|typecheck` のたびに `apps/web/scripts/sync-shared-locales.mjs` と `licenses:generate` をそのまま実行する。
 - Android の翻訳資産は `shared/locales/locales.json` を build 時に asset 化して使い、件数表示は `taskList.taskCount_one` / `taskList.taskCount_other` を `count` 付きで解決する。
 - iOS / Android の設定値表示やアクセシビリティ文言も shared locale key を正とし、`system` / `top` / `Settings` / 固定曜日名のような raw value や固定言語文字列を直接表示しない。アクセシビリティ専用文言は `a11y.*` キーを使う。
-- task / taskList の並び替えはドラッグに加えてスクリーンリーダー代替手段を提供する。Web は dnd-kit `KeyboardSensor` + `DndContext accessibility`（`a11y.drag*`）、iOS は `accessibilityAction(named:)`、Android は semantics `customActions` で `a11y.moveUp` / `a11y.moveDown` を出す。ページャーインジケータとカレンダー日セルは読み上げラベルと選択状態を公開する。
+- task / taskList の並び替えはドラッグに加えてスクリーンリーダーとハードウェアキーボードの代替手段を提供する。Web は dnd-kit `KeyboardSensor` + `DndContext accessibility`（`a11y.drag*`）、iOS は `accessibilityAction(named:)` + Option + 上下矢印、Android は semantics `customActions` + Alt + 上下矢印で移動する。修飾なしの上下矢印はフォーカス移動に残し、実行不能な方向のスクリーンリーダー action は表示しない。ページャーインジケータとカレンダー日セルは読み上げラベルと選択状態を公開する。
 - タスクの `yyyy-MM-dd` 日付文字列は 3 プラットフォームとも端末ローカルの暦日として解釈・生成する（formatter に UTC を指定しない、Web で `new Date("yyyy-mm-dd")` を使わない）。例外は Android Material3 `DatePicker` の millis 変換のみ。iOS の `yyyy-MM-dd` formatter は `en_US_POSIX` + gregorian を必ず指定する。
 - Firestore のドット記法 field path 書き込みは update 系 API（`updateDoc` / `updateData` / `update`）のみで行い、set + merge に渡さない。
 - Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/entry.tsx` に集約する。LP の `apps/web/src/lp.ts` は `normalizeLanguage` 等の言語ヘルパを同名のまま意図的に複製し、言語選択は `localStorage.i18nextLng` 経由でアプリ側 i18next と引き継ぎ合う。
@@ -123,6 +124,7 @@
 - task のピン留めは `tasks.*.pinned` だけを追加し、`pinOrder` は持たない。表示順は `未完了 pinned -> 未完了 unpinned -> 完了`、各グループ内は `order` 昇順を正とする。`autoSort` 有効時は各グループ内を `date -> order` で再採番する。pinned task の右端 action はカレンダーではなくピンアイコンを表示し、強めの本文 weight で通常 task と区別する。
 - Web の認証後シェルは `apps/web/src/entry.tsx` 内の app page 実装を単一入口とし、`/app/#/task-lists` を stack root、`/app/#/task-lists/:taskListId` を task list 詳細、`/app/#/settings` を設定画面として扱う。`/app/` は bootstrap alias として client mount 後に `#/task-lists` を積み、taskLists 解決まで詳細スケルトン表示のまま待ってから前回選択リスト（localStorage `lightlist.lastTaskList`）か先頭リストの `#/task-lists/:taskListId` を push する。横スライドアニメーションは初期 route 確定後に有効化する。`/settings` の独立 route は持たない。
 - Web の本番静的配信は Cloudflare Pages を正とし、root path 配信を前提に Vite `base` は `/` を維持する。build 出力は `apps/web/dist`、Cloudflare Pages 用 response headers は `apps/web/public/_headers` に置く。AASA は `LIGHTLIST_IOS_TEAM_ID`、Digital Asset Links は `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT`（Play App Signing SHA-256、複数はカンマ区切り）を使って build 後に `dist/.well-known/` へ生成するため、Git integration / `cf:preview` / `cf:deploy` に両環境変数を設定する。
+- Cloudflare Pages の Web build は Node.js `24.18.0` を前提とし、`apps/web/.node-version` で固定する。Pages の Root directory は `apps/web` とし、`apps/web/package.json` の npm version も固定する。Node.js 22.22.2 同梱 npm から npm 12 への直接更新は `promise-retry` 欠損で失敗するため使用しない。
 - iOS / Android の translation loader と analytics helper は `ContentView.swift` / `ContentView.kt` に同居させる。
 - Android の app module は `ContentView.kt` 内の analytics helper が `BuildConfig.DEBUG` を参照するため、`apps/android/app/build.gradle.kts` の `buildFeatures.buildConfig = true` を維持する。
 - Android の Firebase 設定は build variant ごとに `google-services.json` を分け、debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json` を使う。release 用ファイルの package 名は `com.lightlist.app` と一致させる。

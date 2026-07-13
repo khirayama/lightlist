@@ -1,7 +1,10 @@
 {
   "name": "@lightlist/web",
   "version": "1.0.0",
-  "packageManager": "npm@12.0.0",
+  "packageManager": "npm@12.0.1",
+  "engines": {
+    "node": "^24.15.0 || >=26.0.0"
+  },
   "description": "",
   "scripts": {
     "predev": "node scripts/sync-shared-locales.mjs && npm run licenses:generate",

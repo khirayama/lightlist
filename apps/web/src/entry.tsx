@@ -2559,7 +2559,7 @@ async function addTask(
   taskListId: string,
   rawText: string,
   settings: ResolvedTaskSettings,
-  options?: { taskId?: string },
+  options?: { taskId?: string; date?: string },
 ) {
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
@@ -2574,7 +2574,7 @@ async function addTask(
       id: options?.taskId ?? doc(collection(getDbInstance(), "taskLists")).id,
       text: parsed.text,
       completed: false,
-      date: parsed.date,
+      date: options?.date ?? parsed.date,
       order: nextOrder,
       pinned: parsed.pinned,
     };
@@ -4531,6 +4531,7 @@ function Carousel({
             aria-label={getIndicatorLabel?.(idx, count) ?? `${idx + 1}`}
             className="ll-h-full ll-w-full ll-shrink-0 ll-snap-start ll-snap-always"
             aria-hidden={idx !== currentIndex}
+            inert={idx !== currentIndex}
           >
             {child}
           </div>
@@ -6549,12 +6550,16 @@ function CalendarTaskItem({
 type CalendarScreenProps = {
   showCompactHeaderOffset?: boolean;
   taskLists: TaskList[];
+  taskSettings: ResolvedTaskSettings;
+  defaultTaskListId: string | null;
   onSelectTaskList: (taskListId: string) => void;
 };
 
 function CalendarScreen({
   showCompactHeaderOffset = false,
   taskLists,
+  taskSettings,
+  defaultTaskListId,
   onSelectTaskList,
 }: CalendarScreenProps) {
   const { t, i18n } = useTranslation();
@@ -6562,7 +6567,33 @@ function CalendarScreen({
     Date | undefined
   >(undefined);
   const [displayedMonth, setDisplayedMonth] = useState<Date>(() => new Date());
+  const [addTaskDate, setAddTaskDate] = useState<Date | null>(null);
+  const [addTaskText, setAddTaskText] = useState("");
+  const [addTaskListId, setAddTaskListId] = useState(
+    defaultTaskListId ?? taskLists[0]?.id ?? "",
+  );
+  const [addingTask, setAddingTask] = useState(false);
+  const [addTaskError, setAddTaskError] = useState<string | null>(null);
+  const [optimisticDatedTasks, setOptimisticDatedTasks] = useState<DatedTask[]>([]);
   const datedTaskRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (taskLists.some((taskList) => taskList.id === addTaskListId)) return;
+    setAddTaskListId(defaultTaskListId ?? taskLists[0]?.id ?? "");
+  }, [addTaskListId, defaultTaskListId, taskLists]);
+
+  useEffect(() => {
+    const loadedTaskIds = new Set(
+      taskLists.flatMap((taskList) =>
+        taskList.tasks.map((task) => `${taskList.id}:${task.id}`),
+      ),
+    );
+    setOptimisticDatedTasks((current) =>
+      current.filter(
+        (task) => !loadedTaskIds.has(`${task.taskListId}:${task.task.id}`),
+      ),
+    );
+  }, [taskLists]);
 
   const datedTasks = useMemo<DatedTask[]>(() => {
     const flattened: DatedTask[] = [];
@@ -6583,6 +6614,14 @@ function CalendarScreen({
         });
       }
     }
+    const loadedTaskIds = new Set(
+      flattened.map((task) => `${task.taskListId}:${task.task.id}`),
+    );
+    for (const task of optimisticDatedTasks) {
+      if (!loadedTaskIds.has(`${task.taskListId}:${task.task.id}`)) {
+        flattened.push(task);
+      }
+    }
     flattened.sort((left, right) => {
       const byDate = left.dateValue.getTime() - right.dateValue.getTime();
       if (byDate !== 0) return byDate;
@@ -6591,7 +6630,7 @@ function CalendarScreen({
       return left.taskIndex - right.taskIndex;
     });
     return flattened;
-  }, [taskLists]);
+  }, [optimisticDatedTasks, taskLists]);
 
   const datedTasksByMonth = useMemo<Record<string, DatedTask[]>>(() => {
     const map: Record<string, DatedTask[]> = {};
@@ -6681,8 +6720,7 @@ function CalendarScreen({
     <section className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
       <div className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-p-4">
         {showCompactHeaderOffset ? <div className="ll-h-88px" /> : null}
-        {datedTasks.length > 0 ? (
-          <div
+        <div
             className={clsx(
               "ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-pb-12",
               "ll-lg-grid ll-lg-grid-cols-main",
@@ -6732,6 +6770,18 @@ function CalendarScreen({
                   },
                 }}
               />
+              {selectedCalendarDate ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddTaskDate(selectedCalendarDate);
+                    setAddTaskError(null);
+                  }}
+                  className="ll-pressable ll-mt-2 ll-inline-flex ll-min-h-11 ll-w-full ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300"
+                >
+                  {getTaskDateFormatter(i18n.language).format(selectedCalendarDate)} · {t("a11y.addTask")}
+                </button>
+              ) : null}
             </div>
             <div className="ll-min-h-0 ll-overflow-y-auto ll-rounded-xl ll-bg-white-b ll-dark-bg-gray-900b ll-lg-h-full">
               {visibleDatedTasks.length > 0 ? (
@@ -6759,12 +6809,136 @@ function CalendarScreen({
               )}
             </div>
           </div>
-        ) : (
-          <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-            {t("app.calendarNoDatedTasks")}
-          </p>
-        )}
       </div>
+      <Dialog
+        open={addTaskDate !== null}
+        onOpenChange={(open: boolean) => {
+          if (!open && !addingTask) {
+            setAddTaskDate(null);
+            setAddTaskError(null);
+          }
+        }}
+      >
+        {addTaskDate ? (
+          <ActionSheetContent
+            title={t("a11y.addTask")}
+            description={getTaskDateFormatter(i18n.language).format(addTaskDate)}
+          >
+            <form
+              className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const textToAdd = addTaskText.trim();
+                const targetTaskList = taskLists.find(
+                  (taskList) => taskList.id === addTaskListId,
+                );
+                if (!textToAdd || !targetTaskList || addingTask) return;
+
+                const parsed = resolveTaskInput(textToAdd, taskSettings.language);
+                const taskId = crypto.randomUUID();
+                const dateKey = formatDate(addTaskDate);
+                const optimisticTask: DatedTask = {
+                  taskListId: targetTaskList.id,
+                  taskListName: targetTaskList.name,
+                  taskListBackground: resolveTaskListBackground(
+                    targetTaskList.background,
+                  ),
+                  task: {
+                    id: taskId,
+                    text: parsed.text,
+                    completed: false,
+                    date: dateKey,
+                    pinned: parsed.pinned,
+                  },
+                  dateValue: addTaskDate,
+                  dateKey,
+                  taskListIndex: taskLists.findIndex(
+                    (taskList) => taskList.id === targetTaskList.id,
+                  ),
+                  taskIndex:
+                    taskSettings.taskInsertPosition === "top"
+                      ? -1
+                      : targetTaskList.tasks.length,
+                };
+                setAddingTask(true);
+                setAddTaskError(null);
+                setOptimisticDatedTasks((current) => [
+                  ...current,
+                  optimisticTask,
+                ]);
+                void addTask(targetTaskList.id, textToAdd, taskSettings, {
+                  taskId,
+                  date: dateKey,
+                })
+                  .then(() => {
+                    logTaskAdd({ has_date: true });
+                    setAddTaskText("");
+                    setAddTaskDate(null);
+                  })
+                  .catch((error) => {
+                    setOptimisticDatedTasks((current) =>
+                      current.filter((task) => task.task.id !== taskId),
+                    );
+                    setAddTaskError(
+                      resolveErrorMessage(error, t, "common.error"),
+                    );
+                  })
+                  .finally(() => setAddingTask(false));
+              }}
+            >
+              <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-3">
+                <span className="ll-text-sm ll-font-semibold">
+                  {getTaskDateFormatter(i18n.language).format(addTaskDate)}
+                </span>
+                <DialogPrimitive.Close asChild>
+                  <button
+                    type="button"
+                    disabled={addingTask}
+                    className="ll-inline-flex ll-min-h-11 ll-items-center ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+                  >
+                    {t("common.close")}
+                  </button>
+                </DialogPrimitive.Close>
+              </div>
+              <div className="ll-mt-3 ll-flex ll-flex-col ll-gap-3">
+                {addTaskError ? <Alert variant="error">{addTaskError}</Alert> : null}
+                <label className="ll-flex ll-flex-col ll-gap-1">
+                  <span className="ll-text-sm ll-font-semibold">{t("app.drawerTitle")}</span>
+                  <select
+                    value={addTaskListId}
+                    onChange={(event) => setAddTaskListId(event.target.value)}
+                    className={TASK_CARD_INPUT_CLASS}
+                  >
+                    {taskLists.map((taskList) => (
+                      <option key={taskList.id} value={taskList.id}>
+                        {taskList.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="ll-flex ll-flex-col ll-gap-1">
+                  <span className="ll-sr-only">{t("pages.tasklist.addTaskPlaceholder")}</span>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={addTaskText}
+                    onChange={(event) => setAddTaskText(event.target.value)}
+                    placeholder={t("pages.tasklist.addTaskPlaceholder")}
+                    className={TASK_CARD_INPUT_CLASS}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={!addTaskText.trim() || !addTaskListId || addingTask}
+                  className={TASK_CARD_PRIMARY_BUTTON_CLASS}
+                >
+                  {addingTask ? t("common.loading") : t("a11y.addTask")}
+                </button>
+              </div>
+            </form>
+          </ActionSheetContent>
+        ) : null}
+      </Dialog>
     </section>
   );
 }
@@ -7129,6 +7303,7 @@ function AppShellPage() {
   const [isTaskSorting, setIsTaskSorting] = useState(false);
   const [isTaskDragInteracting, setIsTaskDragInteracting] = useState(false);
   const [currentView, setCurrentView] = useState<AppView>("detail");
+  const previousViewRef = useRef(currentView);
   const [isViewAnimationReady, setIsViewAnimationReady] = useState(false);
   const [pendingInitialTaskListRoute, setPendingInitialTaskListRoute] =
     useState(false);
@@ -7153,6 +7328,13 @@ function AppShellPage() {
       window.location.replace("/");
     }
   }, [authStatus]);
+
+  useEffect(() => {
+    if (previousViewRef.current === currentView) return;
+    previousViewRef.current = currentView;
+    if (isWideLayout) return;
+    document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true });
+  }, [currentView, isWideLayout]);
 
   useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") {
@@ -7532,6 +7714,7 @@ function AppShellPage() {
   ) => (
     <div
       aria-hidden={currentView !== view}
+      inert={currentView !== view}
       className={clsx(
         "ll-absolute ll-inset-0 ll-h-full ll-overflow-hidden ll-will-change-transform",
         mobileSlideTransitionClass,
@@ -7661,6 +7844,12 @@ function AppShellPage() {
     <CalendarScreen
       showCompactHeaderOffset={!isWideLayout}
       taskLists={taskLists}
+      taskSettings={{
+        autoSort: settings?.autoSort ?? false,
+        language: normalizeLanguage(i18n.language),
+        taskInsertPosition: settings?.taskInsertPosition ?? "top",
+      }}
+      defaultTaskListId={selectedTaskListId}
       onSelectTaskList={(taskListId) =>
         openTaskList(taskListId, isWideLayout ? "replace" : "push")
       }
@@ -7859,6 +8048,8 @@ function LoginPage() {
   const { t, i18n } = useTranslation();
   const authStatus = useAuthStatus();
   const [activeTab, setActiveTab] = useState<AuthTab>("signin");
+  const signInTabRef = useRef<HTMLButtonElement>(null);
+  const signUpTabRef = useRef<HTMLButtonElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -7963,6 +8154,22 @@ function LoginPage() {
     resetForm();
   };
 
+  const handleAuthTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    tab: "signin" | "signup",
+  ) => {
+    let nextTab: "signin" | "signup" | null = null;
+    if (event.key === "Home") nextTab = "signin";
+    if (event.key === "End") nextTab = "signup";
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      nextTab = tab === "signin" ? "signup" : "signin";
+    }
+    if (!nextTab) return;
+    event.preventDefault();
+    handleTabChange(nextTab);
+    (nextTab === "signin" ? signInTabRef : signUpTabRef).current?.focus();
+  };
+
   const tabButtonClass = (isActive: boolean) =>
     [
       "ll-inline-flex ll-w-full ll-items-center ll-justify-center ll-rounded-lg ll-px-3 ll-py-2 ll-text-sm ll-font-semibold ll-transition-colors ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300",
@@ -8007,34 +8214,42 @@ function LoginPage() {
             </select>
           </div>
 
-          <div
-            className="ll-mb-6 ll-grid ll-grid-cols-2 ll-gap-2 ll-rounded-xl ll-bg-gray-50 ll-p-1 ll-dark-bg-gray-900b"
-            role="tablist"
-            aria-label={t("title")}
-          >
-            <button
-              id="auth-tab-signin"
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "signin"}
-              aria-controls="auth-panel-signin"
-              className={tabButtonClass(activeTab === "signin")}
-              onClick={() => handleTabChange("signin")}
+          {activeTab !== "reset" ? (
+            <div
+              className="ll-mb-6 ll-grid ll-grid-cols-2 ll-gap-2 ll-rounded-xl ll-bg-gray-50 ll-p-1 ll-dark-bg-gray-900b"
+              role="tablist"
+              aria-label={t("title")}
             >
-              {t("auth.tabs.signin")}
-            </button>
-            <button
-              id="auth-tab-signup"
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "signup"}
-              aria-controls="auth-panel-signup"
-              className={tabButtonClass(activeTab === "signup")}
-              onClick={() => handleTabChange("signup")}
-            >
-              {t("auth.tabs.signup")}
-            </button>
-          </div>
+              <button
+                ref={signInTabRef}
+                id="auth-tab-signin"
+                type="button"
+                role="tab"
+                tabIndex={activeTab === "signin" ? 0 : -1}
+                aria-selected={activeTab === "signin"}
+                aria-controls="auth-panel-signin"
+                className={tabButtonClass(activeTab === "signin")}
+                onClick={() => handleTabChange("signin")}
+                onKeyDown={(event) => handleAuthTabKeyDown(event, "signin")}
+              >
+                {t("auth.tabs.signin")}
+              </button>
+              <button
+                ref={signUpTabRef}
+                id="auth-tab-signup"
+                type="button"
+                role="tab"
+                tabIndex={activeTab === "signup" ? 0 : -1}
+                aria-selected={activeTab === "signup"}
+                aria-controls="auth-panel-signup"
+                className={tabButtonClass(activeTab === "signup")}
+                onClick={() => handleTabChange("signup")}
+                onKeyDown={(event) => handleAuthTabKeyDown(event, "signup")}
+              >
+                {t("auth.tabs.signup")}
+              </button>
+            </div>
+          ) : null}
 
           {activeTab === "signin" && (
             <section

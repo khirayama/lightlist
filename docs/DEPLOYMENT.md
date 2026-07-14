@@ -37,6 +37,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 ## Cloudflare Pages
 
 - Git integration: Root directory は `apps/web`、build command は `npm ci && npm run cf:build`、output directory は `dist` とする。Node.js は `apps/web/.node-version`（`24.18.0`）で固定し、npm は `apps/web/package.json` の `packageManager`（`npm@12.0.1`）で固定する。Node.js 22.22.2 同梱 npm から npm 12 への直接更新は npm の自己更新中に `promise-retry` 欠損で失敗するため、Cloudflare Pages の build には使用しない。`LIGHTLIST_IOS_TEAM_ID` に Apple Developer Team ID（10 文字の英大文字・数字）、`LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` に Play App Signing certificate の SHA-256 fingerprint を設定する。後者はカンマ区切りで複数指定でき、生成時に大文字・コロン区切りへ正規化する。どちらかが欠けると `cf:build` は失敗し、Universal Links / Android App Links の関連付けを欠いた本番デプロイを防ぐ。
+- `cf:build` は locale / license の準備後に Vite build を一度だけ実行し、関連付けファイルを必須設定として生成する。通常の `build` にある任意生成の postbuild は重ねて実行しない。
 - Web は TypeScript 7 系を採用する。`i18next` / `react-i18next` の peer 範囲が追いつくまでは、`apps/web/.npmrc` の `legacy-peer-deps=true` を前提に npm install / ci を行う。
 - Direct Upload: `cd apps/web && npm run cf:deploy`。`CLOUDFLARE_PAGES_PROJECT_NAME`、`LIGHTLIST_IOS_TEAM_ID`、`LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` が必須。
 - ローカル確認: `cd apps/web && npm run cf:preview`。`LIGHTLIST_IOS_TEAM_ID` と `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` が必須。

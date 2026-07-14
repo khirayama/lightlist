@@ -1,5 +1,9 @@
 # iOS App Store リリース準備
 
+## ビルドツール
+
+- `Lightlist.xcodeproj` は XcodeGen 2.45.4 で `apps/ios/project.yml` から生成する。依存パッケージ解決と build tool plugin の実行を含め、提出物の生成前に `just build` または `just archive` を実行する。
+
 ## 判断事項
 
 ### bundle identifier

@@ -4,7 +4,9 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.lightlist.app",
-      "sha256_cert_fingerprints": __LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINTS__
+      "sha256_cert_fingerprints": [
+        "__LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINTS__"
+      ]
     }
   }
 ]

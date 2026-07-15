@@ -1,6 +1,7 @@
 import {
   StrictMode,
   Component,
+  Fragment,
   createContext,
   useCallback,
   useContext,
@@ -25,6 +26,7 @@ import type {
   HTMLAttributes,
   MouseEvent,
   PointerEvent,
+  SubmitEvent,
 } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
@@ -757,8 +759,6 @@ const validateEmailChangeForm = (
   return errors;
 };
 
-const i18n = i18next;
-
 const MAIN_CONTENT_ID = "main-content";
 
 const AUTH_FREE_PAGES = new Set(["404", "500", "password_reset"]);
@@ -850,6 +850,68 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
+const ERROR_PAGE_ACTION_CLASS =
+  "ll-inline-flex ll-items-center ll-justify-center ll-rounded-lg ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-medium ll-text-gray-50 ll-hover-opacity-90 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-900 ll-focus-ring-offset-2 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-hover-opacity-90";
+
+function ErrorPageContent({
+  title,
+  description,
+  actionLabel,
+  href,
+  onAction,
+  destructive = false,
+  headingLevel = "h1",
+}: {
+  title: string;
+  description: string;
+  actionLabel: string;
+  href?: string;
+  onAction?: () => void;
+  destructive?: boolean;
+  headingLevel?: "h1" | "h2";
+}) {
+  const Heading = headingLevel;
+  return (
+    <div className="ll-flex ll-min-h-dvh ll-w-full ll-flex-col ll-items-center ll-justify-center ll-bg-white-b ll-p-4 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
+      <div className="ll-w-full ll-max-w-md ll-space-y-4 ll-text-center">
+        <div
+          className={clsx(
+            "ll-mx-auto ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-full",
+            destructive
+              ? "ll-bg-red-100 ll-dark-bg-red-900-20"
+              : "ll-bg-gray-100 ll-dark-bg-gray-800",
+          )}
+        >
+          <AppIcon
+            name="alert-circle"
+            className={clsx(
+              "ll-h-6 ll-w-6",
+              destructive
+                ? "ll-text-red-600v ll-dark-text-red-400v"
+                : "ll-text-gray-600v ll-dark-text-gray-400",
+            )}
+          />
+        </div>
+        <Heading className="ll-font-display ll-text-lg ll-font-semibold">
+          {title}
+        </Heading>
+        <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
+          {description}
+        </p>
+        {href ? (
+          <a href={href} className={ERROR_PAGE_ACTION_CLASS}>
+            {actionLabel}
+          </a>
+        ) : (
+          <button onClick={onAction} className={ERROR_PAGE_ACTION_CLASS}>
+            {actionLabel}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 class ErrorBoundaryBase extends Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
@@ -877,28 +939,14 @@ class ErrorBoundaryBase extends Component<
       }
 
       return (
-        <div className="ll-flex ll-min-h-dvh ll-w-full ll-flex-col ll-items-center ll-justify-center ll-bg-white-b ll-p-4 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
-          <div className="ll-w-full ll-max-w-md ll-space-y-4 ll-text-center">
-            <div className="ll-mx-auto ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-full ll-bg-red-100 ll-dark-bg-red-900-20">
-              <AppIcon
-                name="alert-circle"
-                className="ll-h-6 ll-w-6 ll-text-red-600v ll-dark-text-red-400v"
-              />
-            </div>
-            <h2 className="ll-font-display ll-text-lg ll-font-semibold">
-              {t("pages.error.title")}
-            </h2>
-            <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-              {t("pages.error.description")}
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-lg ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-medium ll-text-gray-50 ll-hover-opacity-90 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-900 ll-focus-ring-offset-2 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-hover-opacity-90"
-            >
-              {t("pages.error.reload")}
-            </button>
-          </div>
-        </div>
+        <ErrorPageContent
+          title={t("pages.error.title")}
+          description={t("pages.error.description")}
+          destructive
+          headingLevel="h2"
+          actionLabel={t("pages.error.reload")}
+          onAction={() => window.location.reload()}
+        />
       );
     }
 
@@ -1146,9 +1194,7 @@ const getOrderedTaskListIds = (
   taskListOrder: TaskListOrderStore | null,
 ): string[] =>
   getTaskListOrderEntries(taskListOrder)
-    .sort(
-      (a, b) => a[1].order - b[1].order || compareStringIds(a[0], b[0]),
-    )
+    .sort((a, b) => a[1].order - b[1].order || compareStringIds(a[0], b[0]))
     .map(([taskListId]) => taskListId);
 
 const getTaskListIdChunks = (taskListIds: string[]): string[][] => {
@@ -2022,12 +2068,6 @@ type DatePattern = {
   getDate?: (match: RegExpMatchArray) => Date | null;
 };
 
-type ParsedTaskInput = {
-  text: string;
-  date: string | null;
-  pinnedFromInput: boolean;
-};
-
 const normalizeDigits = (value: string): string =>
   value.replace(/[٠-٩۰-۹०-९]/g, (char) => DIGIT_MAP[char] ?? char);
 
@@ -2318,8 +2358,8 @@ function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
   const getDateKey = (task: TaskListStoreTask): string =>
     task.date || "9999-12-31";
 
-  return [...tasks]
-    .sort((a, b) => {
+  return renumberTasks(
+    [...tasks].sort((a, b) => {
       const aGroup = getTaskDisplayGroup(a);
       const bGroup = getTaskDisplayGroup(b);
       if (aGroup !== bGroup) {
@@ -2331,8 +2371,8 @@ function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
         return aDate < bDate ? -1 : 1;
       }
       return a.order - b.order || compareStringIds(a.id, b.id);
-    })
-    .map((task, index) => ({ ...task, order: (index + 1) * 1.0 }));
+    }),
+  );
 }
 
 async function getTaskListData(taskListId: string): Promise<TaskListStore> {
@@ -3275,6 +3315,26 @@ type SettingsSectionProps = {
   children: ReactNode;
 };
 
+function BackButton({ onBack }: { onBack?: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      onClick={onBack}
+      title={t("common.back")}
+      aria-label={t("common.back")}
+      className="ll-inline-flex ll-h-10 ll-w-10 ll-items-center ll-justify-center ll-rounded-full ll-text-gray-600 ll-transition ll-hover-bg-gray-300 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-300 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-focus-visible-outline-gray-700"
+    >
+      <AppIcon
+        name="arrow-back"
+        className="ll-h-5 ll-w-5"
+        aria-hidden="true"
+        focusable="false"
+      />
+    </button>
+  );
+}
+
 type LicenseEntry = {
   id?: string;
   license: string;
@@ -3582,22 +3642,7 @@ function SettingsView({
     <div className="ll-min-h-full ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
       <div className="ll-mx-auto ll-flex ll-w-full ll-max-w-3xl ll-flex-col ll-gap-4 ll-px-4 ll-pb-10 ll-pt-6 ll-sm-px-6 ll-lg-pt-8">
         <header className="ll-flex ll-items-center ll-gap-3 ll-px-1">
-          {showBackButton ? (
-            <button
-              type="button"
-              onClick={onBack}
-              title={t("common.back")}
-              aria-label={t("common.back")}
-              className="ll-inline-flex ll-h-10 ll-w-10 ll-items-center ll-justify-center ll-rounded-full ll-text-gray-600 ll-transition ll-hover-bg-gray-300 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-300 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-focus-visible-outline-gray-700"
-            >
-              <AppIcon
-                name="arrow-back"
-                className="ll-h-5 ll-w-5"
-                aria-hidden="true"
-                focusable="false"
-              />
-            </button>
-          ) : null}
+          {showBackButton ? <BackButton onBack={onBack} /> : null}
           <h1 className="ll-font-display ll-min-w-0 ll-flex-1 ll-text-2xl ll-font-semibold ll-tracking-tight">
             {t("settings.title")}
           </h1>
@@ -3744,26 +3789,24 @@ function SettingsView({
                       />
                     </>
                   ) : (
-                    <>
-                      <div className="ll-grid ll-gap-2 ll-py-3 ll-sm-grid-cols-sidebar ll-sm-items-center">
+                    [
+                      ["language", t("settings.language.title")],
+                      ["theme", t("settings.theme.title")],
+                      [
+                        "taskInsertPosition",
+                        t("settings.taskInsertPosition.title"),
+                      ],
+                    ].map(([key, label]) => (
+                      <div
+                        key={key}
+                        className="ll-grid ll-gap-2 ll-py-3 ll-sm-grid-cols-sidebar ll-sm-items-center"
+                      >
                         <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
-                          {t("settings.language.title")}
+                          {label}
                         </span>
                         {skeletonSelect}
                       </div>
-                      <div className="ll-grid ll-gap-2 ll-py-3 ll-sm-grid-cols-sidebar ll-sm-items-center">
-                        <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
-                          {t("settings.theme.title")}
-                        </span>
-                        {skeletonSelect}
-                      </div>
-                      <div className="ll-grid ll-gap-2 ll-py-3 ll-sm-grid-cols-sidebar ll-sm-items-center">
-                        <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
-                          {t("settings.taskInsertPosition.title")}
-                        </span>
-                        {skeletonSelect}
-                      </div>
-                    </>
+                    ))
                   )}
                 </div>
                 <label
@@ -3812,33 +3855,28 @@ function SettingsView({
                 <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
                   {t("settings.legal.title")}
                 </h2>
-                <button
-                  type="button"
-                  onClick={onOpenLicenses}
-                  disabled={!onOpenLicenses}
-                  className="ll-flex ll-items-center ll-justify-between ll-gap-3 ll-rounded-lg ll-px-1 ll-py-2 ll-text-left ll-transition ll-hover-bg-gray-50 ll-disabled-cursor-default ll-disabled-hover-bg-transparent ll-dark-hover-bg-gray-950"
-                >
-                  <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
-                    {t("settings.licenses.openSource")}
-                  </span>
-                  <span className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-                    &gt;
-                  </span>
-                </button>
-                <div className="ll-border-t ll-border-gray-300 ll-dark-border-gray-700" />
-                <button
-                  type="button"
-                  onClick={onOpenLicenses}
-                  disabled={!onOpenLicenses}
-                  className="ll-flex ll-items-center ll-justify-between ll-gap-3 ll-rounded-lg ll-px-1 ll-py-2 ll-text-left ll-transition ll-hover-bg-gray-50 ll-disabled-cursor-default ll-disabled-hover-bg-transparent ll-dark-hover-bg-gray-950"
-                >
-                  <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
-                    {t("settings.licenses.bundledAssets")}
-                  </span>
-                  <span className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-                    &gt;
-                  </span>
-                </button>
+                {(["openSource", "bundledAssets"] as const).map(
+                  (key, index) => (
+                    <Fragment key={key}>
+                      {index > 0 ? (
+                        <div className="ll-border-t ll-border-gray-300 ll-dark-border-gray-700" />
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={onOpenLicenses}
+                        disabled={!onOpenLicenses}
+                        className="ll-flex ll-items-center ll-justify-between ll-gap-3 ll-rounded-lg ll-px-1 ll-py-2 ll-text-left ll-transition ll-hover-bg-gray-50 ll-disabled-cursor-default ll-disabled-hover-bg-transparent ll-dark-hover-bg-gray-950"
+                      >
+                        <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
+                          {t(`settings.licenses.${key}`)}
+                        </span>
+                        <span className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
+                          &gt;
+                        </span>
+                      </button>
+                    </Fragment>
+                  ),
+                )}
               </div>
             </SettingsSection>
 
@@ -3985,22 +4023,7 @@ function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
     <div className="ll-min-h-full ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
       <div className="ll-mx-auto ll-flex ll-w-full ll-max-w-4xl ll-flex-col ll-gap-4 ll-px-4 ll-pb-10 ll-pt-6 ll-sm-px-6 ll-lg-pt-8">
         <header className="ll-flex ll-items-center ll-gap-3 ll-px-1">
-          {showBackButton ? (
-            <button
-              type="button"
-              onClick={onBack}
-              title={t("common.back")}
-              aria-label={t("common.back")}
-              className="ll-inline-flex ll-h-10 ll-w-10 ll-items-center ll-justify-center ll-rounded-full ll-text-gray-600 ll-transition ll-hover-bg-gray-300 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-300 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-focus-visible-outline-gray-700"
-            >
-              <AppIcon
-                name="arrow-back"
-                className="ll-h-5 ll-w-5"
-                aria-hidden="true"
-                focusable="false"
-              />
-            </button>
-          ) : null}
+          {showBackButton ? <BackButton onBack={onBack} /> : null}
           <h1 className="ll-font-display ll-min-w-0 ll-flex-1 ll-text-2xl ll-font-semibold ll-tracking-tight">
             {t("settings.licenses.title")}
           </h1>
@@ -4056,28 +4079,12 @@ function NotFoundPage() {
   }, [t]);
 
   return (
-    <div className="ll-flex ll-min-h-dvh ll-w-full ll-flex-col ll-items-center ll-justify-center ll-bg-white-b ll-p-4 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
-      <div className="ll-w-full ll-max-w-md ll-space-y-4 ll-text-center">
-        <div className="ll-mx-auto ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-full ll-bg-gray-100 ll-dark-bg-gray-800">
-          <AppIcon
-            name="alert-circle"
-            className="ll-h-6 ll-w-6 ll-text-gray-600v ll-dark-text-gray-400"
-          />
-        </div>
-        <h1 className="ll-font-display ll-text-lg ll-font-semibold">
-          {t("pages.notFound.title")}
-        </h1>
-        <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-          {t("pages.notFound.description")}
-        </p>
-        <a
-          href="/"
-          className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-lg ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-medium ll-text-gray-50 ll-hover-opacity-90 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-900 ll-focus-ring-offset-2 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-hover-opacity-90"
-        >
-          {t("pages.notFound.backHome")}
-        </a>
-      </div>
-    </div>
+    <ErrorPageContent
+      title={t("pages.notFound.title")}
+      description={t("pages.notFound.description")}
+      actionLabel={t("pages.notFound.backHome")}
+      href="/"
+    />
   );
 }
 
@@ -4090,28 +4097,13 @@ function ServerErrorPage() {
   }, [t]);
 
   return (
-    <div className="ll-flex ll-min-h-dvh ll-w-full ll-flex-col ll-items-center ll-justify-center ll-bg-white-b ll-p-4 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
-      <div className="ll-w-full ll-max-w-md ll-space-y-4 ll-text-center">
-        <div className="ll-mx-auto ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-full ll-bg-red-100 ll-dark-bg-red-900-20">
-          <AppIcon
-            name="alert-circle"
-            className="ll-h-6 ll-w-6 ll-text-red-600v ll-dark-text-red-400v"
-          />
-        </div>
-        <h1 className="ll-font-display ll-text-lg ll-font-semibold">
-          {t("pages.serverError.title")}
-        </h1>
-        <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-          {t("pages.serverError.description")}
-        </p>
-        <a
-          href="/"
-          className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-lg ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-medium ll-text-gray-50 ll-hover-opacity-90 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-900 ll-focus-ring-offset-2 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-hover-opacity-90"
-        >
-          {t("pages.serverError.backHome")}
-        </a>
-      </div>
-    </div>
+    <ErrorPageContent
+      title={t("pages.serverError.title")}
+      description={t("pages.serverError.description")}
+      destructive
+      actionLabel={t("pages.serverError.backHome")}
+      href="/"
+    />
   );
 }
 
@@ -5436,8 +5428,21 @@ function TaskListCard({
     useState<ReadonlySet<string> | null>(null);
   const knownTaskIdsRef = useRef<ReadonlySet<string> | null>(null);
   const newTaskInputRef = useRef<HTMLInputElement | null>(null);
+  const newTaskFormRef = useRef<HTMLFormElement | null>(null);
   const taskActionTriggerRef = useRef<HTMLButtonElement | null>(null);
   const previousTaskActionTaskIdRef = useRef<string | null>(null);
+
+  const handleTaskListClickCapture = useCallback(
+    (event: MouseEvent<HTMLElement>) => {
+      if (!isInputFocused) return;
+      const target = event.target;
+      if (target instanceof Node && newTaskFormRef.current?.contains(target)) {
+        return;
+      }
+      newTaskInputRef.current?.blur();
+    },
+    [isInputFocused],
+  );
 
   useEffect(() => {
     if (isActive && shouldFocusNewTaskInput) {
@@ -5580,11 +5585,6 @@ function TaskListCard({
     0,
   );
   const historyListId = `task-history-${reactId.replace(/:/g, "")}`;
-  const inputClass = TASK_CARD_INPUT_CLASS;
-  const primaryButtonClass = TASK_CARD_PRIMARY_BUTTON_CLASS;
-  const secondaryButtonClass = TASK_CARD_SECONDARY_BUTTON_CLASS;
-  const destructiveButtonClass = TASK_CARD_DESTRUCTIVE_BUTTON_CLASS;
-  const iconButtonClass = TASK_CARD_ICON_BUTTON_CLASS;
   const activeTaskActionTask = useMemo(
     () =>
       activeTaskActionTaskId === null || activeTaskActionTaskId === undefined
@@ -5620,12 +5620,70 @@ function TaskListCard({
     [t, tasks],
   );
 
+  const addNewTask = (textToAdd: string, textOnError: string) => {
+    const parsed = resolveTaskInput(
+      textToAdd,
+      normalizeLanguage(i18n.language),
+    );
+    const optimisticTask = {
+      id: crypto.randomUUID(),
+      text: parsed.text,
+      completed: false,
+      date: parsed.date,
+      pinned: parsed.pinned,
+    } satisfies Task;
+    setHistoryOpen(false);
+    setNewTaskText("");
+    setAddTaskError(null);
+    newTaskInputRef.current?.focus();
+    void runTaskMutation({
+      buildNextTasks: (currentTasks) =>
+        taskInsertPosition === "top"
+          ? [optimisticTask, ...currentTasks]
+          : [...currentTasks, optimisticTask],
+      commit: () =>
+        addTask(taskList.id, textToAdd, resolvedTaskSettings, {
+          taskId: optimisticTask.id,
+        }),
+      onSuccess: () => {
+        logTaskAdd({ has_date: Boolean(parsed.date) });
+      },
+      onError: (error) => {
+        setNewTaskText((current) => (current === "" ? textOnError : current));
+        setAddTaskError(resolveErrorMessage(error, t, "common.error"));
+      },
+    });
+  };
+
+  const updateTaskFromAction = (
+    task: Task,
+    updates: Partial<Pick<Task, "date" | "pinned">>,
+    field: "date" | "pinned",
+  ) => {
+    void runTaskMutation({
+      buildNextTasks: (currentTasks) =>
+        currentTasks.map((current) =>
+          current.id === task.id ? { ...current, ...updates } : current,
+        ),
+      commit: () =>
+        updateTask(taskList.id, task.id, updates, resolvedTaskSettings),
+      onSuccess: () => {
+        logTaskUpdate({ fields: field });
+        onCloseTaskAction?.();
+      },
+      onError: (error) => {
+        setTaskError(resolveErrorMessage(error, t, "common.error"));
+      },
+    });
+  };
+
   return (
     <section
       className={clsx(
         "ll-h-full ll-overflow-y-auto",
         isActive ? "ll-pointer-events-auto" : "ll-pointer-events-none",
       )}
+      onClickCapture={handleTaskListClickCapture}
       style={{ backgroundColor: taskList.background ?? undefined }}
     >
       <div className="ll-min-h-full ll-px-4">
@@ -5656,48 +5714,13 @@ function TaskListCard({
               {taskError ? <Alert variant="error">{taskError}</Alert> : null}
             </div>
             <form
+              ref={newTaskFormRef}
               className="ll-flex ll-items-center"
               onSubmit={(event) => {
                 event.preventDefault();
                 const textToAdd = newTaskText.trim();
                 if (textToAdd === "") return;
-                const parsed = resolveTaskInput(
-                  textToAdd,
-                  normalizeLanguage(i18n.language),
-                );
-                setHistoryOpen(false);
-                setNewTaskText("");
-                setAddTaskError(null);
-                newTaskInputRef.current?.focus();
-                const nextTaskId = crypto.randomUUID();
-                const optimisticTask = {
-                  id: nextTaskId,
-                  text: parsed.text,
-                  completed: false,
-                  date: parsed.date,
-                  pinned: parsed.pinned,
-                } satisfies Task;
-                void runTaskMutation({
-                  buildNextTasks: (currentTasks) =>
-                    taskInsertPosition === "top"
-                      ? [optimisticTask, ...currentTasks]
-                      : [...currentTasks, optimisticTask],
-                  commit: () =>
-                    addTask(taskList.id, textToAdd, resolvedTaskSettings, {
-                      taskId: nextTaskId,
-                    }),
-                  onSuccess: () => {
-                    logTaskAdd({ has_date: Boolean(parsed.date) });
-                  },
-                  onError: (error) => {
-                    setNewTaskText((current) =>
-                      current === "" ? textToAdd : current,
-                    );
-                    setAddTaskError(
-                      resolveErrorMessage(error, t, "common.error"),
-                    );
-                  },
-                });
+                addNewTask(textToAdd, textToAdd);
               }}
             >
               <div className="ll-relative ll-min-w-0 ll-flex-1">
@@ -5757,47 +5780,7 @@ function TaskListCard({
                           }
                           onSelect={() => {
                             const previousText = newTaskText;
-                            setAddTaskError(null);
-                            setHistoryOpen(false);
-                            setNewTaskText("");
-                            newTaskInputRef.current?.focus();
-                            const parsed = resolveTaskInput(
-                              text,
-                              normalizeLanguage(i18n.language),
-                            );
-                            const optimisticTask = {
-                              id: crypto.randomUUID(),
-                              text: parsed.text,
-                              completed: false,
-                              date: parsed.date,
-                              pinned: parsed.pinned,
-                            } satisfies Task;
-                            void runTaskMutation({
-                              buildNextTasks: (currentTasks) =>
-                                taskInsertPosition === "top"
-                                  ? [optimisticTask, ...currentTasks]
-                                  : [...currentTasks, optimisticTask],
-                              commit: () =>
-                                addTask(
-                                  taskList.id,
-                                  text,
-                                  resolvedTaskSettings,
-                                  {
-                                    taskId: optimisticTask.id,
-                                  },
-                                ),
-                              onSuccess: () => {
-                                logTaskAdd({ has_date: Boolean(parsed.date) });
-                              },
-                              onError: (error) => {
-                                setNewTaskText((current) =>
-                                  current === "" ? previousText : current,
-                                );
-                                setAddTaskError(
-                                  resolveErrorMessage(error, t, "common.error"),
-                                );
-                              },
-                            });
+                            addNewTask(text, previousText);
                           }}
                           className="ll-cursor-pointer ll-rounded-lg ll-px-3 ll-py-2 ll-text-sm ll-outline-none ll-data-selected-bg-gray-50 ll-dark-data-selected-bg-gray-950"
                         >
@@ -6135,33 +6118,11 @@ function TaskListCard({
                     : t("pages.tasklist.pinTask")
                 }
                 onClick={() => {
-                  void runTaskMutation({
-                    buildNextTasks: (currentTasks) =>
-                      currentTasks.map((task) =>
-                        task.id === activeTaskActionTask.id
-                          ? {
-                              ...task,
-                              pinned: !activeTaskActionTask.pinned,
-                            }
-                          : task,
-                      ),
-                    commit: () =>
-                      updateTask(
-                        taskList.id,
-                        activeTaskActionTask.id,
-                        { pinned: !activeTaskActionTask.pinned },
-                        resolvedTaskSettings,
-                      ),
-                    onSuccess: () => {
-                      logTaskUpdate({ fields: "pinned" });
-                      onCloseTaskAction?.();
-                    },
-                    onError: (error) => {
-                      setTaskError(
-                        resolveErrorMessage(error, t, "common.error"),
-                      );
-                    },
-                  });
+                  updateTaskFromAction(
+                    activeTaskActionTask,
+                    { pinned: !activeTaskActionTask.pinned },
+                    "pinned",
+                  );
                 }}
                 className="ll-flex ll-min-h-12 ll-w-full ll-items-center ll-justify-between ll-rounded-xl ll-bg-gray-50 ll-px-4 ll-py-3 ll-text-start ll-text-sm ll-font-semibold ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
               >
@@ -6200,30 +6161,11 @@ function TaskListCard({
                 disabled={!activeTaskActionTask.date}
                 onClick={() => {
                   if (!activeTaskActionTask.date) return;
-                  void runTaskMutation({
-                    buildNextTasks: (currentTasks) =>
-                      currentTasks.map((task) =>
-                        task.id === activeTaskActionTask.id
-                          ? { ...task, date: "" }
-                          : task,
-                      ),
-                    commit: () =>
-                      updateTask(
-                        taskList.id,
-                        activeTaskActionTask.id,
-                        { date: "" },
-                        resolvedTaskSettings,
-                      ),
-                    onSuccess: () => {
-                      logTaskUpdate({ fields: "date" });
-                      onCloseTaskAction?.();
-                    },
-                    onError: (error) => {
-                      setTaskError(
-                        resolveErrorMessage(error, t, "common.error"),
-                      );
-                    },
-                  });
+                  updateTaskFromAction(
+                    activeTaskActionTask,
+                    { date: "" },
+                    "date",
+                  );
                 }}
                 className="ll-inline-flex ll-min-h-11 ll-w-fit ll-items-center ll-self-start ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
               >
@@ -6235,33 +6177,11 @@ function TaskListCard({
                   selected={parseTaskDateValue(activeTaskActionTask.date)}
                   onSelect={(next) => {
                     const nextDate = next ? formatDate(next) : "";
-                    void runTaskMutation({
-                      buildNextTasks: (currentTasks) =>
-                        currentTasks.map((task) =>
-                          task.id === activeTaskActionTask.id
-                            ? {
-                                ...task,
-                                date: nextDate,
-                              }
-                            : task,
-                        ),
-                      commit: () =>
-                        updateTask(
-                          taskList.id,
-                          activeTaskActionTask.id,
-                          { date: nextDate },
-                          resolvedTaskSettings,
-                        ),
-                      onSuccess: () => {
-                        logTaskUpdate({ fields: "date" });
-                        onCloseTaskAction?.();
-                      },
-                      onError: (error) => {
-                        setTaskError(
-                          resolveErrorMessage(error, t, "common.error"),
-                        );
-                      },
-                    });
+                    updateTaskFromAction(
+                      activeTaskActionTask,
+                      { date: nextDate },
+                      "date",
+                    );
                   }}
                 />
               </div>
@@ -6574,7 +6494,9 @@ function CalendarScreen({
   );
   const [addingTask, setAddingTask] = useState(false);
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
-  const [optimisticDatedTasks, setOptimisticDatedTasks] = useState<DatedTask[]>([]);
+  const [optimisticDatedTasks, setOptimisticDatedTasks] = useState<DatedTask[]>(
+    [],
+  );
   const datedTaskRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
@@ -6721,94 +6643,95 @@ function CalendarScreen({
       <div className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-p-4">
         {showCompactHeaderOffset ? <div className="ll-h-88px" /> : null}
         <div
-            className={clsx(
-              "ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-pb-12",
-              "ll-lg-grid ll-lg-grid-cols-main",
-              "ll-flex ll-flex-col ll-gap-3",
-            )}
-          >
-            <div className="ll-w-full ll-lg-sticky ll-lg-top-0 ll-lg-self-start">
-              <Calendar
-                className="ll-w-full"
-                mode="single"
-                selected={selectedCalendarDate}
-                onSelect={(next) =>
-                  handleSelectCalendarDate(next, visibleDatedTasks)
-                }
-                month={displayedMonth}
-                onMonthChange={(newMonth) => {
-                  setDisplayedMonth(newMonth);
-                  setSelectedCalendarDate(undefined);
-                }}
-                modifiers={{ hasTask: calendarTaskDates }}
-                components={{
-                  DayButton: (props) => {
-                    const dateKey = formatDate(props.day.date);
-                    const colors = dateDotColors[dateKey] ?? [];
-                    return (
-                      <DayPickerDayButton {...props}>
-                        <span className="ll-relative ll-flex ll-h-full ll-w-full ll-items-center ll-justify-center">
-                          <span
-                            className={clsx(colors.length > 0 && "ll-pb-2")}
-                          >
-                            {props.day.date.getDate()}
-                          </span>
-                          {colors.length > 0 ? (
-                            <span className="ll-pointer-events-none ll-absolute ll-bottom-1 ll-left-half ll-flex ll-translate-x-neg-half ll-gap-0x5">
-                              {colors.map((color, index) => (
-                                <span
-                                  key={`${dateKey}-${color}-${index}`}
-                                  className="ll-h-1x5 ll-w-1x5 ll-rounded-full"
-                                  style={{ backgroundColor: color }}
-                                />
-                              ))}
-                            </span>
-                          ) : null}
-                        </span>
-                      </DayPickerDayButton>
-                    );
-                  },
-                }}
-              />
-              {selectedCalendarDate ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddTaskDate(selectedCalendarDate);
-                    setAddTaskError(null);
-                  }}
-                  className="ll-pressable ll-mt-2 ll-inline-flex ll-min-h-11 ll-w-full ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300"
-                >
-                  {getTaskDateFormatter(i18n.language).format(selectedCalendarDate)} · {t("a11y.addTask")}
-                </button>
-              ) : null}
-            </div>
-            <div className="ll-min-h-0 ll-overflow-y-auto ll-rounded-xl ll-bg-white-b ll-dark-bg-gray-900b ll-lg-h-full">
-              {visibleDatedTasks.length > 0 ? (
-                visibleDatedTasks.map((task) => {
-                  const taskId = getDatedTaskId(task);
+          className={clsx(
+            "ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-pb-12",
+            "ll-lg-grid ll-lg-grid-cols-main",
+            "ll-flex ll-flex-col ll-gap-3",
+          )}
+        >
+          <div className="ll-w-full ll-lg-sticky ll-lg-top-0 ll-lg-self-start">
+            <Calendar
+              className="ll-w-full"
+              mode="single"
+              selected={selectedCalendarDate}
+              onSelect={(next) =>
+                handleSelectCalendarDate(next, visibleDatedTasks)
+              }
+              month={displayedMonth}
+              onMonthChange={(newMonth) => {
+                setDisplayedMonth(newMonth);
+                setSelectedCalendarDate(undefined);
+              }}
+              modifiers={{ hasTask: calendarTaskDates }}
+              components={{
+                DayButton: (props) => {
+                  const dateKey = formatDate(props.day.date);
+                  const colors = dateDotColors[dateKey] ?? [];
                   return (
-                    <CalendarTaskItem
-                      key={taskId}
-                      task={task}
-                      onOpenTaskList={onSelectTaskList}
-                      onSelectDate={(date) =>
-                        handleSelectCalendarDate(date, visibleDatedTasks)
-                      }
-                      isHighlighted={selectedCalendarDateKey === task.dateKey}
-                      itemRef={(element) => {
-                        datedTaskRefs.current[taskId] = element;
-                      }}
-                    />
+                    <DayPickerDayButton {...props}>
+                      <span className="ll-relative ll-flex ll-h-full ll-w-full ll-items-center ll-justify-center">
+                        <span className={clsx(colors.length > 0 && "ll-pb-2")}>
+                          {props.day.date.getDate()}
+                        </span>
+                        {colors.length > 0 ? (
+                          <span className="ll-pointer-events-none ll-absolute ll-bottom-1 ll-left-half ll-flex ll-translate-x-neg-half ll-gap-0x5">
+                            {colors.map((color, index) => (
+                              <span
+                                key={`${dateKey}-${color}-${index}`}
+                                className="ll-h-1x5 ll-w-1x5 ll-rounded-full"
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </span>
+                        ) : null}
+                      </span>
+                    </DayPickerDayButton>
                   );
-                })
-              ) : (
-                <p className="ll-p-4 ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-                  {t("app.calendarNoDatedTasks")}
-                </p>
-              )}
-            </div>
+                },
+              }}
+            />
+            {selectedCalendarDate ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setAddTaskDate(selectedCalendarDate);
+                  setAddTaskError(null);
+                }}
+                className="ll-pressable ll-mt-2 ll-inline-flex ll-min-h-11 ll-w-full ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300"
+              >
+                {getTaskDateFormatter(i18n.language).format(
+                  selectedCalendarDate,
+                )}{" "}
+                · {t("a11y.addTask")}
+              </button>
+            ) : null}
           </div>
+          <div className="ll-min-h-0 ll-overflow-y-auto ll-rounded-xl ll-bg-white-b ll-dark-bg-gray-900b ll-lg-h-full">
+            {visibleDatedTasks.length > 0 ? (
+              visibleDatedTasks.map((task) => {
+                const taskId = getDatedTaskId(task);
+                return (
+                  <CalendarTaskItem
+                    key={taskId}
+                    task={task}
+                    onOpenTaskList={onSelectTaskList}
+                    onSelectDate={(date) =>
+                      handleSelectCalendarDate(date, visibleDatedTasks)
+                    }
+                    isHighlighted={selectedCalendarDateKey === task.dateKey}
+                    itemRef={(element) => {
+                      datedTaskRefs.current[taskId] = element;
+                    }}
+                  />
+                );
+              })
+            ) : (
+              <p className="ll-p-4 ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
+                {t("app.calendarNoDatedTasks")}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
       <Dialog
         open={addTaskDate !== null}
@@ -6822,7 +6745,9 @@ function CalendarScreen({
         {addTaskDate ? (
           <ActionSheetContent
             title={t("a11y.addTask")}
-            description={getTaskDateFormatter(i18n.language).format(addTaskDate)}
+            description={getTaskDateFormatter(i18n.language).format(
+              addTaskDate,
+            )}
           >
             <form
               className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col"
@@ -6834,7 +6759,10 @@ function CalendarScreen({
                 );
                 if (!textToAdd || !targetTaskList || addingTask) return;
 
-                const parsed = resolveTaskInput(textToAdd, taskSettings.language);
+                const parsed = resolveTaskInput(
+                  textToAdd,
+                  taskSettings.language,
+                );
                 const taskId = crypto.randomUUID();
                 const dateKey = formatDate(addTaskDate);
                 const optimisticTask: DatedTask = {
@@ -6901,9 +6829,13 @@ function CalendarScreen({
                 </DialogPrimitive.Close>
               </div>
               <div className="ll-mt-3 ll-flex ll-flex-col ll-gap-3">
-                {addTaskError ? <Alert variant="error">{addTaskError}</Alert> : null}
+                {addTaskError ? (
+                  <Alert variant="error">{addTaskError}</Alert>
+                ) : null}
                 <label className="ll-flex ll-flex-col ll-gap-1">
-                  <span className="ll-text-sm ll-font-semibold">{t("app.drawerTitle")}</span>
+                  <span className="ll-text-sm ll-font-semibold">
+                    {t("app.drawerTitle")}
+                  </span>
                   <select
                     value={addTaskListId}
                     onChange={(event) => setAddTaskListId(event.target.value)}
@@ -6917,7 +6849,9 @@ function CalendarScreen({
                   </select>
                 </label>
                 <label className="ll-flex ll-flex-col ll-gap-1">
-                  <span className="ll-sr-only">{t("pages.tasklist.addTaskPlaceholder")}</span>
+                  <span className="ll-sr-only">
+                    {t("pages.tasklist.addTaskPlaceholder")}
+                  </span>
                   <input
                     autoFocus
                     type="text"
@@ -6968,7 +6902,6 @@ function CalendarEntryButton({ onOpen }: CalendarEntryButtonProps) {
 }
 
 type SidebarProps = {
-  isWideLayout: boolean;
   userEmail: string;
   hasTaskLists: boolean;
   taskLists: TaskList[];
@@ -6987,7 +6920,6 @@ type SidebarProps = {
 };
 
 function TaskListSidebarPanel({
-  isWideLayout,
   userEmail,
   hasTaskLists,
   taskLists,
@@ -7619,7 +7551,6 @@ function AppShellPage() {
 
   const drawerPanel = (
     <TaskListSidebarPanel
-      isWideLayout={isWideLayout}
       userEmail={userEmail}
       hasTaskLists={!isTaskListsHydrating && hasTaskLists}
       taskLists={taskLists}
@@ -8044,6 +7975,37 @@ function FormInput({
   );
 }
 
+function AuthPageLayout({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="ll-min-h-screen ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="ll-mx-auto ll-flex ll-min-h-screen ll-w-full ll-max-w-xl ll-flex-col ll-justify-center ll-px-4 ll-py-10 ll-sm-px-6"
+      >
+        <div className="ll-w-full ll-rounded-24px ll-border ll-border-gray-300 ll-bg-white-b ll-p-6 ll-shadow-sm ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-8">
+          <div className="ll-mb-6 ll-text-center">
+            <h1 className="ll-font-display ll-text-2xl ll-font-semibold ll-tracking-tight ll-sm-text-3xl">
+              {title}
+            </h1>
+          </div>
+          {children}
+        </div>
+        <p className="ll-mt-6 ll-text-center ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
+          {t("copyright")}
+        </p>
+      </main>
+    </div>
+  );
+}
+
 function LoginPage() {
   const { t, i18n } = useTranslation();
   const authStatus = useAuthStatus();
@@ -8065,7 +8027,7 @@ function LoginPage() {
   }, [authStatus]);
 
   const handleAuthAction = async (
-    e: React.FormEvent,
+    e: SubmitEvent<HTMLFormElement>,
     action: () => Promise<void>,
     validationData: Parameters<typeof validateAuthForm>[0],
     setLoadingState: (loading: boolean) => void,
@@ -8092,7 +8054,7 @@ function LoginPage() {
     }
   };
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignIn = (e: SubmitEvent<HTMLFormElement>) => {
     void handleAuthAction(
       e,
       async () => {
@@ -8104,7 +8066,7 @@ function LoginPage() {
     );
   };
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = (e: SubmitEvent<HTMLFormElement>) => {
     const resolvedLanguage = normalizeLanguage(i18n.language);
     void handleAuthAction(
       e,
@@ -8117,7 +8079,7 @@ function LoginPage() {
     );
   };
 
-  const handlePasswordReset = async (e: React.FormEvent) => {
+  const handlePasswordReset = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const newErrors = validateAuthForm({ email, password: "" }, t);
@@ -8185,236 +8147,209 @@ function LoginPage() {
   );
 
   return (
-    <div className="ll-min-h-screen ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="ll-mx-auto ll-flex ll-min-h-screen ll-w-full ll-max-w-xl ll-flex-col ll-justify-center ll-px-4 ll-py-10 ll-sm-px-6"
-      >
-        <div className="ll-w-full ll-rounded-24px ll-border ll-border-gray-300 ll-bg-white-b ll-p-6 ll-shadow-sm ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-8">
-          <div className="ll-mb-6 ll-text-center">
-            <h1 className="ll-font-display ll-text-2xl ll-font-semibold ll-tracking-tight ll-sm-text-3xl">
-              {t("title")}
-            </h1>
-          </div>
-          <div className="ll-mb-6 ll-flex ll-justify-end">
-            <select
-              value={selectedLanguage}
-              onChange={(event) =>
-                void i18n.changeLanguage(normalizeLanguage(event.target.value))
-              }
-              className="ll-rounded-md ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-focus-border-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-border-gray-300"
-              aria-label={t("settings.language.title")}
-            >
-              {SUPPORTED_LANGUAGES.map((language) => (
-                <option key={language} value={language}>
-                  {LANGUAGE_DISPLAY_NAMES[language]}
-                </option>
-              ))}
-            </select>
-          </div>
+    <AuthPageLayout title={t("title")}>
+      <div className="ll-mb-6 ll-flex ll-justify-end">
+        <select
+          value={selectedLanguage}
+          onChange={(event) =>
+            void i18n.changeLanguage(normalizeLanguage(event.target.value))
+          }
+          className="ll-rounded-md ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-focus-border-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-border-gray-300"
+          aria-label={t("settings.language.title")}
+        >
+          {SUPPORTED_LANGUAGES.map((language) => (
+            <option key={language} value={language}>
+              {LANGUAGE_DISPLAY_NAMES[language]}
+            </option>
+          ))}
+        </select>
+      </div>
 
-          {activeTab !== "reset" ? (
-            <div
-              className="ll-mb-6 ll-grid ll-grid-cols-2 ll-gap-2 ll-rounded-xl ll-bg-gray-50 ll-p-1 ll-dark-bg-gray-900b"
-              role="tablist"
-              aria-label={t("title")}
-            >
-              <button
-                ref={signInTabRef}
-                id="auth-tab-signin"
-                type="button"
-                role="tab"
-                tabIndex={activeTab === "signin" ? 0 : -1}
-                aria-selected={activeTab === "signin"}
-                aria-controls="auth-panel-signin"
-                className={tabButtonClass(activeTab === "signin")}
-                onClick={() => handleTabChange("signin")}
-                onKeyDown={(event) => handleAuthTabKeyDown(event, "signin")}
-              >
-                {t("auth.tabs.signin")}
-              </button>
-              <button
-                ref={signUpTabRef}
-                id="auth-tab-signup"
-                type="button"
-                role="tab"
-                tabIndex={activeTab === "signup" ? 0 : -1}
-                aria-selected={activeTab === "signup"}
-                aria-controls="auth-panel-signup"
-                className={tabButtonClass(activeTab === "signup")}
-                onClick={() => handleTabChange("signup")}
-                onKeyDown={(event) => handleAuthTabKeyDown(event, "signup")}
-              >
-                {t("auth.tabs.signup")}
-              </button>
-            </div>
-          ) : null}
-
-          {activeTab === "signin" && (
-            <section
-              id="auth-panel-signin"
-              role="tabpanel"
-              aria-labelledby="auth-tab-signin"
-              className="ll-space-y-4"
-            >
-              <form onSubmit={handleSignIn} className="ll-space-y-4">
-                <FormInput
-                  id="signin-email"
-                  label={t("auth.form.email")}
-                  type="email"
-                  value={email}
-                  onChange={setEmail}
-                  error={errors.email}
-                  disabled={loading}
-                  placeholder={t("auth.placeholder.email")}
-                  autoComplete="email"
-                />
-                <FormInput
-                  id="signin-password"
-                  label={t("auth.form.password")}
-                  type="password"
-                  value={password}
-                  onChange={setPassword}
-                  error={errors.password}
-                  disabled={loading}
-                  placeholder={t("auth.placeholder.password")}
-                  autoComplete="current-password"
-                />
-                {errors.general && (
-                  <Alert variant="error">{errors.general}</Alert>
-                )}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={primaryButtonClass}
-                >
-                  {loading
-                    ? t("auth.button.signingIn")
-                    : t("auth.button.signin")}
-                </button>
-              </form>
-              <button
-                type="button"
-                onClick={() => handleTabChange("reset")}
-                className={secondaryButtonClass}
-              >
-                {t("auth.button.forgotPassword")}
-              </button>
-            </section>
-          )}
-
-          {activeTab === "signup" && (
-            <section
-              id="auth-panel-signup"
-              role="tabpanel"
-              aria-labelledby="auth-tab-signup"
-              className="ll-space-y-4"
-            >
-              <form onSubmit={handleSignUp} className="ll-space-y-4">
-                <FormInput
-                  id="signup-email"
-                  label={t("auth.form.email")}
-                  type="email"
-                  value={email}
-                  onChange={setEmail}
-                  error={errors.email}
-                  disabled={loading}
-                  placeholder={t("auth.placeholder.email")}
-                  autoComplete="email"
-                />
-                <FormInput
-                  id="signup-password"
-                  label={t("auth.form.password")}
-                  type="password"
-                  value={password}
-                  onChange={setPassword}
-                  error={errors.password}
-                  disabled={loading}
-                  placeholder={t("auth.placeholder.password")}
-                  autoComplete="new-password"
-                />
-                <FormInput
-                  id="signup-confirm"
-                  label={t("auth.form.confirmPassword")}
-                  type="password"
-                  value={confirmPassword}
-                  onChange={setConfirmPassword}
-                  error={errors.confirmPassword}
-                  disabled={loading}
-                  placeholder={t("auth.placeholder.password")}
-                  autoComplete="new-password"
-                />
-                {errors.general && (
-                  <Alert variant="error">{errors.general}</Alert>
-                )}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={primaryButtonClass}
-                >
-                  {loading
-                    ? t("auth.button.signingUp")
-                    : t("auth.button.signup")}
-                </button>
-              </form>
-            </section>
-          )}
-
-          {activeTab === "reset" && (
-            <section className="ll-space-y-4">
-              <form onSubmit={handlePasswordReset} className="ll-space-y-4">
-                {resetSent ? (
-                  <Alert variant="success">
-                    {t("auth.passwordReset.success")}
-                  </Alert>
-                ) : (
-                  <>
-                    <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-                      {t("auth.passwordReset.instruction")}
-                    </p>
-                    <FormInput
-                      id="reset-email"
-                      label={t("auth.form.email")}
-                      type="email"
-                      value={email}
-                      onChange={setEmail}
-                      error={errors.email}
-                      disabled={resetLoading}
-                      placeholder={t("auth.placeholder.email")}
-                      autoComplete="email"
-                    />
-                    {errors.general && (
-                      <Alert variant="error">{errors.general}</Alert>
-                    )}
-                    <button
-                      type="submit"
-                      disabled={resetLoading}
-                      className={primaryButtonClass}
-                    >
-                      {resetLoading
-                        ? t("auth.button.sending")
-                        : t("auth.button.sendResetEmail")}
-                    </button>
-                  </>
-                )}
-              </form>
-              <button
-                type="button"
-                onClick={() => handleTabChange("signin")}
-                className={secondaryButtonClass}
-              >
-                {t("auth.button.backToSignIn")}
-              </button>
-            </section>
-          )}
+      {activeTab !== "reset" ? (
+        <div
+          className="ll-mb-6 ll-grid ll-grid-cols-2 ll-gap-2 ll-rounded-xl ll-bg-gray-50 ll-p-1 ll-dark-bg-gray-900b"
+          role="tablist"
+          aria-label={t("title")}
+        >
+          <button
+            ref={signInTabRef}
+            id="auth-tab-signin"
+            type="button"
+            role="tab"
+            tabIndex={activeTab === "signin" ? 0 : -1}
+            aria-selected={activeTab === "signin"}
+            aria-controls="auth-panel-signin"
+            className={tabButtonClass(activeTab === "signin")}
+            onClick={() => handleTabChange("signin")}
+            onKeyDown={(event) => handleAuthTabKeyDown(event, "signin")}
+          >
+            {t("auth.tabs.signin")}
+          </button>
+          <button
+            ref={signUpTabRef}
+            id="auth-tab-signup"
+            type="button"
+            role="tab"
+            tabIndex={activeTab === "signup" ? 0 : -1}
+            aria-selected={activeTab === "signup"}
+            aria-controls="auth-panel-signup"
+            className={tabButtonClass(activeTab === "signup")}
+            onClick={() => handleTabChange("signup")}
+            onKeyDown={(event) => handleAuthTabKeyDown(event, "signup")}
+          >
+            {t("auth.tabs.signup")}
+          </button>
         </div>
+      ) : null}
 
-        <p className="ll-mt-6 ll-text-center ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
-          {t("copyright")}
-        </p>
-      </main>
-    </div>
+      {activeTab === "signin" && (
+        <section
+          id="auth-panel-signin"
+          role="tabpanel"
+          aria-labelledby="auth-tab-signin"
+          className="ll-space-y-4"
+        >
+          <form onSubmit={handleSignIn} className="ll-space-y-4">
+            <FormInput
+              id="signin-email"
+              label={t("auth.form.email")}
+              type="email"
+              value={email}
+              onChange={setEmail}
+              error={errors.email}
+              disabled={loading}
+              placeholder={t("auth.placeholder.email")}
+              autoComplete="email"
+            />
+            <FormInput
+              id="signin-password"
+              label={t("auth.form.password")}
+              type="password"
+              value={password}
+              onChange={setPassword}
+              error={errors.password}
+              disabled={loading}
+              placeholder={t("auth.placeholder.password")}
+              autoComplete="current-password"
+            />
+            {errors.general && <Alert variant="error">{errors.general}</Alert>}
+            <button
+              type="submit"
+              disabled={loading}
+              className={primaryButtonClass}
+            >
+              {loading ? t("auth.button.signingIn") : t("auth.button.signin")}
+            </button>
+          </form>
+          <button
+            type="button"
+            onClick={() => handleTabChange("reset")}
+            className={secondaryButtonClass}
+          >
+            {t("auth.button.forgotPassword")}
+          </button>
+        </section>
+      )}
+
+      {activeTab === "signup" && (
+        <section
+          id="auth-panel-signup"
+          role="tabpanel"
+          aria-labelledby="auth-tab-signup"
+          className="ll-space-y-4"
+        >
+          <form onSubmit={handleSignUp} className="ll-space-y-4">
+            <FormInput
+              id="signup-email"
+              label={t("auth.form.email")}
+              type="email"
+              value={email}
+              onChange={setEmail}
+              error={errors.email}
+              disabled={loading}
+              placeholder={t("auth.placeholder.email")}
+              autoComplete="email"
+            />
+            <FormInput
+              id="signup-password"
+              label={t("auth.form.password")}
+              type="password"
+              value={password}
+              onChange={setPassword}
+              error={errors.password}
+              disabled={loading}
+              placeholder={t("auth.placeholder.password")}
+              autoComplete="new-password"
+            />
+            <FormInput
+              id="signup-confirm"
+              label={t("auth.form.confirmPassword")}
+              type="password"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              error={errors.confirmPassword}
+              disabled={loading}
+              placeholder={t("auth.placeholder.password")}
+              autoComplete="new-password"
+            />
+            {errors.general && <Alert variant="error">{errors.general}</Alert>}
+            <button
+              type="submit"
+              disabled={loading}
+              className={primaryButtonClass}
+            >
+              {loading ? t("auth.button.signingUp") : t("auth.button.signup")}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {activeTab === "reset" && (
+        <section className="ll-space-y-4">
+          <form onSubmit={handlePasswordReset} className="ll-space-y-4">
+            {resetSent ? (
+              <Alert variant="success">{t("auth.passwordReset.success")}</Alert>
+            ) : (
+              <>
+                <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
+                  {t("auth.passwordReset.instruction")}
+                </p>
+                <FormInput
+                  id="reset-email"
+                  label={t("auth.form.email")}
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  error={errors.email}
+                  disabled={resetLoading}
+                  placeholder={t("auth.placeholder.email")}
+                  autoComplete="email"
+                />
+                {errors.general && (
+                  <Alert variant="error">{errors.general}</Alert>
+                )}
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className={primaryButtonClass}
+                >
+                  {resetLoading
+                    ? t("auth.button.sending")
+                    : t("auth.button.sendResetEmail")}
+                </button>
+              </>
+            )}
+          </form>
+          <button
+            type="button"
+            onClick={() => handleTabChange("signin")}
+            className={secondaryButtonClass}
+          >
+            {t("auth.button.backToSignIn")}
+          </button>
+        </section>
+      )}
+    </AuthPageLayout>
   );
 }
 
@@ -8454,7 +8389,7 @@ function PasswordResetPage() {
     verifyCode();
   }, [t]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors({});
 
@@ -8576,29 +8511,26 @@ function PasswordResetPage() {
   })();
 
   return (
-    <div className="ll-min-h-screen ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="ll-mx-auto ll-flex ll-min-h-screen ll-w-full ll-max-w-xl ll-flex-col ll-justify-center ll-px-4 ll-py-10 ll-sm-px-6"
-      >
-        <div className="ll-w-full ll-rounded-24px ll-border ll-border-gray-300 ll-bg-white-b ll-p-6 ll-shadow-sm ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-sm-p-8">
-          <div className="ll-mb-6 ll-text-center">
-            <h1 className="ll-font-display ll-text-2xl ll-font-semibold ll-tracking-tight ll-sm-text-3xl">
-              {t("auth.passwordReset.title")}
-            </h1>
-          </div>
-          {content}
-        </div>
-        <p className="ll-mt-6 ll-text-center ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
-          {t("copyright")}
-        </p>
-      </main>
-    </div>
+    <AuthPageLayout title={t("auth.passwordReset.title")}>
+      {content}
+    </AuthPageLayout>
   );
 }
 
 // pages/sharecodes.tsx
+function HistoryBackButton() {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={() => window.history.back()}
+      className="ll-pressable ll-rounded-full ll-p-2 ll-text-gray-600 ll-hover-bg-gray-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900"
+      aria-label={t("common.back")}
+    >
+      <AppIcon name="arrow-back" className="ll-h-6 ll-w-6" />
+    </button>
+  );
+}
+
 function ShareCodePreviewPage() {
   const { t } = useTranslation();
   const user = useUser();
@@ -8689,13 +8621,7 @@ function ShareCodePreviewPage() {
     return (
       <div className="ll-flex ll-h-full ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
         <div className="ll-bg-white-b ll-p-4 ll-shadow-sm ll-dark-bg-gray-900b">
-          <button
-            onClick={() => window.history.back()}
-            className="ll-pressable ll-rounded-full ll-p-2 ll-text-gray-600 ll-hover-bg-gray-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900"
-            aria-label={t("common.back")}
-          >
-            <AppIcon name="arrow-back" className="ll-h-6 ll-w-6" />
-          </button>
+          <HistoryBackButton />
         </div>
         <div className="ll-p-4">
           <Alert variant="error">{error}</Alert>
@@ -8710,13 +8636,7 @@ function ShareCodePreviewPage() {
     return (
       <div className="ll-flex ll-h-full ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
         <div className="ll-bg-white-b ll-p-4 ll-shadow-sm ll-dark-bg-gray-900b">
-          <button
-            onClick={() => window.history.back()}
-            className="ll-pressable ll-rounded-full ll-p-2 ll-text-gray-600 ll-hover-bg-gray-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900"
-            aria-label={t("common.back")}
-          >
-            <AppIcon name="arrow-back" className="ll-h-6 ll-w-6" />
-          </button>
+          <HistoryBackButton />
         </div>
         <div className="ll-p-4">
           <p className="ll-text-center ll-text-gray-600 ll-dark-text-gray-300">
@@ -8730,13 +8650,7 @@ function ShareCodePreviewPage() {
   return (
     <div className="ll-flex ll-h-full ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
       <header className="ll-flex ll-items-center ll-justify-between ll-border-b ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-3 ll-dark-border-gray-700 ll-dark-bg-gray-900b">
-        <button
-          onClick={() => window.history.back()}
-          className="ll-pressable ll-rounded-full ll-p-2 ll-text-gray-600 ll-hover-bg-gray-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900"
-          aria-label={t("common.back")}
-        >
-          <AppIcon name="arrow-back" className="ll-h-6 ll-w-6" />
-        </button>
+        <HistoryBackButton />
         {user && (
           <button
             onClick={handleAddToOrder}

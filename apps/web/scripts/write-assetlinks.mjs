@@ -41,7 +41,7 @@ const template = await readFile(
   "utf8",
 );
 const content = template.replace(
-  "__LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINTS__",
+  '["__LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINTS__"]',
   JSON.stringify(fingerprints),
 );
 JSON.parse(content);

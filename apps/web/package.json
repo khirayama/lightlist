@@ -19,7 +19,7 @@
     "build": "vite build",
     "postbuild": "node scripts/write-apple-app-site-association.mjs dist --if-configured && node scripts/write-assetlinks.mjs dist --if-configured",
     "preview": "vite preview",
-    "cf:build": "npm run build && node scripts/write-apple-app-site-association.mjs dist && node scripts/write-assetlinks.mjs dist",
+    "cf:build": "npm run prebuild && vite build && node scripts/write-apple-app-site-association.mjs dist && node scripts/write-assetlinks.mjs dist",
     "cf:preview": "npm run cf:build && wrangler pages dev dist",
     "cf:deploy": "npm run cf:build && wrangler pages deploy dist --project-name \"$CLOUDFLARE_PAGES_PROJECT_NAME\"",
     "typecheck": "tsc --noEmit",

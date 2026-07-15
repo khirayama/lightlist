@@ -86,8 +86,7 @@ export default defineConfig({
             id.includes("node_modules/@dnd-kit/") ||
             id.includes("node_modules/@radix-ui/") ||
             id.includes("node_modules/cmdk/") ||
-            id.includes("node_modules/react-day-picker/") ||
-            id.includes("node_modules/vaul/")
+            id.includes("node_modules/react-day-picker/")
           ) {
             return "app-ui";
           }

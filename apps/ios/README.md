@@ -2,8 +2,6 @@
 just build
 just emulator "iPhone 16"
 just run
-
-just run "iPhone 16"
 just emulator "3D7C2C1C-0000-0000-0000-000000000000"
 ```
 

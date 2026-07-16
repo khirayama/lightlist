@@ -15,7 +15,7 @@ xcuserdata/
 *.gcno
 *.dSYM.zip
 *.dSYM
-Lightlist.xcodeproj/xcuserdata/
+Lightlist.xcodeproj/
 Tuist/.build/
 .build/
 .swiftpm/

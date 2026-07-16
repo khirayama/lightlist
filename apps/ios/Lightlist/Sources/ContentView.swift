@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 import Security
+import DeviceCheck
 import FirebaseAppCheck
 @preconcurrency import FirebaseAuth
 import FirebaseAnalytics
@@ -10,6 +11,26 @@ import FirebaseCrashlytics
 
 private let authSignInTimeoutSeconds: TimeInterval = 10
 private let shareCodeCharacters = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+private let shareCodePattern = #"^[A-Z0-9]{8}$"#
+
+private func normalizedShareCode(_ rawValue: String) -> String? {
+    let shareCode = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    guard shareCode.range(of: shareCodePattern, options: .regularExpression) != nil else {
+        return nil
+    }
+    return shareCode
+}
+
+private func passwordResetCode(from rawValue: String?) -> String? {
+    guard let rawValue else {
+        return nil
+    }
+    let code = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !code.isEmpty, code.utf8.count <= 2048 else {
+        return nil
+    }
+    return code
+}
 
 private func generateRandomShareCode() throws -> String {
     var bytes = [UInt8](repeating: 0, count: 8)
@@ -29,37 +50,38 @@ private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
     let scheme = url.scheme?.lowercased()
     let host = url.host?.lowercased()
     let pathComponents = url.pathComponents.filter { $0 != "/" }
+    let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
 
     if scheme == "lightlist" {
-        if host == "password-reset" {
-            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                  let code = components.queryItems?.first(where: { $0.name == "oobCode" })?.value,
-                  !code.isEmpty else {
+        if host == "password-reset", pathComponents.isEmpty {
+            guard let code = passwordResetCode(from: queryItems?.first(where: { $0.name == "oobCode" })?.value) else {
                 return nil
             }
             return .passwordReset(code: code)
         }
 
-        if host == "sharecodes",
-           let shareCode = pathComponents.first,
-           !shareCode.isEmpty {
-            return .shareCode(shareCode.uppercased())
+        if host == "sharecodes", pathComponents.count == 1,
+           let shareCode = normalizedShareCode(pathComponents[0]) {
+            return .shareCode(shareCode)
         }
     }
 
-    if (scheme == "https" || scheme == "http"),
-       host == "lightlist.com" {
-        if pathComponents.count >= 2,
-           pathComponents[0].lowercased() == "sharecodes" {
-            return .shareCode(pathComponents[1].uppercased())
+    if scheme == "https", host == "lightlist.com", (url.port == nil || url.port == 443) {
+        if pathComponents.count == 1,
+           pathComponents[0].lowercased() == "sharecodes",
+           let shareCode = normalizedShareCode(queryItems?.first(where: { $0.name == "code" })?.value ?? "") {
+            return .shareCode(shareCode)
         }
 
-        if pathComponents.first?.lowercased() == "password_reset" {
-            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                  let code = components.queryItems?.first(where: { $0.name == "oobCode" })?.value,
-                  !code.isEmpty else {
-                return nil
-            }
+        if pathComponents.count == 2,
+           pathComponents[0].lowercased() == "sharecodes",
+           let shareCode = normalizedShareCode(pathComponents[1]) {
+            return .shareCode(shareCode)
+        }
+
+        if pathComponents.count == 1,
+           pathComponents[0].lowercased() == "password_reset",
+           let code = passwordResetCode(from: queryItems?.first(where: { $0.name == "oobCode" })?.value) {
             return .passwordReset(code: code)
         }
     }
@@ -101,12 +123,20 @@ private enum AppTypography {
         .custom("GenInterfaceJP-Medium", size: 17, relativeTo: .body)
     }
 
+    static func bodyBold() -> Font {
+        .custom("GenInterfaceJP-Bold", size: 17, relativeTo: .body)
+    }
+
     static func subheadline() -> Font {
         .custom("GenInterfaceJP-Regular", size: 15, relativeTo: .subheadline)
     }
 
     static func subheadlineMedium() -> Font {
         .custom("GenInterfaceJP-Medium", size: 15, relativeTo: .subheadline)
+    }
+
+    static func subheadlineSemibold() -> Font {
+        .custom("GenInterfaceJP-SemiBold", size: 15, relativeTo: .subheadline)
     }
 
     static func caption() -> Font {
@@ -121,6 +151,10 @@ private enum AppTypography {
         .custom("GenInterfaceJPDisplay-Bold", size: 28, relativeTo: .title)
     }
 
+    static func sectionTitle() -> Font {
+        .custom("GenInterfaceJPDisplay-Bold", size: 20, relativeTo: .title3)
+    }
+
     static func headline() -> Font {
         .custom("GenInterfaceJPDisplay-Bold", size: 17, relativeTo: .headline)
     }
@@ -133,6 +167,10 @@ final class Translations: ObservableObject {
 
     private static let supported = ["ja","en","es","de","fr","ko","zh-CN","hi","ar","pt-BR","id"]
     private static var allLocales: [String: Any]?
+
+    init() {
+        load(language: UserDefaults.standard.string(forKey: cachedLanguageKey) ?? resolveDeviceLanguage())
+    }
 
     private static func loadAllLocales() -> [String: Any] {
         if let allLocales {
@@ -219,7 +257,7 @@ final class Translations: ObservableObject {
     private static func resolveWeekdayDate(key: String, weekdays: [String: Int]) -> Date? {
         let target = weekdays[key] ?? weekdays.first { $0.key.lowercased() == key.lowercased() }?.value
         guard let target else { return nil }
-        let current = Calendar.current.component(.weekday, from: Date())
+        let current = currentGregorianCalendar().component(.weekday, from: Date())
         return makeTaskOffsetDate(nextTaskWeekdayOffset(targetDay: target + 1, currentDay: current))
     }
 }
@@ -314,6 +352,103 @@ private struct TaskSummary: Identifiable, Hashable {
     }
 }
 
+private func taskDisplayGroup(_ task: TaskSummary) -> Int {
+    if task.completed { return 2 }
+    return task.pinned ? 0 : 1
+}
+
+private func getDisplayOrderedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
+    tasks.sorted { lhs, rhs in
+        let lhsGroup = taskDisplayGroup(lhs)
+        let rhsGroup = taskDisplayGroup(rhs)
+        if lhsGroup != rhsGroup { return lhsGroup < rhsGroup }
+        return lhs.order == rhs.order ? lhs.id < rhs.id : lhs.order < rhs.order
+    }
+}
+
+private func getAutoSortedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
+    renumberTasks(tasks.sorted { lhs, rhs in
+        let lhsGroup = taskDisplayGroup(lhs)
+        let rhsGroup = taskDisplayGroup(rhs)
+        if lhsGroup != rhsGroup { return lhsGroup < rhsGroup }
+        let lhsDate = lhs.date.isEmpty ? "9999-12-31" : lhs.date
+        let rhsDate = rhs.date.isEmpty ? "9999-12-31" : rhs.date
+        if lhsDate != rhsDate { return lhsDate < rhsDate }
+        return lhs.order == rhs.order ? lhs.id < rhs.id : lhs.order < rhs.order
+    })
+}
+
+private func renumberTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
+    tasks.enumerated().map { index, task in
+        task.updating(order: Double(index + 1))
+    }
+}
+
+private func normalizeTasks(_ tasks: [TaskSummary], autoSort: Bool) -> [TaskSummary] {
+    autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks)
+}
+
+private func reconcileTasks(_ tasks: [TaskSummary], autoSort: Bool) -> [TaskSummary] {
+    if autoSort { return getAutoSortedTasks(tasks) }
+    let displayOrdered = tasks.enumerated().sorted { lhs, rhs in
+        let groupDifference = taskDisplayGroup(lhs.element) - taskDisplayGroup(rhs.element)
+        return groupDifference == 0 ? lhs.offset < rhs.offset : groupDifference < 0
+    }.map { $0.element }
+    return renumberTasks(displayOrdered)
+}
+
+private func buildTaskUpdateData(
+    previousTasks: [TaskSummary],
+    tasks: [TaskSummary],
+    deletedTaskIds: [String] = []
+) -> [String: Any] {
+    var updates: [String: Any] = ["updatedAt": nowMillis()]
+    let previousById = Dictionary(uniqueKeysWithValues: previousTasks.map { ($0.id, $0) })
+    for taskId in deletedTaskIds {
+        updates["tasks.\(taskId)"] = FieldValue.delete()
+    }
+    for task in tasks {
+        guard let previous = previousById[task.id] else {
+            updates["tasks.\(task.id).id"] = task.id
+            updates["tasks.\(task.id).text"] = task.text
+            updates["tasks.\(task.id).completed"] = task.completed
+            updates["tasks.\(task.id).date"] = task.date
+            updates["tasks.\(task.id).order"] = task.order
+            updates["tasks.\(task.id).pinned"] = task.pinned
+            continue
+        }
+        if previous.text != task.text { updates["tasks.\(task.id).text"] = task.text }
+        if previous.completed != task.completed { updates["tasks.\(task.id).completed"] = task.completed }
+        if previous.date != task.date { updates["tasks.\(task.id).date"] = task.date }
+        if previous.order != task.order { updates["tasks.\(task.id).order"] = task.order }
+        if previous.pinned != task.pinned { updates["tasks.\(task.id).pinned"] = task.pinned }
+    }
+    return updates
+}
+
+private func buildHistory(
+    newText: String,
+    history: [String],
+    oldText: String? = nil,
+    normalizeWhenEmpty: Bool = false
+) -> [String] {
+    let candidate = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+    if candidate.isEmpty && !normalizeWhenEmpty { return history }
+    let trimmedOldText = oldText?.trimmingCharacters(in: .whitespacesAndNewlines)
+    var result: [String] = []
+    var seen = Set<String>()
+    for entry in (candidate.isEmpty ? history : [candidate] + history) {
+        let trimmed = entry.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { continue }
+        if let trimmedOldText, trimmed == trimmedOldText { continue }
+        let normalized = trimmed.lowercased()
+        if !seen.insert(normalized).inserted { continue }
+        result.append(trimmed)
+        if result.count >= 300 { break }
+    }
+    return result
+}
+
 private struct ActionSheetState: Identifiable, Equatable {
     let taskId: String
 
@@ -405,6 +540,10 @@ private final class TaskListMutationQueue {
     }
 }
 
+private struct FirestoreUpdateData: @unchecked Sendable {
+    let value: [String: Any]
+}
+
 @MainActor
 private enum TaskListMutationQueues {
     private static var queues: [String: TaskListMutationQueue] = [:]
@@ -423,6 +562,34 @@ private enum TaskListMutationQueues {
     }
 }
 
+private func removeTaskListMembership(
+    db: Firestore,
+    taskListOrderRef: DocumentReference,
+    taskListId: String,
+    taskListSnapshot: DocumentSnapshot,
+    shareCodeDocumentId: String?
+) async throws {
+    let taskListRef = taskListSnapshot.reference
+    let batch = db.batch()
+    batch.updateData([
+        taskListId: FieldValue.delete(),
+        "updatedAt": nowMillis(),
+    ], forDocument: taskListOrderRef)
+    let memberCount = (taskListSnapshot.data()?["memberCount"] as? NSNumber)?.intValue ?? 1
+    if memberCount <= 1 {
+        if let shareCodeDocumentId {
+            batch.deleteDocument(db.collection("shareCodes").document(shareCodeDocumentId))
+        }
+        batch.deleteDocument(taskListRef)
+    } else {
+        batch.updateData([
+            "memberCount": FieldValue.increment(Int64(-1)),
+            "updatedAt": nowMillis(),
+        ], forDocument: taskListRef)
+    }
+    try await batch.commit()
+}
+
 private struct CalendarTask: Identifiable {
     var id: String { "\(taskListId):\(taskId)" }
     let taskListId: String
@@ -433,6 +600,15 @@ private struct CalendarTask: Identifiable {
     let completed: Bool
     let date: String
     let dateValue: Date
+    let taskListIndex: Int
+    let taskIndex: Int
+}
+
+private let cachedThemeKey = "lightlist.theme"
+private let cachedLanguageKey = "lightlist.language"
+
+private func taskListOrderCacheKey(uid: String) -> String {
+    "lightlist.taskListOrder.\(uid)"
 }
 
 private enum LoadStatus {
@@ -463,7 +639,9 @@ private func orderedTaskListIds(from data: [String: Any]?) -> [String] {
     }
 
     return orderedEntries
-        .sorted { $0.order < $1.order }
+        .sorted {
+            $0.order == $1.order ? $0.taskListId < $1.taskListId : $0.order < $1.order
+        }
         .map { $0.taskListId }
 }
 
@@ -568,6 +746,13 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
         }
 
         status = .loading
+
+        let cachedIds = UserDefaults.standard.stringArray(forKey: taskListOrderCacheKey(uid: uid)) ?? []
+        if !cachedIds.isEmpty {
+            orderedIds = cachedIds
+            subscribeToTaskLists(taskListIds: cachedIds)
+        }
+
         taskListOrderListener = db.collection("taskListOrder").document(uid).addSnapshotListener { [weak self] snapshot, error in
             guard let self else {
                 return
@@ -579,6 +764,7 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
             }
 
             self.orderedIds = orderedTaskListIds(from: snapshot?.data())
+            UserDefaults.standard.set(self.orderedIds, forKey: taskListOrderCacheKey(uid: uid))
             self.status = .ready
             self.subscribeToTaskLists(taskListIds: self.orderedIds)
             self.publishTaskLists()
@@ -648,21 +834,34 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
 
     private func publishTaskLists() {
         taskLists = orderedIds.compactMap { taskListsById[$0] }
+        if status == .loading, !taskLists.isEmpty {
+            status = .ready
+        }
     }
 }
 
 private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> {
+
+    @Published private(set) var optimisticCalendarTasks: [CalendarTask] = []
+    @Published private(set) var addTaskError: String?
+    private let db = Firestore.firestore()
 
     init() {
         super.init(mapper: mapTaskListDetail)
     }
 
     var calendarTasks: [CalendarTask] {
-        taskLists
-            .flatMap { taskList in
-                taskList.tasks
-                    .filter { !$0.completed && !$0.date.isEmpty }
-                    .compactMap { task -> CalendarTask? in
+        let loadedTasks = taskLists
+            .enumerated()
+            .flatMap { taskListEntry in
+                let taskListIndex = taskListEntry.offset
+                let taskList = taskListEntry.element
+                return taskList.tasks
+                    .enumerated()
+                    .filter { !$0.element.completed && !$0.element.date.isEmpty }
+                    .compactMap { taskEntry -> CalendarTask? in
+                        let taskIndex = taskEntry.offset
+                        let task = taskEntry.element
                         guard let dateValue = isoDateFormatter.date(from: task.date) else { return nil }
                         return CalendarTask(
                             taskListId: taskList.id,
@@ -672,11 +871,92 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
                             text: task.text,
                             completed: task.completed,
                             date: task.date,
-                            dateValue: dateValue
+                            dateValue: dateValue,
+                            taskListIndex: taskListIndex,
+                            taskIndex: taskIndex
                         )
                     }
             }
-            .sorted { $0.dateValue < $1.dateValue }
+        let loadedIds = Set(loadedTasks.map(\.id))
+        return (loadedTasks + optimisticCalendarTasks.filter { !loadedIds.contains($0.id) })
+            .sorted {
+                if $0.dateValue != $1.dateValue { return $0.dateValue < $1.dateValue }
+                if $0.taskListIndex != $1.taskListIndex { return $0.taskListIndex < $1.taskListIndex }
+                return $0.taskIndex < $1.taskIndex
+            }
+    }
+
+    func reconcileOptimisticTasks() {
+        let loadedIds = Set(taskLists.flatMap { taskList in
+            taskList.tasks.map { "\(taskList.id):\($0.id)" }
+        })
+        optimisticCalendarTasks.removeAll { loadedIds.contains($0.id) }
+    }
+
+    func addTask(
+        taskListId: String,
+        rawText: String,
+        date: Date,
+        taskInsertPosition: String,
+        autoSort: Bool,
+        translations: Translations
+    ) {
+        let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let taskListIndex = taskLists.firstIndex(where: { $0.id == taskListId }) else { return }
+
+        let taskList = taskLists[taskListIndex]
+        let parsed = resolveTaskInput(trimmed, translations: translations)
+        let taskId = UUID().uuidString
+        let dateKey = isoDateFormatter.string(from: date)
+        let orderedTasks = taskList.tasks.sorted {
+            $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order
+        }
+        let nextOrder = taskInsertPosition == "bottom"
+            ? (orderedTasks.last?.order ?? 0) + 1
+            : (orderedTasks.first?.order ?? 1) - 1
+        let insertedTask = TaskSummary(
+            id: taskId,
+            text: parsed.text,
+            completed: false,
+            date: dateKey,
+            order: nextOrder,
+            pinned: parsed.pinned
+        )
+        let insertedTasks = taskInsertPosition == "bottom"
+            ? orderedTasks + [insertedTask]
+            : [insertedTask] + orderedTasks
+        let nextTasks = reconcileTasks(insertedTasks, autoSort: autoSort)
+        guard let insertedIndex = nextTasks.firstIndex(where: { $0.id == taskId }) else { return }
+
+        optimisticCalendarTasks.append(CalendarTask(
+            taskListId: taskList.id,
+            taskListName: taskList.name,
+            taskListBackground: taskList.background,
+            taskId: taskId,
+            text: parsed.text,
+            completed: false,
+            date: dateKey,
+            dateValue: date,
+            taskListIndex: taskListIndex,
+            taskIndex: insertedIndex
+        ))
+        addTaskError = nil
+
+        var updates = buildTaskUpdateData(previousTasks: orderedTasks, tasks: nextTasks)
+        updates["history"] = buildHistory(
+            newText: parsed.text,
+            history: taskList.history,
+            normalizeWhenEmpty: true
+        )
+        let updateData = FirestoreUpdateData(value: updates)
+        TaskListMutationQueues.queue(for: taskList.id).enqueue({ [db] in
+            try await db.collection("taskLists").document(taskList.id).updateData(updateData.value)
+        }, onError: { [weak self] in
+            self?.optimisticCalendarTasks.removeAll { $0.taskId == taskId }
+            self?.addTaskError = translations.t("common.error")
+        })
+        logTaskAdd(hasDate: true)
     }
 
 }
@@ -776,10 +1056,18 @@ private func normalizeTaskDateDigits(_ value: String) -> String {
     String(value.map { taskDateDigitMap[$0] ?? $0 })
 }
 
+private func currentGregorianCalendar(locale: Locale? = nil) -> Calendar {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.locale = locale
+    calendar.timeZone = .autoupdatingCurrent
+    return calendar
+}
+
 private let isoDateFormatter: DateFormatter = {
     let f = DateFormatter()
     f.locale = Locale(identifier: "en_US_POSIX")
-    f.calendar = Calendar(identifier: .gregorian)
+    f.calendar = currentGregorianCalendar()
+    f.timeZone = .autoupdatingCurrent
     f.dateFormat = "yyyy-MM-dd"
     return f
 }()
@@ -795,14 +1083,32 @@ private let taskListColorOptions: [String?] = [nil, "#F87171", "#FBBF24", "#34D3
 @MainActor private let selectionFeedbackGenerator = UISelectionFeedbackGenerator()
 @MainActor private let notificationFeedbackGenerator = UINotificationFeedbackGenerator()
 
-private let gregorianCalendar = Calendar(identifier: .gregorian)
+@MainActor private func triggerLightImpact() {
+    lightImpactGenerator.impactOccurred()
+    lightImpactGenerator.prepare()
+}
+
+@MainActor private func triggerMediumImpact() {
+    mediumImpactGenerator.impactOccurred()
+    mediumImpactGenerator.prepare()
+}
+
+@MainActor private func triggerSelectionFeedback() {
+    selectionFeedbackGenerator.selectionChanged()
+    selectionFeedbackGenerator.prepare()
+}
+
+@MainActor private func triggerWarningFeedback() {
+    notificationFeedbackGenerator.notificationOccurred(.warning)
+    notificationFeedbackGenerator.prepare()
+}
 
 private func taskInputDateFrom(year: Int, month: Int, day: Int) -> Date? {
     var components = DateComponents()
     components.year = year
     components.month = month
     components.day = day
-    return gregorianCalendar.date(from: components)
+    return currentGregorianCalendar().date(from: components)
 }
 
 private func nextTaskWeekdayOffset(targetDay: Int, currentDay: Int) -> Int {
@@ -811,7 +1117,7 @@ private func nextTaskWeekdayOffset(targetDay: Int, currentDay: Int) -> Int {
 }
 
 private func makeTaskOffsetDate(_ offset: Int) -> Date? {
-    gregorianCalendar.date(byAdding: .day, value: offset, to: Date())
+    currentGregorianCalendar().date(byAdding: .day, value: offset, to: Date())
 }
 
 private func resolveTaskDate(from source: String, patterns: [TaskDatePattern]) -> (date: Date, matchedLength: Int)? {
@@ -868,20 +1174,21 @@ private func parseDateFromTaskInput(_ text: String, translations: Translations) 
     }
 
     let normalized = normalizeTaskDateDigits(source)
+    let calendar = currentGregorianCalendar()
     let numericPatterns: [TaskDatePattern] = [
         .init(pattern: #"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
             guard let year = Int(groups[1]), let month = Int(groups[2]), let day = Int(groups[3]) else { return nil }
             guard let date = taskInputDateFrom(year: year, month: month, day: day) else { return nil }
-            let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+            let components = calendar.dateComponents([.year, .month, .day], from: date)
             return components.year == year && components.month == month && components.day == day ? date : nil
         },
         .init(pattern: #"^(\d{1,2})[-/.](\d{1,2})\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
             guard let month = Int(groups[1]), let day = Int(groups[2]) else { return nil }
-            let currentYear = Calendar.current.component(.year, from: Date())
+            let currentYear = calendar.component(.year, from: Date())
             guard let date = taskInputDateFrom(year: currentYear, month: month, day: day) else { return nil }
-            let components = Calendar.current.dateComponents([.month, .day], from: date)
+            let components = calendar.dateComponents([.month, .day], from: date)
             guard components.month == month && components.day == day else { return nil }
-            let today = Calendar.current.startOfDay(for: Date())
+            let today = calendar.startOfDay(for: Date())
             if date < today {
                 return taskInputDateFrom(year: currentYear + 1, month: month, day: day)
             }
@@ -1000,7 +1307,7 @@ struct RootView: View {
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var path = AppRoute.initialPath
-    @State private var theme: String = "system"
+    @State private var theme: String = UserDefaults.standard.string(forKey: cachedThemeKey) ?? "system"
     @State private var isLoggedIn = Auth.auth().currentUser != nil
     @State private var currentUserId = Auth.auth().currentUser?.uid
     @State private var settingsListener: ListenerRegistration?
@@ -1027,6 +1334,18 @@ struct RootView: View {
         }
     }
 
+    private var locale: Locale {
+        Locale(identifier: localeIdentifier(for: translations.language))
+    }
+
+    private var calendar: Calendar {
+        currentGregorianCalendar(locale: locale)
+    }
+
+    private var layoutDirection: LayoutDirection {
+        translations.language == "ar" ? .rightToLeft : .leftToRight
+    }
+
     public var body: some View {
         Group {
             if horizontalSizeClass == .regular {
@@ -1037,6 +1356,9 @@ struct RootView: View {
         }
         .font(AppTypography.body())
         .preferredColorScheme(colorScheme)
+        .environment(\.locale, locale)
+        .environment(\.calendar, calendar)
+        .environment(\.layoutDirection, layoutDirection)
         .onAppear { startListening() }
         .onDisappear { stopListening() }
         .onChange(of: pendingDeepLink, initial: true) { _, deepLink in
@@ -1206,6 +1528,8 @@ struct RootView: View {
                 settingsListener?.remove()
                 guard let uid = user?.uid else {
                     theme = "system"
+                    UserDefaults.standard.removeObject(forKey: cachedThemeKey)
+                    UserDefaults.standard.removeObject(forKey: cachedLanguageKey)
                     translations.load(language: resolveDeviceLanguage())
                     return
                 }
@@ -1213,8 +1537,11 @@ struct RootView: View {
                     .collection("settings").document(uid)
                     .addSnapshotListener { snapshot, _ in
                         Task { @MainActor in
-                            theme = snapshot?.data()?["theme"] as? String ?? "system"
+                            let nextTheme = snapshot?.data()?["theme"] as? String ?? "system"
                             let language = snapshot?.data()?["language"] as? String ?? "ja"
+                            theme = nextTheme
+                            UserDefaults.standard.set(nextTheme, forKey: cachedThemeKey)
+                            UserDefaults.standard.set(language, forKey: cachedLanguageKey)
                             translations.load(language: language)
                         }
                     }
@@ -1244,7 +1571,7 @@ struct RootView: View {
 }
 
 private enum TaskListTopChromeMetrics {
-    static let compactBackRowHeight: CGFloat = 34
+    static let compactBackRowHeight: CGFloat = 44
     static let compactIndicatorTopSpacing: CGFloat = 4
     static let compactBottomSpacing: CGFloat = 10
     static let regularTopSpacing: CGFloat = 8
@@ -1274,7 +1601,7 @@ private enum AppIconMetrics {
 }
 
 private enum TaskListDetailMetrics {
-    static let headerIconButtonSize: CGFloat = 28
+    static let headerIconButtonSize: CGFloat = 44
     static let headerIconSize: CGFloat = AppIconMetrics.compactActionIconSize
     static let inputCornerRadius: CGFloat = 14
     static let inputHorizontalPadding: CGFloat = 14
@@ -1304,35 +1631,43 @@ private enum TaskListDetailMetrics {
 private struct ScreenScaffold<Content: View>: View {
     let title: String
     @ViewBuilder let content: () -> Content
+    @ScaledMetric(relativeTo: .body) private var cardPadding: CGFloat = 24
+    @ScaledMetric(relativeTo: .body) private var cardSpacing: CGFloat = 24
 
     var body: some View {
         ZStack {
             Color(.systemBackground)
                 .ignoresSafeArea()
 
-            VStack {
-                Spacer(minLength: 0)
+            GeometryReader { proxy in
+                ScrollView {
+                    VStack {
+                        Spacer(minLength: 0)
 
-                VStack(spacing: 24) {
-                    Text(title)
-                        .font(AppTypography.title())
+                        VStack(spacing: cardSpacing) {
+                            Text(title)
+                                .font(AppTypography.title())
 
-                    content()
+                            content()
+                        }
+                        .frame(maxWidth: 480)
+                        .padding(cardPadding)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .stroke(Color(.separator), lineWidth: 1)
+                        )
+
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: max(0, proxy.size.height - (cardPadding * 2)))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, cardPadding)
                 }
-                .frame(maxWidth: 480)
-                .padding(24)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color(.separator), lineWidth: 1)
-                )
-
-                Spacer(minLength: 0)
+                .scrollDismissesKeyboard(.interactively)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 24)
         }
         .toolbar(.hidden, for: .navigationBar)
     }
@@ -1353,7 +1688,7 @@ private struct TaskListIndicatorRow: View {
                     Circle()
                         .fill(Color.primary.opacity(index == selectedIndex ? 1 : 0.4))
                         .frame(width: 8, height: 8)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(taskList.name)、\(translations.t("a11y.listPosition", ["index": "\(index + 1)", "total": "\(taskLists.count)"]))")
@@ -1381,7 +1716,7 @@ private struct TaskListTopChrome: View {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: AppIconMetrics.navigationIconSize, weight: .semibold))
                                     .foregroundStyle(.primary)
-                                    .frame(width: 32, height: 32)
+                                    .frame(width: 44, height: 44)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(translations.t("common.back"))
@@ -1538,12 +1873,14 @@ private struct SignInView: View {
             .buttonStyle(.borderedProminent)
             .disabled(isLoading)
             .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
 
             Button(translations.t("auth.button.forgotPassword")) {
                 onShowReset()
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
         }
     }
 
@@ -1633,12 +1970,14 @@ private struct SignUpView: View {
             .buttonStyle(.borderedProminent)
             .disabled(isLoading)
             .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
 
             Button(translations.t("auth.button.backToSignIn")) {
                 onBackToSignIn()
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
         }
     }
 
@@ -1783,12 +2122,14 @@ private struct PasswordResetRequestView: View {
             .buttonStyle(.borderedProminent)
             .disabled(isLoading)
             .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
 
             Button(translations.t("auth.button.backToSignIn")) {
                 onBackToSignIn()
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
         }
     }
 
@@ -1875,12 +2216,14 @@ private struct PasswordResetView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(successMessage != nil || isFormDisabled)
                 .frame(maxWidth: .infinity)
+                .frame(minHeight: 44)
 
                 Button(translations.t("common.close")) {
                     onDismiss()
                 }
                 .buttonStyle(.bordered)
                 .frame(maxWidth: .infinity)
+                .frame(minHeight: 44)
             }
             .frame(maxWidth: .infinity)
         }
@@ -2003,6 +2346,43 @@ private final class DragAutoScroller {
     }
 }
 
+private struct TaskListColorPicker: View {
+    @EnvironmentObject var translations: Translations
+    let selected: String?
+    let onSelect: (String?) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(translations.t("taskList.selectColor"))
+                .font(AppTypography.subheadline())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+
+            HStack(spacing: 12) {
+                ForEach(taskListColorOptions.indices, id: \.self) { index in
+                    let color = taskListColorOptions[index]
+                    let isSelected = selected == color
+                    Button { onSelect(color) } label: {
+                        Circle()
+                            .fill(color.flatMap { Color(hex: $0) } ?? Color(.systemBackground))
+                            .frame(width: 44, height: 44)
+                            .overlay(
+                                Circle().stroke(Color(.separator), lineWidth: color == nil ? 1 : 0)
+                            )
+                            .overlay(
+                                Circle().stroke(Color.primary, lineWidth: isSelected ? 2.5 : 0).padding(-3)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(colorLabel(color, translations: translations))
+                    .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
 private struct TaskListsView: View {
     @Binding var path: [AppRoute]
     @Binding var pendingShareCode: String?
@@ -2019,7 +2399,9 @@ private struct TaskListsView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var dragStartLocationY: CGFloat? = nil
     @State private var dragOrderedTaskLists: [TaskListSummary]? = nil
+    @State private var dragStartTaskListIds: [String] = []
     @State private var pendingTaskListOrder: [TaskListSummary]? = nil
+    @State private var taskListOrderMutationRevision = 0
     @State private var taskListItemHeights: [String: CGFloat] = [:]
     @State private var autoScroller = DragAutoScroller()
     @State private var scrollViewRef: UIScrollView? = nil
@@ -2102,7 +2484,7 @@ private struct TaskListsView: View {
                 self.dragStartLocationY = (self.dragStartLocationY ?? 0) - scrolledBy
                 let correction = self.checkTaskListSwap()
                 if correction != 0 {
-                    selectionFeedbackGenerator.selectionChanged()
+                    triggerSelectionFeedback()
                     self.dragStartLocationY = (self.dragStartLocationY ?? 0) - correction
                 }
             }
@@ -2156,6 +2538,7 @@ private struct TaskListsView: View {
                             Image(systemName: "gearshape")
                                 .font(.system(size: AppIconMetrics.standardActionIconSize, weight: .semibold))
                                 .foregroundStyle(.primary)
+                                .frame(width: 44, height: 44)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(translations.t("settings.title"))
@@ -2164,6 +2547,7 @@ private struct TaskListsView: View {
                             Image(systemName: "gearshape")
                                 .font(.system(size: AppIconMetrics.standardActionIconSize, weight: .semibold))
                                 .foregroundStyle(.primary)
+                                .frame(width: 44, height: 44)
                         }
                         .accessibilityLabel(translations.t("settings.title"))
                     }
@@ -2183,6 +2567,7 @@ private struct TaskListsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
+                    .frame(minHeight: 44)
                     .contentShape(Rectangle())
                     .overlay(
                         RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -2221,22 +2606,36 @@ private struct TaskListsView: View {
                                         .frame(minWidth: 44, minHeight: 44)
                                         .contentShape(Rectangle())
                                         .accessibilityLabel(translations.t("app.dragHint"))
-                                        .accessibilityAction(named: Text(translations.t("a11y.moveUp"))) { moveTaskList(taskList, by: -1) }
-                                        .accessibilityAction(named: Text(translations.t("a11y.moveDown"))) { moveTaskList(taskList, by: 1) }
+                                        .accessibilityActions {
+                                            if displayTaskLists.first?.id != taskList.id {
+                                                Button(translations.t("a11y.moveUp")) { moveTaskList(taskList, by: -1) }
+                                            }
+                                            if displayTaskLists.last?.id != taskList.id {
+                                                Button(translations.t("a11y.moveDown")) { moveTaskList(taskList, by: 1) }
+                                            }
+                                        }
+                                        .focusable()
+                                        .onKeyPress(keys: [.upArrow, .downArrow]) { press in
+                                            guard press.modifiers.contains(.option) else { return .ignored }
+                                            moveTaskList(taskList, by: press.key == .upArrow ? -1 : 1)
+                                            return .handled
+                                        }
                                         .gesture(
                                             DragGesture(minimumDistance: 2, coordinateSpace: .named("taskListList"))
                                                 .onChanged { value in
                                                     if draggingTaskListId == nil {
-                                                        mediumImpactGenerator.impactOccurred()
+                                                        triggerMediumImpact()
                                                         draggingTaskListId = taskList.id
-                                                        dragOrderedTaskLists = viewModel.taskLists
+                                                        let currentTaskLists = displayTaskLists
+                                                        dragStartTaskListIds = currentTaskLists.map(\.id)
+                                                        dragOrderedTaskLists = currentTaskLists
                                                         dragStartLocationY = value.location.y
                                                     }
                                                     guard let startY = dragStartLocationY else { return }
                                                     dragOffset = value.location.y - startY
                                                     let correction = checkTaskListSwap()
                                                     if correction != 0 {
-                                                        selectionFeedbackGenerator.selectionChanged()
+                                                        triggerSelectionFeedback()
                                                         dragStartLocationY = startY - correction
                                                     }
                                                     updateAutoScroll(fingerY: value.location.y)
@@ -2244,10 +2643,11 @@ private struct TaskListsView: View {
                                                 .onEnded { _ in
                                                     stopAutoScroll()
                                                     if let ordered = dragOrderedTaskLists,
-                                                       ordered.map(\.id) != viewModel.taskLists.map(\.id) {
+                                                       ordered.map(\.id) != dragStartTaskListIds {
                                                         persistTaskListOrder(ordered.map(\.id))
                                                     }
                                                     dragOrderedTaskLists = nil
+                                                    dragStartTaskListIds = []
                                                     withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.15)) {
                                                         dragOffset = 0
                                                     }
@@ -2279,6 +2679,12 @@ private struct TaskListsView: View {
                                 .contentShape(Rectangle())
                                 .accessibilityElement(children: .combine)
                                 .accessibilityLabel("\(taskList.name)、\(translations.t("taskList.taskCount", ["count": "\(taskList.taskCount)"]))")
+                                .accessibilityAddTraits(.isButton)
+                                .accessibilityAction {
+                                    if draggingTaskListId == nil {
+                                        openTaskList(taskList.id)
+                                    }
+                                }
                                 .onTapGesture {
                                     if draggingTaskListId == nil {
                                         openTaskList(taskList.id)
@@ -2324,6 +2730,7 @@ private struct TaskListsView: View {
                             .font(AppTypography.bodyMedium())
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
+                            .frame(minHeight: 44)
                             .background(Color.primary)
                             .foregroundStyle(Color(.systemBackground))
                             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -2339,6 +2746,7 @@ private struct TaskListsView: View {
                             .font(AppTypography.bodyMedium())
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
+                            .frame(minHeight: 44)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                                     .stroke(Color(.separator), lineWidth: 1)
@@ -2358,9 +2766,6 @@ private struct TaskListsView: View {
             viewModel.bind(uid: nextUid)
         }
         .onChange(of: viewModel.taskLists) { _, taskLists in
-            if let pendingTaskListOrder, pendingTaskListOrder.map(\.id) == taskLists.map(\.id) {
-                self.pendingTaskListOrder = nil
-            }
             guard let onSelectTaskList else {
                 return
             }
@@ -2385,39 +2790,12 @@ private struct TaskListsView: View {
         }
         .sheet(isPresented: $showCreateSheet) {
             NavigationStack {
-                let colorOptions = taskListColorOptions
                 VStack(spacing: 24) {
                     TextField(translations.t("app.taskListName"), text: $createName)
                         .textFieldStyle(.roundedBorder)
                         .padding(.horizontal)
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(translations.t("taskList.selectColor"))
-                            .font(AppTypography.subheadline())
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal)
-
-                        HStack(spacing: 12) {
-                            ForEach(colorOptions.indices, id: \.self) { i in
-                                let c = colorOptions[i]
-                                let isSelected = createBackground == c
-                                Button { createBackground = c } label: {
-                                    Circle()
-                                        .fill(c.flatMap { Color(hex: $0) } ?? Color(.systemBackground))
-                                        .frame(width: 44, height: 44)
-                                        .overlay(
-                                            Circle().stroke(Color(.separator), lineWidth: c == nil ? 1 : 0)
-                                        )
-                                        .overlay(
-                                            Circle().stroke(Color.primary, lineWidth: isSelected ? 2.5 : 0).padding(-3)
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(colorLabel(c, translations: translations))
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
+                    TaskListColorPicker(selected: createBackground) { createBackground = $0 }
 
                     Spacer()
                 }
@@ -2471,8 +2849,10 @@ private struct TaskListsView: View {
                     ToolbarItem(placement: .confirmationAction) {
                         Button(joiningList ? translations.t("app.joining") : translations.t("app.join")) {
                             Task {
-                                let code = joinListInput.trimmingCharacters(in: .whitespaces).uppercased()
-                                guard !code.isEmpty else { return }
+                                guard let code = normalizedShareCode(joinListInput) else {
+                                    joinListError = translations.t("pages.sharecode.notFound")
+                                    return
+                                }
                                 joiningList = true
                                 joinListError = nil
                                 do {
@@ -2519,18 +2899,25 @@ private struct TaskListsView: View {
     private func persistTaskListOrder(_ ids: [String]) {
         logTaskListReorder()
         guard let uid = Auth.auth().currentUser?.uid else { return }
-        var updates: [String: Any] = ["updatedAt": nowMillis()]
+        taskListOrderMutationRevision += 1
+        let mutationRevision = taskListOrderMutationRevision
+        var updateFields: [String: Any] = ["updatedAt": nowMillis()]
         for (i, id) in ids.enumerated() {
-            updates["\(id).order"] = Double(i + 1)
+            updateFields["\(id).order"] = Double(i + 1)
         }
+        let updates = updateFields
         pendingTaskListOrder = displayTaskLists
-        Firestore.firestore().collection("taskListOrder").document(uid).updateData(updates) { error in
-            Task { @MainActor in
-                if error == nil {
-                    pendingTaskListOrder = nil
-                }
+        TaskListMutationQueues.queue(for: "taskListOrder:\(uid)").enqueue({
+            try await Firestore.firestore().collection("taskListOrder").document(uid).updateData(updates)
+        }, onError: {
+            if taskListOrderMutationRevision == mutationRevision {
+                pendingTaskListOrder = nil
             }
-        }
+        }, onIdle: {
+            if taskListOrderMutationRevision == mutationRevision {
+                pendingTaskListOrder = nil
+            }
+        })
     }
 
     private func createTaskList(name: String, background: String?) {
@@ -2578,8 +2965,7 @@ private struct TaskListsView: View {
             return
         }
 
-        let normalized = shareCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard !normalized.isEmpty else {
+        guard let normalized = normalizedShareCode(shareCode) else {
             pendingShareCode = nil
             return
         }
@@ -2611,6 +2997,7 @@ private struct TaskListsView: View {
 
 private struct DetailPagerContent: View {
     @Binding var selectedTaskListId: String
+    @FocusState private var focusedNewTaskListId: String?
     let taskLists: [TaskListDetail]
     let taskInsertPosition: String
     let autoSort: Bool
@@ -2625,12 +3012,18 @@ private struct DetailPagerContent: View {
                     TaskListDetailPage(
                         taskList: taskList,
                         taskInsertPosition: taskInsertPosition,
-                        autoSort: autoSort
+                        autoSort: autoSort,
+                        focusedNewTaskListId: $focusedNewTaskListId
                     )
                     .tag(taskList.id)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            .onChange(of: selectedTaskListId) { previousTaskListId, nextTaskListId in
+                if focusedNewTaskListId == previousTaskListId {
+                    focusedNewTaskListId = nextTaskListId
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.bottom, 16)
@@ -2869,6 +3262,8 @@ private struct TaskListDetailPage: View {
     let taskList: TaskListDetail
     let taskInsertPosition: String
     let autoSort: Bool
+    let allowsTaskListDeletion: Bool
+    @FocusState.Binding var focusedNewTaskListId: String?
     @State private var newTaskText = ""
     @State private var editingTaskId: String? = nil
     @State private var editingText: String = ""
@@ -2878,33 +3273,45 @@ private struct TaskListDetailPage: View {
     @State private var taskDragOffset: CGFloat = 0
     @State private var taskDragStartLocationY: CGFloat? = nil
     @State private var dragOrderedTasks: [TaskSummary]? = nil
+    @State private var dragStartTaskIds: [String] = []
     @State private var pendingDisplayTasks: [TaskSummary]? = nil
+    @State private var taskMutationRevision = 0
+    @State private var exitingTaskIds: Set<String> = []
     @State private var taskItemHeights: [String: CGFloat] = [:]
     @State private var taskAutoScroller = DragAutoScroller()
     @State private var taskScrollViewRef: UIScrollView? = nil
     private var mutationQueue: TaskListMutationQueue {
         TaskListMutationQueues.queue(for: taskList.id)
     }
-    @FocusState private var isNewTaskFocused: Bool
     @FocusState private var isTextFieldFocused: Bool
     private let db = Firestore.firestore()
 
+    init(
+        taskList: TaskListDetail,
+        taskInsertPosition: String,
+        autoSort: Bool,
+        focusedNewTaskListId: FocusState<String?>.Binding,
+        allowsTaskListDeletion: Bool = true
+    ) {
+        self.taskList = taskList
+        self.taskInsertPosition = taskInsertPosition
+        self.autoSort = autoSort
+        self.allowsTaskListDeletion = allowsTaskListDeletion
+        self._focusedNewTaskListId = focusedNewTaskListId
+    }
+
+    private var isNewTaskFocused: Bool {
+        focusedNewTaskListId == taskList.id
+    }
+
+    private func dismissNewTaskInputFocus() {
+        if isNewTaskFocused {
+            focusedNewTaskListId = nil
+        }
+    }
+
     private var displayTasks: [TaskSummary] {
         dragOrderedTasks ?? pendingDisplayTasks ?? getDisplayOrderedTasks(taskList.tasks)
-    }
-
-    private func taskDisplayGroup(_ task: TaskSummary) -> Int {
-        if task.completed { return 2 }
-        return task.pinned ? 0 : 1
-    }
-
-    private func getDisplayOrderedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
-        tasks.sorted { lhs, rhs in
-            let lhsGroup = taskDisplayGroup(lhs)
-            let rhsGroup = taskDisplayGroup(rhs)
-            if lhsGroup != rhsGroup { return lhsGroup < rhsGroup }
-            return lhs.order < rhs.order
-        }
     }
 
     private func checkTaskSwap() -> CGFloat {
@@ -2956,7 +3363,7 @@ private struct TaskListDetailPage: View {
                 self.taskDragStartLocationY = (self.taskDragStartLocationY ?? 0) - scrolledBy
                 let correction = self.checkTaskSwap()
                 if correction != 0 {
-                    selectionFeedbackGenerator.selectionChanged()
+                    triggerSelectionFeedback()
                     self.taskDragStartLocationY = (self.taskDragStartLocationY ?? 0) - correction
                 }
             }
@@ -2965,16 +3372,17 @@ private struct TaskListDetailPage: View {
 
     private func handleTaskDragChanged(task: TaskSummary, displayTasks: [TaskSummary], fingerY: CGFloat) {
         if draggingTaskId == nil {
-            mediumImpactGenerator.impactOccurred()
+            triggerMediumImpact()
             draggingTaskId = task.id
             dragOrderedTasks = displayTasks
+            dragStartTaskIds = displayTasks.map(\.id)
             taskDragStartLocationY = fingerY
         }
         guard let startY = taskDragStartLocationY else { return }
         taskDragOffset = fingerY - startY
         let correction = checkTaskSwap()
         if correction != 0 {
-            selectionFeedbackGenerator.selectionChanged()
+            triggerSelectionFeedback()
             taskDragStartLocationY = startY - correction
         }
         updateTaskAutoScroll(fingerY: fingerY)
@@ -2993,6 +3401,8 @@ private struct TaskListDetailPage: View {
         }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: identifier)
+        formatter.calendar = currentGregorianCalendar(locale: formatter.locale)
+        formatter.timeZone = .autoupdatingCurrent
         formatter.setLocalizedDateFormatFromTemplate("MMMEd")
         dateDisplayFormatters[identifier] = formatter
         return formatter
@@ -3011,7 +3421,7 @@ private struct TaskListDetailPage: View {
         let accessibilityLabel = translations.t(task.completed ? "pages.tasklist.markIncomplete" : "pages.tasklist.markComplete")
 
         Button {
-            lightImpactGenerator.impactOccurred()
+            triggerLightImpact()
             toggleCompletion(task)
         } label: {
             ZStack {
@@ -3034,139 +3444,38 @@ private struct TaskListDetailPage: View {
         .accessibilityLabel(accessibilityLabel)
     }
 
-    @ViewBuilder
-    private func colorOptionButton(color: String?, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        let fillColor = color.flatMap { Color(hex: $0) } ?? Color(.systemBackground)
-        let outlineWidth = color == nil ? 1.0 : 0.0
-        let selectedWidth = isSelected ? 2.5 : 0.0
-
-        Button(action: action) {
-            Circle()
-                .fill(fillColor)
-                .frame(width: 44, height: 44)
-                .overlay(
-                    Circle().stroke(Color(.separator), lineWidth: outlineWidth)
-                )
-                .overlay(
-                    Circle().stroke(Color.primary, lineWidth: selectedWidth).padding(-3)
-                )
-        }
-    }
-
-    private func getAutoSortedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
-        tasks
-            .sorted { lhs, rhs in
-                let lhsGroup = taskDisplayGroup(lhs)
-                let rhsGroup = taskDisplayGroup(rhs)
-                if lhsGroup != rhsGroup {
-                    return lhsGroup < rhsGroup
-                }
-
-                let lhsDate = lhs.date.isEmpty ? "9999-12-31" : lhs.date
-                let rhsDate = rhs.date.isEmpty ? "9999-12-31" : rhs.date
-                if lhsDate != rhsDate {
-                    return lhsDate < rhsDate
-                }
-
-                return lhs.order < rhs.order
-            }
-            .enumerated()
-            .map { index, task in
-                task.updating(order: Double(index + 1))
-            }
-    }
-
-    private func renumberTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
-        tasks.enumerated().map { index, task in
-            task.updating(order: Double(index + 1))
-        }
-    }
-
-    private func buildTaskUpdateData(previousTasks: [TaskSummary], tasks: [TaskSummary], deletedTaskIds: [String] = []) -> [String: Any] {
-        var updates: [String: Any] = ["updatedAt": nowMillis()]
-        let previousById = Dictionary(uniqueKeysWithValues: previousTasks.map { ($0.id, $0) })
-        for taskId in deletedTaskIds {
-            updates["tasks.\(taskId)"] = FieldValue.delete()
-        }
-        for task in tasks {
-            guard let previous = previousById[task.id] else {
-                updates["tasks.\(task.id).id"] = task.id
-                updates["tasks.\(task.id).text"] = task.text
-                updates["tasks.\(task.id).completed"] = task.completed
-                updates["tasks.\(task.id).date"] = task.date
-                updates["tasks.\(task.id).order"] = task.order
-                updates["tasks.\(task.id).pinned"] = task.pinned
-                continue
-            }
-            if previous.text != task.text { updates["tasks.\(task.id).text"] = task.text }
-            if previous.completed != task.completed { updates["tasks.\(task.id).completed"] = task.completed }
-            if previous.date != task.date { updates["tasks.\(task.id).date"] = task.date }
-            if previous.order != task.order { updates["tasks.\(task.id).order"] = task.order }
-            if previous.pinned != task.pinned { updates["tasks.\(task.id).pinned"] = task.pinned }
-        }
-        return updates
-    }
-
-    private func buildHistory(newText: String, oldText: String? = nil) -> [String] {
-        let candidate = newText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !candidate.isEmpty else { return taskList.history }
-        let trimmedOldText = oldText?.trimmingCharacters(in: .whitespacesAndNewlines)
-        var result: [String] = []
-        var seen = Set<String>()
-
-        for entry in [candidate] + taskList.history {
-            let trimmed = entry.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty { continue }
-            if let trimmedOldText, trimmed == trimmedOldText { continue }
-            let normalized = trimmed.lowercased()
-            if seen.contains(normalized) { continue }
-            seen.insert(normalized)
-            result.append(trimmed)
-            if result.count >= 300 { break }
-        }
-
-        return result
-    }
-
-    private func normalizedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
-        autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks)
-    }
-
-    private func reconciledTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
-        getDisplayOrderedTasks(normalizedTasks(tasks))
-    }
-
     private func setPendingTasks(_ tasks: [TaskSummary]) {
-        withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.22)) {
+        withAnimation(reduceMotion ? .none : .spring(response: 0.24, dampingFraction: 0.86)) {
             pendingDisplayTasks = tasks
         }
     }
 
     private func updateTaskList(_ updates: [String: Any]) {
+        taskMutationRevision += 1
+        let mutationRevision = taskMutationRevision
         mutationQueue.enqueue({
             try await db.collection("taskLists").document(taskList.id).updateData(updates)
         }, onError: {
-            pendingDisplayTasks = nil
+            if taskMutationRevision == mutationRevision {
+                pendingDisplayTasks = nil
+            }
         }, onIdle: {
-            pendingDisplayTasks = nil
+            if taskMutationRevision == mutationRevision {
+                pendingDisplayTasks = nil
+            }
         })
-    }
-
-    private func persistTasks(_ tasks: [TaskSummary], deletedTaskIds: [String] = [], previousTasks: [TaskSummary]? = nil) {
-        let previousTasks = previousTasks ?? displayTasks
-        let normalized = normalizedTasks(tasks)
-        setPendingTasks(normalized)
-        updateTaskList(buildTaskUpdateData(previousTasks: previousTasks, tasks: normalized, deletedTaskIds: deletedTaskIds))
     }
 
     private func performTaskMutation(
         buildNextTasks: ([TaskSummary]) -> [TaskSummary],
-        persist: ([TaskSummary], [TaskSummary]) -> Void
+        additionalUpdates: [String: Any] = [:]
     ) {
         let previousTasks = displayTasks
-        let nextTasks = reconciledTasks(buildNextTasks(previousTasks))
+        let nextTasks = reconcileTasks(buildNextTasks(previousTasks), autoSort: autoSort)
         setPendingTasks(nextTasks)
-        persist(previousTasks, nextTasks)
+        var updates = buildTaskUpdateData(previousTasks: previousTasks, tasks: nextTasks)
+        additionalUpdates.forEach { updates[$0.key] = $0.value }
+        updateTaskList(updates)
     }
 
     private func deleteTaskList() {
@@ -3195,27 +3504,16 @@ private struct TaskListDetailPage: View {
                     return
                 }
 
-                let batch = db.batch()
-                batch.updateData([
-                    taskList.id: FieldValue.delete(),
-                    "updatedAt": nowMillis(),
-                ], forDocument: taskListOrderRef)
-
-                let currentMemberCount = (taskListSnapshot.data()?["memberCount"] as? NSNumber)?.intValue ?? 1
-                if currentMemberCount <= 1 {
-                    if let currentCode = taskListSnapshot.data()?["shareCode"] as? String,
-                       !currentCode.isEmpty {
-                        let normalizedCode = currentCode.trimmingCharacters(in: .whitespaces).uppercased()
-                        batch.deleteDocument(self.db.collection("shareCodes").document(normalizedCode))
-                    }
-                    batch.deleteDocument(taskListRef)
-                } else {
-                    batch.updateData([
-                        "memberCount": FieldValue.increment(Int64(-1)),
-                        "updatedAt": nowMillis(),
-                    ], forDocument: taskListRef)
-                }
-                try await batch.commit()
+                try await removeTaskListMembership(
+                    db: db,
+                    taskListOrderRef: taskListOrderRef,
+                    taskListId: taskList.id,
+                    taskListSnapshot: taskListSnapshot,
+                    shareCodeDocumentId: (taskListSnapshot.data()?["shareCode"] as? String)
+                        .flatMap { code in
+                            code.isEmpty ? nil : code.trimmingCharacters(in: .whitespaces).uppercased()
+                        }
+                )
 
                 await MainActor.run {
                     TaskListMutationQueues.remove(for: taskList.id)
@@ -3281,8 +3579,20 @@ private struct TaskListDetailPage: View {
                 }
                 .contentShape(Rectangle())
                 .accessibilityLabel(translations.t("app.dragHint"))
-                .accessibilityAction(named: Text(translations.t("a11y.moveUp"))) { moveTask(task, by: -1) }
-                .accessibilityAction(named: Text(translations.t("a11y.moveDown"))) { moveTask(task, by: 1) }
+                .accessibilityActions {
+                    if displayTasks.first?.id != task.id {
+                        Button(translations.t("a11y.moveUp")) { moveTask(task, by: -1) }
+                    }
+                    if displayTasks.last?.id != task.id {
+                        Button(translations.t("a11y.moveDown")) { moveTask(task, by: 1) }
+                    }
+                }
+                .focusable()
+                .onKeyPress(keys: [.upArrow, .downArrow]) { press in
+                    guard press.modifiers.contains(.option) else { return .ignored }
+                    moveTask(task, by: press.key == .upArrow ? -1 : 1)
+                    return .handled
+                }
                 .gesture(
                     DragGesture(minimumDistance: 2, coordinateSpace: .named("taskList"))
                         .onChanged { value in
@@ -3290,12 +3600,12 @@ private struct TaskListDetailPage: View {
                         }
                         .onEnded { _ in
                             stopTaskAutoScroll()
-                            let originalTaskIds = getDisplayOrderedTasks(taskList.tasks).map(\.id)
                             if let ordered = dragOrderedTasks,
-                               ordered.map(\.id) != originalTaskIds {
+                               ordered.map(\.id) != dragStartTaskIds {
                                 persistTaskOrder(ordered.map(\.id))
                             }
                             dragOrderedTasks = nil
+                            dragStartTaskIds = []
                             withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.15)) {
                                 taskDragOffset = 0
                             }
@@ -3309,7 +3619,7 @@ private struct TaskListDetailPage: View {
             VStack(alignment: .leading, spacing: 0) {
                 if !task.date.isEmpty {
                     Text(formatDateDisplay(task.date))
-                        .font(.system(size: 12, weight: .medium))
+                        .font(AppTypography.captionSemibold())
                         .foregroundStyle(.secondary)
                         .padding(.bottom, TaskListDetailMetrics.taskDateBottomSpacing)
                 }
@@ -3319,11 +3629,11 @@ private struct TaskListDetailPage: View {
                         TextField("", text: $editingText)
                             .focused($isTextFieldFocused)
                             .onSubmit { commitEdit(task) }
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(AppTypography.bodyMedium())
                     } else {
                         Button { startEdit(task) } label: {
                             Text(task.text)
-                                .font(.system(size: 16, weight: task.pinned && !task.completed ? .bold : .semibold))
+                                .font(task.pinned && !task.completed ? AppTypography.bodyBold() : AppTypography.bodyMedium())
                                 .strikethrough(task.completed)
                                 .foregroundStyle(task.completed ? .secondary : .primary)
                                 .multilineTextAlignment(.leading)
@@ -3361,14 +3671,19 @@ private struct TaskListDetailPage: View {
         .padding(.vertical, TaskListDetailMetrics.taskRowVerticalPadding)
         .offset(y: draggingTaskId == task.id ? taskDragOffset : 0)
         .zIndex(draggingTaskId == task.id ? 1 : 0)
-        .opacity((draggingTaskId == task.id ? 0.8 : 1.0) * (task.completed ? completedTaskOpacity : 1.0))
+        .opacity(
+            (draggingTaskId == task.id ? 0.8 : 1.0)
+                * (task.completed ? completedTaskOpacity : 1.0)
+                * (exitingTaskIds.contains(task.id) ? 0 : 1)
+        )
         .scaleEffect(draggingTaskId == task.id ? 1.03 : 1.0)
-        .animation(draggingTaskId == task.id || reduceMotion ? nil : .easeInOut(duration: 0.2),
+        .animation(draggingTaskId == task.id || reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.86),
                    value: displayTasks.map(\.id))
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: task.completed)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: task.completed)
+        .animation(reduceMotion ? nil : .easeIn(duration: 0.12), value: exitingTaskIds.contains(task.id))
         .transition(reduceMotion ? .identity : .asymmetric(
             insertion: .opacity.combined(with: .move(edge: .top)),
-            removal: .opacity
+            removal: .opacity.animation(.easeIn(duration: 0.12))
         ))
         .background(GeometryReader { geo in
             Color.clear.preference(
@@ -3376,6 +3691,11 @@ private struct TaskListDetailPage: View {
                 value: [task.id: geo.size.height]
             )
         })
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                dismissNewTaskInputFocus()
+            }
+        )
     }
 
     var body: some View {
@@ -3386,7 +3706,7 @@ private struct TaskListDetailPage: View {
 
                 HStack {
                     Text(taskList.name)
-                        .font(.system(size: 20, weight: .bold))
+                        .font(AppTypography.sectionTitle())
                         .padding(.bottom, TaskListDetailMetrics.titleBottomPadding)
                         .accessibilityAddTraits(.isHeader)
                     Spacer()
@@ -3398,7 +3718,7 @@ private struct TaskListDetailPage: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel(translations.t("taskList.editTitle"))
                     Button {
-                        currentShareCode = taskList.shareCode
+                        currentShareCode = taskList.shareCode.flatMap(normalizedShareCode)
                         shareCopySuccess = false
                         shareError = nil
                         showShareSheet = true
@@ -3411,14 +3731,19 @@ private struct TaskListDetailPage: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel(translations.t("taskList.shareTitle"))
                 }
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        dismissNewTaskInputFocus()
+                    }
+                )
 
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
                             TextField(translations.t("pages.tasklist.addTaskPlaceholder"), text: $newTaskText)
-                                .focused($isNewTaskFocused)
+                                .focused($focusedNewTaskListId, equals: taskList.id)
                                 .onSubmit { addTask() }
-                                .onChange(of: isNewTaskFocused) { _, _ in
+                                .onChange(of: focusedNewTaskListId) { _, _ in
                                     syncHistoryPopover()
                                 }
                                 .onChange(of: newTaskText) { _, _ in
@@ -3443,7 +3768,7 @@ private struct TaskListDetailPage: View {
                                                 } label: {
                                                     HStack {
                                                         Text(option)
-                                                            .font(.system(size: 15))
+                                                            .font(AppTypography.subheadline())
                                                             .foregroundStyle(.primary)
                                                         Spacer()
                                                     }
@@ -3467,7 +3792,7 @@ private struct TaskListDetailPage: View {
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: TaskListDetailMetrics.addActionIconSize, weight: .semibold))
                                         .foregroundStyle(.primary)
-                                        .frame(width: 24, height: 24)
+                                        .frame(width: 44, height: 44)
                                 }
                                 .buttonStyle(.plain)
                                 .transition(.scale(scale: 0.6).combined(with: .opacity))
@@ -3484,25 +3809,35 @@ private struct TaskListDetailPage: View {
                                 Image(systemName: "line.3.horizontal.decrease")
                                     .font(.system(size: TaskListDetailMetrics.actionIconSize, weight: .semibold))
                                 Text(translations.t("pages.tasklist.sort"))
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(AppTypography.subheadlineSemibold())
                             }
                         }
                         .disabled(taskList.tasks.count < 2)
+                        .frame(minHeight: 44)
                         Spacer()
-                        Button { notificationFeedbackGenerator.notificationOccurred(.warning); showDeleteCompletedAlert = true } label: {
+                        Button {
+                            triggerWarningFeedback()
+                            showDeleteCompletedAlert = true
+                        } label: {
                             HStack(spacing: 0) {
                                 Text(translations.t("pages.tasklist.deleteCompleted"))
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(AppTypography.subheadlineSemibold())
                                 Image(systemName: "trash")
                                     .font(.system(size: TaskListDetailMetrics.actionIconSize, weight: .semibold))
                                     .frame(width: TaskListDetailMetrics.trailingDateButtonWidth)
                             }
                         }
                         .disabled(taskList.tasks.allSatisfy { !$0.completed })
+                        .frame(minHeight: 44)
                     }
                     .foregroundStyle(.secondary)
                     .padding(.top, TaskListDetailMetrics.actionRowTopPadding)
                     .padding(.bottom, TaskListDetailMetrics.actionRowBottomPadding)
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            dismissNewTaskInputFocus()
+                        }
+                    )
                 }
 
                 if displayTasks.isEmpty {
@@ -3521,6 +3856,13 @@ private struct TaskListDetailPage: View {
             .padding(.bottom, TaskListDetailMetrics.contentBottomPadding)
         }
         .coordinateSpace(name: "taskList")
+        .background(
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    dismissNewTaskInputFocus()
+                }
+        )
         .onPreferenceChange(RowFrameKey.self) { heights in
             if taskItemHeights != heights {
                 taskItemHeights = heights
@@ -3531,11 +3873,6 @@ private struct TaskListDetailPage: View {
                   let taskId = editingTaskId,
                   let task = taskList.tasks.first(where: { $0.id == taskId }) else { return }
             commitEdit(task)
-        }
-        .onChange(of: taskList.tasks) { _, tasks in
-            if let pendingDisplayTasks, pendingDisplayTasks == reconciledTasks(tasks) {
-                self.pendingDisplayTasks = nil
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .focusEffectDisabled()
@@ -3566,29 +3903,12 @@ private struct TaskListDetailPage: View {
     @ViewBuilder
     private var editSheet: some View {
         NavigationStack {
-            let colorOptions = taskListColorOptions
             VStack(spacing: 24) {
                 TextField(translations.t("app.taskListName"), text: $editName)
                     .textFieldStyle(.roundedBorder)
                     .padding(.horizontal)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(translations.t("taskList.selectColor"))
-                        .font(AppTypography.subheadline())
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-
-                    HStack(spacing: 12) {
-                        ForEach(colorOptions.indices, id: \.self) { i in
-                            let c = colorOptions[i]
-                            let isSelected = editBackground == c
-                            colorOptionButton(color: c, isSelected: isSelected) { editBackground = c }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(colorLabel(c, translations: translations))
-                        }
-                    }
-                    .padding(.horizontal)
-                }
+                TaskListColorPicker(selected: editBackground) { editBackground = $0 }
 
                 Spacer()
 
@@ -3599,14 +3919,16 @@ private struct TaskListDetailPage: View {
                         .padding(.horizontal)
                 }
 
-                Button(role: .destructive) {
-                    showDeleteListAlert = true
-                } label: {
-                    Text(removingList ? translations.t("common.deleting") : translations.t("taskList.deleteList"))
-                        .frame(maxWidth: .infinity)
+                if allowsTaskListDeletion {
+                    Button(role: .destructive) {
+                        showDeleteListAlert = true
+                    } label: {
+                        Text(removingList ? translations.t("common.deleting") : translations.t("taskList.deleteList"))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(removingList)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(removingList)
             }
             .padding(.top, 24)
             .navigationTitle(translations.t("taskList.editTitle"))
@@ -3652,7 +3974,15 @@ private struct TaskListDetailPage: View {
     @ViewBuilder
     private func taskActionSheet(_ actionState: ActionSheetState) -> some View {
         if let task = taskList.tasks.first(where: { $0.id == actionState.taskId }) {
-            VStack(spacing: 16) {
+            ScrollView {
+                VStack(spacing: 12) {
+                    HStack {
+                        Spacer()
+                        Button(translations.t("common.close")) {
+                            actionSheetState = nil
+                        }
+                        .frame(minHeight: 44)
+                    }
                 Button {
                     togglePinned(task)
                     actionSheetState = nil
@@ -3664,22 +3994,24 @@ private struct TaskListDetailPage: View {
                         )
                         Spacer()
                         Image(systemName: task.pinned ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(task.pinned ? Color.primary : .secondary)
+                            .foregroundStyle(task.pinned ? Color.primary : AppPalette.mutedText)
                     }
                     .frame(maxWidth: .infinity, minHeight: 44)
-                    .padding(.horizontal, 2)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 2)
+                    .background(AppPalette.cardSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
+                .buttonStyle(.plain)
                 Button(translations.t("pages.tasklist.clearDate")) {
                     commitDate(task, dateStr: "")
                     actionSheetState = nil
                 }
                 .disabled(task.date.isEmpty)
-                .foregroundStyle(.red)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
+                .foregroundStyle(AppPalette.mutedText)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+                .buttonStyle(.plain)
                 DatePicker("", selection: Binding(
                     get: { isoDateFormatter.date(from: task.date) ?? Date() },
                     set: {
@@ -3688,8 +4020,13 @@ private struct TaskListDetailPage: View {
                     }
                 ), displayedComponents: .date)
                     .datePickerStyle(.graphical)
-                    .padding(.horizontal)
-                    .padding(.bottom, 16)
+                    .labelsHidden()
+                    .padding(12)
+                    .background(AppPalette.cardSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .accessibilityLabel(translations.t("pages.tasklist.setDate"))
@@ -3794,11 +4131,8 @@ private struct TaskListDetailPage: View {
         performTaskMutation(
             buildNextTasks: { currentTasks in
                 currentTasks.map { current in
-                    current.id == task.id ? current.updating(completed: !task.completed) : current
+                    current.id == task.id ? current.updating(completed: !current.completed) : current
                 }
-            },
-            persist: { previousTasks, nextTasks in
-                persistTasks(nextTasks, previousTasks: previousTasks)
             }
         )
     }
@@ -3834,15 +4168,13 @@ private struct TaskListDetailPage: View {
                         : current
                 }
             },
-            persist: { previousTasks, nextTasks in
-                let normalized = normalizedTasks(nextTasks)
-                setPendingTasks(normalized)
-                var updates = buildTaskUpdateData(previousTasks: previousTasks, tasks: normalized)
-                if textChanged {
-                    updates["history"] = buildHistory(newText: resolved.text, oldText: task.text)
-                }
-                updateTaskList(updates)
-            }
+            additionalUpdates: textChanged
+                ? ["history": buildHistory(
+                    newText: resolved.text,
+                    history: taskList.history,
+                    oldText: task.text
+                )]
+                : [:]
         )
     }
 
@@ -3859,16 +4191,13 @@ private struct TaskListDetailPage: View {
                 currentTasks.map { current in
                     current.id == task.id ? current.updating(date: dateStr) : current
                 }
-            },
-            persist: { previousTasks, nextTasks in
-                persistTasks(nextTasks, previousTasks: previousTasks)
             }
         )
     }
 
     private func togglePinned(_ task: TaskSummary) {
         logTaskUpdate(fields: "pinned")
-        lightImpactGenerator.impactOccurred()
+        triggerLightImpact()
         let nextPinned = !task.pinned
         performTaskMutation(
             buildNextTasks: { currentTasks in
@@ -3884,9 +4213,6 @@ private struct TaskListDetailPage: View {
                     ].flatMap { $0 }
                 }
                 return updatedTasks
-            },
-            persist: { previousTasks, nextTasks in
-                persistTasks(nextTasks, previousTasks: previousTasks)
             }
         )
     }
@@ -3896,9 +4222,9 @@ private struct TaskListDetailPage: View {
         guard !trimmed.isEmpty else { return }
         let parsed = resolveTaskInput(trimmed, translations: translations)
         logTaskAdd(hasDate: !(parsed.date ?? "").isEmpty)
-        lightImpactGenerator.impactOccurred()
+        triggerLightImpact()
         newTaskText = ""
-        isNewTaskFocused = true
+        focusedNewTaskListId = taskList.id
         let taskId = UUID().uuidString
         let currentTasks = displayTasks
         let order: Double = taskInsertPosition == "top"
@@ -3918,13 +4244,10 @@ private struct TaskListDetailPage: View {
                     ? [insertedTask] + currentTasks
                     : currentTasks + [insertedTask]
             },
-            persist: { previousTasks, nextTasks in
-                let normalized = normalizedTasks(nextTasks)
-                setPendingTasks(normalized)
-                var updates = buildTaskUpdateData(previousTasks: previousTasks, tasks: normalized)
-                updates["history"] = buildHistory(newText: parsed.text)
-                updateTaskList(updates)
-            }
+            additionalUpdates: ["history": buildHistory(
+                newText: parsed.text,
+                history: taskList.history
+            )]
         )
     }
 
@@ -3936,10 +4259,36 @@ private struct TaskListDetailPage: View {
     }
 
     private func confirmDeleteCompleted() {
+        guard exitingTaskIds.isEmpty else { return }
         let completed = displayTasks.filter { $0.completed }
+        guard !completed.isEmpty else { return }
         logTaskDeleteCompleted(count: completed.count)
-        let remaining = displayTasks.filter { !$0.completed }
-        persistTasks(remaining, deletedTaskIds: completed.map(\.id), previousTasks: displayTasks)
+        let completedIds = Set(completed.map(\.id))
+        if reduceMotion {
+            commitDeleteCompleted(completedIds)
+            return
+        }
+        withAnimation(.easeIn(duration: 0.12)) {
+            exitingTaskIds = completedIds
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            guard exitingTaskIds == completedIds else { return }
+            commitDeleteCompleted(completedIds)
+        }
+    }
+
+    private func commitDeleteCompleted(_ completedIds: Set<String>) {
+        let previousTasks = displayTasks
+        let remaining = previousTasks.filter { !completedIds.contains($0.id) }
+        let normalized = normalizeTasks(remaining, autoSort: autoSort)
+        setPendingTasks(normalized)
+        exitingTaskIds = []
+        updateTaskList(buildTaskUpdateData(
+            previousTasks: previousTasks,
+            tasks: normalized,
+            deletedTaskIds: Array(completedIds)
+        ))
     }
 
     private func moveTask(_ task: TaskSummary, by delta: Int) {
@@ -3973,8 +4322,8 @@ private struct TaskListDetailPage: View {
             }
 
             let batch = db.batch()
-            if let currentCode = taskListSnap.data()?["shareCode"] as? String, !currentCode.isEmpty {
-                let normalizedCode = currentCode.trimmingCharacters(in: .whitespaces).uppercased()
+            if let currentCode = taskListSnap.data()?["shareCode"] as? String,
+               let normalizedCode = normalizedShareCode(currentCode) {
                 batch.deleteDocument(db.collection("shareCodes").document(normalizedCode))
             }
             batch.setData(["taskListId": taskListId, "createdAt": nowMillis()], forDocument: shareCodeRef)
@@ -3992,9 +4341,10 @@ private struct TaskListDetailPage: View {
             throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
         }
         guard let currentCode = snap.data()?["shareCode"] as? String, !currentCode.isEmpty else { return }
-        let normalizedCode = currentCode.trimmingCharacters(in: .whitespaces).uppercased()
         let batch = db.batch()
-        batch.deleteDocument(db.collection("shareCodes").document(normalizedCode))
+        if let normalizedCode = normalizedShareCode(currentCode) {
+            batch.deleteDocument(db.collection("shareCodes").document(normalizedCode))
+        }
         batch.updateData(["shareCode": NSNull(), "updatedAt": nowMillis()], forDocument: taskListRef)
         try await batch.commit()
     }
@@ -4002,8 +4352,7 @@ private struct TaskListDetailPage: View {
 
 private func fetchTaskListIdByShareCode(_ shareCode: String) async throws -> String? {
     let db = Firestore.firestore()
-    let normalized = shareCode.trimmingCharacters(in: .whitespaces).uppercased()
-    guard !normalized.isEmpty else { return nil }
+    guard let normalized = normalizedShareCode(shareCode) else { return nil }
     let snap = try await db.collection("shareCodes").document(normalized).getDocument()
     guard snap.exists, let data = snap.data() else { return nil }
     return data["taskListId"] as? String
@@ -4053,8 +4402,7 @@ private final class SharedTaskListPreviewViewModel: ObservableObject {
     private var currentTaskListId: String?
 
     func bind(shareCode: String, uid: String?, translations: Translations) {
-        let normalizedCode = shareCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard !normalizedCode.isEmpty else {
+        guard let normalizedCode = normalizedShareCode(shareCode) else {
             taskList = nil
             errorMessage = translations.t("pages.sharecode.notFound")
             isLoading = false
@@ -4201,6 +4549,7 @@ private struct SharedTaskListPreviewView: View {
     @StateObject private var viewModel = SharedTaskListPreviewViewModel()
     @StateObject private var settingsViewModel = SettingsViewModel()
     @State private var addToOrderError: String?
+    @FocusState private var focusedNewTaskListId: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -4214,7 +4563,9 @@ private struct SharedTaskListPreviewView: View {
                 TaskListDetailPage(
                     taskList: taskList,
                     taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "top",
-                    autoSort: settingsViewModel.settings?.autoSort ?? false
+                    autoSort: settingsViewModel.settings?.autoSort ?? false,
+                    focusedNewTaskListId: $focusedNewTaskListId,
+                    allowsTaskListDeletion: false
                 )
             } else {
                 VStack {
@@ -4236,7 +4587,7 @@ private struct SharedTaskListPreviewView: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: AppIconMetrics.navigationIconSize, weight: .semibold))
                         .foregroundStyle(.primary)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(translations.t("common.back"))
@@ -4348,29 +4699,22 @@ private final class SettingsViewModel: ObservableObject {
         let uid = user.uid
         Task { @MainActor [db] in
             do {
-                let orderSnapshot = try await db.collection("taskListOrder").document(uid).getDocument()
+                let taskListOrderRef = db.collection("taskListOrder").document(uid)
+                let orderSnapshot = try await taskListOrderRef.getDocument()
                 let taskListIds = (orderSnapshot.data() ?? [:]).keys
                     .filter { $0 != "createdAt" && $0 != "updatedAt" }
                 for taskListId in taskListIds {
                     let taskListRef = db.collection("taskLists").document(taskListId)
                     let taskListSnapshot = try await taskListRef.getDocument()
                     guard taskListSnapshot.exists else { continue }
-                    let memberCount = (taskListSnapshot.data()?["memberCount"] as? NSNumber)?.intValue ?? 1
-                    if memberCount <= 1 {
-                        let batch = db.batch()
-                        if let shareCode = taskListSnapshot.data()?["shareCode"] as? String,
-                           !shareCode.isEmpty {
-                            let normalizedCode = shareCode.trimmingCharacters(in: .whitespaces).uppercased()
-                            batch.deleteDocument(db.collection("shareCodes").document(normalizedCode))
-                        }
-                        batch.deleteDocument(taskListRef)
-                        try await batch.commit()
-                    } else {
-                        try await taskListRef.updateData([
-                            "memberCount": FieldValue.increment(Int64(-1)),
-                            "updatedAt": nowMillis(),
-                        ])
-                    }
+                    try await removeTaskListMembership(
+                        db: db,
+                        taskListOrderRef: taskListOrderRef,
+                        taskListId: taskListId,
+                        taskListSnapshot: taskListSnapshot,
+                        shareCodeDocumentId: (taskListSnapshot.data()?["shareCode"] as? String)
+                            .flatMap(normalizedShareCode)
+                    )
                 }
                 let batch = db.batch()
                 batch.deleteDocument(db.collection("settings").document(uid))
@@ -4459,26 +4803,23 @@ private struct SettingsView: View {
                         settingsRow(label: translations.t("settings.licenses.openSource"), value: "") {
                             showLicensesSheet = true
                         }
+                        Divider()
+                        settingsRow(label: translations.t("settings.licenses.bundledAssets"), value: "") {
+                            showLicensesSheet = true
+                        }
                     }
                     settingsCard(title: translations.t("settings.actions.title")) {
-                        Button {
+                        settingsActionRow(label: translations.t("settings.danger.signOut")) {
                             showSignOutAlert = true
-                        } label: {
-                            Text(translations.t("settings.danger.signOut"))
-                                .foregroundStyle(.primary)
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
-                        .buttonStyle(.plain)
                         Divider()
-                        Button {
+                        settingsActionRow(
+                            label: isDeletingAccount ? translations.t("settings.deletingAccount") : translations.t("settings.danger.deleteAccount"),
+                            color: .red,
+                            disabled: isDeletingAccount
+                        ) {
                             showDeleteAlert = true
-                        } label: {
-                            Text(isDeletingAccount ? translations.t("settings.deletingAccount") : translations.t("settings.danger.deleteAccount"))
-                                .foregroundStyle(.red)
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(isDeletingAccount)
                     }
                     if let errorMessage {
                         Text(errorMessage)
@@ -4603,6 +4944,21 @@ private struct SettingsView: View {
             .frame(minHeight: 44)
         }
         .buttonStyle(.plain)
+    }
+
+    private func settingsActionRow(
+        label: String,
+        color: Color = .primary,
+        disabled: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(label)
+                .foregroundStyle(color)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
     }
 
     @ViewBuilder
@@ -4803,31 +5159,38 @@ private func resolveTaskListBackgroundColor(_ background: String?) -> Color {
 
 private struct CalendarDayCell: View {
     @EnvironmentObject var translations: Translations
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let calendar: Calendar
     let day: Date
     let isToday: Bool
     let isSelected: Bool
     let dots: [Color]
     let onTap: () -> Void
 
-    private static let cal = Calendar.current
-
     var body: some View {
-        Button(action: onTap) {
+        Button {
+            triggerSelectionFeedback()
+            onTap()
+        } label: {
             VStack(spacing: 2) {
-                Text("\(Self.cal.component(.day, from: day))")
+                Text("\(calendar.component(.day, from: day))")
                     .font(AppTypography.subheadline())
                     .foregroundStyle(isSelected ? Color(.systemBackground) : Color.primary)
                     .frame(width: 40, height: 40)
                     .background(
-                        Group {
-                            if isSelected {
-                                Circle().fill(Color.primary)
-                            } else if isToday {
-                                Circle().stroke(Color.primary, lineWidth: 1)
-                            } else {
-                                Circle().fill(Color.clear)
-                            }
+                        ZStack {
+                            Circle()
+                                .fill(Color.primary)
+                                .scaleEffect(isSelected ? 1 : 0.82)
+                                .opacity(isSelected ? 1 : 0)
+                            Circle()
+                                .stroke(Color.primary, lineWidth: 1)
+                                .opacity(isToday && !isSelected ? 1 : 0)
                         }
+                    )
+                    .animation(
+                        reduceMotion ? nil : .spring(response: 0.24, dampingFraction: 0.72),
+                        value: isSelected
                     )
                     .padding(2)
 
@@ -4849,7 +5212,7 @@ private struct CalendarDayCell: View {
     }
 
     private var dayAccessibilityLabel: String {
-        var parts = ["\(Self.cal.component(.day, from: day))"]
+        var parts = ["\(calendar.component(.day, from: day))"]
         if isToday { parts.append(translations.t("a11y.today")) }
         if !dots.isEmpty { parts.append(translations.t("a11y.hasTasks")) }
         return parts.joined(separator: ", ")
@@ -4858,6 +5221,7 @@ private struct CalendarDayCell: View {
 
 private struct CalendarTaskRow: View {
     @EnvironmentObject var translations: Translations
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let task: CalendarTask
     let isHighlighted: Bool
     let onSelectDate: () -> Void
@@ -4873,6 +5237,8 @@ private struct CalendarTaskRow: View {
         } else {
             let f = DateFormatter()
             f.locale = Locale(identifier: identifier)
+            f.calendar = currentGregorianCalendar(locale: f.locale)
+            f.timeZone = .autoupdatingCurrent
             f.setLocalizedDateFormatFromTemplate("MMMEd")
             Self.formatters[identifier] = f
             formatter = f
@@ -4884,7 +5250,10 @@ private struct CalendarTaskRow: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Button(action: onSelectDate) {
+                    Button {
+                        triggerSelectionFeedback()
+                        onSelectDate()
+                    } label: {
                         Text(dateLabel)
                             .font(AppTypography.caption())
                             .foregroundStyle(AppPalette.mutedText)
@@ -4908,7 +5277,10 @@ private struct CalendarTaskRow: View {
                     .accessibilityLabel(task.taskListName)
                 }
 
-                Button(action: onSelectDate) {
+                Button {
+                    triggerSelectionFeedback()
+                    onSelectDate()
+                } label: {
                     Text(task.text)
                         .font(AppTypography.body())
                         .foregroundStyle(.primary)
@@ -4922,9 +5294,122 @@ private struct CalendarTaskRow: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(isHighlighted ? AppPalette.rowHighlight : Color.clear)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: isHighlighted)
 
             Divider().padding(.leading, 16)
         }
+    }
+}
+
+private func calendarAddDateLabel(_ date: Date, language: String) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: localeIdentifier(for: language))
+    formatter.calendar = currentGregorianCalendar(locale: formatter.locale)
+    formatter.timeZone = .autoupdatingCurrent
+    formatter.dateStyle = .medium
+    return formatter.string(from: date)
+}
+
+private struct CalendarTaskAddSheet: View {
+    @EnvironmentObject var translations: Translations
+    @Environment(\.dismiss) private var dismiss
+    let taskLists: [TaskListDetail]
+    let date: Date
+    let onAdd: (String, String) -> Void
+    @State private var taskListId: String
+    @State private var text = ""
+    @FocusState private var isTextFieldFocused: Bool
+
+    init(taskLists: [TaskListDetail], defaultTaskListId: String?, date: Date, onAdd: @escaping (String, String) -> Void) {
+        self.taskLists = taskLists
+        self.date = date
+        self.onAdd = onAdd
+        _taskListId = State(initialValue: defaultTaskListId.flatMap { id in
+            taskLists.contains(where: { $0.id == id }) ? id : nil
+        } ?? taskLists.first?.id ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                Text(calendarAddDateLabel(date, language: translations.language))
+                    .font(AppTypography.subheadline().weight(.semibold))
+                Spacer()
+                Button(translations.t("common.close")) { dismiss() }
+                    .font(AppTypography.subheadline().weight(.semibold))
+                    .foregroundStyle(AppPalette.mutedText)
+                    .frame(minHeight: 44)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text(translations.t("app.drawerTitle"))
+                    .font(AppTypography.subheadline().weight(.semibold))
+
+                Menu {
+                    Picker(translations.t("app.drawerTitle"), selection: $taskListId) {
+                        ForEach(taskLists) { taskList in
+                            Text(taskList.name).tag(taskList.id)
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(taskLists.first(where: { $0.id == taskListId })?.name ?? translations.t("app.drawerTitle"))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
+                            .foregroundStyle(AppPalette.mutedText)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .background(AppPalette.pageBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous)
+                            .stroke(Color(.separator), lineWidth: 1)
+                    }
+                }
+
+                TextField(translations.t("pages.tasklist.addTaskPlaceholder"), text: $text)
+                    .focused($isTextFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit(add)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 48)
+                    .background(AppPalette.pageBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous)
+                            .stroke(Color(.separator), lineWidth: 1)
+                    }
+
+                Button(action: add) {
+                    Text(translations.t("a11y.addTask"))
+                        .font(AppTypography.subheadline().weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle(radius: 12))
+                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || taskListId.isEmpty)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 24)
+        .background(AppPalette.cardSurface.ignoresSafeArea())
+        .onAppear { isTextFieldFocused = true }
+        .presentationDetents([.medium, .large])
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(translations.t("a11y.addTask"))
+    }
+
+    private func add() {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !taskListId.isEmpty else { return }
+        onAdd(taskListId, trimmed)
+        dismiss()
     }
 }
 
@@ -4934,31 +5419,36 @@ private struct CalendarScreenView: View {
     let currentUserId: String?
     var onOpenTaskList: ((String) -> Void)? = nil
     @StateObject private var viewModel = CalendarViewModel()
+    @StateObject private var settingsViewModel = SettingsViewModel()
 
     private var calendarTasks: [CalendarTask] { viewModel.calendarTasks }
 
     @State private var displayedMonth: Date = {
-        let cal = Calendar.current
+        let cal = currentGregorianCalendar()
         return cal.date(from: cal.dateComponents([.year, .month], from: Date()))!
     }()
     @State private var selectedDate: Date?
-
-    private static let cal = Calendar.current
-
-    private var currentMonthKey: String {
-        let c = Self.cal.dateComponents([.year, .month], from: displayedMonth)
-        guard let year = c.year, let month = c.month else { return "" }
-        return String(format: "%04d-%02d", year, month)
-    }
+    @State private var showAddTaskSheet = false
 
     private var locale: Locale {
         Locale(identifier: localeIdentifier(for: translations.language))
     }
 
+    private var calendar: Calendar {
+        currentGregorianCalendar(locale: locale)
+    }
+
+    private var currentMonthKey: String {
+        let components = calendar.dateComponents([.year, .month], from: displayedMonth)
+        guard let year = components.year, let month = components.month else { return "" }
+        return String(format: "%04d-%02d", year, month)
+    }
+
     private var weekdaySymbols: [String] {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.locale = locale
-        return calendar.shortStandaloneWeekdaySymbols
+        let symbols = calendar.shortStandaloneWeekdaySymbols
+        guard !symbols.isEmpty else { return [] }
+        let firstIndex = (calendar.firstWeekday - 1) % symbols.count
+        return Array(symbols[firstIndex...]) + Array(symbols[..<firstIndex])
     }
 
     @MainActor private static var monthTitleFormatters: [String: DateFormatter] = [:]
@@ -4971,6 +5461,8 @@ private struct CalendarScreenView: View {
         } else {
             let f = DateFormatter()
             f.locale = locale
+            f.calendar = calendar
+            f.timeZone = .autoupdatingCurrent
             f.setLocalizedDateFormatFromTemplate("yMMMM")
             Self.monthTitleFormatters[identifier] = f
             formatter = f
@@ -4996,10 +5488,10 @@ private struct CalendarScreenView: View {
     }
 
     private func makeDays() -> [Date?] {
-        let cal = Self.cal
+        let cal = calendar
         guard let firstDay = cal.date(from: cal.dateComponents([.year, .month], from: displayedMonth)),
               let range = cal.range(of: .day, in: .month, for: firstDay) else { return [] }
-        let firstWeekday = cal.component(.weekday, from: firstDay) - 1
+        let firstWeekday = (cal.component(.weekday, from: firstDay) - cal.firstWeekday + 7) % 7
         var days: [Date?] = Array(repeating: nil, count: firstWeekday)
         for i in 0..<range.count {
             days.append(cal.date(byAdding: .day, value: i, to: firstDay))
@@ -5008,13 +5500,13 @@ private struct CalendarScreenView: View {
     }
 
     private func dateKey(_ date: Date) -> String {
-        let c = Self.cal.dateComponents([.year, .month, .day], from: date)
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
         guard let year = c.year, let month = c.month, let day = c.day else { return "" }
         return String(format: "%04d-%02d-%02d", year, month, day)
     }
 
     private func shiftMonth(by offset: Int) {
-        if let next = Self.cal.date(byAdding: .month, value: offset, to: displayedMonth) {
+        if let next = calendar.date(byAdding: .month, value: offset, to: displayedMonth) {
             displayedMonth = next
             selectedDate = nil
         }
@@ -5022,10 +5514,40 @@ private struct CalendarScreenView: View {
 
     var body: some View {
         calendarContent
-            .onAppear { viewModel.bind(uid: currentUserId) }
-            .onDisappear { viewModel.reset() }
+            .onAppear {
+                viewModel.bind(uid: currentUserId)
+                settingsViewModel.bind(uid: currentUserId)
+            }
+            .onDisappear {
+                viewModel.reset()
+                settingsViewModel.reset()
+            }
             .onChange(of: currentUserId) { _, nextUid in
                 viewModel.bind(uid: nextUid)
+                settingsViewModel.bind(uid: nextUid)
+            }
+            .onChange(of: viewModel.taskLists) { _, _ in
+                viewModel.reconcileOptimisticTasks()
+            }
+            .sheet(isPresented: $showAddTaskSheet) {
+                if let selectedDate {
+                    CalendarTaskAddSheet(
+                        taskLists: viewModel.taskLists,
+                        defaultTaskListId: viewModel.taskLists.first?.id,
+                        date: selectedDate,
+                        onAdd: { taskListId, text in
+                            triggerLightImpact()
+                            viewModel.addTask(
+                                taskListId: taskListId,
+                                rawText: text,
+                                date: selectedDate,
+                                taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "top",
+                                autoSort: settingsViewModel.settings?.autoSort ?? false,
+                                translations: translations
+                            )
+                        }
+                    )
+                }
             }
     }
 
@@ -5035,7 +5557,7 @@ private struct CalendarScreenView: View {
                 Button { shiftMonth(by: -1) } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
-                        .padding(8)
+                        .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel(translations.t("app.calendarPreviousMonth"))
                 Spacer()
@@ -5045,7 +5567,7 @@ private struct CalendarScreenView: View {
                 Button { shiftMonth(by: 1) } label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: AppIconMetrics.inlineActionIconSize, weight: .semibold))
-                        .padding(8)
+                        .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel(translations.t("app.calendarNextMonth"))
             }
@@ -5071,11 +5593,12 @@ private struct CalendarScreenView: View {
                         if let day {
                             let key = dateKey(day)
                             CalendarDayCell(
+                                calendar: calendar,
                                 day: day,
-                                isToday: Self.cal.isDateInToday(day),
-                                isSelected: selectedDate.map { Self.cal.isDate($0, inSameDayAs: day) } ?? false,
+                                isToday: calendar.isDateInToday(day),
+                                isSelected: selectedDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false,
                                 dots: dotColorsByDate[key] ?? [],
-                                onTap: { selectedDate = selectedDate.map { Self.cal.isDate($0, inSameDayAs: day) } ?? false ? nil : day }
+                                onTap: { selectedDate = selectedDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false ? nil : day }
                             )
                         } else {
                             Color.clear.aspectRatio(1, contentMode: .fit)
@@ -5085,6 +5608,30 @@ private struct CalendarScreenView: View {
             }
             .padding(.horizontal, 8)
             .padding(.bottom, 8)
+
+            if let selectedDate {
+                Button {
+                    showAddTaskSheet = true
+                } label: {
+                    Text("\(calendarAddDateLabel(selectedDate, language: translations.language)) · \(translations.t("a11y.addTask"))")
+                        .font(AppTypography.subheadline().weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle(radius: 12))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .accessibilityLabel(translations.t("a11y.addTask"))
+                .accessibilityValue(calendarAddDateLabel(selectedDate, language: translations.language))
+            }
+
+            if let addTaskError = viewModel.addTaskError {
+                Text(addTaskError)
+                    .font(AppTypography.subheadline())
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+            }
 
             if tasksInMonth.isEmpty {
                 VStack {
@@ -5147,7 +5694,27 @@ private struct CalendarScreenView: View {
 
 private final class LightlistAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
     func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
-        AppAttestProvider(app: app)
+        if DCAppAttestService.shared.isSupported {
+            return AppAttestProvider(app: app)
+        }
+        return DeviceCheckProvider(app: app)
+    }
+}
+
+private func warmUpStartupData() {
+    guard let uid = Auth.auth().currentUser?.uid else {
+        return
+    }
+    let db = Firestore.firestore()
+    Task(priority: .userInitiated) {
+        _ = try? await db.collection("settings").document(uid).getDocument(source: .cache)
+        _ = try? await db.collection("taskListOrder").document(uid).getDocument(source: .cache)
+        let cachedIds = UserDefaults.standard.stringArray(forKey: taskListOrderCacheKey(uid: uid)) ?? []
+        for chunk in taskListIdChunks(cachedIds) {
+            _ = try? await db.collection("taskLists")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments(source: .cache)
+        }
     }
 }
 
@@ -5162,11 +5729,16 @@ struct LightlistApp: App {
         AppCheck.setAppCheckProviderFactory(LightlistAppCheckProviderFactory())
         #endif
         FirebaseApp.configure()
+        let firestore = Firestore.firestore()
+        let firestoreSettings = firestore.settings
+        firestoreSettings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: FirestoreCacheSizeUnlimited))
+        firestore.settings = firestoreSettings
+        warmUpStartupData()
         _ = Auth.auth().addStateDidChangeListener { _, user in
             Crashlytics.crashlytics().setUserID(user?.uid ?? "")
         }
-        NSSetUncaughtExceptionHandler { exception in
-            logException(description: "\(exception.name.rawValue): \(exception.reason ?? "")", fatal: true)
+        NSSetUncaughtExceptionHandler { _ in
+            logException(description: "iOS uncaught exception", fatal: true)
         }
     }
 

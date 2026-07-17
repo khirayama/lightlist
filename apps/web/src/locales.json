@@ -208,6 +208,12 @@
         "top": "الإضافة إلى الأعلى",
         "bottom": "الإضافة إلى الأسفل"
       },
+      "startupView": {
+        "title": "شاشة البدء",
+        "taskList": "قائمة المهام",
+        "calendar": "التقويم",
+        "taskLists": "كل قوائم المهام"
+      },
       "autoSort": {
         "title": "فرز المهام تلقائيًا",
         "enable": "فرز المهام تلقائيًا"
@@ -549,6 +555,12 @@
         "top": "Oben einfügen",
         "bottom": "Unten einfügen"
       },
+      "startupView": {
+        "title": "Startbildschirm",
+        "taskList": "Aufgabenliste",
+        "calendar": "Kalender",
+        "taskLists": "Alle Aufgabenlisten"
+      },
       "autoSort": {
         "title": "Aufgaben automatisch sortieren",
         "enable": "Aufgaben automatisch sortieren"
@@ -888,6 +900,12 @@
         "title": "New task position",
         "top": "Add to top",
         "bottom": "Add to bottom"
+      },
+      "startupView": {
+        "title": "Startup screen",
+        "taskList": "Task list",
+        "calendar": "Calendar",
+        "taskLists": "All task lists"
       },
       "autoSort": {
         "title": "Auto sort tasks",
@@ -1234,6 +1252,12 @@
         "top": "Agregar arriba",
         "bottom": "Agregar abajo"
       },
+      "startupView": {
+        "title": "Pantalla de inicio",
+        "taskList": "Lista de tareas",
+        "calendar": "Calendario",
+        "taskLists": "Todas las listas de tareas"
+      },
       "autoSort": {
         "title": "Ordenar tareas automáticamente",
         "enable": "Ordenar tareas automáticamente"
@@ -1576,6 +1600,12 @@
         "top": "Ajouter en haut",
         "bottom": "Ajouter en bas"
       },
+      "startupView": {
+        "title": "Écran de démarrage",
+        "taskList": "Liste de tâches",
+        "calendar": "Calendrier",
+        "taskLists": "Toutes les listes de tâches"
+      },
       "autoSort": {
         "title": "Tri automatique des tâches",
         "enable": "Trier automatiquement les tâches"
@@ -1904,6 +1934,12 @@
         "title": "नई टास्क की स्थिति",
         "top": "ऊपर जोड़ें",
         "bottom": "नीचे जोड़ें"
+      },
+      "startupView": {
+        "title": "स्टार्टअप स्क्रीन",
+        "taskList": "टास्क सूची",
+        "calendar": "कैलेंडर",
+        "taskLists": "सभी टास्क सूचियाँ"
       },
       "autoSort": {
         "title": "टास्क स्वतः क्रमबद्ध करें",
@@ -2240,6 +2276,12 @@
         "top": "Tambah ke atas",
         "bottom": "Tambah ke bawah"
       },
+      "startupView": {
+        "title": "Layar awal",
+        "taskList": "Daftar tugas",
+        "calendar": "Kalender",
+        "taskLists": "Semua daftar tugas"
+      },
       "autoSort": {
         "title": "Urutkan tugas otomatis",
         "enable": "Urutkan tugas otomatis"
@@ -2568,6 +2610,12 @@
         "title": "追加位置",
         "top": "上に追加",
         "bottom": "下に追加"
+      },
+      "startupView": {
+        "title": "起動画面",
+        "taskList": "タスクリスト",
+        "calendar": "カレンダー",
+        "taskLists": "タスクリスト一覧"
       },
       "autoSort": {
         "title": "自動並び替え",
@@ -2904,6 +2952,12 @@
         "title": "새 작업 추가 위치",
         "top": "위에 추가",
         "bottom": "아래에 추가"
+      },
+      "startupView": {
+        "title": "시작 화면",
+        "taskList": "작업 목록",
+        "calendar": "캘린더",
+        "taskLists": "전체 작업 목록"
       },
       "autoSort": {
         "title": "작업 자동 정렬",
@@ -3255,6 +3309,12 @@
         "top": "Adicionar no topo",
         "bottom": "Adicionar embaixo"
       },
+      "startupView": {
+        "title": "Tela inicial",
+        "taskList": "Lista de tarefas",
+        "calendar": "Calendário",
+        "taskLists": "Todas as listas de tarefas"
+      },
       "autoSort": {
         "title": "Ordenar tarefas automaticamente",
         "enable": "Ordenar tarefas automaticamente"
@@ -3592,6 +3652,12 @@
         "title": "新任务插入位置",
         "top": "添加到顶部",
         "bottom": "添加到底部"
+      },
+      "startupView": {
+        "title": "启动界面",
+        "taskList": "任务列表",
+        "calendar": "日历",
+        "taskLists": "所有任务列表"
       },
       "autoSort": {
         "title": "自动排序任务",

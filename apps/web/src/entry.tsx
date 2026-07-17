@@ -170,6 +170,7 @@ type Language =
   | "id";
 
 type TaskInsertPosition = "bottom" | "top";
+type StartupView = "taskList" | "calendar" | "taskLists";
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 type DataLoadStatus = "idle" | "loading" | "ready" | "error";
 
@@ -183,6 +184,7 @@ type SettingsStore = {
   language: Language;
   taskInsertPosition: TaskInsertPosition;
   autoSort: boolean;
+  startupView?: StartupView;
   createdAt: number;
   updatedAt: number;
 };
@@ -238,6 +240,7 @@ type Settings = {
   language: Language;
   taskInsertPosition: TaskInsertPosition;
   autoSort: boolean;
+  startupView: StartupView;
 };
 
 type Task = {
@@ -474,6 +477,8 @@ const logSettingsTaskInsertPositionChange = (params: {
 }) => log("app_settings_task_insert_position_change", params);
 const logSettingsAutoSortChange = (params: { enabled: boolean }) =>
   log("app_settings_auto_sort_change", params);
+const logSettingsStartupViewChange = (params: { view: StartupView }) =>
+  log("app_settings_startup_view_change", params);
 const logException = (description: string, fatal: boolean) =>
   log("app_exception", { description, fatal });
 
@@ -1125,8 +1130,12 @@ const mapSettingsStore = (
         language: settingsStore.language,
         taskInsertPosition: settingsStore.taskInsertPosition,
         autoSort: settingsStore.autoSort,
+        startupView: normalizeStartupView(settingsStore.startupView),
       }
     : null;
+
+const normalizeStartupView = (value: unknown): StartupView =>
+  value === "calendar" || value === "taskLists" ? value : "taskList";
 
 function normalizeTaskListStore(taskListData: TaskListStore): TaskListStore {
   const tasks = taskListData.tasks;
@@ -1867,6 +1876,7 @@ const createInitialSettingsStore = (
   language,
   taskInsertPosition: "top",
   autoSort: false,
+  startupView: "taskList",
   createdAt: now,
   updatedAt: now,
 });
@@ -3494,6 +3504,7 @@ function SettingsView({
     language?: Language;
     taskInsertPosition?: TaskInsertPosition;
     autoSort?: boolean;
+    startupView?: StartupView;
   }) => {
     if (isUpdating) {
       return;
@@ -3530,6 +3541,11 @@ function SettingsView({
   const handleAutoSortChange = async (autoSort: boolean) => {
     await updateSetting({ autoSort });
     logSettingsAutoSortChange({ enabled: autoSort });
+  };
+
+  const handleStartupViewChange = async (startupView: StartupView) => {
+    await updateSetting({ startupView });
+    logSettingsStartupViewChange({ view: startupView });
   };
 
   const handleSignOut = async () => {
@@ -3632,6 +3648,11 @@ function SettingsView({
   const taskInsertPositionOptions = [
     { value: "top", label: t("settings.taskInsertPosition.top") },
     { value: "bottom", label: t("settings.taskInsertPosition.bottom") },
+  ] as const;
+  const startupViewOptions = [
+    { value: "taskList", label: t("settings.startupView.taskList") },
+    { value: "calendar", label: t("settings.startupView.calendar") },
+    { value: "taskLists", label: t("settings.startupView.taskLists") },
   ] as const;
 
   const skeletonSelect = (
@@ -3776,6 +3797,16 @@ function SettingsView({
                         }
                       />
                       <SelectRow
+                        id="settings-startup-view"
+                        label={t("settings.startupView.title")}
+                        value={settings.startupView}
+                        disabled={settingsDisabled}
+                        options={[...startupViewOptions]}
+                        onChange={(next) =>
+                          void handleStartupViewChange(next as StartupView)
+                        }
+                      />
+                      <SelectRow
                         id="settings-task-insert-position"
                         label={t("settings.taskInsertPosition.title")}
                         value={settings.taskInsertPosition}
@@ -3792,6 +3823,7 @@ function SettingsView({
                     [
                       ["language", t("settings.language.title")],
                       ["theme", t("settings.theme.title")],
+                      ["startupView", t("settings.startupView.title")],
                       [
                         "taskInsertPosition",
                         t("settings.taskInsertPosition.title"),
@@ -6407,6 +6439,8 @@ type CalendarTaskItemProps = {
   task: DatedTask;
   onOpenTaskList: (taskListId: string) => void;
   onSelectDate: (date: Date) => void;
+  onToggleComplete: () => void;
+  onOpenActions: () => void;
   itemRef: (element: HTMLDivElement | null) => void;
   isHighlighted: boolean;
 };
@@ -6415,9 +6449,12 @@ function CalendarTaskItem({
   task,
   onOpenTaskList,
   onSelectDate,
+  onToggleComplete,
+  onOpenActions,
   itemRef,
   isHighlighted,
 }: CalendarTaskItemProps) {
+  const { t } = useTranslation();
   const dateDisplayValue = useMemo(() => {
     const lang = document.documentElement.lang || "ja";
     return getTaskDateFormatter(lang).format(task.dateValue);
@@ -6427,10 +6464,20 @@ function CalendarTaskItem({
     <div
       ref={itemRef}
       className={clsx(
-        "ll-calendar-task-row ll-flex ll-items-start ll-gap-2 ll-border-b ll-border-gray-300 ll-px-4 ll-py-2x5 ll-last-border-b-0 ll-dark-border-gray-700",
+        "ll-calendar-task-row ll-flex ll-items-center ll-gap-2 ll-border-b ll-border-gray-300 ll-px-4 ll-py-2x5 ll-last-border-b-0 ll-dark-border-gray-700",
         isHighlighted && "ll-bg-gray-50 ll-dark-bg-gray-700",
       )}
     >
+      <div className="ll-relative ll-flex ll-items-center ll-justify-center">
+        <input
+          type="checkbox"
+          checked={task.task.completed}
+          onChange={onToggleComplete}
+          aria-label={`${t("pages.tasklist.markComplete")}: ${task.task.text}`}
+          className="ll-peer ll-absolute ll-inset-0 ll-z-10 ll-h-full ll-w-full ll-cursor-pointer ll-opacity-0"
+        />
+        <div className="ll-check-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-border-gray-300 ll-bg-transparent ll-transition-colors ll-peer-checked-border-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-border-gray-700 ll-dark-peer-checked-bg-gray-700" />
+      </div>
       <div className="ll-flex ll-min-w-0 ll-flex-1 ll-flex-col ll-gap-1">
         <div className="ll-flex ll-min-w-0 ll-items-center ll-justify-between ll-gap-2">
           <button
@@ -6463,6 +6510,17 @@ function CalendarTaskItem({
           {task.task.text}
         </button>
       </div>
+      <button
+        type="button"
+        aria-label={t("a11y.editTask")}
+        title={t("a11y.editTask")}
+        onClick={onOpenActions}
+        className="ll-pressable ll-flex ll-items-center ll-rounded-lg ll-p-1 ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
+      >
+        <span className="ll-relative ll-inline-flex">
+          <AppIcon name="edit" aria-hidden="true" focusable="false" />
+        </span>
+      </button>
     </div>
   );
 }
@@ -6497,7 +6555,41 @@ function CalendarScreen({
   const [optimisticDatedTasks, setOptimisticDatedTasks] = useState<DatedTask[]>(
     [],
   );
+  const [actionTask, setActionTask] = useState<DatedTask | null>(null);
+  const [actionText, setActionText] = useState("");
+  const [savingAction, setSavingAction] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const datedTaskRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const completeTask = (task: DatedTask) => {
+    logTaskUpdate({ fields: "completed" });
+    setUpdateError(null);
+    void updateTask(
+      task.taskListId,
+      task.task.id,
+      { completed: true },
+      taskSettings,
+    ).catch((error) =>
+      setUpdateError(resolveErrorMessage(error, t, "common.error")),
+    );
+  };
+
+  const applyTaskAction = (
+    updates: Partial<Pick<Task, "completed" | "date" | "pinned" | "text">>,
+    fields: string,
+  ) => {
+    if (!actionTask || savingAction) return;
+    logTaskUpdate({ fields });
+    setSavingAction(true);
+    setActionError(null);
+    void updateTask(actionTask.taskListId, actionTask.task.id, updates, taskSettings)
+      .then(() => setActionTask(null))
+      .catch((error) =>
+        setActionError(resolveErrorMessage(error, t, "common.error")),
+      )
+      .finally(() => setSavingAction(false));
+  };
 
   useEffect(() => {
     if (taskLists.some((taskList) => taskList.id === addTaskListId)) return;
@@ -6707,6 +6799,11 @@ function CalendarScreen({
             ) : null}
           </div>
           <div className="ll-min-h-0 ll-overflow-y-auto ll-rounded-xl ll-bg-white-b ll-dark-bg-gray-900b ll-lg-h-full">
+            {updateError ? (
+              <div className="ll-p-4">
+                <Alert variant="error">{updateError}</Alert>
+              </div>
+            ) : null}
             {visibleDatedTasks.length > 0 ? (
               visibleDatedTasks.map((task) => {
                 const taskId = getDatedTaskId(task);
@@ -6718,6 +6815,12 @@ function CalendarScreen({
                     onSelectDate={(date) =>
                       handleSelectCalendarDate(date, visibleDatedTasks)
                     }
+                    onToggleComplete={() => completeTask(task)}
+                    onOpenActions={() => {
+                      setActionTask(task);
+                      setActionText(task.task.text);
+                      setActionError(null);
+                    }}
                     isHighlighted={selectedCalendarDateKey === task.dateKey}
                     itemRef={(element) => {
                       datedTaskRefs.current[taskId] = element;
@@ -6870,6 +6973,84 @@ function CalendarScreen({
                 </button>
               </div>
             </form>
+          </ActionSheetContent>
+        ) : null}
+      </Dialog>
+      <Dialog
+        open={actionTask !== null}
+        onOpenChange={(open: boolean) => {
+          if (!open && !savingAction) {
+            setActionTask(null);
+            setActionError(null);
+          }
+        }}
+      >
+        {actionTask ? (
+          <ActionSheetContent
+            title={t("a11y.editTask")}
+            description={actionTask.task.text}
+          >
+            <div className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-gap-3">
+              <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-3">
+                <span className="ll-truncate ll-text-sm ll-font-semibold">
+                  {actionTask.taskListName}
+                </span>
+                <DialogPrimitive.Close asChild>
+                  <button
+                    type="button"
+                    disabled={savingAction}
+                    className="ll-inline-flex ll-min-h-11 ll-items-center ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+                  >
+                    {t("common.close")}
+                  </button>
+                </DialogPrimitive.Close>
+              </div>
+              {actionError ? <Alert variant="error">{actionError}</Alert> : null}
+              <form
+                className="ll-flex ll-items-center ll-gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const nextText = actionText.trim();
+                  if (!nextText) return;
+                  applyTaskAction({ text: nextText }, "text");
+                }}
+              >
+                <label className="ll-flex ll-min-w-0 ll-flex-1 ll-flex-col ll-gap-1">
+                  <span className="ll-sr-only">{t("a11y.editTask")}</span>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={actionText}
+                    onChange={(event) => setActionText(event.target.value)}
+                    className={TASK_CARD_INPUT_CLASS}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={!actionText.trim() || savingAction}
+                  className={TASK_CARD_PRIMARY_BUTTON_CLASS}
+                >
+                  {savingAction ? t("common.loading") : t("taskList.save")}
+                </button>
+              </form>
+              <button
+                type="button"
+                disabled={!actionTask.task.date || savingAction}
+                onClick={() => applyTaskAction({ date: "" }, "date")}
+                className="ll-inline-flex ll-min-h-11 ll-w-fit ll-items-center ll-self-start ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+              >
+                {t("pages.tasklist.clearDate")}
+              </button>
+              <div className="ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-rounded-xl ll-bg-gray-50 ll-p-3 ll-dark-bg-gray-950">
+                <Calendar
+                  mode="single"
+                  selected={parseTaskDateValue(actionTask.task.date)}
+                  onSelect={(next) => {
+                    applyTaskAction({ date: next ? formatDate(next) : "" }, "date");
+                  }}
+                />
+              </div>
+            </div>
           </ActionSheetContent>
         ) : null}
       </Dialog>
@@ -7204,7 +7385,7 @@ function AppShellPage() {
     authStatus === "authenticated" ||
     (authStatus === "loading" && activeUid !== null);
   const user = useUser();
-  const settings = useSettings();
+  const { settings, settingsStatus } = useSettingsState();
   const {
     hasStartupError,
     taskListDocsStatus,
@@ -7476,7 +7657,23 @@ function AppShellPage() {
   };
 
   useEffect(() => {
-    if (!pendingInitialTaskListRoute || !hasResolvedTaskLists) return;
+    if (!pendingInitialTaskListRoute) return;
+    if (settingsStatus === "idle" || settingsStatus === "loading") return;
+
+    const startupView = settings?.startupView ?? "taskList";
+    if (startupView === "calendar") {
+      previousViewRef.current = "calendar";
+      openCalendar("push");
+      return;
+    }
+    if (startupView === "taskLists") {
+      previousViewRef.current = "taskLists";
+      setPendingInitialTaskListRoute(false);
+      showTaskListsRoot();
+      return;
+    }
+
+    if (!hasResolvedTaskLists) return;
 
     if (!hasTaskLists || !firstTaskListId) {
       setPendingInitialTaskListRoute(false);
@@ -7497,6 +7694,8 @@ function AppShellPage() {
     isWideLayout,
     pendingInitialTaskListRoute,
     selectedTaskListId,
+    settings,
+    settingsStatus,
     taskLists,
   ]);
 

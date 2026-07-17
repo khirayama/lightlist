@@ -86,7 +86,7 @@ android {
     defaultConfig {
         applicationId = lightlistApplicationId
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = versionCodeValue
         versionName = "1.0"
         buildConfigField("String", "PASSWORD_RESET_URL", "\"$passwordResetUrl\"")

@@ -4,8 +4,6 @@ just build-release
 just bundle-play
 just emulator Pixel_9_API_35
 just run
-
-just run emulator-5554
 just emulator Medium_Phone_API_36.1
 ```
 

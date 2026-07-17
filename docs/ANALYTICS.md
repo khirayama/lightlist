@@ -21,7 +21,7 @@
 - タスクリスト: `app_task_list_create` / `app_task_list_delete` / `app_task_list_reorder`
 - タスク: `app_task_add` / `app_task_update` / `app_task_reorder` / `app_task_sort` / `app_task_delete_completed`
 - 共有: `app_share_code_generate` / `app_share_code_remove` / `app_share_code_join` / `share`
-- 設定: `app_settings_theme_change` / `app_settings_language_change` / `app_settings_task_insert_position_change` / `app_settings_auto_sort_change`
+- 設定: `app_settings_theme_change` / `app_settings_language_change` / `app_settings_task_insert_position_change` / `app_settings_auto_sort_change` / `app_settings_startup_view_change`
 - 例外: `app_exception`
 
 ## パラメータ
@@ -35,4 +35,5 @@
 - `app_settings_language_change`: `language: string`
 - `app_settings_task_insert_position_change`: `position: "top" | "bottom"`
 - `app_settings_auto_sort_change`: `enabled: boolean`
+- `app_settings_startup_view_change`: `view: "taskList" | "calendar" | "taskLists"`
 - `app_exception`: `operation: string`, `error_category?: string`

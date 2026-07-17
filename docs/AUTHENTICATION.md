@@ -26,7 +26,7 @@
 Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作成する。
 
 - 作成対象: `settings/{uid}` / `taskLists/{taskListId}` / `taskListOrder/{uid}`
-- 初期設定: `theme: "system"` / `language: normalizeLanguage(language)` / `taskInsertPosition: "top"` / `autoSort: false`
+- 初期設定: `theme: "system"` / `language: normalizeLanguage(language)` / `taskInsertPosition: "top"` / `autoSort: false` / `startupView: "taskList"`
 - 初期タスクリスト: `shared/locales/locales.json` の選択言語にある `app.initialTaskListName` / `tasks: {}` / `history: []` / `shareCode: null` / `background: null` / `memberCount: 1`
 
 ## サインイン / サインアウト / 退会（Web）

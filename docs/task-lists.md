@@ -88,12 +88,22 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 - カレンダーの選択演出は OS / ブラウザの Reduce Motion 設定に従い、無効時はアニメーションせず即時に状態を反映する。
 - カレンダーで日付を選択すると、「選択日の表示 + タスクを追加」の主ボタンを表示する。主ボタンは「選択日 + 閉じる → 追加先タスクリスト → 本文 → 横幅いっぱいの追加ボタン」の順で構成した sheet / dialog を開き、選択日は変更せず固定する。角丸・入力面・余白・文字階層は Web を正として 3 プラットフォームで揃え、日付付きタスクがない月でも追加できる。
 - カレンダーからの追加も通常のタスク追加と同じ `taskInsertPosition` / `autoSort` / pin prefix / `history` / taskList 単位 mutation queue を使う。追加したタスクは listener 反映前からカレンダーへ楽観表示し、保存失敗時だけ取り除く。
+- カレンダーのタスク行は先頭に完了操作、末尾に編集操作を持つ。完了操作はタスクを完了にし（カレンダーは未完了タスクだけを表示するため行は一覧から消える）、編集操作は「タスクリスト名 + 閉じる → 本文入力 + 保存 → 日付クリア → 月カレンダー」の順で構成した sheet / dialog を開く。
+- カレンダーからの本文保存はタスクリスト詳細の本文編集と同じ入力 parser（日付表現・pin prefix の解決）と `history` 更新を使い、日付選択・日付クリアは `date` だけを更新して sheet を閉じる。いずれも `autoSort` / taskList 単位 mutation queue を経由し、失敗時は画面内にエラーを表示する。
 
 ## 入力候補（history）
 
 - `history` は重複（小文字比較）を除いて先頭追加し、最大 300 件を保持する。更新はタスク追加時と本文変更時。
 - 候補は `taskLists.history` を正本に、trim 後 2 文字以上の部分一致だけを最大 20 件、完全一致を除外して表示する。候補選択は入力欄への挿入ではなく、その文言を即追加する。
 - 候補の絞り込みは入力欄の文字反映をブロックしない。候補リストの表示は入力より遅れて更新されてもよいが、選択時は表示中の候補文字列をそのまま追加する。
+
+## 起動画面（startupView）
+
+- 設定 `startupView` で、画面指定のない通常起動時の初期画面を切り替える。`taskList`（既定。選択中または先頭タスクリストの詳細）/ `calendar` / `taskLists`（タスクリスト一覧）。
+- どの選択肢でも戻る階層の root はタスクリスト一覧とする（Web は history stack、iOS は NavigationStack path、Android は back stack）。`taskLists` は root に留まり自動遷移しない。
+- 起動判定は cache-first とする。Web は settings の読込完了（cache 含む）後に初期遷移を確定し、iOS は UserDefaults cache（`lightlist.startupView`。settings listener で更新、ログアウトで削除）から同期的に初期 path / ペインを決める。Android は settings listener の初回 snapshot 後に自動遷移し、起動時の自動遷移は画面切替アニメーションを付けない。
+- deep link（共有コード / パスワードリセット / Web の URL ハッシュ指定）は `startupView` より優先する。
+- タブレット / wide layout では `calendar` のときだけ初期表示ペインをカレンダーにする。`taskList` / `taskLists` は通常のタスクリスト詳細ペインとする。
 
 ## 同期の制約
 

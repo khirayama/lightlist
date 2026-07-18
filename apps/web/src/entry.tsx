@@ -1137,27 +1137,71 @@ const mapSettingsStore = (
 const normalizeStartupView = (value: unknown): StartupView =>
   value === "calendar" || value === "taskLists" ? value : "taskList";
 
-function normalizeTaskListStore(taskListData: TaskListStore): TaskListStore {
-  const tasks = taskListData.tasks;
-  let needsNormalization = false;
-  for (const taskId of Object.keys(tasks)) {
-    if (
-      tasks[taskId].id !== taskId ||
-      typeof tasks[taskId].pinned !== "boolean"
-    ) {
-      needsNormalization = true;
-      break;
-    }
-  }
-  if (!needsNormalization) return taskListData;
+const malformedTaskCleanupKeys = new Set<string>();
 
-  const normalizedTasks: Record<string, TaskListStoreTask> = {};
-  for (const taskId of Object.keys(tasks)) {
-    const task = tasks[taskId];
-    normalizedTasks[taskId] =
-      task.id === taskId && typeof task.pinned === "boolean"
-        ? task
-        : { ...task, id: taskId, pinned: Boolean(task.pinned) };
+function isCompleteTaskStoreTask(
+  taskId: string,
+  value: unknown,
+): value is TaskListStoreTask {
+  if (typeof value !== "object" || value === null) return false;
+  const task = value as Record<string, unknown>;
+  return (
+    task.id === taskId &&
+    typeof task.text === "string" &&
+    typeof task.completed === "boolean" &&
+    typeof task.date === "string" &&
+    typeof task.order === "number" &&
+    Number.isFinite(task.order) &&
+    typeof task.pinned === "boolean"
+  );
+}
+
+function getMalformedTaskIds(taskListData: unknown): string[] {
+  if (typeof taskListData !== "object" || taskListData === null) return [];
+  const tasks = (taskListData as Record<string, unknown>).tasks;
+  if (typeof tasks !== "object" || tasks === null) return [];
+  return Object.entries(tasks)
+    .filter(([taskId, task]) => !isCompleteTaskStoreTask(taskId, task))
+    .map(([taskId]) => taskId)
+    .sort();
+}
+
+function scheduleMalformedTaskCleanup(
+  taskListId: string,
+  taskListData: unknown,
+  fromCache: boolean,
+  hasPendingWrites: boolean,
+) {
+  if (fromCache || hasPendingWrites) return;
+  const malformedTaskIds = getMalformedTaskIds(taskListData);
+  if (malformedTaskIds.length === 0) return;
+  const cleanupKey = `${taskListId}:${malformedTaskIds.join("|")}`;
+  if (malformedTaskCleanupKeys.has(cleanupKey)) return;
+  malformedTaskCleanupKeys.add(cleanupKey);
+  void enqueueTaskListMutation(taskListId, async () => {
+    const updates: Record<string, unknown> = { updatedAt: Date.now() };
+    malformedTaskIds.forEach((taskId) => {
+      updates[`tasks.${taskId}`] = deleteField();
+    });
+    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), updates);
+  })
+    .catch((error) => {
+      console.error("malformed task cleanup error:", error);
+      logException("malformed task cleanup error", false);
+    })
+    .finally(() => {
+      malformedTaskCleanupKeys.delete(cleanupKey);
+    });
+}
+
+function normalizeTaskListStore(taskListData: TaskListStore): TaskListStore {
+  const normalizedTasks = Object.fromEntries(
+    Object.entries(taskListData.tasks).filter(([taskId, task]) =>
+      isCompleteTaskStoreTask(taskId, task),
+    ),
+  );
+  if (Object.keys(normalizedTasks).length === Object.keys(taskListData.tasks).length) {
+    return taskListData;
   }
   return { ...taskListData, tasks: normalizedTasks };
 }
@@ -1574,11 +1618,17 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     ) => {
       const taskListsById: Record<string, TaskListStore> = {};
       snapshot.docs.forEach((documentSnapshot) => {
-        taskListsById[documentSnapshot.id] = normalizeTaskListStore(
-          documentSnapshot.data({
-            serverTimestamps: "estimate",
-          }) as TaskListStore,
+        const taskListData = documentSnapshot.data({
+          serverTimestamps: "estimate",
+        }) as TaskListStore;
+        scheduleMalformedTaskCleanup(
+          documentSnapshot.id,
+          taskListData,
+          snapshot.metadata.fromCache,
+          snapshot.metadata.hasPendingWrites,
         );
+        taskListsById[documentSnapshot.id] =
+          normalizeTaskListStore(taskListData);
       });
       dispatchTaskLists({
         type: "setTaskListChunk",
@@ -1608,6 +1658,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       ({ taskListIds, taskListQuery }, index) =>
         onSnapshot(
           taskListQuery,
+          { includeMetadataChanges: true },
           (snapshot) => {
             liveSnapshotIndexes.add(index);
             applyTaskListSnapshot(taskListIds, snapshot);
@@ -1642,16 +1693,26 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     if (!sharedTaskListUnsubscribers.current.has(taskListId)) {
       const unsubscribe = onSnapshot(
         doc(getDbInstance(), "taskLists", taskListId),
+        { includeMetadataChanges: true },
         (snapshot) => {
+          const taskListData = snapshot.exists()
+            ? (snapshot.data({
+                serverTimestamps: "estimate",
+              }) as TaskListStore)
+            : null;
+          if (taskListData) {
+            scheduleMalformedTaskCleanup(
+              taskListId,
+              taskListData,
+              snapshot.metadata.fromCache,
+              snapshot.metadata.hasPendingWrites,
+            );
+          }
           dispatchTaskLists({
             type: "setSharedTaskList",
             taskListId,
-            taskListData: snapshot.exists()
-              ? normalizeTaskListStore(
-                  snapshot.data({
-                    serverTimestamps: "estimate",
-                  }) as TaskListStore,
-                )
+            taskListData: taskListData
+              ? normalizeTaskListStore(taskListData)
               : null,
           });
         },
@@ -2421,21 +2482,65 @@ function getTaskDisplayGroup(
   return task.pinned ? 0 : 1;
 }
 
+function hasTaskContent(
+  task: Pick<TaskListStoreTask, "date" | "pinned" | "text">,
+) {
+  return task.text.trim().length > 0 || Boolean(task.date) || task.pinned;
+}
+
 function getOrderedTasks(
   taskList: Pick<TaskListStore, "tasks">,
 ): TaskListStoreTask[] {
-  return Object.values(taskList.tasks).sort(
-    (a, b) => a.order - b.order || compareStringIds(a.id, b.id),
-  );
+  return Object.values(taskList.tasks)
+    .filter(hasTaskContent)
+    .sort((a, b) => a.order - b.order || compareStringIds(a.id, b.id));
 }
 
 function getDisplayOrderedTasks(
   taskList: Pick<TaskListStore, "tasks">,
 ): TaskListStoreTask[] {
-  return Object.values(taskList.tasks).sort((a, b) => {
-    const groupDifference = getTaskDisplayGroup(a) - getTaskDisplayGroup(b);
-    return groupDifference || a.order - b.order || compareStringIds(a.id, b.id);
-  });
+  return Object.values(taskList.tasks)
+    .filter(hasTaskContent)
+    .sort((a, b) => {
+      const groupDifference = getTaskDisplayGroup(a) - getTaskDisplayGroup(b);
+      return groupDifference || a.order - b.order || compareStringIds(a.id, b.id);
+    });
+}
+
+function canReorderTasks(
+  first: Pick<TaskListStoreTask, "completed" | "date" | "pinned">,
+  second: Pick<TaskListStoreTask, "completed" | "date" | "pinned">,
+  autoSort: boolean,
+) {
+  return (
+    getTaskDisplayGroup(first) === getTaskDisplayGroup(second) &&
+    (!autoSort || first.date === second.date)
+  );
+}
+
+function reorderTasksByIds(
+  tasks: TaskListStoreTask[],
+  orderedTaskIds: string[],
+  autoSort: boolean,
+): TaskListStoreTask[] | null {
+  if (
+    tasks.length !== orderedTaskIds.length ||
+    new Set(orderedTaskIds).size !== tasks.length
+  ) {
+    return null;
+  }
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
+  const reorderedTasks = orderedTaskIds.map((taskId) => tasksById.get(taskId));
+  if (reorderedTasks.some((task) => task === undefined)) return null;
+  const nextTasks = reorderedTasks as TaskListStoreTask[];
+  if (
+    nextTasks.some(
+      (task, index) => !canReorderTasks(task, tasks[index], autoSort),
+    )
+  ) {
+    return null;
+  }
+  return renumberTasks(nextTasks);
 }
 
 function getSortedTasks(
@@ -2479,6 +2584,12 @@ function buildTaskUpdateData(params: {
   const previousById = new Map(
     (params.previousTasks ?? []).map((task) => [task.id, task]),
   );
+  const nextTaskIds = new Set(params.tasks.map((task) => task.id));
+  (params.previousTasks ?? []).forEach((task) => {
+    if (!nextTaskIds.has(task.id)) {
+      updates[`tasks.${task.id}`] = deleteField();
+    }
+  });
   params.deletedTaskIds?.forEach((taskId) => {
     updates[`tasks.${taskId}`] = deleteField();
   });
@@ -2609,7 +2720,7 @@ async function addTask(
   taskListId: string,
   rawText: string,
   settings: ResolvedTaskSettings,
-  options?: { taskId?: string; date?: string },
+  options?: { taskId?: string; date?: string; pinned?: boolean },
 ) {
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
@@ -2626,8 +2737,11 @@ async function addTask(
       completed: false,
       date: options?.date ?? parsed.date,
       order: nextOrder,
-      pinned: parsed.pinned,
+      pinned: options?.pinned ?? parsed.pinned,
     };
+    if (!hasTaskContent(nextTask)) {
+      throw new Error("Task has no content");
+    }
     const nextTasks = getSortedTasks(
       settings.taskInsertPosition === "top"
         ? [nextTask, ...tasks]
@@ -2652,6 +2766,7 @@ async function updateTask(
     const needsTaskListRead =
       settings.autoSort ||
       typeof updates.text === "string" ||
+      typeof updates.date === "string" ||
       typeof updates.pinned === "boolean";
     const taskList = needsTaskListRead
       ? await getTaskListData(taskListId)
@@ -2670,16 +2785,17 @@ async function updateTask(
       ...updates,
     };
     if (resolvedTextAndDate) {
-      normalizedUpdates.text = resolvedTextAndDate.text;
+      normalizedUpdates.text =
+        updates.text?.trim() === "" &&
+        ("date" in updates || "pinned" in updates)
+          ? ""
+          : resolvedTextAndDate.text;
       if (!("date" in updates)) {
         normalizedUpdates.date = resolvedTextAndDate.date;
       }
       if (!("pinned" in updates) && resolvedTextAndDate.pinnedChanged) {
         normalizedUpdates.pinned = resolvedTextAndDate.pinned;
       }
-    }
-    if (normalizedUpdates.text !== undefined && normalizedUpdates.text === "") {
-      throw new Error("Task text is empty");
     }
     const now = Date.now();
     const historyUpdate =
@@ -2689,6 +2805,17 @@ async function updateTask(
       resolvedTextAndDate.text.trim() !== currentTask.text.trim()
         ? buildHistory(taskList, resolvedTextAndDate.text, currentTask.text)
         : null;
+
+    const nextCurrentTask = currentTask
+      ? { ...currentTask, ...normalizedUpdates }
+      : null;
+    if (nextCurrentTask && !hasTaskContent(nextCurrentTask)) {
+      await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
+        [`tasks.${taskId}`]: deleteField(),
+        updatedAt: now,
+      });
+      return;
+    }
 
     if (!settings.autoSort && typeof normalizedUpdates.pinned !== "boolean") {
       const nextUpdates: Record<string, unknown> = {
@@ -2745,6 +2872,92 @@ async function updateTask(
   });
 }
 
+async function moveTask(
+  sourceTaskListId: string,
+  targetTaskListId: string,
+  taskId: string,
+  updates: Partial<Pick<Task, "date" | "pinned" | "text">>,
+  settings: ResolvedTaskSettings,
+) {
+  await enqueueTaskListMutation(sourceTaskListId, () =>
+    enqueueTaskListMutation(targetTaskListId, async () => {
+      const [sourceTaskList, targetTaskList] = await Promise.all([
+        getTaskListData(sourceTaskListId),
+        getTaskListData(targetTaskListId),
+      ]);
+      const currentTask = sourceTaskList.tasks[taskId];
+      if (!currentTask) {
+        throw new Error("Task not found");
+      }
+      const resolved =
+        typeof updates.text === "string"
+          ? resolveTaskInput(updates.text, settings.language, currentTask)
+          : null;
+      const nextText =
+        updates.text?.trim() === "" &&
+        ("date" in updates || "pinned" in updates)
+          ? ""
+          : resolved
+            ? resolved.text
+            : currentTask.text;
+      const nextDate =
+        updates.date !== undefined
+          ? updates.date
+          : (resolved?.date ?? currentTask.date);
+      const nextPinned =
+        typeof updates.pinned === "boolean"
+          ? updates.pinned
+          : resolved?.pinnedChanged
+            ? resolved.pinned
+            : currentTask.pinned;
+      if (
+        !hasTaskContent({
+          text: nextText,
+          date: nextDate,
+          pinned: nextPinned,
+        })
+      ) {
+        throw new Error("Task has no content");
+      }
+      const now = Date.now();
+      const targetTasks = getOrderedTasks(targetTaskList);
+      const nextOrder =
+        settings.taskInsertPosition === "bottom"
+          ? (targetTasks[targetTasks.length - 1]?.order ?? 0) + 1
+          : (targetTasks[0]?.order ?? 1) - 1;
+      const movedTask: TaskListStoreTask = {
+        id: taskId,
+        text: nextText,
+        completed: currentTask.completed,
+        date: nextDate,
+        order: nextOrder,
+        pinned: nextPinned,
+      };
+      const nextTargetTasks = getSortedTasks(
+        settings.taskInsertPosition === "top"
+          ? [movedTask, ...targetTasks]
+          : [...targetTasks, movedTask],
+        settings,
+      );
+      const db = getDbInstance();
+      const batch = writeBatch(db);
+      batch.update(doc(db, "taskLists", sourceTaskListId), {
+        [`tasks.${taskId}`]: deleteField(),
+        updatedAt: now,
+      });
+      batch.update(doc(db, "taskLists", targetTaskListId), {
+        ...buildTaskUpdateData({
+          previousTasks: targetTasks,
+          tasks: nextTargetTasks,
+        }),
+        history: buildHistory(targetTaskList, nextText),
+        updatedAt: now,
+      });
+      await batch.commit();
+    }),
+  );
+}
+
 async function deleteCompletedTasks(
   taskListId: string,
   settings: ResolvedTaskSettings,
@@ -2783,19 +2996,14 @@ async function sortTasks(taskListId: string) {
 
 async function updateTasksOrder(
   taskListId: string,
-  draggedId: string,
-  targetId: string,
+  orderedTaskIds: string[],
+  autoSort: boolean,
 ) {
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
     const tasks = getDisplayOrderedTasks(taskList);
-    const dragged = taskList.tasks[draggedId];
-    const target = taskList.tasks[targetId];
-    if (!dragged || !target) return;
-    if (getTaskDisplayGroup(dragged) !== getTaskDisplayGroup(target)) return;
-    const reorderedTasks = moveItemBeforeTarget(tasks, draggedId, targetId);
-    if (!reorderedTasks) return;
-    const nextTasks = renumberTasks(reorderedTasks);
+    const nextTasks = reorderTasksByIds(tasks, orderedTaskIds, autoSort);
+    if (!nextTasks) return;
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
       ...buildTaskUpdateData({ previousTasks: tasks, tasks: nextTasks }),
       updatedAt: Date.now(),
@@ -4220,7 +4428,7 @@ type DatedTask = {
   taskListName: string;
   taskListBackground: string;
   task: Task;
-  dateValue: Date;
+  dateValue: Date | null;
   dateKey: string;
   taskListIndex: number;
   taskIndex: number;
@@ -5444,7 +5652,12 @@ function TaskListCard({
   taskListTasksRef.current = taskList.tasks;
   const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
     baseTasks,
-    (draggedId, targetId) => updateTasksOrder(taskList.id, draggedId, targetId),
+    (_draggedId, _targetId, nextItems) =>
+      updateTasksOrder(
+        taskList.id,
+        nextItems.map((task) => task.id),
+        autoSort,
+      ),
   );
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
@@ -5484,14 +5697,16 @@ function TaskListCard({
 
   const normalizePendingTasks = useCallback(
     (nextTasks: Task[]): Task[] => {
-      const normalizedTasks = nextTasks.map((task, index) => ({
-        id: task.id,
-        text: task.text,
-        completed: task.completed,
-        date: task.date,
-        order: index + 1,
-        pinned: task.pinned,
-      }));
+      const normalizedTasks = nextTasks
+        .filter(hasTaskContent)
+        .map((task, index) => ({
+          id: task.id,
+          text: task.text,
+          completed: task.completed,
+          date: task.date,
+          order: index + 1,
+          pinned: task.pinned,
+        }));
       const sortedTasks = autoSort
         ? getAutoSortedTasks(normalizedTasks)
         : getDisplayOrderedTasks({
@@ -5664,6 +5879,7 @@ function TaskListCard({
       date: parsed.date,
       pinned: parsed.pinned,
     } satisfies Task;
+    if (!hasTaskContent(optimisticTask)) return;
     setHistoryOpen(false);
     setNewTaskText("");
     setAddTaskError(null);
@@ -5965,8 +6181,7 @@ function TaskListCard({
               if (
                 !draggedTask ||
                 !targetTask ||
-                getTaskDisplayGroup(draggedTask) !==
-                  getTaskDisplayGroup(targetTask)
+                !canReorderTasks(draggedTask, targetTask, autoSort)
               ) {
                 return;
               }
@@ -6456,6 +6671,7 @@ function CalendarTaskItem({
 }: CalendarTaskItemProps) {
   const { t } = useTranslation();
   const dateDisplayValue = useMemo(() => {
+    if (!task.dateValue) return null;
     const lang = document.documentElement.lang || "ja";
     return getTaskDateFormatter(lang).format(task.dateValue);
   }, [task.dateValue]);
@@ -6480,13 +6696,31 @@ function CalendarTaskItem({
       </div>
       <div className="ll-flex ll-min-w-0 ll-flex-1 ll-flex-col ll-gap-1">
         <div className="ll-flex ll-min-w-0 ll-items-center ll-justify-between ll-gap-2">
-          <button
-            type="button"
-            onClick={() => onSelectDate(task.dateValue)}
-            className="ll-shrink-0b ll-rounded-md ll-text-xs ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
-          >
-            {dateDisplayValue}
-          </button>
+          <span className="ll-flex ll-shrink-0b ll-items-center ll-gap-1 ll-text-gray-600 ll-dark-text-gray-300">
+            {task.task.pinned ? (
+              <AppIcon
+                name="push-pin"
+                size={14}
+                aria-hidden="true"
+                focusable="false"
+              />
+            ) : null}
+            {task.dateValue && dateDisplayValue ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (task.dateValue) onSelectDate(task.dateValue);
+                }}
+                className="ll-rounded-md ll-text-xs ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+              >
+                {dateDisplayValue}
+              </button>
+            ) : (
+              <span className="ll-text-xs ll-text-gray-400 ll-dark-text-gray-500">
+                {t("pages.tasklist.noDate")}
+              </span>
+            )}
+          </span>
           <button
             type="button"
             onClick={() => onOpenTaskList(task.taskListId)}
@@ -6504,7 +6738,9 @@ function CalendarTaskItem({
         </div>
         <button
           type="button"
-          onClick={() => onSelectDate(task.dateValue)}
+          onClick={() => {
+            if (task.dateValue) onSelectDate(task.dateValue);
+          }}
           className="ll-task-text-wrap ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
         >
           {task.task.text}
@@ -6533,6 +6769,172 @@ type CalendarScreenProps = {
   onSelectTaskList: (taskListId: string) => void;
 };
 
+type TaskSheetSubmitValues = {
+  taskListId: string;
+  text: string;
+  pinned: boolean;
+  date: string;
+};
+
+function TaskSheetContent({
+  mode,
+  taskLists,
+  initialTaskListId,
+  initialText,
+  initialPinned,
+  initialDate,
+  submitting,
+  error,
+  onSubmit,
+}: {
+  mode: "add" | "edit";
+  taskLists: TaskList[];
+  initialTaskListId: string;
+  initialText: string;
+  initialPinned: boolean;
+  initialDate: Date | null;
+  submitting: boolean;
+  error: string | null;
+  onSubmit: (values: TaskSheetSubmitValues) => void;
+}) {
+  const { t } = useTranslation();
+  const [taskListId, setTaskListId] = useState(initialTaskListId);
+  const [text, setText] = useState(initialText);
+  const [pinned, setPinned] = useState(initialPinned);
+  const [date, setDate] = useState<Date | null>(initialDate);
+  const title = mode === "add" ? t("a11y.addTask") : t("a11y.editTask");
+
+  return (
+    <ActionSheetContent title={title}>
+      <form
+        className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const textToSubmit = text.trim();
+          if (
+            (!textToSubmit && !pinned && !date) ||
+            !taskListId ||
+            submitting
+          ) {
+            return;
+          }
+          onSubmit({
+            taskListId,
+            text: textToSubmit,
+            pinned,
+            date: date ? formatDate(date) : "",
+          });
+        }}
+      >
+        <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-3">
+          <span className="ll-text-sm ll-font-semibold">{title}</span>
+          <DialogPrimitive.Close asChild>
+            <button
+              type="button"
+              disabled={submitting}
+              className="ll-inline-flex ll-min-h-11 ll-items-center ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+            >
+              {t("common.close")}
+            </button>
+          </DialogPrimitive.Close>
+        </div>
+        {error ? <Alert variant="error">{error}</Alert> : null}
+        <label className="ll-flex ll-flex-col ll-gap-1">
+          <span className="ll-sr-only">{t("app.drawerTitle")}</span>
+          <select
+            value={taskListId}
+            onChange={(event) => setTaskListId(event.target.value)}
+            className={TASK_CARD_INPUT_CLASS}
+          >
+            {taskLists.map((taskList) => (
+              <option key={taskList.id} value={taskList.id}>
+                {taskList.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="ll-flex ll-flex-col ll-gap-1">
+          <span className="ll-sr-only">
+            {t("pages.tasklist.addTaskPlaceholder")}
+          </span>
+          <input
+            autoFocus={mode === "add"}
+            type="text"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder={t("pages.tasklist.addTaskPlaceholder")}
+            className={TASK_CARD_INPUT_CLASS}
+          />
+        </label>
+        <div className="ll-flex ll-items-center ll-justify-between ll-gap-2">
+          <button
+            type="button"
+            disabled={!date || submitting}
+            onClick={() => setDate(null)}
+            className="ll-inline-flex ll-min-h-11 ll-w-fit ll-items-center ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+          >
+            {t("pages.tasklist.clearDate")}
+          </button>
+          <button
+            type="button"
+            aria-pressed={pinned}
+            onClick={() => setPinned((current) => !current)}
+            className="ll-inline-flex ll-min-h-11 ll-items-center ll-gap-3 ll-rounded-xl ll-bg-gray-50 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
+          >
+            <AppIcon
+              name="push-pin"
+              size={18}
+              aria-hidden="true"
+              focusable="false"
+            />
+            {pinned
+              ? t("pages.tasklist.unpinTask")
+              : t("pages.tasklist.pinTask")}
+            <span
+              aria-hidden="true"
+              className={clsx(
+                "ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border",
+                pinned
+                  ? "ll-border-gray-900 ll-bg-gray-900 ll-text-gray-50 ll-dark-border-gray-50 ll-dark-bg-gray-50 ll-dark-text-gray-900"
+                  : "ll-border-gray-300 ll-dark-border-gray-700",
+              )}
+            >
+              {pinned ? (
+                <AppIcon
+                  name="check"
+                  size={14}
+                  aria-hidden="true"
+                  focusable="false"
+                />
+              ) : null}
+            </span>
+          </button>
+        </div>
+        <div className="ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-rounded-xl ll-bg-gray-50 ll-p-3 ll-dark-bg-gray-950">
+          <Calendar
+            mode="single"
+            selected={date ?? undefined}
+            onSelect={(next) => setDate(next ?? null)}
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={
+            (!text.trim() && !pinned && !date) || !taskListId || submitting
+          }
+          className={TASK_CARD_PRIMARY_BUTTON_CLASS}
+        >
+          {submitting
+            ? t("common.loading")
+            : mode === "add"
+              ? t("a11y.addTask")
+              : t("taskList.save")}
+        </button>
+      </form>
+    </ActionSheetContent>
+  );
+}
+
 function CalendarScreen({
   showCompactHeaderOffset = false,
   taskLists,
@@ -6545,20 +6947,14 @@ function CalendarScreen({
     Date | undefined
   >(undefined);
   const [displayedMonth, setDisplayedMonth] = useState<Date>(() => new Date());
-  const [addTaskDate, setAddTaskDate] = useState<Date | null>(null);
-  const [addTaskText, setAddTaskText] = useState("");
-  const [addTaskListId, setAddTaskListId] = useState(
-    defaultTaskListId ?? taskLists[0]?.id ?? "",
-  );
-  const [addingTask, setAddingTask] = useState(false);
-  const [addTaskError, setAddTaskError] = useState<string | null>(null);
+  const [taskSheet, setTaskSheet] = useState<
+    { mode: "add"; date: Date } | { mode: "edit"; task: DatedTask } | null
+  >(null);
+  const [taskSheetSaving, setTaskSheetSaving] = useState(false);
+  const [taskSheetError, setTaskSheetError] = useState<string | null>(null);
   const [optimisticDatedTasks, setOptimisticDatedTasks] = useState<DatedTask[]>(
     [],
   );
-  const [actionTask, setActionTask] = useState<DatedTask | null>(null);
-  const [actionText, setActionText] = useState("");
-  const [savingAction, setSavingAction] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const datedTaskRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -6575,26 +6971,99 @@ function CalendarScreen({
     );
   };
 
-  const applyTaskAction = (
-    updates: Partial<Pick<Task, "completed" | "date" | "pinned" | "text">>,
-    fields: string,
-  ) => {
-    if (!actionTask || savingAction) return;
-    logTaskUpdate({ fields });
-    setSavingAction(true);
-    setActionError(null);
-    void updateTask(actionTask.taskListId, actionTask.task.id, updates, taskSettings)
-      .then(() => setActionTask(null))
+  const handleTaskSheetSubmit = (values: TaskSheetSubmitValues) => {
+    if (!taskSheet || taskSheetSaving) return;
+    setTaskSheetSaving(true);
+    setTaskSheetError(null);
+    if (taskSheet.mode === "add") {
+      const targetTaskList = taskLists.find(
+        (taskList) => taskList.id === values.taskListId,
+      );
+      if (!targetTaskList) {
+        setTaskSheetSaving(false);
+        return;
+      }
+      const parsed = resolveTaskInput(values.text, taskSettings.language);
+      if (!parsed.text.trim() && !values.date && !values.pinned) {
+        setTaskSheetSaving(false);
+        return;
+      }
+      const taskId = crypto.randomUUID();
+      const dateValue = values.date ? createDateFromKey(values.date) : null;
+      const optimisticTask: DatedTask = {
+        taskListId: targetTaskList.id,
+        taskListName: targetTaskList.name,
+        taskListBackground: resolveTaskListBackground(
+          targetTaskList.background,
+        ),
+        task: {
+          id: taskId,
+          text: parsed.text,
+          completed: false,
+          date: dateValue ? values.date : "",
+          pinned: values.pinned,
+        },
+        dateValue,
+        dateKey: dateValue ? values.date : "",
+        taskListIndex: taskLists.findIndex(
+          (taskList) => taskList.id === targetTaskList.id,
+        ),
+        taskIndex:
+          taskSettings.taskInsertPosition === "top"
+            ? -1
+            : targetTaskList.tasks.length,
+      };
+      setOptimisticDatedTasks((current) => [...current, optimisticTask]);
+      void addTask(targetTaskList.id, values.text, taskSettings, {
+        taskId,
+        date: values.date,
+        pinned: values.pinned,
+      })
+        .then(() => {
+          logTaskAdd({ has_date: Boolean(values.date) });
+          setTaskSheet(null);
+        })
+        .catch((error) => {
+          setOptimisticDatedTasks((current) =>
+            current.filter((task) => task.task.id !== taskId),
+          );
+          setTaskSheetError(resolveErrorMessage(error, t, "common.error"));
+        })
+        .finally(() => setTaskSheetSaving(false));
+      return;
+    }
+    const editedTask = taskSheet.task;
+    const isMove = values.taskListId !== editedTask.taskListId;
+    const updates = {
+      text: values.text,
+      date: values.date,
+      pinned: values.pinned,
+    };
+    logTaskUpdate({
+      fields: isMove ? "text,date,pinned,taskList" : "text,date,pinned",
+    });
+    void (
+      isMove
+        ? moveTask(
+            editedTask.taskListId,
+            values.taskListId,
+            editedTask.task.id,
+            updates,
+            taskSettings,
+          )
+        : updateTask(
+            editedTask.taskListId,
+            editedTask.task.id,
+            updates,
+            taskSettings,
+          )
+    )
+      .then(() => setTaskSheet(null))
       .catch((error) =>
-        setActionError(resolveErrorMessage(error, t, "common.error")),
+        setTaskSheetError(resolveErrorMessage(error, t, "common.error")),
       )
-      .finally(() => setSavingAction(false));
+      .finally(() => setTaskSheetSaving(false));
   };
-
-  useEffect(() => {
-    if (taskLists.some((taskList) => taskList.id === addTaskListId)) return;
-    setAddTaskListId(defaultTaskListId ?? taskLists[0]?.id ?? "");
-  }, [addTaskListId, defaultTaskListId, taskLists]);
 
   useEffect(() => {
     const loadedTaskIds = new Set(
@@ -6615,14 +7084,13 @@ function CalendarScreen({
       for (const [taskIndex, task] of taskList.tasks.entries()) {
         if (task.completed) continue;
         const parsedDate = parseTaskDate(task.date);
-        if (!parsedDate) continue;
         flattened.push({
           taskListId: taskList.id,
           taskListName: taskList.name,
           taskListBackground: resolveTaskListBackground(taskList.background),
           task,
-          dateValue: parsedDate,
-          dateKey: formatDate(parsedDate),
+          dateValue: parsedDate ?? null,
+          dateKey: parsedDate ? formatDate(parsedDate) : "",
           taskListIndex,
           taskIndex,
         });
@@ -6637,8 +7105,14 @@ function CalendarScreen({
       }
     }
     flattened.sort((left, right) => {
-      const byDate = left.dateValue.getTime() - right.dateValue.getTime();
-      if (byDate !== 0) return byDate;
+      const byPinned =
+        Number(right.task.pinned ?? false) - Number(left.task.pinned ?? false);
+      if (byPinned !== 0) return byPinned;
+      const leftDateKey = left.dateKey === "" ? "9999-12-31" : left.dateKey;
+      const rightDateKey = right.dateKey === "" ? "9999-12-31" : right.dateKey;
+      if (leftDateKey !== rightDateKey) {
+        return leftDateKey < rightDateKey ? -1 : 1;
+      }
       const byTaskList = left.taskListIndex - right.taskListIndex;
       if (byTaskList !== 0) return byTaskList;
       return left.taskIndex - right.taskIndex;
@@ -6649,6 +7123,7 @@ function CalendarScreen({
   const datedTasksByMonth = useMemo<Record<string, DatedTask[]>>(() => {
     const map: Record<string, DatedTask[]> = {};
     for (const task of datedTasks) {
+      if (!task.dateValue) continue;
       const monthKey = formatMonthKey(task.dateValue);
       if (!map[monthKey]) {
         map[monthKey] = [];
@@ -6726,19 +7201,26 @@ function CalendarScreen({
   };
 
   const displayedMonthKey = formatMonthKey(displayedMonth);
-  const visibleDatedTasks = datedTasksByMonth[displayedMonthKey] ?? [];
+  const visibleDatedTasks = useMemo(
+    () =>
+      datedTasks.filter(
+        (task) =>
+          task.dateKey === "" || task.dateKey.startsWith(displayedMonthKey),
+      ),
+    [datedTasks, displayedMonthKey],
+  );
   const calendarTaskDates = monthTaskDates[displayedMonthKey] ?? [];
   const dateDotColors = monthDateDotColors[displayedMonthKey] ?? {};
 
   return (
     <section className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
-      <div className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-p-4">
+      <div className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-px-4 ll-pt-1 ll-pb-2">
         {showCompactHeaderOffset ? <div className="ll-h-88px" /> : null}
         <div
           className={clsx(
-            "ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-pb-12",
+            "ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-pb-2",
             "ll-lg-grid ll-lg-grid-cols-main",
-            "ll-flex ll-flex-col ll-gap-3",
+            "ll-flex ll-flex-col ll-gap-2",
           )}
         >
           <div className="ll-w-full ll-lg-sticky ll-lg-top-0 ll-lg-self-start">
@@ -6786,8 +7268,8 @@ function CalendarScreen({
               <button
                 type="button"
                 onClick={() => {
-                  setAddTaskDate(selectedCalendarDate);
-                  setAddTaskError(null);
+                  setTaskSheet({ mode: "add", date: selectedCalendarDate });
+                  setTaskSheetError(null);
                 }}
                 className="ll-pressable ll-mt-2 ll-inline-flex ll-min-h-11 ll-w-full ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300"
               >
@@ -6817,9 +7299,8 @@ function CalendarScreen({
                     }
                     onToggleComplete={() => completeTask(task)}
                     onOpenActions={() => {
-                      setActionTask(task);
-                      setActionText(task.task.text);
-                      setActionError(null);
+                      setTaskSheet({ mode: "edit", task });
+                      setTaskSheetError(null);
                     }}
                     isHighlighted={selectedCalendarDateKey === task.dateKey}
                     itemRef={(element) => {
@@ -6837,221 +7318,36 @@ function CalendarScreen({
         </div>
       </div>
       <Dialog
-        open={addTaskDate !== null}
+        open={taskSheet !== null}
         onOpenChange={(open: boolean) => {
-          if (!open && !addingTask) {
-            setAddTaskDate(null);
-            setAddTaskError(null);
+          if (!open && !taskSheetSaving) {
+            setTaskSheet(null);
+            setTaskSheetError(null);
           }
         }}
       >
-        {addTaskDate ? (
-          <ActionSheetContent
-            title={t("a11y.addTask")}
-            description={getTaskDateFormatter(i18n.language).format(
-              addTaskDate,
-            )}
-          >
-            <form
-              className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const textToAdd = addTaskText.trim();
-                const targetTaskList = taskLists.find(
-                  (taskList) => taskList.id === addTaskListId,
-                );
-                if (!textToAdd || !targetTaskList || addingTask) return;
-
-                const parsed = resolveTaskInput(
-                  textToAdd,
-                  taskSettings.language,
-                );
-                const taskId = crypto.randomUUID();
-                const dateKey = formatDate(addTaskDate);
-                const optimisticTask: DatedTask = {
-                  taskListId: targetTaskList.id,
-                  taskListName: targetTaskList.name,
-                  taskListBackground: resolveTaskListBackground(
-                    targetTaskList.background,
-                  ),
-                  task: {
-                    id: taskId,
-                    text: parsed.text,
-                    completed: false,
-                    date: dateKey,
-                    pinned: parsed.pinned,
-                  },
-                  dateValue: addTaskDate,
-                  dateKey,
-                  taskListIndex: taskLists.findIndex(
-                    (taskList) => taskList.id === targetTaskList.id,
-                  ),
-                  taskIndex:
-                    taskSettings.taskInsertPosition === "top"
-                      ? -1
-                      : targetTaskList.tasks.length,
-                };
-                setAddingTask(true);
-                setAddTaskError(null);
-                setOptimisticDatedTasks((current) => [
-                  ...current,
-                  optimisticTask,
-                ]);
-                void addTask(targetTaskList.id, textToAdd, taskSettings, {
-                  taskId,
-                  date: dateKey,
-                })
-                  .then(() => {
-                    logTaskAdd({ has_date: true });
-                    setAddTaskText("");
-                    setAddTaskDate(null);
-                  })
-                  .catch((error) => {
-                    setOptimisticDatedTasks((current) =>
-                      current.filter((task) => task.task.id !== taskId),
-                    );
-                    setAddTaskError(
-                      resolveErrorMessage(error, t, "common.error"),
-                    );
-                  })
-                  .finally(() => setAddingTask(false));
-              }}
-            >
-              <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-3">
-                <span className="ll-text-sm ll-font-semibold">
-                  {getTaskDateFormatter(i18n.language).format(addTaskDate)}
-                </span>
-                <DialogPrimitive.Close asChild>
-                  <button
-                    type="button"
-                    disabled={addingTask}
-                    className="ll-inline-flex ll-min-h-11 ll-items-center ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
-                  >
-                    {t("common.close")}
-                  </button>
-                </DialogPrimitive.Close>
-              </div>
-              <div className="ll-mt-3 ll-flex ll-flex-col ll-gap-3">
-                {addTaskError ? (
-                  <Alert variant="error">{addTaskError}</Alert>
-                ) : null}
-                <label className="ll-flex ll-flex-col ll-gap-1">
-                  <span className="ll-text-sm ll-font-semibold">
-                    {t("app.drawerTitle")}
-                  </span>
-                  <select
-                    value={addTaskListId}
-                    onChange={(event) => setAddTaskListId(event.target.value)}
-                    className={TASK_CARD_INPUT_CLASS}
-                  >
-                    {taskLists.map((taskList) => (
-                      <option key={taskList.id} value={taskList.id}>
-                        {taskList.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="ll-flex ll-flex-col ll-gap-1">
-                  <span className="ll-sr-only">
-                    {t("pages.tasklist.addTaskPlaceholder")}
-                  </span>
-                  <input
-                    autoFocus
-                    type="text"
-                    value={addTaskText}
-                    onChange={(event) => setAddTaskText(event.target.value)}
-                    placeholder={t("pages.tasklist.addTaskPlaceholder")}
-                    className={TASK_CARD_INPUT_CLASS}
-                  />
-                </label>
-                <button
-                  type="submit"
-                  disabled={!addTaskText.trim() || !addTaskListId || addingTask}
-                  className={TASK_CARD_PRIMARY_BUTTON_CLASS}
-                >
-                  {addingTask ? t("common.loading") : t("a11y.addTask")}
-                </button>
-              </div>
-            </form>
-          </ActionSheetContent>
-        ) : null}
-      </Dialog>
-      <Dialog
-        open={actionTask !== null}
-        onOpenChange={(open: boolean) => {
-          if (!open && !savingAction) {
-            setActionTask(null);
-            setActionError(null);
-          }
-        }}
-      >
-        {actionTask ? (
-          <ActionSheetContent
-            title={t("a11y.editTask")}
-            description={actionTask.task.text}
-          >
-            <div className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-gap-3">
-              <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-3">
-                <span className="ll-truncate ll-text-sm ll-font-semibold">
-                  {actionTask.taskListName}
-                </span>
-                <DialogPrimitive.Close asChild>
-                  <button
-                    type="button"
-                    disabled={savingAction}
-                    className="ll-inline-flex ll-min-h-11 ll-items-center ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
-                  >
-                    {t("common.close")}
-                  </button>
-                </DialogPrimitive.Close>
-              </div>
-              {actionError ? <Alert variant="error">{actionError}</Alert> : null}
-              <form
-                className="ll-flex ll-items-center ll-gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const nextText = actionText.trim();
-                  if (!nextText) return;
-                  applyTaskAction({ text: nextText }, "text");
-                }}
-              >
-                <label className="ll-flex ll-min-w-0 ll-flex-1 ll-flex-col ll-gap-1">
-                  <span className="ll-sr-only">{t("a11y.editTask")}</span>
-                  <input
-                    autoFocus
-                    type="text"
-                    value={actionText}
-                    onChange={(event) => setActionText(event.target.value)}
-                    className={TASK_CARD_INPUT_CLASS}
-                  />
-                </label>
-                <button
-                  type="submit"
-                  disabled={!actionText.trim() || savingAction}
-                  className={TASK_CARD_PRIMARY_BUTTON_CLASS}
-                >
-                  {savingAction ? t("common.loading") : t("taskList.save")}
-                </button>
-              </form>
-              <button
-                type="button"
-                disabled={!actionTask.task.date || savingAction}
-                onClick={() => applyTaskAction({ date: "" }, "date")}
-                className="ll-inline-flex ll-min-h-11 ll-w-fit ll-items-center ll-self-start ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
-              >
-                {t("pages.tasklist.clearDate")}
-              </button>
-              <div className="ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-rounded-xl ll-bg-gray-50 ll-p-3 ll-dark-bg-gray-950">
-                <Calendar
-                  mode="single"
-                  selected={parseTaskDateValue(actionTask.task.date)}
-                  onSelect={(next) => {
-                    applyTaskAction({ date: next ? formatDate(next) : "" }, "date");
-                  }}
-                />
-              </div>
-            </div>
-          </ActionSheetContent>
+        {taskSheet ? (
+          <TaskSheetContent
+            mode={taskSheet.mode}
+            taskLists={taskLists}
+            initialTaskListId={
+              taskSheet.mode === "add"
+                ? (defaultTaskListId ?? taskLists[0]?.id ?? "")
+                : taskSheet.task.taskListId
+            }
+            initialText={taskSheet.mode === "add" ? "" : taskSheet.task.task.text}
+            initialPinned={
+              taskSheet.mode === "add" ? false : taskSheet.task.task.pinned
+            }
+            initialDate={
+              taskSheet.mode === "add"
+                ? taskSheet.date
+                : (parseTaskDateValue(taskSheet.task.task.date) ?? null)
+            }
+            submitting={taskSheetSaving}
+            error={taskSheetError}
+            onSubmit={handleTaskSheetSubmit}
+          />
         ) : null}
       </Dialog>
     </section>

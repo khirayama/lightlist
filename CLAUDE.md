@@ -34,7 +34,9 @@
 - 設定画面のセクション順は「アカウント → 表示と動作 → 法的情報 → アカウント操作」。カレンダーは日グリッドを直置きし、日付付きタスク一覧だけをボーダーレスの面カードに入れる。操作領域は iOS 44pt / Android 48dp 以上を維持する。
 - `yyyy-MM-dd` は端末ローカルの暦日として扱い、Web の `new Date("yyyy-mm-dd")` や UTC formatter を使わない。Android Material3 `DatePicker` の millis 変換だけ UTC を許可し、iOS formatter は `en_US_POSIX` + gregorian を使う。
 - 入力 parser は Web の `entry.tsx` を正本とし、日付・相対表現・pin prefix・数字正規化を iOS / Android でも揃える。`taskInsertPosition` の既定は `top`、履歴は小文字比較で重複除去して最大 300 件とする。
-- タスクの表示順は `order` を根拠に配列化し、pinned 未完了 → unpinned 未完了 → 完了の順にする。同順位は `id` で決定的にする。`pinOrder` は持たない。
+- タスクの表示順は `order` を根拠に配列化し、pinned 未完了 → unpinned 未完了 → 完了の順にする。同順位は `id` で決定的にする。`pinOrder` は持たない。手動並び替えは同じ表示グループ内、`autoSort` 有効時は同じ日付内だけ許可し、操作終了時の全 task ID 順を保存する。
+- task は本文・日付・ピンのいずれかが有効なら保存する。日付あり・ピン留めなら空本文を許可し、3 項目すべてが空相当になった task は削除する。
+- 共有taskの他端末競合で必須field不足の部分mapが再生成される場合があるため、全task fieldを厳格decodeし、server確定snapshotでだけ部分mapを自動削除する。
 - Firestore の UI 更新は transaction を使わず、表示中の task 群を正規化して pending overlay に反映し、taskListId 単位の mutation queue で直列化する。表示優先順は drag overlay → pending → listener。書き込み中の内容一致だけで pending を解放しない。
 - Firestore の field path（`tasks.<id>.*` など）は update 系 API（Web `updateDoc` / iOS `updateData` / Android `update`）だけで書き込む。taskList の削除・共有参加も事前 read 後の batch write とする。
 - 起動は cache-first とし、Web / iOS / Android の設定・taskListOrder・taskLists cache を listener の live snapshot より先に利用できるようにする。cache の古い内容は後続 listener で更新する。

@@ -300,6 +300,7 @@
         "deleteCompleted": "حذف المهام المكتملة",
         "deleteCompletedConfirm": "حذف {{count}} من المهام المكتملة؟",
         "clearDate": "مسح التاريخ",
+        "noDate": "بدون تاريخ",
         "pinTask": "تثبيت المهمة",
         "unpinTask": "إلغاء تثبيت المهمة",
         "deleteCompletedConfirmTitle": "حذف المهام المكتملة؟"
@@ -647,6 +648,7 @@
         "deleteCompleted": "Abgeschlossene Aufgaben löschen",
         "deleteCompletedConfirm": "{{count}} abgeschlossene Aufgaben löschen?",
         "clearDate": "Datum löschen",
+        "noDate": "Kein Datum",
         "pinTask": "Aufgabe anheften",
         "unpinTask": "Aufgabe lösen",
         "deleteCompletedConfirmTitle": "Erledigte Aufgaben löschen?"
@@ -993,6 +995,7 @@
         "deleteCompleted": "Delete completed tasks",
         "deleteCompletedConfirm": "Delete {{count}} completed tasks?",
         "clearDate": "Clear Date",
+        "noDate": "No date",
         "pinTask": "Pin task",
         "unpinTask": "Unpin task",
         "deleteCompletedConfirmTitle": "Delete completed tasks?"
@@ -1344,6 +1347,7 @@
         "deleteCompleted": "Eliminar tareas completadas",
         "deleteCompletedConfirm": "¿Eliminar {{count}} tareas completadas?",
         "clearDate": "Borrar fecha",
+        "noDate": "Sin fecha",
         "pinTask": "Fijar tarea",
         "unpinTask": "Desfijar tarea",
         "deleteCompletedConfirmTitle": "¿Eliminar tareas completadas?"
@@ -1692,6 +1696,7 @@
         "deleteCompleted": "Supprimer les tâches terminées",
         "deleteCompletedConfirm": "Supprimer {{count}} tâches terminées ?",
         "clearDate": "Effacer la date",
+        "noDate": "Sans date",
         "pinTask": "Épingler la tâche",
         "unpinTask": "Désépingler la tâche",
         "deleteCompletedConfirmTitle": "Supprimer les tâches terminées ?"
@@ -2027,6 +2032,7 @@
         "deleteCompleted": "पूर्ण किए गए टास्क हटाएँ",
         "deleteCompletedConfirm": "क्या {{count}} पूर्ण किए गए टास्क हटाने हैं?",
         "clearDate": "तारीख हटाएं",
+        "noDate": "कोई तिथि नहीं",
         "pinTask": "टास्क पिन करें",
         "unpinTask": "टास्क अनपिन करें",
         "deleteCompletedConfirmTitle": "पूर्ण किए गए कार्य हटाएं?"
@@ -2368,6 +2374,7 @@
         "deleteCompleted": "Hapus tugas yang selesai",
         "deleteCompletedConfirm": "Hapus {{count}} tugas yang selesai?",
         "clearDate": "Hapus Tanggal",
+        "noDate": "Tanpa tanggal",
         "pinTask": "Sematkan tugas",
         "unpinTask": "Lepas sematan tugas",
         "deleteCompletedConfirmTitle": "Hapus tugas yang selesai?"
@@ -2703,6 +2710,7 @@
         "deleteCompleted": "完了タスクを削除",
         "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？",
         "clearDate": "日付をクリア",
+        "noDate": "日付なし",
         "pinTask": "タスクをピン留め",
         "unpinTask": "タスクのピン留めを解除",
         "deleteCompletedConfirmTitle": "完了タスクを削除しますか？"
@@ -3045,6 +3053,7 @@
         "deleteCompleted": "완료한 작업 삭제",
         "deleteCompletedConfirm": "완료한 작업 {{count}}개를 삭제할까요?",
         "clearDate": "날짜 지우기",
+        "noDate": "날짜 없음",
         "pinTask": "작업 고정",
         "unpinTask": "작업 고정 해제",
         "deleteCompletedConfirmTitle": "완료된 할 일을 삭제하시겠습니까?"
@@ -3401,6 +3410,7 @@
         "deleteCompleted": "Excluir tarefas concluídas",
         "deleteCompletedConfirm": "Excluir {{count}} tarefas concluídas?",
         "clearDate": "Limpar data",
+        "noDate": "Sem data",
         "pinTask": "Fixar tarefa",
         "unpinTask": "Desafixar tarefa",
         "deleteCompletedConfirmTitle": "Excluir tarefas concluídas?"
@@ -3745,6 +3755,7 @@
         "deleteCompleted": "删除已完成任务",
         "deleteCompletedConfirm": "删除 {{count}} 个已完成任务？",
         "clearDate": "清除日期",
+        "noDate": "无日期",
         "pinTask": "置顶任务",
         "unpinTask": "取消置顶任务",
         "deleteCompletedConfirmTitle": "删除已完成的任务？"

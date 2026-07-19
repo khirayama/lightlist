@@ -31,7 +31,7 @@
 
 - locale の正本は `shared/locales/locales.json`。Web は sync script で `src/locales.json` と LP 用 `src/lp-locales.json` を生成し、iOS は `apps/ios/Lightlist/Resources/locales.json` を手動同期、Android は build 時に asset 化する。対応言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`、fallback は `ja`。
 - UI は 3 プラットフォーム共通のモノクロ palette と system/light/dark theme を使う。アクセント色を追加せず、iOS は `AccentColor.colorset`、Android は明示的な Material palette、Web は通常 CSS を正とする。詳細な色・寸法・motion は `AGENTS.md` を参照する。
-- 設定画面のセクション順は「アカウント → 表示と動作 → 法的情報 → アカウント操作」。カレンダーは日グリッドを直置きし、日付付きタスク一覧だけをボーダーレスの面カードに入れる。操作領域は iOS 44pt / Android 48dp 以上を維持する。
+- 設定画面のセクション順は「アカウント → 表示と動作 → 法的情報 → アカウント操作」。カレンダーは日グリッドとタスク一覧を同じ横幅で直置きし、タスク一覧全体に囲い・角丸・面の背景色・行間 divider を付けない。タスク行は offset なしの 2 段構成（上段: 日付 + ピン / リスト名、下段: 完了操作 / 本文 / 編集操作）とし、下段の要素を上寄せして行末に 4 相当の余白を置く。操作領域は iOS 44pt / Android 48dp 以上を維持し、iOS の完了操作と本文の間には 8pt の間隔を置く。
 - `yyyy-MM-dd` は端末ローカルの暦日として扱い、Web の `new Date("yyyy-mm-dd")` や UTC formatter を使わない。Android Material3 `DatePicker` の millis 変換だけ UTC を許可し、iOS formatter は `en_US_POSIX` + gregorian を使う。
 - 入力 parser は Web の `entry.tsx` を正本とし、日付・相対表現・pin prefix・数字正規化を iOS / Android でも揃える。`taskInsertPosition` の既定は `top`、履歴は小文字比較で重複除去して最大 300 件とする。
 - タスクの表示順は `order` を根拠に配列化し、pinned 未完了 → unpinned 未完了 → 完了の順にする。同順位は `id` で決定的にする。`pinOrder` は持たない。手動並び替えは同じ表示グループ内、`autoSort` 有効時は同じ日付内だけ許可し、操作終了時の全 task ID 順を保存する。

@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -143,6 +144,7 @@ import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.CoroutineScope
@@ -153,7 +155,6 @@ import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -842,7 +843,8 @@ private data class CalendarTask(
     val text: String,
     val completed: Boolean,
     val dateKey: String,
-    val dateValue: java.util.Date,
+    val dateValue: java.util.Date?,
+    val pinned: Boolean,
     val taskListIndex: Int,
     val taskIndex: Int
 )
@@ -1140,7 +1142,7 @@ private fun <T> subscribeToOrderedTaskLists(
         taskListChunkListeners = taskListIds.chunked(10).map { chunk ->
             db.collection("taskLists")
                 .whereIn(FieldPath.documentId(), chunk)
-                .addSnapshotListener { snapshot, error ->
+                .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
                     if (error != null) {
                         logDebugSync("taskLists listener error=${firestoreErrorDescription("taskLists listen", error)}")
                         onError?.invoke()
@@ -1155,6 +1157,12 @@ private fun <T> subscribeToOrderedTaskLists(
                         .toMutableMap()
                     snapshot?.documents?.forEach { document ->
                         val data = document.data ?: return@forEach
+                        scheduleMalformedTaskCleanup(
+                            taskListId = document.id,
+                            data = data,
+                            isFromCache = document.metadata.isFromCache,
+                            hasPendingWrites = document.metadata.hasPendingWrites()
+                        )
                         nextTaskListsById[document.id] =
                             parseDocument(document.id, data)
                     }
@@ -1577,10 +1585,60 @@ private fun parseTaskListSummary(taskListId: String, data: Map<String, Any>): Ta
     return TaskListSummary(
         id = taskListId,
         name = name,
-        taskCount = tasks.size,
+        taskCount = parseTasks(tasks).size,
         memberCount = memberCount,
         background = background
     )
+}
+
+private fun isCompleteTaskData(taskId: String, value: Any?): Boolean {
+    val task = value as? Map<*, *> ?: return false
+    val order = task["order"] as? Number ?: return false
+    return task["id"] == taskId &&
+        task["text"] is String &&
+        task["completed"] is Boolean &&
+        task["date"] is String &&
+        order.toDouble().isFinite() &&
+        task["pinned"] is Boolean
+}
+
+private fun malformedTaskIds(data: Map<String, Any>): List<String> {
+    val tasks = data["tasks"] as? Map<*, *> ?: return emptyList()
+    return tasks.entries.mapNotNull { entry ->
+        val taskId = entry.key as? String ?: return@mapNotNull null
+        taskId.takeUnless { isCompleteTaskData(taskId, entry.value) }
+    }.sorted()
+}
+
+private val malformedTaskCleanupKeys = mutableSetOf<String>()
+
+private fun scheduleMalformedTaskCleanup(
+    taskListId: String,
+    data: Map<String, Any>,
+    isFromCache: Boolean,
+    hasPendingWrites: Boolean
+) {
+    if (isFromCache || hasPendingWrites) return
+    val taskIds = malformedTaskIds(data)
+    if (taskIds.isEmpty()) return
+    val cleanupKey = "$taskListId:${taskIds.joinToString("|")}"
+    synchronized(malformedTaskCleanupKeys) {
+        if (!malformedTaskCleanupKeys.add(cleanupKey)) return
+    }
+    val updates = mutableMapOf<String, Any>("updatedAt" to nowMillis())
+    taskIds.forEach { updates["tasks.$it"] = FieldValue.delete() }
+    val releaseCleanupKey = {
+        synchronized(malformedTaskCleanupKeys) {
+            malformedTaskCleanupKeys.remove(cleanupKey)
+        }
+        Unit
+    }
+    TaskListMutationQueues.queueFor(taskListId).enqueue(
+        onIdle = releaseCleanupKey,
+        onError = { releaseCleanupKey() }
+    ) {
+        Firebase.firestore.collection("taskLists").document(taskListId).update(updates).await()
+    }
 }
 
 private fun parseTaskListDetail(taskListId: String, data: Map<String, Any>): TaskListDetail {
@@ -1702,13 +1760,18 @@ private fun parseTasks(rawTasks: Map<*, *>): List<TaskSummary> {
     return rawTasks.entries.mapNotNull { entry ->
         val taskId = entry.key as? String ?: return@mapNotNull null
         val value = entry.value as? Map<*, *> ?: return@mapNotNull null
+        if (!isCompleteTaskData(taskId, value)) return@mapNotNull null
+        val text = value["text"] as? String ?: ""
+        val date = value["date"] as? String ?: ""
+        val pinned = value["pinned"] as? Boolean ?: false
+        if (!hasTaskContent(text, date, pinned)) return@mapNotNull null
         TaskSummary(
             id = taskId,
-            text = value["text"] as? String ?: "",
+            text = text,
             completed = value["completed"] as? Boolean ?: false,
-            date = value["date"] as? String ?: "",
+            date = date,
             order = (value["order"] as? Number)?.toDouble() ?: 0.0,
-            pinned = value["pinned"] as? Boolean ?: false
+            pinned = pinned
         )
     }.sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
 }
@@ -1840,14 +1903,20 @@ private suspend fun removeTaskListMembership(
     }.commit().await()
 }
 
+private val calendarTaskComparator = compareByDescending<CalendarTask> { it.pinned }
+    .thenBy { it.dateKey.ifBlank { "9999-12-31" } }
+    .thenBy { it.taskListIndex }
+    .thenBy { it.taskIndex }
+
 private fun flattenCalendarTasks(taskLists: List<TaskListDetail>): List<CalendarTask> {
     val isoFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     return taskLists.flatMapIndexed { taskListIndex, taskList ->
         taskList.tasks
-            .filter { !it.completed && it.date.isNotBlank() }
-            .mapIndexedNotNull { taskIndex, task ->
-                val dateValue = try { isoFormat.parse(task.date) } catch (e: Exception) { null }
-                    ?: return@mapIndexedNotNull null
+            .filter { !it.completed }
+            .mapIndexed { taskIndex, task ->
+                val dateValue = task.date.takeIf { it.isNotBlank() }?.let {
+                    try { isoFormat.parse(it) } catch (e: Exception) { null }
+                }
                 CalendarTask(
                     id = "${taskList.id}:${task.id}",
                     taskListId = taskList.id,
@@ -1856,17 +1925,14 @@ private fun flattenCalendarTasks(taskLists: List<TaskListDetail>): List<Calendar
                     taskId = task.id,
                     text = task.text,
                     completed = task.completed,
-                    dateKey = task.date,
+                    dateKey = if (dateValue != null) task.date else "",
                     dateValue = dateValue,
+                    pinned = task.pinned,
                     taskListIndex = taskListIndex,
                     taskIndex = taskIndex
                 )
             }
-    }.sortedWith(
-        compareBy<CalendarTask> { it.dateValue }
-            .thenBy { it.taskListIndex }
-            .thenBy { it.taskIndex }
-    )
+    }.sortedWith(calendarTaskComparator)
 }
 
 private fun taskCountLabel(t: Translations, count: Int): String {
@@ -2818,7 +2884,7 @@ private fun CalendarDayCell(
     }.joinToString(", ")
     Column(
         modifier = modifier
-            .aspectRatio(1f)
+            .height(48.dp)
             .semantics {
                 contentDescription = dayLabel
                 role = Role.Button
@@ -2960,17 +3026,90 @@ private fun CalendarTaskRow(
         label = "calendar task highlight"
     )
     val dateLabel = remember(task.dateKey, t.languageTag()) {
-        formatDateForLocale(task.dateKey, t.languageTag(), "MMM d EEE")
+        task.dateKey.takeIf { it.isNotBlank() }?.let {
+            formatDateForLocale(it, t.languageTag(), "MMM d EEE")
+        }
     }
     val markCompleteLabel = t.t("pages.tasklist.markComplete")
-    Column {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(highlightColor)
+            .padding(bottom = 4.dp)
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(highlightColor)
-                .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                .heightIn(min = 20.dp)
+                .padding(start = 48.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onSelectDate)
+                    .padding(start = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (dateLabel != null) {
+                    Text(
+                        dateLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        t.t("pages.tasklist.noDate"),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+                if (task.pinned) {
+                    Icon(
+                        Icons.Default.PushPin,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .widthIn(min = 48.dp, max = 132.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onOpenTaskList)
+                    .padding(start = 4.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .then(
+                            if (task.taskListBackground == null) {
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    shape = CircleShape
+                                )
+                            } else {
+                                Modifier.background(parseHexColor(task.taskListBackground), CircleShape)
+                            }
+                        )
+                )
+                Text(
+                    task.taskListName,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
@@ -2980,8 +3119,9 @@ private fun CalendarTaskRow(
                     .semantics {
                         contentDescription = markCompleteLabel
                         role = Role.Button
-                    },
-                contentAlignment = Alignment.Center
+                    }
+                    .padding(top = 8.dp),
+                contentAlignment = Alignment.TopCenter
             ) {
                 Box(
                     Modifier
@@ -2993,75 +3133,43 @@ private fun CalendarTaskRow(
                         )
                 )
             }
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onSelectDate)
-                .padding(vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onSelectDate),
+                contentAlignment = Alignment.TopStart
             ) {
                 Text(
-                    dateLabel,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    task.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 2.dp, top = 6.dp),
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
                 )
-                Spacer(Modifier.weight(1f))
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable(onClick = onOpenTaskList)
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .then(
-                                if (task.taskListBackground == null) {
-                                    Modifier.border(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.outline,
-                                        shape = CircleShape
-                                    )
-                                } else {
-                                    Modifier.background(parseHexColor(task.taskListBackground), CircleShape)
-                                }
-                            )
-                    )
-                    Text(
-                        task.taskListName,
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                }
             }
-            Text(
-                task.text,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth(),
-                maxLines = 2,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
-            )
-        }
-            IconButton(onClick = onOpenActions) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onOpenActions)
+                    .semantics {
+                        contentDescription = t.t("a11y.editTask")
+                        role = Role.Button
+                    }
+                    .padding(top = 6.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
                 Icon(
                     Icons.Default.Edit,
-                    contentDescription = t.t("a11y.editTask"),
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(AppIconMetrics.inlineActionIconSize)
                 )
             }
         }
-        HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
     }
 }
 
@@ -3094,7 +3202,7 @@ private fun CalendarScreen(
     val calendarTasks = remember(loadedCalendarTasks, optimisticCalendarTasks) {
         val loadedIds = loadedCalendarTasks.mapTo(mutableSetOf()) { it.id }
         (loadedCalendarTasks + optimisticCalendarTasks.filter { it.id !in loadedIds })
-            .sortedWith(compareBy<CalendarTask> { it.dateValue }.thenBy { it.taskListIndex }.thenBy { it.taskIndex })
+            .sortedWith(calendarTaskComparator)
     }
     var displayedMonth by remember {
         mutableStateOf(
@@ -3109,18 +3217,12 @@ private fun CalendarScreen(
     }
     var selectedDateKey by remember { mutableStateOf<String?>(null) }
     var showAddTaskSheet by remember { mutableStateOf(false) }
-    var addTaskText by remember { mutableStateOf("") }
-    var addTaskListId by remember { mutableStateOf("") }
     var addTaskError by remember { mutableStateOf<String?>(null) }
     var editingTask by remember { mutableStateOf<CalendarTask?>(null) }
-    var editingText by remember { mutableStateOf("") }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(calendarTaskLists) {
-        if (addTaskListId.isEmpty() || calendarTaskLists.none { it.id == addTaskListId }) {
-            addTaskListId = calendarTaskLists.firstOrNull()?.id.orEmpty()
-        }
         val loadedIds = calendarTaskLists.flatMap { taskList ->
             taskList.tasks.map { task -> "${taskList.id}:${task.id}" }
         }.toSet()
@@ -3131,11 +3233,11 @@ private fun CalendarScreen(
         SimpleDateFormat("yyyy-MM", Locale.US).format(displayedMonth)
     }
     val tasksInMonth = remember(calendarTasks, monthKey) {
-        calendarTasks.filter { it.dateKey.startsWith(monthKey) }
+        calendarTasks.filter { it.dateKey.isBlank() || it.dateKey.startsWith(monthKey) }
     }
     val dotColorsByDate = remember(tasksInMonth) {
         val map = mutableMapOf<String, MutableList<String?>>()
-        for (task in tasksInMonth) {
+        for (task in tasksInMonth.filter { it.dateKey.isNotBlank() }) {
             val colors = map.getOrPut(task.dateKey) { mutableListOf() }
             if (!colors.contains(task.taskListBackground) && colors.size < 3) {
                 colors.add(task.taskListBackground)
@@ -3175,14 +3277,14 @@ private fun CalendarScreen(
         }
     }
 
-    fun addCalendarTask() {
-        val trimmed = addTaskText.trim()
-        val dateKey = selectedDateKey ?: return
-        val taskListIndex = calendarTaskLists.indexOfFirst { it.id == addTaskListId }
-        if (trimmed.isEmpty() || taskListIndex < 0) return
+    fun addCalendarTask(taskListId: String, text: String, pinned: Boolean, dateKey: String) {
+        val trimmed = text.trim()
+        val taskListIndex = calendarTaskLists.indexOfFirst { it.id == taskListId }
+        if (!hasTaskContent(trimmed, dateKey, pinned) || taskListIndex < 0) return
 
         val taskList = calendarTaskLists[taskListIndex]
         val parsed = resolveTaskInput(trimmed, t)
+        if (!hasTaskContent(parsed.text, dateKey, pinned)) return
         val taskId = java.util.UUID.randomUUID().toString()
         val orderedTasks = taskList.tasks.sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
         val nextOrder = if (settingsState.taskInsertPosition == "bottom") {
@@ -3196,7 +3298,7 @@ private fun CalendarScreen(
             completed = false,
             date = dateKey,
             order = nextOrder,
-            pinned = parsed.pinned
+            pinned = pinned
         )
         val insertedTasks = if (settingsState.taskInsertPosition == "bottom") {
             orderedTasks + insertedTask
@@ -3205,11 +3307,13 @@ private fun CalendarScreen(
         }
         val nextTasks = reconcileTasks(insertedTasks, settingsState.autoSort)
         val insertedIndex = nextTasks.indexOfFirst { it.id == taskId }
-        val dateValue = try {
-            SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateKey)
-        } catch (_: Exception) {
-            null
-        } ?: return
+        val dateValue = dateKey.takeIf { it.isNotBlank() }?.let {
+            try {
+                SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(it)
+            } catch (_: Exception) {
+                null
+            }
+        }
 
         optimisticCalendarTasks = optimisticCalendarTasks + CalendarTask(
             id = "${taskList.id}:$taskId",
@@ -3219,18 +3323,18 @@ private fun CalendarScreen(
             taskId = taskId,
             text = parsed.text,
             completed = false,
-            dateKey = dateKey,
+            dateKey = if (dateValue != null) dateKey else "",
             dateValue = dateValue,
+            pinned = pinned,
             taskListIndex = taskListIndex,
             taskIndex = insertedIndex
         )
         val updates = buildTaskUpdateData(orderedTasks, nextTasks) +
             mapOf("history" to buildHistory(parsed.text, taskList.history))
-        addTaskText = ""
         addTaskError = null
         showAddTaskSheet = false
         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-        logTaskAdd(hasDate = true)
+        logTaskAdd(hasDate = dateKey.isNotEmpty())
 
         TaskListMutationQueues.queueFor(taskList.id).enqueue(onError = { error ->
             recordNonFatalException("calendar_task_add", error)
@@ -3271,39 +3375,66 @@ private fun CalendarScreen(
         updateCalendarTask(task, "completed") { it.copy(completed = true) }
     }
 
-    fun commitCalendarTaskDate(task: CalendarTask, dateStr: String) {
-        updateCalendarTask(task, "date") { it.copy(date = dateStr) }
-    }
-
-    fun commitCalendarTaskEdit(task: CalendarTask, text: String) {
+    fun saveCalendarTask(task: CalendarTask, taskListId: String, text: String, pinned: Boolean, dateKey: String) {
         val trimmed = text.trim()
-        if (trimmed.isEmpty()) return
-        val current = calendarTaskLists.firstOrNull { it.id == task.taskListId }
-            ?.tasks?.firstOrNull { it.id == task.taskId } ?: return
-        val resolved = resolveTaskInput(text, t, current)
-        val textChanged = resolved.text != current.text
-        val dateChanged = (resolved.date ?: current.date) != current.date
-        val pinnedChanged = resolved.pinnedChanged
-        if (!textChanged && !dateChanged && !pinnedChanged) return
-        val changedFields = listOfNotNull(
-            if (textChanged) "text" else null,
-            if (dateChanged) "date" else null,
-            if (pinnedChanged) "pinned" else null,
-        ).joinToString(",")
-        updateCalendarTask(
-            task,
-            changedFields,
-            additionalUpdatesBuilder = if (textChanged) {
-                { taskList, old -> mapOf("history" to buildHistory(resolved.text, taskList.history, old.text)) }
-            } else {
-                null
+        if (!hasTaskContent(trimmed, dateKey, pinned)) return
+        val sourceTaskList = calendarTaskLists.firstOrNull { it.id == task.taskListId } ?: return
+        val currentTask = sourceTaskList.tasks.firstOrNull { it.id == task.taskId } ?: return
+        val resolved = resolveTaskInput(trimmed, t, currentTask)
+        val nextText = if (trimmed.isEmpty()) "" else resolved.text
+        if (taskListId == task.taskListId) {
+            updateCalendarTask(
+                task,
+                "text,date,pinned",
+                additionalUpdatesBuilder = if (nextText != currentTask.text) {
+                    { taskList, old -> mapOf("history" to buildHistory(nextText, taskList.history, old.text)) }
+                } else {
+                    null
+                }
+            ) { cur ->
+                cur.copy(text = nextText, date = dateKey, pinned = pinned)
             }
-        ) { cur ->
-            cur.copy(
-                text = resolved.text,
-                date = resolved.date ?: cur.date,
-                pinned = if (pinnedChanged) true else cur.pinned
-            )
+            return
+        }
+
+        val targetTaskList = calendarTaskLists.firstOrNull { it.id == taskListId } ?: return
+        val orderedTargetTasks = targetTaskList.tasks.sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
+        val nextOrder = if (settingsState.taskInsertPosition == "bottom") {
+            (orderedTargetTasks.lastOrNull()?.order ?: 0.0) + 1.0
+        } else {
+            (orderedTargetTasks.firstOrNull()?.order ?: 1.0) - 1.0
+        }
+        val movedTask = TaskSummary(
+            id = task.taskId,
+            text = nextText,
+            completed = currentTask.completed,
+            date = dateKey,
+            order = nextOrder,
+            pinned = pinned
+        )
+        val insertedTasks = if (settingsState.taskInsertPosition == "bottom") {
+            orderedTargetTasks + movedTask
+        } else {
+            listOf(movedTask) + orderedTargetTasks
+        }
+        val nextTargetTasks = reconcileTasks(insertedTasks, settingsState.autoSort)
+        val targetUpdates = buildTaskUpdateData(orderedTargetTasks, nextTargetTasks) +
+            mapOf("history" to buildHistory(nextText, targetTaskList.history))
+        val sourceUpdates = mapOf(
+            "tasks.${task.taskId}" to FieldValue.delete(),
+            "updatedAt" to nowMillis()
+        )
+        logTaskUpdate(fields = "text,date,pinned,taskList")
+        addTaskError = null
+        TaskListMutationQueues.queueFor(task.taskListId).enqueue(onError = { error ->
+            recordNonFatalException("calendar_task_move", error)
+            addTaskError = t.t("common.error")
+        }) {
+            val db = Firebase.firestore
+            val batch = db.batch()
+            batch.update(db.collection("taskLists").document(task.taskListId), sourceUpdates)
+            batch.update(db.collection("taskLists").document(taskListId), targetUpdates)
+            batch.commit().await()
         }
     }
 
@@ -3311,6 +3442,7 @@ private fun CalendarScreen(
         title = t.t("app.calendar"),
         onBack = if (navController != null) ({ navController.navigateUp() }) else null,
         showTopBar = showTopBar,
+        topBarHeight = 56.dp,
         backgroundColor = MaterialTheme.colorScheme.surfaceDim
     ) {
         Column(
@@ -3319,8 +3451,8 @@ private fun CalendarScreen(
                 .fillMaxHeight()
                 .widthIn(max = 960.dp)
                 .align(Alignment.CenterHorizontally)
-                .padding(top = 24.dp)
-                .padding(bottom = 24.dp)
+                .padding(top = 2.dp)
+                .padding(bottom = 8.dp)
         ) {
             if (hasLoadError && calendarTaskLists.isNotEmpty()) {
                 Text(
@@ -3333,7 +3465,7 @@ private fun CalendarScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3386,7 +3518,7 @@ private fun CalendarScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -3403,15 +3535,13 @@ private fun CalendarScreen(
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 8.dp)
             ) {
                 if (tasksInMonth.isEmpty()) {
                     Box(
@@ -3434,15 +3564,14 @@ private fun CalendarScreen(
                         items(tasksInMonth, key = { it.id }) { task ->
                             CalendarTaskRow(
                                 task = task,
-                                isHighlighted = selectedDateKey == task.dateKey,
+                                isHighlighted = selectedDateKey == task.dateKey && task.dateKey.isNotBlank(),
                                 reduceMotion = reduceMotion,
-                                onSelectDate = { selectDate(task.dateKey) },
+                                onSelectDate = {
+                                    if (task.dateKey.isNotBlank()) selectDate(task.dateKey)
+                                },
                                 onOpenTaskList = { openTaskList(task.taskListId) },
                                 onToggleComplete = { completeCalendarTask(task) },
-                                onOpenActions = {
-                                    editingTask = task
-                                    editingText = task.text
-                                }
+                                onOpenActions = { editingTask = task }
                             )
                         }
                     }
@@ -3452,246 +3581,253 @@ private fun CalendarScreen(
     }
 
     if (showAddTaskSheet && selectedDateKey != null) {
-        var taskListMenuExpanded by remember { mutableStateOf(false) }
-        ModalBottomSheet(
-            onDismissRequest = { showAddTaskSheet = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .imePadding()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        selectedDateLabel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(
-                        onClick = { showAddTaskSheet = false },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    ) {
-                        Text(t.t("common.close"))
-                    }
-                }
-
-                Text(
-                    t.t("app.drawerTitle"),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Box {
-                    OutlinedButton(
-                        onClick = { taskListMenuExpanded = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius),
-                        contentPadding = PaddingValues(horizontal = 14.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                calendarTaskLists.firstOrNull { it.id == addTaskListId }?.name
-                                    ?: t.t("app.drawerTitle"),
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                            Icon(
-                                Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                modifier = Modifier.size(AppIconMetrics.inlineActionIconSize)
-                            )
-                        }
-                    }
-                    DropdownMenu(
-                        expanded = taskListMenuExpanded,
-                        onDismissRequest = { taskListMenuExpanded = false }
-                    ) {
-                        calendarTaskLists.forEach { taskList ->
-                            DropdownMenuItem(
-                                text = { Text(taskList.name) },
-                                onClick = {
-                                    addTaskListId = taskList.id
-                                    taskListMenuExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                OutlinedTextField(
-                    value = addTaskText,
-                    onValueChange = { addTaskText = it },
-                    placeholder = { Text(t.t("pages.tasklist.addTaskPlaceholder")) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { addCalendarTask() }),
-                    shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                )
-
-                Button(
-                    onClick = { addCalendarTask() },
-                    enabled = addTaskText.trim().isNotEmpty() && addTaskListId.isNotEmpty(),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                ) {
-                    Text(t.t("a11y.addTask"))
-                }
+        CalendarTaskSheet(
+            title = t.t("a11y.addTask"),
+            submitLabel = t.t("a11y.addTask"),
+            taskLists = calendarTaskLists,
+            initialTaskListId = calendarTaskLists.firstOrNull()?.id.orEmpty(),
+            initialText = "",
+            initialPinned = false,
+            initialDateKey = selectedDateKey,
+            onDismiss = { showAddTaskSheet = false },
+            onSubmit = { taskListId, text, pinned, dateKey ->
+                addCalendarTask(taskListId, text, pinned, dateKey)
             }
-        }
+        )
     }
 
     editingTask?.let { task ->
         key(task.id) {
-            val initialSelectedMillis = remember(task.dateKey) {
-                task.dateKey.takeIf { it.isNotBlank() }?.let { date ->
-                    runCatching {
-                        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-                            timeZone = TimeZone.getTimeZone("UTC")
-                        }.parse(date)?.time
-                    }.getOrNull()
+            CalendarTaskSheet(
+                title = t.t("a11y.editTask"),
+                submitLabel = t.t("taskList.save"),
+                taskLists = calendarTaskLists,
+                initialTaskListId = task.taskListId,
+                initialText = task.text,
+                initialPinned = task.pinned,
+                initialDateKey = task.dateKey,
+                onDismiss = { editingTask = null },
+                onSubmit = { taskListId, text, pinned, dateKey ->
+                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                    saveCalendarTask(task, taskListId, text, pinned, dateKey)
+                    editingTask = null
                 }
-            }
-            val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = initialSelectedMillis
             )
-            var ignoreInitialSelection by remember(task.id) { mutableStateOf(true) }
-            LaunchedEffect(datePickerState.selectedDateMillis) {
-                val millis = datePickerState.selectedDateMillis ?: return@LaunchedEffect
-                if (ignoreInitialSelection) {
-                    ignoreInitialSelection = false
-                    if (initialSelectedMillis == millis) return@LaunchedEffect
-                }
-                val nextDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CalendarTaskSheet(
+    title: String,
+    submitLabel: String,
+    taskLists: List<TaskListDetail>,
+    initialTaskListId: String,
+    initialText: String,
+    initialPinned: Boolean,
+    initialDateKey: String?,
+    onDismiss: () -> Unit,
+    onSubmit: (taskListId: String, text: String, pinned: Boolean, dateKey: String) -> Unit
+) {
+    val t = LocalTranslations.current
+    var taskListId by remember {
+        mutableStateOf(
+            if (taskLists.any { it.id == initialTaskListId }) initialTaskListId
+            else taskLists.firstOrNull()?.id.orEmpty()
+        )
+    }
+    var text by remember { mutableStateOf(initialText) }
+    var pinned by remember { mutableStateOf(initialPinned) }
+    var taskListMenuExpanded by remember { mutableStateOf(false) }
+    val initialSelectedMillis = remember(initialDateKey) {
+        initialDateKey?.takeIf { it.isNotBlank() }?.let { date ->
+            runCatching {
+                SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
                     timeZone = TimeZone.getTimeZone("UTC")
-                }.format(Date(millis))
-                if (nextDate == task.dateKey) return@LaunchedEffect
-                commitCalendarTaskDate(task, nextDate)
-                editingTask = null
-            }
-            ModalBottomSheet(
-                onDismissRequest = { editingTask = null },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                modifier = Modifier.semantics {
-                    paneTitle = t.t("a11y.editTask")
-                }
+                }.parse(date)?.time
+            }.getOrNull()
+        }
+    }
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialSelectedMillis)
+    val pinnedLabel = t.t(if (pinned) "pages.tasklist.unpinTask" else "pages.tasklist.pinTask")
+
+    fun submit() {
+        val trimmed = text.trim()
+        val dateKey = datePickerState.selectedDateMillis?.let { millis ->
+            SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }.format(Date(millis))
+        }.orEmpty()
+        if (!hasTaskContent(trimmed, dateKey, pinned) || taskListId.isEmpty()) return
+        onSubmit(taskListId, trimmed, pinned, dateKey)
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentWindowInsets = { WindowInsets(0) },
+        modifier = Modifier.semantics {
+            paneTitle = title
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 640.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text(t.t("common.close"))
+                }
+            }
+
+            Box {
+                OutlinedButton(
+                    onClick = { taskListMenuExpanded = true },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 640.dp)
-                        .verticalScroll(rememberScrollState())
-                        .imePadding()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius),
+                    contentPadding = PaddingValues(horizontal = 14.dp)
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            task.taskListName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            taskLists.firstOrNull { it.id == taskListId }?.name
+                                ?: t.t("app.drawerTitle"),
+                            modifier = Modifier.weight(1f),
                             maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
-                        TextButton(
-                            onClick = { editingTask = null },
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        ) {
-                            Text(t.t("common.close"))
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = editingText,
-                            onValueChange = { editingText = it },
-                            placeholder = { Text(t.t("pages.tasklist.addTaskPlaceholder")) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = {
-                                commitCalendarTaskEdit(task, editingText)
-                                editingTask = null
-                            }),
-                            shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius),
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 48.dp)
-                        )
-                        Button(
-                            onClick = {
-                                commitCalendarTaskEdit(task, editingText)
-                                editingTask = null
-                            },
-                            enabled = editingText.trim().isNotEmpty(),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(48.dp)
-                        ) {
-                            Text(t.t("taskList.save"))
-                        }
-                    }
-
-                    TextButton(
-                        onClick = {
-                            commitCalendarTaskDate(task, "")
-                            editingTask = null
-                        },
-                        modifier = Modifier.height(48.dp),
-                        enabled = task.dateKey.isNotBlank()
-                    ) {
-                        Text(t.t("pages.tasklist.clearDate"))
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceDim,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        DatePicker(
-                            state = datePickerState,
-                            modifier = Modifier.fillMaxWidth(),
-                            title = null,
-                            headline = null,
-                            showModeToggle = false
+                        Icon(
+                            Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(AppIconMetrics.inlineActionIconSize)
                         )
                     }
                 }
+                DropdownMenu(
+                    expanded = taskListMenuExpanded,
+                    onDismissRequest = { taskListMenuExpanded = false }
+                ) {
+                    taskLists.forEach { taskList ->
+                        DropdownMenuItem(
+                            text = { Text(taskList.name) },
+                            onClick = {
+                                taskListId = taskList.id
+                                taskListMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text(t.t("pages.tasklist.addTaskPlaceholder")) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { submit() }),
+                shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(
+                    onClick = { datePickerState.selectedDateMillis = null },
+                    modifier = Modifier.height(48.dp),
+                    enabled = datePickerState.selectedDateMillis != null
+                ) {
+                    Text(t.t("pages.tasklist.clearDate"))
+                }
+                Spacer(Modifier.weight(1f))
+                Surface(
+                    onClick = { pinned = !pinned },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceDim,
+                    modifier = Modifier.semantics {
+                        contentDescription = pinnedLabel
+                        role = Role.Switch
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.PushPin, contentDescription = null)
+                        Text(pinnedLabel)
+                        Switch(checked = pinned, onCheckedChange = null)
+                    }
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceDim,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                DatePicker(
+                    state = datePickerState,
+                    modifier = Modifier.fillMaxWidth(),
+                    title = null,
+                    headline = null,
+                    showModeToggle = false
+                )
+            }
+
+            }
+
+            Button(
+                onClick = { submit() },
+                enabled = (
+                    text.trim().isNotEmpty() || pinned || datePickerState.selectedDateMillis != null
+                ) && taskListId.isNotEmpty(),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(submitLabel)
             }
         }
     }
@@ -4461,6 +4597,7 @@ private fun TaskListDetailPagerScreen(
     var focusedNewTaskListId by remember { mutableStateOf<String?>(null) }
     var shouldMoveNewTaskFocusOnPageSettle by remember { mutableStateOf(false) }
     val currentSelectedTaskListId by rememberUpdatedState(selectedTaskListId)
+    val currentFocusedNewTaskListId = rememberUpdatedState(focusedNewTaskListId)
     val currentTaskList =
         uiState.taskLists.getOrNull(pagerState.currentPage) ?: uiState.taskLists.firstOrNull()
     val taskListBackgroundColor = resolveTaskListBackgroundColor(currentTaskList?.background)
@@ -4482,7 +4619,7 @@ private fun TaskListDetailPagerScreen(
             .collectLatest { isScrolling ->
                 if (isScrolling) {
                     shouldMoveNewTaskFocusOnPageSettle =
-                        focusedNewTaskListId == currentSelectedTaskListId
+                        currentFocusedNewTaskListId.value == currentSelectedTaskListId
                 }
             }
     }
@@ -4493,7 +4630,7 @@ private fun TaskListDetailPagerScreen(
                 val taskList = uiState.taskLists.getOrNull(page) ?: return@collectLatest
                 val shouldMoveNewTaskFocus =
                     shouldMoveNewTaskFocusOnPageSettle ||
-                        focusedNewTaskListId == currentSelectedTaskListId
+                        currentFocusedNewTaskListId.value == currentSelectedTaskListId
                 if (shouldMoveNewTaskFocus) {
                     focusedNewTaskListId = taskList.id
                 }
@@ -4956,8 +5093,21 @@ private fun taskDisplayGroup(task: TaskSummary): Int {
     return if (task.completed) 2 else if (task.pinned) 0 else 1
 }
 
+private fun hasTaskContent(text: String, date: String, pinned: Boolean): Boolean {
+    return text.isNotBlank() || date.isNotEmpty() || pinned
+}
+
+private fun hasTaskContent(task: TaskSummary): Boolean {
+    return hasTaskContent(task.text, task.date, task.pinned)
+}
+
+private fun canReorderTasks(first: TaskSummary, second: TaskSummary, autoSort: Boolean): Boolean {
+    return taskDisplayGroup(first) == taskDisplayGroup(second) &&
+        (!autoSort || first.date == second.date)
+}
+
 private fun getDisplayOrderedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
-    return tasks.sortedWith(
+    return tasks.filter(::hasTaskContent).sortedWith(
         compareBy<TaskSummary> { taskDisplayGroup(it) }
             .thenBy { it.order }
             .thenBy { it.id }
@@ -4965,7 +5115,7 @@ private fun getDisplayOrderedTasks(tasks: List<TaskSummary>): List<TaskSummary> 
 }
 
 private fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
-    return renumberTasks(tasks.sortedWith(
+    return renumberTasks(tasks.filter(::hasTaskContent).sortedWith(
         compareBy<TaskSummary> { taskDisplayGroup(it) }
             .thenBy { if (it.date.isBlank()) "9999-12-31" else it.date }
             .thenBy { it.order }
@@ -4980,14 +5130,15 @@ private fun renumberTasks(tasks: List<TaskSummary>): List<TaskSummary> {
 }
 
 private fun normalizeTasks(tasks: List<TaskSummary>, autoSort: Boolean): List<TaskSummary> {
-    return if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks)
+    return if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks.filter(::hasTaskContent))
 }
 
 private fun reconcileTasks(tasks: List<TaskSummary>, autoSort: Boolean): List<TaskSummary> {
+    val validTasks = tasks.filter(::hasTaskContent)
     return if (autoSort) {
-        getAutoSortedTasks(tasks)
+        getAutoSortedTasks(validTasks)
     } else {
-        renumberTasks(tasks.sortedBy(::taskDisplayGroup))
+        renumberTasks(validTasks.sortedBy(::taskDisplayGroup))
     }
 }
 
@@ -4998,6 +5149,10 @@ private fun buildTaskUpdateData(
 ): Map<String, Any> {
     val updates = mutableMapOf<String, Any>("updatedAt" to nowMillis())
     val previousById = previousTasks.associateBy { it.id }
+    val nextTaskIds = tasks.mapTo(mutableSetOf()) { it.id }
+    previousTasks.filterNot { it.id in nextTaskIds }.forEach { task ->
+        updates["tasks.${task.id}"] = FieldValue.delete()
+    }
     deletedTaskIds.forEach { taskId ->
         updates["tasks.$taskId"] = FieldValue.delete()
     }
@@ -5255,7 +5410,7 @@ private fun TaskListDetailContent(
             val nextId = ordered[currentIdx + 1].id
             val nextHeight = taskItemHeights[nextId] ?: currentHeight
             val threshold = currentHeight / 2 + taskSpacingPx + nextHeight / 2
-            if (taskDisplayGroup(ordered[currentIdx]) == taskDisplayGroup(ordered[currentIdx + 1]) && taskDragOffset > threshold) {
+            if (canReorderTasks(ordered[currentIdx], ordered[currentIdx + 1], autoSort) && taskDragOffset > threshold) {
                 ordered[currentIdx] = ordered[currentIdx + 1].also { ordered[currentIdx + 1] = ordered[currentIdx] }
                 dragOrderedTasks = ordered.toList()
                 taskDragOffset -= (nextHeight + taskSpacingPx)
@@ -5268,7 +5423,7 @@ private fun TaskListDetailContent(
             val prevId = ordered[currentIdx - 1].id
             val prevHeight = taskItemHeights[prevId] ?: currentHeight
             val threshold = prevHeight / 2 + taskSpacingPx + currentHeight / 2
-            if (taskDisplayGroup(ordered[currentIdx]) == taskDisplayGroup(ordered[currentIdx - 1]) && taskDragOffset < -threshold) {
+            if (canReorderTasks(ordered[currentIdx], ordered[currentIdx - 1], autoSort) && taskDragOffset < -threshold) {
                 ordered[currentIdx] = ordered[currentIdx - 1].also { ordered[currentIdx - 1] = ordered[currentIdx] }
                 dragOrderedTasks = ordered.toList()
                 taskDragOffset += (prevHeight + taskSpacingPx)
@@ -5278,18 +5433,24 @@ private fun TaskListDetailContent(
     }
 
     fun commitTaskOrder(ids: List<String>) {
+        val currentTasks = displayTasks
+        if (ids.size != currentTasks.size || ids.toSet().size != currentTasks.size) return
+        val currentTasksById = currentTasks.associateBy { it.id }
+        val orderedTasks = ids.mapNotNull(currentTasksById::get)
+        if (orderedTasks.size != currentTasks.size) return
         logTaskReorder()
-        val orderedTasks = ids.mapNotNull { id -> displayTasks.firstOrNull { it.id == id } }
         val normalizedTasks = renumberTasks(orderedTasks)
         setPendingTasks(normalizedTasks)
-        persistTaskListUpdate(buildTaskUpdateData(displayTasks, normalizedTasks))
+        persistTaskListUpdate(buildTaskUpdateData(currentTasks, normalizedTasks))
     }
 
     fun moveTaskBy(taskId: String, delta: Int): Boolean {
         val ordered = displayTasks.toMutableList()
         val index = ordered.indexOfFirst { it.id == taskId }
         val target = index + delta
-        if (index < 0 || target < 0 || target > ordered.lastIndex) return false
+        if (index < 0 || target < 0 || target > ordered.lastIndex ||
+            !canReorderTasks(ordered[index], ordered[target], autoSort)
+        ) return false
         val item = ordered.removeAt(index)
         ordered.add(target, item)
         commitTaskOrder(ordered.map { it.id })
@@ -5493,6 +5654,7 @@ private fun TaskListDetailContent(
         val trimmed = newTaskText.trim()
         if (trimmed.isEmpty()) return
         val parsed = resolveTaskInput(trimmed, t)
+        if (!hasTaskContent(parsed.text, parsed.date.orEmpty(), parsed.pinned)) return
         logTaskAdd(hasDate = !parsed.date.isNullOrEmpty())
         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
         newTaskText = ""
@@ -5911,8 +6073,12 @@ private fun TaskListDetailContent(
                         dragStartTaskIds = emptyList()
                         taskDragOffset = 0f
                     },
-                    onMoveUp = if (index > 0) ({ moveTaskBy(task.id, -1) }) else null,
-                    onMoveDown = if (index < displayTasks.lastIndex) ({ moveTaskBy(task.id, 1) }) else null,
+                    onMoveUp = if (
+                        index > 0 && canReorderTasks(task, displayTasks[index - 1], autoSort)
+                    ) ({ moveTaskBy(task.id, -1) }) else null,
+                    onMoveDown = if (
+                        index < displayTasks.lastIndex && canReorderTasks(task, displayTasks[index + 1], autoSort)
+                    ) ({ moveTaskBy(task.id, 1) }) else null,
                     onDrag = { change, dragAmount ->
                         change.consume()
                         taskDragOffset += dragAmount.y

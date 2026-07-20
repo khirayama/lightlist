@@ -264,6 +264,38 @@ body {
   }
 }
 
+.ll-calendar-task-row {
+  padding-block-end: 0.25rem;
+}
+
+.ll-calendar-task-meta {
+  display: flex;
+  min-height: 1.25rem;
+  padding-inline-start: 3rem;
+  align-items: center;
+}
+
+.ll-calendar-task-list-meta {
+  min-width: 3rem;
+  max-width: 8.25rem;
+  padding-inline-end: 0.5rem;
+}
+
+.ll-calendar-task-content {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) 3rem;
+  align-items: start;
+}
+
+.ll-calendar-task-check,
+.ll-calendar-task-edit {
+  padding-block-start: 0.5rem;
+}
+
+.ll-calendar-task-text {
+  padding-block-start: 0.375rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ll-task-row {
     transition: none !important;

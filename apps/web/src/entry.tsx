@@ -1200,7 +1200,10 @@ function normalizeTaskListStore(taskListData: TaskListStore): TaskListStore {
       isCompleteTaskStoreTask(taskId, task),
     ),
   );
-  if (Object.keys(normalizedTasks).length === Object.keys(taskListData.tasks).length) {
+  if (
+    Object.keys(normalizedTasks).length ===
+    Object.keys(taskListData.tasks).length
+  ) {
     return taskListData;
   }
   return { ...taskListData, tasks: normalizedTasks };
@@ -2503,7 +2506,9 @@ function getDisplayOrderedTasks(
     .filter(hasTaskContent)
     .sort((a, b) => {
       const groupDifference = getTaskDisplayGroup(a) - getTaskDisplayGroup(b);
-      return groupDifference || a.order - b.order || compareStringIds(a.id, b.id);
+      return (
+        groupDifference || a.order - b.order || compareStringIds(a.id, b.id)
+      );
     });
 }
 
@@ -4476,11 +4481,15 @@ const parseAppHashRoute = (hash: string): AppHashRoute => {
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-type AppHeaderProps = { backLabel: string; onBack: () => void };
+type AppHeaderProps = {
+  backLabel: string;
+  onBack: () => void;
+  title?: string;
+};
 
-function AppHeader({ backLabel, onBack }: AppHeaderProps) {
+function AppHeader({ backLabel, onBack, title }: AppHeaderProps) {
   return (
-    <header className="ll-flex ll-items-center ll-px-1 ll-py-1x5">
+    <header className="ll-relative ll-flex ll-items-center ll-px-1 ll-py-1x5">
       <button
         type="button"
         onClick={onBack}
@@ -4496,6 +4505,11 @@ function AppHeader({ backLabel, onBack }: AppHeaderProps) {
         />
         <span className="ll-sr-only">{backLabel}</span>
       </button>
+      {title ? (
+        <h1 className="ll-pointer-events-none ll-absolute ll-top-half ll-left-half ll-translate-x-neg-half ll-translate-y-neg-half ll-text-lg ll-font-semibold">
+          {title}
+        </h1>
+      ) : null}
     </header>
   );
 }
@@ -6680,83 +6694,83 @@ function CalendarTaskItem({
     <div
       ref={itemRef}
       className={clsx(
-        "ll-calendar-task-row ll-flex ll-items-center ll-gap-2 ll-border-b ll-border-gray-300 ll-px-4 ll-py-2x5 ll-last-border-b-0 ll-dark-border-gray-700",
+        "ll-calendar-task-row",
         isHighlighted && "ll-bg-gray-50 ll-dark-bg-gray-700",
       )}
     >
-      <div className="ll-relative ll-flex ll-items-center ll-justify-center">
-        <input
-          type="checkbox"
-          checked={task.task.completed}
-          onChange={onToggleComplete}
-          aria-label={`${t("pages.tasklist.markComplete")}: ${task.task.text}`}
-          className="ll-peer ll-absolute ll-inset-0 ll-z-10 ll-h-full ll-w-full ll-cursor-pointer ll-opacity-0"
-        />
-        <div className="ll-check-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-border-gray-300 ll-bg-transparent ll-transition-colors ll-peer-checked-border-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-border-gray-700 ll-dark-peer-checked-bg-gray-700" />
-      </div>
-      <div className="ll-flex ll-min-w-0 ll-flex-1 ll-flex-col ll-gap-1">
-        <div className="ll-flex ll-min-w-0 ll-items-center ll-justify-between ll-gap-2">
-          <span className="ll-flex ll-shrink-0b ll-items-center ll-gap-1 ll-text-gray-600 ll-dark-text-gray-300">
-            {task.task.pinned ? (
-              <AppIcon
-                name="push-pin"
-                size={14}
-                aria-hidden="true"
-                focusable="false"
-              />
-            ) : null}
-            {task.dateValue && dateDisplayValue ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (task.dateValue) onSelectDate(task.dateValue);
-                }}
-                className="ll-rounded-md ll-text-xs ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
-              >
-                {dateDisplayValue}
-              </button>
-            ) : (
-              <span className="ll-text-xs ll-text-gray-400 ll-dark-text-gray-500">
-                {t("pages.tasklist.noDate")}
-              </span>
-            )}
-          </span>
-          <button
-            type="button"
-            onClick={() => onOpenTaskList(task.taskListId)}
-            className="ll-inline-flex ll-min-w-0 ll-items-center ll-justify-end ll-gap-2 ll-rounded-md ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
-          >
-            <span
-              aria-hidden="true"
-              className="ll-h-4 ll-w-4 ll-shrink-0b ll-rounded-full ll-border ll-border-gray-300 ll-dark-border-gray-700"
-              style={{ backgroundColor: task.taskListBackground }}
-            />
-            <span className="ll-truncate ll-text-xs ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
-              {task.taskListName}
+      <div className="ll-calendar-task-meta">
+        <span className="ll-flex ll-min-w-0 ll-flex-1 ll-items-center ll-gap-1 ll-text-gray-600 ll-dark-text-gray-300">
+          {task.dateValue && dateDisplayValue ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (task.dateValue) onSelectDate(task.dateValue);
+              }}
+              className="ll-rounded-md ll-text-xs ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+            >
+              {dateDisplayValue}
+            </button>
+          ) : (
+            <span className="ll-text-xs ll-text-gray-400 ll-dark-text-gray-500">
+              {t("pages.tasklist.noDate")}
             </span>
-          </button>
+          )}
+          {task.task.pinned ? (
+            <AppIcon
+              name="push-pin"
+              size={14}
+              aria-hidden="true"
+              focusable="false"
+            />
+          ) : null}
+        </span>
+        <button
+          type="button"
+          onClick={() => onOpenTaskList(task.taskListId)}
+          className="ll-calendar-task-list-meta ll-inline-flex ll-min-w-0 ll-items-center ll-justify-end ll-gap-2 ll-rounded-md ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
+        >
+          <span
+            aria-hidden="true"
+            className="ll-h-4 ll-w-4 ll-shrink-0b ll-rounded-full ll-border ll-border-gray-300 ll-dark-border-gray-700"
+            style={{ backgroundColor: task.taskListBackground }}
+          />
+          <span className="ll-min-w-0 ll-truncate ll-text-xs ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
+            {task.taskListName}
+          </span>
+        </button>
+      </div>
+      <div className="ll-calendar-task-content">
+        <div className="ll-calendar-task-check ll-relative ll-flex ll-h-12 ll-w-12 ll-justify-center">
+          <input
+            type="checkbox"
+            checked={task.task.completed}
+            onChange={onToggleComplete}
+            aria-label={`${t("pages.tasklist.markComplete")}: ${task.task.text}`}
+            className="ll-peer ll-absolute ll-inset-0 ll-z-10 ll-h-full ll-w-full ll-cursor-pointer ll-opacity-0"
+          />
+          <div className="ll-check-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-border-gray-300 ll-bg-transparent ll-transition-colors ll-peer-checked-border-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-border-gray-700 ll-dark-peer-checked-bg-gray-700" />
         </div>
         <button
           type="button"
           onClick={() => {
             if (task.dateValue) onSelectDate(task.dateValue);
           }}
-          className="ll-task-text-wrap ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
+          className="ll-calendar-task-text ll-task-text-wrap ll-flex ll-min-h-12 ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
         >
           {task.task.text}
         </button>
+        <button
+          type="button"
+          aria-label={t("a11y.editTask")}
+          title={t("a11y.editTask")}
+          onClick={onOpenActions}
+          className="ll-calendar-task-edit ll-pressable ll-flex ll-h-12 ll-w-12 ll-justify-center ll-rounded-lg ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
+        >
+          <span className="ll-relative ll-inline-flex">
+            <AppIcon name="edit" aria-hidden="true" focusable="false" />
+          </span>
+        </button>
       </div>
-      <button
-        type="button"
-        aria-label={t("a11y.editTask")}
-        title={t("a11y.editTask")}
-        onClick={onOpenActions}
-        className="ll-pressable ll-flex ll-items-center ll-rounded-lg ll-p-1 ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
-      >
-        <span className="ll-relative ll-inline-flex">
-          <AppIcon name="edit" aria-hidden="true" focusable="false" />
-        </span>
-      </button>
     </div>
   );
 }
@@ -7215,7 +7229,7 @@ function CalendarScreen({
   return (
     <section className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
       <div className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-px-4 ll-pt-1 ll-pb-2">
-        {showCompactHeaderOffset ? <div className="ll-h-88px" /> : null}
+        {showCompactHeaderOffset ? <div className="ll-h-14" /> : null}
         <div
           className={clsx(
             "ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-pb-2",
@@ -7280,7 +7294,7 @@ function CalendarScreen({
               </button>
             ) : null}
           </div>
-          <div className="ll-min-h-0 ll-overflow-y-auto ll-rounded-xl ll-bg-white-b ll-dark-bg-gray-900b ll-lg-h-full">
+          <div className="ll-min-h-0 ll-overflow-y-auto ll-lg-h-full">
             {updateError ? (
               <div className="ll-p-4">
                 <Alert variant="error">{updateError}</Alert>
@@ -7335,7 +7349,9 @@ function CalendarScreen({
                 ? (defaultTaskListId ?? taskLists[0]?.id ?? "")
                 : taskSheet.task.taskListId
             }
-            initialText={taskSheet.mode === "add" ? "" : taskSheet.task.task.text}
+            initialText={
+              taskSheet.mode === "add" ? "" : taskSheet.task.task.text
+            }
             initialPinned={
               taskSheet.mode === "add" ? false : taskSheet.task.task.pinned
             }
@@ -8359,6 +8375,7 @@ function AppShellPage() {
                     <AppHeader
                       backLabel={t("common.back")}
                       onBack={handleBackToTaskLists}
+                      title={t("app.calendar")}
                     />
                   </div>
                   {detailContent}

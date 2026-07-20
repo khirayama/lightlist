@@ -374,8 +374,21 @@ private func taskDisplayGroup(_ task: TaskSummary) -> Int {
     return task.pinned ? 0 : 1
 }
 
+private func hasTaskContent(text: String, date: String, pinned: Bool) -> Bool {
+    !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !date.isEmpty || pinned
+}
+
+private func hasTaskContent(_ task: TaskSummary) -> Bool {
+    hasTaskContent(text: task.text, date: task.date, pinned: task.pinned)
+}
+
+private func canReorderTasks(_ first: TaskSummary, _ second: TaskSummary, autoSort: Bool) -> Bool {
+    taskDisplayGroup(first) == taskDisplayGroup(second)
+        && (!autoSort || first.date == second.date)
+}
+
 private func getDisplayOrderedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
-    tasks.sorted { lhs, rhs in
+    tasks.filter(hasTaskContent).sorted { lhs, rhs in
         let lhsGroup = taskDisplayGroup(lhs)
         let rhsGroup = taskDisplayGroup(rhs)
         if lhsGroup != rhsGroup { return lhsGroup < rhsGroup }
@@ -384,7 +397,7 @@ private func getDisplayOrderedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
 }
 
 private func getAutoSortedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
-    renumberTasks(tasks.sorted { lhs, rhs in
+    renumberTasks(tasks.filter(hasTaskContent).sorted { lhs, rhs in
         let lhsGroup = taskDisplayGroup(lhs)
         let rhsGroup = taskDisplayGroup(rhs)
         if lhsGroup != rhsGroup { return lhsGroup < rhsGroup }
@@ -402,12 +415,13 @@ private func renumberTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
 }
 
 private func normalizeTasks(_ tasks: [TaskSummary], autoSort: Bool) -> [TaskSummary] {
-    autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks)
+    autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks.filter(hasTaskContent))
 }
 
 private func reconcileTasks(_ tasks: [TaskSummary], autoSort: Bool) -> [TaskSummary] {
-    if autoSort { return getAutoSortedTasks(tasks) }
-    let displayOrdered = tasks.enumerated().sorted { lhs, rhs in
+    let validTasks = tasks.filter(hasTaskContent)
+    if autoSort { return getAutoSortedTasks(validTasks) }
+    let displayOrdered = validTasks.enumerated().sorted { lhs, rhs in
         let groupDifference = taskDisplayGroup(lhs.element) - taskDisplayGroup(rhs.element)
         return groupDifference == 0 ? lhs.offset < rhs.offset : groupDifference < 0
     }.map { $0.element }
@@ -421,6 +435,10 @@ private func buildTaskUpdateData(
 ) -> [String: Any] {
     var updates: [String: Any] = ["updatedAt": nowMillis()]
     let previousById = Dictionary(uniqueKeysWithValues: previousTasks.map { ($0.id, $0) })
+    let nextTaskIds = Set(tasks.map(\.id))
+    for task in previousTasks where !nextTaskIds.contains(task.id) {
+        updates["tasks.\(task.id)"] = FieldValue.delete()
+    }
     for taskId in deletedTaskIds {
         updates["tasks.\(taskId)"] = FieldValue.delete()
     }
@@ -616,7 +634,8 @@ private struct CalendarTask: Identifiable {
     let text: String
     let completed: Bool
     let date: String
-    let dateValue: Date
+    let dateValue: Date?
+    let pinned: Bool
     let taskListIndex: Int
     let taskIndex: Int
 }
@@ -674,8 +693,62 @@ private func removeListeners(_ listeners: inout [ListenerRegistration]) {
     listeners = []
 }
 
+private func isCompleteTaskData(taskId: String, value: Any) -> Bool {
+    guard let task = value as? [String: Any],
+          task["id"] as? String == taskId,
+          task["text"] is String,
+          task["completed"] is Bool,
+          task["date"] is String,
+          let order = task["order"] as? NSNumber,
+          order.doubleValue.isFinite,
+          task["pinned"] is Bool else { return false }
+    return true
+}
+
+private func malformedTaskIds(from data: [String: Any]) -> [String] {
+    let tasks = data["tasks"] as? [String: Any] ?? [:]
+    return tasks.compactMap { taskId, value in
+        isCompleteTaskData(taskId: taskId, value: value) ? nil : taskId
+    }.sorted()
+}
+
+@MainActor private var malformedTaskCleanupKeys: Set<String> = []
+
+@MainActor
+private func scheduleMalformedTaskCleanup(
+    taskListId: String,
+    data: [String: Any],
+    isFromCache: Bool,
+    hasPendingWrites: Bool
+) {
+    guard !isFromCache, !hasPendingWrites else { return }
+    let taskIds = malformedTaskIds(from: data)
+    guard !taskIds.isEmpty else { return }
+    let cleanupKey = "\(taskListId):\(taskIds.joined(separator: "|"))"
+    guard malformedTaskCleanupKeys.insert(cleanupKey).inserted else { return }
+    var updates: [String: Any] = ["updatedAt": nowMillis()]
+    taskIds.forEach { updates["tasks.\($0)"] = FieldValue.delete() }
+    let updateData = FirestoreUpdateData(value: updates)
+    TaskListMutationQueues.queue(for: taskListId).enqueue({
+        try await Firestore.firestore().collection("taskLists").document(taskListId).updateData(updateData.value)
+    }, onError: {
+        malformedTaskCleanupKeys.remove(cleanupKey)
+    }, onIdle: {
+        malformedTaskCleanupKeys.remove(cleanupKey)
+    })
+}
+
 private func mapTaskListSummary(id: String, data: [String: Any]) -> TaskListSummary {
     let tasks = data["tasks"] as? [String: Any] ?? [:]
+    let taskCount = tasks.filter { entry in
+        guard isCompleteTaskData(taskId: entry.key, value: entry.value),
+              let value = entry.value as? [String: Any] else { return false }
+        return hasTaskContent(
+            text: value["text"] as? String ?? "",
+            date: value["date"] as? String ?? "",
+            pinned: value["pinned"] as? Bool ?? false
+        )
+    }.count
     let memberCount = (data["memberCount"] as? NSNumber)?.intValue ?? 1
     let name = (data["name"] as? String ?? "").precomposedStringWithCanonicalMapping
     let background = data["background"] as? String
@@ -683,7 +756,7 @@ private func mapTaskListSummary(id: String, data: [String: Any]) -> TaskListSumm
     return TaskListSummary(
         id: id,
         name: name,
-        taskCount: tasks.count,
+        taskCount: taskCount,
         memberCount: memberCount,
         background: background
     )
@@ -703,6 +776,7 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
         guard let value = entry.value as? [String: Any] else {
             return nil
         }
+        guard isCompleteTaskData(taskId: taskId, value: value) else { return nil }
 
         return TaskSummary(
             id: taskId,
@@ -713,6 +787,7 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
             pinned: value["pinned"] as? Bool ?? false
         )
     }
+    .filter(hasTaskContent)
     .sorted {
         if $0.order == $1.order {
             return $0.id < $1.id
@@ -824,7 +899,7 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
         taskListIdChunks(taskListIds).forEach { chunk in
             let listener = db.collection("taskLists")
                 .whereField(FieldPath.documentID(), in: chunk)
-                .addSnapshotListener { [weak self] snapshot, error in
+                .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
                     guard let self else {
                         return
                     }
@@ -838,6 +913,12 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
                         self.taskListsById.removeValue(forKey: taskListId)
                     }
                     snapshot?.documents.forEach { document in
+                        scheduleMalformedTaskCleanup(
+                            taskListId: document.documentID,
+                            data: document.data(),
+                            isFromCache: document.metadata.isFromCache,
+                            hasPendingWrites: document.metadata.hasPendingWrites
+                        )
                         self.taskListsById[document.documentID] = self.mapper(
                             document.documentID,
                             document.data()
@@ -876,11 +957,10 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
                 let taskList = taskListEntry.element
                 return taskList.tasks
                     .enumerated()
-                    .filter { !$0.element.completed && !$0.element.date.isEmpty }
-                    .compactMap { taskEntry -> CalendarTask? in
+                    .filter { !$0.element.completed }
+                    .map { taskEntry -> CalendarTask in
                         let taskIndex = taskEntry.offset
                         let task = taskEntry.element
-                        guard let dateValue = isoDateFormatter.date(from: task.date) else { return nil }
                         return CalendarTask(
                             taskListId: taskList.id,
                             taskListName: taskList.name,
@@ -889,7 +969,8 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
                             text: task.text,
                             completed: task.completed,
                             date: task.date,
-                            dateValue: dateValue,
+                            dateValue: task.date.isEmpty ? nil : isoDateFormatter.date(from: task.date),
+                            pinned: task.pinned,
                             taskListIndex: taskListIndex,
                             taskIndex: taskIndex
                         )
@@ -898,7 +979,10 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         let loadedIds = Set(loadedTasks.map(\.id))
         return (loadedTasks + optimisticCalendarTasks.filter { !loadedIds.contains($0.id) })
             .sorted {
-                if $0.dateValue != $1.dateValue { return $0.dateValue < $1.dateValue }
+                if $0.pinned != $1.pinned { return $0.pinned && !$1.pinned }
+                let leftDate = $0.date.isEmpty ? "9999-12-31" : $0.date
+                let rightDate = $1.date.isEmpty ? "9999-12-31" : $1.date
+                if leftDate != rightDate { return leftDate < rightDate }
                 if $0.taskListIndex != $1.taskListIndex { return $0.taskListIndex < $1.taskListIndex }
                 return $0.taskIndex < $1.taskIndex
             }
@@ -914,19 +998,20 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
     func addTask(
         taskListId: String,
         rawText: String,
-        date: Date,
+        dateStr: String,
+        pinned: Bool,
         taskInsertPosition: String,
         autoSort: Bool,
         translations: Translations
     ) {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty,
+        guard hasTaskContent(text: trimmed, date: dateStr, pinned: pinned),
               let taskListIndex = taskLists.firstIndex(where: { $0.id == taskListId }) else { return }
 
         let taskList = taskLists[taskListIndex]
         let parsed = resolveTaskInput(trimmed, translations: translations)
+        guard hasTaskContent(text: parsed.text, date: dateStr, pinned: pinned) else { return }
         let taskId = UUID().uuidString
-        let dateKey = isoDateFormatter.string(from: date)
         let orderedTasks = taskList.tasks.sorted {
             $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order
         }
@@ -937,9 +1022,9 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             id: taskId,
             text: parsed.text,
             completed: false,
-            date: dateKey,
+            date: dateStr,
             order: nextOrder,
-            pinned: parsed.pinned
+            pinned: pinned
         )
         let insertedTasks = taskInsertPosition == "bottom"
             ? orderedTasks + [insertedTask]
@@ -954,8 +1039,9 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             taskId: taskId,
             text: parsed.text,
             completed: false,
-            date: dateKey,
-            dateValue: date,
+            date: dateStr,
+            dateValue: dateStr.isEmpty ? nil : isoDateFormatter.date(from: dateStr),
+            pinned: pinned,
             taskListIndex: taskListIndex,
             taskIndex: insertedIndex
         ))
@@ -974,52 +1060,118 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             self?.optimisticCalendarTasks.removeAll { $0.taskId == taskId }
             self?.addTaskError = translations.t("common.error")
         })
-        logTaskAdd(hasDate: true)
+        logTaskAdd(hasDate: !dateStr.isEmpty)
     }
 
-    func completeTask(_ task: CalendarTask, autoSort: Bool, translations: Translations) {
-        logTaskUpdate(fields: "completed")
-        mutateTask(taskListId: task.taskListId, taskId: task.taskId, autoSort: autoSort, translations: translations) { current, _ in
-            (current.updating(completed: true), [:])
-        }
-    }
-
-    func updateTaskText(_ task: CalendarTask, rawText: String, autoSort: Bool, translations: Translations) {
+    func saveTask(
+        _ task: CalendarTask,
+        taskListId: String,
+        rawText: String,
+        pinned: Bool,
+        dateStr: String,
+        taskInsertPosition: String,
+        autoSort: Bool,
+        translations: Translations
+    ) {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard hasTaskContent(text: trimmed, date: dateStr, pinned: pinned) else { return }
+        if taskListId != task.taskListId {
+            moveTask(
+                task,
+                toTaskListId: taskListId,
+                rawText: trimmed,
+                pinned: pinned,
+                dateStr: dateStr,
+                taskInsertPosition: taskInsertPosition,
+                autoSort: autoSort,
+                translations: translations
+            )
+            return
+        }
+        logTaskUpdate(fields: "text,date,pinned")
         mutateTask(taskListId: task.taskListId, taskId: task.taskId, autoSort: autoSort, translations: translations) { current, taskList in
-            let resolved = resolveTaskInput(rawText, translations: translations, currentTask: current)
-            let textChanged = resolved.text != current.text
-            let dateChanged = (resolved.date ?? current.date) != current.date
-            let pinnedChanged = resolved.pinnedChanged
-            guard textChanged || dateChanged || pinnedChanged else { return nil }
-            let changedFields = [textChanged ? "text" : nil, dateChanged ? "date" : nil, pinnedChanged ? "pinned" : nil]
-                .compactMap { $0 }
-                .joined(separator: ",")
-            logTaskUpdate(fields: changedFields)
+            let resolved = resolveTaskInput(trimmed, translations: translations, currentTask: current)
+            let nextText = trimmed.isEmpty ? "" : resolved.text
             var additionalUpdates: [String: Any] = [:]
-            if textChanged {
+            if nextText != current.text {
                 additionalUpdates["history"] = buildHistory(
-                    newText: resolved.text,
+                    newText: nextText,
                     history: taskList.history,
                     oldText: current.text
                 )
             }
             return (
                 current.updating(
-                    text: resolved.text,
-                    date: resolved.date,
-                    pinned: pinnedChanged ? true : nil
+                    text: nextText,
+                    date: dateStr,
+                    pinned: pinned
                 ),
                 additionalUpdates
             )
         }
     }
 
-    func updateTaskDate(_ task: CalendarTask, dateStr: String, autoSort: Bool, translations: Translations) {
-        logTaskUpdate(fields: "date")
+    private func moveTask(
+        _ task: CalendarTask,
+        toTaskListId targetTaskListId: String,
+        rawText: String,
+        pinned: Bool,
+        dateStr: String,
+        taskInsertPosition: String,
+        autoSort: Bool,
+        translations: Translations
+    ) {
+        guard let sourceTaskList = taskLists.first(where: { $0.id == task.taskListId }),
+              let currentTask = sourceTaskList.tasks.first(where: { $0.id == task.taskId }),
+              let targetTaskList = taskLists.first(where: { $0.id == targetTaskListId }) else { return }
+        let resolved = resolveTaskInput(rawText, translations: translations, currentTask: currentTask)
+        let nextText = rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : resolved.text
+        let orderedTargetTasks = targetTaskList.tasks.sorted {
+            $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order
+        }
+        let nextOrder = taskInsertPosition == "bottom"
+            ? (orderedTargetTasks.last?.order ?? 0) + 1
+            : (orderedTargetTasks.first?.order ?? 1) - 1
+        let movedTask = TaskSummary(
+            id: task.taskId,
+            text: nextText,
+            completed: currentTask.completed,
+            date: dateStr,
+            order: nextOrder,
+            pinned: pinned
+        )
+        let insertedTasks = taskInsertPosition == "bottom"
+            ? orderedTargetTasks + [movedTask]
+            : [movedTask] + orderedTargetTasks
+        let nextTargetTasks = reconcileTasks(insertedTasks, autoSort: autoSort)
+        var targetUpdates = buildTaskUpdateData(previousTasks: orderedTargetTasks, tasks: nextTargetTasks)
+        targetUpdates["history"] = buildHistory(
+            newText: nextText,
+            history: targetTaskList.history,
+            normalizeWhenEmpty: true
+        )
+        let sourceUpdates: [String: Any] = [
+            "tasks.\(task.taskId)": FieldValue.delete(),
+            "updatedAt": nowMillis(),
+        ]
+        let sourceData = FirestoreUpdateData(value: sourceUpdates)
+        let targetData = FirestoreUpdateData(value: targetUpdates)
+        let sourceTaskListId = task.taskListId
+        logTaskUpdate(fields: "text,date,pinned,taskList")
+        TaskListMutationQueues.queue(for: sourceTaskListId).enqueue({ [db] in
+            let batch = db.batch()
+            batch.updateData(sourceData.value, forDocument: db.collection("taskLists").document(sourceTaskListId))
+            batch.updateData(targetData.value, forDocument: db.collection("taskLists").document(targetTaskListId))
+            try await batch.commit()
+        }, onError: { [weak self] in
+            self?.addTaskError = translations.t("common.error")
+        })
+    }
+
+    func completeTask(_ task: CalendarTask, autoSort: Bool, translations: Translations) {
+        logTaskUpdate(fields: "completed")
         mutateTask(taskListId: task.taskListId, taskId: task.taskId, autoSort: autoSort, translations: translations) { current, _ in
-            (current.updating(date: dateStr), [:])
+            (current.updating(completed: true), [:])
         }
     }
 
@@ -3426,7 +3578,7 @@ private struct TaskListDetailPage: View {
             let nextId = ordered[currentIdx + 1].id
             let nextHeight = taskItemHeights[nextId] ?? currentHeight
             let threshold = currentHeight / 2 + spacing + nextHeight / 2
-            if taskDisplayGroup(ordered[currentIdx]) == taskDisplayGroup(ordered[currentIdx + 1]),
+            if canReorderTasks(ordered[currentIdx], ordered[currentIdx + 1], autoSort: autoSort),
                taskDragOffset > threshold {
                 ordered.swapAt(currentIdx, currentIdx + 1)
                 dragOrderedTasks = ordered
@@ -3440,7 +3592,7 @@ private struct TaskListDetailPage: View {
             let prevId = ordered[currentIdx - 1].id
             let prevHeight = taskItemHeights[prevId] ?? currentHeight
             let threshold = prevHeight / 2 + spacing + currentHeight / 2
-            if taskDisplayGroup(ordered[currentIdx]) == taskDisplayGroup(ordered[currentIdx - 1]),
+            if canReorderTasks(ordered[currentIdx], ordered[currentIdx - 1], autoSort: autoSort),
                taskDragOffset < -threshold {
                 ordered.swapAt(currentIdx - 1, currentIdx)
                 dragOrderedTasks = ordered
@@ -3680,10 +3832,14 @@ private struct TaskListDetailPage: View {
                 .contentShape(Rectangle())
                 .accessibilityLabel(translations.t("app.dragHint"))
                 .accessibilityActions {
-                    if displayTasks.first?.id != task.id {
+                    if let index = displayTasks.firstIndex(where: { $0.id == task.id }),
+                       index > 0,
+                       canReorderTasks(task, displayTasks[index - 1], autoSort: autoSort) {
                         Button(translations.t("a11y.moveUp")) { moveTask(task, by: -1) }
                     }
-                    if displayTasks.last?.id != task.id {
+                    if let index = displayTasks.firstIndex(where: { $0.id == task.id }),
+                       index + 1 < displayTasks.count,
+                       canReorderTasks(task, displayTasks[index + 1], autoSort: autoSort) {
                         Button(translations.t("a11y.moveDown")) { moveTask(task, by: 1) }
                     }
                 }
@@ -4321,6 +4477,7 @@ private struct TaskListDetailPage: View {
         let trimmed = newTaskText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         let parsed = resolveTaskInput(trimmed, translations: translations)
+        guard hasTaskContent(text: parsed.text, date: parsed.date ?? "", pinned: parsed.pinned) else { return }
         logTaskAdd(hasDate: !(parsed.date ?? "").isEmpty)
         triggerLightImpact()
         newTaskText = ""
@@ -4395,17 +4552,24 @@ private struct TaskListDetailPage: View {
         var ordered = displayTasks
         guard let index = ordered.firstIndex(where: { $0.id == task.id }) else { return }
         let target = index + delta
-        guard target >= 0 && target < ordered.count else { return }
+        guard target >= 0,
+              target < ordered.count,
+              canReorderTasks(task, ordered[target], autoSort: autoSort) else { return }
         ordered.swapAt(index, target)
         persistTaskOrder(ordered.map(\.id))
     }
 
     private func persistTaskOrder(_ ids: [String]) {
+        let currentTasks = displayTasks
+        guard ids.count == currentTasks.count,
+              Set(ids).count == currentTasks.count else { return }
+        let currentTasksById = Dictionary(uniqueKeysWithValues: currentTasks.map { ($0.id, $0) })
+        let orderedTasks = ids.compactMap { currentTasksById[$0] }
+        guard orderedTasks.count == currentTasks.count else { return }
         logTaskReorder()
-        let orderedTasks = ids.compactMap { id in displayTasks.first(where: { $0.id == id }) }
         let normalizedTasks = renumberTasks(orderedTasks)
         setPendingTasks(normalizedTasks)
-        updateTaskList(buildTaskUpdateData(previousTasks: displayTasks, tasks: normalizedTasks))
+        updateTaskList(buildTaskUpdateData(previousTasks: currentTasks, tasks: normalizedTasks))
     }
 
     private func generateShareCode(taskListId: String) async throws -> String {
@@ -5357,7 +5521,8 @@ private struct CalendarTaskRow: View {
 
     @MainActor private static var formatters: [String: DateFormatter] = [:]
 
-    private var dateLabel: String {
+    private var dateLabel: String? {
+        guard let dateValue = task.dateValue else { return nil }
         let identifier = localeIdentifier(for: translations.language)
         let formatter: DateFormatter
         if let cached = Self.formatters[identifier] {
@@ -5371,53 +5536,78 @@ private struct CalendarTaskRow: View {
             Self.formatters[identifier] = f
             formatter = f
         }
-        return formatter.string(from: task.dateValue)
+        return formatter.string(from: dateValue)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 8) {
+            HStack(alignment: .center, spacing: 0) {
+                HStack(spacing: 8) {
+                    if let dateLabel {
+                        Button {
+                            triggerSelectionFeedback()
+                            onSelectDate()
+                        } label: {
+                            Text(dateLabel)
+                                .font(AppTypography.caption())
+                                .foregroundStyle(AppPalette.mutedText)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(translations.t("pages.tasklist.noDate"))
+                            .font(AppTypography.caption())
+                            .foregroundStyle(AppPalette.mutedText.opacity(0.6))
+                    }
+
+                    if task.pinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(AppPalette.mutedText)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
+
+                Button(action: onOpenTaskList) {
+                    HStack(spacing: 6) {
+                        if let background = task.taskListBackground, let color = Color(hex: background) {
+                            Circle()
+                                .fill(color)
+                                .frame(width: 16, height: 16)
+                        } else {
+                            Circle()
+                                .stroke(Color(.separator), lineWidth: 1)
+                                .frame(width: 16, height: 16)
+                        }
+                        Text(task.taskListName)
+                            .font(AppTypography.captionSemibold())
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(task.taskListName)
+                .frame(minWidth: 48, maxWidth: 132, minHeight: 20, alignment: .trailing)
+                .padding(.trailing, 8)
+            }
+            .padding(.leading, TaskListDetailMetrics.completionTouchWidth + 8)
+
+            HStack(alignment: .center, spacing: 0) {
                 Button {
                     triggerLightImpact()
                     onToggleComplete()
                 } label: {
-                    Circle()
-                        .stroke(Color.secondary.opacity(0.35), lineWidth: 1.5)
-                        .frame(width: TaskListDetailMetrics.completionDotSize, height: TaskListDetailMetrics.completionDotSize)
+                    VStack(spacing: 0) {
+                        Circle()
+                            .stroke(Color.secondary.opacity(0.35), lineWidth: 1.5)
+                            .frame(width: TaskListDetailMetrics.completionDotSize, height: TaskListDetailMetrics.completionDotSize)
+                        Spacer(minLength: 0)
+                    }
+                        .padding(.top, 6)
                         .frame(width: TaskListDetailMetrics.completionTouchWidth, height: TaskListDetailMetrics.completionTouchHeight)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(translations.t("pages.tasklist.markComplete"))
-
-                VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Button {
-                        triggerSelectionFeedback()
-                        onSelectDate()
-                    } label: {
-                        Text(dateLabel)
-                            .font(AppTypography.caption())
-                            .foregroundStyle(AppPalette.mutedText)
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer(minLength: 8)
-
-                    Button(action: onOpenTaskList) {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(task.taskListBackground.flatMap { Color(hex: $0) } ?? Color(.separator))
-                                .frame(width: 16, height: 16)
-                            Text(task.taskListName)
-                                .font(AppTypography.captionSemibold())
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(task.taskListName)
-                }
 
                 Button {
                     triggerSelectionFeedback()
@@ -5426,31 +5616,34 @@ private struct CalendarTaskRow: View {
                     Text(task.text)
                         .font(AppTypography.body())
                         .foregroundStyle(.primary)
+                        .padding(.leading, 8)
+                        .padding(.top, 6)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.plain)
-                }
+                .frame(maxWidth: .infinity, minHeight: TaskListDetailMetrics.completionTouchHeight, alignment: .topLeading)
 
                 Button(action: onOpenActions) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: TaskListDetailMetrics.trailingDateIconSize, weight: .medium))
-                        .foregroundStyle(Color.secondary)
+                    VStack(spacing: 0) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: TaskListDetailMetrics.trailingDateIconSize, weight: .medium))
+                            .foregroundStyle(Color.secondary)
+                        Spacer(minLength: 0)
+                    }
+                        .padding(.top, 6)
                         .frame(width: TaskListDetailMetrics.trailingDateButtonWidth, height: TaskListDetailMetrics.trailingDateButtonHeight)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(translations.t("a11y.editTask"))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(isHighlighted ? AppPalette.rowHighlight : Color.clear)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: isHighlighted)
-
-            Divider().padding(.leading, 16)
         }
+        .padding(.bottom, 4)
+        .background(isHighlighted ? AppPalette.rowHighlight : Color.clear)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: isHighlighted)
     }
 }
 
@@ -5463,40 +5656,61 @@ private func calendarAddDateLabel(_ date: Date, language: String) -> String {
     return formatter.string(from: date)
 }
 
-private struct CalendarTaskAddSheet: View {
+private struct CalendarTaskSheet: View {
+    enum Mode {
+        case add
+        case edit
+    }
+
     @EnvironmentObject var translations: Translations
     @Environment(\.dismiss) private var dismiss
+    let mode: Mode
     let taskLists: [TaskListDetail]
-    let date: Date
-    let onAdd: (String, String) -> Void
+    let onSubmit: (_ taskListId: String, _ text: String, _ pinned: Bool, _ dateStr: String) -> Void
     @State private var taskListId: String
-    @State private var text = ""
+    @State private var text: String
+    @State private var pinned: Bool
+    @State private var selectedDate: Date?
     @FocusState private var isTextFieldFocused: Bool
 
-    init(taskLists: [TaskListDetail], defaultTaskListId: String?, date: Date, onAdd: @escaping (String, String) -> Void) {
+    init(
+        mode: Mode,
+        taskLists: [TaskListDetail],
+        initialTaskListId: String?,
+        initialText: String,
+        initialPinned: Bool,
+        initialDate: Date?,
+        onSubmit: @escaping (_ taskListId: String, _ text: String, _ pinned: Bool, _ dateStr: String) -> Void
+    ) {
+        self.mode = mode
         self.taskLists = taskLists
-        self.date = date
-        self.onAdd = onAdd
-        _taskListId = State(initialValue: defaultTaskListId.flatMap { id in
+        self.onSubmit = onSubmit
+        _taskListId = State(initialValue: initialTaskListId.flatMap { id in
             taskLists.contains(where: { $0.id == id }) ? id : nil
         } ?? taskLists.first?.id ?? "")
+        _text = State(initialValue: initialText)
+        _pinned = State(initialValue: initialPinned)
+        _selectedDate = State(initialValue: initialDate)
+    }
+
+    private var title: String {
+        translations.t(mode == .add ? "a11y.addTask" : "a11y.editTask")
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                Text(calendarAddDateLabel(date, language: translations.language))
-                    .font(AppTypography.subheadline().weight(.semibold))
-                Spacer()
-                Button(translations.t("common.close")) { dismiss() }
-                    .font(AppTypography.subheadline().weight(.semibold))
-                    .foregroundStyle(AppPalette.mutedText)
-                    .frame(minHeight: 44)
-            }
-
+        VStack(spacing: 12) {
+        ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text(translations.t("app.drawerTitle"))
-                    .font(AppTypography.subheadline().weight(.semibold))
+                HStack(spacing: 12) {
+                    Text(title)
+                        .font(AppTypography.subheadline().weight(.semibold))
+                        .lineLimit(1)
+                    Spacer()
+                    Button(translations.t("common.close")) { dismiss() }
+                        .font(AppTypography.subheadline().weight(.semibold))
+                        .foregroundStyle(AppPalette.mutedText)
+                        .frame(minHeight: 44)
+                }
 
                 Menu {
                     Picker(translations.t("app.drawerTitle"), selection: $taskListId) {
@@ -5527,7 +5741,7 @@ private struct CalendarTaskAddSheet: View {
                 TextField(translations.t("pages.tasklist.addTaskPlaceholder"), text: $text)
                     .focused($isTextFieldFocused)
                     .submitLabel(.done)
-                    .onSubmit(add)
+                    .onSubmit(submit)
                     .padding(.horizontal, 14)
                     .frame(minHeight: 48)
                     .background(AppPalette.pageBackground)
@@ -5537,103 +5751,41 @@ private struct CalendarTaskAddSheet: View {
                             .stroke(Color(.separator), lineWidth: 1)
                     }
 
-                Button(action: add) {
-                    Text(translations.t("a11y.addTask"))
-                        .font(AppTypography.subheadline().weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle(radius: 12))
-                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || taskListId.isEmpty)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 24)
-        .background(AppPalette.cardSurface.ignoresSafeArea())
-        .onAppear { isTextFieldFocused = true }
-        .presentationDetents([.medium, .large])
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(translations.t("a11y.addTask"))
-    }
-
-    private func add() {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !taskListId.isEmpty else { return }
-        onAdd(taskListId, trimmed)
-        dismiss()
-    }
-}
-
-private struct CalendarTaskEditSheet: View {
-    @EnvironmentObject var translations: Translations
-    @Environment(\.dismiss) private var dismiss
-    let task: CalendarTask
-    let onSaveText: (String) -> Void
-    let onSetDate: (String) -> Void
-    @State private var text: String
-
-    init(task: CalendarTask, onSaveText: @escaping (String) -> Void, onSetDate: @escaping (String) -> Void) {
-        self.task = task
-        self.onSaveText = onSaveText
-        self.onSetDate = onSetDate
-        _text = State(initialValue: task.text)
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
-                    Text(task.taskListName)
-                        .font(AppTypography.subheadline().weight(.semibold))
-                        .lineLimit(1)
-                    Spacer()
-                    Button(translations.t("common.close")) { dismiss() }
-                        .font(AppTypography.subheadline().weight(.semibold))
-                        .foregroundStyle(AppPalette.mutedText)
-                        .frame(minHeight: 44)
-                }
-
-                HStack(spacing: 8) {
-                    TextField(translations.t("a11y.editTask"), text: $text)
-                        .submitLabel(.done)
-                        .onSubmit(save)
-                        .padding(.horizontal, 14)
-                        .frame(minHeight: 48)
-                        .background(AppPalette.pageBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: TaskListDetailMetrics.inputCornerRadius, style: .continuous)
-                                .stroke(Color(.separator), lineWidth: 1)
-                        }
-
-                    Button(action: save) {
-                        Text(translations.t("taskList.save"))
-                            .font(AppTypography.subheadline().weight(.semibold))
-                            .frame(minHeight: 44)
+                    Button(translations.t("pages.tasklist.clearDate")) {
+                        selectedDate = nil
                     }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.roundedRectangle(radius: 12))
-                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+                    .disabled(selectedDate == nil)
+                    .foregroundStyle(AppPalette.mutedText)
+                    .frame(minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
 
-                Button(translations.t("pages.tasklist.clearDate")) {
-                    onSetDate("")
-                    dismiss()
+                    Spacer(minLength: 8)
+
+                    Button {
+                        pinned.toggle()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Label(
+                                translations.t(pinned ? "pages.tasklist.unpinTask" : "pages.tasklist.pinTask"),
+                                systemImage: pinned ? "pin.slash" : "pin"
+                            )
+                            Image(systemName: pinned ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(pinned ? Color.primary : AppPalette.mutedText)
+                        }
+                        .frame(minHeight: 44)
+                        .padding(.horizontal, 12)
+                        .background(AppPalette.pageBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(pinned ? [.isSelected] : [])
                 }
-                .disabled(task.date.isEmpty)
-                .foregroundStyle(AppPalette.mutedText)
-                .frame(minHeight: 44, alignment: .leading)
-                .contentShape(Rectangle())
-                .buttonStyle(.plain)
 
                 DatePicker("", selection: Binding(
-                    get: { task.dateValue },
-                    set: {
-                        onSetDate(isoDateFormatter.string(from: $0))
-                        dismiss()
-                    }
+                    get: { selectedDate ?? Date() },
+                    set: { selectedDate = $0 }
                 ), displayedComponents: .date)
                     .datePickerStyle(.graphical)
                     .labelsHidden()
@@ -5642,19 +5794,52 @@ private struct CalendarTaskEditSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 16)
         }
+
+        Button(action: submit) {
+            Text(translations.t(mode == .add ? "a11y.addTask" : "taskList.save"))
+                .font(AppTypography.subheadline().weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.roundedRectangle(radius: 12))
+        .disabled(
+            (text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !pinned && selectedDate == nil)
+                || taskListId.isEmpty
+        )
+        .padding(.horizontal, 16)
+        }
+        .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppPalette.cardSurface.ignoresSafeArea())
-        .accessibilityLabel(translations.t("a11y.editTask"))
+        .onAppear {
+            if mode == .add {
+                isTextFieldFocused = true
+            }
+        }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(title)
     }
 
-    private func save() {
+    private func submit() {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        onSaveText(text)
+        guard (!trimmed.isEmpty || pinned || selectedDate != nil), !taskListId.isEmpty else { return }
+        if mode == .add {
+            let parsed = resolveTaskInput(trimmed, translations: translations)
+            guard hasTaskContent(
+                text: parsed.text,
+                date: selectedDate.map { isoDateFormatter.string(from: $0) } ?? "",
+                pinned: pinned
+            ) else { return }
+        }
+        onSubmit(
+            taskListId,
+            trimmed,
+            pinned,
+            selectedDate.map { isoDateFormatter.string(from: $0) } ?? ""
+        )
         dismiss()
     }
 }
@@ -5718,12 +5903,12 @@ private struct CalendarScreenView: View {
     }
 
     private var tasksInMonth: [CalendarTask] {
-        calendarTasks.filter { $0.date.hasPrefix(currentMonthKey) }
+        calendarTasks.filter { $0.date.isEmpty || $0.date.hasPrefix(currentMonthKey) }
     }
 
     private var dotColorsByDate: [String: [Color]] {
         var result: [String: [Color]] = [:]
-        for task in tasksInMonth {
+        for task in tasksInMonth where !task.date.isEmpty {
             var colors = result[task.date] ?? []
             let color = task.taskListBackground.flatMap { Color(hex: $0) } ?? Color(.separator)
             if !colors.contains(color) && colors.count < 3 {
@@ -5778,16 +5963,20 @@ private struct CalendarScreenView: View {
             }
             .sheet(isPresented: $showAddTaskSheet) {
                 if let selectedDate {
-                    CalendarTaskAddSheet(
+                    CalendarTaskSheet(
+                        mode: .add,
                         taskLists: viewModel.taskLists,
-                        defaultTaskListId: viewModel.taskLists.first?.id,
-                        date: selectedDate,
-                        onAdd: { taskListId, text in
+                        initialTaskListId: viewModel.taskLists.first?.id,
+                        initialText: "",
+                        initialPinned: false,
+                        initialDate: selectedDate,
+                        onSubmit: { taskListId, text, pinned, dateStr in
                             triggerLightImpact()
                             viewModel.addTask(
                                 taskListId: taskListId,
                                 rawText: text,
-                                date: selectedDate,
+                                dateStr: dateStr,
+                                pinned: pinned,
                                 taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "top",
                                 autoSort: settingsViewModel.settings?.autoSort ?? false,
                                 translations: translations
@@ -5797,21 +5986,22 @@ private struct CalendarScreenView: View {
                 }
             }
             .sheet(item: $editingTask) { task in
-                CalendarTaskEditSheet(
-                    task: task,
-                    onSaveText: { text in
-                        viewModel.updateTaskText(
-                            task,
-                            rawText: text,
-                            autoSort: settingsViewModel.settings?.autoSort ?? false,
-                            translations: translations
-                        )
-                    },
-                    onSetDate: { dateStr in
+                CalendarTaskSheet(
+                    mode: .edit,
+                    taskLists: viewModel.taskLists,
+                    initialTaskListId: task.taskListId,
+                    initialText: task.text,
+                    initialPinned: task.pinned,
+                    initialDate: isoDateFormatter.date(from: task.date),
+                    onSubmit: { taskListId, text, pinned, dateStr in
                         triggerLightImpact()
-                        viewModel.updateTaskDate(
+                        viewModel.saveTask(
                             task,
+                            taskListId: taskListId,
+                            rawText: text,
+                            pinned: pinned,
                             dateStr: dateStr,
+                            taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "top",
                             autoSort: settingsViewModel.settings?.autoSort ?? false,
                             translations: translations
                         )
@@ -5841,7 +6031,7 @@ private struct CalendarScreenView: View {
                 .accessibilityLabel(translations.t("app.calendarNextMonth"))
             }
             .padding(.horizontal, 8)
-            .padding(.top, 8)
+            .padding(.top, -4)
 
             let columns = Array(repeating: GridItem(.flexible()), count: 7)
             let days = makeDays()
@@ -5853,7 +6043,7 @@ private struct CalendarScreenView: View {
                             .font(.caption2)
                             .foregroundStyle(AppPalette.mutedText)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 4)
+                            .padding(.vertical, 2)
                     }
                 }
 
@@ -5870,13 +6060,13 @@ private struct CalendarScreenView: View {
                                 onTap: { selectedDate = selectedDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false ? nil : day }
                             )
                         } else {
-                            Color.clear.aspectRatio(1, contentMode: .fit)
+                            Color.clear.frame(height: 44)
                         }
                     }
                 }
             }
             .padding(.horizontal, 8)
-            .padding(.bottom, 8)
+            .padding(.bottom, 4)
 
             if let selectedDate {
                 Button {
@@ -5889,7 +6079,7 @@ private struct CalendarScreenView: View {
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.roundedRectangle(radius: 12))
                 .padding(.horizontal, 16)
-                .padding(.bottom, 8)
+                .padding(.bottom, 4)
                 .accessibilityLabel(translations.t("a11y.addTask"))
                 .accessibilityValue(calendarAddDateLabel(selectedDate, language: translations.language))
             }
@@ -5919,7 +6109,11 @@ private struct CalendarScreenView: View {
                                 CalendarTaskRow(
                                     task: task,
                                     isHighlighted: selectedDate.map { dateKey($0) == task.date } ?? false,
-                                    onSelectDate: { selectedDate = task.dateValue },
+                                    onSelectDate: {
+                                        if let dateValue = task.dateValue {
+                                            selectedDate = dateValue
+                                        }
+                                    },
                                     onOpenTaskList: { onOpenTaskList?(task.taskListId) },
                                     onToggleComplete: {
                                         viewModel.completeTask(
@@ -5944,10 +6138,8 @@ private struct CalendarScreenView: View {
                         }
                     }
                 }
-                .background(AppPalette.cardSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
             }
         }
         .background(AppPalette.pageBackground.ignoresSafeArea())

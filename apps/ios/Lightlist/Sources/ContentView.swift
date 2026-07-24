@@ -3515,6 +3515,7 @@ private struct TaskListDetailPage: View {
     let taskInsertPosition: String
     let autoSort: Bool
     let allowsTaskListDeletion: Bool
+    let allowsShareCodeManagement: Bool
     @FocusState.Binding var focusedNewTaskListId: String?
     @State private var newTaskText = ""
     @State private var editingTaskId: String? = nil
@@ -3543,12 +3544,14 @@ private struct TaskListDetailPage: View {
         taskInsertPosition: String,
         autoSort: Bool,
         focusedNewTaskListId: FocusState<String?>.Binding,
-        allowsTaskListDeletion: Bool = true
+        allowsTaskListDeletion: Bool = true,
+        allowsShareCodeManagement: Bool = true
     ) {
         self.taskList = taskList
         self.taskInsertPosition = taskInsertPosition
         self.autoSort = autoSort
         self.allowsTaskListDeletion = allowsTaskListDeletion
+        self.allowsShareCodeManagement = allowsShareCodeManagement
         self._focusedNewTaskListId = focusedNewTaskListId
     }
 
@@ -3762,9 +3765,7 @@ private struct TaskListDetailPage: View {
                     taskListId: taskList.id,
                     taskListSnapshot: taskListSnapshot,
                     shareCodeDocumentId: (taskListSnapshot.data()?["shareCode"] as? String)
-                        .flatMap { code in
-                            code.isEmpty ? nil : code.trimmingCharacters(in: .whitespaces).uppercased()
-                        }
+                        .flatMap(normalizedShareCode)
                 )
 
                 await MainActor.run {
@@ -3973,19 +3974,21 @@ private struct TaskListDetailPage: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(translations.t("taskList.editTitle"))
-                    Button {
-                        currentShareCode = taskList.shareCode.flatMap(normalizedShareCode)
-                        shareCopySuccess = false
-                        shareError = nil
-                        showShareSheet = true
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: TaskListDetailMetrics.headerIconSize, weight: .semibold))
-                            .frame(width: TaskListDetailMetrics.trailingDateButtonWidth, height: TaskListDetailMetrics.headerIconButtonSize)
-                            .contentShape(Rectangle())
+                    if allowsShareCodeManagement {
+                        Button {
+                            currentShareCode = taskList.shareCode.flatMap(normalizedShareCode)
+                            shareCopySuccess = false
+                            shareError = nil
+                            showShareSheet = true
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: TaskListDetailMetrics.headerIconSize, weight: .semibold))
+                                .frame(width: TaskListDetailMetrics.trailingDateButtonWidth, height: TaskListDetailMetrics.headerIconButtonSize)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(translations.t("taskList.shareTitle"))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(translations.t("taskList.shareTitle"))
                 }
                 .simultaneousGesture(
                     TapGesture().onEnded {
@@ -4829,7 +4832,8 @@ private struct SharedTaskListPreviewView: View {
                     taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "top",
                     autoSort: settingsViewModel.settings?.autoSort ?? false,
                     focusedNewTaskListId: $focusedNewTaskListId,
-                    allowsTaskListDeletion: false
+                    allowsTaskListDeletion: viewModel.isAdded,
+                    allowsShareCodeManagement: viewModel.isAdded
                 )
             } else {
                 VStack {

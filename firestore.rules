@@ -31,13 +31,20 @@ service cloud.firestore {
           || (orderAfter != null && taskListId in orderAfter);
       }
 
+      // 同一 commit で taskList.shareCode が自分を指すことを要求し、
+      // taskList から辿れない失効不能なコードの発行を禁止する
+      function isBoundToTaskList(taskListId) {
+        return getAfter(/databases/$(database)/documents/taskLists/$(taskListId)).data.shareCode == shareCode;
+      }
+
       // read ではなく get にすることで、一括取得(list)を禁止
       allow get: if true;
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(['taskListId', 'createdAt'])
         && request.resource.data.taskListId is string
         && request.resource.data.createdAt is int
-        && canAccessTaskList(request.resource.data.taskListId);
+        && canAccessTaskList(request.resource.data.taskListId)
+        && isBoundToTaskList(request.resource.data.taskListId);
       allow update: if false;
       allow delete: if request.auth != null
         && resource.data.taskListId is string
@@ -99,6 +106,19 @@ service cloud.firestore {
           );
       }
 
+      // shareCode は null か 8 桁の共有コードのみ。
+      // 新しいコードを設定する場合は同一 commit で shareCodes 側が自分を指すことを要求する
+      function isAllowedShareCodeChange() {
+        let nextShareCode = request.resource.data.get('shareCode', null);
+        return nextShareCode == resource.data.get('shareCode', null)
+          || nextShareCode == null
+          || (
+            nextShareCode is string
+            && nextShareCode.matches('^[A-Z0-9]{8}$')
+            && getAfter(/databases/$(database)/documents/shareCodes/$(nextShareCode)).data.taskListId == taskListId
+          );
+      }
+
       // 読み取り権限: taskListOrderに含まれている、または有効な共有コードが存在する
       allow read: if isInTaskListOrder() || isValidShareCode();
 
@@ -108,6 +128,7 @@ service cloud.firestore {
         && request.resource.data.id == taskListId
         && request.resource.data.memberCount is int
         && request.resource.data.memberCount == 1
+        && request.resource.data.get('shareCode', null) == null
         && request.resource.data.createdAt is int
         && request.resource.data.updatedAt is int;
 
@@ -117,7 +138,8 @@ service cloud.firestore {
         && request.resource.data.id == resource.data.id
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.updatedAt is int
-        && isValidMemberCountUpdate();
+        && isValidMemberCountUpdate()
+        && isAllowedShareCodeChange();
 
       // 削除権限: 最後の保持者のみ実体削除可能
       allow delete: if isInTaskListOrder()

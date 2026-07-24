@@ -5628,6 +5628,7 @@ function TaskListCard({
   onDragInteractionChange,
   onDeleted,
   canDeleteTaskList = true,
+  canManageShareCode = true,
   activeTaskActionTaskId,
   onOpenTaskAction,
   onCloseTaskAction,
@@ -5644,6 +5645,7 @@ function TaskListCard({
   onDragInteractionChange?: (active: boolean) => void;
   onDeleted?: () => void;
   canDeleteTaskList?: boolean;
+  canManageShareCode?: boolean;
   activeTaskActionTaskId?: string | null;
   onOpenTaskAction?: (taskListId: string, taskId: string) => void;
   onCloseTaskAction?: () => void;
@@ -5966,11 +5968,13 @@ function TaskListCard({
                     onDeleted={onDeleted}
                     canDelete={canDeleteTaskList}
                   />
-                  <ShareTaskListDialog
-                    taskList={taskList}
-                    isActive={isActive}
-                    onActivate={onActivate}
-                  />
+                  {canManageShareCode ? (
+                    <ShareTaskListDialog
+                      taskList={taskList}
+                      isActive={isActive}
+                      onActivate={onActivate}
+                    />
+                  ) : null}
                 </div>
               </div>
               {taskError ? <Alert variant="error">{taskError}</Alert> : null}
@@ -9047,6 +9051,7 @@ function ShareCodePreviewPage() {
   const { t } = useTranslation();
   const user = useUser();
   const settings = useSettings();
+  const { taskLists: ownTaskLists } = useTaskListIndexState();
   const [sharecode, setSharecode] = useState<string | null>(null);
   const [sharedTaskListId, setSharedTaskListId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -9108,6 +9113,7 @@ function ShareCodePreviewPage() {
   }, [sharecode, t]);
 
   const taskList = useTaskList(sharedTaskListId);
+  const isMember = ownTaskLists.some((item) => item.id === sharedTaskListId);
 
   const handleAddToOrder = async () => {
     if (!taskList || !user) return;
@@ -9196,7 +9202,8 @@ function ShareCodePreviewPage() {
             shouldFocusNewTaskInput={false}
             onNewTaskInputFocusChange={() => {}}
             sensorsList={sensorsList}
-            canDeleteTaskList={false}
+            canDeleteTaskList={isMember}
+            canManageShareCode={isMember}
             activeTaskActionTaskId={activeTaskAction}
             onOpenTaskAction={(_, taskId) => setActiveTaskAction(taskId)}
             onCloseTaskAction={() => setActiveTaskAction(null)}

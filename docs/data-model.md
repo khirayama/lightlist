@@ -78,8 +78,9 @@ Task の decode では `id` / `text` / `completed` / `date` / `order` / `pinned`
 ## Firestore ルール
 
 - `settings/{uid}` と `taskListOrder/{uid}` は本人のみ読み書き可能。
-- `shareCodes/{shareCode}` は `get` のみ誰でも可能で、`list` は不可。
+- `shareCodes/{shareCode}` は `get` のみ誰でも可能で、`list` は不可。作成は認証済みかつ対象リストを保持しているユーザーに限り、さらに同一 commit で `taskLists/{taskListId}.shareCode == shareCode` になることを要求する。更新は不可。
 - `taskLists/{taskListId}` は、自分の `taskListOrder` に含まれるか、有効な `shareCode` がある場合に読み書きできる。
+- `taskLists.shareCode` は `null` か `^[A-Z0-9]{8}$` のみ許可し、新しい値は同一 commit で作成される `shareCodes` doc と一致していなければならない。新規作成時は `null` 固定。
 - `taskListOrder/{uid}` の本人書き込み内容は制限しない。`taskListId` を保持リストへ追加した時点で `taskLists/{taskListId}` へのアクセス根拠になる。
 - `taskLists` の削除は最後の保持者（`memberCount <= 1`）のみ可能。
 - `memberCount` は参加時 `+1`、離脱時 `-1` のみ許可する。

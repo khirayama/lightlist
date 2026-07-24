@@ -1402,7 +1402,8 @@ private fun SharedTaskListPreviewScreen(
                     taskInsertPosition = settingsState.taskInsertPosition,
                     autoSort = settingsState.autoSort,
                     topInset = 56.dp,
-                    allowTaskListDeletion = false
+                    allowTaskListDeletion = previewUiState.isAdded,
+                    allowShareCodeManagement = previewUiState.isAdded
                 )
             }
             else -> {
@@ -5207,7 +5208,8 @@ private fun TaskListDetailContent(
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
     shouldFocusNewTaskInput: Boolean = false,
     onNewTaskInputFocusChange: (Boolean) -> Unit = {},
-    allowTaskListDeletion: Boolean = true
+    allowTaskListDeletion: Boolean = true,
+    allowShareCodeManagement: Boolean = true
 ) {
     val t = LocalTranslations.current
     val haptic = LocalHapticFeedback.current
@@ -5775,21 +5777,23 @@ private fun TaskListDetailContent(
                             modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
                         )
                     }
-                    Spacer(Modifier.width(TaskListDetailMetrics.headerActionSpacing))
-                    IconButton(
-                        onClick = {
-                            currentShareCode = normalizedShareCode(taskList.shareCode)
-                            shareCopySuccess = false
-                            shareError = null
-                            showShareDialog = true
-                        },
-                        modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
-                    ) {
-                        Icon(
-                            Icons.Default.Share,
-                            contentDescription = t.t("taskList.share"),
-                            modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
-                        )
+                    if (allowShareCodeManagement) {
+                        Spacer(Modifier.width(TaskListDetailMetrics.headerActionSpacing))
+                        IconButton(
+                            onClick = {
+                                currentShareCode = normalizedShareCode(taskList.shareCode)
+                                shareCopySuccess = false
+                                shareError = null
+                                showShareDialog = true
+                            },
+                            modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
+                        ) {
+                            Icon(
+                                Icons.Default.Share,
+                                contentDescription = t.t("taskList.share"),
+                                modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
+                            )
+                        }
                     }
                 }
             }

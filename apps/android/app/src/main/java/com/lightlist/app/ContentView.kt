@@ -4629,10 +4629,7 @@ private fun TaskListDetailPagerScreen(
         snapshotFlow { pagerState.settledPage }
             .collectLatest { page ->
                 val taskList = uiState.taskLists.getOrNull(page) ?: return@collectLatest
-                val shouldMoveNewTaskFocus =
-                    shouldMoveNewTaskFocusOnPageSettle ||
-                        currentFocusedNewTaskListId.value == currentSelectedTaskListId
-                if (shouldMoveNewTaskFocus) {
+                if (shouldMoveNewTaskFocusOnPageSettle) {
                     focusedNewTaskListId = taskList.id
                 }
                 shouldMoveNewTaskFocusOnPageSettle = false

@@ -5684,6 +5684,7 @@ function TaskListCard({
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [addTaskError, setAddTaskError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyHighlightIndex, setHistoryHighlightIndex] = useState(-1);
   const [deleteCompletedPending, setDeleteCompletedPending] = useState(false);
   const [exitingTaskIds, setExitingTaskIds] =
     useState<ReadonlySet<string> | null>(null);
@@ -5840,7 +5841,14 @@ function TaskListCard({
   }, [deferredNewTaskText, taskList.history]);
 
   useEffect(() => {
-    if (historyOptions.length === 0) setHistoryOpen(false);
+    if (historyOptions.length === 0) {
+      setHistoryOpen(false);
+      setHistoryHighlightIndex(-1);
+      return;
+    }
+    setHistoryHighlightIndex((current) =>
+      Math.min(current, historyOptions.length - 1),
+    );
   }, [historyOptions.length]);
 
   const completedTaskCount = tasks.reduce(
@@ -5897,6 +5905,7 @@ function TaskListCard({
     } satisfies Task;
     if (!hasTaskContent(optimisticTask)) return;
     setHistoryOpen(false);
+    setHistoryHighlightIndex(-1);
     setNewTaskText("");
     setAddTaskError(null);
     newTaskInputRef.current?.focus();
@@ -5992,6 +6001,7 @@ function TaskListCard({
               <div className="ll-relative ll-min-w-0 ll-flex-1">
                 <CommandPrimitive
                   shouldFilter={false}
+                  value={historyOptions[historyHighlightIndex] ?? ""}
                   className="ll-bg-transparent"
                 >
                   <input
@@ -6009,9 +6019,11 @@ function TaskListCard({
                     onChange={(event) => {
                       setNewTaskText(event.target.value);
                       setAddTaskError(null);
+                      setHistoryHighlightIndex(-1);
                       setHistoryOpen(true);
                     }}
                     onFocus={() => {
+                      setHistoryHighlightIndex(-1);
                       setHistoryOpen(true);
                       setIsInputFocused(true);
                       onNewTaskInputFocusChange(taskList.id, true);
@@ -6023,11 +6035,43 @@ function TaskListCard({
                     }}
                     onKeyDown={(event) => {
                       if (event.nativeEvent.isComposing) return;
+                      if (
+                        event.key === "ArrowDown" &&
+                        historyOpen &&
+                        historyOptions.length > 0
+                      ) {
+                        event.preventDefault();
+                        setHistoryHighlightIndex((current) =>
+                          Math.min(current + 1, historyOptions.length - 1),
+                        );
+                        return;
+                      }
+                      if (
+                        event.key === "ArrowUp" &&
+                        historyOpen &&
+                        historyOptions.length > 0
+                      ) {
+                        event.preventDefault();
+                        setHistoryHighlightIndex((current) =>
+                          Math.max(current - 1, -1),
+                        );
+                        return;
+                      }
                       if (event.key === "Enter" && newTaskText.trim() !== "") {
                         event.preventDefault();
+                        const selectedHistoryText =
+                          historyOptions[historyHighlightIndex];
+                        if (selectedHistoryText) {
+                          const previousText = newTaskText;
+                          addNewTask(selectedHistoryText, previousText);
+                          return;
+                        }
                         event.currentTarget.form?.requestSubmit();
                       }
-                      if (event.key === "Escape") setHistoryOpen(false);
+                      if (event.key === "Escape") {
+                        setHistoryOpen(false);
+                        setHistoryHighlightIndex(-1);
+                      }
                     }}
                     placeholder={t("pages.tasklist.addTaskPlaceholder")}
                     className="ll-w-full ll-rounded-14px ll-border ll-border-gray-300 ll-bg-white-92 ll-px-3x5 ll-py-2x5 ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900-92 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
@@ -6037,10 +6081,14 @@ function TaskListCard({
                       id={historyListId}
                       className="ll-anim-pop ll-absolute ll-left-0 ll-right-0 ll-top-full ll-z-50 ll-mt-1 ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-p-1 ll-shadow-lg ll-dark-border-gray-700 ll-dark-bg-gray-900b"
                     >
-                      {historyOptions.map((text) => (
+                      {historyOptions.map((text, index) => (
                         <CommandPrimitive.Item
                           key={text}
                           value={text}
+                          aria-selected={index === historyHighlightIndex}
+                          data-selected={
+                            index === historyHighlightIndex ? "" : undefined
+                          }
                           onMouseDown={(event: MouseEvent<HTMLDivElement>) =>
                             event.preventDefault()
                           }
@@ -6048,7 +6096,11 @@ function TaskListCard({
                             const previousText = newTaskText;
                             addNewTask(text, previousText);
                           }}
-                          className="ll-cursor-pointer ll-rounded-lg ll-px-3 ll-py-2 ll-text-sm ll-outline-none ll-data-selected-bg-gray-50 ll-dark-data-selected-bg-gray-950"
+                          className={clsx(
+                            "ll-cursor-pointer ll-rounded-lg ll-px-3 ll-py-2 ll-text-sm ll-outline-none",
+                            index === historyHighlightIndex &&
+                              "ll-bg-gray-50 ll-dark-bg-gray-950",
+                          )}
                         >
                           {text}
                         </CommandPrimitive.Item>
@@ -8379,7 +8431,6 @@ function AppShellPage() {
                     <AppHeader
                       backLabel={t("common.back")}
                       onBack={handleBackToTaskLists}
-                      title={t("app.calendar")}
                     />
                   </div>
                   {detailContent}
@@ -8413,6 +8464,7 @@ function AppShellPage() {
                     <AppHeader
                       backLabel={t("common.back")}
                       onBack={handleBackToTaskLists}
+                      title={t("app.calendar")}
                     />
                   </div>
                   {calendarContent}

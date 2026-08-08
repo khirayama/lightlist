@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -4595,10 +4596,7 @@ private fun TaskListDetailPagerScreen(
     val pagerState = rememberPagerState(initialPage = selectedTaskListIndex) {
         uiState.taskLists.size
     }
-    var focusedNewTaskListId by remember { mutableStateOf<String?>(null) }
-    var shouldMoveNewTaskFocusOnPageSettle by remember { mutableStateOf(false) }
     val currentSelectedTaskListId by rememberUpdatedState(selectedTaskListId)
-    val currentFocusedNewTaskListId = rememberUpdatedState(focusedNewTaskListId)
     val currentTaskList =
         uiState.taskLists.getOrNull(pagerState.currentPage) ?: uiState.taskLists.firstOrNull()
     val taskListBackgroundColor = resolveTaskListBackgroundColor(currentTaskList?.background)
@@ -4615,12 +4613,13 @@ private fun TaskListDetailPagerScreen(
         }
     }
 
-    LaunchedEffect(pagerState) {
+    val pagerFocusManager = LocalFocusManager.current
+
+    LaunchedEffect(pagerState, pagerFocusManager) {
         snapshotFlow { pagerState.isScrollInProgress }
             .collectLatest { isScrolling ->
                 if (isScrolling) {
-                    shouldMoveNewTaskFocusOnPageSettle =
-                        currentFocusedNewTaskListId.value == currentSelectedTaskListId
+                    pagerFocusManager.clearFocus(force = true)
                 }
             }
     }
@@ -4629,10 +4628,6 @@ private fun TaskListDetailPagerScreen(
         snapshotFlow { pagerState.settledPage }
             .collectLatest { page ->
                 val taskList = uiState.taskLists.getOrNull(page) ?: return@collectLatest
-                if (shouldMoveNewTaskFocusOnPageSettle) {
-                    focusedNewTaskListId = taskList.id
-                }
-                shouldMoveNewTaskFocusOnPageSettle = false
                 if (taskList.id != currentSelectedTaskListId) {
                     updateSelectedTaskListId(taskList.id)
                 }
@@ -4695,14 +4690,6 @@ private fun TaskListDetailPagerScreen(
                                     taskInsertPosition = settingsState.taskInsertPosition,
                                     autoSort = settingsState.autoSort,
                                     topInset = taskPageTopInset,
-                                    shouldFocusNewTaskInput = focusedNewTaskListId == taskList.id,
-                                    onNewTaskInputFocusChange = { isFocused ->
-                                        if (isFocused) {
-                                            focusedNewTaskListId = taskList.id
-                                        } else if (focusedNewTaskListId == taskList.id) {
-                                            focusedNewTaskListId = null
-                                        }
-                                    }
                                 )
                             }
                             if (showIndicator) {
@@ -5203,8 +5190,6 @@ private fun TaskListDetailContent(
     taskInsertPosition: String = "top",
     autoSort: Boolean = false,
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
-    shouldFocusNewTaskInput: Boolean = false,
-    onNewTaskInputFocusChange: (Boolean) -> Unit = {},
     allowTaskListDeletion: Boolean = true,
     allowShareCodeManagement: Boolean = true
 ) {
@@ -5215,7 +5200,6 @@ private fun TaskListDetailContent(
     val db = Firebase.firestore
     var newTaskText by remember { mutableStateOf("") }
     var isNewTaskInputFocused by remember { mutableStateOf(false) }
-    var hasNewTaskInputFocus by remember(taskList.id) { mutableStateOf(false) }
     var editingTaskId by remember { mutableStateOf<String?>(null) }
     var editingTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     var actionSheetState by remember { mutableStateOf<ActionSheetState?>(null) }
@@ -5247,12 +5231,6 @@ private fun TaskListDetailContent(
     var shareError by remember { mutableStateOf<String?>(null) }
     var taskMutationError by remember { mutableStateOf<String?>(null) }
     val newTaskFocusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(shouldFocusNewTaskInput) {
-        if (shouldFocusNewTaskInput) {
-            newTaskFocusRequester.requestFocus()
-        }
-    }
 
     val displayTasks = remember(taskList.tasks, dragOrderedTasks, pendingDisplayedTasks, autoSort) {
         dragOrderedTasks ?: pendingDisplayedTasks ?: getDisplayOrderedTasks(taskList.tasks)
@@ -5298,8 +5276,19 @@ private fun TaskListDetailContent(
         lineHeight = TaskListDetailMetrics.dateLineHeight
     )
     val focusManager = LocalFocusManager.current
-    val viewConfiguration = LocalViewConfiguration.current
     val density = LocalDensity.current
+    val imeInsets = WindowInsets.ime
+    LaunchedEffect(focusManager, imeInsets, density) {
+        var wasImeVisible = imeInsets.getBottom(density) > 0
+        snapshotFlow { imeInsets.getBottom(density) > 0 }
+            .collectLatest { isImeVisible ->
+                if (wasImeVisible && !isImeVisible) {
+                    focusManager.clearFocus(force = true)
+                }
+                wasImeVisible = isImeVisible
+            }
+    }
+    val viewConfiguration = LocalViewConfiguration.current
     val languageTag = t.languageTag()
     val canSort = remember(displayTasks) { displayTasks.size >= 2 }
     val hasCompletedTasks = remember(displayTasks) { displayTasks.any { it.completed } }
@@ -5837,13 +5826,6 @@ private fun TaskListDetailContent(
                             .focusRequester(newTaskFocusRequester)
                             .onFocusChanged { state ->
                                 isNewTaskInputFocused = state.isFocused
-                                if (state.isFocused) {
-                                    hasNewTaskInputFocus = true
-                                    onNewTaskInputFocusChange(true)
-                                } else if (hasNewTaskInputFocus) {
-                                    hasNewTaskInputFocus = false
-                                    onNewTaskInputFocusChange(false)
-                                }
                             }
                             .heightIn(min = TaskListDetailMetrics.inputMinHeight)
                             .background(inputBackgroundColor, RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius))

@@ -369,6 +369,103 @@ private struct TaskSummary: Identifiable, Hashable {
     }
 }
 
+private struct FirestoreTaskRecord: Codable {
+    let id: String?
+    let text: String?
+    let completed: Bool?
+    let date: String?
+    let order: Double?
+    let pinned: Bool?
+
+    init(data: [String: Any]) {
+        id = data["id"] as? String
+        text = data["text"] as? String
+        completed = data["completed"] as? Bool
+        date = data["date"] as? String
+        order = (data["order"] as? NSNumber)?.doubleValue
+        pinned = data["pinned"] as? Bool
+    }
+
+    func taskSummary(taskId: String) -> TaskSummary? {
+        guard id == taskId,
+              let text,
+              let completed,
+              let date,
+              let order,
+              order.isFinite,
+              let pinned,
+              hasTaskContent(text: text, date: date, pinned: pinned) else {
+            return nil
+        }
+        return TaskSummary(
+            id: taskId,
+            text: text,
+            completed: completed,
+            date: date,
+            order: order,
+            pinned: pinned
+        )
+    }
+}
+
+private struct FirestoreTaskListRecord: Codable {
+    let name: String?
+    let tasks: [String: FirestoreTaskRecord]?
+    let history: [String]?
+    let memberCount: Int?
+    let background: String?
+    let shareCode: String?
+
+    init(data: [String: Any]) {
+        name = data["name"] as? String
+        tasks = (data["tasks"] as? [String: Any])?.compactMapValues { value in
+            guard let task = value as? [String: Any] else { return nil }
+            return FirestoreTaskRecord(data: task)
+        }
+        history = data["history"] as? [String]
+        memberCount = (data["memberCount"] as? NSNumber)?.intValue
+        background = data["background"] as? String
+        shareCode = data["shareCode"] as? String
+    }
+
+    func taskSummaries() -> [TaskSummary] {
+        (tasks ?? [:]).compactMap { taskId, task in
+            task.taskSummary(taskId: taskId)
+        }
+        .sorted {
+            $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order
+        }
+    }
+}
+
+private struct FirestoreSettingsRecord: Codable {
+    let theme: String?
+    let language: String?
+    let taskInsertPosition: String?
+    let autoSort: Bool?
+    let startupView: String?
+}
+
+private func decodeTaskListRecord(from document: DocumentSnapshot) -> FirestoreTaskListRecord {
+    if let record = try? document.data(as: FirestoreTaskListRecord.self) {
+        return record
+    }
+    return FirestoreTaskListRecord(data: document.data() ?? [:])
+}
+
+private func decodeSettingsRecord(from snapshot: DocumentSnapshot?) -> FirestoreSettingsRecord {
+    guard let snapshot, let record = try? snapshot.data(as: FirestoreSettingsRecord.self) else {
+        return FirestoreSettingsRecord(
+            theme: nil,
+            language: nil,
+            taskInsertPosition: nil,
+            autoSort: nil,
+            startupView: nil
+        )
+    }
+    return record
+}
+
 private func taskDisplayGroup(_ task: TaskSummary) -> Int {
     if task.completed { return 2 }
     return task.pinned ? 0 : 1
@@ -552,11 +649,12 @@ private final class TaskListMutationQueue {
     private var tail: Task<Void, Never>?
     private var pendingCount = 0
 
+    @discardableResult
     func enqueue(
         _ operation: @escaping @Sendable () async throws -> Void,
-        onError: @escaping @MainActor () -> Void = {},
-        onIdle: @escaping @MainActor () -> Void = {}
-    ) {
+        onError: @escaping @MainActor @Sendable () -> Void = {},
+        onIdle: @escaping @MainActor @Sendable () -> Void = {}
+    ) -> Task<Void, Never> {
         pendingCount += 1
         let previous = tail
         let next = Task {
@@ -572,6 +670,7 @@ private final class TaskListMutationQueue {
             }
         }
         tail = next
+        return next
     }
 }
 
@@ -592,6 +691,68 @@ private enum TaskListMutationQueues {
         return queue
     }
 
+    private static func enqueueNext(
+        index: Int,
+        taskListIds: [String],
+        operation: @escaping @Sendable () async throws -> Void,
+        onError: @escaping @MainActor @Sendable () -> Void,
+        onIdle: @escaping @MainActor @Sendable () -> Void
+    ) -> Task<Void, Never> {
+        let isLast = index == taskListIds.count - 1
+        let errorHandler: @MainActor @Sendable () -> Void = {
+            if isLast {
+                onError()
+            }
+        }
+        let idleHandler: @MainActor @Sendable () -> Void = {
+            if index == 0 {
+                onIdle()
+            }
+        }
+        return queue(for: taskListIds[index]).enqueue({
+            if isLast {
+                try await operation()
+            } else {
+                let next = await Self.enqueueNext(
+                    index: index + 1,
+                    taskListIds: taskListIds,
+                    operation: operation,
+                    onError: onError,
+                    onIdle: onIdle
+                )
+                _ = await next.value
+            }
+        }, onError: errorHandler, onIdle: idleHandler)
+    }
+
+    static func enqueue(
+        for taskListIds: [String],
+        _ operation: @escaping @Sendable () async throws -> Void,
+        onError: @escaping @MainActor @Sendable () -> Void = {},
+        onIdle: @escaping @MainActor @Sendable () -> Void = {}
+    ) {
+        let orderedTaskListIds = Array(Set(taskListIds)).sorted()
+        guard !orderedTaskListIds.isEmpty else {
+            Task {
+                do {
+                    try await operation()
+                } catch {
+                    await onError()
+                }
+                await onIdle()
+            }
+            return
+        }
+
+        _ = enqueueNext(
+            index: 0,
+            taskListIds: orderedTaskListIds,
+            operation: operation,
+            onError: onError,
+            onIdle: onIdle
+        )
+    }
+
     static func remove(for taskListId: String) {
         queues.removeValue(forKey: taskListId)
     }
@@ -610,7 +771,7 @@ private func removeTaskListMembership(
         taskListId: FieldValue.delete(),
         "updatedAt": nowMillis(),
     ], forDocument: taskListOrderRef)
-    let memberCount = (taskListSnapshot.data()?["memberCount"] as? NSNumber)?.intValue ?? 1
+    let memberCount = decodeTaskListRecord(from: taskListSnapshot).memberCount ?? 1
     if memberCount <= 1 {
         if let shareCodeDocumentId {
             batch.deleteDocument(db.collection("shareCodes").document(shareCodeDocumentId))
@@ -738,64 +899,28 @@ private func scheduleMalformedTaskCleanup(
     })
 }
 
-private func mapTaskListSummary(id: String, data: [String: Any]) -> TaskListSummary {
-    let tasks = data["tasks"] as? [String: Any] ?? [:]
-    let taskCount = tasks.filter { entry in
-        guard isCompleteTaskData(taskId: entry.key, value: entry.value),
-              let value = entry.value as? [String: Any] else { return false }
-        return hasTaskContent(
-            text: value["text"] as? String ?? "",
-            date: value["date"] as? String ?? "",
-            pinned: value["pinned"] as? Bool ?? false
-        )
-    }.count
-    let memberCount = (data["memberCount"] as? NSNumber)?.intValue ?? 1
-    let name = (data["name"] as? String ?? "").precomposedStringWithCanonicalMapping
-    let background = data["background"] as? String
+private func mapTaskListSummary(id: String, data: FirestoreTaskListRecord) -> TaskListSummary {
+    let memberCount = data.memberCount ?? 1
+    let name = (data.name ?? "").precomposedStringWithCanonicalMapping
+    let background = data.background
 
     return TaskListSummary(
         id: id,
         name: name,
-        taskCount: taskCount,
+        taskCount: data.taskSummaries().count,
         memberCount: memberCount,
         background: background
     )
 }
 
-private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetail {
-    let name = (data["name"] as? String ?? "").precomposedStringWithCanonicalMapping
-    let memberCount = (data["memberCount"] as? NSNumber)?.intValue ?? 1
-    let background = data["background"] as? String
-    let history = (data["history"] as? [String] ?? []).map {
+private func mapTaskListDetail(id: String, data: FirestoreTaskListRecord) -> TaskListDetail {
+    let name = (data.name ?? "").precomposedStringWithCanonicalMapping
+    let memberCount = data.memberCount ?? 1
+    let background = data.background
+    let history = (data.history ?? []).map {
         $0.precomposedStringWithCanonicalMapping
     }
-    let rawTasks = data["tasks"] as? [String: Any] ?? [:]
-
-    let tasks = rawTasks.compactMap { entry -> TaskSummary? in
-        let taskId = entry.key
-        guard let value = entry.value as? [String: Any] else {
-            return nil
-        }
-        guard isCompleteTaskData(taskId: taskId, value: value) else { return nil }
-
-        return TaskSummary(
-            id: taskId,
-            text: value["text"] as? String ?? "",
-            completed: value["completed"] as? Bool ?? false,
-            date: value["date"] as? String ?? "",
-            order: (value["order"] as? NSNumber)?.doubleValue ?? 0,
-            pinned: value["pinned"] as? Bool ?? false
-        )
-    }
-    .filter(hasTaskContent)
-    .sorted {
-        if $0.order == $1.order {
-            return $0.id < $1.id
-        }
-        return $0.order < $1.order
-    }
-
-    let shareCode = data["shareCode"] as? String
+    let tasks = data.taskSummaries()
 
     return TaskListDetail(
         id: id,
@@ -804,7 +929,7 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
         history: history,
         memberCount: memberCount,
         background: background,
-        shareCode: shareCode
+        shareCode: data.shareCode
     )
 }
 
@@ -813,7 +938,7 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
     @Published private(set) var status: LoadStatus = .idle
 
     private let db = Firestore.firestore()
-    private let mapper: (String, [String: Any]) -> Item
+    private let mapper: (String, FirestoreTaskListRecord) -> Item
     private var taskListOrderListener: ListenerRegistration?
     private var taskListChunkListeners: [ListenerRegistration] = []
     private var currentUid: String?
@@ -821,7 +946,7 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
     private var taskListsById: [String: Item] = [:]
     private var taskListIdsKey = ""
 
-    init(mapper: @escaping (String, [String: Any]) -> Item) {
+    init(mapper: @escaping (String, FirestoreTaskListRecord) -> Item) {
         self.mapper = mapper
     }
 
@@ -921,7 +1046,7 @@ private func mapTaskListDetail(id: String, data: [String: Any]) -> TaskListDetai
                         )
                         self.taskListsById[document.documentID] = self.mapper(
                             document.documentID,
-                            document.data()
+                            decodeTaskListRecord(from: document)
                         )
                     }
 
@@ -1158,7 +1283,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         let targetData = FirestoreUpdateData(value: targetUpdates)
         let sourceTaskListId = task.taskListId
         logTaskUpdate(fields: "text,date,pinned,taskList")
-        TaskListMutationQueues.queue(for: sourceTaskListId).enqueue({ [db] in
+        TaskListMutationQueues.enqueue(for: [sourceTaskListId, targetTaskListId], { [db] in
             let batch = db.batch()
             batch.updateData(sourceData.value, forDocument: db.collection("taskLists").document(sourceTaskListId))
             batch.updateData(targetData.value, forDocument: db.collection("taskLists").document(targetTaskListId))
@@ -1786,9 +1911,10 @@ struct RootView: View {
                     .collection("settings").document(uid)
                     .addSnapshotListener { snapshot, _ in
                         Task { @MainActor in
-                            let nextTheme = snapshot?.data()?["theme"] as? String ?? "system"
-                            let language = snapshot?.data()?["language"] as? String ?? "ja"
-                            let startupView = normalizedStartupView(snapshot?.data()?["startupView"] as? String)
+                            let data = decodeSettingsRecord(from: snapshot)
+                            let nextTheme = data.theme ?? "system"
+                            let language = data.language ?? "ja"
+                            let startupView = normalizedStartupView(data.startupView)
                             theme = nextTheme
                             UserDefaults.standard.set(nextTheme, forKey: cachedThemeKey)
                             UserDefaults.standard.set(language, forKey: cachedLanguageKey)
@@ -4765,14 +4891,17 @@ private final class SharedTaskListPreviewViewModel: ObservableObject {
                     return
                 }
 
-                guard let data = snapshot?.data() else {
+                guard let snapshot, snapshot.exists else {
                     self.taskList = nil
                     self.errorMessage = translations.t("pages.sharecode.notFound")
                     self.isLoading = false
                     return
                 }
 
-                self.taskList = mapTaskListDetail(id: taskListId, data: data)
+                self.taskList = mapTaskListDetail(
+                    id: taskListId,
+                    data: decodeTaskListRecord(from: snapshot)
+                )
                 self.errorMessage = nil
                 self.isLoading = false
             }
@@ -4935,13 +5064,13 @@ private final class SettingsViewModel: ObservableObject {
         settingsListener = db.collection("settings").document(uid)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self, error == nil else { return }
-                let data = snapshot?.data() ?? [:]
+                let data = decodeSettingsRecord(from: snapshot)
                 self.settings = Settings(
-                    theme: data["theme"] as? String ?? "system",
-                    language: data["language"] as? String ?? "ja",
-                    taskInsertPosition: data["taskInsertPosition"] as? String ?? "top",
-                    autoSort: data["autoSort"] as? Bool ?? false,
-                    startupView: normalizedStartupView(data["startupView"] as? String)
+                    theme: data.theme ?? "system",
+                    language: data.language ?? "ja",
+                    taskInsertPosition: data.taskInsertPosition ?? "top",
+                    autoSort: data.autoSort ?? false,
+                    startupView: normalizedStartupView(data.startupView)
                 )
             }
     }

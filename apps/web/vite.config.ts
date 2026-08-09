@@ -22,30 +22,33 @@ const pagePathRedirect = (): Plugin => ({
 });
 
 export default defineConfig({
-  root: resolve(__dirname, "html"),
+  root: resolve(import.meta.dirname, "html"),
   base: "/",
   appType: "mpa",
   plugins: [pagePathRedirect(), react()],
-  publicDir: resolve(__dirname, "public"),
+  publicDir: resolve(import.meta.dirname, "public"),
   resolve: {
     alias: {
-      "/src": resolve(__dirname, "src"),
-      "@": resolve(__dirname, "src"),
+      "/src": resolve(import.meta.dirname, "src"),
+      "@": resolve(import.meta.dirname, "src"),
     },
   },
-  envDir: __dirname,
+  envDir: import.meta.dirname,
   build: {
-    outDir: resolve(__dirname, "dist"),
+    outDir: resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        index: resolve(__dirname, "html/index.html"),
-        login: resolve(__dirname, "html/login/index.html"),
-        app: resolve(__dirname, "html/app/index.html"),
-        passwordReset: resolve(__dirname, "html/password_reset/index.html"),
-        sharecodes: resolve(__dirname, "html/sharecodes/index.html"),
-        notFound: resolve(__dirname, "html/404.html"),
-        serverError: resolve(__dirname, "html/500.html"),
+        index: resolve(import.meta.dirname, "html/index.html"),
+        login: resolve(import.meta.dirname, "html/login/index.html"),
+        app: resolve(import.meta.dirname, "html/app/index.html"),
+        passwordReset: resolve(
+          import.meta.dirname,
+          "html/password_reset/index.html",
+        ),
+        sharecodes: resolve(import.meta.dirname, "html/sharecodes/index.html"),
+        notFound: resolve(import.meta.dirname, "html/404.html"),
+        serverError: resolve(import.meta.dirname, "html/500.html"),
       },
       output: {
         manualChunks(id) {

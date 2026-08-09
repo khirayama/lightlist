@@ -1,6 +1,30 @@
 import babelParser from "@babel/eslint-parser";
 import globals from "globals";
 
+const coreRules = {
+  "constructor-super": "error",
+  "no-async-promise-executor": "error",
+  "no-case-declarations": "error",
+  "no-compare-neg-zero": "error",
+  "no-cond-assign": "error",
+  "no-constant-binary-expression": "error",
+  "no-debugger": "error",
+  "no-dupe-args": "error",
+  "no-dupe-else-if": "error",
+  "no-dupe-keys": "error",
+  "no-duplicate-case": "error",
+  "no-fallthrough": "error",
+  "no-self-assign": "error",
+  "no-unsafe-finally": "error",
+  "no-unsafe-negation": "error",
+  "no-unsafe-optional-chaining": "error",
+  "no-unreachable": "error",
+  "no-useless-catch": "error",
+  "no-var": "error",
+  "prefer-const": "error",
+  "valid-typeof": "error",
+};
+
 export default [
   {
     ignores: [
@@ -35,7 +59,7 @@ export default [
         ...globals.es2024,
       },
     },
-    rules: {},
+    rules: coreRules,
   },
   {
     files: ["**/*.d.ts"],
@@ -59,6 +83,6 @@ export default [
         ...globals.es2024,
       },
     },
-    rules: {},
+    rules: coreRules,
   },
 ];

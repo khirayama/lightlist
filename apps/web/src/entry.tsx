@@ -299,6 +299,21 @@ async function enqueueTaskListMutation<T>(
   }
 }
 
+async function enqueueTaskListMutations<T>(
+  taskListIds: string[],
+  operation: () => Promise<T>,
+): Promise<T> {
+  const orderedTaskListIds = [...new Set(taskListIds)].sort(compareStringIds);
+  const run = async (index: number): Promise<T> => {
+    const taskListId = orderedTaskListIds[index];
+    if (taskListId === undefined) {
+      return operation();
+    }
+    return enqueueTaskListMutation(taskListId, () => run(index + 1));
+  };
+  return run(0);
+}
+
 type AppState = {
   user: User | null;
   authStatus: AuthStatus;
@@ -2884,8 +2899,9 @@ async function moveTask(
   updates: Partial<Pick<Task, "date" | "pinned" | "text">>,
   settings: ResolvedTaskSettings,
 ) {
-  await enqueueTaskListMutation(sourceTaskListId, () =>
-    enqueueTaskListMutation(targetTaskListId, async () => {
+  await enqueueTaskListMutations(
+    [sourceTaskListId, targetTaskListId],
+    async () => {
       const [sourceTaskList, targetTaskList] = await Promise.all([
         getTaskListData(sourceTaskListId),
         getTaskListData(targetTaskListId),
@@ -2959,7 +2975,7 @@ async function moveTask(
         updatedAt: now,
       });
       await batch.commit();
-    }),
+    },
   );
 }
 

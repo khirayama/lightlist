@@ -6,10 +6,10 @@ options:
 packages:
   FirebaseSDK:
     url: https://github.com/firebase/firebase-ios-sdk
-    from: "12.16.0"
+    from: "12.17.0"
   LicensePlist:
     url: https://github.com/mono0926/LicensePlist
-    from: "3.27.9"
+    from: "3.28.0"
 settings:
   base:
     CURRENT_PROJECT_VERSION: 1

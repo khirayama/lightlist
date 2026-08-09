@@ -763,6 +763,83 @@ private data class TaskSummary(
     val pinned: Boolean
 )
 
+private data class FirestoreTaskRecord(
+    val id: String? = null,
+    val text: String? = null,
+    val completed: Boolean? = null,
+    val date: String? = null,
+    val order: Double? = null,
+    val pinned: Boolean? = null
+)
+
+private data class FirestoreTaskListRecord(
+    val name: String? = null,
+    val tasks: Map<String, FirestoreTaskRecord> = emptyMap(),
+    val history: List<String> = emptyList(),
+    val memberCount: Long? = null,
+    val background: String? = null,
+    val shareCode: String? = null
+)
+
+private data class FirestoreSettingsRecord(
+    val theme: String? = null,
+    val language: String? = null,
+    val taskInsertPosition: String? = null,
+    val autoSort: Boolean? = null,
+    val startupView: String? = null
+)
+
+private fun FirestoreTaskRecord.toTaskSummary(taskId: String): TaskSummary? {
+    val resolvedText = text ?: return null
+    val resolvedCompleted = completed ?: return null
+    val resolvedDate = date ?: return null
+    val resolvedOrder = order?.takeIf { it.isFinite() } ?: return null
+    val resolvedPinned = pinned ?: return null
+    if (id != taskId || !hasTaskContent(resolvedText, resolvedDate, resolvedPinned)) return null
+    return TaskSummary(
+        id = taskId,
+        text = resolvedText,
+        completed = resolvedCompleted,
+        date = resolvedDate,
+        order = resolvedOrder,
+        pinned = resolvedPinned
+    )
+}
+
+private fun FirestoreTaskListRecord.taskSummaries(): List<TaskSummary> {
+    return tasks.mapNotNull { (taskId, task) -> task.toTaskSummary(taskId) }
+        .sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
+}
+
+private fun decodeTaskListRecord(document: DocumentSnapshot): FirestoreTaskListRecord {
+    return runCatching {
+        document.toObject(FirestoreTaskListRecord::class.java)
+    }.getOrNull() ?: FirestoreTaskListRecord(
+        name = document.getString("name"),
+        tasks = (document.get("tasks") as? Map<*, *>)
+            ?.entries
+            ?.mapNotNull { (key, value) ->
+                val taskId = key as? String ?: return@mapNotNull null
+                val task = value as? Map<*, *> ?: return@mapNotNull null
+                val record = FirestoreTaskRecord(
+                    id = task["id"] as? String,
+                    text = task["text"] as? String,
+                    completed = task["completed"] as? Boolean,
+                    date = task["date"] as? String,
+                    order = (task["order"] as? Number)?.toDouble(),
+                    pinned = task["pinned"] as? Boolean
+                )
+                taskId to record
+            }
+            ?.toMap()
+            .orEmpty(),
+        history = (document.get("history") as? List<*>)?.mapNotNull { it as? String }.orEmpty(),
+        memberCount = (document.get("memberCount") as? Number)?.toLong(),
+        background = document.getString("background"),
+        shareCode = document.getString("shareCode")
+    )
+}
+
 private class TaskListMutationQueue(
     private val scope: CoroutineScope
 ) {
@@ -773,10 +850,10 @@ private class TaskListMutationQueue(
         onIdle: () -> Unit = {},
         onError: (Exception) -> Unit = {},
         block: suspend () -> Unit
-    ) {
+    ): Job {
         pendingCount += 1
         val previous = tail
-        tail = scope.launch {
+        val next = scope.launch {
             try {
                 previous?.join()
                 block()
@@ -791,6 +868,8 @@ private class TaskListMutationQueue(
                 }
             }
         }
+        tail = next
+        return next
     }
 }
 
@@ -801,6 +880,45 @@ private object TaskListMutationQueues {
     @Synchronized
     fun queueFor(key: String): TaskListMutationQueue {
         return queues.getOrPut(key) { TaskListMutationQueue(scope) }
+    }
+
+    fun enqueueFor(
+        taskListIds: List<String>,
+        onIdle: () -> Unit = {},
+        onError: (Exception) -> Unit = {},
+        block: suspend () -> Unit
+    ) {
+        val orderedTaskListIds = taskListIds.distinct().sorted()
+        if (orderedTaskListIds.isEmpty()) {
+            scope.launch {
+                try {
+                    block()
+                } catch (error: Exception) {
+                    onError(error)
+                } finally {
+                    onIdle()
+                }
+            }
+            return
+        }
+
+        fun enqueueNext(index: Int): Job {
+            val isLast = index == orderedTaskListIds.lastIndex
+            val idleCallback: () -> Unit = if (index == 0) onIdle else ({})
+            val errorCallback: (Exception) -> Unit = if (isLast) onError else ({})
+            return queueFor(orderedTaskListIds[index]).enqueue(
+                onIdle = idleCallback,
+                onError = errorCallback
+            ) {
+                if (isLast) {
+                    block()
+                } else {
+                    enqueueNext(index + 1).join()
+                }
+            }
+        }
+
+        enqueueNext(0)
     }
 }
 
@@ -1105,7 +1223,7 @@ private fun removeTaskListListeners(listeners: List<ListenerRegistration>) {
 
 private fun <T> subscribeToOrderedTaskLists(
     userId: String,
-    parseDocument: (String, Map<String, Any>) -> T,
+    parseDocument: (String, FirestoreTaskListRecord) -> T,
     onPublish: (List<T>) -> Unit,
     onError: (() -> Unit)? = null
 ): () -> Unit {
@@ -1157,15 +1275,14 @@ private fun <T> subscribeToOrderedTaskLists(
                         .filterKeys { it !in chunk }
                         .toMutableMap()
                     snapshot?.documents?.forEach { document ->
-                        val data = document.data ?: return@forEach
                         scheduleMalformedTaskCleanup(
                             taskListId = document.id,
-                            data = data,
+                            data = document.data ?: emptyMap(),
                             isFromCache = document.metadata.isFromCache,
                             hasPendingWrites = document.metadata.hasPendingWrites()
                         )
                         nextTaskListsById[document.id] =
-                            parseDocument(document.id, data)
+                            parseDocument(document.id, decodeTaskListRecord(document))
                     }
                     taskListsById = nextTaskListsById
                     publish()
@@ -1480,7 +1597,7 @@ private fun SharedTaskListPreviewScreen(
 @Composable
 private fun <T> rememberOrderedTaskListsState(
     userId: String?,
-    parseDocument: (String, Map<String, Any>) -> T
+    parseDocument: (String, FirestoreTaskListRecord) -> T
 ): OrderedTaskListsUiState<T> {
     var uiState by remember(userId) {
         mutableStateOf(
@@ -1520,7 +1637,7 @@ private fun <T> rememberOrderedTaskListsState(
 }
 
 @Composable
-private fun <T> rememberOrderedTaskLists(userId: String?, parseDocument: (String, Map<String, Any>) -> T): List<T> {
+private fun <T> rememberOrderedTaskLists(userId: String?, parseDocument: (String, FirestoreTaskListRecord) -> T): List<T> {
     return rememberOrderedTaskListsState(userId, parseDocument).taskLists
 }
 
@@ -1546,13 +1663,15 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                         uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
                         return@addSnapshotListener
                     }
-                    val data = snapshot?.data ?: emptyMap()
+                    val data = runCatching {
+                        snapshot?.toObject(FirestoreSettingsRecord::class.java)
+                    }.getOrNull() ?: FirestoreSettingsRecord()
                     uiState = SettingsState(
-                        theme = data["theme"] as? String ?: "system",
-                        language = data["language"] as? String ?: "ja",
-                        taskInsertPosition = data["taskInsertPosition"] as? String ?: "top",
-                        autoSort = data["autoSort"] as? Boolean ?: false,
-                        startupView = normalizeStartupView(data["startupView"] as? String),
+                        theme = data.theme ?: "system",
+                        language = data.language ?: "ja",
+                        taskInsertPosition = data.taskInsertPosition ?: "top",
+                        autoSort = data.autoSort ?: false,
+                        startupView = normalizeStartupView(data.startupView),
                         userEmail = email,
                         isLoading = false,
                         hasError = false
@@ -1578,16 +1697,15 @@ private fun parseOrderedTaskListIds(data: Map<String, Any>): List<String> {
         .map { it.first }
 }
 
-private fun parseTaskListSummary(taskListId: String, data: Map<String, Any>): TaskListSummary {
-    val tasks = data["tasks"] as? Map<*, *> ?: emptyMap<String, Any>()
-    val memberCount = (data["memberCount"] as? Number)?.toInt() ?: 1
-    val name = data["name"] as? String ?: ""
-    val background = data["background"] as? String
+private fun parseTaskListSummary(taskListId: String, data: FirestoreTaskListRecord): TaskListSummary {
+    val memberCount = data.memberCount?.toInt() ?: 1
+    val name = data.name ?: ""
+    val background = data.background
 
     return TaskListSummary(
         id = taskListId,
         name = name,
-        taskCount = parseTasks(tasks).size,
+        taskCount = data.taskSummaries().size,
         memberCount = memberCount,
         background = background
     )
@@ -1643,13 +1761,13 @@ private fun scheduleMalformedTaskCleanup(
     }
 }
 
-private fun parseTaskListDetail(taskListId: String, data: Map<String, Any>): TaskListDetail {
-    val name = data["name"] as? String ?: ""
-    val memberCount = (data["memberCount"] as? Number)?.toInt() ?: 1
-    val background = data["background"] as? String
-    val shareCode = data["shareCode"] as? String
-    val history = (data["history"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
-    val tasks = parseTasks(data["tasks"] as? Map<*, *> ?: emptyMap<String, Any>())
+private fun parseTaskListDetail(taskListId: String, data: FirestoreTaskListRecord): TaskListDetail {
+    val name = data.name ?: ""
+    val memberCount = data.memberCount?.toInt() ?: 1
+    val background = data.background
+    val shareCode = data.shareCode
+    val history = data.history
+    val tasks = data.taskSummaries()
 
     return TaskListDetail(
         id = taskListId,
@@ -1717,8 +1835,7 @@ private fun rememberSharedTaskListPreviewState(
                             errorMessage = t.t("pages.sharecode.error")
                         )
                     } else {
-                        val data = snapshot?.data
-                        if (data == null) {
+                        if (snapshot == null || !snapshot.exists()) {
                             uiState.copy(
                                 taskList = null,
                                 isLoading = false,
@@ -1726,7 +1843,10 @@ private fun rememberSharedTaskListPreviewState(
                             )
                         } else {
                             uiState.copy(
-                                taskList = parseTaskListDetail(taskListId, data),
+                                taskList = parseTaskListDetail(
+                                    taskListId,
+                                    decodeTaskListRecord(snapshot)
+                                ),
                                 isLoading = false,
                                 errorMessage = null
                             )
@@ -1756,26 +1876,6 @@ private fun rememberSharedTaskListPreviewState(
     }
 
     return uiState
-}
-
-private fun parseTasks(rawTasks: Map<*, *>): List<TaskSummary> {
-    return rawTasks.entries.mapNotNull { entry ->
-        val taskId = entry.key as? String ?: return@mapNotNull null
-        val value = entry.value as? Map<*, *> ?: return@mapNotNull null
-        if (!isCompleteTaskData(taskId, value)) return@mapNotNull null
-        val text = value["text"] as? String ?: ""
-        val date = value["date"] as? String ?: ""
-        val pinned = value["pinned"] as? Boolean ?: false
-        if (!hasTaskContent(text, date, pinned)) return@mapNotNull null
-        TaskSummary(
-            id = taskId,
-            text = text,
-            completed = value["completed"] as? Boolean ?: false,
-            date = date,
-            order = (value["order"] as? Number)?.toDouble() ?: 0.0,
-            pinned = pinned
-        )
-    }.sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
 }
 
 private fun generateRandomShareCode(): String {
@@ -3428,7 +3528,7 @@ private fun CalendarScreen(
         )
         logTaskUpdate(fields = "text,date,pinned,taskList")
         addTaskError = null
-        TaskListMutationQueues.queueFor(task.taskListId).enqueue(onError = { error ->
+        TaskListMutationQueues.enqueueFor(listOf(task.taskListId, taskListId), onError = { error ->
             recordNonFatalException("calendar_task_move", error)
             addTaskError = t.t("common.error")
         }) {
@@ -6371,6 +6471,7 @@ private fun TaskListDetailContent(
                     onDismissRequest = { actionSheetState = null },
                     sheetState = sheetState,
                     sheetMaxWidth = Dp.Unspecified,
+                    contentWindowInsets = { WindowInsets(0) },
                     modifier = Modifier.semantics {
                         paneTitle = t.t("pages.tasklist.setDate")
                     }
@@ -6380,6 +6481,7 @@ private fun TaskListDetailContent(
                             .fillMaxWidth()
                             .heightIn(max = 640.dp)
                             .verticalScroll(rememberScrollState())
+                            .navigationBarsPadding()
                             .padding(horizontal = 16.dp)
                             .padding(bottom = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -6927,12 +7029,14 @@ private fun SettingsView(
 
     if (showBundledLicensesSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showBundledLicensesSheet = false }
+            onDismissRequest = { showBundledLicensesSheet = false },
+            contentWindowInsets = { WindowInsets(0) }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {

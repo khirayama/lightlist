@@ -2,8 +2,8 @@
 
 ## ビルドツールと対象 API
 
-- Android の `compileSdk` / `targetSdk` は API 37 を使う。API 37 のビルドには AGP 9.1.1 以上が必要で、リポジトリは AGP 9.2.1 と Gradle wrapper 9.6.1 を使う。
-- Firebase Android SDK は Firebase BOM 34.16.0 で統一する。依存ライセンス生成の Google OSS Licenses plugin は 0.13.0 を使う。
+- Android の `compileSdk` / `targetSdk` は API 37 を使う。API 37 のビルドには AGP 9.3.0 以上が必要で、リポジトリは AGP 9.3.1 と Gradle wrapper 9.7.0 を使う。
+- Firebase Android SDK は Firebase BOM 34.17.0 で統一する。依存ライセンス生成の Google OSS Licenses plugin は 0.13.0 を使う。
 
 ## 判断事項
 

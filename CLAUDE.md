@@ -53,7 +53,7 @@
 ## 主要コマンド
 
 - ルート: `just web` / `just ios` / `just android` / `just screenshots` / `just deploy-firestore` / `just deploy-firestore-prod` / `just loc`
-- Web: `cd apps/web && npm run dev`、`npm run build`、`npm run lint`、`npm run typecheck`、`npm run knip`。`dev` / `build` / `lint` / `typecheck` は shared locale 同期と license 生成を前処理として実行する。
+- Web: `cd apps/web && npm run dev`、`npm run build`、`npm run lint`、`npm run typecheck`、`npm run knip`。`dev` / `build` / `lint` / `typecheck` は `prepare:assets`（shared locale 同期と license 生成）を前処理として実行する。
 - Web 配信: `cd apps/web && npm run cf:preview` / `npm run cf:deploy`。必要な環境変数は上記の Cloudflare Pages 仕様に従う。
 - iOS: `cd apps/ios && just build` / `just build-release` / `LIGHTLIST_IOS_TEAM_ID=<Team ID> just archive`
 - Android: `cd apps/android && just lint` / `just build` / `just build-release` / `just bundle-play` / `just run` / `just run-clean`

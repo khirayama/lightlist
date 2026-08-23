@@ -1210,14 +1210,25 @@ function scheduleMalformedTaskCleanup(
 }
 
 function normalizeTaskListStore(taskListData: TaskListStore): TaskListStore {
-  const normalizedTasks = Object.fromEntries(
-    Object.entries(taskListData.tasks).filter(([taskId, task]) =>
-      isCompleteTaskStoreTask(taskId, task),
+  let didNormalizeDate = false;
+  const normalizedTasks: TaskListStore["tasks"] = Object.fromEntries(
+    Object.entries(taskListData.tasks).flatMap(
+      ([taskId, task]): [string, TaskListStoreTask][] => {
+        if (!isCompleteTaskStoreTask(taskId, task)) return [];
+
+        const normalizedDate =
+          task.date && parseTaskDateValue(task.date) ? task.date : "";
+        if (normalizedDate === task.date) return [[taskId, task]];
+
+        didNormalizeDate = true;
+        return [[taskId, { ...task, date: normalizedDate }]];
+      },
     ),
   );
   if (
+    !didNormalizeDate &&
     Object.keys(normalizedTasks).length ===
-    Object.keys(taskListData.tasks).length
+      Object.keys(taskListData.tasks).length
   ) {
     return taskListData;
   }
@@ -4431,10 +4442,8 @@ const writeLastTaskListSnapshot = (snapshot: LastTaskListSnapshot): void => {
 const parseTaskDate = (dateStr: string | null | undefined): Date | null =>
   parseTaskDateValue(dateStr ?? undefined) ?? null;
 
-const createDateFromKey = (dateKey: string): Date | null => {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  return [y, m, d].some(Number.isNaN) ? null : new Date(y, m - 1, d);
-};
+const createDateFromKey = (dateKey: string): Date | null =>
+  parseTaskDateValue(dateKey) ?? null;
 
 const formatMonthKey = (date: Date): string =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -5001,20 +5010,24 @@ function Calendar({
 const parseTaskDateValue = (value: string | undefined): Date | undefined => {
   if (!value) return undefined;
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (match) {
-    const year = Number(match[1]);
-    const month = Number(match[2]);
-    const day = Number(match[3]);
-    if (
-      !Number.isFinite(year) ||
-      !Number.isFinite(month) ||
-      !Number.isFinite(day)
-    ) {
-      return undefined;
-    }
-    return new Date(year, month - 1, day);
+  if (!match) return undefined;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (year < 1) return undefined;
+
+  const date = new Date(0);
+  date.setHours(12, 0, 0, 0);
+  date.setFullYear(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return undefined;
   }
-  return undefined;
+  return date;
 };
 
 const taskDateFormatterCache = new Map<string, Intl.DateTimeFormat>();

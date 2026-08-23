@@ -32,7 +32,7 @@ Task の構造:
 - `id`
 - `text`: 文字列。日付ありまたはピン留めの場合は空文字を許可する
 - `completed`
-- `date`: `"yyyy-MM-dd" | null`
+- `date`: 実在する端末ローカルの暦日を表す厳密な `"yyyy-MM-dd" | null`。不正な形式・存在しない日付は読み取り時に日付なしとして扱う
 - `order`
 - `pinned`
 

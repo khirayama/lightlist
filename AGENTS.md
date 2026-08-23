@@ -77,7 +77,7 @@
 - Web の taskLists chunk listener の失敗は部分劣化とし、読み込めた chunk の表示を維持する。全画面エラーは settings / taskListOrder の失敗か、taskLists を 1 件も読めない場合だけにする。
 - Web の taskLists chunk 購読は ID 集合キー（ソート済み `|` join）の変化時だけ張り直し、`taskListOrder` 内の順序変更（D&D 並び替え）では listener を解除・再購読しない。effect の依存に順序込みの ID 配列を入れない。
 - Firestore でドット記法の field path（`tasks.<id>.text` や `<taskListId>.order`）を書き込むときは必ず update 系 API（Web `updateDoc`、iOS `updateData`、Android `update`）を使う。set + merge はドットを field path として解釈しないため使用禁止。`deleteField()` を含む top-level キーの merge set は可。
-- タスクの `yyyy-MM-dd` 日付文字列は 3 プラットフォームとも常に端末ローカルの暦日として解釈・生成する（formatter / parser に UTC を指定しない、Web で `new Date("yyyy-mm-dd")` を使わない）。唯一の例外は Android Compose Material3 `DatePicker` の `selectedDateMillis` で、UTC midnight millis 前提のため変換時のみ UTC を使う。iOS の `yyyy-MM-dd` formatter は `en_US_POSIX` ロケールと gregorian calendar を必ず指定する。
+- タスクの `yyyy-MM-dd` 日付文字列は実在する暦日だけを厳密に受け入れ、不正値は日付なしへ正規化する。3 プラットフォームとも端末ローカルの暦日として解釈・生成し（formatter / parser に UTC を指定しない、Web で `new Date("yyyy-mm-dd")` を使わない）、唯一の例外として Android Compose Material3 `DatePicker` の `selectedDateMillis` 変換だけ UTC midnight millis を使う。iOS の `yyyy-MM-dd` formatter は `en_US_POSIX` ロケールと gregorian calendar を必ず指定する。
 - settings doc が存在しないユーザーでも設定画面を永久ローディングにせず、既定値（`system` / `ja` / `top` / `autoSort=false` / `startupView="taskList"`）で表示する。`startupView` は欠損・不正値を 3 プラットフォームとも `taskList` へ正規化する。
 - Web の `index` / `404` / `500` / `password_reset` ページ（`body[data-page]` 判定）では Firebase Auth の状態購読を行わない。
 - iOS / Android の task mutation queue は view / Composable 単位ではなく `TaskListMutationQueues`（taskListId キーのプロセス内登録）で保持する。iOS の `CalendarViewModel` は RootView 常駐ではなく `CalendarScreenView` が自身で bind し、`OrderedTaskListViewModel` は `deinit` で listener を解放する。

@@ -208,6 +208,7 @@ import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import java.util.Calendar
+import java.util.GregorianCalendar
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.Date
@@ -795,12 +796,13 @@ private fun FirestoreTaskRecord.toTaskSummary(taskId: String): TaskSummary? {
     val resolvedDate = date ?: return null
     val resolvedOrder = order?.takeIf { it.isFinite() } ?: return null
     val resolvedPinned = pinned ?: return null
-    if (id != taskId || !hasTaskContent(resolvedText, resolvedDate, resolvedPinned)) return null
+    val normalizedDate = resolvedDate.takeIf { it.isEmpty() || parseTaskInputDate(it) != null }.orEmpty()
+    if (id != taskId || !hasTaskContent(resolvedText, normalizedDate, resolvedPinned)) return null
     return TaskSummary(
         id = taskId,
         text = resolvedText,
         completed = resolvedCompleted,
-        date = resolvedDate,
+        date = normalizedDate,
         order = resolvedOrder,
         pinned = resolvedPinned
     )
@@ -2011,14 +2013,11 @@ private val calendarTaskComparator = compareByDescending<CalendarTask> { it.pinn
     .thenBy { it.taskIndex }
 
 private fun flattenCalendarTasks(taskLists: List<TaskListDetail>): List<CalendarTask> {
-    val isoFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     return taskLists.flatMapIndexed { taskListIndex, taskList ->
         taskList.tasks
             .filter { !it.completed }
             .mapIndexed { taskIndex, task ->
-                val dateValue = task.date.takeIf { it.isNotBlank() }?.let {
-                    try { isoFormat.parse(it) } catch (e: Exception) { null }
-                }
+                val dateValue = task.date.takeIf { it.isNotBlank() }?.let(::parseTaskInputDate)
                 CalendarTask(
                     id = "${taskList.id}:${task.id}",
                     taskListId = taskList.id,
@@ -2087,7 +2086,7 @@ private fun formatDateForLocale(
 ): String {
     return try {
         val locale = localeForLanguage(languageTag)
-        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateKey) ?: return dateKey
+        val date = parseTaskInputDate(dateKey) ?: return dateKey
         val pattern = DateFormat.getBestDateTimePattern(locale, skeleton)
         SimpleDateFormat(pattern, locale).format(date)
     } catch (_: Exception) {
@@ -2123,25 +2122,55 @@ private fun normalizeTaskDateDigits(value: String): String =
         value.forEach { append(TASK_DATE_DIGIT_MAP[it] ?: it) }
     }
 
+private val TASK_INPUT_DATE_PATTERN = Regex("""\d{4}-\d{2}-\d{2}""")
+
+private fun taskInputDateFormatter(
+    timeZone: TimeZone = TimeZone.getDefault()
+): SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+    isLenient = false
+    calendar = GregorianCalendar(timeZone, Locale.ROOT).apply {
+        gregorianChange = Date(Long.MIN_VALUE)
+    }
+}
+
 private fun formatTaskInputDate(date: Date): String =
-    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(date)
+    taskInputDateFormatter().format(date)
 
 private fun taskInputDateFrom(year: Int, month: Int, day: Int): Date? {
-    val calendar = Calendar.getInstance()
-    calendar.isLenient = false
-    calendar.set(Calendar.YEAR, year)
-    calendar.set(Calendar.MONTH, month - 1)
-    calendar.set(Calendar.DAY_OF_MONTH, day)
-    calendar.set(Calendar.HOUR_OF_DAY, 0)
-    calendar.set(Calendar.MINUTE, 0)
-    calendar.set(Calendar.SECOND, 0)
-    calendar.set(Calendar.MILLISECOND, 0)
+    if (year < 1) return null
+    val calendar = GregorianCalendar(TimeZone.getDefault(), Locale.ROOT).apply {
+        isLenient = false
+        gregorianChange = Date(Long.MIN_VALUE)
+        clear()
+        set(year, month - 1, day, 12, 0, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
     return try {
         calendar.time
     } catch (_: Exception) {
         null
     }
 }
+
+private fun parseTaskInputDate(value: String): Date? {
+    if (!TASK_INPUT_DATE_PATTERN.matches(value)) return null
+    val parts = value.split('-')
+    val year = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull() ?: return null
+    val day = parts[2].toIntOrNull() ?: return null
+    return taskInputDateFrom(year, month, day)
+}
+
+private fun parseTaskDatePickerMillis(value: String): Long? {
+    if (!TASK_INPUT_DATE_PATTERN.matches(value)) return null
+    val formatter = taskInputDateFormatter(TimeZone.getTimeZone("UTC"))
+    return runCatching { formatter.parse(value) }.getOrNull()
+        ?.takeIf { formatter.format(it) == value }
+        ?.time
+}
+
+private fun formatTaskDatePickerMillis(millis: Long): String =
+    taskInputDateFormatter(TimeZone.getTimeZone("UTC")).format(Date(millis))
 
 private fun nextTaskWeekdayOffset(targetDay: Int, currentDay: Int): Int {
     val diff = targetDay - currentDay
@@ -3063,7 +3092,7 @@ private fun CalendarGrid(
         set(year, monthNum, 1)
     }.get(Calendar.DAY_OF_WEEK) - 1
     val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-    val todayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
+    val todayKey = formatTaskInputDate(java.util.Date())
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
         val weekDays = remember(t.languageTag()) {
@@ -3409,13 +3438,7 @@ private fun CalendarScreen(
         }
         val nextTasks = reconcileTasks(insertedTasks, settingsState.autoSort)
         val insertedIndex = nextTasks.indexOfFirst { it.id == taskId }
-        val dateValue = dateKey.takeIf { it.isNotBlank() }?.let {
-            try {
-                SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(it)
-            } catch (_: Exception) {
-                null
-            }
-        }
+        val dateValue = dateKey.takeIf { it.isNotBlank() }?.let(::parseTaskInputDate)
 
         optimisticCalendarTasks = optimisticCalendarTasks + CalendarTask(
             id = "${taskList.id}:$taskId",
@@ -3743,24 +3766,14 @@ private fun CalendarTaskSheet(
     var pinned by remember { mutableStateOf(initialPinned) }
     var taskListMenuExpanded by remember { mutableStateOf(false) }
     val initialSelectedMillis = remember(initialDateKey) {
-        initialDateKey?.takeIf { it.isNotBlank() }?.let { date ->
-            runCatching {
-                SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-                    timeZone = TimeZone.getTimeZone("UTC")
-                }.parse(date)?.time
-            }.getOrNull()
-        }
+        initialDateKey?.takeIf { it.isNotBlank() }?.let(::parseTaskDatePickerMillis)
     }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialSelectedMillis)
     val pinnedLabel = t.t(if (pinned) "pages.tasklist.unpinTask" else "pages.tasklist.pinTask")
 
     fun submit() {
         val trimmed = text.trim()
-        val dateKey = datePickerState.selectedDateMillis?.let { millis ->
-            SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-                timeZone = TimeZone.getTimeZone("UTC")
-            }.format(Date(millis))
-        }.orEmpty()
+        val dateKey = datePickerState.selectedDateMillis?.let(::formatTaskDatePickerMillis).orEmpty()
         if (!hasTaskContent(trimmed, dateKey, pinned) || taskListId.isEmpty()) return
         onSubmit(taskListId, trimmed, pinned, dateKey)
     }
@@ -6441,13 +6454,7 @@ private fun TaskListDetailContent(
         } else {
             key(task.id) {
                 val initialSelectedMillis = remember(task.date) {
-                    task.date.takeIf { it.isNotBlank() }?.let { date ->
-                        runCatching {
-                            SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-                                timeZone = TimeZone.getTimeZone("UTC")
-                            }.parse(date)?.time
-                        }.getOrNull()
-                    }
+                    task.date.takeIf { it.isNotBlank() }?.let(::parseTaskDatePickerMillis)
                 }
                 val datePickerState = rememberDatePickerState(
                     initialSelectedDateMillis = initialSelectedMillis
@@ -6460,9 +6467,7 @@ private fun TaskListDetailContent(
                         ignoreInitialSelection = false
                         if (initialSelectedMillis == millis) return@LaunchedEffect
                     }
-                    val nextDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-                        timeZone = TimeZone.getTimeZone("UTC")
-                    }.format(Date(millis))
+                    val nextDate = formatTaskDatePickerMillis(millis)
                     if (nextDate == task.date) return@LaunchedEffect
                     commitDate(task, nextDate)
                     actionSheetState = null

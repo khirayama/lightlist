@@ -393,15 +393,16 @@ private struct FirestoreTaskRecord: Codable {
               let date,
               let order,
               order.isFinite,
-              let pinned,
-              hasTaskContent(text: text, date: date, pinned: pinned) else {
+              let pinned else {
             return nil
         }
+        let normalizedDate = date.isEmpty || parseTaskInputDate(date) != nil ? date : ""
+        guard hasTaskContent(text: text, date: normalizedDate, pinned: pinned) else { return nil }
         return TaskSummary(
             id: taskId,
             text: text,
             completed: completed,
-            date: date,
+            date: normalizedDate,
             order: order,
             pinned: pinned
         )
@@ -1094,7 +1095,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
                             text: task.text,
                             completed: task.completed,
                             date: task.date,
-                            dateValue: task.date.isEmpty ? nil : isoDateFormatter.date(from: task.date),
+                            dateValue: task.date.isEmpty ? nil : parseTaskInputDate(task.date),
                             pinned: task.pinned,
                             taskListIndex: taskListIndex,
                             taskIndex: taskIndex
@@ -1165,7 +1166,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             text: parsed.text,
             completed: false,
             date: dateStr,
-            dateValue: dateStr.isEmpty ? nil : isoDateFormatter.date(from: dateStr),
+            dateValue: dateStr.isEmpty ? nil : parseTaskInputDate(dateStr),
             pinned: pinned,
             taskListIndex: taskListIndex,
             taskIndex: insertedIndex
@@ -1436,6 +1437,7 @@ private let isoDateFormatter: DateFormatter = {
     f.locale = Locale(identifier: "en_US_POSIX")
     f.calendar = currentGregorianCalendar()
     f.timeZone = .autoupdatingCurrent
+    f.isLenient = false
     f.dateFormat = "yyyy-MM-dd"
     return f
 }()
@@ -1472,11 +1474,31 @@ private let taskListColorOptions: [String?] = [nil, "#F87171", "#FBBF24", "#34D3
 }
 
 private func taskInputDateFrom(year: Int, month: Int, day: Int) -> Date? {
+    guard year >= 1 else { return nil }
     var components = DateComponents()
     components.year = year
     components.month = month
     components.day = day
-    return currentGregorianCalendar().date(from: components)
+    components.hour = 12
+    let calendar = currentGregorianCalendar()
+    guard let date = calendar.date(from: components) else { return nil }
+    let resolved = calendar.dateComponents([.year, .month, .day], from: date)
+    guard resolved.year == year, resolved.month == month, resolved.day == day else { return nil }
+    return date
+}
+
+private func parseTaskInputDate(_ value: String) -> Date? {
+    let parts = value.split(separator: "-", omittingEmptySubsequences: false)
+    guard parts.count == 3,
+          parts[0].count == 4,
+          parts[1].count == 2,
+          parts[2].count == 2,
+          let year = Int(parts[0]),
+          let month = Int(parts[1]),
+          let day = Int(parts[2]),
+          let date = taskInputDateFrom(year: year, month: month, day: day),
+          formatTaskInputDate(date) == value else { return nil }
+    return date
 }
 
 private func nextTaskWeekdayOffset(targetDay: Int, currentDay: Int) -> Int {
@@ -3790,7 +3812,7 @@ private struct TaskListDetailPage: View {
     }
 
     private func formatDateDisplay(_ dateStr: String) -> String {
-        guard let date = isoDateFormatter.date(from: dateStr) else { return dateStr }
+        guard let date = parseTaskInputDate(dateStr) else { return dateStr }
         return Self.dateDisplayFormatter(for: translations.language).string(from: date)
     }
 
@@ -4398,7 +4420,7 @@ private struct TaskListDetailPage: View {
                 .contentShape(Rectangle())
                 .buttonStyle(.plain)
                 DatePicker("", selection: Binding(
-                    get: { isoDateFormatter.date(from: task.date) ?? Date() },
+                    get: { parseTaskInputDate(task.date) ?? Date() },
                     set: {
                         commitDate(task, dateStr: isoDateFormatter.string(from: $0))
                         actionSheetState = nil
@@ -6125,7 +6147,7 @@ private struct CalendarScreenView: View {
                     initialTaskListId: task.taskListId,
                     initialText: task.text,
                     initialPinned: task.pinned,
-                    initialDate: isoDateFormatter.date(from: task.date),
+                    initialDate: parseTaskInputDate(task.date),
                     onSubmit: { taskListId, text, pinned, dateStr in
                         triggerLightImpact()
                         viewModel.saveTask(

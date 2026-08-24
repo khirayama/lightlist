@@ -23,7 +23,8 @@
 
 - Firebase App Check は Web（reCAPTCHA v3）、iOS（Release は App Attest 優先、非対応端末は DeviceCheck、DEBUG は debug provider）、Android（Release は Play Integrity、debug は debug provider）で有効化する。Console 手順と enforcement の制約は `docs/app-check.md` を正とする。
 - Firebase のデプロイ設定（`firestore.rules`、`firebase.json`、`.firebaserc`、`firestore.indexes.json`）はリポジトリルートに置く。
-- Web の本番配信は Cloudflare Pages とする。Root directory は `apps/web`、output directory は `dist`、Node.js は `apps/web/.node-version` の `24.18.0`、package manager は `apps/web/package.json` の `npm@12.0.1` に固定する。
+- Web の本番配信は Cloudflare Pages とする。Root directory は `apps/web`、output directory は `dist`、Node.js は `apps/web/.node-version` の `24.19.0`、package manager は `apps/web/package.json` の `npm@12.0.2` に固定する。
+- npm 12 の依存 install script は `apps/web/package.json` の完全バージョン付き `allowScripts` で明示承認し、依存更新時は `npm install-scripts ls` で未承認がないことを確認する。
 - Cloudflare Pages の build では `LIGHTLIST_IOS_TEAM_ID` と `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` を使って AASA / Digital Asset Links を `dist/.well-known/` に生成する。Git integration / `cf:preview` / `cf:deploy` に両環境変数を設定する。
 - Web の production response headers はアプリ内でなく配信基盤側で管理する。PII（特にメールアドレス）を `console.error` や Analytics parameter に含めない。
 
@@ -39,7 +40,7 @@
 - 共有taskの他端末競合で必須field不足の部分mapが再生成される場合があるため、全task fieldを厳格decodeし、server確定snapshotでだけ部分mapを自動削除する。
 - Firestore の UI 更新は transaction を使わず、表示中の task 群を正規化して pending overlay に反映し、taskListId 単位の mutation queue で直列化する。表示優先順は drag overlay → pending → listener。書き込み中の内容一致だけで pending を解放しない。
 - Firestore の field path（`tasks.<id>.*` など）は update 系 API（Web `updateDoc` / iOS `updateData` / Android `update`）だけで書き込む。taskList の削除・共有参加も事前 read 後の batch write とする。
-- 起動は cache-first とし、Web / iOS / Android の設定・taskListOrder・taskLists cache を listener の live snapshot より先に利用できるようにする。cache の古い内容は後続 listener で更新する。
+- 起動は cache-first とし、Web / iOS / Android の設定・taskListOrder・taskLists cache を listener の live snapshot より先に利用できるようにする。taskListOrder の順序付き ID は uid ごとの軽量な端末 storage に保持し、次回起動の taskLists 先読み・購読を order snapshot より先に開始する。Web は listener の初回 cache snapshot を hydrate に使って同一参照の cache get を重ねず、iOS の warm-up は cache read を並列化する。cache の古い内容は後続 listener で更新する。
 - Web の compact layout / carousel は表示中の画面だけを Tab 順と accessibility tree に含め、画面切替時は main landmark へフォーカスを移す（初回表示を除く）。認証は signin / signup の選択中タブだけを Tab 順に含め、左右矢印・Home / End で切り替える。並び替えはスクリーンリーダーとハードウェアキーボードでも実行できる。
 - Web / iOS / Android の motion は Reduce Motion を尊重する。iOS / Android のタスク操作には共通方針の触覚 feedback を返す。
 
@@ -47,6 +48,7 @@
 
 - iOS の Firebase plist は `Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` にローカル配置し、build configuration に応じて app bundle には標準名を 1 つだけコピーする。entitlements は `Lightlist/Lightlist.entitlements`、App Store archive は `LIGHTLIST_IOS_TEAM_ID=<Team ID> just archive` を使う。詳細は `docs/release-ios.md`。
 - Android の bundle identifier / Gradle namespace / Kotlin package は `com.lightlist.app`。Firebase 設定は debug / release variant ごとに分け、Firebase BoM v34 以降では main module を使う。release の R8 keep rule、`isMinifyEnabled = true`、`allowBackup = false`、`androidx.profileinstaller` を維持する。
+- Android の Google OSS Licenses runtime は従来版 Activity を含む `play-services-oss-licenses:17.2.2` に固定し、アプリ本体の Compose BOM と競合する Compose ベースの v2 Activity は使わない。従来版 Activity 用に AppCompat `1.7.1` を直接依存に含める。
 - Android の `just run` は通常上書きインストール、データを消す再インストールは `just run-clean`。Play 提出物は署名設定と versionCode を確認した `just bundle-play` の AAB とする。詳細は `docs/release-android.md`。
 - CI 品質ゲートは設定せず、変更した app のローカル検証を正とする。
 

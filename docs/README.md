@@ -19,6 +19,12 @@
 - [legal.md](./legal.md) — ライセンス表記
 - [screenshots.md](./screenshots.md) — 配信用スクリーンショット生成
 
+## 開発用起動
+
+- Android Emulator はルートで `just emulator` を実行する。AVD 名を変更する場合は `just emulator <AVD名>` として指定する。
+- iOS Simulator はルートで `just simulator` を実行する。デバイス名または UDID を変更する場合は `just simulator <デバイス名またはUDID>` として指定する。
+- いずれも各アプリの `Justfile` にある起動処理へ委譲し、ビルドは別途 `just android` / `just ios` で行う。
+
 ## リリース
 
 - [release-ios.md](./release-ios.md) — iOS App Store リリース準備

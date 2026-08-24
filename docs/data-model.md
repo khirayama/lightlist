@@ -67,6 +67,9 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 
 - 対象 `taskLists` は 10 件ずつ chunk に分けて購読する。
 - Firestore のローカルキャッシュに実データがある場合は、placeholder / skeleton より cache hydrate 済み実データ表示を優先する。
+- 起動時は永続 Firestore cache を有効にし、settings / taskListOrder / taskLists の cache 読み取りを初回 UI 構築と並行して開始する。iOS は cache 読み取りを並列実行し、Android は翻訳 JSON の preload と同じ background thread から開始する。
+- taskListOrder の順序付き ID は uid ごとに Web の localStorage、iOS の UserDefaults、Android の SharedPreferences へ保持する。次回起動では Firestore の taskListOrder snapshot を待たずに、その ID から taskLists の chunk 先読み・購読を開始し、後続 snapshot で ID と表示を更新する。
+- Web の通常購読は listener が返す初回 cache snapshot をそのまま hydrate に使い、同じ参照への明示的な cache get を重ねない。起動前 warm-up の cache get は IndexedDB と Firestore client の初期化だけを目的とする。
 - `taskLists` chunk は cache / live snapshot とも snapshot 全体を chunk 単位で反映する（差分適用しない）。
 - UI 更新系は listener 反映より先に画面上の編集結果を捨てない。保存後も Firestore が同じ内容へ追いつくまで local pending 表示を優先する。詳細は [task-lists.md](./task-lists.md)。
 - taskLists listener はmetadata changeを受け取り、部分mapの自動除去は `isFromCache/fromCache == false` かつ `hasPendingWrites == false` のsnapshotだけで行う。cacheの古い状態を根拠にserverデータを削除しない。

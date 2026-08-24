@@ -6,7 +6,7 @@ Web / iOS / Android はアプリ内設定画面からライセンス表記へ遷
 
 - Web は `apps/web/scripts/generate-licenses.mjs` を使い、`package-lock.json` と `node_modules` から依存ライブラリの名称・バージョン・ライセンス名・本文を `apps/web/public/licenses/licenses.json` に生成する。
 - iOS は `LicensePlist` の Swift Package build tool plugin を使い、Swift Package 依存の acknowledgements HTML を build 時に生成して app bundle に含める。
-- Android は `com.google.android.gms.oss-licenses-plugin` と `com.google.android.gms:play-services-oss-licenses` を使い、依存ライブラリのライセンス一覧を `OssLicensesMenuActivity` で表示する。`oss-licenses-plugin` は runtime classpath を設定時に解決するため、Google Play 提出物を作る `bundleRelease` / `bundle-play` でだけ適用し、Debug build / lint / 内部確認用の `assembleRelease` では適用しない。
+- Android は `com.google.android.gms.oss-licenses-plugin` と `com.google.android.gms:play-services-oss-licenses:17.2.2` を使い、依存ライブラリのライセンス一覧を従来版 `OssLicensesMenuActivity` で表示する。Compose ベースの v2 Activity を含む `17.4.0` 以降はアプリ本体の Compose BOM と独立した Compose 依存を持つため使用しない。従来版の古い推移依存を置き換え、Activity の superclass を compile classpath に公開するため、`androidx.appcompat:appcompat:1.7.1` を直接依存に含める。`oss-licenses-plugin` は runtime classpath を設定時に解決するため、Google Play 提出物を作る `bundleRelease` / `bundle-play` でだけ適用し、Debug build / lint / 内部確認用の `assembleRelease` では適用しない。
 
 ## 手動管理
 

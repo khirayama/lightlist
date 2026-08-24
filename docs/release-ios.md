@@ -2,7 +2,7 @@
 
 ## ビルドツール
 
-- `Lightlist.xcodeproj` は XcodeGen 2.46.0 で `apps/ios/project.yml` から生成する。依存パッケージ解決と build tool plugin の実行を含め、提出物の生成前に `just build` または `just archive` を実行する。
+- `Lightlist.xcodeproj` は Xcode 26.6 と XcodeGen 2.46.0 で `apps/ios/project.yml` から生成する。Swift 6 language mode、Firebase Apple SDK 12.18.0、LicensePlist 3.28.0 を使う。依存パッケージ解決と build tool plugin の実行を含め、提出物の生成前に `just build` または `just archive` を実行する。
 
 ## 判断事項
 

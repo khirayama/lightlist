@@ -1485,8 +1485,6 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    let hasLiveSnapshot = false;
-    let isSubscribed = true;
     const settingsRef = doc(getDbInstance(), "settings", activeUid);
 
     setSettingsState((current) => ({
@@ -1494,25 +1492,9 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       settingsStatus: "loading",
     }));
 
-    void getDocFromCache(settingsRef)
-      .then((snapshot) => {
-        if (!isSubscribed || hasLiveSnapshot) {
-          return;
-        }
-        const settingsStore = snapshot.exists()
-          ? (snapshot.data() as SettingsStore)
-          : null;
-        setSettingsState({
-          settings: mapSettingsStore(settingsStore),
-          settingsStatus: "ready",
-        });
-      })
-      .catch(() => {});
-
     const unsubscribe = onSnapshot(
       settingsRef,
       (snapshot) => {
-        hasLiveSnapshot = true;
         const settingsStore = snapshot.exists()
           ? (snapshot.data() as SettingsStore)
           : null;
@@ -1522,7 +1504,6 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         });
       },
       () => {
-        hasLiveSnapshot = true;
         setSettingsState({
           settings: null,
           settingsStatus: "error",
@@ -1531,7 +1512,6 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     );
 
     return () => {
-      isSubscribed = false;
       unsubscribe();
     };
   }, [activeUid]);
@@ -1542,33 +1522,13 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    let hasLiveSnapshot = false;
-    let isSubscribed = true;
     const taskListOrderRef = doc(getDbInstance(), "taskListOrder", activeUid);
 
     dispatchTaskLists({ type: "reset", taskListOrderStatus: "loading" });
 
-    void getDocFromCache(taskListOrderRef)
-      .then((snapshot) => {
-        if (!isSubscribed || hasLiveSnapshot) {
-          return;
-        }
-        const taskListOrder = snapshot.exists()
-          ? (snapshot.data() as TaskListOrderStore)
-          : null;
-        writeCachedTaskListOrderIds(activeUid, taskListOrder);
-        dispatchTaskLists({
-          type: "setTaskListOrder",
-          taskListOrder,
-          taskListOrderStatus: "ready",
-        });
-      })
-      .catch(() => {});
-
     const unsubscribe = onSnapshot(
       taskListOrderRef,
       (snapshot) => {
-        hasLiveSnapshot = true;
         const taskListOrder = snapshot.exists()
           ? (snapshot.data() as TaskListOrderStore)
           : null;
@@ -1580,7 +1540,6 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         });
       },
       () => {
-        hasLiveSnapshot = true;
         dispatchTaskLists({
           type: "setTaskListOrder",
           taskListOrder: null,
@@ -1590,7 +1549,6 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     );
 
     return () => {
-      isSubscribed = false;
       unsubscribe();
     };
   }, [activeUid]);
@@ -1630,8 +1588,6 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       taskListDocsStatus: "loading",
     });
 
-    let isSubscribed = true;
-    const liveSnapshotIndexes = new Set<number>();
     const taskListQueryChunks = getTaskListIdChunks(orderedTaskListIds).map(
       (chunk) => ({
         taskListIds: chunk,
@@ -1666,30 +1622,12 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       });
     };
 
-    taskListQueryChunks.forEach(({ taskListIds, taskListQuery }, index) => {
-      void getDocsFromCache(taskListQuery)
-        .then((snapshot) => {
-          if (!isSubscribed || liveSnapshotIndexes.has(index)) {
-            return;
-          }
-          applyTaskListSnapshot(taskListIds, snapshot);
-          if (snapshot.docs.length > 0) {
-            dispatchTaskLists({
-              type: "setTaskListDocsStatus",
-              taskListDocsStatus: "ready",
-            });
-          }
-        })
-        .catch(() => {});
-    });
-
     const unsubscribers = taskListQueryChunks.map(
-      ({ taskListIds, taskListQuery }, index) =>
+      ({ taskListIds, taskListQuery }) =>
         onSnapshot(
           taskListQuery,
           { includeMetadataChanges: true },
           (snapshot) => {
-            liveSnapshotIndexes.add(index);
             applyTaskListSnapshot(taskListIds, snapshot);
             dispatchTaskLists({
               type: "setTaskListDocsStatus",
@@ -1697,7 +1635,6 @@ function AppStateProvider({ children }: { children: ReactNode }) {
             });
           },
           (error: FirestoreError) => {
-            liveSnapshotIndexes.add(index);
             console.error("taskList chunk listener error:", error);
             logException(`taskList chunk listener error: ${error.code}`, false);
             dispatchTaskLists({
@@ -1709,7 +1646,6 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     );
 
     return () => {
-      isSubscribed = false;
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [orderedTaskListIdsKey, activeUid]);

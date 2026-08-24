@@ -6329,15 +6329,22 @@ private func warmUpStartupData() {
     guard let uid = Auth.auth().currentUser?.uid else {
         return
     }
-    let db = Firestore.firestore()
+    let cachedIds = UserDefaults.standard.stringArray(forKey: taskListOrderCacheKey(uid: uid)) ?? []
     Task(priority: .userInitiated) {
-        _ = try? await db.collection("settings").document(uid).getDocument(source: .cache)
-        _ = try? await db.collection("taskListOrder").document(uid).getDocument(source: .cache)
-        let cachedIds = UserDefaults.standard.stringArray(forKey: taskListOrderCacheKey(uid: uid)) ?? []
-        for chunk in taskListIdChunks(cachedIds) {
-            _ = try? await db.collection("taskLists")
-                .whereField(FieldPath.documentID(), in: chunk)
-                .getDocuments(source: .cache)
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                _ = try? await Firestore.firestore().collection("settings").document(uid).getDocument(source: .cache)
+            }
+            group.addTask {
+                _ = try? await Firestore.firestore().collection("taskListOrder").document(uid).getDocument(source: .cache)
+            }
+            for chunk in taskListIdChunks(cachedIds) {
+                group.addTask {
+                    _ = try? await Firestore.firestore().collection("taskLists")
+                        .whereField(FieldPath.documentID(), in: chunk)
+                        .getDocuments(source: .cache)
+                }
+            }
         }
     }
 }

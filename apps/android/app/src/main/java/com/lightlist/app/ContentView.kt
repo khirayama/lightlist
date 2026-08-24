@@ -239,7 +239,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import com.google.android.gms.oss.licenses.v2.OssLicensesMenuActivity
+import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
 import com.google.firebase.FirebaseApp
@@ -248,8 +248,10 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 import java.text.DateFormatSymbols
 
 import org.json.JSONObject
+import org.json.JSONArray
 
 private const val COMPLETED_TASK_ALPHA = 0.55f
+private const val STARTUP_CACHE_PREFERENCES = "lightlist.startup"
 private val TaskListBackgroundOptions = listOf<String?>(
     null,
     "#F87171",
@@ -265,6 +267,30 @@ private val shareCodePattern = Regex("^[A-Z0-9]{8}$")
 private fun normalizedShareCode(rawValue: String?): String? {
     val shareCode = rawValue?.trim()?.uppercase(Locale.ROOT) ?: return null
     return shareCode.takeIf(shareCodePattern::matches)
+}
+
+private fun taskListOrderCacheKey(userId: String): String = "lightlist.taskListOrder.$userId"
+
+private fun readCachedTaskListOrderIds(userId: String): List<String> {
+    val preferences = FirebaseApp.getInstance().applicationContext.getSharedPreferences(
+        STARTUP_CACHE_PREFERENCES,
+        Context.MODE_PRIVATE
+    )
+    val rawValue = preferences.getString(taskListOrderCacheKey(userId), null) ?: return emptyList()
+    return runCatching {
+        val values = JSONArray(rawValue)
+        List(values.length()) { index -> values.getString(index) }
+    }.getOrDefault(emptyList())
+}
+
+private fun writeCachedTaskListOrderIds(userId: String, taskListIds: List<String>) {
+    val preferences = FirebaseApp.getInstance().applicationContext.getSharedPreferences(
+        STARTUP_CACHE_PREFERENCES,
+        Context.MODE_PRIVATE
+    )
+    preferences.edit()
+        .putString(taskListOrderCacheKey(userId), JSONArray(taskListIds).toString())
+        .apply()
 }
 
 private fun passwordResetCode(rawValue: String?): String? {
@@ -643,16 +669,25 @@ private fun warmUpStartupData(context: Context) {
         Translations.preload(context)
         val uid = Firebase.auth.currentUser?.uid ?: return@Thread
         val db = Firebase.firestore
+        val cachedTaskListIds = readCachedTaskListOrderIds(uid)
         db.collection("settings").document(uid).get(Source.CACHE)
         db.collection("taskListOrder").document(uid).get(Source.CACHE)
             .addOnSuccessListener { snapshot ->
                 val orderedTaskListIds = parseOrderedTaskListIds(snapshot.data ?: emptyMap())
-                orderedTaskListIds.chunked(10).forEach { chunk ->
-                    db.collection("taskLists")
-                        .whereIn(FieldPath.documentId(), chunk)
-                        .get(Source.CACHE)
+                writeCachedTaskListOrderIds(uid, orderedTaskListIds)
+                if (cachedTaskListIds.isEmpty()) {
+                    orderedTaskListIds.chunked(10).forEach { chunk ->
+                        db.collection("taskLists")
+                            .whereIn(FieldPath.documentId(), chunk)
+                            .get(Source.CACHE)
+                    }
                 }
             }
+        cachedTaskListIds.chunked(10).forEach { chunk ->
+            db.collection("taskLists")
+                .whereIn(FieldPath.documentId(), chunk)
+                .get(Source.CACHE)
+        }
     }.start()
 }
 
@@ -1230,7 +1265,7 @@ private fun <T> subscribeToOrderedTaskLists(
     onError: (() -> Unit)? = null
 ): () -> Unit {
     val db = Firebase.firestore
-    var orderedTaskListIds = emptyList<String>()
+    var orderedTaskListIds = readCachedTaskListOrderIds(userId)
     var taskListIdsKey = ""
     var taskListsById = emptyMap<String, T>()
     var taskListChunkListeners = emptyList<ListenerRegistration>()
@@ -1292,6 +1327,10 @@ private fun <T> subscribeToOrderedTaskLists(
         }
     }
 
+    if (orderedTaskListIds.isNotEmpty()) {
+        subscribeToTaskLists(orderedTaskListIds)
+    }
+
     val taskListOrderListener = db.collection("taskListOrder")
         .document(userId)
         .addSnapshotListener { snapshot, error ->
@@ -1305,6 +1344,7 @@ private fun <T> subscribeToOrderedTaskLists(
                 "taskListOrder snapshot exists=${snapshot?.exists()} cache=${snapshot?.metadata?.isFromCache} pending=${snapshot?.metadata?.hasPendingWrites()}"
             )
             orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap<String, Any>())
+            writeCachedTaskListOrderIds(userId, orderedTaskListIds)
             subscribeToTaskLists(orderedTaskListIds)
         }
 

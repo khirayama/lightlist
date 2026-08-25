@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/firebase/firebase-ios-sdk",
       "state" : {
-        "revision" : "9ab4a7e6e5d6d3df2a2aa002a11d25e078c8d6e5",
-        "version" : "12.16.0"
+        "revision" : "346daa9f46316aa372b35b317e18224acc2e9063",
+        "version" : "12.18.0"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/google/GoogleAppMeasurement.git",
       "state" : {
-        "revision" : "ce606e3768abddff0510783e1a6d2f270b943b35",
-        "version" : "12.16.0"
+        "revision" : "f04760d460296cc0fa430935a7be212e5bd67fc5",
+        "version" : "12.18.0"
       }
     },
     {
@@ -123,8 +123,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mono0926/LicensePlist",
       "state" : {
-        "revision" : "faa1f63e0bb0fb40bb49a29172c082b8d897558c",
-        "version" : "3.27.9"
+        "revision" : "af8dd93bcf798fc70e648f489a14423ea9105334",
+        "version" : "3.28.0"
       }
     },
     {
@@ -179,6 +179,15 @@
       "state" : {
         "revision" : "5073617dac96330a486245e4c0179cb0a6fd2256",
         "version" : "1.12.0"
+      }
+    },
+    {
+      "identity" : "tomlkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/LebJe/TOMLKit.git",
+      "state" : {
+        "revision" : "ec6198d37d495efc6acd4dffbd262cdca7ff9b3f",
+        "version" : "0.6.0"
       }
     },
     {

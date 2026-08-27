@@ -23,7 +23,9 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - 初期 HTML の module script は初回表示に必要な runtime に絞る。
 - Firebase Analytics は dynamic import で読み込む。
 - カレンダー用 `date-fns` locale は利用時に dynamic import する。
-- chunk 分割は `vite.config.ts` の `manualChunks` を正とし、Firebase / i18n / app UI / React vendor などを分ける。
+- chunk 分割は Vite 8 / Rolldown の `build.rolldownOptions.output.codeSplitting.groups` を正とし、Firebase / i18n / app UI / React vendor などを分ける。
+- 起動時に必須の Firestore chunk は 500 kB をわずかに超えるため、chunk size warning の閾値は 550 kB とする。Firebase 初期化を遅延させてこの chunk を分断しない。
+- フォントは通常書体 400 / 500 / 600 / 700 と表示書体 700 だけを各 HTML entry から非同期で読み、JavaScript bundle には含めない。使用しない表示書体 800 は配信物に含めない。
 
 ## PWA
 
@@ -38,7 +40,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 
 - Git integration: Root directory は `apps/web`、build command は `npm ci && npm run cf:build`、output directory は `dist` とする。Node.js は `apps/web/.node-version`（`24.19.0`）で固定し、npm は `apps/web/package.json` の `packageManager`（`npm@12.0.2`）で固定する。Node.js 22.22.2 同梱 npm から npm 12 への直接更新は npm の自己更新中に `promise-retry` 欠損で失敗するため、Cloudflare Pages の build には使用しない。`LIGHTLIST_IOS_TEAM_ID` に Apple Developer Team ID（10 文字の英大文字・数字）、`LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` に Play App Signing certificate の SHA-256 fingerprint を設定する。後者はカンマ区切りで複数指定でき、生成時に大文字・コロン区切りへ正規化する。どちらかが欠けると `cf:build` は失敗し、Universal Links / Android App Links の関連付けを欠いた本番デプロイを防ぐ。
 - `cf:build` は `prepare:assets` で locale / license を準備した後に Vite build を一度だけ実行し、関連付けファイルを必須設定として生成する。通常の `build` にある任意生成の postbuild は重ねて実行しない。
-- Web は TypeScript 7 系を採用する。`i18next` / `react-i18next` の peer 範囲が追いつくまでは、`apps/web/.npmrc` の `legacy-peer-deps=true` を前提に npm install / ci を行う。
+- Web は TypeScript 7 系を `strict` + `skipLibCheck=false` で使い、依存packageの型定義も typecheck 対象にする。runtime source は TS / TSX に限定する。`i18next` / `react-i18next` の peer 範囲が追いつくまでは、`apps/web/.npmrc` の `legacy-peer-deps=true` を前提に npm install / ci を行う。
 - npm 12 は依存パッケージの install script を既定で実行しない。build に必要な Firebase utility、esbuild、protobufjs、workerd と開発時の fsevents は `apps/web/package.json` の完全バージョン付き `allowScripts` で承認する。依存更新後は `npm install-scripts ls` が未承認なしになるよう承認バージョンを更新してから `npm ci` する。
 - Direct Upload: `cd apps/web && npm run cf:deploy`。`CLOUDFLARE_PAGES_PROJECT_NAME`、`LIGHTLIST_IOS_TEAM_ID`、`LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` が必須。
 - ローカル確認: `cd apps/web && npm run cf:preview`。`LIGHTLIST_IOS_TEAM_ID` と `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` が必須。

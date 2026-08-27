@@ -71,7 +71,7 @@
 - 完了済みタスクの削除は約 120ms の fade out 完了後に表示と保存対象から外す。削除方向を示す横移動は付けない。
 - 並び替えで押し退けられる行は約 220ms 相当の減衰した spring / ease-out で新しい位置へ移動する。ドラッグ中の行は opacity `0.8`、scale `1.03` で 3 プラットフォームを揃える。
 - `autoSort` による完了切替・ピン切替・日付変更で配置が変わる場合も、ドラッグ並び替えと同じ約 220ms の移動を適用する。
-- Web のoptimistic表示が同じ配置のlistener表示へ切り替わる場合、進行中の配置アニメーションを再生成・途中終了しない。
+- Web のドラッグ中と autoSort 等のドラッグ外配置変更は同じ sortable layout animation で処理し、独自の transform animation を重ねない。optimistic表示が同じ配置のlistener表示へ切り替わる場合は新しい配置アニメーションを生成しない。
 - OS / ブラウザの Reduce Motion 設定が有効な場合、追加・削除・並び替えの演出は無効化し、状態と配置を即時反映する。
 
 ## 入力解析
@@ -117,6 +117,7 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 - 同一 `taskListId` の task 書き込みと同一ユーザーの taskList 順書き込みはクライアント内で直列化する。キューは画面の mount / Composition より長く保持し、画面移動で待機中の書き込みをキャンセルしない。
 - local pending は操作世代を持ち、最新世代の queue がドレインした時だけ解放する。内容一致だけでは古い listener snapshot と最新 pending を区別できないため、listener 一致を理由に書き込み中の pending を早期解放しない。
 - 表示優先順は `ドラッグ overlay -> local pending -> listener`。ドラッグは開始時の表示順を基準にし、overlay はキャンセルだけでなく正常終了でも必ず解放する。最新書き込み完了後は pending も必ず解放し、別端末の listener 更新を覆い続けない。
+- Web のドロップ確定位置は sortable operation の開始 index と最終 index を正とする。collision target の ID から位置を再計算せず、dnd feedback が示した位置と楽観表示を一致させてドロップ直後の旧位置への戻りを発生させない。
 - task 並び替えは pending を含む操作終了時の全 ID 順を同じ task 群へ再採番して保存する。連続操作でも listener の旧順から再計算せず、各 queue 操作は直前の pending 順との差分だけを書き込む。
 - 空本文 task から最後の日付またはピンを外して本文・日付・ピンがすべて空相当になった場合は、pending から除外し、同じ差分保存で `tasks.<id>` を削除する。
 - 他端末削除と古い端末のfield更新が競合して `tasks.<id>` に必須field不足の部分mapが再生成された場合、readerはそのmapを表示・件数計上しない。metadata changeを含むlistenerのserver確定snapshotで同じ部分mapを確認した端末が、taskList単位mutation queueからfield deleteを行う。

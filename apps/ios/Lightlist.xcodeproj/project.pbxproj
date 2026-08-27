@@ -286,15 +286,17 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/com.mono0926.LicensePlist.Output",
 			);
 			name = "Copy LicensePlist Output";
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(DERIVED_FILE_DIR)/licenseplist-copy",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "echo \"Copy LicensePlist output\"\nACKNOWLEDGEMENTS_DIR=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/com.mono0926.LicensePlist.Output\"\nDESTINATION_PATH=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Acknowledgements\"\nrm -rf \"${DESTINATION_PATH}\"\nmkdir -p \"${DESTINATION_PATH}\"\nif [ -d \"${ACKNOWLEDGEMENTS_DIR}\" ]; then\n  cp -R \"${ACKNOWLEDGEMENTS_DIR}\"/. \"${DESTINATION_PATH}\"\nfi\n";
+			shellScript = "echo \"Copy LicensePlist output\"\nACKNOWLEDGEMENTS_DIR=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/com.mono0926.LicensePlist.Output\"\nDESTINATION_PATH=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Acknowledgements\"\nrm -rf \"${DESTINATION_PATH}\"\nmkdir -p \"${DESTINATION_PATH}\"\nif [ -d \"${ACKNOWLEDGEMENTS_DIR}\" ]; then\n  cp -R \"${ACKNOWLEDGEMENTS_DIR}\"/. \"${DESTINATION_PATH}\"\nfi\ntouch \"${DERIVED_FILE_DIR}/licenseplist-copy\"\n";
 		};
 		CE78B53865F9CBCF847E8FB4 /* Copy Firebase Config */ = {
 			isa = PBXShellScriptBuildPhase;

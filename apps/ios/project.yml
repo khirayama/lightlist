@@ -92,7 +92,12 @@ targets:
           if [ -d "${ACKNOWLEDGEMENTS_DIR}" ]; then
             cp -R "${ACKNOWLEDGEMENTS_DIR}"/. "${DESTINATION_PATH}"
           fi
+          touch "${DERIVED_FILE_DIR}/licenseplist-copy"
         name: "Copy LicensePlist Output"
+        inputFiles:
+          - "$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/com.mono0926.LicensePlist.Output"
+        outputFiles:
+          - "$(DERIVED_FILE_DIR)/licenseplist-copy"
       - script: |
           "${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run"
           touch "${DERIVED_FILE_DIR}/firebase-crashlytics-dsym-upload"

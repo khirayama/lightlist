@@ -13,10 +13,11 @@
 ## リポジトリ構成
 
 - モノレポは `apps/web`（Vite multi-page app + React + TypeScript）、`apps/ios`（SwiftUI、iOS 17+）、`apps/android`（Kotlin + Gradle）で構成する。
-- ルートに Node manifest は置かず、Web の manifest と lockfile は `apps/web` に集約する。Web は TypeScript 7 系で、`apps/web/.npmrc` の `legacy-peer-deps=true` を維持する。
+- ルートに Node manifest は置かず、Web の manifest と lockfile は `apps/web` に集約する。Web は TypeScript 7 系を `strict` + `skipLibCheck=false` で使い、`apps/web/.npmrc` の `legacy-peer-deps=true` を維持する。
 - Web の Vite root / HTML entry は `apps/web/html`、静的 asset は `apps/web/public`、環境変数は `apps/web/.env*` とする。runtime TS/TSX は `apps/web/src/entry.tsx` に集約し、LP だけ `apps/web/src/lp.ts` を使う。
 - Web の app page（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `entry.tsx` を共通 bootstrap とし、各 HTML の `body[data-page]` で切り替える。LP は React / Firebase / i18next から分離する。
 - Web UI から `firebase/*` を直接 import せず、Firebase 初期化・Auth / Firestore 状態購読・i18n 初期化は `entry.tsx` を正とする。独立 SDK パッケージは持たない。
+- Web の Firestore 読み取りは購読・単発取得ともに共通境界検証へ通し、型 assertion だけでドメイン型へ変換しない。
 - iOS は `project.yml` から XcodeGen でプロジェクトを生成する。生成された `Lightlist.xcodeproj` と `xcuserdata` / `xcuserstate` / `build` / `DerivedData` は commit しない。
 
 ## Firebase・配信
@@ -42,7 +43,9 @@
 - Firestore の field path（`tasks.<id>.*` など）は update 系 API（Web `updateDoc` / iOS `updateData` / Android `update`）だけで書き込む。taskList の削除・共有参加も事前 read 後の batch write とする。
 - 起動は cache-first とし、Web / iOS / Android の設定・taskListOrder・taskLists cache を listener の live snapshot より先に利用できるようにする。taskListOrder の順序付き ID は uid ごとの軽量な端末 storage に保持し、次回起動の taskLists 先読み・購読を order snapshot より先に開始する。Web は listener の初回 cache snapshot を hydrate に使って同一参照の cache get を重ねず、iOS の warm-up は cache read を並列化する。cache の古い内容は後続 listener で更新する。
 - Web の compact layout / carousel は表示中の画面だけを Tab 順と accessibility tree に含め、画面切替時は main landmark へフォーカスを移す（初回表示を除く）。認証は signin / signup の選択中タブだけを Tab 順に含め、左右矢印・Home / End で切り替える。並び替えはスクリーンリーダーとハードウェアキーボードでも実行できる。
+- Web の build は Vite 8 / Rolldown の `codeSplitting.groups` を使い、フォントは通常 400 / 500 / 600 / 700 と表示 700 だけを非同期配信する。
 - Web / iOS / Android の motion は Reduce Motion を尊重する。iOS / Android のタスク操作には共通方針の触覚 feedback を返す。
+- Web の並び替えは現行 `@dnd-kit/react` / `@dnd-kit/dom` / `@dnd-kit/abstract` を使い、旧 dnd-kit package 群を混在させない。
 
 ## プラットフォーム固有の制約
 

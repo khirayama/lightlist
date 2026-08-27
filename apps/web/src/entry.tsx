@@ -25,7 +25,6 @@ import type {
   ComponentProps,
   HTMLAttributes,
   MouseEvent,
-  PointerEvent,
   SubmitEvent,
 } from "react";
 import { createRoot } from "react-dom/client";
@@ -93,64 +92,78 @@ import type {
 } from "firebase/firestore";
 import { Command as CommandPrimitive } from "cmdk";
 import type { Locale } from "date-fns";
+import { RestrictToVerticalAxis } from "@dnd-kit/abstract/modifiers";
+import type { UniqueIdentifier } from "@dnd-kit/abstract";
+import { Accessibility, PointerActivationConstraints } from "@dnd-kit/dom";
 import {
-  Announcements,
-  DndContext,
-  DragEndEvent,
-  DragStartEvent,
+  DragDropProvider,
   KeyboardSensor,
   PointerSensor,
-  ScreenReaderInstructions,
-  SensorDescriptor,
-  SensorOptions,
-  UniqueIdentifier,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+} from "@dnd-kit/react";
+import type {
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+} from "@dnd-kit/react";
+import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import { DayButton as DayPickerDayButton, DayPicker } from "react-day-picker";
+
+const SORTABLE_SENSORS = [
+  PointerSensor.configure({
+    activationConstraints: [
+      new PointerActivationConstraints.Distance({ value: 8 }),
+    ],
+  }),
+  KeyboardSensor,
+];
+
+const SORTABLE_MODIFIERS = [RestrictToVerticalAxis];
 
 function buildDndAccessibility(
   t: TFunction,
-  getName: (id: UniqueIdentifier) => string,
+  getName: (id: string) => string,
   getIds: () => string[],
-): {
-  announcements: Announcements;
-  screenReaderInstructions: ScreenReaderInstructions;
-} {
-  const positionOf = (id: UniqueIdentifier): number | null => {
-    const index = getIds().indexOf(String(id));
+): ReturnType<typeof Accessibility.configure> {
+  const positionOf = (id: string): number | null => {
+    const index = getIds().indexOf(id);
     return index >= 0 ? index + 1 : null;
   };
-  return {
+  return Accessibility.configure({
     screenReaderInstructions: { draggable: t("a11y.dragInstructions") },
     announcements: {
-      onDragStart: ({ active }) =>
-        t("a11y.dragStart", { item: getName(active.id) }),
-      onDragOver: ({ active, over }) => {
-        if (!over) return undefined;
-        const position = positionOf(over.id);
-        if (position === null) return undefined;
-        return t("a11y.dragOver", { item: getName(active.id), position });
+      dragstart: ({ operation }: DragStartEvent) => {
+        const source = operation.source;
+        if (!source) return undefined;
+        return t("a11y.dragStart", { item: getName(String(source.id)) });
       },
-      onDragEnd: ({ active, over }) => {
-        if (!over) return undefined;
-        const position = positionOf(over.id);
+      dragover: ({ operation }: DragOverEvent) => {
+        const source = operation.source;
+        const target = operation.target;
+        if (!source || !target) return undefined;
+        const position = positionOf(String(target.id));
         if (position === null) return undefined;
-        return t("a11y.dragEnd", { item: getName(active.id), position });
+        return t("a11y.dragOver", {
+          item: getName(String(source.id)),
+          position,
+        });
       },
-      onDragCancel: ({ active }) =>
-        t("a11y.dragCancel", { item: getName(active.id) }),
+      dragend: ({ operation, canceled }: DragEndEvent) => {
+        const source = operation.source;
+        if (!source) return undefined;
+        if (canceled) {
+          return t("a11y.dragCancel", { item: getName(String(source.id)) });
+        }
+        const target = operation.target;
+        if (!target) return undefined;
+        const position = positionOf(String(target.id));
+        if (position === null) return undefined;
+        return t("a11y.dragEnd", {
+          item: getName(String(source.id)),
+          position,
+        });
+      },
     },
-  };
+  });
 }
 
 // common.tsx
@@ -224,6 +237,9 @@ type TaskListStore = {
 type TimestampLike = {
   toMillis: () => number;
 };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const hasToMillis = (value: unknown): value is TimestampLike =>
   typeof value === "object" &&
@@ -1495,13 +1511,19 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onSnapshot(
       settingsRef,
       (snapshot) => {
-        const settingsStore = snapshot.exists()
-          ? (snapshot.data() as SettingsStore)
-          : null;
-        setSettingsState({
-          settings: mapSettingsStore(settingsStore),
-          settingsStatus: "ready",
-        });
+        try {
+          const settingsStore = snapshot.exists()
+            ? assertSettingsStore(snapshot.data(), activeUid)
+            : null;
+          setSettingsState({
+            settings: mapSettingsStore(settingsStore),
+            settingsStatus: "ready",
+          });
+        } catch (error) {
+          console.error("settings decode error:", error);
+          logException("settings decode error", false);
+          setSettingsState({ settings: null, settingsStatus: "error" });
+        }
       },
       () => {
         setSettingsState({
@@ -1529,15 +1551,25 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onSnapshot(
       taskListOrderRef,
       (snapshot) => {
-        const taskListOrder = snapshot.exists()
-          ? (snapshot.data() as TaskListOrderStore)
-          : null;
-        writeCachedTaskListOrderIds(activeUid, taskListOrder);
-        dispatchTaskLists({
-          type: "setTaskListOrder",
-          taskListOrder,
-          taskListOrderStatus: "ready",
-        });
+        try {
+          const taskListOrder = snapshot.exists()
+            ? assertTaskListOrderStore(snapshot.data(), activeUid)
+            : null;
+          writeCachedTaskListOrderIds(activeUid, taskListOrder);
+          dispatchTaskLists({
+            type: "setTaskListOrder",
+            taskListOrder,
+            taskListOrderStatus: "ready",
+          });
+        } catch (error) {
+          console.error("taskListOrder decode error:", error);
+          logException("taskListOrder decode error", false);
+          dispatchTaskLists({
+            type: "setTaskListOrder",
+            taskListOrder: null,
+            taskListOrderStatus: "error",
+          });
+        }
       },
       () => {
         dispatchTaskLists({
@@ -1603,17 +1635,23 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     ) => {
       const taskListsById: Record<string, TaskListStore> = {};
       snapshot.docs.forEach((documentSnapshot) => {
-        const taskListData = documentSnapshot.data({
+        const rawTaskListData = documentSnapshot.data({
           serverTimestamps: "estimate",
-        }) as TaskListStore;
+        });
         scheduleMalformedTaskCleanup(
           documentSnapshot.id,
-          taskListData,
+          rawTaskListData,
           snapshot.metadata.fromCache,
           snapshot.metadata.hasPendingWrites,
         );
-        taskListsById[documentSnapshot.id] =
-          normalizeTaskListStore(taskListData);
+        try {
+          taskListsById[documentSnapshot.id] = normalizeTaskListStore(
+            assertTaskListStore(rawTaskListData, documentSnapshot.id),
+          );
+        } catch (error) {
+          console.error("taskList decode error:", error);
+          logException("taskList decode error", false);
+        }
       });
       dispatchTaskLists({
         type: "setTaskListChunk",
@@ -1660,25 +1698,32 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         doc(getDbInstance(), "taskLists", taskListId),
         { includeMetadataChanges: true },
         (snapshot) => {
-          const taskListData = snapshot.exists()
-            ? (snapshot.data({
-                serverTimestamps: "estimate",
-              }) as TaskListStore)
+          const rawTaskListData = snapshot.exists()
+            ? snapshot.data({ serverTimestamps: "estimate" })
             : null;
-          if (taskListData) {
+          if (rawTaskListData) {
             scheduleMalformedTaskCleanup(
               taskListId,
-              taskListData,
+              rawTaskListData,
               snapshot.metadata.fromCache,
               snapshot.metadata.hasPendingWrites,
             );
           }
+          let taskListData: TaskListStore | null = null;
+          try {
+            taskListData = rawTaskListData
+              ? normalizeTaskListStore(
+                  assertTaskListStore(rawTaskListData, taskListId),
+                )
+              : null;
+          } catch (error) {
+            console.error("shared taskList decode error:", error);
+            logException("shared taskList decode error", false);
+          }
           dispatchTaskLists({
             type: "setSharedTaskList",
             taskListId,
-            taskListData: taskListData
-              ? normalizeTaskListStore(taskListData)
-              : null,
+            taskListData,
           });
         },
         (error: FirestoreError) => {
@@ -1944,7 +1989,7 @@ const getPreferredLanguage = async (language?: Language): Promise<Language> => {
   }
   const settingsSnapshot = await getDoc(doc(getDbInstance(), "settings", uid));
   const settingsStore = settingsSnapshot.exists()
-    ? (settingsSnapshot.data() as SettingsStore)
+    ? assertSettingsStore(settingsSnapshot.data(), uid)
     : null;
   return normalizeLanguage(settingsStore?.language ?? DEFAULT_LANGUAGE);
 };
@@ -2036,8 +2081,10 @@ async function deleteAccount() {
   const taskListOrderRef = doc(db, "taskListOrder", uid);
   const taskListOrderSnapshot = await getDoc(taskListOrderRef);
   if (taskListOrderSnapshot.exists()) {
-    const taskListOrderData =
-      taskListOrderSnapshot.data() as TaskListOrderStore;
+    const taskListOrderData = assertTaskListOrderStore(
+      taskListOrderSnapshot.data(),
+      uid,
+    );
     const taskListIds = getTaskListIdsFromOrder(taskListOrderData);
     const results = await Promise.allSettled(
       taskListIds.map((taskListId) => deleteTaskList(taskListId)),
@@ -2348,27 +2395,121 @@ function resolveTaskInput(
 }
 
 function assertTaskListStore(data: unknown, id: string): TaskListStore {
-  if (data == null) throw new Error(`TaskList not found: ${id}`);
-  const d = data as Record<string, unknown>;
+  if (!isRecord(data)) throw new Error(`TaskList not found: ${id}`);
+  const tasks = isRecord(data.tasks) ? data.tasks : null;
   if (
-    typeof d.name !== "string" ||
-    typeof d.tasks !== "object" ||
-    d.tasks === null ||
-    typeof d.memberCount !== "number" ||
-    (typeof d.createdAt !== "number" && !hasToMillis(d.createdAt)) ||
-    (typeof d.updatedAt !== "number" && !hasToMillis(d.updatedAt))
+    data.id !== id ||
+    typeof data.name !== "string" ||
+    tasks === null ||
+    !Array.isArray(data.history) ||
+    !data.history.every((value) => typeof value === "string") ||
+    (data.shareCode !== null && typeof data.shareCode !== "string") ||
+    (data.background !== null && typeof data.background !== "string") ||
+    typeof data.memberCount !== "number" ||
+    !Number.isInteger(data.memberCount) ||
+    data.memberCount < 1 ||
+    (typeof data.createdAt !== "number" && !hasToMillis(data.createdAt)) ||
+    (typeof data.updatedAt !== "number" && !hasToMillis(data.updatedAt))
   ) {
     throw new Error(`TaskList data is malformed: ${id}`);
   }
-  return data as TaskListStore;
+  const validTasks: Record<string, TaskListStoreTask> = {};
+  for (const [taskId, task] of Object.entries(tasks)) {
+    if (isCompleteTaskStoreTask(taskId, task)) {
+      validTasks[taskId] = task;
+    }
+  }
+  return {
+    id,
+    name: data.name,
+    tasks: validTasks,
+    history: data.history,
+    shareCode: data.shareCode,
+    background: data.background,
+    memberCount: data.memberCount,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+  };
 }
 
 function assertTaskListOrderStore(
   data: unknown,
   uid: string,
 ): TaskListOrderStore {
-  if (data == null) throw new Error(`TaskListOrder not found: ${uid}`);
-  return data as TaskListOrderStore;
+  if (!isRecord(data)) throw new Error(`TaskListOrder not found: ${uid}`);
+  if (
+    typeof data.createdAt !== "number" ||
+    !Number.isFinite(data.createdAt) ||
+    typeof data.updatedAt !== "number" ||
+    !Number.isFinite(data.updatedAt)
+  ) {
+    throw new Error(`TaskListOrder data is malformed: ${uid}`);
+  }
+  const result: TaskListOrderStore = {
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+  };
+  for (const [taskListId, value] of Object.entries(data)) {
+    if (TASK_LIST_ORDER_METADATA_KEYS.has(taskListId)) continue;
+    if (
+      !isRecord(value) ||
+      typeof value.order !== "number" ||
+      !Number.isFinite(value.order)
+    ) {
+      throw new Error(`TaskListOrder data is malformed: ${uid}`);
+    }
+    result[taskListId] = { order: value.order };
+  }
+  return result;
+}
+
+function assertSettingsStore(data: unknown, uid: string): SettingsStore {
+  if (!isRecord(data)) throw new Error(`Settings not found: ${uid}`);
+  if (
+    (data.theme !== "system" &&
+      data.theme !== "light" &&
+      data.theme !== "dark") ||
+    typeof data.language !== "string" ||
+    !SUPPORTED_LANGUAGE_SET.has(data.language as Language) ||
+    (data.taskInsertPosition !== "top" &&
+      data.taskInsertPosition !== "bottom") ||
+    typeof data.autoSort !== "boolean" ||
+    (data.startupView !== undefined &&
+      data.startupView !== "taskList" &&
+      data.startupView !== "calendar" &&
+      data.startupView !== "taskLists") ||
+    typeof data.createdAt !== "number" ||
+    !Number.isFinite(data.createdAt) ||
+    typeof data.updatedAt !== "number" ||
+    !Number.isFinite(data.updatedAt)
+  ) {
+    throw new Error(`Settings data is malformed: ${uid}`);
+  }
+  return {
+    theme: data.theme,
+    language: data.language as Language,
+    taskInsertPosition: data.taskInsertPosition,
+    autoSort: data.autoSort,
+    startupView: data.startupView,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+  };
+}
+
+function assertShareCodeStore(
+  data: unknown,
+  shareCode: string,
+): { taskListId: string; createdAt: number } {
+  if (
+    !isRecord(data) ||
+    typeof data.taskListId !== "string" ||
+    !data.taskListId ||
+    typeof data.createdAt !== "number" ||
+    !Number.isFinite(data.createdAt)
+  ) {
+    throw new Error(`ShareCode data is malformed: ${shareCode}`);
+  }
+  return { taskListId: data.taskListId, createdAt: data.createdAt };
 }
 
 const getValidMemberCount = (taskList: TaskListStore): number => {
@@ -2988,7 +3129,7 @@ async function fetchTaskListByShareCode(shareCode: string) {
     doc(getDbInstance(), "shareCodes", normalizedCode),
   );
   return snapshots.exists()
-    ? (snapshots.data() as { taskListId: string })
+    ? assertShareCodeStore(snapshots.data(), normalizedCode)
     : null;
 }
 
@@ -4982,6 +5123,7 @@ const getTaskDateFormatter = (language: string): Intl.DateTimeFormat => {
 
 function TaskItemComponent({
   task,
+  index,
   isEditing,
   editingText,
   animateEnter,
@@ -4994,6 +5136,7 @@ function TaskItemComponent({
   onDragInteractionChange,
 }: {
   task: Task;
+  index: number;
   isEditing: boolean;
   editingText: string;
   animateEnter: boolean;
@@ -5007,51 +5150,24 @@ function TaskItemComponent({
 }) {
   const completedTaskOpacity = 0.55;
   const { t, i18n } = useTranslation();
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { ref, handleRef, isDragging } = useSortable({
     id: task.id,
+    index,
     transition: {
       duration: 220,
       easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      idle: true,
     },
   });
   const rowOpacity =
     (isDragging ? 0.8 : 1) * (task.completed ? completedTaskOpacity : 1);
-  const rowTransform = transform
-    ? {
-        ...transform,
-        scaleX: isDragging ? 1.03 : transform.scaleX,
-        scaleY: isDragging ? 1.03 : transform.scaleY,
-      }
-    : isDragging
-      ? { x: 0, y: 0, scaleX: 1.03, scaleY: 1.03 }
-      : null;
   const style = {
-    transform: CSS.Transform.toString(rowTransform),
-    transition: transition
-      ? `${transition}, opacity 180ms ease`
-      : "opacity 180ms ease",
+    scale: isDragging ? "1.03" : undefined,
+    transition: "opacity 180ms ease",
     opacity: rowOpacity,
   };
   const [isHandlePointerDown, setIsHandlePointerDown] = useState(false);
   const animateEnterRef = useRef(animateEnter);
-  const rowElementRef = useRef<HTMLDivElement | null>(null);
-  const previousRowLayoutTopRef = useRef<number | null>(null);
-  const previousRowViewportTopRef = useRef<number | null>(null);
-  const layoutAnimationRef = useRef<Animation | null>(null);
-  const setTaskRowRef = useCallback(
-    (element: HTMLDivElement | null) => {
-      setNodeRef(element);
-      rowElementRef.current = element;
-    },
-    [setNodeRef],
-  );
   const actionButtonRef = useRef<HTMLButtonElement | null>(null);
   const editInputRef = useRef<HTMLInputElement | null>(null);
   const taskTextId = `task-item-text-${task.id}`;
@@ -5066,71 +5182,6 @@ function TaskItemComponent({
   const taskActionLabel = task.pinned
     ? t("pages.tasklist.unpinTask")
     : dateTitle;
-
-  useIsomorphicLayoutEffect(() => {
-    const element = rowElementRef.current;
-    if (!element) return;
-    if (transform !== null || isDragging) {
-      layoutAnimationRef.current?.cancel();
-      layoutAnimationRef.current = null;
-      previousRowLayoutTopRef.current = null;
-      previousRowViewportTopRef.current = null;
-      return;
-    }
-
-    const nextLayoutTop = element.offsetTop;
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    if (isExiting || prefersReducedMotion) {
-      layoutAnimationRef.current?.cancel();
-      layoutAnimationRef.current = null;
-      previousRowLayoutTopRef.current = nextLayoutTop;
-      previousRowViewportTopRef.current = element.getBoundingClientRect().top;
-      return;
-    }
-
-    const previousLayoutTop = previousRowLayoutTopRef.current;
-    if (previousLayoutTop === nextLayoutTop) return;
-
-    const previousViewportTop = layoutAnimationRef.current
-      ? element.getBoundingClientRect().top
-      : previousRowViewportTopRef.current;
-    layoutAnimationRef.current?.cancel();
-    layoutAnimationRef.current = null;
-    const nextViewportTop = element.getBoundingClientRect().top;
-    previousRowLayoutTopRef.current = nextLayoutTop;
-    previousRowViewportTopRef.current = nextViewportTop;
-    if (previousViewportTop === null) return;
-
-    const offset = previousViewportTop - nextViewportTop;
-    if (Math.abs(offset) < 1) return;
-    const animation = element.animate(
-      [
-        { transform: `translateY(${offset}px)` },
-        { transform: "translateY(0)" },
-      ],
-      {
-        duration: 220,
-        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
-      },
-    );
-    layoutAnimationRef.current = animation;
-    const clearAnimation = () => {
-      if (layoutAnimationRef.current === animation) {
-        layoutAnimationRef.current = null;
-      }
-    };
-    animation.addEventListener("finish", clearAnimation, { once: true });
-    animation.addEventListener("cancel", clearAnimation, { once: true });
-  });
-
-  useEffect(
-    () => () => {
-      layoutAnimationRef.current?.cancel();
-    },
-    [],
-  );
 
   useEffect(() => {
     if (!isHandlePointerDown) return;
@@ -5164,7 +5215,7 @@ function TaskItemComponent({
 
   return (
     <div
-      ref={setTaskRowRef}
+      ref={ref}
       style={style}
       className={clsx(
         "ll-task-row ll-flex ll-gap-2 ll-py-1x5",
@@ -5173,15 +5224,13 @@ function TaskItemComponent({
       )}
     >
       <button
-        {...attributes}
-        {...listeners}
+        ref={handleRef}
         title={t("pages.tasklist.dragHint")}
         aria-label={t("pages.tasklist.dragHint")}
         type="button"
-        onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
+        onPointerDown={(event) => {
           if (event.pointerType === "mouse" && event.button !== 0) return;
           setIsHandlePointerDown(true);
-          listeners?.onPointerDown?.(event);
         }}
         className="ll-flex ll-touch-none ll-items-center ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2"
       >
@@ -5588,7 +5637,6 @@ function TaskListCard({
   shouldFocusNewTaskInput,
   onNewTaskInputFocusChange,
   onActivate,
-  sensorsList,
   onSortingChange,
   onDragInteractionChange,
   onDeleted,
@@ -5605,7 +5653,6 @@ function TaskListCard({
   shouldFocusNewTaskInput: boolean;
   onNewTaskInputFocusChange: (taskListId: string, isFocused: boolean) => void;
   onActivate?: (taskListId: string) => void;
-  sensorsList: SensorDescriptor<SensorOptions>[];
   onSortingChange?: (sorting: boolean) => void;
   onDragInteractionChange?: (active: boolean) => void;
   onDeleted?: () => void;
@@ -6191,23 +6238,25 @@ function TaskListCard({
               </button>
             </div>
           </div>
-          <DndContext
-            sensors={sensorsList}
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
-            accessibility={taskDndAccessibility}
+          <DragDropProvider
+            sensors={SORTABLE_SENSORS}
+            modifiers={SORTABLE_MODIFIERS}
+            plugins={(defaults) => [...defaults, taskDndAccessibility]}
             onDragStart={(event: DragStartEvent) => {
-              if (typeof event.active.id === "string") {
+              if (typeof event.operation.source?.id === "string") {
                 onSortingChange?.(true);
               }
             }}
             onDragEnd={async (event: DragEndEvent) => {
               onSortingChange?.(false);
-              const { active, over } = event;
-              if (!over || active.id === over.id) return;
+              if (event.canceled) return;
+              const { source } = event.operation;
+              if (!isSortable(source) || source.initialIndex === source.index) {
+                return;
+              }
               const draggedTaskId =
-                typeof active.id === "string" ? active.id : null;
-              const targetTaskId = typeof over.id === "string" ? over.id : null;
+                typeof source.id === "string" ? source.id : null;
+              const targetTaskId = tasks[source.index]?.id ?? null;
               if (!draggedTaskId || !targetTaskId) return;
               const draggedTask = tasks.find(
                 (task) => task.id === draggedTaskId,
@@ -6228,132 +6277,126 @@ function TaskListCard({
                 setTaskError(resolveErrorMessage(error, t, "common.error"));
               }
             }}
-            onDragCancel={() => onSortingChange?.(false)}
           >
-            <SortableContext
-              items={tasks.map((task) => task.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {tasks.length === 0 ? (
-                <p className="ll-text-gray-600 ll-dark-text-gray-300">
-                  {t("pages.tasklist.noTasks")}
-                </p>
-              ) : (
-                <div className="ll-flex ll-flex-col ll-gap-1">
-                  {tasks.map((task) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      animateEnter={
-                        knownTaskIds !== null && !knownTaskIds.has(task.id)
+            {tasks.length === 0 ? (
+              <p className="ll-text-gray-600 ll-dark-text-gray-300">
+                {t("pages.tasklist.noTasks")}
+              </p>
+            ) : (
+              <div className="ll-flex ll-flex-col ll-gap-1">
+                {tasks.map((task, index) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    index={index}
+                    animateEnter={
+                      knownTaskIds !== null && !knownTaskIds.has(task.id)
+                    }
+                    isExiting={exitingTaskIds?.has(task.id) ?? false}
+                    isEditing={editingTaskId === task.id}
+                    editingText={
+                      editingTaskId === task.id ? editingTaskText : ""
+                    }
+                    onEditingTextChange={setEditingTaskText}
+                    onEditStart={(task) => {
+                      setEditingTaskId(task.id);
+                      setEditingTaskText(task.text);
+                    }}
+                    onEditEnd={(task, text) => {
+                      if (editingTaskIdRef.current !== task.id) return;
+                      const currentText = text ?? editingTaskText;
+                      const trimmedText = currentText.trim();
+                      if (trimmedText === "" || trimmedText === task.text) {
+                        setEditingTaskId(null);
+                        return;
                       }
-                      isExiting={exitingTaskIds?.has(task.id) ?? false}
-                      isEditing={editingTaskId === task.id}
-                      editingText={
-                        editingTaskId === task.id ? editingTaskText : ""
-                      }
-                      onEditingTextChange={setEditingTaskText}
-                      onEditStart={(task) => {
-                        setEditingTaskId(task.id);
-                        setEditingTaskText(task.text);
-                      }}
-                      onEditEnd={(task, text) => {
-                        if (editingTaskIdRef.current !== task.id) return;
-                        const currentText = text ?? editingTaskText;
-                        const trimmedText = currentText.trim();
-                        if (trimmedText === "" || trimmedText === task.text) {
+                      const resolved = resolveTaskInput(
+                        currentText,
+                        normalizeLanguage(i18n.language),
+                        task,
+                      );
+                      void runTaskMutation({
+                        buildNextTasks: (currentTasks) =>
+                          currentTasks.map((currentTask) =>
+                            currentTask.id === task.id
+                              ? {
+                                  ...currentTask,
+                                  text: resolved.text,
+                                  date: resolved.date,
+                                  pinned: resolved.pinnedChanged
+                                    ? resolved.pinned
+                                    : currentTask.pinned,
+                                }
+                              : currentTask,
+                          ),
+                        commit: () =>
+                          updateTask(
+                            taskList.id,
+                            task.id,
+                            { text: currentText },
+                            resolvedTaskSettings,
+                          ),
+                        onSuccess: () => {
                           setEditingTaskId(null);
-                          return;
-                        }
-                        const resolved = resolveTaskInput(
-                          currentText,
-                          normalizeLanguage(i18n.language),
-                          task,
-                        );
-                        void runTaskMutation({
-                          buildNextTasks: (currentTasks) =>
-                            currentTasks.map((currentTask) =>
-                              currentTask.id === task.id
-                                ? {
-                                    ...currentTask,
-                                    text: resolved.text,
-                                    date: resolved.date,
-                                    pinned: resolved.pinnedChanged
-                                      ? resolved.pinned
-                                      : currentTask.pinned,
-                                  }
-                                : currentTask,
-                            ),
-                          commit: () =>
-                            updateTask(
-                              taskList.id,
-                              task.id,
-                              { text: currentText },
-                              resolvedTaskSettings,
-                            ),
-                          onSuccess: () => {
-                            setEditingTaskId(null);
-                            const fields = ["text", "date"];
-                            if (resolved.pinnedChanged) fields.push("pinned");
-                            logTaskUpdate({ fields: fields.join(",") });
-                          },
-                          onError: (error) => {
-                            setTaskError(
-                              resolveErrorMessage(error, t, "common.error"),
-                            );
-                          },
-                        });
-                      }}
-                      onDragInteractionChange={(active) => {
-                        if (!isActive) {
-                          onDragInteractionChange?.(false);
-                          return;
-                        }
-                        onDragInteractionChange?.(active);
-                      }}
-                      onToggle={(task) => {
-                        const currentTask =
-                          pendingTasksRef.current?.find(
-                            (current) => current.id === task.id,
-                          ) ?? task;
-                        const nextCompleted = !currentTask.completed;
-                        void runTaskMutation({
-                          buildNextTasks: (currentTasks) =>
-                            currentTasks.map((currentTask) =>
-                              currentTask.id === task.id
-                                ? {
-                                    ...currentTask,
-                                    completed: nextCompleted,
-                                  }
-                                : currentTask,
-                            ),
-                          commit: () =>
-                            updateTask(
-                              taskList.id,
-                              task.id,
-                              { completed: nextCompleted },
-                              resolvedTaskSettings,
-                            ),
-                          onSuccess: () =>
-                            logTaskUpdate({ fields: "completed" }),
-                          onError: (error) => {
-                            setTaskError(
-                              resolveErrorMessage(error, t, "common.error"),
-                            );
-                          },
-                        });
-                      }}
-                      onOpenTaskActions={(task, trigger) => {
-                        onActivate?.(taskList.id);
-                        taskActionTriggerRef.current = trigger;
-                        onOpenTaskAction?.(taskList.id, task.id);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </SortableContext>
-          </DndContext>
+                          const fields = ["text", "date"];
+                          if (resolved.pinnedChanged) fields.push("pinned");
+                          logTaskUpdate({ fields: fields.join(",") });
+                        },
+                        onError: (error) => {
+                          setTaskError(
+                            resolveErrorMessage(error, t, "common.error"),
+                          );
+                        },
+                      });
+                    }}
+                    onDragInteractionChange={(active) => {
+                      if (!isActive) {
+                        onDragInteractionChange?.(false);
+                        return;
+                      }
+                      onDragInteractionChange?.(active);
+                    }}
+                    onToggle={(task) => {
+                      const currentTask =
+                        pendingTasksRef.current?.find(
+                          (current) => current.id === task.id,
+                        ) ?? task;
+                      const nextCompleted = !currentTask.completed;
+                      void runTaskMutation({
+                        buildNextTasks: (currentTasks) =>
+                          currentTasks.map((currentTask) =>
+                            currentTask.id === task.id
+                              ? {
+                                  ...currentTask,
+                                  completed: nextCompleted,
+                                }
+                              : currentTask,
+                          ),
+                        commit: () =>
+                          updateTask(
+                            taskList.id,
+                            task.id,
+                            { completed: nextCompleted },
+                            resolvedTaskSettings,
+                          ),
+                        onSuccess: () => logTaskUpdate({ fields: "completed" }),
+                        onError: (error) => {
+                          setTaskError(
+                            resolveErrorMessage(error, t, "common.error"),
+                          );
+                        },
+                      });
+                    }}
+                    onOpenTaskActions={(task, trigger) => {
+                      onActivate?.(taskList.id);
+                      taskActionTriggerRef.current = trigger;
+                      onOpenTaskAction?.(taskList.id, task.id);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </DragDropProvider>
         </div>
       </div>
       <Dialog
@@ -6615,6 +6658,7 @@ const initializeAppHistory = (
 
 type SortableTaskListItemProps = {
   taskList: TaskList;
+  index: number;
   onSelect: (taskListId: string) => void;
   dragHintLabel: string;
   taskCountLabel: string;
@@ -6623,26 +6667,27 @@ type SortableTaskListItemProps = {
 
 function SortableTaskListItem({
   taskList,
+  index,
   onSelect,
   dragHintLabel,
   taskCountLabel,
   isActive,
 }: SortableTaskListItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: taskList.id });
+  const { ref, handleRef, isDragging } = useSortable({
+    id: taskList.id,
+    index,
+    transition: {
+      duration: 220,
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+    },
+  });
 
   return (
     <div
-      ref={setNodeRef}
+      ref={ref}
       style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
+        scale: isDragging ? "1.03" : undefined,
+        transition: "opacity 180ms ease",
         opacity: isDragging ? 0.5 : 1,
       }}
       className={clsx(
@@ -6651,8 +6696,7 @@ function SortableTaskListItem({
       )}
     >
       <button
-        {...attributes}
-        {...listeners}
+        ref={handleRef}
         title={dragHintLabel}
         aria-label={dragHintLabel}
         type="button"
@@ -7419,7 +7463,6 @@ type SidebarProps = {
   userEmail: string;
   hasTaskLists: boolean;
   taskLists: TaskList[];
-  sensorsList: SensorDescriptor<SensorOptions>[];
   onOpenCalendar: () => void;
   onReorderTaskList: (
     draggedId: string,
@@ -7437,7 +7480,6 @@ function TaskListSidebarPanel({
   userEmail,
   hasTaskLists,
   taskLists,
-  sensorsList,
   onOpenCalendar,
   onReorderTaskList,
   selectedTaskListId,
@@ -7473,10 +7515,11 @@ function TaskListSidebarPanel({
   );
 
   const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const draggedId = getStringId(active.id);
-    const targetId = getStringId(over.id);
+    if (event.canceled) return;
+    const { source } = event.operation;
+    if (!isSortable(source) || source.initialIndex === source.index) return;
+    const draggedId = getStringId(source.id);
+    const targetId = taskLists[source.index]?.id ?? null;
     if (draggedId && targetId) {
       await onReorderTaskList(draggedId, targetId);
     }
@@ -7542,31 +7585,29 @@ function TaskListSidebarPanel({
 
       <div className="ll-flex ll-flex-1 ll-flex-col ll-gap-3 ll-overflow-y-auto">
         {hasTaskLists ? (
-          <DndContext
-            sensors={sensorsList}
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
-            accessibility={taskListDndAccessibility}
+          <DragDropProvider
+            sensors={SORTABLE_SENSORS}
+            modifiers={SORTABLE_MODIFIERS}
+            plugins={(defaults) => [...defaults, taskListDndAccessibility]}
             onDragEnd={handleDragEnd}
           >
-            <SortableContext items={taskLists.map((taskList) => taskList.id)}>
-              {taskLists.map((taskList) => (
-                <SortableTaskListItem
-                  key={taskList.id}
-                  taskList={taskList}
-                  onSelect={(taskListId) => {
-                    onSelectTaskList(taskListId);
-                    onCloseDrawer();
-                  }}
-                  dragHintLabel={t("app.dragHint")}
-                  taskCountLabel={t("taskList.taskCount", {
-                    count: taskList.tasks.length,
-                  })}
-                  isActive={selectedTaskListId === taskList.id}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
+            {taskLists.map((taskList, index) => (
+              <SortableTaskListItem
+                key={taskList.id}
+                taskList={taskList}
+                index={index}
+                onSelect={(taskListId) => {
+                  onSelectTaskList(taskListId);
+                  onCloseDrawer();
+                }}
+                dragHintLabel={t("app.dragHint")}
+                taskCountLabel={t("taskList.taskCount", {
+                  count: taskList.tasks.length,
+                })}
+                isActive={selectedTaskListId === taskList.id}
+              />
+            ))}
+          </DragDropProvider>
         ) : (
           <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
             {t("app.emptyState")}
@@ -7757,17 +7798,6 @@ function AppShellPage() {
     taskListId: string;
     taskId: string;
   } | null>(null);
-
-  const sensorsList = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
@@ -8086,7 +8116,6 @@ function AppShellPage() {
       userEmail={userEmail}
       hasTaskLists={!isTaskListsHydrating && hasTaskLists}
       taskLists={taskLists}
-      sensorsList={sensorsList}
       onOpenCalendar={() => openCalendar("push")}
       onReorderTaskList={async (draggedTaskListId, targetTaskListId) => {
         setError(null);
@@ -8264,7 +8293,6 @@ function AppShellPage() {
                     );
                   }}
                   onActivate={openTaskList}
-                  sensorsList={sensorsList}
                   onSortingChange={setIsTaskSorting}
                   onDragInteractionChange={setIsTaskDragInteracting}
                   activeTaskActionTaskId={
@@ -9076,15 +9104,6 @@ function ShareCodePreviewPage() {
   const [addToOrderLoading, setAddToOrderLoading] = useState(false);
   const [addToOrderError, setAddToOrderError] = useState<string | null>(null);
   const [activeTaskAction, setActiveTaskAction] = useState<string | null>(null);
-  const sensorsList = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
   useEffect(() => {
     const code = new URL(window.location.href).searchParams.get("code");
     setSharecode(code);
@@ -9218,7 +9237,6 @@ function ShareCodePreviewPage() {
             isActive={true}
             shouldFocusNewTaskInput={false}
             onNewTaskInputFocusChange={() => {}}
-            sensorsList={sensorsList}
             canDeleteTaskList={isMember}
             canManageShareCode={isMember}
             activeTaskActionTaskId={activeTaskAction}

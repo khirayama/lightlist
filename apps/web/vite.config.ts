@@ -37,7 +37,8 @@ export default defineConfig({
   build: {
     outDir: resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
-    rollupOptions: {
+    chunkSizeWarningLimit: 550,
+    rolldownOptions: {
       input: {
         index: resolve(import.meta.dirname, "html/index.html"),
         login: resolve(import.meta.dirname, "html/login/index.html"),
@@ -51,55 +52,38 @@ export default defineConfig({
         serverError: resolve(import.meta.dirname, "html/500.html"),
       },
       output: {
-        manualChunks(id) {
-          if (
-            id.includes("node_modules/firebase/analytics") ||
-            id.includes("node_modules/@firebase/analytics")
-          ) {
-            return "firebase-analytics";
-          }
-          if (
-            id.includes("node_modules/firebase/auth") ||
-            id.includes("node_modules/@firebase/auth")
-          ) {
-            return "firebase-auth";
-          }
-          if (
-            id.includes("node_modules/firebase/app-check") ||
-            id.includes("node_modules/@firebase/app-check")
-          ) {
-            return "firebase-appcheck";
-          }
-          if (
-            id.includes("node_modules/firebase/") ||
-            id.includes("node_modules/@firebase/")
-          ) {
-            return "firebase-firestore";
-          }
-          if (id.includes("node_modules/date-fns/")) {
-            return "date-fns";
-          }
-          if (
-            id.includes("node_modules/i18next") ||
-            id.includes("node_modules/react-i18next")
-          ) {
-            return "i18n";
-          }
-          if (
-            id.includes("node_modules/@dnd-kit/") ||
-            id.includes("node_modules/@radix-ui/") ||
-            id.includes("node_modules/cmdk/") ||
-            id.includes("node_modules/react-day-picker/")
-          ) {
-            return "app-ui";
-          }
-          if (
-            id.includes("node_modules/react/") ||
-            id.includes("node_modules/react-dom/") ||
-            id.includes("node_modules/scheduler/")
-          ) {
-            return "react-vendor";
-          }
+        codeSplitting: {
+          groups: [
+            {
+              name: "firebase-analytics",
+              test: /node_modules\/(?:firebase\/analytics|@firebase\/analytics)/,
+            },
+            {
+              name: "firebase-auth",
+              test: /node_modules\/(?:firebase\/auth|@firebase\/auth)/,
+            },
+            {
+              name: "firebase-appcheck",
+              test: /node_modules\/(?:firebase\/app-check|@firebase\/app-check)/,
+            },
+            {
+              name: "firebase-firestore",
+              test: /node_modules\/(?:firebase|@firebase)\//,
+            },
+            { name: "date-fns", test: /node_modules\/date-fns\// },
+            {
+              name: "i18n",
+              test: /node_modules\/(?:i18next|react-i18next)/,
+            },
+            {
+              name: "app-ui",
+              test: /node_modules\/(?:@dnd-kit|@radix-ui|cmdk|react-day-picker)\//,
+            },
+            {
+              name: "react-vendor",
+              test: /node_modules\/(?:react|react-dom|scheduler)\//,
+            },
+          ],
         },
       },
     },

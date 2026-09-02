@@ -50,7 +50,7 @@
 ## プラットフォーム固有の制約
 
 - iOS の Firebase plist は `Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` にローカル配置し、build configuration に応じて app bundle には標準名を 1 つだけコピーする。entitlements は `Lightlist/Lightlist.entitlements`、App Store archive は `LIGHTLIST_IOS_TEAM_ID=<Team ID> just archive` を使う。詳細は `docs/release-ios.md`。
-- Android の bundle identifier / Gradle namespace / Kotlin package は `com.lightlist.app`。Firebase 設定は debug / release variant ごとに分け、Firebase BoM v34 以降では main module を使う。release の R8 keep rule、`isMinifyEnabled = true`、`allowBackup = false`、`androidx.profileinstaller` を維持する。
+- Android の bundle identifier / Gradle namespace / Kotlin package は `com.lightlist.app`。Firebase 設定は debug / release variant ごとに分け、Firebase BoM v34 以降では main module を使う。release の R8 keep rule（Firebase component registrar と `FirestoreSettingsRecord` のリフレクション変換対象）、`isMinifyEnabled = true`、`allowBackup = false`、`androidx.profileinstaller` を維持する。
 - Android の Google OSS Licenses runtime は従来版 Activity を含む `play-services-oss-licenses:17.2.2` に固定し、アプリ本体の Compose BOM と競合する Compose ベースの v2 Activity は使わない。従来版 Activity 用に AppCompat `1.7.1` を直接依存に含める。
 - Android の `just run` は通常上書きインストール、データを消す再インストールは `just run-clean`。Play 提出物は署名設定と versionCode を確認した `just bundle-play` の AAB とする。詳細は `docs/release-android.md`。
 - CI 品質ゲートは設定せず、変更した app のローカル検証を正とする。

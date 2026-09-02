@@ -1287,7 +1287,7 @@ const mapTaskListStoreToTaskList = (
 ): TaskList => ({
   id: taskListId,
   name: taskListData.name,
-  tasks: getDisplayOrderedTasks(taskListData),
+  tasks: getOrderedTasks(taskListData),
   history: taskListData.history,
   shareCode: taskListData.shareCode,
   background: taskListData.background,
@@ -2799,6 +2799,22 @@ function getDisplayOrderedTasks(
     });
 }
 
+function getDisplayOrderedTaskArray(tasks: Task[], autoSort: boolean): Task[] {
+  if (!autoSort) return tasks;
+  const taskRecords: Record<string, TaskListStoreTask> = Object.fromEntries(
+    tasks.map((task, index) => [task.id, { ...task, order: index + 1 }]),
+  );
+  return getDisplayOrderedTasks({ tasks: taskRecords }).map(
+    ({ id, text, completed, date, pinned }) => ({
+      id,
+      text,
+      completed,
+      date,
+      pinned,
+    }),
+  );
+}
+
 function canReorderTasks(
   first: Pick<TaskListStoreTask, "completed" | "date" | "pinned">,
   second: Pick<TaskListStoreTask, "completed" | "date" | "pinned">,
@@ -3139,20 +3155,7 @@ async function updateTask(
       };
       return nextTask;
     });
-    const nextTasks =
-      !settings.autoSort &&
-      currentTask.pinned &&
-      !currentTask.completed &&
-      normalizedUpdates.pinned === false
-        ? renumberTasks([
-            ...updatedTasks.filter((task) => getTaskDisplayGroup(task) === 0),
-            ...updatedTasks.filter((task) => task.id === taskId),
-            ...updatedTasks.filter(
-              (task) => getTaskDisplayGroup(task) === 1 && task.id !== taskId,
-            ),
-            ...updatedTasks.filter((task) => getTaskDisplayGroup(task) === 2),
-          ])
-        : getSortedTasks(updatedTasks, settings);
+    const nextTasks = getSortedTasks(updatedTasks, settings);
     const nextUpdates: Record<string, unknown> = {
       ...buildTaskUpdateData({ previousTasks: tasks, tasks: nextTasks }),
       updatedAt: now,
@@ -3278,7 +3281,7 @@ async function deleteCompletedTasks(
 async function sortTasks(taskListId: string) {
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
-    const tasks = getDisplayOrderedTasks(taskList);
+    const tasks = getOrderedTasks(taskList);
     const sortedTasks = getAutoSortedTasks(tasks);
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
       ...buildTaskUpdateData({ previousTasks: tasks, tasks: sortedTasks }),
@@ -3294,7 +3297,9 @@ async function updateTasksOrder(
 ) {
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
-    const tasks = getDisplayOrderedTasks(taskList);
+    const tasks = autoSort
+      ? getDisplayOrderedTasks(taskList)
+      : getOrderedTasks(taskList);
     const nextTasks = reorderTasksByIds(tasks, orderedTaskIds, autoSort);
     if (!nextTasks) return;
     await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
@@ -5868,7 +5873,8 @@ function TaskListCard({
   const [taskError, setTaskError] = useState<string | null>(null);
   const [pendingTasks, setPendingTasks] = useState<Task[] | null>(null);
   const pendingTasksRef = useRef<Task[] | null>(null);
-  const baseTasks = pendingTasks ?? taskList.tasks;
+  const baseTasks =
+    pendingTasks ?? getDisplayOrderedTaskArray(taskList.tasks, autoSort);
   const taskListTasksRef = useRef(taskList.tasks);
   taskListTasksRef.current = taskList.tasks;
   const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
@@ -5931,13 +5937,7 @@ function TaskListCard({
         }));
       const sortedTasks = autoSort
         ? getAutoSortedTasks(normalizedTasks)
-        : getDisplayOrderedTasks({
-            tasks: Object.fromEntries(
-              normalizedTasks.map(
-                (task) => [task.id, task] satisfies [string, TaskListStoreTask],
-              ),
-            ),
-          });
+        : normalizedTasks;
       return sortedTasks.map((task) => ({
         id: task.id,
         text: task.text,
@@ -7353,7 +7353,11 @@ function CalendarScreen({
   const datedTasks = useMemo<DatedTask[]>(() => {
     const flattened: DatedTask[] = [];
     for (const [taskListIndex, taskList] of taskLists.entries()) {
-      for (const [taskIndex, task] of taskList.tasks.entries()) {
+      const orderedTasks = getDisplayOrderedTaskArray(
+        taskList.tasks,
+        taskSettings.autoSort,
+      );
+      for (const [taskIndex, task] of orderedTasks.entries()) {
         if (task.completed) continue;
         const parsedDate = parseTaskDate(task.date);
         flattened.push({

@@ -36,7 +36,7 @@
 - 設定画面のセクション順は「アカウント → 表示と動作 → 法的情報 → アカウント操作」。カレンダーは日グリッドとタスク一覧を同じ横幅で直置きし、タスク一覧全体に囲い・角丸・面の背景色・行間 divider を付けない。タスク行は offset なしの 2 段構成（上段: 日付 + ピン / リスト名、下段: 完了操作 / 本文 / 編集操作）とし、下段の要素を上寄せして行末に 4 相当の余白を置く。操作領域は iOS 44pt / Android 48dp 以上を維持し、iOS の完了操作と本文の間には 8pt の間隔を置く。
 - `yyyy-MM-dd` は実在する暦日だけを厳密に受け入れ、不正値は日付なしへ正規化する。端末ローカルの暦日として扱い、Web の `new Date("yyyy-mm-dd")` や UTC formatter を使わない。Android Material3 `DatePicker` の millis 変換だけ UTC を許可し、iOS formatter は `en_US_POSIX` + gregorian を使う。
 - 入力 parser は Web の `entry.tsx` を正本とし、日付・相対表現・pin prefix・数字正規化を iOS / Android でも揃える。`taskInsertPosition` の既定は `top`、履歴は小文字比較で重複除去して最大 300 件とする。
-- タスクの表示順は `order` を根拠に配列化し、pinned 未完了 → unpinned 未完了 → 完了の順にする。同順位は `id` で決定的にする。`pinOrder` は持たない。手動並び替えは同じ表示グループ内、`autoSort` 有効時は同じ日付内だけ許可し、操作終了時の全 task ID 順を保存する。
+- タスクの表示順は `order` を根拠に配列化する。`autoSort` 有効時は pinned 未完了 → unpinned 未完了 → 完了の各グループ内を日付順にし、無効時は状態にかかわらず全 task を任意順で扱う。同順位は `id` で決定的にする。`pinOrder` は持たない。手動並び替えは `autoSort` 有効時だけ同じ表示グループ・日付内に制限し、無効時は全 task 間で許可する。操作終了時の全 task ID 順を保存する。
 - task は本文・日付・ピンのいずれかが有効なら保存する。日付あり・ピン留めなら空本文を許可し、3 項目すべてが空相当になった task は削除する。
 - 共有taskの他端末競合で必須field不足の部分mapが再生成される場合があるため、全task fieldを厳格decodeし、server確定snapshotでだけ部分mapを自動削除する。
 - Firestore の UI 更新は transaction を使わず、表示中の task 群を正規化して pending overlay に反映し、taskListId 単位の mutation queue で直列化する。表示優先順は drag overlay → pending → listener。書き込み中の内容一致だけで pending を解放しない。

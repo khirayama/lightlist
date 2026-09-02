@@ -493,8 +493,7 @@ private func hasTaskContent(_ task: TaskSummary) -> Bool {
 }
 
 private func canReorderTasks(_ first: TaskSummary, _ second: TaskSummary, autoSort: Bool) -> Bool {
-    taskDisplayGroup(first) == taskDisplayGroup(second)
-        && (!autoSort || first.date == second.date)
+    !autoSort || (taskDisplayGroup(first) == taskDisplayGroup(second) && first.date == second.date)
 }
 
 private func getDisplayOrderedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
@@ -503,6 +502,12 @@ private func getDisplayOrderedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
         let rhsGroup = taskDisplayGroup(rhs)
         if lhsGroup != rhsGroup { return lhsGroup < rhsGroup }
         return lhs.order == rhs.order ? lhs.id < rhs.id : lhs.order < rhs.order
+    }
+}
+
+private func getOrderOrderedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
+    tasks.filter(hasTaskContent).sorted {
+        $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order
     }
 }
 
@@ -531,11 +536,7 @@ private func normalizeTasks(_ tasks: [TaskSummary], autoSort: Bool) -> [TaskSumm
 private func reconcileTasks(_ tasks: [TaskSummary], autoSort: Bool) -> [TaskSummary] {
     let validTasks = tasks.filter(hasTaskContent)
     if autoSort { return getAutoSortedTasks(validTasks) }
-    let displayOrdered = validTasks.enumerated().sorted { lhs, rhs in
-        let groupDifference = taskDisplayGroup(lhs.element) - taskDisplayGroup(rhs.element)
-        return groupDifference == 0 ? lhs.offset < rhs.offset : groupDifference < 0
-    }.map { $0.element }
-    return renumberTasks(displayOrdered)
+    return renumberTasks(validTasks)
 }
 
 private func buildTaskUpdateData(
@@ -3868,7 +3869,9 @@ private struct TaskListDetailPage: View {
     }
 
     private var displayTasks: [TaskSummary] {
-        dragOrderedTasks ?? pendingDisplayTasks ?? getDisplayOrderedTasks(taskList.tasks)
+        if let dragOrderedTasks { return dragOrderedTasks }
+        if let pendingDisplayTasks { return pendingDisplayTasks }
+        return autoSort ? getDisplayOrderedTasks(taskList.tasks) : getOrderOrderedTasks(taskList.tasks)
     }
 
     private func checkTaskSwap() -> CGFloat {
@@ -4762,18 +4765,9 @@ private struct TaskListDetailPage: View {
         let nextPinned = !task.pinned
         performTaskMutation(
             buildNextTasks: { currentTasks in
-                let updatedTasks = currentTasks.map { current in
+                currentTasks.map { current in
                     current.id == task.id ? current.updating(pinned: nextPinned) : current
                 }
-                if task.pinned && !nextPinned && !task.completed && !autoSort {
-                    return [
-                        updatedTasks.filter { taskDisplayGroup($0) == 0 },
-                        updatedTasks.filter { $0.id == task.id },
-                        updatedTasks.filter { taskDisplayGroup($0) == 1 && $0.id != task.id },
-                        updatedTasks.filter { taskDisplayGroup($0) == 2 }
-                    ].flatMap { $0 }
-                }
-                return updatedTasks
             }
         )
     }

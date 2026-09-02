@@ -5509,8 +5509,7 @@ private fun hasTaskContent(task: TaskSummary): Boolean {
 }
 
 private fun canReorderTasks(first: TaskSummary, second: TaskSummary, autoSort: Boolean): Boolean {
-    return taskDisplayGroup(first) == taskDisplayGroup(second) &&
-        (!autoSort || first.date == second.date)
+    return !autoSort || (taskDisplayGroup(first) == taskDisplayGroup(second) && first.date == second.date)
 }
 
 private fun getDisplayOrderedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
@@ -5518,6 +5517,12 @@ private fun getDisplayOrderedTasks(tasks: List<TaskSummary>): List<TaskSummary> 
         compareBy<TaskSummary> { taskDisplayGroup(it) }
             .thenBy { it.order }
             .thenBy { it.id }
+    )
+}
+
+private fun getOrderOrderedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
+    return tasks.filter(::hasTaskContent).sortedWith(
+        compareBy<TaskSummary> { it.order }.thenBy { it.id }
     )
 }
 
@@ -5545,7 +5550,7 @@ private fun reconcileTasks(tasks: List<TaskSummary>, autoSort: Boolean): List<Ta
     return if (autoSort) {
         getAutoSortedTasks(validTasks)
     } else {
-        renumberTasks(validTasks.sortedBy(::taskDisplayGroup))
+        renumberTasks(validTasks)
     }
 }
 
@@ -5655,7 +5660,11 @@ private fun TaskListDetailContent(
     val newTaskFocusRequester = remember { FocusRequester() }
 
     val displayTasks = remember(taskList.tasks, dragOrderedTasks, pendingDisplayedTasks, autoSort) {
-        dragOrderedTasks ?: pendingDisplayedTasks ?: getDisplayOrderedTasks(taskList.tasks)
+        dragOrderedTasks ?: pendingDisplayedTasks ?: if (autoSort) {
+            getDisplayOrderedTasks(taskList.tasks)
+        } else {
+            getOrderOrderedTasks(taskList.tasks)
+        }
     }
     val taskDensity = LocalDensity.current
     val taskSpacingPx = with(taskDensity) { TaskListDetailMetrics.taskRowSpacing.toPx() }
@@ -5975,16 +5984,8 @@ private fun TaskListDetailContent(
             buildNextTasks = { currentTasks ->
                 val currentTask = currentTasks.firstOrNull { it.id == task.id } ?: task
                 val nextPinned = !currentTask.pinned
-                val updatedTasks = currentTasks.map { current ->
+                currentTasks.map { current ->
                     if (current.id == task.id) current.copy(pinned = nextPinned) else current
-                }
-                if (currentTask.pinned && !nextPinned && !currentTask.completed && !autoSort) {
-                    updatedTasks.filter { taskDisplayGroup(it) == 0 } +
-                        updatedTasks.filter { it.id == task.id } +
-                        updatedTasks.filter { taskDisplayGroup(it) == 1 && it.id != task.id } +
-                        updatedTasks.filter { taskDisplayGroup(it) == 2 }
-                } else {
-                    updatedTasks
                 }
             }
         )

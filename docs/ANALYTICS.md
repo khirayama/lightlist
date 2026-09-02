@@ -13,6 +13,7 @@
 
 - `app_exception` は捕捉済みの非致命例外だけを送信する。`operation` は固定の操作名、`error_category` は Firebase code または例外クラス名に限定する。
 - Android は `recordNonFatalException()` で同じ固定情報だけを Crashlytics の non-fatal として記録する。Crashlytics は未捕捉例外を自動収集するため、アプリで default uncaught exception handler を差し替えない。
+- `app_sync_listener_error` は Firestore listener の購読エラーを購読経路単位で送信する。1回の購読中断につき最初のエラーだけを記録し、同じ listener の再試行でイベントを連続送信しない。Android / iOS は同じ固定情報を Crashlytics の non-fatal としても記録する。
 - 例外 message、ユーザー入力、メールアドレス、共有コード、UID、時刻などの一意値を Analytics / Crashlytics へ送らない。
 
 ## イベント一覧
@@ -22,7 +23,7 @@
 - タスク: `app_task_add` / `app_task_update` / `app_task_reorder` / `app_task_sort` / `app_task_delete_completed`
 - 共有: `app_share_code_generate` / `app_share_code_remove` / `app_share_code_join` / `share`
 - 設定: `app_settings_theme_change` / `app_settings_language_change` / `app_settings_task_insert_position_change` / `app_settings_auto_sort_change` / `app_settings_startup_view_change`
-- 例外: `app_exception`
+- 例外・同期: `app_exception` / `app_sync_listener_error`
 
 ## パラメータ
 
@@ -37,3 +38,4 @@
 - `app_settings_auto_sort_change`: `enabled: boolean`
 - `app_settings_startup_view_change`: `view: "taskList" | "calendar" | "taskLists"`
 - `app_exception`: `operation: string`, `error_category?: string`
+- `app_sync_listener_error`: `source: "settings" | "task_list_order" | "task_lists" | "shared_task_list"`, `error_category: string`

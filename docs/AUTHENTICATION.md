@@ -20,13 +20,14 @@
 - iOS は build configuration で切り替える。Debug は `apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist`、Release は同 `Release/GoogleService-Info.plist` を入力にし、app bundle には標準名 `GoogleService-Info.plist` を 1 つだけ配置する。
 - Android は配置で切り替える。debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json`。
 - iOS Release / Android release のファイルは bundle identifier / applicationId `com.lightlist.app` に一致する Firebase app から取得する。
+- 設定同期は同じ Firebase project と同じ Auth `uid` の組み合わせだけで成立する。ローカル Web（`apps/web/.env.local`）と Android debug は `lightlist-dev`、Cloudflare Pages の本番 Web と Android release は `lightlist-prod-b0269` に揃える。dev Web と release Android（またはその逆）を併用すると、別 project のため設定は同期しない。
 
 ## サインアップ（Web / Native 共通）
 
 Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作成する。
 
 - 作成対象: `settings/{uid}` / `taskLists/{taskListId}` / `taskListOrder/{uid}`
-- 初期設定: `theme: "system"` / `language: normalizeLanguage(language)` / `taskInsertPosition: "top"` / `autoSort: false` / `startupView: "taskList"`
+- 初期設定: `theme: "system"` / `language: normalizeLanguage(language)` / `taskInsertPosition: "top"` / `autoSort: true` / `startupView: "taskList"`
 - 初期タスクリスト: `shared/locales/locales.json` の選択言語にある `app.initialTaskListName` / `tasks: {}` / `history: []` / `shareCode: null` / `background: null` / `memberCount: 1`
 
 ## サインイン / サインアウト / 退会（Web）

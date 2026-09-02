@@ -87,6 +87,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -176,6 +177,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -252,6 +254,7 @@ import org.json.JSONArray
 
 private const val COMPLETED_TASK_ALPHA = 0.55f
 private const val STARTUP_CACHE_PREFERENCES = "lightlist.startup"
+private val autoSortOverrides = mutableStateMapOf<String, Boolean>()
 private val TaskListBackgroundOptions = listOf<String?>(
     null,
     "#F87171",
@@ -640,6 +643,17 @@ private fun recordNonFatalException(operation: String, error: Exception? = null)
     val message = errorCategory?.let { "Android $operation failed: $it" }
         ?: "Android $operation failed"
     FirebaseCrashlytics.getInstance().recordException(IllegalStateException(message))
+}
+
+private fun recordSyncListenerError(source: String, error: Exception) {
+    val errorCategory = exceptionCategory(error)
+    log("app_sync_listener_error") {
+        putString("source", source)
+        putString("error_category", errorCategory)
+    }
+    FirebaseCrashlytics.getInstance().recordException(
+        IllegalStateException("Android sync listener $source failed: $errorCategory")
+    )
 }
 
 val LocalTranslations = compositionLocalOf { Translations() }
@@ -1196,7 +1210,7 @@ private suspend fun signUpWithInitialData(
         "theme" to "system",
         "language" to normalizedLanguage,
         "taskInsertPosition" to "top",
-        "autoSort" to false,
+        "autoSort" to true,
         "startupView" to "taskList",
         "createdAt" to now,
         "updatedAt" to now
@@ -1247,15 +1261,91 @@ private data class SettingsState(
     val theme: String = "system",
     val language: String = "ja",
     val taskInsertPosition: String = "top",
-    val autoSort: Boolean = false,
+    val autoSort: Boolean = true,
     val startupView: String = "taskList",
     val userEmail: String = "",
     val isLoading: Boolean = true,
     val hasError: Boolean = false
 )
 
+private fun resolveSettingsState(
+    record: FirestoreSettingsRecord,
+    userEmail: String
+): SettingsState? {
+    val theme = record.theme ?: "system"
+    val language = record.language ?: "ja"
+    val taskInsertPosition = record.taskInsertPosition ?: "top"
+    if (
+        (theme != "system" && theme != "light" && theme != "dark") ||
+        !Translations.isSupported(language) ||
+        (taskInsertPosition != "top" && taskInsertPosition != "bottom")
+    ) {
+        return null
+    }
+    return SettingsState(
+        theme = theme,
+        language = language,
+        taskInsertPosition = taskInsertPosition,
+        autoSort = record.autoSort ?: true,
+        startupView = normalizeStartupView(record.startupView),
+        userEmail = userEmail,
+        isLoading = false,
+        hasError = false
+    )
+}
+
+@Composable
+private fun resolvedSettingsState(userId: String?, settingsState: SettingsState): SettingsState {
+    val override = userId?.let { autoSortOverrides[it] }
+    return if (override == null || override == settingsState.autoSort) {
+        settingsState
+    } else {
+        settingsState.copy(autoSort = override)
+    }
+}
+
 private fun removeTaskListListeners(listeners: List<ListenerRegistration>) {
     listeners.forEach { it.remove() }
+}
+
+private class SyncListenerRetryController(
+    private val scope: CoroutineScope,
+    private val onRetry: () -> Unit,
+    private val onError: (String, Exception) -> Unit
+) {
+    private var retryJob: Job? = null
+    private var retryDelayMs = 1000L
+    private var reportedError = false
+    private var disposed = false
+
+    fun fail(source: String, error: Exception) {
+        if (disposed) return
+        if (!reportedError) {
+            onError(source, error)
+            reportedError = true
+        }
+        if (retryJob?.isActive == true) return
+        val delayMs = retryDelayMs
+        retryDelayMs = minOf(retryDelayMs * 2, 30000L)
+        retryJob = scope.launch {
+            delay(delayMs)
+            retryJob = null
+            if (!disposed) onRetry()
+        }
+    }
+
+    fun markHealthy(isFromCache: Boolean) {
+        if (!isFromCache) {
+            retryDelayMs = 1000L
+            reportedError = false
+        }
+    }
+
+    fun dispose() {
+        disposed = true
+        retryJob?.cancel()
+        retryJob = null
+    }
 }
 
 private fun <T> subscribeToOrderedTaskLists(
@@ -1269,6 +1359,11 @@ private fun <T> subscribeToOrderedTaskLists(
     var taskListIdsKey = ""
     var taskListsById = emptyMap<String, T>()
     var taskListChunkListeners = emptyList<ListenerRegistration>()
+    var taskListOrderListener: ListenerRegistration? = null
+    var disposed = false
+    var listenerGeneration = 0L
+    val listenerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    var retryController: SyncListenerRetryController? = null
 
     fun publish() {
         logDebugSync(
@@ -1277,7 +1372,7 @@ private fun <T> subscribeToOrderedTaskLists(
         onPublish(orderedTaskListIds.mapNotNull { taskListsById[it] })
     }
 
-    fun subscribeToTaskLists(taskListIds: List<String>) {
+    fun subscribeToTaskLists(taskListIds: List<String>, generation: Long) {
         val nextKey = taskListIds.sorted().joinToString("|")
         if (taskListIdsKey == nextKey) {
             logDebugSync("reuse taskList listeners count=${taskListIds.size}")
@@ -1299,8 +1394,10 @@ private fun <T> subscribeToOrderedTaskLists(
             db.collection("taskLists")
                 .whereIn(FieldPath.documentId(), chunk)
                 .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
+                    if (disposed || generation != listenerGeneration) return@addSnapshotListener
                     if (error != null) {
                         logDebugSync("taskLists listener error=${firestoreErrorDescription("taskLists listen", error)}")
+                        retryController?.fail("task_lists", error)
                         onError?.invoke()
                         return@addSnapshotListener
                     }
@@ -1323,34 +1420,56 @@ private fun <T> subscribeToOrderedTaskLists(
                     }
                     taskListsById = nextTaskListsById
                     publish()
+                    retryController?.markHealthy(snapshot?.metadata?.isFromCache ?: true)
                 }
         }
     }
 
-    if (orderedTaskListIds.isNotEmpty()) {
-        subscribeToTaskLists(orderedTaskListIds)
+    fun installListeners() {
+        if (disposed) return
+        taskListOrderListener?.remove()
+        taskListOrderListener = null
+        removeTaskListListeners(taskListChunkListeners)
+        taskListChunkListeners = emptyList()
+        taskListIdsKey = ""
+        listenerGeneration += 1
+        val generation = listenerGeneration
+
+        subscribeToTaskLists(orderedTaskListIds, generation)
+        taskListOrderListener = db.collection("taskListOrder")
+            .document(userId)
+            .addSnapshotListener { snapshot, error ->
+                if (disposed || generation != listenerGeneration) return@addSnapshotListener
+                if (error != null) {
+                    logDebugSync("taskListOrder listener error=${firestoreErrorDescription("taskListOrder listen", error)}")
+                    retryController?.fail("task_list_order", error)
+                    onError?.invoke()
+                    return@addSnapshotListener
+                }
+
+                logDebugSync(
+                    "taskListOrder snapshot exists=${snapshot?.exists()} cache=${snapshot?.metadata?.isFromCache} pending=${snapshot?.metadata?.hasPendingWrites()}"
+                )
+                orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap<String, Any>())
+                writeCachedTaskListOrderIds(userId, orderedTaskListIds)
+                subscribeToTaskLists(orderedTaskListIds, generation)
+                retryController?.markHealthy(snapshot?.metadata?.isFromCache ?: true)
+            }
     }
 
-    val taskListOrderListener = db.collection("taskListOrder")
-        .document(userId)
-        .addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                logDebugSync("taskListOrder listener error=${firestoreErrorDescription("taskListOrder listen", error)}")
-                onError?.invoke()
-                return@addSnapshotListener
-            }
-
-            logDebugSync(
-                "taskListOrder snapshot exists=${snapshot?.exists()} cache=${snapshot?.metadata?.isFromCache} pending=${snapshot?.metadata?.hasPendingWrites()}"
-            )
-            orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap<String, Any>())
-            writeCachedTaskListOrderIds(userId, orderedTaskListIds)
-            subscribeToTaskLists(orderedTaskListIds)
-        }
+    retryController = SyncListenerRetryController(
+        scope = listenerScope,
+        onRetry = ::installListeners,
+        onError = { source, error -> recordSyncListenerError(source, error) }
+    )
+    installListeners()
 
     return {
-        taskListOrderListener.remove()
+        disposed = true
+        checkNotNull(retryController).dispose()
+        taskListOrderListener?.remove()
         removeTaskListListeners(taskListChunkListeners)
+        listenerScope.cancel()
     }
 }
 
@@ -1377,7 +1496,7 @@ fun RootScreen(
         onDispose { Firebase.auth.removeAuthStateListener(listener) }
     }
 
-    val settingsState = rememberSettingsState(currentUserId)
+    val settingsState = resolvedSettingsState(currentUserId, rememberSettingsState(currentUserId))
     val context = LocalContext.current
     val startupLanguage = remember(currentUserId, settingsState.language, context) {
         resolveStartupLanguage(context, currentUserId, settingsState.language)
@@ -1485,7 +1604,12 @@ fun RootScreen(
                                 backStackEntry.arguments?.getString(AppRoute.TaskList.argumentName).orEmpty()
                             TaskListDetailPagerScreen(navController, currentUserId, initialTaskListId, externalSettingsState = settingsState)
                         }
-                        composable(AppRoute.Settings.route) { SettingsView(navController = navController) }
+                        composable(AppRoute.Settings.route) {
+                            SettingsView(
+                                navController = navController,
+                                externalSettingsState = settingsState
+                            )
+                        }
                     }
 
                     LaunchedEffect(isLoggedIn, settingsState.isLoading) {
@@ -1540,7 +1664,7 @@ private fun SharedTaskListPreviewScreen(
 ) {
     val t = LocalTranslations.current
     val previewUiState = rememberSharedTaskListPreviewState(shareCode, userId)
-    val settingsState = rememberSettingsState(userId)
+    val settingsState = resolvedSettingsState(userId, rememberSettingsState(userId))
     val scope = rememberCoroutineScope()
     var isJoining by remember { mutableStateOf(false) }
     var addToOrderError by remember { mutableStateOf<String?>(null) }
@@ -1694,32 +1818,82 @@ private fun rememberSettingsState(userId: String?): SettingsState {
     var uiState by remember(userId) { mutableStateOf(SettingsState(isLoading = userId != null)) }
     DisposableEffect(userId) {
         if (userId == null) {
+            autoSortOverrides.clear()
             uiState = SettingsState(isLoading = false)
             onDispose {}
         } else {
             val db = Firebase.firestore
             val email = Firebase.auth.currentUser?.email ?: ""
-            val listener = db.collection("settings").document(userId)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
-                        return@addSnapshotListener
-                    }
-                    val data = runCatching {
-                        snapshot?.toObject(FirestoreSettingsRecord::class.java)
-                    }.getOrNull() ?: FirestoreSettingsRecord()
-                    uiState = SettingsState(
-                        theme = data.theme ?: "system",
-                        language = data.language ?: "ja",
-                        taskInsertPosition = data.taskInsertPosition ?: "top",
-                        autoSort = data.autoSort ?: false,
-                        startupView = normalizeStartupView(data.startupView),
-                        userEmail = email,
-                        isLoading = false,
-                        hasError = false
-                    )
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            var disposed = false
+            var retryJob: Job? = null
+            var retryDelayMs = 1000L
+            var reportedError = false
+            var listener: ListenerRegistration? = null
+            var installListener: (() -> Unit)? = null
+            fun clearListener() {
+                listener?.remove()
+                listener = null
+            }
+            fun scheduleRetry(error: Exception) {
+                if (disposed || retryJob?.isActive == true) return
+                if (!reportedError) {
+                    recordSyncListenerError("settings", error)
+                    reportedError = true
                 }
-            onDispose { listener.remove() }
+                uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
+                val delayMs = retryDelayMs
+                retryDelayMs = minOf(retryDelayMs * 2, 30000L)
+                clearListener()
+                retryJob = scope.launch {
+                    delay(delayMs)
+                    retryJob = null
+                    if (!disposed) installListener?.invoke()
+                }
+            }
+            installListener = listener@{
+                if (disposed) return@listener
+                clearListener()
+                listener = db.collection("settings").document(userId)
+                    .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
+                        if (error != null) {
+                            scheduleRetry(error)
+                            return@addSnapshotListener
+                        }
+                        val data = when {
+                            snapshot == null -> null
+                            !snapshot.exists() -> FirestoreSettingsRecord()
+                            else -> runCatching {
+                                snapshot.toObject(FirestoreSettingsRecord::class.java)
+                            }.getOrNull()
+                        }
+                        val nextSettings = data?.let { resolveSettingsState(it, email) }
+                        if (nextSettings != null) {
+                            val override = autoSortOverrides[userId]
+                            if (override != null && override == nextSettings.autoSort) {
+                                autoSortOverrides.remove(userId)
+                            }
+                            uiState = nextSettings.copy(
+                                autoSort = autoSortOverrides[userId] ?: nextSettings.autoSort
+                            )
+                        } else {
+                            uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
+                        }
+                        if (snapshot?.metadata?.isFromCache == false &&
+                            !snapshot.metadata.hasPendingWrites()
+                        ) {
+                            retryDelayMs = 1000L
+                            reportedError = false
+                        }
+                    }
+            }
+            checkNotNull(installListener).invoke()
+            onDispose {
+                disposed = true
+                retryJob?.cancel()
+                clearListener()
+                scope.cancel()
+            }
         }
     }
     return uiState
@@ -1868,16 +2042,47 @@ private fun rememberSharedTaskListPreviewState(
         if (taskListId == null) {
             onDispose {}
         } else {
-            val listener = db.collection("taskLists").document(taskListId)
-                .addSnapshotListener { snapshot, error ->
-                    uiState = if (error != null) {
-                        uiState.copy(
-                            taskList = null,
-                            isLoading = false,
-                            errorMessage = t.t("pages.sharecode.error")
-                        )
-                    } else {
-                        if (snapshot == null || !snapshot.exists()) {
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            var disposed = false
+            var retryJob: Job? = null
+            var retryDelayMs = 1000L
+            var reportedError = false
+            var listener: ListenerRegistration? = null
+            var installListener: (() -> Unit)? = null
+            fun clearListener() {
+                listener?.remove()
+                listener = null
+            }
+            fun scheduleRetry(error: Exception) {
+                if (disposed || retryJob?.isActive == true) return
+                if (!reportedError) {
+                    recordSyncListenerError("shared_task_list", error)
+                    reportedError = true
+                }
+                uiState = uiState.copy(
+                    taskList = null,
+                    isLoading = false,
+                    errorMessage = t.t("pages.sharecode.error")
+                )
+                val delayMs = retryDelayMs
+                retryDelayMs = minOf(retryDelayMs * 2, 30000L)
+                clearListener()
+                retryJob = scope.launch {
+                    delay(delayMs)
+                    retryJob = null
+                    if (!disposed) installListener?.invoke()
+                }
+            }
+            installListener = listener@{
+                if (disposed) return@listener
+                clearListener()
+                listener = db.collection("taskLists").document(taskListId)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            scheduleRetry(error)
+                            return@addSnapshotListener
+                        }
+                        uiState = if (snapshot == null || !snapshot.exists()) {
                             uiState.copy(
                                 taskList = null,
                                 isLoading = false,
@@ -1893,9 +2098,19 @@ private fun rememberSharedTaskListPreviewState(
                                 errorMessage = null
                             )
                         }
+                        if (snapshot?.metadata?.isFromCache == false) {
+                            retryDelayMs = 1000L
+                            reportedError = false
+                        }
                     }
-                }
-            onDispose { listener.remove() }
+            }
+            checkNotNull(installListener).invoke()
+            onDispose {
+                disposed = true
+                retryJob?.cancel()
+                clearListener()
+                scope.cancel()
+            }
         }
     }
 
@@ -1905,15 +2120,59 @@ private fun rememberSharedTaskListPreviewState(
             uiState = uiState.copy(isAdded = false)
             onDispose {}
         } else {
-            val listener = db.collection("taskListOrder").document(userId)
-                .addSnapshotListener { snapshot, _ ->
-                    val isAdded = snapshot?.data
-                        ?.let(::parseOrderedTaskListIds)
-                        ?.contains(taskListId)
-                        ?: false
-                    uiState = uiState.copy(isAdded = isAdded)
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            var disposed = false
+            var retryJob: Job? = null
+            var retryDelayMs = 1000L
+            var reportedError = false
+            var listener: ListenerRegistration? = null
+            var installListener: (() -> Unit)? = null
+            fun clearListener() {
+                listener?.remove()
+                listener = null
+            }
+            fun scheduleRetry(error: Exception) {
+                if (disposed || retryJob?.isActive == true) return
+                if (!reportedError) {
+                    recordSyncListenerError("task_list_order", error)
+                    reportedError = true
                 }
-            onDispose { listener.remove() }
+                val delayMs = retryDelayMs
+                retryDelayMs = minOf(retryDelayMs * 2, 30000L)
+                clearListener()
+                retryJob = scope.launch {
+                    delay(delayMs)
+                    retryJob = null
+                    if (!disposed) installListener?.invoke()
+                }
+            }
+            installListener = listener@{
+                if (disposed) return@listener
+                clearListener()
+                listener = db.collection("taskListOrder").document(userId)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            scheduleRetry(error)
+                            return@addSnapshotListener
+                        }
+                        val isAdded = snapshot?.data
+                            ?.let(::parseOrderedTaskListIds)
+                            ?.contains(taskListId)
+                            ?: false
+                        uiState = uiState.copy(isAdded = isAdded)
+                        if (snapshot?.metadata?.isFromCache == false) {
+                            retryDelayMs = 1000L
+                            reportedError = false
+                        }
+                    }
+            }
+            checkNotNull(installListener).invoke()
+            onDispose {
+                disposed = true
+                retryJob?.cancel()
+                clearListener()
+                scope.cancel()
+            }
         }
     }
 
@@ -2343,7 +2602,8 @@ private fun settingsThemeLabel(t: Translations, theme: String): String = when (t
 
 private fun settingsTaskInsertPositionLabel(t: Translations, position: String): String = when (position) {
     "top" -> t.t("settings.taskInsertPosition.top")
-    else -> t.t("settings.taskInsertPosition.bottom")
+    "bottom" -> t.t("settings.taskInsertPosition.bottom")
+    else -> t.t("settings.taskInsertPosition.top")
 }
 
 private fun settingsStartupViewLabel(t: Translations, startupView: String): String = when (normalizeStartupView(startupView)) {
@@ -3358,7 +3618,10 @@ private fun CalendarScreen(
     val t = LocalTranslations.current
     val haptic = LocalHapticFeedback.current
     val reduceMotion = rememberReduceMotion()
-    val settingsState = externalSettingsState ?: rememberSettingsState(userId)
+    val settingsState = resolvedSettingsState(
+        userId,
+        externalSettingsState ?: rememberSettingsState(userId)
+    )
     val calendarUiState = if (externalTaskLists == null) {
         rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
     } else {
@@ -4607,7 +4870,7 @@ private fun TabletRootScreen(
     val selectedTaskListState = rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPane by rememberSaveable { mutableStateOf(TabletPane.TaskList) }
     var hasAppliedStartupPane by rememberSaveable { mutableStateOf(false) }
-    val settingsState = rememberSettingsState(userId)
+    val settingsState = resolvedSettingsState(userId, rememberSettingsState(userId))
     val sharedTaskLists = rememberOrderedTaskLists(userId, ::parseTaskListDetail)
 
     LaunchedEffect(settingsState.isLoading) {
@@ -4665,7 +4928,10 @@ private fun TabletRootScreen(
                 .fillMaxHeight()
         ) {
             if (selectedPane == TabletPane.Settings) {
-                SettingsView(showTopBar = false)
+                SettingsView(
+                    showTopBar = false,
+                    externalSettingsState = settingsState
+                )
             } else if (selectedPane == TabletPane.Calendar) {
                 CalendarScreen(
                     userId = userId,
@@ -4703,7 +4969,10 @@ private fun TaskListDetailPagerScreen(
 ) {
     val t = LocalTranslations.current
     val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
-    val settingsState = externalSettingsState ?: rememberSettingsState(userId)
+    val settingsState = resolvedSettingsState(
+        userId,
+        externalSettingsState ?: rememberSettingsState(userId)
+    )
     var internalSelectedTaskListId by rememberSaveable(initialTaskListId) {
         mutableStateOf(initialTaskListId)
     }
@@ -5341,7 +5610,7 @@ private fun buildHistory(
 private fun TaskListDetailContent(
     taskList: TaskListDetail,
     taskInsertPosition: String = "top",
-    autoSort: Boolean = false,
+    autoSort: Boolean = true,
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
     allowTaskListDeletion: Boolean = true,
     allowShareCodeManagement: Boolean = true
@@ -6632,11 +6901,17 @@ private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.
 }
 
 @Composable
-private fun SettingsSelectRow(label: String, value: String, onClick: () -> Unit) {
+private fun SettingsSelectRow(
+    label: String,
+    value: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
+            .alpha(if (enabled) 1f else 0.6f)
             .padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -6678,6 +6953,7 @@ private fun SettingsOptionDialog(
     options: List<Pair<String, String>>,
     selected: String,
     scrollable: Boolean = false,
+    enabled: Boolean = true,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -6690,7 +6966,7 @@ private fun SettingsOptionDialog(
             Column(if (scrollable) Modifier.verticalScroll(scrollState) else Modifier) {
                 options.forEach { (option, label) ->
                     Row(
-                        Modifier.fillMaxWidth().clickable {
+                        Modifier.fillMaxWidth().clickable(enabled = enabled) {
                             onSelect(option)
                             onDismiss()
                         }.padding(vertical = 12.dp),
@@ -6718,12 +6994,16 @@ private fun SettingsOptionDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 private fun SettingsView(
     navController: NavController? = null,
-    showTopBar: Boolean = true
+    showTopBar: Boolean = true,
+    externalSettingsState: SettingsState? = null
 ) {
     val t = LocalTranslations.current
     val context = LocalContext.current
     val userId = Firebase.auth.currentUser?.uid
-    val uiState = rememberSettingsState(userId)
+    val uiState = resolvedSettingsState(
+        userId,
+        externalSettingsState ?: rememberSettingsState(userId)
+    )
     val scope = rememberCoroutineScope()
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -6740,12 +7020,41 @@ private fun SettingsView(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isDeletingAccount by remember { mutableStateOf(false) }
     var isSigningOut by remember { mutableStateOf(false) }
+    var isUpdatingSettings by remember { mutableStateOf(false) }
     val manualLicenses = remember(context) { loadManualLicenses(context) }
 
-    fun updateSettings(partial: Map<String, Any>) {
-        if (userId == null) return
-        Firebase.firestore.collection("settings").document(userId)
-            .set(partial + mapOf("updatedAt" to nowMillis()), SetOptions.merge())
+    fun updateSettings(
+        partial: Map<String, Any>,
+        onSuccess: () -> Unit = {},
+        onFailure: () -> Unit = {}
+    ) {
+        if (userId == null || isUpdatingSettings) return
+        isUpdatingSettings = true
+        errorMessage = null
+        scope.launch {
+            try {
+                Firebase.firestore.collection("settings").document(userId)
+                    .set(partial + mapOf("updatedAt" to nowMillis()), SetOptions.merge())
+                    .await()
+                onSuccess()
+            } catch (_: Exception) {
+                errorMessage = t.t("common.error")
+                onFailure()
+            } finally {
+                isUpdatingSettings = false
+            }
+        }
+    }
+
+    fun updateAutoSort(enabled: Boolean) {
+        val uid = userId ?: return
+        if (isUpdatingSettings) return
+        autoSortOverrides[uid] = enabled
+        logSettingsAutoSortChange(enabled = enabled)
+        updateSettings(
+            mapOf("autoSort" to enabled),
+            onFailure = { autoSortOverrides.remove(uid) }
+        )
     }
 
     DetailScreenScaffold(
@@ -6789,19 +7098,26 @@ private fun SettingsView(
                 SettingsSectionCard(title = t.t("settings.preferences.title")) {
                     SettingsSelectRow(
                         label = t.t("settings.language.title"),
-                        value = supportedLanguages.firstOrNull { it.first == uiState.language }?.second ?: uiState.language
+                        value = supportedLanguages.firstOrNull { it.first == uiState.language }?.second ?: uiState.language,
+                        enabled = !isUpdatingSettings
                     ) { showLanguageDialog = true }
                     HorizontalDivider()
-                    SettingsSelectRow(t.t("settings.theme.title"), settingsThemeLabel(t, uiState.theme)) { showThemeDialog = true }
+                    SettingsSelectRow(
+                        t.t("settings.theme.title"),
+                        settingsThemeLabel(t, uiState.theme),
+                        enabled = !isUpdatingSettings
+                    ) { showThemeDialog = true }
                     HorizontalDivider()
                     SettingsSelectRow(
                         t.t("settings.startupView.title"),
-                        settingsStartupViewLabel(t, uiState.startupView)
+                        settingsStartupViewLabel(t, uiState.startupView),
+                        enabled = !isUpdatingSettings
                     ) { showStartupViewDialog = true }
                     HorizontalDivider()
                     SettingsSelectRow(
                         t.t("settings.taskInsertPosition.title"),
-                        settingsTaskInsertPositionLabel(t, uiState.taskInsertPosition)
+                        settingsTaskInsertPositionLabel(t, uiState.taskInsertPosition),
+                        enabled = !isUpdatingSettings
                     ) { showPositionDialog = true }
                     HorizontalDivider()
                     Row(
@@ -6822,7 +7138,8 @@ private fun SettingsView(
                         }
                         Switch(
                             checked = uiState.autoSort,
-                            onCheckedChange = { logSettingsAutoSortChange(enabled = it); updateSettings(mapOf("autoSort" to it)) }
+                            onCheckedChange = ::updateAutoSort,
+                            enabled = !isUpdatingSettings
                         )
                     }
                 }
@@ -6856,7 +7173,7 @@ private fun SettingsView(
                     HorizontalDivider()
                     SettingsActionRow(
                         label = if (isDeletingAccount) t.t("settings.deletingAccount") else t.t("settings.danger.deleteAccount"),
-                        enabled = !isDeletingAccount,
+                        enabled = !isDeletingAccount && !isSigningOut,
                         color = MaterialTheme.colorScheme.error,
                         onClick = { showDeleteDialog = true }
                     )
@@ -6960,6 +7277,7 @@ private fun SettingsView(
                 "dark" to t.t("settings.theme.dark")
             ),
             selected = uiState.theme,
+            enabled = !isUpdatingSettings,
             onSelect = { option ->
                 logSettingsThemeChange(theme = option)
                 updateSettings(mapOf("theme" to option))
@@ -6976,6 +7294,7 @@ private fun SettingsView(
                 "bottom" to t.t("settings.taskInsertPosition.bottom")
             ),
             selected = uiState.taskInsertPosition,
+            enabled = !isUpdatingSettings,
             onSelect = { option ->
                 logSettingsTaskInsertPositionChange(position = option)
                 updateSettings(mapOf("taskInsertPosition" to option))
@@ -6993,6 +7312,7 @@ private fun SettingsView(
                 "taskLists" to t.t("settings.startupView.taskLists")
             ),
             selected = uiState.startupView,
+            enabled = !isUpdatingSettings,
             onSelect = { option ->
                 logSettingsStartupViewChange(view = option)
                 updateSettings(mapOf("startupView" to option))
@@ -7007,6 +7327,7 @@ private fun SettingsView(
             options = supportedLanguages,
             selected = uiState.language,
             scrollable = true,
+            enabled = !isUpdatingSettings,
             onSelect = { code ->
                 logSettingsLanguageChange(language = code)
                 updateSettings(mapOf("language" to code))

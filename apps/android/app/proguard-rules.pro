@@ -22,3 +22,4 @@
 
 -keepattributes SourceFile,LineNumberTable
 -keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }
+-keep class com.lightlist.app.FirestoreSettingsRecord { *; }

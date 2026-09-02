@@ -198,8 +198,8 @@ type SettingsStore = {
   taskInsertPosition: TaskInsertPosition;
   autoSort: boolean;
   startupView?: StartupView;
-  createdAt: number;
-  updatedAt: number;
+  createdAt?: number;
+  updatedAt?: number;
 };
 
 type TaskListOrderEntry = {
@@ -512,6 +512,12 @@ const logSettingsStartupViewChange = (params: { view: StartupView }) =>
   log("app_settings_startup_view_change", params);
 const logException = (description: string, fatal: boolean) =>
   log("app_exception", { description, fatal });
+type SyncListenerSource =
+  "settings" | "task_list_order" | "task_lists" | "shared_task_list";
+const logSyncListenerError = (
+  source: SyncListenerSource,
+  errorCategory: string,
+) => log("app_sync_listener_error", { source, error_category: errorCategory });
 
 const DEFAULT_LANGUAGE: Language = "ja";
 
@@ -1106,6 +1112,9 @@ declare module "i18next" {
 type SessionState = Pick<AppState, "authStatus" | "user">;
 type SessionContextValue = SessionState & { activeUid: string | null };
 type SettingsState = Pick<AppState, "settings" | "settingsStatus">;
+type SettingsContextValue = SettingsState & {
+  setOptimisticAutoSort: (autoSort: boolean) => void;
+};
 type TaskListIndexState = {
   hasStartupError: boolean;
   taskListOrderStatus: AppState["taskListOrderStatus"];
@@ -1451,7 +1460,7 @@ type TaskListsContextValue = {
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
-const SettingsContext = createContext<SettingsState | null>(null);
+const SettingsContext = createContext<SettingsContextValue | null>(null);
 const TaskListsContext = createContext<TaskListsContextValue | null>(null);
 
 function useRequiredContext<T>(context: Context<T | null>): T {
@@ -1466,10 +1475,15 @@ function AppStateProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<SessionState>(serverSessionState);
   const [settingsState, setSettingsState] =
     useState<SettingsState>(serverSettingsState);
+  const optimisticAutoSortRef = useRef<boolean | null>(null);
   const [taskListsState, dispatchTaskLists] = useReducer(
     taskListsReducer,
     initialTaskListsState(),
   );
+  const taskListOrderStateRef = useRef(taskListsState.taskListOrder);
+  taskListOrderStateRef.current = taskListsState.taskListOrder;
+  const sharedTaskListsByIdRef = useRef(taskListsState.sharedTaskListsById);
+  sharedTaskListsByIdRef.current = taskListsState.sharedTaskListsById;
   const sharedTaskListRefCounts = useRef(new Map<string, number>());
   const sharedTaskListUnsubscribers = useRef(new Map<string, () => void>());
   const [storedLastUid] = useState(readLastUid);
@@ -1495,7 +1509,20 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     session.user?.uid ??
     (session.authStatus === "loading" ? storedLastUid : null);
 
+  const setOptimisticAutoSort = useCallback((autoSort: boolean) => {
+    optimisticAutoSortRef.current = autoSort;
+    setSettingsState((current) =>
+      current.settings
+        ? {
+            ...current,
+            settings: { ...current.settings, autoSort },
+          }
+        : current,
+    );
+  }, []);
+
   useEffect(() => {
+    optimisticAutoSortRef.current = null;
     if (!activeUid) {
       setSettingsState(serverSettingsState);
       return;
@@ -1508,33 +1535,89 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       settingsStatus: "loading",
     }));
 
-    const unsubscribe = onSnapshot(
-      settingsRef,
-      (snapshot) => {
-        try {
-          const settingsStore = snapshot.exists()
-            ? assertSettingsStore(snapshot.data(), activeUid)
-            : null;
-          setSettingsState({
-            settings: mapSettingsStore(settingsStore),
-            settingsStatus: "ready",
-          });
-        } catch (error) {
-          console.error("settings decode error:", error);
-          logException("settings decode error", false);
-          setSettingsState({ settings: null, settingsStatus: "error" });
-        }
-      },
-      () => {
-        setSettingsState({
-          settings: null,
-          settingsStatus: "error",
-        });
-      },
-    );
+    let disposed = false;
+    let retryTimer: number | null = null;
+    let retryDelayMs = 1000;
+    let reportedError = false;
+    let unsubscribe: (() => void) | null = null;
+    const clearListener = () => {
+      unsubscribe?.();
+      unsubscribe = null;
+    };
+    const scheduleRetry = (error: FirestoreError) => {
+      if (disposed || retryTimer !== null) return;
+      if (!reportedError) {
+        void logSyncListenerError("settings", error.code);
+        reportedError = true;
+      }
+      setSettingsState((current) => ({
+        settings: current.settings,
+        settingsStatus: "error",
+      }));
+      const delayMs = retryDelayMs;
+      retryDelayMs = Math.min(retryDelayMs * 2, 30000);
+      clearListener();
+      retryTimer = window.setTimeout(() => {
+        retryTimer = null;
+        if (!disposed) installListener();
+      }, delayMs);
+    };
+    const installListener = () => {
+      if (disposed) return;
+      clearListener();
+      unsubscribe = onSnapshot(
+        settingsRef,
+        { includeMetadataChanges: true },
+        (snapshot) => {
+          try {
+            const settingsStore = assertSettingsStore(
+              snapshot.exists() ? snapshot.data() : {},
+              activeUid,
+            );
+            const nextSettings = mapSettingsStore(settingsStore);
+            if (!nextSettings) {
+              throw new Error(`Settings mapping failed: ${activeUid}`);
+            }
+            const optimisticAutoSort = optimisticAutoSortRef.current;
+            if (
+              optimisticAutoSort !== null &&
+              nextSettings.autoSort === optimisticAutoSort
+            ) {
+              optimisticAutoSortRef.current = null;
+            }
+            setSettingsState({
+              settings: {
+                ...nextSettings,
+                autoSort:
+                  optimisticAutoSortRef.current ?? nextSettings.autoSort,
+              },
+              settingsStatus: "ready",
+            });
+            if (
+              !snapshot.metadata.fromCache &&
+              !snapshot.metadata.hasPendingWrites
+            ) {
+              retryDelayMs = 1000;
+              reportedError = false;
+            }
+          } catch (error) {
+            console.error("settings decode error:", error);
+            logException("settings decode error", false);
+            setSettingsState((current) => ({
+              settings: current.settings,
+              settingsStatus: "error",
+            }));
+          }
+        },
+        scheduleRetry,
+      );
+    };
+    installListener();
 
     return () => {
-      unsubscribe();
+      disposed = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+      clearListener();
     };
   }, [activeUid]);
 
@@ -1548,40 +1631,73 @@ function AppStateProvider({ children }: { children: ReactNode }) {
 
     dispatchTaskLists({ type: "reset", taskListOrderStatus: "loading" });
 
-    const unsubscribe = onSnapshot(
-      taskListOrderRef,
-      (snapshot) => {
-        try {
-          const taskListOrder = snapshot.exists()
-            ? assertTaskListOrderStore(snapshot.data(), activeUid)
-            : null;
-          writeCachedTaskListOrderIds(activeUid, taskListOrder);
-          dispatchTaskLists({
-            type: "setTaskListOrder",
-            taskListOrder,
-            taskListOrderStatus: "ready",
-          });
-        } catch (error) {
-          console.error("taskListOrder decode error:", error);
-          logException("taskListOrder decode error", false);
-          dispatchTaskLists({
-            type: "setTaskListOrder",
-            taskListOrder: null,
-            taskListOrderStatus: "error",
-          });
-        }
-      },
-      () => {
-        dispatchTaskLists({
-          type: "setTaskListOrder",
-          taskListOrder: null,
-          taskListOrderStatus: "error",
-        });
-      },
-    );
+    let disposed = false;
+    let retryTimer: number | null = null;
+    let retryDelayMs = 1000;
+    let reportedError = false;
+    let unsubscribe: (() => void) | null = null;
+    const clearListener = () => {
+      unsubscribe?.();
+      unsubscribe = null;
+    };
+    const scheduleRetry = (error: FirestoreError) => {
+      if (disposed || retryTimer !== null) return;
+      if (!reportedError) {
+        void logSyncListenerError("task_list_order", error.code);
+        reportedError = true;
+      }
+      dispatchTaskLists({
+        type: "setTaskListOrder",
+        taskListOrder: taskListOrderStateRef.current,
+        taskListOrderStatus: "error",
+      });
+      const delayMs = retryDelayMs;
+      retryDelayMs = Math.min(retryDelayMs * 2, 30000);
+      clearListener();
+      retryTimer = window.setTimeout(() => {
+        retryTimer = null;
+        if (!disposed) installListener();
+      }, delayMs);
+    };
+    const installListener = () => {
+      if (disposed) return;
+      clearListener();
+      unsubscribe = onSnapshot(
+        taskListOrderRef,
+        (snapshot) => {
+          try {
+            const taskListOrder = snapshot.exists()
+              ? assertTaskListOrderStore(snapshot.data(), activeUid)
+              : null;
+            writeCachedTaskListOrderIds(activeUid, taskListOrder);
+            dispatchTaskLists({
+              type: "setTaskListOrder",
+              taskListOrder,
+              taskListOrderStatus: "ready",
+            });
+            if (!snapshot.metadata.fromCache) {
+              retryDelayMs = 1000;
+              reportedError = false;
+            }
+          } catch (error) {
+            console.error("taskListOrder decode error:", error);
+            logException("taskListOrder decode error", false);
+            dispatchTaskLists({
+              type: "setTaskListOrder",
+              taskListOrder: taskListOrderStateRef.current,
+              taskListOrderStatus: "error",
+            });
+          }
+        },
+        scheduleRetry,
+      );
+    };
+    installListener();
 
     return () => {
-      unsubscribe();
+      disposed = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+      clearListener();
     };
   }, [activeUid]);
 
@@ -1660,31 +1776,65 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       });
     };
 
-    const unsubscribers = taskListQueryChunks.map(
-      ({ taskListIds, taskListQuery }) =>
-        onSnapshot(
-          taskListQuery,
-          { includeMetadataChanges: true },
-          (snapshot) => {
-            applyTaskListSnapshot(taskListIds, snapshot);
-            dispatchTaskLists({
-              type: "setTaskListDocsStatus",
-              taskListDocsStatus: "ready",
-            });
-          },
-          (error: FirestoreError) => {
-            console.error("taskList chunk listener error:", error);
-            logException(`taskList chunk listener error: ${error.code}`, false);
-            dispatchTaskLists({
-              type: "setTaskListDocsStatus",
-              taskListDocsStatus: "error",
-            });
-          },
-        ),
-    );
+    let disposed = false;
+    let retryTimer: number | null = null;
+    let retryDelayMs = 1000;
+    let reportedError = false;
+    let unsubscribers: Array<() => void> = [];
+    const clearListeners = () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+      unsubscribers = [];
+    };
+    const scheduleRetry = (error: FirestoreError) => {
+      if (disposed || retryTimer !== null) return;
+      if (!reportedError) {
+        void logSyncListenerError("task_lists", error.code);
+        reportedError = true;
+      }
+      dispatchTaskLists({
+        type: "setTaskListDocsStatus",
+        taskListDocsStatus: "error",
+      });
+      const delayMs = retryDelayMs;
+      retryDelayMs = Math.min(retryDelayMs * 2, 30000);
+      clearListeners();
+      retryTimer = window.setTimeout(() => {
+        retryTimer = null;
+        if (!disposed) installListeners();
+      }, delayMs);
+    };
+    const installListeners = () => {
+      if (disposed) return;
+      clearListeners();
+      unsubscribers = taskListQueryChunks.map(
+        ({ taskListIds, taskListQuery }) =>
+          onSnapshot(
+            taskListQuery,
+            { includeMetadataChanges: true },
+            (snapshot) => {
+              applyTaskListSnapshot(taskListIds, snapshot);
+              dispatchTaskLists({
+                type: "setTaskListDocsStatus",
+                taskListDocsStatus: "ready",
+              });
+              if (!snapshot.metadata.fromCache) {
+                retryDelayMs = 1000;
+                reportedError = false;
+              }
+            },
+            (error: FirestoreError) => {
+              console.error("taskList chunk listener error:", error);
+              scheduleRetry(error);
+            },
+          ),
+      );
+    };
+    installListeners();
 
     return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
+      disposed = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+      clearListeners();
     };
   }, [orderedTaskListIdsKey, activeUid]);
 
@@ -1694,49 +1844,83 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     sharedTaskListRefCounts.current.set(taskListId, nextCount);
 
     if (!sharedTaskListUnsubscribers.current.has(taskListId)) {
-      const unsubscribe = onSnapshot(
-        doc(getDbInstance(), "taskLists", taskListId),
-        { includeMetadataChanges: true },
-        (snapshot) => {
-          const rawTaskListData = snapshot.exists()
-            ? snapshot.data({ serverTimestamps: "estimate" })
-            : null;
-          if (rawTaskListData) {
-            scheduleMalformedTaskCleanup(
-              taskListId,
-              rawTaskListData,
-              snapshot.metadata.fromCache,
-              snapshot.metadata.hasPendingWrites,
-            );
-          }
-          let taskListData: TaskListStore | null = null;
-          try {
-            taskListData = rawTaskListData
-              ? normalizeTaskListStore(
-                  assertTaskListStore(rawTaskListData, taskListId),
-                )
+      let disposed = false;
+      let retryTimer: number | null = null;
+      let retryDelayMs = 1000;
+      let reportedError = false;
+      let unsubscribe: (() => void) | null = null;
+      const clearListener = () => {
+        unsubscribe?.();
+        unsubscribe = null;
+      };
+      const scheduleRetry = (error: FirestoreError) => {
+        if (disposed || retryTimer !== null) return;
+        if (!reportedError) {
+          void logSyncListenerError("shared_task_list", error.code);
+          reportedError = true;
+        }
+        dispatchTaskLists({
+          type: "setSharedTaskList",
+          taskListId,
+          taskListData: sharedTaskListsByIdRef.current[taskListId] ?? null,
+        });
+        const delayMs = retryDelayMs;
+        retryDelayMs = Math.min(retryDelayMs * 2, 30000);
+        clearListener();
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null;
+          if (!disposed) installListener();
+        }, delayMs);
+      };
+      const installListener = () => {
+        if (disposed) return;
+        clearListener();
+        unsubscribe = onSnapshot(
+          doc(getDbInstance(), "taskLists", taskListId),
+          { includeMetadataChanges: true },
+          (snapshot) => {
+            const rawTaskListData = snapshot.exists()
+              ? snapshot.data({ serverTimestamps: "estimate" })
               : null;
-          } catch (error) {
-            console.error("shared taskList decode error:", error);
-            logException("shared taskList decode error", false);
-          }
-          dispatchTaskLists({
-            type: "setSharedTaskList",
-            taskListId,
-            taskListData,
-          });
-        },
-        (error: FirestoreError) => {
-          console.error("shared taskList listener error:", error);
-          logException(`shared taskList listener error: ${error.code}`, false);
-          dispatchTaskLists({
-            type: "setSharedTaskList",
-            taskListId,
-            taskListData: null,
-          });
-        },
-      );
-      sharedTaskListUnsubscribers.current.set(taskListId, unsubscribe);
+            if (rawTaskListData) {
+              scheduleMalformedTaskCleanup(
+                taskListId,
+                rawTaskListData,
+                snapshot.metadata.fromCache,
+                snapshot.metadata.hasPendingWrites,
+              );
+            }
+            let taskListData: TaskListStore | null = null;
+            try {
+              taskListData = rawTaskListData
+                ? normalizeTaskListStore(
+                    assertTaskListStore(rawTaskListData, taskListId),
+                  )
+                : null;
+            } catch (error) {
+              console.error("shared taskList decode error:", error);
+              logException("shared taskList decode error", false);
+            }
+            dispatchTaskLists({
+              type: "setSharedTaskList",
+              taskListId,
+              taskListData,
+            });
+            if (!snapshot.metadata.fromCache) {
+              retryDelayMs = 1000;
+              reportedError = false;
+            }
+          },
+          scheduleRetry,
+        );
+      };
+      const cleanup = () => {
+        disposed = true;
+        if (retryTimer !== null) window.clearTimeout(retryTimer);
+        clearListener();
+      };
+      sharedTaskListUnsubscribers.current.set(taskListId, cleanup);
+      installListener();
     }
 
     return () => {
@@ -1824,9 +2008,14 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     [session, activeUid],
   );
 
+  const settingsContextValue = useMemo<SettingsContextValue>(
+    () => ({ ...settingsState, setOptimisticAutoSort }),
+    [settingsState, setOptimisticAutoSort],
+  );
+
   return (
     <SessionContext.Provider value={sessionContextValue}>
-      <SettingsContext.Provider value={settingsState}>
+      <SettingsContext.Provider value={settingsContextValue}>
         <TaskListsContext.Provider value={taskListsContextValue}>
           {children}
         </TaskListsContext.Provider>
@@ -1847,7 +2036,7 @@ function useUser(): User | null {
   return useSessionState().user;
 }
 
-function useSettingsState(): SettingsState {
+function useSettingsState(): SettingsContextValue {
   return useRequiredContext(SettingsContext);
 }
 
@@ -1946,7 +2135,7 @@ const createInitialSettingsStore = (
   theme: "system",
   language,
   taskInsertPosition: "top",
-  autoSort: false,
+  autoSort: true,
   startupView: "taskList",
   createdAt: now,
   updatedAt: now,
@@ -2465,34 +2654,29 @@ function assertTaskListOrderStore(
 
 function assertSettingsStore(data: unknown, uid: string): SettingsStore {
   if (!isRecord(data)) throw new Error(`Settings not found: ${uid}`);
+  const theme = data.theme == null ? "system" : data.theme;
+  const language = data.language == null ? DEFAULT_LANGUAGE : data.language;
+  const taskInsertPosition =
+    data.taskInsertPosition == null ? "top" : data.taskInsertPosition;
+  const startupView = data.startupView == null ? undefined : data.startupView;
   if (
-    (data.theme !== "system" &&
-      data.theme !== "light" &&
-      data.theme !== "dark") ||
-    typeof data.language !== "string" ||
-    !SUPPORTED_LANGUAGE_SET.has(data.language as Language) ||
-    (data.taskInsertPosition !== "top" &&
-      data.taskInsertPosition !== "bottom") ||
-    typeof data.autoSort !== "boolean" ||
-    (data.startupView !== undefined &&
-      data.startupView !== "taskList" &&
-      data.startupView !== "calendar" &&
-      data.startupView !== "taskLists") ||
-    typeof data.createdAt !== "number" ||
-    !Number.isFinite(data.createdAt) ||
-    typeof data.updatedAt !== "number" ||
-    !Number.isFinite(data.updatedAt)
+    (theme !== "system" && theme !== "light" && theme !== "dark") ||
+    typeof language !== "string" ||
+    !SUPPORTED_LANGUAGE_SET.has(language as Language) ||
+    (taskInsertPosition !== "top" && taskInsertPosition !== "bottom") ||
+    (data.autoSort != null && typeof data.autoSort !== "boolean")
   ) {
     throw new Error(`Settings data is malformed: ${uid}`);
   }
   return {
-    theme: data.theme,
-    language: data.language as Language,
-    taskInsertPosition: data.taskInsertPosition,
-    autoSort: data.autoSort,
-    startupView: data.startupView,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
+    theme: theme as Theme,
+    language: language as Language,
+    taskInsertPosition: taskInsertPosition as TaskInsertPosition,
+    autoSort: data.autoSort ?? true,
+    startupView:
+      startupView === undefined ? undefined : normalizeStartupView(startupView),
+    createdAt: typeof data.createdAt === "number" ? data.createdAt : undefined,
+    updatedAt: typeof data.updatedAt === "number" ? data.updatedAt : undefined,
   };
 }
 
@@ -3802,7 +3986,8 @@ function SettingsView({
 }: SettingsViewProps) {
   const { t } = useTranslation();
   const { authStatus, user } = useSessionState();
-  const { settings, settingsStatus } = useSettingsState();
+  const { settings, settingsStatus, setOptimisticAutoSort } =
+    useSettingsState();
   const [isUpdating, setIsUpdating] = useState(false);
   const [pendingAction, setPendingAction] = useState<
     "signOut" | "deleteAccount" | null
@@ -3822,17 +4007,19 @@ function SettingsView({
     taskInsertPosition?: TaskInsertPosition;
     autoSort?: boolean;
     startupView?: StartupView;
-  }) => {
+  }): Promise<boolean> => {
     if (isUpdating) {
-      return;
+      return false;
     }
 
     setError(null);
     setIsUpdating(true);
     try {
       await updateSettings(next);
+      return true;
     } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
+      return false;
     } finally {
       setIsUpdating(false);
     }
@@ -3856,8 +4043,14 @@ function SettingsView({
   };
 
   const handleAutoSortChange = async (autoSort: boolean) => {
-    await updateSetting({ autoSort });
-    logSettingsAutoSortChange({ enabled: autoSort });
+    const previousAutoSort = settings?.autoSort ?? true;
+    setOptimisticAutoSort(autoSort);
+    const updated = await updateSetting({ autoSort });
+    if (updated) {
+      logSettingsAutoSortChange({ enabled: autoSort });
+    } else {
+      setOptimisticAutoSort(previousAutoSort);
+    }
   };
 
   const handleStartupViewChange = async (startupView: StartupView) => {
@@ -4166,7 +4359,7 @@ function SettingsView({
                   <input
                     type="checkbox"
                     name="autoSort"
-                    checked={settings?.autoSort ?? false}
+                    checked={settings?.autoSort ?? true}
                     onChange={(event) =>
                       void handleAutoSortChange(event.target.checked)
                     }
@@ -8279,7 +8472,7 @@ function AppShellPage() {
               >
                 <TaskListCard
                   taskList={taskList}
-                  autoSort={settings?.autoSort ?? false}
+                  autoSort={settings?.autoSort ?? true}
                   taskInsertPosition={settings?.taskInsertPosition ?? "top"}
                   isActive={selectedTaskListId === taskList.id}
                   shouldFocusNewTaskInput={focusedNewTaskListId === taskList.id}
@@ -8336,7 +8529,7 @@ function AppShellPage() {
       showCompactHeaderOffset={!isWideLayout}
       taskLists={taskLists}
       taskSettings={{
-        autoSort: settings?.autoSort ?? false,
+        autoSort: settings?.autoSort ?? true,
         language: normalizeLanguage(i18n.language),
         taskInsertPosition: settings?.taskInsertPosition ?? "top",
       }}
@@ -9232,7 +9425,7 @@ function ShareCodePreviewPage() {
         <div className="ll-mx-auto ll-h-full ll-w-full ll-max-w-3xl">
           <TaskListCard
             taskList={taskList}
-            autoSort={settings?.autoSort ?? false}
+            autoSort={settings?.autoSort ?? true}
             taskInsertPosition={settings?.taskInsertPosition ?? "top"}
             isActive={true}
             shouldFocusNewTaskInput={false}

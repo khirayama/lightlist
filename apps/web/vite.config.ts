@@ -53,6 +53,7 @@ export default defineConfig({
       },
       output: {
         codeSplitting: {
+          includeDependenciesRecursively: false,
           groups: [
             {
               name: "firebase-analytics",
@@ -68,9 +69,9 @@ export default defineConfig({
             },
             {
               name: "firebase-firestore",
-              test: /node_modules\/(?:firebase|@firebase)\//,
+              test: /node_modules\/(?:firebase\/firestore|@firebase\/firestore)\//,
             },
-            { name: "date-fns", test: /node_modules\/date-fns\// },
+            { name: "date-fns", test: /node_modules\/date-fns\/(?!locale\/)/ },
             {
               name: "i18n",
               test: /node_modules\/(?:i18next|react-i18next)/,

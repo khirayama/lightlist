@@ -51,6 +51,8 @@ import {
   confirmPasswordReset as firebaseConfirmPasswordReset,
   createUserWithEmailAndPassword,
   deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   getAuth,
   onAuthStateChanged,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
@@ -71,6 +73,7 @@ import {
   doc,
   getDoc,
   getDocFromCache,
+  getDocFromServer,
   getDocsFromCache,
   getFirestore,
   initializeFirestore,
@@ -293,41 +296,52 @@ const areTasksEqual = (left: Task[], right: Task[]) =>
     );
   });
 
+type TaskListWrite = { committed: Promise<void> };
 const taskListMutationQueues = new Map<string, Promise<void>>();
+const taskListSubmissionQueues = new Map<string, Promise<void>>();
 
-async function enqueueTaskListMutation<T>(
+async function enqueueTaskListMutation(
   taskListId: string,
-  operation: () => Promise<T>,
-): Promise<T> {
-  const previous = taskListMutationQueues.get(taskListId) ?? Promise.resolve();
-  const run = previous.then(operation, operation);
-  const queued = run.then(
+  operation: () => Promise<TaskListWrite | void>,
+): Promise<void> {
+  return enqueueTaskListMutations([taskListId], operation);
+}
+
+async function enqueueTaskListMutations(
+  taskListIds: string[],
+  operation: () => Promise<TaskListWrite | void>,
+): Promise<void> {
+  const ids = [...new Set(taskListIds)].sort(compareStringIds);
+  const previousSubmissions = ids.map(
+    (id) => taskListSubmissionQueues.get(id) ?? Promise.resolve(),
+  );
+  const previousWrites = ids.map(
+    (id) => taskListMutationQueues.get(id) ?? Promise.resolve(),
+  );
+  const submitted = Promise.all(previousSubmissions).then(operation);
+  const submission = submitted.then(
     () => undefined,
     () => undefined,
   );
-  taskListMutationQueues.set(taskListId, queued);
-  try {
-    return await run;
-  } finally {
-    if (taskListMutationQueues.get(taskListId) === queued) {
-      taskListMutationQueues.delete(taskListId);
-    }
-  }
-}
-
-async function enqueueTaskListMutations<T>(
-  taskListIds: string[],
-  operation: () => Promise<T>,
-): Promise<T> {
-  const orderedTaskListIds = [...new Set(taskListIds)].sort(compareStringIds);
-  const run = async (index: number): Promise<T> => {
-    const taskListId = orderedTaskListIds[index];
-    if (taskListId === undefined) {
-      return operation();
-    }
-    return enqueueTaskListMutation(taskListId, () => run(index + 1));
-  };
-  return run(0);
+  ids.forEach((id) => taskListSubmissionQueues.set(id, submission));
+  void submission.then(() => {
+    ids.forEach((id) => {
+      if (taskListSubmissionQueues.get(id) === submission)
+        taskListSubmissionQueues.delete(id);
+    });
+  });
+  const committed = submitted.then((write) => write?.committed);
+  const pending = Promise.allSettled([...previousWrites, committed]).then(
+    () => {
+      ids.forEach((id) => {
+        if (taskListMutationQueues.get(id) === pending)
+          taskListMutationQueues.delete(id);
+      });
+    },
+  );
+  ids.forEach((id) => taskListMutationQueues.set(id, pending));
+  await pending;
+  await committed;
 }
 
 type AppState = {
@@ -1223,7 +1237,12 @@ function scheduleMalformedTaskCleanup(
     malformedTaskIds.forEach((taskId) => {
       updates[`tasks.${taskId}`] = deleteField();
     });
-    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), updates);
+    return {
+      committed: updateDoc(
+        doc(getDbInstance(), "taskLists", taskListId),
+        updates,
+      ),
+    };
   })
     .catch((error) => {
       console.error("malformed task cleanup error:", error);
@@ -1777,64 +1796,64 @@ function AppStateProvider({ children }: { children: ReactNode }) {
     };
 
     let disposed = false;
-    let retryTimer: number | null = null;
-    let retryDelayMs = 1000;
-    let reportedError = false;
-    let unsubscribers: Array<() => void> = [];
-    const clearListeners = () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
-      unsubscribers = [];
-    };
-    const scheduleRetry = (error: FirestoreError) => {
-      if (disposed || retryTimer !== null) return;
-      if (!reportedError) {
-        void logSyncListenerError("task_lists", error.code);
-        reportedError = true;
-      }
+    const chunks = taskListQueryChunks.map((chunk) => ({
+      ...chunk,
+      unsubscribe: null as (() => void) | null,
+      retryTimer: null as number | null,
+      retryDelayMs: 1000,
+      failed: false,
+      loaded: false,
+    }));
+    const publishStatus = () => {
       dispatchTaskLists({
         type: "setTaskListDocsStatus",
-        taskListDocsStatus: "error",
+        taskListDocsStatus: chunks.some((chunk) => chunk.failed)
+          ? "error"
+          : chunks.every((chunk) => chunk.loaded)
+            ? "ready"
+            : "loading",
       });
-      const delayMs = retryDelayMs;
-      retryDelayMs = Math.min(retryDelayMs * 2, 30000);
-      clearListeners();
-      retryTimer = window.setTimeout(() => {
-        retryTimer = null;
-        if (!disposed) installListeners();
-      }, delayMs);
     };
-    const installListeners = () => {
+    const installListener = (chunk: (typeof chunks)[number]) => {
       if (disposed) return;
-      clearListeners();
-      unsubscribers = taskListQueryChunks.map(
-        ({ taskListIds, taskListQuery }) =>
-          onSnapshot(
-            taskListQuery,
-            { includeMetadataChanges: true },
-            (snapshot) => {
-              applyTaskListSnapshot(taskListIds, snapshot);
-              dispatchTaskLists({
-                type: "setTaskListDocsStatus",
-                taskListDocsStatus: "ready",
-              });
-              if (!snapshot.metadata.fromCache) {
-                retryDelayMs = 1000;
-                reportedError = false;
-              }
-            },
-            (error: FirestoreError) => {
-              console.error("taskList chunk listener error:", error);
-              scheduleRetry(error);
-            },
-          ),
+      chunk.unsubscribe?.();
+      chunk.unsubscribe = onSnapshot(
+        chunk.taskListQuery,
+        { includeMetadataChanges: true },
+        (snapshot) => {
+          if (disposed) return;
+          applyTaskListSnapshot(chunk.taskListIds, snapshot);
+          chunk.loaded = true;
+          if (!snapshot.metadata.fromCache) {
+            chunk.retryDelayMs = 1000;
+            chunk.failed = false;
+          }
+          publishStatus();
+        },
+        (error: FirestoreError) => {
+          if (disposed || chunk.retryTimer !== null) return;
+          if (!chunk.failed)
+            void logSyncListenerError("task_lists", error.code);
+          chunk.failed = true;
+          publishStatus();
+          chunk.unsubscribe?.();
+          chunk.unsubscribe = null;
+          const delayMs = chunk.retryDelayMs;
+          chunk.retryDelayMs = Math.min(delayMs * 2, 30000);
+          chunk.retryTimer = window.setTimeout(() => {
+            chunk.retryTimer = null;
+            installListener(chunk);
+          }, delayMs);
+        },
       );
     };
-    installListeners();
-
+    chunks.forEach(installListener);
     return () => {
       disposed = true;
-      if (retryTimer !== null) window.clearTimeout(retryTimer);
-      clearListeners();
+      chunks.forEach((chunk) => {
+        chunk.unsubscribe?.();
+        if (chunk.retryTimer !== null) window.clearTimeout(chunk.retryTimer);
+      });
     };
   }, [orderedTaskListIdsKey, activeUid]);
 
@@ -2263,8 +2282,13 @@ async function sendEmailChangeVerification(newEmail: string) {
   );
 }
 
-async function deleteAccount() {
+async function deleteAccount(password: string) {
   const user = requireCurrentUser();
+  if (!user.email || !password) throw new Error("Authentication required");
+  await reauthenticateWithCredential(
+    user,
+    EmailAuthProvider.credential(user.email, password),
+  );
   const db = getDbInstance();
   const uid = user.uid;
   const taskListOrderRef = doc(db, "taskListOrder", uid);
@@ -3020,7 +3044,9 @@ async function updateTaskListOrder(
     taskListOrders.forEach(({ taskListId, order }) => {
       updates[`${taskListId}.order`] = order;
     });
-    await updateDoc(doc(getDbInstance(), "taskListOrder", uid), updates);
+    return {
+      committed: updateDoc(doc(getDbInstance(), "taskListOrder", uid), updates),
+    };
   });
 }
 
@@ -3056,11 +3082,13 @@ async function addTask(
         : [...tasks, nextTask],
       settings,
     );
-    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-      ...buildTaskUpdateData({ previousTasks: tasks, tasks: nextTasks }),
-      history: buildHistory(taskList, parsed.text),
-      updatedAt: now,
-    });
+    return {
+      committed: updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
+        ...buildTaskUpdateData({ previousTasks: tasks, tasks: nextTasks }),
+        history: buildHistory(taskList, parsed.text),
+        updatedAt: now,
+      }),
+    };
   });
 }
 
@@ -3118,11 +3146,12 @@ async function updateTask(
       ? { ...currentTask, ...normalizedUpdates }
       : null;
     if (nextCurrentTask && !hasTaskContent(nextCurrentTask)) {
-      await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-        [`tasks.${taskId}`]: deleteField(),
-        updatedAt: now,
-      });
-      return;
+      return {
+        committed: updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
+          [`tasks.${taskId}`]: deleteField(),
+          updatedAt: now,
+        }),
+      };
     }
 
     if (!settings.autoSort && typeof normalizedUpdates.pinned !== "boolean") {
@@ -3135,11 +3164,12 @@ async function updateTask(
       if (historyUpdate) {
         nextUpdates.history = historyUpdate;
       }
-      await updateDoc(
-        doc(getDbInstance(), "taskLists", taskListId),
-        nextUpdates,
-      );
-      return;
+      return {
+        committed: updateDoc(
+          doc(getDbInstance(), "taskLists", taskListId),
+          nextUpdates,
+        ),
+      };
     }
 
     if (!taskList || !currentTask) {
@@ -3163,7 +3193,12 @@ async function updateTask(
     if (historyUpdate) {
       nextUpdates.history = historyUpdate;
     }
-    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), nextUpdates);
+    return {
+      committed: updateDoc(
+        doc(getDbInstance(), "taskLists", taskListId),
+        nextUpdates,
+      ),
+    };
   });
 }
 
@@ -3213,7 +3248,15 @@ async function moveTask(
           pinned: nextPinned,
         })
       ) {
-        throw new Error("Task has no content");
+        return {
+          committed: updateDoc(
+            doc(getDbInstance(), "taskLists", sourceTaskListId),
+            {
+              [`tasks.${taskId}`]: deleteField(),
+              updatedAt: Date.now(),
+            },
+          ),
+        };
       }
       const now = Date.now();
       const targetTasks = getOrderedTasks(targetTaskList);
@@ -3249,7 +3292,7 @@ async function moveTask(
         history: buildHistory(targetTaskList, nextText),
         updatedAt: now,
       });
-      await batch.commit();
+      return { committed: batch.commit() };
     },
   );
 }
@@ -3274,7 +3317,12 @@ async function deleteCompletedTasks(
       }),
       updatedAt: Date.now(),
     };
-    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), nextData);
+    return {
+      committed: updateDoc(
+        doc(getDbInstance(), "taskLists", taskListId),
+        nextData,
+      ),
+    };
   });
 }
 
@@ -3283,10 +3331,12 @@ async function sortTasks(taskListId: string) {
     const taskList = await getTaskListData(taskListId);
     const tasks = getOrderedTasks(taskList);
     const sortedTasks = getAutoSortedTasks(tasks);
-    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-      ...buildTaskUpdateData({ previousTasks: tasks, tasks: sortedTasks }),
-      updatedAt: Date.now(),
-    });
+    return {
+      committed: updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
+        ...buildTaskUpdateData({ previousTasks: tasks, tasks: sortedTasks }),
+        updatedAt: Date.now(),
+      }),
+    };
   });
 }
 
@@ -3302,10 +3352,12 @@ async function updateTasksOrder(
       : getOrderedTasks(taskList);
     const nextTasks = reorderTasksByIds(tasks, orderedTaskIds, autoSort);
     if (!nextTasks) return;
-    await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-      ...buildTaskUpdateData({ previousTasks: tasks, tasks: nextTasks }),
-      updatedAt: Date.now(),
-    });
+    return {
+      committed: updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
+        ...buildTaskUpdateData({ previousTasks: tasks, tasks: nextTasks }),
+        updatedAt: Date.now(),
+      }),
+    };
   });
 }
 
@@ -3314,7 +3366,7 @@ const MAX_SHARE_CODE_ATTEMPTS = 10;
 async function fetchTaskListByShareCode(shareCode: string) {
   const normalizedCode = normalizeShareCode(shareCode);
   if (!normalizedCode) return null;
-  const snapshots = await getDoc(
+  const snapshots = await getDocFromServer(
     doc(getDbInstance(), "shareCodes", normalizedCode),
   );
   return snapshots.exists()
@@ -3324,7 +3376,18 @@ async function fetchTaskListByShareCode(shareCode: string) {
 
 async function fetchTaskListIdByShareCode(shareCode: string) {
   const shareCodeData = await fetchTaskListByShareCode(shareCode);
-  return shareCodeData?.taskListId ?? null;
+  if (!shareCodeData) return null;
+  const snapshot = await getDocFromServer(
+    doc(getDbInstance(), "taskLists", shareCodeData.taskListId),
+  );
+  if (!snapshot.exists()) return null;
+  const taskList = assertTaskListStore(
+    snapshot.data(),
+    shareCodeData.taskListId,
+  );
+  return taskList.shareCode === normalizeShareCode(shareCode)
+    ? shareCodeData.taskListId
+    : null;
 }
 
 async function addSharedTaskListToOrder(taskListId: string) {
@@ -3369,7 +3432,10 @@ async function addSharedTaskListToOrder(taskListId: string) {
 }
 
 async function removeShareCode(taskListId: string) {
-  const taskList = await getTaskListData(taskListId);
+  const snapshot = await getDocFromServer(
+    doc(getDbInstance(), "taskLists", taskListId),
+  );
+  const taskList = assertTaskListStore(snapshot.data(), taskListId);
   if (!taskList.shareCode) return;
   const normalizedCode = normalizeShareCode(taskList.shareCode);
   const db = getDbInstance();
@@ -3400,7 +3466,8 @@ async function generateShareCode(taskListId: string): Promise<string> {
       const shareCodeRef = doc(db, "shareCodes", shareCode);
       const shareCodeSnapshot = await getDoc(shareCodeRef);
       if (shareCodeSnapshot.exists()) continue;
-      const taskList = await getTaskListData(taskListId);
+      const snapshot = await getDocFromServer(doc(db, "taskLists", taskListId));
+      const taskList = assertTaskListStore(snapshot.data(), taskListId);
       const batch = writeBatch(db);
       if (taskList.shareCode) {
         const previousShareCode = normalizeShareCode(taskList.shareCode);
@@ -4000,6 +4067,8 @@ function SettingsView({
   const [error, setError] = useState<string | null>(null);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showEmailChangeForm, setShowEmailChangeForm] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
@@ -4092,13 +4161,16 @@ function SettingsView({
     setError(null);
 
     try {
-      await deleteAccount();
+      setDeleteError(null);
+      await deleteAccount(deletePassword);
+      setDeletePassword("");
+      setShowDeleteConfirm(false);
       logDeleteAccount();
       if (typeof window !== "undefined") {
         window.location.assign("/");
       }
     } catch (err) {
-      setError(resolveErrorMessage(err, t, "auth.error.general"));
+      setDeleteError(resolveErrorMessage(err, t, "auth.error.general"));
       setPendingAction(null);
     }
   };
@@ -4470,20 +4542,60 @@ function SettingsView({
           disabled={actionsDisabled}
         />
 
-        <ConfirmDialog
-          isOpen={showDeleteConfirm}
-          onClose={() => setShowDeleteConfirm(false)}
-          onConfirm={() => {
-            setShowDeleteConfirm(false);
-            void handleDeleteAccount();
+        <Dialog
+          open={showDeleteConfirm}
+          onOpenChange={(open) => {
+            if (pendingAction) return;
+            setShowDeleteConfirm(open);
+            setDeletePassword("");
+            setDeleteError(null);
           }}
-          title={t("auth.deleteAccountConfirm.title")}
-          message={t("auth.deleteAccountConfirm.message")}
-          confirmText={t("auth.button.delete")}
-          cancelText={t("auth.button.cancel")}
-          isDestructive={true}
-          disabled={actionsDisabled}
-        />
+        >
+          <DialogContent
+            title={t("auth.deleteAccountConfirm.title")}
+            description={t("auth.deleteAccountConfirm.message")}
+          >
+            <form
+              className="ll-space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleDeleteAccount();
+              }}
+            >
+              <FormInput
+                id="delete-password"
+                label={t("auth.form.password")}
+                type="password"
+                value={deletePassword}
+                onChange={setDeletePassword}
+                disabled={Boolean(pendingAction)}
+                placeholder={t("auth.form.password")}
+                autoComplete="current-password"
+                error={deleteError ?? undefined}
+              />
+              <DialogFooter>
+                <DialogClose asChild>
+                  <button
+                    type="button"
+                    disabled={Boolean(pendingAction)}
+                    className={AUTH_SECONDARY_BUTTON_CLASS}
+                  >
+                    {t("common.cancel")}
+                  </button>
+                </DialogClose>
+                <button
+                  type="submit"
+                  disabled={!deletePassword || Boolean(pendingAction)}
+                  className={AUTH_PRIMARY_BUTTON_CLASS}
+                >
+                  {pendingAction === "deleteAccount"
+                    ? t("settings.deletingAccount")
+                    : t("auth.button.delete")}
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
@@ -5186,9 +5298,11 @@ const useOptimisticReorder = <T extends { id: string }>(
 };
 
 type DateFnsLocaleLoader = () => Promise<Locale>;
-const DATE_FNS_LOCALE_LOADERS: Record<Language, DateFnsLocaleLoader> = {
+const DATE_FNS_LOCALE_LOADERS: Record<
+  Exclude<Language, "en">,
+  DateFnsLocaleLoader
+> = {
   ja: () => import("date-fns/locale/ja").then((module) => module.ja),
-  en: () => import("date-fns/locale/en-US").then((module) => module.enUS),
   es: () => import("date-fns/locale/es").then((module) => module.es),
   de: () => import("date-fns/locale/de").then((module) => module.de),
   fr: () => import("date-fns/locale/fr").then((module) => module.fr),
@@ -5208,6 +5322,10 @@ function useDateFnsLocale(language: Language): Locale | undefined {
 
   useEffect(() => {
     let cancelled = false;
+    if (language === "en") {
+      setLocale(undefined);
+      return;
+    }
     const cachedLocale = dateFnsLocaleCache.get(language);
     if (cachedLocale) {
       setLocale(cachedLocale);
@@ -7084,7 +7202,7 @@ function TaskSheetContent({
           event.preventDefault();
           const textToSubmit = text.trim();
           if (
-            (!textToSubmit && !pinned && !date) ||
+            (mode === "add" && !textToSubmit && !pinned && !date) ||
             !taskListId ||
             submitting
           ) {
@@ -7192,7 +7310,9 @@ function TaskSheetContent({
         <button
           type="submit"
           disabled={
-            (!text.trim() && !pinned && !date) || !taskListId || submitting
+            (mode === "add" && !text.trim() && !pinned && !date) ||
+            !taskListId ||
+            submitting
           }
           className={TASK_CARD_PRIMARY_BUTTON_CLASS}
         >

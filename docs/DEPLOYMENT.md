@@ -22,9 +22,9 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 
 - 初期 HTML の module script は初回表示に必要な runtime に絞る。
 - Firebase Analytics は dynamic import で読み込む。
-- カレンダー用 `date-fns` locale は利用時に dynamic import する。
+- カレンダーの翻訳は英語をライブラリ既定値として使い、それ以外の `date-fns` locale は利用時に言語別の dynamic import で読み込む。
 - chunk 分割は Vite 8 / Rolldown の `build.rolldownOptions.output.codeSplitting.groups` を正とし、Firebase / i18n / app UI / React vendor などを分ける。
-- 起動時に必須の Firestore chunk は 500 kB をわずかに超えるため、chunk size warning の閾値は 550 kB とする。Firebase 初期化を遅延させてこの chunk を分断しない。
+- chunk group は依存モジュールを再帰的に取り込まない設定にする。Analytics とカレンダー翻訳が初期 HTML の module script やその静的依存へ混入しないことを build 成果物で確認する。chunk size warning の閾値は 550 kB。
 - フォントは通常書体 400 / 500 / 600 / 700 と表示書体 700 だけを各 HTML entry から非同期で読み、JavaScript bundle には含めない。使用しない表示書体 800 は配信物に含めない。
 
 ## PWA

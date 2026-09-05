@@ -7,9 +7,9 @@
 - 8 文字の英大文字・数字を暗号学的乱数で生成する。Web は `crypto.getRandomValues`、iOS は `SecRandomCopyBytes`、Android は `SecureRandom`。
 - `generateShareCode()`: 既存コードがあれば削除してから新しいコードへ置き換える。生成試行は最大 10 回。
 - `removeShareCode()`: `taskLists.shareCode` を `null` に戻し、対応する `shareCodes` ドキュメントを削除する。
-- 生成・削除は transaction ではなく、事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。既存 `shareCode` の doc は正規化（trim + uppercase）した ID で同 batch 削除する。
+- 生成・削除は transaction ではなく、サーバーから現在のリストを取得した後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。既存 `shareCode` の doc は正規化（trim + uppercase）した ID で同 batch 削除する。Rules も更新・解除・リスト実体削除時に旧コード文書の削除を要求する。同時操作で前提が変わった書き込みは失敗し、画面のエラーを確認して再実行する。
 - リスト実体削除（アカウント削除を含む）でも、残った `shareCode` に対応する `shareCodes` doc を残さない。
-- `fetchTaskListIdByShareCode()`: 共有コードから `taskListId` を解決する。
+- 共有コードの解決ではコード文書と対象リストをサーバーから取得し、リストの現在のコードとの一致を確認する。Rules もリストから参照されない既存コード文書の取得を拒否する。古いコード文書が残っていても共有先を解決できず、共有コードを新たに開くには接続が必要になる。
 - 外部入力、deep link、既存の `taskLists.shareCode` から Firestore document path を作る前に、trim + uppercase 後の完全一致 `^[A-Z0-9]{8}$` を必ず検証する。不正な値は未検出として扱い、不正な document path を作らない。
 - 1 リストにつき有効な `shareCodes` doc は最大 1 件。`shareCodes/{code}` の作成は、同一 commit で `taskLists/{taskListId}.shareCode == code` になることを rules が要求する。`taskLists` から辿れない共有コードは発行できないため、共有解除で必ず全コードが失効する。
 - `taskLists.shareCode` へ書けるのは `null` か `^[A-Z0-9]{8}$` のみ。新しいコードを設定する場合は同一 commit で対応する `shareCodes` doc を作る必要がある。

@@ -34,11 +34,14 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
 
 - `signIn()`: `signInWithEmailAndPassword()` を使う。
 - `signOut()`: Firebase Auth のセッションを破棄する。
-- `deleteAccount()`: 次の順で処理する。auth 削除後は Rules で書き込めないためこの順を維持する。
-  1. `taskListOrder/{uid}` から所属リストを列挙する。
-  2. 各 `taskListId` を `deleteTaskList()` 相当で処理する（`memberCount <= 1` で `shareCodes` 込み実体削除、それ以外は `memberCount` 減算）。Web / iOS / Android 共通。
-  3. `settings/{uid}` と `taskListOrder/{uid}` を削除する。
-  4. Firebase Auth のユーザーを削除する。`requires-recent-login` で最後だけ失敗した場合はエラー表示し、再ログイン後の再実行に任せる。
+- 退会は Web / iOS / Android ともに確認画面で現在のパスワードを入力し、Firebase Auth の再認証に成功してからデータ削除を開始する。空のパスワードでは実行できず、再認証失敗時はデータを変更せず認証エラーを表示する。入力したパスワードは保存・ログ出力しない。
+- 削除は次の順で行う。Auth 削除後は Rules で書き込めないため、Auth ユーザーの削除は最後にする。
+  1. 現在のユーザーをメールアドレスと入力パスワードで再認証する。
+  2. `taskListOrder/{uid}` から所属リストを列挙する。
+  3. 各リストを一覧から外す。最後の保持者なら共有コードを含めて実体削除し、それ以外は保持者数を減算する。
+  4. `settings/{uid}` と `taskListOrder/{uid}` を削除する。
+  5. Firebase Auth のユーザーを削除する。
+- Firestore と Auth をまたぐ削除全体は原子的ではない。再認証成功後でも通信・権限などの失敗で一部削除済みになる場合があり、エラー後は再実行する。
 
 ## パスワードリセット
 

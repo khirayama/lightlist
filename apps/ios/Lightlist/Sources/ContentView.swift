@@ -660,31 +660,27 @@ private struct TaskListDetail: Identifiable, Hashable {
 
 @MainActor
 private final class TaskListMutationQueue {
-    private var tail: Task<Void, Never>?
     private var pendingCount = 0
+    private var idleHandlers: [@MainActor () -> Void] = []
 
-    @discardableResult
     func enqueue(
-        _ operation: @escaping @Sendable () async throws -> Void,
+        _ operation: (@escaping @Sendable (Error?) -> Void) -> Void,
         onError: @escaping @MainActor @Sendable () -> Void = {},
         onIdle: @escaping @MainActor @Sendable () -> Void = {}
-    ) -> Task<Void, Never> {
+    ) {
         pendingCount += 1
-        let previous = tail
-        let next = Task {
-            _ = await previous?.result
-            do {
-                try await operation()
-            } catch {
-                await onError()
-            }
-            self.pendingCount -= 1
-            if self.pendingCount == 0 {
-                onIdle()
+        idleHandlers.append(onIdle)
+        operation { error in
+            Task { @MainActor in
+                if error != nil { onError() }
+                self.pendingCount -= 1
+                if self.pendingCount == 0 {
+                    let handlers = self.idleHandlers
+                    self.idleHandlers = []
+                    handlers.forEach { $0() }
+                }
             }
         }
-        tail = next
-        return next
     }
 }
 
@@ -705,66 +701,28 @@ private enum TaskListMutationQueues {
         return queue
     }
 
-    private static func enqueueNext(
-        index: Int,
-        taskListIds: [String],
-        operation: @escaping @Sendable () async throws -> Void,
-        onError: @escaping @MainActor @Sendable () -> Void,
-        onIdle: @escaping @MainActor @Sendable () -> Void
-    ) -> Task<Void, Never> {
-        let isLast = index == taskListIds.count - 1
-        let errorHandler: @MainActor @Sendable () -> Void = {
-            if isLast {
-                onError()
-            }
-        }
-        let idleHandler: @MainActor @Sendable () -> Void = {
-            if index == 0 {
-                onIdle()
-            }
-        }
-        return queue(for: taskListIds[index]).enqueue({
-            if isLast {
-                try await operation()
-            } else {
-                let next = await Self.enqueueNext(
-                    index: index + 1,
-                    taskListIds: taskListIds,
-                    operation: operation,
-                    onError: onError,
-                    onIdle: onIdle
-                )
-                _ = await next.value
-            }
-        }, onError: errorHandler, onIdle: idleHandler)
-    }
-
     static func enqueue(
         for taskListIds: [String],
-        _ operation: @escaping @Sendable () async throws -> Void,
+        _ operation: (@escaping @Sendable (Error?) -> Void) -> Void,
         onError: @escaping @MainActor @Sendable () -> Void = {},
         onIdle: @escaping @MainActor @Sendable () -> Void = {}
     ) {
-        let orderedTaskListIds = Array(Set(taskListIds)).sorted()
-        guard !orderedTaskListIds.isEmpty else {
-            Task {
-                do {
-                    try await operation()
-                } catch {
-                    await onError()
-                }
-                await onIdle()
+        let ids = Array(Set(taskListIds)).sorted()
+        func submit(_ index: Int, completion: @escaping @Sendable (Error?) -> Void) {
+            guard index < ids.count else {
+                operation(completion)
+                return
             }
-            return
+            queue(for: ids[index]).enqueue({ finished in
+                submit(index + 1) { error in
+                    finished(error)
+                    completion(error)
+                }
+            }, onIdle: { if index == 0 { onIdle() } })
         }
-
-        _ = enqueueNext(
-            index: 0,
-            taskListIds: orderedTaskListIds,
-            operation: operation,
-            onError: onError,
-            onIdle: onIdle
-        )
+        submit(0) { error in
+            if error != nil { Task { @MainActor in onError() } }
+        }
     }
 
     static func remove(for taskListId: String) {
@@ -887,11 +845,6 @@ private func taskListIdChunks(_ taskListIds: [String]) -> [[String]] {
     }
 }
 
-private func removeListeners(_ listeners: inout [ListenerRegistration]) {
-    listeners.forEach { $0.remove() }
-    listeners = []
-}
-
 private func isCompleteTaskData(taskId: String, value: Any) -> Bool {
     guard let task = value as? [String: Any],
           task["id"] as? String == taskId,
@@ -928,8 +881,8 @@ private func scheduleMalformedTaskCleanup(
     var updates: [String: Any] = ["updatedAt": nowMillis()]
     taskIds.forEach { updates["tasks.\($0)"] = FieldValue.delete() }
     let updateData = FirestoreUpdateData(value: updates)
-    TaskListMutationQueues.queue(for: taskListId).enqueue({
-        try await Firestore.firestore().collection("taskLists").document(taskListId).updateData(updateData.value)
+    TaskListMutationQueues.queue(for: taskListId).enqueue({ completion in
+        Firestore.firestore().collection("taskLists").document(taskListId).updateData(updateData.value, completion: completion)
     }, onError: {
         malformedTaskCleanupKeys.remove(cleanupKey)
     }, onIdle: {
@@ -974,187 +927,158 @@ private func mapTaskListDetail(id: String, data: FirestoreTaskListRecord) -> Tas
 @MainActor private class OrderedTaskListViewModel<Item>: ObservableObject {
     @Published private(set) var taskLists: [Item] = []
     @Published private(set) var status: LoadStatus = .idle
-
     private let db = Firestore.firestore()
     private let mapper: (String, FirestoreTaskListRecord) -> Item
     private var taskListOrderListener: ListenerRegistration?
-    private var taskListChunkListeners: [ListenerRegistration] = []
+    private var chunkListeners: [String: ListenerRegistration] = [:]
+    private var retryTasks: [String: Task<Void, Never>] = [:]
+    private var retryDelays: [String: UInt64] = [:]
+    private var failedScopes: Set<String> = []
     private var currentUid: String?
     private var orderedIds: [String] = []
     private var taskListsById: [String: Item] = [:]
-    private var taskListIdsKey = ""
-    private var retryTask: Task<Void, Never>?
-    private var retryDelayNanoseconds: UInt64 = 1_000_000_000
-    private var reportedListenerError = false
+    private var taskListIdsKey: String?
     private var listenerGeneration = 0
+    private var chunkGeneration = 0
+    private var loadedChunks: Set<String> = []
 
     init(mapper: @escaping (String, FirestoreTaskListRecord) -> Item) {
         self.mapper = mapper
     }
 
     func bind(uid: String?) {
-        guard currentUid != uid else {
-            return
-        }
-
+        guard currentUid != uid else { return }
         reset()
         currentUid = uid
-
-        guard let uid else {
-            status = .idle
-            return
-        }
-
+        guard let uid else { return }
         status = .loading
-
-        let cachedIds = UserDefaults.standard.stringArray(forKey: taskListOrderCacheKey(uid: uid)) ?? []
-        orderedIds = cachedIds
-        installListeners(uid: uid)
+        orderedIds = UserDefaults.standard.stringArray(forKey: taskListOrderCacheKey(uid: uid)) ?? []
+        subscribeToTaskLists(taskListIds: orderedIds)
+        installOrderListener(uid: uid)
     }
 
     deinit {
-        retryTask?.cancel()
+        retryTasks.values.forEach { $0.cancel() }
         taskListOrderListener?.remove()
-        taskListChunkListeners.forEach { $0.remove() }
+        chunkListeners.values.forEach { $0.remove() }
     }
 
     func reset() {
-        retryTask?.cancel()
-        retryTask = nil
+        retryTasks.values.forEach { $0.cancel() }
+        retryTasks = [:]
+        retryDelays = [:]
+        failedScopes = []
         listenerGeneration += 1
+        chunkGeneration += 1
+        loadedChunks = []
         taskListOrderListener?.remove()
         taskListOrderListener = nil
-        removeListeners(&taskListChunkListeners)
+        chunkListeners.values.forEach { $0.remove() }
+        chunkListeners = [:]
         currentUid = nil
         orderedIds = []
         taskListsById = [:]
-        taskListIdsKey = ""
+        taskListIdsKey = nil
         taskLists = []
         status = .idle
     }
 
-    private func installListeners(uid: String) {
+    private func scheduleRetry(key: String, source: String, error: Error, install: @escaping @MainActor () -> Void) {
+        if failedScopes.insert(key).inserted { logSyncListenerError(source: source, error: error) }
+        status = .error
+        guard retryTasks[key] == nil else { return }
+        let delay = retryDelays[key] ?? 1_000_000_000
+        retryDelays[key] = min(delay * 2, 30_000_000_000)
+        retryTasks[key] = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: delay) } catch { return }
+            guard let self, !Task.isCancelled else { return }
+            self.retryTasks.removeValue(forKey: key)
+            install()
+        }
+    }
+
+    private func markHealthy(key: String, isFromCache: Bool) {
+        if !isFromCache {
+            retryDelays.removeValue(forKey: key)
+            failedScopes.remove(key)
+        }
+    }
+
+    private func installOrderListener(uid: String) {
         taskListOrderListener?.remove()
-        taskListOrderListener = nil
-        removeListeners(&taskListChunkListeners)
-        taskListIdsKey = ""
-        listenerGeneration += 1
         let generation = listenerGeneration
-
-        subscribeToTaskLists(taskListIds: orderedIds, generation: generation)
         taskListOrderListener = db.collection("taskListOrder").document(uid).addSnapshotListener { [weak self] snapshot, error in
-            guard let self, self.listenerGeneration == generation else {
-                return
-            }
-
+            guard let self, generation == self.listenerGeneration else { return }
             if let error {
-                self.status = .error
-                self.scheduleListenerRetry(source: "task_list_order", error: error)
+                self.taskListOrderListener?.remove()
+                self.taskListOrderListener = nil
+                self.scheduleRetry(key: "order", source: "task_list_order", error: error) { [weak self] in
+                    self?.installOrderListener(uid: uid)
+                }
                 return
             }
-
             self.orderedIds = orderedTaskListIds(from: snapshot?.data())
             UserDefaults.standard.set(self.orderedIds, forKey: taskListOrderCacheKey(uid: uid))
-            self.status = .ready
-            self.markListenerHealthy(isFromCache: snapshot?.metadata.isFromCache ?? true)
-            self.subscribeToTaskLists(taskListIds: self.orderedIds, generation: generation)
+            self.markHealthy(key: "order", isFromCache: snapshot?.metadata.isFromCache ?? true)
+            self.subscribeToTaskLists(taskListIds: self.orderedIds)
             self.publishTaskLists()
         }
     }
 
-    private func scheduleListenerRetry(source: String, error: Error) {
-        if !reportedListenerError {
-            logSyncListenerError(source: source, error: error)
-            reportedListenerError = true
+    private func subscribeToTaskLists(taskListIds: [String]) {
+        let key = taskListIds.sorted().joined(separator: "|")
+        guard taskListIdsKey != key else { return }
+        taskListIdsKey = key
+        chunkGeneration += 1
+        loadedChunks = []
+        chunkListeners.values.forEach { $0.remove() }
+        chunkListeners = [:]
+        for retryKey in Array(retryTasks.keys) where retryKey != "order" {
+            retryTasks.removeValue(forKey: retryKey)?.cancel()
         }
-        guard retryTask == nil else {
-            return
-        }
-        let delay = retryDelayNanoseconds
-        retryDelayNanoseconds = min(retryDelayNanoseconds * 2, 30_000_000_000)
-        retryTask = Task { [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: delay)
-            } catch {
-                return
-            }
-            guard let self, !Task.isCancelled else {
-                return
-            }
-            self.retryTask = nil
-            guard let uid = self.currentUid else {
-                return
-            }
-            self.installListeners(uid: uid)
-        }
-    }
-
-    private func markListenerHealthy(isFromCache: Bool) {
-        guard !isFromCache else {
-            return
-        }
-        retryDelayNanoseconds = 1_000_000_000
-        reportedListenerError = false
-    }
-
-    private func subscribeToTaskLists(taskListIds: [String], generation: Int) {
-        let nextKey = taskListIds.sorted().joined(separator: "|")
-        if taskListIdsKey == nextKey {
-            return
-        }
-        taskListIdsKey = nextKey
-
-        removeListeners(&taskListChunkListeners)
+        retryDelays = retryDelays.filter { $0.key == "order" }
+        failedScopes = failedScopes.filter { $0 == "order" }
         taskListsById = taskListsById.filter { taskListIds.contains($0.key) }
+        taskListIdChunks(taskListIds).forEach { installChunk($0, generation: chunkGeneration) }
+        publishTaskLists()
+    }
 
-        guard !taskListIds.isEmpty else {
-            publishTaskLists()
-            return
-        }
-
-        taskListIdChunks(taskListIds).forEach { chunk in
-            let listener = db.collection("taskLists")
-                .whereField(FieldPath.documentID(), in: chunk)
-                .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
-                    guard let self, self.listenerGeneration == generation else {
-                        return
+    private func installChunk(_ chunk: [String], generation: Int) {
+        guard generation == chunkGeneration else { return }
+        let key = chunk.joined(separator: "|")
+        chunkListeners[key]?.remove()
+        chunkListeners[key] = db.collection("taskLists")
+            .whereField(FieldPath.documentID(), in: chunk)
+            .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
+                guard let self, generation == self.chunkGeneration else { return }
+                if let error {
+                    self.chunkListeners.removeValue(forKey: key)?.remove()
+                    self.scheduleRetry(key: key, source: "task_lists", error: error) { [weak self] in
+                        self?.installChunk(chunk, generation: generation)
                     }
-
-                    if let error {
-                        self.status = .error
-                        self.scheduleListenerRetry(source: "task_lists", error: error)
-                        return
-                    }
-
-                    chunk.forEach { taskListId in
-                        self.taskListsById.removeValue(forKey: taskListId)
-                    }
-                    snapshot?.documents.forEach { document in
-                        scheduleMalformedTaskCleanup(
-                            taskListId: document.documentID,
-                            data: document.data(),
-                            isFromCache: document.metadata.isFromCache,
-                            hasPendingWrites: document.metadata.hasPendingWrites
-                        )
-                        self.taskListsById[document.documentID] = self.mapper(
-                            document.documentID,
-                            decodeTaskListRecord(from: document)
-                        )
-                    }
-
-                    self.publishTaskLists()
-                    if snapshot?.metadata.isFromCache == false {
-                        self.status = .ready
-                    }
-                    self.markListenerHealthy(isFromCache: snapshot?.metadata.isFromCache ?? true)
+                    return
                 }
-            taskListChunkListeners.append(listener)
-        }
+                chunk.forEach { self.taskListsById.removeValue(forKey: $0) }
+                snapshot?.documents.forEach { document in
+                    scheduleMalformedTaskCleanup(
+                        taskListId: document.documentID,
+                        data: document.data(),
+                        isFromCache: document.metadata.isFromCache,
+                        hasPendingWrites: document.metadata.hasPendingWrites
+                    )
+                    self.taskListsById[document.documentID] = self.mapper(document.documentID, decodeTaskListRecord(from: document))
+                }
+                self.loadedChunks.insert(key)
+                self.markHealthy(key: key, isFromCache: snapshot?.metadata.isFromCache ?? true)
+                self.publishTaskLists()
+            }
     }
 
     private func publishTaskLists() {
         taskLists = orderedIds.compactMap { taskListsById[$0] }
-        if status == .loading, !taskLists.isEmpty {
+        if !failedScopes.isEmpty {
+            status = .error
+        } else if !taskLists.isEmpty || loadedChunks.count == taskListIdChunks(orderedIds).count {
             status = .ready
         }
     }
@@ -1275,8 +1199,8 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             normalizeWhenEmpty: true
         )
         let updateData = FirestoreUpdateData(value: updates)
-        TaskListMutationQueues.queue(for: taskList.id).enqueue({ [db] in
-            try await db.collection("taskLists").document(taskList.id).updateData(updateData.value)
+        TaskListMutationQueues.queue(for: taskList.id).enqueue({ [db] completion in
+            db.collection("taskLists").document(taskList.id).updateData(updateData.value, completion: completion)
         }, onError: { [weak self] in
             self?.optimisticCalendarTasks.removeAll { $0.taskId == taskId }
             self?.addTaskError = translations.t("common.error")
@@ -1295,8 +1219,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         translations: Translations
     ) {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard hasTaskContent(text: trimmed, date: dateStr, pinned: pinned) else { return }
-        if taskListId != task.taskListId {
+        if taskListId != task.taskListId && hasTaskContent(text: trimmed, date: dateStr, pinned: pinned) {
             moveTask(
                 task,
                 toTaskListId: taskListId,
@@ -1379,11 +1302,11 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         let targetData = FirestoreUpdateData(value: targetUpdates)
         let sourceTaskListId = task.taskListId
         logTaskUpdate(fields: "text,date,pinned,taskList")
-        TaskListMutationQueues.enqueue(for: [sourceTaskListId, targetTaskListId], { [db] in
+        TaskListMutationQueues.enqueue(for: [sourceTaskListId, targetTaskListId], { [db] completion in
             let batch = db.batch()
             batch.updateData(sourceData.value, forDocument: db.collection("taskLists").document(sourceTaskListId))
             batch.updateData(targetData.value, forDocument: db.collection("taskLists").document(targetTaskListId))
-            try await batch.commit()
+            batch.commit(completion: completion)
         }, onError: { [weak self] in
             self?.addTaskError = translations.t("common.error")
         })
@@ -1416,8 +1339,8 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             updates[key] = value
         }
         let updateData = FirestoreUpdateData(value: updates)
-        TaskListMutationQueues.queue(for: taskListId).enqueue({ [db] in
-            try await db.collection("taskLists").document(taskListId).updateData(updateData.value)
+        TaskListMutationQueues.queue(for: taskListId).enqueue({ [db] completion in
+            db.collection("taskLists").document(taskListId).updateData(updateData.value, completion: completion)
         }, onError: { [weak self] in
             self?.addTaskError = translations.t("common.error")
         })
@@ -3454,8 +3377,8 @@ private struct TaskListsView: View {
         }
         let updates = updateFields
         pendingTaskListOrder = displayTaskLists
-        TaskListMutationQueues.queue(for: "taskListOrder:\(uid)").enqueue({
-            try await Firestore.firestore().collection("taskListOrder").document(uid).updateData(updates)
+        TaskListMutationQueues.queue(for: "taskListOrder:\(uid)").enqueue({ completion in
+            Firestore.firestore().collection("taskListOrder").document(uid).updateData(updates, completion: completion)
         }, onError: {
             if taskListOrderMutationRevision == mutationRevision {
                 pendingTaskListOrder = nil
@@ -4013,8 +3936,8 @@ private struct TaskListDetailPage: View {
     private func updateTaskList(_ updates: [String: Any]) {
         taskMutationRevision += 1
         let mutationRevision = taskMutationRevision
-        mutationQueue.enqueue({
-            try await db.collection("taskLists").document(taskList.id).updateData(updates)
+        mutationQueue.enqueue({ completion in
+            db.collection("taskLists").document(taskList.id).updateData(updates, completion: completion)
         }, onError: {
             if taskMutationRevision == mutationRevision {
                 pendingDisplayTasks = nil
@@ -4879,7 +4802,7 @@ private struct TaskListDetailPage: View {
             if shareCodeSnap.exists { continue }
 
             let taskListRef = db.collection("taskLists").document(taskListId)
-            let taskListSnap = try await taskListRef.getDocument()
+            let taskListSnap = try await taskListRef.getDocument(source: .server)
             guard taskListSnap.exists else {
                 throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
             }
@@ -4899,7 +4822,7 @@ private struct TaskListDetailPage: View {
 
     private func removeShareCode(taskListId: String) async throws {
         let taskListRef = db.collection("taskLists").document(taskListId)
-        let snap = try await taskListRef.getDocument()
+        let snap = try await taskListRef.getDocument(source: .server)
         guard snap.exists else {
             throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
         }
@@ -4916,9 +4839,11 @@ private struct TaskListDetailPage: View {
 private func fetchTaskListIdByShareCode(_ shareCode: String) async throws -> String? {
     let db = Firestore.firestore()
     guard let normalized = normalizedShareCode(shareCode) else { return nil }
-    let snap = try await db.collection("shareCodes").document(normalized).getDocument()
+    let snap = try await db.collection("shareCodes").document(normalized).getDocument(source: .server)
     guard snap.exists, let data = snap.data() else { return nil }
-    return data["taskListId"] as? String
+    guard let taskListId = data["taskListId"] as? String, !taskListId.isEmpty, !taskListId.contains("/") else { return nil }
+    let taskList = try await db.collection("taskLists").document(taskListId).getDocument(source: .server)
+    return taskList.data()?["shareCode"] as? String == normalized ? taskListId : nil
 }
 
 private func addSharedTaskListToOrder(taskListId: String) async throws {
@@ -5445,11 +5370,15 @@ private final class SettingsViewModel: ObservableObject {
         try Auth.auth().signOut()
     }
 
-    func deleteAccount(onSuccess: @escaping () -> Void, onError: @escaping (String) -> Void) {
+    func deleteAccount(password: String, onSuccess: @escaping () -> Void, onError: @escaping (Error) -> Void) {
         guard let user = Auth.auth().currentUser else { return }
         let uid = user.uid
         Task { @MainActor [db] in
             do {
+                guard let email = user.email, !password.isEmpty else {
+                    throw NSError(domain: "com.lightlist", code: -1)
+                }
+                try await user.reauthenticate(with: EmailAuthProvider.credential(withEmail: email, password: password))
                 let taskListOrderRef = db.collection("taskListOrder").document(uid)
                 let orderSnapshot = try await taskListOrderRef.getDocument()
                 let taskListIds = (orderSnapshot.data() ?? [:]).keys
@@ -5474,7 +5403,7 @@ private final class SettingsViewModel: ObservableObject {
                 try await user.delete()
                 onSuccess()
             } catch {
-                onError(error.localizedDescription)
+                onError(error)
             }
         }
     }
@@ -5498,6 +5427,7 @@ private struct SettingsView: View {
     @ObservedObject private var autoSortOverrides = AutoSortOverrideStore.shared
     @State private var showSignOutAlert = false
     @State private var showDeleteAlert = false
+    @State private var deletePassword = ""
     @State private var showThemePicker = false
     @State private var showLanguagePicker = false
     @State private var showPositionPicker = false
@@ -5654,18 +5584,24 @@ private struct SettingsView: View {
             Text(translations.t("auth.signOutConfirm.message"))
         }
         .alert(translations.t("auth.deleteAccountConfirm.title"), isPresented: $showDeleteAlert) {
-            Button(translations.t("common.cancel"), role: .cancel) {}
+            SecureField(translations.t("auth.form.password"), text: $deletePassword)
+                .textContentType(.password)
+            Button(translations.t("common.cancel"), role: .cancel) { deletePassword = "" }
             Button(translations.t("auth.button.delete"), role: .destructive) {
                 isDeletingAccount = true
                 errorMessage = nil
+                let password = deletePassword
+                deletePassword = ""
                 viewModel.deleteAccount(
+                    password: password,
                     onSuccess: { logDeleteAccount(); isDeletingAccount = false },
                     onError: { err in
                         isDeletingAccount = false
-                        errorMessage = err
+                        errorMessage = resolveAuthErrorMessage(translations: translations, error: err)
                     }
                 )
             }
+            .disabled(deletePassword.isEmpty || isDeletingAccount)
         } message: {
             Text(translations.t("auth.deleteAccountConfirm.message"))
         }
@@ -6344,7 +6280,7 @@ private struct CalendarTaskSheet: View {
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.roundedRectangle(radius: 12))
         .disabled(
-            (text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !pinned && selectedDate == nil)
+            (mode == .add && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !pinned && selectedDate == nil)
                 || taskListId.isEmpty
         )
         .padding(.horizontal, 16)
@@ -6365,7 +6301,7 @@ private struct CalendarTaskSheet: View {
 
     private func submit() {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (!trimmed.isEmpty || pinned || selectedDate != nil), !taskListId.isEmpty else { return }
+        guard (mode == .edit || !trimmed.isEmpty || pinned || selectedDate != nil), !taskListId.isEmpty else { return }
         if mode == .add {
             let parsed = resolveTaskInput(trimmed, translations: translations)
             guard hasTaskContent(

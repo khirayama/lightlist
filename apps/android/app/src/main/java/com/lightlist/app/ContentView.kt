@@ -894,33 +894,40 @@ private fun decodeTaskListRecord(document: DocumentSnapshot): FirestoreTaskListR
 private class TaskListMutationQueue(
     private val scope: CoroutineScope
 ) {
-    private var tail: Job? = null
     private var pendingCount = 0
+    private val idleHandlers = mutableListOf<() -> Unit>()
 
     fun enqueue(
         onIdle: () -> Unit = {},
         onError: (Exception) -> Unit = {},
-        block: suspend () -> Unit
-    ): Job {
+        block: () -> com.google.android.gms.tasks.Task<Void>
+    ) {
         pendingCount += 1
-        val previous = tail
-        val next = scope.launch {
-            try {
-                previous?.join()
-                block()
-            } catch (error: Exception) {
-                onError(error)
-            } finally {
-                withContext(Dispatchers.Main) {
-                    pendingCount -= 1
-                    if (pendingCount == 0) {
-                        onIdle()
-                    }
+        idleHandlers.add(onIdle)
+        try {
+            val write = block()
+            scope.launch {
+                try {
+                    write.await()
+                } catch (error: Exception) {
+                    onError(error)
+                } finally {
+                    finish()
                 }
             }
+        } catch (error: Exception) {
+            onError(error)
+            finish()
         }
-        tail = next
-        return next
+    }
+
+    private fun finish() {
+        pendingCount -= 1
+        if (pendingCount == 0) {
+            val handlers = idleHandlers.toList()
+            idleHandlers.clear()
+            handlers.forEach { it() }
+        }
     }
 }
 
@@ -937,39 +944,21 @@ private object TaskListMutationQueues {
         taskListIds: List<String>,
         onIdle: () -> Unit = {},
         onError: (Exception) -> Unit = {},
-        block: suspend () -> Unit
+        block: () -> com.google.android.gms.tasks.Task<Void>
     ) {
-        val orderedTaskListIds = taskListIds.distinct().sorted()
-        if (orderedTaskListIds.isEmpty()) {
-            scope.launch {
-                try {
-                    block()
-                } catch (error: Exception) {
-                    onError(error)
-                } finally {
-                    onIdle()
-                }
+        try {
+            val write = block()
+            val ids = taskListIds.distinct().sorted()
+            ids.forEachIndexed { index, id ->
+                queueFor(id).enqueue(
+                    onIdle = if (index == 0) onIdle else ({}),
+                    onError = if (index == 0) onError else ({})
+                ) { write }
             }
-            return
+        } catch (error: Exception) {
+            onError(error)
+            onIdle()
         }
-
-        fun enqueueNext(index: Int): Job {
-            val isLast = index == orderedTaskListIds.lastIndex
-            val idleCallback: () -> Unit = if (index == 0) onIdle else ({})
-            val errorCallback: (Exception) -> Unit = if (isLast) onError else ({})
-            return queueFor(orderedTaskListIds[index]).enqueue(
-                onIdle = idleCallback,
-                onError = errorCallback
-            ) {
-                if (isLast) {
-                    block()
-                } else {
-                    enqueueNext(index + 1).join()
-                }
-            }
-        }
-
-        enqueueNext(0)
     }
 }
 
@@ -1304,10 +1293,6 @@ private fun resolvedSettingsState(userId: String?, settingsState: SettingsState)
     }
 }
 
-private fun removeTaskListListeners(listeners: List<ListenerRegistration>) {
-    listeners.forEach { it.remove() }
-}
-
 private class SyncListenerRetryController(
     private val scope: CoroutineScope,
     private val onRetry: () -> Unit,
@@ -1356,120 +1341,103 @@ private fun <T> subscribeToOrderedTaskLists(
 ): () -> Unit {
     val db = Firebase.firestore
     var orderedTaskListIds = readCachedTaskListOrderIds(userId)
-    var taskListIdsKey = ""
+    var taskListIdsKey: String? = null
     var taskListsById = emptyMap<String, T>()
-    var taskListChunkListeners = emptyList<ListenerRegistration>()
-    var taskListOrderListener: ListenerRegistration? = null
+    var chunkDisposers = emptyList<() -> Unit>()
+    var orderListener: ListenerRegistration? = null
     var disposed = false
-    var listenerGeneration = 0L
-    val listenerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    var retryController: SyncListenerRetryController? = null
+    var chunkGeneration = 0
+    val failedScopes = mutableSetOf<String>()
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     fun publish() {
-        logDebugSync(
-            "publish user=${shortDebugId(userId)} order=${orderedTaskListIds.size} loaded=${taskListsById.size}"
-        )
         onPublish(orderedTaskListIds.mapNotNull { taskListsById[it] })
+        if (failedScopes.isNotEmpty()) onError?.invoke()
     }
 
-    fun subscribeToTaskLists(taskListIds: List<String>, generation: Long) {
-        val nextKey = taskListIds.sorted().joinToString("|")
-        if (taskListIdsKey == nextKey) {
-            logDebugSync("reuse taskList listeners count=${taskListIds.size}")
-            publish()
-            return
-        }
-        taskListIdsKey = nextKey
-        logDebugSync("subscribe taskLists count=${taskListIds.size}")
-        removeTaskListListeners(taskListChunkListeners)
-        taskListChunkListeners = emptyList()
-        taskListsById = taskListsById.filterKeys { taskListIds.contains(it) }
-
-        if (taskListIds.isEmpty()) {
-            publish()
-            return
-        }
-
-        taskListChunkListeners = taskListIds.chunked(10).map { chunk ->
-            db.collection("taskLists")
-                .whereIn(FieldPath.documentId(), chunk)
-                .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
-                    if (disposed || generation != listenerGeneration) return@addSnapshotListener
-                    if (error != null) {
-                        logDebugSync("taskLists listener error=${firestoreErrorDescription("taskLists listen", error)}")
-                        retryController?.fail("task_lists", error)
-                        onError?.invoke()
-                        return@addSnapshotListener
+    fun subscribeToTaskLists(ids: List<String>) {
+        val key = ids.sorted().joinToString("|")
+        if (taskListIdsKey == key) { publish(); return }
+        taskListIdsKey = key
+        chunkGeneration += 1
+        val generation = chunkGeneration
+        chunkDisposers.forEach { it() }
+        failedScopes.removeAll { it != "order" }
+        taskListsById = taskListsById.filterKeys { it in ids }
+        chunkDisposers = ids.chunked(10).map { chunk ->
+            val chunkKey = chunk.joinToString("|")
+            var listener: ListenerRegistration? = null
+            lateinit var retry: SyncListenerRetryController
+            fun install() {
+                if (disposed || generation != chunkGeneration) return
+                listener?.remove()
+                listener = db.collection("taskLists")
+                    .whereIn(FieldPath.documentId(), chunk)
+                    .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
+                        if (disposed || generation != chunkGeneration) return@addSnapshotListener
+                        if (error != null) {
+                            listener?.remove()
+                            listener = null
+                            failedScopes.add(chunkKey)
+                            retry.fail("task_lists", error)
+                            onError?.invoke()
+                            return@addSnapshotListener
+                        }
+                        val next = taskListsById.filterKeys { it !in chunk }.toMutableMap()
+                        snapshot?.documents?.forEach { document ->
+                            scheduleMalformedTaskCleanup(
+                                document.id, document.data ?: emptyMap(),
+                                document.metadata.isFromCache, document.metadata.hasPendingWrites()
+                            )
+                            next[document.id] = parseDocument(document.id, decodeTaskListRecord(document))
+                        }
+                        taskListsById = next
+                        val fromCache = snapshot?.metadata?.isFromCache ?: true
+                        if (!fromCache) failedScopes.remove(chunkKey)
+                        retry.markHealthy(fromCache)
+                        publish()
                     }
-
-                    logDebugSync(
-                        "taskLists snapshot chunk=${chunk.size} docs=${snapshot?.documents?.size ?: 0} changes=${snapshot?.documentChanges?.size ?: 0} cache=${snapshot?.metadata?.isFromCache} pending=${snapshot?.metadata?.hasPendingWrites()}"
-                    )
-                    val nextTaskListsById = taskListsById
-                        .filterKeys { it !in chunk }
-                        .toMutableMap()
-                    snapshot?.documents?.forEach { document ->
-                        scheduleMalformedTaskCleanup(
-                            taskListId = document.id,
-                            data = document.data ?: emptyMap(),
-                            isFromCache = document.metadata.isFromCache,
-                            hasPendingWrites = document.metadata.hasPendingWrites()
-                        )
-                        nextTaskListsById[document.id] =
-                            parseDocument(document.id, decodeTaskListRecord(document))
-                    }
-                    taskListsById = nextTaskListsById
-                    publish()
-                    retryController?.markHealthy(snapshot?.metadata?.isFromCache ?: true)
-                }
+            }
+            retry = SyncListenerRetryController(scope, ::install, ::recordSyncListenerError)
+            install()
+            val dispose: () -> Unit = { retry.dispose(); listener?.remove() }
+            dispose
         }
+        publish()
     }
 
-    fun installListeners() {
+    lateinit var orderRetry: SyncListenerRetryController
+    fun installOrderListener() {
         if (disposed) return
-        taskListOrderListener?.remove()
-        taskListOrderListener = null
-        removeTaskListListeners(taskListChunkListeners)
-        taskListChunkListeners = emptyList()
-        taskListIdsKey = ""
-        listenerGeneration += 1
-        val generation = listenerGeneration
-
-        subscribeToTaskLists(orderedTaskListIds, generation)
-        taskListOrderListener = db.collection("taskListOrder")
-            .document(userId)
+        orderListener?.remove()
+        orderListener = db.collection("taskListOrder").document(userId)
             .addSnapshotListener { snapshot, error ->
-                if (disposed || generation != listenerGeneration) return@addSnapshotListener
+                if (disposed) return@addSnapshotListener
                 if (error != null) {
-                    logDebugSync("taskListOrder listener error=${firestoreErrorDescription("taskListOrder listen", error)}")
-                    retryController?.fail("task_list_order", error)
+                    orderListener?.remove()
+                    orderListener = null
+                    failedScopes.add("order")
+                    orderRetry.fail("task_list_order", error)
                     onError?.invoke()
                     return@addSnapshotListener
                 }
-
-                logDebugSync(
-                    "taskListOrder snapshot exists=${snapshot?.exists()} cache=${snapshot?.metadata?.isFromCache} pending=${snapshot?.metadata?.hasPendingWrites()}"
-                )
-                orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap<String, Any>())
+                orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap())
                 writeCachedTaskListOrderIds(userId, orderedTaskListIds)
-                subscribeToTaskLists(orderedTaskListIds, generation)
-                retryController?.markHealthy(snapshot?.metadata?.isFromCache ?: true)
+                val fromCache = snapshot?.metadata?.isFromCache ?: true
+                if (!fromCache) failedScopes.remove("order")
+                orderRetry.markHealthy(fromCache)
+                subscribeToTaskLists(orderedTaskListIds)
             }
     }
-
-    retryController = SyncListenerRetryController(
-        scope = listenerScope,
-        onRetry = ::installListeners,
-        onError = { source, error -> recordSyncListenerError(source, error) }
-    )
-    installListeners()
-
+    orderRetry = SyncListenerRetryController(scope, ::installOrderListener, ::recordSyncListenerError)
+    subscribeToTaskLists(orderedTaskListIds)
+    installOrderListener()
     return {
         disposed = true
-        checkNotNull(retryController).dispose()
-        taskListOrderListener?.remove()
-        removeTaskListListeners(taskListChunkListeners)
-        listenerScope.cancel()
+        orderRetry.dispose()
+        orderListener?.remove()
+        chunkDisposers.forEach { it() }
+        scope.cancel()
     }
 }
 
@@ -1973,7 +1941,7 @@ private fun scheduleMalformedTaskCleanup(
         onIdle = releaseCleanupKey,
         onError = { releaseCleanupKey() }
     ) {
-        Firebase.firestore.collection("taskLists").document(taskListId).update(updates).await()
+        Firebase.firestore.collection("taskLists").document(taskListId).update(updates)
     }
 }
 
@@ -2197,7 +2165,7 @@ private suspend fun generateShareCode(taskListId: String): String {
         if (shareCodeSnap.exists()) continue
 
         val taskListRef = db.collection("taskLists").document(taskListId)
-        val taskListSnap = taskListRef.get().await()
+        val taskListSnap = taskListRef.get(Source.SERVER).await()
         if (!taskListSnap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
 
         val batch = db.batch()
@@ -2216,7 +2184,7 @@ private suspend fun generateShareCode(taskListId: String): String {
 private suspend fun removeShareCode(taskListId: String) {
     val db = Firebase.firestore
     val taskListRef = db.collection("taskLists").document(taskListId)
-    val snap = taskListRef.get().await()
+    val snap = taskListRef.get(Source.SERVER).await()
     if (!snap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
     val currentShareCode = snap.getString("shareCode")?.takeIf { it.isNotBlank() } ?: return
     val batch = db.batch()
@@ -2230,9 +2198,11 @@ private suspend fun removeShareCode(taskListId: String) {
 private suspend fun fetchTaskListIdByShareCode(shareCode: String): String? {
     val db = Firebase.firestore
     val normalized = normalizedShareCode(shareCode) ?: return null
-    val snap = db.collection("shareCodes").document(normalized).get().await()
+    val snap = db.collection("shareCodes").document(normalized).get(Source.SERVER).await()
     if (!snap.exists()) return null
-    return snap.getString("taskListId")
+    val taskListId = snap.getString("taskListId")?.takeIf { it.isNotEmpty() && !it.contains("/") } ?: return null
+    val taskList = db.collection("taskLists").document(taskListId).get(Source.SERVER).await()
+    return taskListId.takeIf { taskList.getString("shareCode") == normalized }
 }
 
 private suspend fun addSharedTaskListToOrder(taskListId: String) {
@@ -3769,7 +3739,7 @@ private fun CalendarScreen(
             optimisticCalendarTasks = optimisticCalendarTasks.filter { it.taskId != taskId }
             addTaskError = t.t("common.error")
         }) {
-            Firebase.firestore.collection("taskLists").document(taskList.id).update(updates).await()
+            Firebase.firestore.collection("taskLists").document(taskList.id).update(updates)
         }
     }
 
@@ -3794,7 +3764,7 @@ private fun CalendarScreen(
             recordNonFatalException("calendar_task_update", error)
             addTaskError = t.t("common.error")
         }) {
-            Firebase.firestore.collection("taskLists").document(taskList.id).update(updates).await()
+            Firebase.firestore.collection("taskLists").document(taskList.id).update(updates)
         }
     }
 
@@ -3805,12 +3775,11 @@ private fun CalendarScreen(
 
     fun saveCalendarTask(task: CalendarTask, taskListId: String, text: String, pinned: Boolean, dateKey: String) {
         val trimmed = text.trim()
-        if (!hasTaskContent(trimmed, dateKey, pinned)) return
         val sourceTaskList = calendarTaskLists.firstOrNull { it.id == task.taskListId } ?: return
         val currentTask = sourceTaskList.tasks.firstOrNull { it.id == task.taskId } ?: return
         val resolved = resolveTaskInput(trimmed, t, currentTask)
         val nextText = if (trimmed.isEmpty()) "" else resolved.text
-        if (taskListId == task.taskListId) {
+        if (taskListId == task.taskListId || !hasTaskContent(nextText, dateKey, pinned)) {
             updateCalendarTask(
                 task,
                 "text,date,pinned",
@@ -3862,7 +3831,7 @@ private fun CalendarScreen(
             val batch = db.batch()
             batch.update(db.collection("taskLists").document(task.taskListId), sourceUpdates)
             batch.update(db.collection("taskLists").document(taskListId), targetUpdates)
-            batch.commit().await()
+            batch.commit()
         }
     }
 
@@ -4028,6 +3997,7 @@ private fun CalendarScreen(
         key(task.id) {
             CalendarTaskSheet(
                 title = t.t("a11y.editTask"),
+                isEditing = true,
                 submitLabel = t.t("taskList.save"),
                 taskLists = calendarTaskLists,
                 initialTaskListId = task.taskListId,
@@ -4049,6 +4019,7 @@ private fun CalendarScreen(
 @Composable
 private fun CalendarTaskSheet(
     title: String,
+    isEditing: Boolean = false,
     submitLabel: String,
     taskLists: List<TaskListDetail>,
     initialTaskListId: String,
@@ -4077,7 +4048,7 @@ private fun CalendarTaskSheet(
     fun submit() {
         val trimmed = text.trim()
         val dateKey = datePickerState.selectedDateMillis?.let(::formatTaskDatePickerMillis).orEmpty()
-        if (!hasTaskContent(trimmed, dateKey, pinned) || taskListId.isEmpty()) return
+        if ((!isEditing && !hasTaskContent(trimmed, dateKey, pinned)) || taskListId.isEmpty()) return
         onSubmit(taskListId, trimmed, pinned, dateKey)
     }
 
@@ -4238,7 +4209,7 @@ private fun CalendarTaskSheet(
             Button(
                 onClick = { submit() },
                 enabled = (
-                    text.trim().isNotEmpty() || pinned || datePickerState.selectedDateMillis != null
+                    isEditing || text.trim().isNotEmpty() || pinned || datePickerState.selectedDateMillis != null
                 ) && taskListId.isNotEmpty(),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
@@ -4373,18 +4344,15 @@ private fun TaskListsScreen(
         ids.forEachIndexed { i, id -> updates["$id.order"] = (i + 1).toDouble() }
         val current = displayTaskLists
         pendingTaskListOrder = ids.mapNotNull { id -> current.firstOrNull { it.id == id } }
-        taskListOrderMutationQueue.enqueue {
-            try {
-                Firebase.firestore.collection("taskListOrder").document(uid).update(updates).await()
-                if (taskListOrderMutationRevision == mutationRevision) {
-                    pendingTaskListOrder = null
-                }
-            } catch (e: Exception) {
-                recordNonFatalException("task_list_order_update", e)
-                if (taskListOrderMutationRevision == mutationRevision) {
-                    pendingTaskListOrder = null
-                }
+        taskListOrderMutationQueue.enqueue(
+            onIdle = {
+                if (taskListOrderMutationRevision == mutationRevision) pendingTaskListOrder = null
+            },
+            onError = { error ->
+                recordNonFatalException("task_list_order_update", error)
             }
+        ) {
+            Firebase.firestore.collection("taskListOrder").document(uid).update(updates)
         }
     }
 
@@ -5782,8 +5750,7 @@ private fun TaskListDetailContent(
             }
         ) {
             logDebugSync("task update start taskList=$taskListDebugId fields=${updates.size}")
-            db.collection("taskLists").document(taskList.id).update(updates).await()
-            logDebugSync("task update success taskList=$taskListDebugId")
+            db.collection("taskLists").document(taskList.id).update(updates)
         }
     }
 
@@ -7214,18 +7181,32 @@ private fun SettingsView(
     }
 
     if (showDeleteDialog) {
+        var deletePassword by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text(t.t("settings.danger.deleteAccount")) },
-            text = { Text(t.t("auth.deleteAccountConfirm.message")) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(t.t("auth.deleteAccountConfirm.message"))
+                    AuthTextField(
+                        value = deletePassword, onValueChange = { deletePassword = it },
+                        label = t.t("auth.form.password"), contentType = ContentType.Password,
+                        password = true, enabled = !isDeletingAccount
+                    )
+                }
+            },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(enabled = deletePassword.isNotEmpty() && !isDeletingAccount, onClick = {
+                    val password = deletePassword
+                    deletePassword = ""
                     showDeleteDialog = false
                     isDeletingAccount = true
                     errorMessage = null
                     scope.launch {
                         try {
                             val user = Firebase.auth.currentUser ?: return@launch
+                            val email = user.email ?: return@launch
+                            user.reauthenticate(com.google.firebase.auth.EmailAuthProvider.getCredential(email, password)).await()
                             val uid = user.uid
                             val db = Firebase.firestore
                             val taskListOrderRef = db.collection("taskListOrder").document(uid)

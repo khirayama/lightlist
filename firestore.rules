@@ -38,7 +38,8 @@ service cloud.firestore {
       }
 
       // read ではなく get にすることで、一括取得(list)を禁止
-      allow get: if true;
+      allow get: if resource == null
+        || get(/databases/$(database)/documents/taskLists/$(resource.data.taskListId)).data.shareCode == shareCode;
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(['taskListId', 'createdAt'])
         && request.resource.data.taskListId is string
@@ -108,15 +109,23 @@ service cloud.firestore {
 
       // shareCode は null か 8 桁の共有コードのみ。
       // 新しいコードを設定する場合は同一 commit で shareCodes 側が自分を指すことを要求する
+      function isPreviousShareCodeRemoved() {
+        let previousShareCode = resource.data.get('shareCode', null);
+        return previousShareCode == null
+          || !existsAfter(/databases/$(database)/documents/shareCodes/$(previousShareCode));
+      }
+
       function isAllowedShareCodeChange() {
         let nextShareCode = request.resource.data.get('shareCode', null);
         return nextShareCode == resource.data.get('shareCode', null)
-          || nextShareCode == null
-          || (
-            nextShareCode is string
-            && nextShareCode.matches('^[A-Z0-9]{8}$')
-            && getAfter(/databases/$(database)/documents/shareCodes/$(nextShareCode)).data.taskListId == taskListId
-          );
+          || (isPreviousShareCodeRemoved() && (
+            nextShareCode == null
+            || (
+              nextShareCode is string
+              && nextShareCode.matches('^[A-Z0-9]{8}$')
+              && getAfter(/databases/$(database)/documents/shareCodes/$(nextShareCode)).data.taskListId == taskListId
+            )
+          ));
       }
 
       // 読み取り権限: taskListOrderに含まれている、または有効な共有コードが存在する
@@ -147,7 +156,8 @@ service cloud.firestore {
         && hasTaskListInOrder(getTaskListOrderBefore())
         && !hasTaskListInOrder(getTaskListOrderAfter())
         && resource.data.memberCount is int
-        && resource.data.memberCount <= 1;
+        && resource.data.memberCount <= 1
+        && isPreviousShareCodeRemoved();
     }
   }
 }

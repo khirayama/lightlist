@@ -4165,10 +4165,10 @@ private struct TaskListDetailPage: View {
         .animation(draggingTaskId == task.id || reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.86),
                    value: displayTasks.map(\.id))
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: task.completed)
-        .animation(reduceMotion ? nil : .easeIn(duration: 0.12), value: exitingTaskIds.contains(task.id))
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: exitingTaskIds.contains(task.id))
         .transition(reduceMotion ? .identity : .asymmetric(
             insertion: .opacity.combined(with: .move(edge: .top)),
-            removal: .opacity.animation(.easeIn(duration: 0.12))
+            removal: .opacity.animation(.easeOut(duration: 0.12))
         ))
         .background(GeometryReader { geo in
             Color.clear.preference(
@@ -4747,7 +4747,7 @@ private struct TaskListDetailPage: View {
             commitDeleteCompleted(completedIds)
             return
         }
-        withAnimation(.easeIn(duration: 0.12)) {
+        withAnimation(.easeOut(duration: 0.12)) {
             exitingTaskIds = completedIds
         }
         Task { @MainActor in
@@ -5930,7 +5930,7 @@ private struct CalendarDayCell: View {
     let day: Date
     let isToday: Bool
     let isSelected: Bool
-    let dots: [Color]
+    let dots: [String?]
     let onTap: () -> Void
 
     var body: some View {
@@ -5964,8 +5964,14 @@ private struct CalendarDayCell: View {
                     Color.clear.frame(height: 6)
                 } else {
                     HStack(spacing: 2) {
-                        ForEach(Array(dots.prefix(3).enumerated()), id: \.offset) { _, color in
-                            Circle().fill(color).frame(width: 4, height: 4)
+                        ForEach(Array(dots.prefix(3).enumerated()), id: \.offset) { _, hexColor in
+                            if let hexColor, let color = Color(hex: hexColor) {
+                                Circle().fill(color).frame(width: 4, height: 4)
+                            } else {
+                                Circle()
+                                    .stroke(Color(.separator), lineWidth: 1)
+                                    .frame(width: 4, height: 4)
+                            }
                         }
                     }
                     .frame(height: 6)
@@ -6383,11 +6389,11 @@ private struct CalendarScreenView: View {
         calendarTasks.filter { $0.date.isEmpty || $0.date.hasPrefix(currentMonthKey) }
     }
 
-    private var dotColorsByDate: [String: [Color]] {
-        var result: [String: [Color]] = [:]
+    private var dotColorsByDate: [String: [String?]] {
+        var result: [String: [String?]] = [:]
         for task in tasksInMonth where !task.date.isEmpty {
             var colors = result[task.date] ?? []
-            let color = task.taskListBackground.flatMap { Color(hex: $0) } ?? Color(.separator)
+            let color = task.taskListBackground
             if !colors.contains(color) && colors.count < 3 {
                 colors.append(color)
             }

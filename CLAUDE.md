@@ -44,7 +44,7 @@
 - カレンダー編集は本文・日付・ピンがすべて空になっても保存でき、そのタスクを削除する。空タスクの新規追加は禁止する。
 - 共有コードの生成・解除はサーバーの現在値を読み、Rules で旧コード文書の同時削除を保証する。コードの解決時もリストの現在コードと照合する。リストから参照されないコード文書は Rules で取得を拒否する。
 - 退会は確認画面のパスワードで `EmailAuthProvider` 再認証に成功してから Firestore を削除し、Auth ユーザー削除を最後に行う。パスワードは永続化・ログ出力しない。
-- Web の chunk group は `includeDependenciesRecursively: false`。date-fns の locale を通常 group へ入れず、英語は既定値、他言語は言語別 dynamic import とする。Analytics とカレンダー翻訳の遅延分離を生成 HTML でも確認する。
+- Web の chunk group は `includeDependenciesRecursively: false`。明示 group の UI 依存は、group 外へ残った推移依存から entry へ戻る import が発生しないよう同じ group に含め、生成物の import 循環を確認する。date-fns の locale を通常 group へ入れず、英語の既定値と共通 helper は専用 group、他言語は言語別 dynamic import とする。Analytics とカレンダー翻訳の遅延分離を生成 HTML でも確認する。
 - Firestore の field path（`tasks.<id>.*` など）は update 系 API（Web `updateDoc` / iOS `updateData` / Android `update`）だけで書き込む。taskList の削除・共有参加も事前 read 後の batch write とする。
 - 起動は cache-first とし、Web / iOS / Android の設定・taskListOrder・taskLists cache を listener の live snapshot より先に利用できるようにする。taskListOrder の順序付き ID は uid ごとの軽量な端末 storage に保持し、次回起動の taskLists 先読み・購読を order snapshot より先に開始する。Web は listener の初回 cache snapshot を hydrate に使って同一参照の cache get を重ねず、iOS の warm-up は cache read を並列化する。cache の古い内容は後続 listener で更新する。
 - Web の compact layout / carousel は表示中の画面だけを Tab 順と accessibility tree に含め、画面切替時は main landmark へフォーカスを移す（初回表示を除く）。認証は signin / signup の選択中タブだけを Tab 順に含め、左右矢印・Home / End で切り替える。並び替えはスクリーンリーダーとハードウェアキーボードでも実行できる。

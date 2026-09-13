@@ -71,14 +71,22 @@ export default defineConfig({
               name: "firebase-firestore",
               test: /node_modules\/(?:firebase\/firestore|@firebase\/firestore)\//,
             },
+            {
+              name: "firebase-core",
+              test: /node_modules\/(?:@firebase|firebase|idb|re2js)\//,
+            },
+            {
+              name: "date-fns-default",
+              test: /node_modules\/date-fns\/locale\/(?:en-US(?:\/|\.js|$)|_lib(?:\/|\.js|$))/,
+            },
             { name: "date-fns", test: /node_modules\/date-fns\/(?!locale\/)/ },
             {
               name: "i18n",
-              test: /node_modules\/(?:i18next|react-i18next)/,
+              test: /node_modules\/(?:@babel\/runtime|html-parse-stringify|i18next|react-i18next|use-sync-external-store)\//,
             },
             {
               name: "app-ui",
-              test: /node_modules\/(?:@dnd-kit|@radix-ui|cmdk|react-day-picker)\//,
+              test: /node_modules\/(?:@dnd-kit|@preact\/signals-core|@radix-ui|aria-hidden|cmdk|detect-node-es|get-nonce|react-remove-scroll|react-remove-scroll-bar|react-style-singleton|tslib|use-callback-ref|use-sidecar)\//,
             },
             {
               name: "react-vendor",

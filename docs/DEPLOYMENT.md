@@ -24,7 +24,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - Firebase Analytics は dynamic import で読み込む。
 - カレンダーの翻訳は英語をライブラリ既定値として使い、それ以外の `date-fns` locale は利用時に言語別の dynamic import で読み込む。
 - chunk 分割は Vite 8 / Rolldown の `build.rolldownOptions.output.codeSplitting.groups` を正とし、Firebase / i18n / app UI / React vendor などを分ける。
-- chunk group は依存モジュールを再帰的に取り込まない設定にする。Analytics とカレンダー翻訳が初期 HTML の module script やその静的依存へ混入しないことを build 成果物で確認する。chunk size warning の閾値は 550 kB。
+- chunk group は依存モジュールを再帰的に取り込まない設定にする。明示的な group へ分ける UI 依存は、group 外へ残った推移依存から entry へ戻る import が発生しないよう同じ group に含める。英語のカレンダー既定値と共通 helper は `date-fns-default` group に置き、その他の locale は利用時の dynamic import に残す。Analytics とカレンダー翻訳が初期 HTML の module script やその静的依存へ混入しないことを build 成果物で確認する。chunk size warning の閾値は 550 kB。
 - フォントは通常書体 400 / 500 / 600 / 700 と表示書体 700 だけを各 HTML entry から非同期で読み、JavaScript bundle には含めない。使用しない表示書体 800 は配信物に含めない。
 
 ## PWA
@@ -46,6 +46,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - ローカル確認: `cd apps/web && npm run cf:preview`。`LIGHTLIST_IOS_TEAM_ID` と `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` が必須。
 - CI で `wrangler pages deploy` を使う場合は `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` を設定する。Pages project は事前に作成しておく。
 - response headers は `apps/web/public/_headers` を使う。AASA は build 後に `dist/.well-known/apple-app-site-association`、Digital Asset Links は `dist/.well-known/assetlinks.json` へ生成し、どちらも `application/json`・短い cache lifetime で配信する。通常の `npm run build` は Web 単体開発を許可するため、対応する環境変数が未設定なら関連付けファイルを生成しない。Pages Functions を追加した場合、Function response の header は Function 側で返す。
+- CSP は `_headers` で管理し、Cloudflare Insights の script / beacon と、フォント preload のハッシュ付き `onload` だけを許可する。HTML 側で `unsafe-inline` を追加しない。
 - `404.html` は `apps/web/dist/404.html` を custom 404 として使う。`500.html` は build 出力へ含めるが、Cloudflare Pages が自動で custom 500 として扱う前提は置かない。
 
 ## Web env

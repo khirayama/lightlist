@@ -83,6 +83,55 @@ body {
     overflow-wrap: anywhere;
     word-break: break-word;
   }
+
+  .ll-task-completion-circle {
+    border-color: var(--color-gray-400);
+  }
+
+  .ll-task-completion-circle[data-completed="true"] {
+    border-color: transparent;
+  }
+
+  .ll-settings-select-wrap {
+    position: relative;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .ll-settings-select-wrap::after {
+    position: absolute;
+    top: 50%;
+    inset-inline-end: 0.5rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-inline-end: 1.5px solid currentColor;
+    border-block-end: 1.5px solid currentColor;
+    content: "";
+    opacity: 0.55;
+    pointer-events: none;
+    transform: translateY(-0.2rem) rotate(45deg);
+  }
+
+  .ll-settings-select {
+    width: 100%;
+    min-height: 2.75rem;
+    padding-block: 0.75rem;
+    padding-inline: 0 1.75rem;
+    appearance: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    outline: none;
+    text-align: end;
+  }
+
+  .ll-settings-toggle-thumb {
+    transform: translateX(0.25rem);
+  }
+
+  .ll-settings-toggle-thumb[data-checked="true"] {
+    transform: translateX(1.5rem);
+  }
 }
 
 @keyframes ll-fade-in {
@@ -189,7 +238,7 @@ body {
   }
 
   .ll-anim-task-exit {
-    animation: ll-task-out 0.12s ease-in both;
+    animation: ll-task-out 0.12s ease-out both;
   }
 
   .ll-anim-pop {
@@ -222,7 +271,7 @@ body {
   }
 
   .ll-anim-overlay[data-state="closed"] {
-    animation: ll-fade-out 0.16s ease-in both;
+    animation: ll-fade-out 0.16s ease-out both;
   }
 
   .ll-anim-dialog[data-state="open"] {
@@ -230,7 +279,7 @@ body {
   }
 
   .ll-anim-dialog[data-state="closed"] {
-    animation: ll-dialog-out 0.16s ease-in both;
+    animation: ll-dialog-out 0.16s ease-out both;
   }
 
   .ll-anim-sheet[data-state="open"] {
@@ -238,7 +287,7 @@ body {
   }
 
   .ll-anim-sheet[data-state="closed"] {
-    animation: ll-sheet-out 0.2s ease-in both;
+    animation: ll-sheet-out 0.2s ease-out both;
   }
 
   @media (width >= 40rem) {
@@ -247,8 +296,37 @@ body {
     }
 
     .ll-anim-sheet[data-state="closed"] {
-      animation: ll-dialog-out 0.16s ease-in both;
+      animation: ll-dialog-out 0.16s ease-out both;
     }
+  }
+
+  .ll-settings-toggle,
+  .ll-settings-toggle-thumb,
+  .ll-add-task-submit {
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    transition-duration: 0.18s;
+  }
+
+  .ll-settings-toggle {
+    transition-property: background-color, border-color;
+  }
+
+  .ll-settings-toggle-thumb {
+    transition-property: transform;
+  }
+
+  .ll-add-task-submit {
+    transition-property: opacity;
+  }
+
+  .ll-carousel-indicator {
+    transition: background-color 0.15s ease-out;
+  }
+
+  .ll-carousel-indicator-dot {
+    transition:
+      background-color 0.15s ease,
+      scale 0.18s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .ll-pressable {
@@ -256,12 +334,26 @@ body {
   }
 
   .ll-pressable:active {
-    transform: scale(0.94);
+    transform: scale(0.97);
   }
 
   .ll-task-row {
     transition: opacity 0.18s ease;
   }
+}
+
+.ll-carousel-indicator-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  height: 6rem;
+  margin-block-end: -6rem;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0.125rem;
+  background-color: var(--tasklist-theme-bg);
+  pointer-events: none;
 }
 
 .ll-calendar-task-row {

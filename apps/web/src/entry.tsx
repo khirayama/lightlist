@@ -3790,7 +3790,7 @@ function DialogContent({
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "ll-anim-dialog ll-fixed ll-left-half ll-top-half ll-z-1300 ll-min-w-320px ll-max-w-dialog ll-translate-x-neg-half ll-translate-y-neg-half ll-rounded-xl ll-bg-dialog ll-p-5 ll-text-dialog-fg ll-shadow-2xl",
+          "ll-anim-dialog ll-fixed ll-left-half ll-top-half ll-z-1300 ll-min-w-320px ll-max-w-dialog ll-translate-x-neg-half ll-translate-y-neg-half ll-rounded-xl ll-bg-dialog ll-outline-none ll-p-5 ll-text-dialog-fg ll-shadow-2xl",
           className,
         )}
       >
@@ -3850,7 +3850,7 @@ function ActionSheetContent({
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "ll-anim-sheet ll-fixed ll-inset-x-0 ll-bottom-0 ll-z-1300 ll-flex ll-max-h-sheet ll-w-full ll-translate-x-0 ll-translate-y-0 ll-flex-col ll-overflow-hidden ll-rounded-t-28px ll-bg-white-b ll-px-4 ll-pb-6 ll-pt-4 ll-text-gray-900 ll-shadow-2xl ll-sm-left-half ll-sm-top-half ll-sm-h-sheet ll-sm-w-dialog ll-sm-max-w-dialog ll-sm-translate-x-neg-half ll-sm-translate-y-neg-half ll-sm-rounded-28px ll-sm-border ll-sm-border-gray-300 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-sm-dark-border-gray-700",
+          "ll-anim-sheet ll-fixed ll-inset-x-0 ll-bottom-0 ll-z-1300 ll-flex ll-max-h-sheet ll-w-full ll-translate-x-0 ll-translate-y-0 ll-flex-col ll-overflow-hidden ll-rounded-t-28px ll-bg-white-b ll-outline-none ll-px-4 ll-pb-6 ll-pt-4 ll-text-gray-900 ll-shadow-2xl ll-sm-left-half ll-sm-top-half ll-sm-h-sheet ll-sm-w-dialog ll-sm-max-w-dialog ll-sm-translate-x-neg-half ll-sm-translate-y-neg-half ll-sm-rounded-28px ll-sm-border ll-sm-border-gray-300 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-sm-dark-border-gray-700",
           className,
         )}
       >
@@ -4027,26 +4027,28 @@ function SelectRow({
   return (
     <label
       htmlFor={id}
-      className={`ll-grid ll-gap-2 ll-py-3 ll-sm-grid-cols-sidebar ll-sm-items-center ll-transition ll-focus-within-outline-1 ll-focus-within-outline-2 ll-focus-within-outline-offset-2 ll-focus-within-outline-gray-300 ll-dark-focus-within-outline-gray-700 ${
+      className={`ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-4 ll-transition ll-focus-within-outline-1 ll-focus-within-outline-2 ll-focus-within-outline-offset-2 ll-focus-within-outline-gray-300 ll-dark-focus-within-outline-gray-700 ${
         disabled ? "opacity-60" : ""
       }`}
     >
-      <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50 ll-sm-pr-3">
+      <span className="ll-min-w-0 ll-flex-1 ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
         {label}
       </span>
-      <select
-        id={id}
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="ll-w-full ll-rounded-md ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-focus-border-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-border-gray-300"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <span className="ll-settings-select-wrap">
+        <select
+          id={id}
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+          className="ll-settings-select ll-text-sm ll-text-gray-900 ll-dark-text-gray-50"
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </span>
     </label>
   );
 }
@@ -4243,7 +4245,7 @@ function SettingsView({
   ] as const;
 
   const skeletonSelect = (
-    <div className="ll-h-9 ll-w-full ll-animate-pulse ll-rounded-md ll-bg-gray-300 ll-dark-bg-gray-700" />
+    <div className="ll-h-5 ll-w-32 ll-animate-pulse ll-rounded ll-bg-gray-300 ll-dark-bg-gray-700" />
   );
 
   return (
@@ -4323,7 +4325,7 @@ function SettingsView({
                               type="button"
                               onClick={handleEmailChangeClose}
                               disabled={isChangingEmail}
-                              className="ll-inline-flex ll-items-center ll-justify-center ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-transition ll-hover-border-gray-600 ll-hover-bg-gray-50 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-hover-border-gray-300 ll-dark-hover-bg-gray-900"
+                              className="ll-pressable ll-inline-flex ll-min-h-11 ll-items-center ll-justify-center ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-transition ll-hover-border-gray-600 ll-hover-bg-gray-50 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-hover-border-gray-300 ll-dark-hover-bg-gray-900"
                             >
                               {t("common.cancel")}
                             </button>
@@ -4331,7 +4333,7 @@ function SettingsView({
                               type="button"
                               onClick={() => void handleEmailChangeSubmit()}
                               disabled={isChangingEmail || !newEmail.trim()}
-                              className="ll-inline-flex ll-flex-1 ll-items-center ll-justify-center ll-rounded-2xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-transition ll-hover-opacity-90 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900"
+                              className="ll-pressable ll-inline-flex ll-min-h-11 ll-flex-1 ll-items-center ll-justify-center ll-rounded-2xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-transition ll-hover-opacity-90 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900"
                             >
                               {isChangingEmail
                                 ? t("settings.emailChange.submitting")
@@ -4418,7 +4420,7 @@ function SettingsView({
                     ].map(([key, label]) => (
                       <div
                         key={key}
-                        className="ll-grid ll-gap-2 ll-py-3 ll-sm-grid-cols-sidebar ll-sm-items-center"
+                        className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-4"
                       >
                         <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
                           {label}
@@ -4453,16 +4455,15 @@ function SettingsView({
                   </span>
                   <span
                     aria-hidden="true"
-                    className={`ll-relative ll-inline-flex ll-h-7 ll-w-12 ll-items-center ll-rounded-full ll-border ll-transition ${
+                    className={`ll-settings-toggle ll-relative ll-inline-flex ll-h-7 ll-w-12 ll-items-center ll-rounded-full ll-border ${
                       settings?.autoSort
-                        ? "border-primary ll-bg-gray-900 ll-dark-border-gray-50 dark:bg-primary-dark"
-                        : "border-border ll-bg-gray-300 ll-dark-border-gray-700 dark:bg-surface-dark"
+                        ? "ll-border-gray-900 ll-bg-gray-900 ll-dark-border-gray-50 ll-dark-bg-gray-50"
+                        : "ll-border-gray-300 ll-bg-gray-300 ll-dark-border-gray-700 ll-dark-bg-gray-900"
                     }`}
                   >
                     <span
-                      className={`ll-inline-block ll-h-5 ll-w-5 ll-rounded-full ll-bg-white-b ll-shadow-sm ll-transition ll-dark-bg-gray-950 ${
-                        settings?.autoSort ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      data-checked={settings?.autoSort ? "true" : "false"}
+                      className="ll-settings-toggle-thumb ll-inline-block ll-h-5 ll-w-5 ll-rounded-full ll-bg-white-b ll-shadow-sm ll-dark-bg-gray-950"
                     />
                   </span>
                 </label>
@@ -4843,7 +4844,7 @@ type AppView = "taskLists" | "detail" | "settings" | "licenses" | "calendar";
 type DatedTask = {
   taskListId: string;
   taskListName: string;
-  taskListBackground: string;
+  taskListBackground: string | null;
   task: Task;
   dateValue: Date | null;
   dateKey: string;
@@ -5016,6 +5017,8 @@ function Carousel({
   getIndicatorLabel,
   scrollEnabled = true,
   indicatorInFlow = false,
+  fitContent = false,
+  indicatorBackground,
   onScrollStart,
   onScrollEnd,
 }: {
@@ -5030,6 +5033,8 @@ function Carousel({
   getIndicatorLabel?: (index: number, total: number) => string;
   scrollEnabled?: boolean;
   indicatorInFlow?: boolean;
+  fitContent?: boolean;
+  indicatorBackground?: string | null;
   onScrollStart?: () => void;
   onScrollEnd?: (index: number) => void;
 }) {
@@ -5119,7 +5124,16 @@ function Carousel({
       role="region"
       aria-roledescription="carousel"
       aria-label={ariaLabel}
-      className={clsx("ll-relative ll-w-full ll-overflow-hidden", className)}
+      className={clsx(
+        "ll-relative ll-w-full",
+        !fitContent && "ll-overflow-hidden",
+        className,
+      )}
+      style={
+        fitContent
+          ? { backgroundColor: indicatorBackground ?? "transparent" }
+          : undefined
+      }
     >
       {showIndicators && count > 0 ? (
         <nav
@@ -5127,7 +5141,9 @@ function Carousel({
           className={clsx(
             indicatorInFlow
               ? "ll-flex ll-justify-center ll-gap-0x5"
-              : "ll-pointer-events-none ll-absolute ll-left-0 ll-right-0 ll-z-30 ll-flex ll-justify-center ll-gap-0x5",
+              : fitContent
+                ? "ll-carousel-indicator-sticky"
+                : "ll-pointer-events-none ll-absolute ll-left-0 ll-right-0 ll-z-30 ll-flex ll-justify-center ll-gap-0x5",
             indicatorInFlow
               ? indicatorPosition === "top"
                 ? "ll-mb-2"
@@ -5136,7 +5152,11 @@ function Carousel({
                 ? "ll-top-14"
                 : "ll-bottom-4",
           )}
-        >
+          style={
+            fitContent
+              ? { backgroundColor: indicatorBackground ?? "transparent" }
+              : undefined
+          }        >
           {Array.from({ length: count }).map((_, idx) => (
             <button
               key={idx}
@@ -5147,7 +5167,7 @@ function Carousel({
                 onIndexChange(idx);
               }}
               className={clsx(
-                "ll-inline-flex ll-items-center ll-justify-center ll-rounded-full ll-p-2 ll-transition-all",
+                "ll-carousel-indicator ll-inline-flex ll-items-center ll-justify-center ll-rounded-full ll-p-2",
                 !indicatorInFlow && "ll-pointer-events-auto",
                 "ll-hover-bg-gray-900-10 ll-dark-hover-bg-gray-50-10",
               )}
@@ -5156,7 +5176,7 @@ function Carousel({
             >
               <span
                 className={clsx(
-                  "ll-h-2 ll-w-2 ll-rounded-full ll-transition-all",
+                  "ll-carousel-indicator-dot ll-h-2 ll-w-2 ll-rounded-full",
                   idx === currentIndex
                     ? "ll-scale-110 ll-bg-gray-900 ll-dark-bg-gray-50"
                     : "ll-bg-gray-900-40 ll-dark-bg-gray-50-40",
@@ -5170,7 +5190,8 @@ function Carousel({
         ref={containerRef}
         onScroll={scrollEnabled ? handleScroll : undefined}
         className={clsx(
-          "ll-flex ll-h-full ll-w-full ll-snap-x ll-snap-mandatory no-scrollbar ll-scroll-smooth",
+          "ll-flex ll-w-full ll-snap-x ll-snap-mandatory no-scrollbar ll-scroll-smooth",
+          !fitContent && "ll-h-full",
           scrollEnabled
             ? "ll-overflow-x-auto ll-overflow-y-hidden"
             : "ll-overflow-hidden",
@@ -5187,7 +5208,10 @@ function Carousel({
             role="group"
             aria-roledescription="slide"
             aria-label={getIndicatorLabel?.(idx, count) ?? `${idx + 1}`}
-            className="ll-h-full ll-w-full ll-shrink-0 ll-snap-start ll-snap-always"
+            className={clsx(
+              "ll-w-full ll-shrink-0 ll-snap-start ll-snap-always",
+              !fitContent && "ll-h-full",
+            )}
             aria-hidden={idx !== currentIndex}
             inert={idx !== currentIndex}
           >
@@ -5562,7 +5586,10 @@ function TaskItemComponent({
           aria-labelledby={taskTextId}
           className="ll-peer ll-absolute ll-inset-0 ll-z-10 ll-h-full ll-w-full ll-cursor-pointer ll-opacity-0"
         />
-        <div className="ll-check-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-border-gray-300 ll-bg-transparent ll-transition-colors ll-peer-checked-border-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-border-gray-700 ll-dark-peer-checked-bg-gray-700" />
+        <div
+          data-completed={task.completed ? "true" : "false"}
+          className="ll-check-circle ll-task-completion-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-bg-transparent ll-transition-colors ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-peer-checked-bg-gray-700"
+        />
       </div>
       <div className="ll-relative ll-flex ll-min-w-0 ll-flex-1 ll-flex-col">
         {dateDisplayValue ? (
@@ -6276,7 +6303,7 @@ function TaskListCard({
   return (
     <section
       className={clsx(
-        "ll-h-full ll-overflow-y-auto",
+        "ll-min-h-full",
         isActive ? "ll-pointer-events-auto" : "ll-pointer-events-none",
       )}
       onClickCapture={handleTaskListClickCapture}
@@ -6439,10 +6466,10 @@ function TaskListCard({
                 aria-label={t("common.add")}
                 title={t("common.add")}
                 className={clsx(
-                  "ll-pressable ll-inline-flex ll-h-10 ll-shrink-0b ll-items-center ll-justify-center ll-overflow-hidden ll-rounded-xl ll-text-gray-400 ll-transition-all ll-duration-300 ll-ease-in-out ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-disabled-opacity-50",
+                  "ll-add-task-submit ll-pressable ll-ml-2 ll-inline-flex ll-h-10 ll-w-10 ll-shrink-0b ll-items-center ll-justify-center ll-overflow-hidden ll-rounded-xl ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-disabled-opacity-50",
                   isInputFocused
-                    ? "ll-ml-2 ll-w-8 ll-pointer-events-auto ll-opacity-100"
-                    : "ll-ml-0 ll-w-0 ll-pointer-events-none ll-opacity-0",
+                    ? "ll-pointer-events-auto ll-opacity-100"
+                    : "ll-pointer-events-none ll-opacity-0",
                 )}
               >
                 <span className="ll-sr-only">{t("common.add")}</span>
@@ -6735,7 +6762,15 @@ function TaskListCard({
             ].join(" / ")}
           >
             <div className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-gap-3">
-              <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-end">
+              <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-3">
+                <div className="ll-min-w-0">
+                  <h2 className="ll-text-base ll-font-semibold">
+                    {t("pages.tasklist.setDate")}
+                  </h2>
+                  <p className="ll-truncate ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
+                    {activeTaskActionTask.text}
+                  </p>
+                </div>
                 <DialogPrimitive.Close asChild>
                   <button
                     type="button"
@@ -7107,8 +7142,15 @@ function CalendarTaskItem({
         >
           <span
             aria-hidden="true"
-            className="ll-h-4 ll-w-4 ll-shrink-0b ll-rounded-full ll-border ll-border-gray-300 ll-dark-border-gray-700"
-            style={{ backgroundColor: task.taskListBackground }}
+            className={clsx(
+              "ll-h-4 ll-w-4 ll-shrink-0b ll-rounded-full ll-border ll-border-gray-300 ll-dark-border-gray-700",
+              !task.taskListBackground && "ll-bg-transparent",
+            )}
+            style={
+              task.taskListBackground
+                ? { backgroundColor: task.taskListBackground }
+                : undefined
+            }
           />
           <span className="ll-min-w-0 ll-truncate ll-text-xs ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
             {task.taskListName}
@@ -7124,7 +7166,10 @@ function CalendarTaskItem({
             aria-label={`${t("pages.tasklist.markComplete")}: ${task.task.text}`}
             className="ll-peer ll-absolute ll-inset-0 ll-z-10 ll-h-full ll-w-full ll-cursor-pointer ll-opacity-0"
           />
-          <div className="ll-check-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-border-gray-300 ll-bg-transparent ll-transition-colors ll-peer-checked-border-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-border-gray-700 ll-dark-peer-checked-bg-gray-700" />
+          <div
+            data-completed={task.task.completed ? "true" : "false"}
+            className="ll-check-circle ll-task-completion-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-bg-transparent ll-transition-colors ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-peer-checked-bg-gray-700"
+          />
         </div>
         <button
           type="button"
@@ -7385,9 +7430,7 @@ function CalendarScreen({
       const optimisticTask: DatedTask = {
         taskListId: targetTaskList.id,
         taskListName: targetTaskList.name,
-        taskListBackground: resolveTaskListBackground(
-          targetTaskList.background,
-        ),
+        taskListBackground: targetTaskList.background,
         task: {
           id: taskId,
           text: parsed.text,
@@ -7483,7 +7526,7 @@ function CalendarScreen({
         flattened.push({
           taskListId: taskList.id,
           taskListName: taskList.name,
-          taskListBackground: resolveTaskListBackground(taskList.background),
+          taskListBackground: taskList.background,
           task,
           dateValue: parsedDate ?? null,
           dateKey: parsedDate ? formatDate(parsedDate) : "",
@@ -7541,11 +7584,11 @@ function CalendarScreen({
   }, [datedTasksByMonth]);
 
   const monthDateDotColors = useMemo<
-    Record<string, Record<string, string[]>>
+    Record<string, Record<string, Array<string | null>>>
   >(() => {
-    const map: Record<string, Record<string, string[]>> = {};
+    const map: Record<string, Record<string, Array<string | null>>> = {};
     for (const [monthKey, tasks] of Object.entries(datedTasksByMonth)) {
-      const monthDotColors: Record<string, string[]> = {};
+      const monthDotColors: Record<string, Array<string | null>> = {};
       for (const task of tasks) {
         if (!monthDotColors[task.dateKey]) {
           monthDotColors[task.dateKey] = [];
@@ -7648,8 +7691,16 @@ function CalendarScreen({
                             {colors.map((color, index) => (
                               <span
                                 key={`${dateKey}-${color}-${index}`}
-                                className="ll-h-1x5 ll-w-1x5 ll-rounded-full"
-                                style={{ backgroundColor: color }}
+                                className={clsx(
+                                  "ll-h-1x5 ll-w-1x5 ll-rounded-full",
+                                  color === null &&
+                                    "ll-border ll-border-gray-400 ll-dark-border-gray-500",
+                                )}
+                                style={
+                                  color !== null
+                                    ? { backgroundColor: color }
+                                    : undefined
+                                }
                               />
                             ))}
                           </span>
@@ -8106,6 +8157,7 @@ function AppShellPage() {
   const [isWideLayout, setIsWideLayout] = useState(false);
   const [isTaskSorting, setIsTaskSorting] = useState(false);
   const [isTaskDragInteracting, setIsTaskDragInteracting] = useState(false);
+  const [isCarouselScrolling, setIsCarouselScrolling] = useState(false);
   const [currentView, setCurrentView] = useState<AppView>("detail");
   const previousViewRef = useRef(currentView);
   const [isViewAnimationReady, setIsViewAnimationReady] = useState(false);
@@ -8537,7 +8589,12 @@ function AppShellPage() {
   );
 
   const detailContent = (
-    <div className="ll-h-full ll-overflow-hidden">
+    <div
+      className={clsx(
+        "ll-min-h-full",
+        !isWideLayout && "ll-h-full ll-overflow-hidden",
+      )}
+    >
       {isSessionPending ? (
         renderDetailSkeleton(4)
       ) : hasStartupError ? (
@@ -8548,15 +8605,25 @@ function AppShellPage() {
         renderDetailSkeleton(3)
       ) : hasTaskLists ? (
         <Carousel
-          className="ll-h-full"
+          className={isWideLayout ? "ll-min-h-full" : "ll-h-full"}
+          fitContent={isWideLayout}
+          indicatorBackground={
+            isCarouselScrolling
+              ? null
+              : resolveTaskListBackground(
+                  taskLists[selectedTaskListIndex]?.background ?? null,
+                )
+          }
           index={selectedTaskListIndex}
           direction={carouselDirection}
           scrollEnabled={!isTaskSorting && !isTaskDragInteracting}
           onScrollStart={() => {
+            setIsCarouselScrolling(true);
             moveNewTaskFocusOnCarouselScrollRef.current =
               focusedNewTaskListId === selectedTaskListId;
           }}
           onScrollEnd={(index) => {
+            setIsCarouselScrolling(false);
             const taskList = taskLists[index];
             if (moveNewTaskFocusOnCarouselScrollRef.current && taskList) {
               setFocusedNewTaskListId(taskList.id);
@@ -8582,7 +8649,10 @@ function AppShellPage() {
           {taskLists.map((taskList) => (
             <div
               key={taskList.id}
-              className="ll-flex ll-h-full ll-w-full ll-flex-col"
+              className={clsx(
+                "ll-flex ll-w-full ll-flex-col",
+                isWideLayout ? "ll-min-h-full" : "ll-h-full",
+              )}
               style={{
                 backgroundColor: resolveTaskListBackground(taskList.background),
               }}
@@ -8590,8 +8660,9 @@ function AppShellPage() {
               <div className="ll-h-88px" />
               <div
                 className={clsx(
-                  "ll-h-full ll-overflow-y-auto",
-                  isWideLayout && "ll-mx-auto ll-max-w-3xl ll-min-w-480px",
+                  !isWideLayout && "ll-h-full ll-overflow-y-auto",
+                  isWideLayout &&
+                    "ll-mx-auto ll-max-w-3xl ll-min-w-480px",
                 )}
               >
                 <TaskListCard
@@ -8707,10 +8778,13 @@ function AppShellPage() {
         <main
           id="main-content"
           tabIndex={-1}
-          className="ll-flex ll-h-full ll-min-h-0 ll-w-full ll-min-w-0 ll-flex-1 ll-flex-col"
+          className={clsx(
+            "ll-flex ll-h-full ll-min-h-0 ll-w-full ll-min-w-0 ll-flex-1 ll-flex-col",
+            isWideLayout && "ll-overflow-y-auto",
+          )}
         >
           {isWideLayout ? (
-            <div className="ll-h-full ll-overflow-hidden">
+            <div className="ll-min-h-full">
               {currentView === "settings" ? (
                 <div className="ll-h-full ll-overflow-y-auto">
                   <SettingsView
@@ -9546,7 +9620,7 @@ function ShareCodePreviewPage() {
           </div>
         )}
 
-        <div className="ll-mx-auto ll-h-full ll-w-full ll-max-w-3xl">
+        <div className="ll-mx-auto ll-min-h-full ll-w-full ll-max-w-3xl">
           <TaskListCard
             taskList={taskList}
             autoSort={settings?.autoSort ?? true}

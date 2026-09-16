@@ -15,6 +15,7 @@ import {
   Children,
   memo,
   useLayoutEffect,
+  startTransition,
 } from "react";
 import type {
   HTMLInputTypeAttribute,
@@ -44,8 +45,6 @@ import {
 import type { WithTranslation } from "react-i18next";
 import { getApps, initializeApp } from "firebase/app";
 import type { FirebaseApp } from "firebase/app";
-import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
-import type { AppCheck } from "firebase/app-check";
 import type { Analytics } from "firebase/analytics";
 import {
   confirmPasswordReset as firebaseConfirmPasswordReset,
@@ -296,21 +295,24 @@ const areTasksEqual = (left: Task[], right: Task[]) =>
     );
   });
 
-type TaskListWrite = { committed: Promise<void> };
+type TaskListWrite<Result = void> = {
+  committed: Promise<void>;
+  result?: Result;
+};
 const taskListMutationQueues = new Map<string, Promise<void>>();
 const taskListSubmissionQueues = new Map<string, Promise<void>>();
 
-async function enqueueTaskListMutation(
+async function enqueueTaskListMutation<Result = void>(
   taskListId: string,
-  operation: () => Promise<TaskListWrite | void>,
-): Promise<void> {
+  operation: () => Promise<TaskListWrite<Result> | void>,
+): Promise<Result | undefined> {
   return enqueueTaskListMutations([taskListId], operation);
 }
 
-async function enqueueTaskListMutations(
+async function enqueueTaskListMutations<Result = void>(
   taskListIds: string[],
-  operation: () => Promise<TaskListWrite | void>,
-): Promise<void> {
+  operation: () => Promise<TaskListWrite<Result> | void>,
+): Promise<Result | undefined> {
   const ids = [...new Set(taskListIds)].sort(compareStringIds);
   const previousSubmissions = ids.map(
     (id) => taskListSubmissionQueues.get(id) ?? Promise.resolve(),
@@ -342,6 +344,7 @@ async function enqueueTaskListMutations(
   ids.forEach((id) => taskListMutationQueues.set(id, pending));
   await pending;
   await committed;
+  return (await submitted)?.result;
 }
 
 type AppState = {
@@ -361,13 +364,11 @@ type WebBootstrapState = {
   auth?: Auth;
   db?: Firestore;
   analytics?: Analytics | null;
-  appCheck?: AppCheck;
   root?: Root;
 };
 
 declare global {
   var __LIGHTLIST_WEB_BOOTSTRAP__: WebBootstrapState | undefined;
-  var FIREBASE_APPCHECK_DEBUG_TOKEN: string | boolean | undefined;
 }
 
 const webBootstrapState =
@@ -376,27 +377,6 @@ const webBootstrapState =
 
 let cachedAuth: Auth | null = webBootstrapState.auth ?? null;
 let cachedDb: Firestore | null = webBootstrapState.db ?? null;
-
-let cachedAppCheck: AppCheck | null = webBootstrapState.appCheck ?? null;
-
-const setupAppCheck = (app: FirebaseApp): void => {
-  if (cachedAppCheck) {
-    return;
-  }
-  const siteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
-  if (!siteKey) {
-    return;
-  }
-  const debugToken = import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN;
-  if (debugToken) {
-    globalThis.FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
-  }
-  cachedAppCheck = initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(siteKey),
-    isTokenAutoRefreshEnabled: true,
-  });
-  webBootstrapState.appCheck = cachedAppCheck;
-};
 
 const getApp = (): FirebaseApp => {
   const app =
@@ -410,7 +390,6 @@ const getApp = (): FirebaseApp => {
           appId: import.meta.env.VITE_FIREBASE_APP_ID,
         })
       : getApps()[0];
-  setupAppCheck(app);
   return app;
 };
 
@@ -482,13 +461,19 @@ const getAnalyticsInstance = async (): Promise<Analytics | null> => {
 };
 
 const log = async (eventName: string, params?: Record<string, unknown>) => {
-  if (import.meta.env.DEV) {
-    console.log("[analytics]", eventName, params ?? {});
+  try {
+    if (import.meta.env.DEV) {
+      console.log("[analytics]", eventName, params ?? {});
+    }
+    const analytics = await getAnalyticsInstance();
+    if (!analytics) return;
+    const { logEvent } = await getAnalyticsModule();
+    logEvent(analytics, eventName, params);
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn("[analytics] unavailable", error);
+    }
   }
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  const { logEvent } = await getAnalyticsModule();
-  logEvent(analytics, eventName, params);
 };
 
 const logSignUp = () => log("sign_up", { method: "email" });
@@ -524,8 +509,22 @@ const logSettingsAutoSortChange = (params: { enabled: boolean }) =>
   log("app_settings_auto_sort_change", params);
 const logSettingsStartupViewChange = (params: { view: StartupView }) =>
   log("app_settings_startup_view_change", params);
-const logException = (description: string, fatal: boolean) =>
-  log("app_exception", { description, fatal });
+const getErrorCategory = (error: unknown): string => {
+  if (isRecord(error) && typeof error.code === "string") {
+    return error.code;
+  }
+  if (error instanceof Error && error.name) {
+    return error.name;
+  }
+  return "unknown";
+};
+const logException = (operation: string, error?: unknown) => {
+  const params: Record<string, unknown> = { operation };
+  if (error !== undefined) {
+    params.error_category = getErrorCategory(error);
+  }
+  return log("app_exception", params);
+};
 type SyncListenerSource =
   "settings" | "task_list_order" | "task_lists" | "shared_task_list";
 const logSyncListenerError = (
@@ -707,6 +706,15 @@ const isAbortError = (error: unknown): boolean => {
       message.toLowerCase().includes("aborted a request"))
   );
 };
+
+const isRetryableFirestoreListenerError = (
+  error: FirestoreError,
+  authIsLoading = false,
+): boolean =>
+  ["aborted", "deadline-exceeded", "internal", "unavailable"].includes(
+    error.code,
+  ) ||
+  (authIsLoading && error.code === "permission-denied");
 
 const getErrorMessage = (
   errorCode: string,
@@ -983,7 +991,7 @@ class ErrorBoundaryBase extends Component<
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("[ErrorBoundary] Uncaught error:", error, errorInfo);
-    logException(error.message, true);
+    logException("error_boundary", error);
   }
 
   public render() {
@@ -1035,18 +1043,14 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
       if (isAbortError(event.error ?? event)) {
         return;
       }
-      logException(event.message, false);
+      logException("window_error", event.error ?? event);
     };
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       if (isAbortError(event.reason)) {
         event.preventDefault();
         return;
       }
-      const msg =
-        event.reason instanceof Error
-          ? event.reason.message
-          : String(event.reason);
-      logException(msg, false);
+      logException("unhandled_rejection", event.reason);
     };
     window.addEventListener("error", handleWindowError);
     window.addEventListener("unhandledrejection", handleUnhandledRejection);
@@ -1108,9 +1112,15 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
   );
 }
 
-function AppWrapper({ children }: { children: ReactNode }) {
+function AppWrapper({
+  children,
+  loadAppData,
+}: {
+  children: ReactNode;
+  loadAppData: boolean;
+}) {
   return (
-    <AppStateProvider>
+    <AppStateProvider loadAppData={loadAppData}>
       <AppWrapperBody>{children}</AppWrapperBody>
     </AppStateProvider>
   );
@@ -1246,7 +1256,7 @@ function scheduleMalformedTaskCleanup(
   })
     .catch((error) => {
       console.error("malformed task cleanup error:", error);
-      logException("malformed task cleanup error", false);
+      logException("malformed_task_cleanup", error);
     })
     .finally(() => {
       malformedTaskCleanupKeys.delete(cleanupKey);
@@ -1329,6 +1339,30 @@ const getTaskListIdChunks = (taskListIds: string[]): string[][] => {
     chunks.push(taskListIds.slice(index, index + 10));
   }
   return chunks;
+};
+
+const resolveMemberTaskListIds = async (
+  taskListIds: string[],
+  uid: string,
+  source: "cache" | "server" = "server",
+): Promise<string[]> => {
+  const membershipSnapshots = await Promise.all(
+    taskListIds.map((taskListId) => {
+      const membershipRef = doc(
+        getDbInstance(),
+        "taskLists",
+        taskListId,
+        "members",
+        uid,
+      );
+      return source === "cache"
+        ? getDocFromCache(membershipRef).catch(() => null)
+        : getDoc(membershipRef);
+    }),
+  );
+  return taskListIds.filter(
+    (_taskListId, index) => membershipSnapshots[index]?.exists() === true,
+  );
 };
 
 type TaskListsAction =
@@ -1490,8 +1524,16 @@ function useRequiredContext<T>(context: Context<T | null>): T {
   return value;
 }
 
-function AppStateProvider({ children }: { children: ReactNode }) {
+function AppStateProvider({
+  children,
+  loadAppData = true,
+}: {
+  children: ReactNode;
+  loadAppData?: boolean;
+}) {
   const [session, setSession] = useState<SessionState>(serverSessionState);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
   const [settingsState, setSettingsState] =
     useState<SettingsState>(serverSettingsState);
   const optimisticAutoSortRef = useRef<boolean | null>(null);
@@ -1527,6 +1569,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
   const activeUid =
     session.user?.uid ??
     (session.authStatus === "loading" ? storedLastUid : null);
+  const authStateReady = session.authStatus !== "loading";
 
   const setOptimisticAutoSort = useCallback((autoSort: boolean) => {
     optimisticAutoSortRef.current = autoSort;
@@ -1541,6 +1584,10 @@ function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!loadAppData) {
+      setSettingsState(serverSettingsState);
+      return;
+    }
     optimisticAutoSortRef.current = null;
     if (!activeUid) {
       setSettingsState(serverSettingsState);
@@ -1573,9 +1620,17 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         settings: current.settings,
         settingsStatus: "error",
       }));
+      clearListener();
+      if (
+        !isRetryableFirestoreListenerError(
+          error,
+          sessionRef.current.authStatus === "loading",
+        )
+      ) {
+        return;
+      }
       const delayMs = retryDelayMs;
       retryDelayMs = Math.min(retryDelayMs * 2, 30000);
-      clearListener();
       retryTimer = window.setTimeout(() => {
         retryTimer = null;
         if (!disposed) installListener();
@@ -1621,7 +1676,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error("settings decode error:", error);
-            logException("settings decode error", false);
+            logException("settings_decode", error);
             setSettingsState((current) => ({
               settings: current.settings,
               settingsStatus: "error",
@@ -1638,9 +1693,13 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       if (retryTimer !== null) window.clearTimeout(retryTimer);
       clearListener();
     };
-  }, [activeUid]);
+  }, [activeUid, loadAppData]);
 
   useEffect(() => {
+    if (!loadAppData) {
+      dispatchTaskLists({ type: "reset", taskListOrderStatus: "idle" });
+      return;
+    }
     if (!activeUid) {
       dispatchTaskLists({ type: "reset", taskListOrderStatus: "idle" });
       return;
@@ -1670,9 +1729,17 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         taskListOrder: taskListOrderStateRef.current,
         taskListOrderStatus: "error",
       });
+      clearListener();
+      if (
+        !isRetryableFirestoreListenerError(
+          error,
+          sessionRef.current.authStatus === "loading",
+        )
+      ) {
+        return;
+      }
       const delayMs = retryDelayMs;
       retryDelayMs = Math.min(retryDelayMs * 2, 30000);
-      clearListener();
       retryTimer = window.setTimeout(() => {
         retryTimer = null;
         if (!disposed) installListener();
@@ -1700,7 +1767,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error("taskListOrder decode error:", error);
-            logException("taskListOrder decode error", false);
+            logException("task_list_order_decode", error);
             dispatchTaskLists({
               type: "setTaskListOrder",
               taskListOrder: taskListOrderStateRef.current,
@@ -1718,31 +1785,92 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       if (retryTimer !== null) window.clearTimeout(retryTimer);
       clearListener();
     };
-  }, [activeUid]);
+  }, [activeUid, loadAppData]);
 
   const orderedTaskListIds = useMemo(
     () => getOrderedTaskListIds(taskListsState.taskListOrder),
     [taskListsState.taskListOrder],
   );
-  const orderedTaskListIdsKey = useMemo(
-    () => getTaskListIdsKey(orderedTaskListIds),
-    [orderedTaskListIds],
-  );
+  const orderedTaskListIdsKey = useMemo(() => {
+    const updatedAt = taskListsState.taskListOrder?.updatedAt;
+    return `${getTaskListIdsKey(orderedTaskListIds)}:${String(updatedAt ?? "")}`;
+  }, [orderedTaskListIds, taskListsState.taskListOrder?.updatedAt]);
   const orderedTaskListIdsRef = useRef(orderedTaskListIds);
   orderedTaskListIdsRef.current = orderedTaskListIds;
+  const [memberTaskListIds, setMemberTaskListIds] = useState<string[] | null>(
+    null,
+  );
 
   useEffect(() => {
-    const orderedTaskListIds = orderedTaskListIdsRef.current;
-    dispatchTaskLists({
-      type: "pruneTaskListsById",
-      taskListIds: orderedTaskListIds,
-    });
-
     if (!activeUid) {
+      setMemberTaskListIds([]);
       return;
     }
 
-    if (orderedTaskListIds.length === 0) {
+    setMemberTaskListIds(null);
+    let disposed = false;
+    let retryTimer: number | null = null;
+    let retryDelayMs = 1000;
+    const resolveMembership = async () => {
+      try {
+        const accessibleIds = await resolveMemberTaskListIds(
+          orderedTaskListIdsRef.current,
+          activeUid,
+          authStateReady ? "server" : "cache",
+        );
+        if (disposed) return;
+        if (
+          !authStateReady &&
+          orderedTaskListIdsRef.current.length > 0 &&
+          accessibleIds.length === 0
+        ) {
+          return;
+        }
+        setMemberTaskListIds(accessibleIds);
+        retryDelayMs = 1000;
+      } catch (error) {
+        if (disposed) return;
+        logException("task_list_membership_decode", error);
+        if (getErrorCategory(error) === "permission-denied") {
+          setMemberTaskListIds(orderedTaskListIdsRef.current);
+          return;
+        }
+        const delayMs = retryDelayMs;
+        retryDelayMs = Math.min(delayMs * 2, 30000);
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null;
+          void resolveMembership();
+        }, delayMs);
+      }
+    };
+    void resolveMembership();
+
+    return () => {
+      disposed = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+    };
+  }, [activeUid, authStateReady, orderedTaskListIdsKey]);
+
+  useEffect(() => {
+    const accessibleTaskListIds = memberTaskListIds ?? [];
+    dispatchTaskLists({
+      type: "pruneTaskListsById",
+      taskListIds: accessibleTaskListIds,
+    });
+
+
+    if (
+      !activeUid ||
+      memberTaskListIds === null
+    ) {
+      dispatchTaskLists({
+        type: "setTaskListDocsStatus",
+        taskListDocsStatus: "loading",
+      });
+      return;
+    }
+
+    if (accessibleTaskListIds.length === 0) {
       dispatchTaskLists({
         type: "setTaskListDocsStatus",
         taskListDocsStatus: "ready",
@@ -1755,7 +1883,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
       taskListDocsStatus: "loading",
     });
 
-    const taskListQueryChunks = getTaskListIdChunks(orderedTaskListIds).map(
+    const taskListQueryChunks = getTaskListIdChunks(accessibleTaskListIds).map(
       (chunk) => ({
         taskListIds: chunk,
         taskListQuery: query(
@@ -1785,7 +1913,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
           );
         } catch (error) {
           console.error("taskList decode error:", error);
-          logException("taskList decode error", false);
+          logException("task_list_decode", error);
         }
       });
       dispatchTaskLists({
@@ -1838,6 +1966,14 @@ function AppStateProvider({ children }: { children: ReactNode }) {
           publishStatus();
           chunk.unsubscribe?.();
           chunk.unsubscribe = null;
+          if (
+            !isRetryableFirestoreListenerError(
+              error,
+              sessionRef.current.authStatus === "loading",
+            )
+          ) {
+            return;
+          }
           const delayMs = chunk.retryDelayMs;
           chunk.retryDelayMs = Math.min(delayMs * 2, 30000);
           chunk.retryTimer = window.setTimeout(() => {
@@ -1855,7 +1991,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
         if (chunk.retryTimer !== null) window.clearTimeout(chunk.retryTimer);
       });
     };
-  }, [orderedTaskListIdsKey, activeUid]);
+  }, [activeUid, memberTaskListIds, orderedTaskListIdsKey]);
 
   const registerSharedTaskList = useCallback((taskListId: string) => {
     const nextCount =
@@ -1883,9 +2019,17 @@ function AppStateProvider({ children }: { children: ReactNode }) {
           taskListId,
           taskListData: sharedTaskListsByIdRef.current[taskListId] ?? null,
         });
+        clearListener();
+        if (
+          !isRetryableFirestoreListenerError(
+            error,
+            sessionRef.current.authStatus === "loading",
+          )
+        ) {
+          return;
+        }
         const delayMs = retryDelayMs;
         retryDelayMs = Math.min(retryDelayMs * 2, 30000);
-        clearListener();
         retryTimer = window.setTimeout(() => {
           retryTimer = null;
           if (!disposed) installListener();
@@ -1918,7 +2062,7 @@ function AppStateProvider({ children }: { children: ReactNode }) {
                 : null;
             } catch (error) {
               console.error("shared taskList decode error:", error);
-              logException("shared taskList decode error", false);
+              logException("shared_task_list_decode", error);
             }
             dispatchTaskLists({
               type: "setSharedTaskList",
@@ -1960,12 +2104,12 @@ function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const unsubscribers = sharedTaskListUnsubscribers.current;
+    const refCounts = sharedTaskListRefCounts.current;
     return () => {
-      sharedTaskListUnsubscribers.current.forEach((unsubscribe) =>
-        unsubscribe(),
-      );
-      sharedTaskListUnsubscribers.current.clear();
-      sharedTaskListRefCounts.current.clear();
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+      unsubscribers.clear();
+      refCounts.clear();
     };
   }, []);
 
@@ -2225,15 +2369,25 @@ async function signUp(email: string, password: string, language: Language) {
   const batch = writeBatch(db);
   batch.set(doc(db, "settings", uid), settingsData);
   batch.set(doc(db, "taskLists", taskListId), taskListData);
+  batch.set(doc(db, "taskLists", taskListId, "members", uid), {
+    joinedAt: now,
+    joinCode: null,
+  });
   batch.set(doc(db, "taskListOrder", uid), taskListOrderData);
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (error) {
+    await deleteUser(userCredential.user).catch(() => {});
+    await firebaseSignOut(auth).catch(() => {});
+    throw error;
+  }
 }
 
 async function signIn(email: string, password: string) {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      logException("Web sign in timed out", false);
+      logException("auth_sign_in_timeout");
       reject(new Error("auth-timeout"));
     }, AUTH_SIGN_IN_TIMEOUT_MS);
   });
@@ -2763,8 +2917,8 @@ function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
 async function getTaskListData(taskListId: string): Promise<TaskListStore> {
   const db = getDbInstance();
   const taskListRef = doc(db, "taskLists", taskListId);
-  const snapshot = await getDocFromCache(taskListRef).catch(() =>
-    getDoc(taskListRef),
+  const snapshot = await getDocFromServer(taskListRef).catch(() =>
+    getDocFromCache(taskListRef),
   );
   if (!snapshot.exists()) throw new Error("Task list not found");
   return normalizeTaskListStore(
@@ -2950,33 +3104,44 @@ function buildTaskUpdateData(params: {
 
 async function createTaskList(name: string, background?: string | null) {
   const uid = requireCurrentUserId();
-  const db = getDbInstance();
-  const taskListId = doc(collection(db, "taskLists")).id;
-  const now = Date.now();
-  const taskListOrder = await getTaskListOrderData(uid);
-  const nextOrder = Math.max(0, ...getOrderedTaskListOrders(taskListOrder)) + 1;
-  const normalizedName = name.trim();
-  await writeBatch(db)
-    .set(doc(db, "taskLists", taskListId), {
-      id: taskListId,
-      name: normalizedName,
-      tasks: {},
-      history: [],
-      shareCode: null,
-      background: background ?? null,
-      memberCount: 1,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .set(
-      doc(db, "taskListOrder", uid),
-      {
-        [taskListId]: { order: nextOrder },
+  const taskListId = await enqueueTaskListMutation<string>(
+    `taskListOrder:${uid}`,
+    async () => {
+      const db = getDbInstance();
+      const nextTaskListId = doc(collection(db, "taskLists")).id;
+      const now = Date.now();
+      const taskListOrder = await getTaskListOrderData(uid);
+      const nextOrder =
+        Math.max(0, ...getOrderedTaskListOrders(taskListOrder)) + 1;
+      const normalizedName = name.trim();
+      const batch = writeBatch(db);
+      batch.set(doc(db, "taskLists", nextTaskListId), {
+        id: nextTaskListId,
+        name: normalizedName,
+        tasks: {},
+        history: [],
+        shareCode: null,
+        background: background ?? null,
+        memberCount: 1,
+        createdAt: now,
         updatedAt: now,
-      },
-      { merge: true },
-    )
-    .commit();
+      });
+      batch.set(doc(db, "taskLists", nextTaskListId, "members", uid), {
+        joinedAt: now,
+        joinCode: null,
+      });
+      batch.set(
+        doc(db, "taskListOrder", uid),
+        {
+          [nextTaskListId]: { order: nextOrder },
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+      return { committed: batch.commit(), result: nextTaskListId };
+    },
+  );
+  if (!taskListId) throw new Error("Task list creation failed");
   return taskListId;
 }
 
@@ -2984,55 +3149,66 @@ async function updateTaskList(
   taskListId: string,
   updates: { name?: string; background?: string | null },
 ) {
-  await updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
-    ...updates,
-    updatedAt: Date.now(),
-  });
+  await enqueueTaskListMutation(taskListId, async () => ({
+    committed: updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
+      ...updates,
+      updatedAt: Date.now(),
+    }),
+  }));
 }
 
 async function deleteTaskList(taskListId: string) {
   const uid = requireCurrentUserId();
-  const db = getDbInstance();
-  const taskListRef = doc(db, "taskLists", taskListId);
-  const taskListOrderRef = doc(db, "taskListOrder", uid);
-  const [taskListSnapshot, taskListOrderSnapshot] = await Promise.all([
-    getDoc(taskListRef),
-    getDoc(taskListOrderRef),
-  ]);
-  const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
-  if (!taskListOrderSnapshot.exists()) {
-    return;
-  }
-  const taskListOrder = assertTaskListOrderStore(
-    taskListOrderSnapshot.data(),
-    uid,
-  );
-  if (
-    !getTaskListOrderEntries(taskListOrder).some(([id]) => id === taskListId)
-  ) {
-    return;
-  }
-  const now = Date.now();
-  const batch = writeBatch(db);
-  batch.update(taskListOrderRef, {
-    [taskListId]: deleteField(),
-    updatedAt: now,
-  });
-  if (getValidMemberCount(taskList) <= 1) {
-    if (taskList.shareCode) {
-      const shareCode = normalizeShareCode(taskList.shareCode);
-      if (shareCode) {
-        batch.delete(doc(db, "shareCodes", shareCode));
+  await enqueueTaskListMutations(
+    [taskListId, `taskListOrder:${uid}`],
+    async () => {
+      const db = getDbInstance();
+      const taskListRef = doc(db, "taskLists", taskListId);
+      const taskListOrderRef = doc(db, "taskListOrder", uid);
+      const membershipRef = doc(db, "taskLists", taskListId, "members", uid);
+      const [taskListSnapshot, taskListOrderSnapshot] = await Promise.all([
+        getDocFromServer(taskListRef),
+        getDocFromServer(taskListOrderRef),
+      ]);
+      const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
+      if (!taskListOrderSnapshot.exists()) {
+        return;
       }
-    }
-    batch.delete(taskListRef);
-  } else {
-    batch.update(taskListRef, {
-      memberCount: increment(-1),
-      updatedAt: now,
-    });
-  }
-  await batch.commit();
+      const taskListOrder = assertTaskListOrderStore(
+        taskListOrderSnapshot.data(),
+        uid,
+      );
+      if (
+        !getTaskListOrderEntries(taskListOrder).some(
+          ([id]) => id === taskListId,
+        )
+      ) {
+        return;
+      }
+      const now = Date.now();
+      const batch = writeBatch(db);
+      batch.update(taskListOrderRef, {
+        [taskListId]: deleteField(),
+        updatedAt: now,
+      });
+      batch.delete(membershipRef);
+      if (getValidMemberCount(taskList) <= 1) {
+        if (taskList.shareCode) {
+          const shareCode = normalizeShareCode(taskList.shareCode);
+          if (shareCode) {
+            batch.delete(doc(db, "shareCodes", shareCode));
+          }
+        }
+        batch.delete(taskListRef);
+      } else {
+        batch.update(taskListRef, {
+          memberCount: increment(-1),
+          updatedAt: now,
+        });
+      }
+      return { committed: batch.commit() };
+    },
+  );
 }
 
 async function updateTaskListOrder(
@@ -3390,64 +3566,86 @@ async function fetchTaskListIdByShareCode(shareCode: string) {
     : null;
 }
 
-async function addSharedTaskListToOrder(taskListId: string) {
+async function addSharedTaskListToOrder(taskListId: string, shareCode: string) {
   const uid = requireCurrentUserId();
-  const db = getDbInstance();
-  const taskListRef = doc(db, "taskLists", taskListId);
-  const taskListOrderRef = doc(db, "taskListOrder", uid);
-  const [taskListSnapshot, taskListOrderSnapshot] = await Promise.all([
-    getDoc(taskListRef),
-    getDoc(taskListOrderRef),
-  ]);
-  assertTaskListStore(taskListSnapshot.data(), taskListId);
-  const taskListOrder = taskListOrderSnapshot.exists()
-    ? assertTaskListOrderStore(taskListOrderSnapshot.data(), uid)
-    : null;
-  if (
-    taskListOrder &&
-    getTaskListOrderEntries(taskListOrder).some(([id]) => id === taskListId)
-  ) {
-    return;
-  }
-  const nextOrder =
-    Math.max(
-      0,
-      ...(taskListOrder ? getOrderedTaskListOrders(taskListOrder) : []),
-    ) + 1;
-  const now = Date.now();
-  const batch = writeBatch(db);
-  batch.set(
-    taskListOrderRef,
-    {
-      [taskListId]: { order: nextOrder },
-      updatedAt: now,
+  const normalizedCode = normalizeShareCode(shareCode);
+  if (!normalizedCode) throw new Error("Invalid share code");
+  await enqueueTaskListMutations(
+    [taskListId, `taskListOrder:${uid}`],
+    async () => {
+      const db = getDbInstance();
+      const taskListRef = doc(db, "taskLists", taskListId);
+      const taskListOrderRef = doc(db, "taskListOrder", uid);
+      const membershipRef = doc(db, "taskLists", taskListId, "members", uid);
+      const [taskListSnapshot, taskListOrderSnapshot, membershipSnapshot] =
+        await Promise.all([
+          getDocFromServer(taskListRef),
+          getDocFromServer(taskListOrderRef),
+          getDocFromServer(membershipRef),
+        ]);
+      const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
+      if (taskList.shareCode !== normalizedCode) {
+        throw new Error("Invalid share code");
+      }
+      const taskListOrder = taskListOrderSnapshot.exists()
+        ? assertTaskListOrderStore(taskListOrderSnapshot.data(), uid)
+        : null;
+      if (
+        taskListOrder &&
+        getTaskListOrderEntries(taskListOrder).some(
+          ([id]) => id === taskListId,
+        ) &&
+        membershipSnapshot.exists()
+      ) {
+        return;
+      }
+      const nextOrder =
+        Math.max(
+          0,
+          ...(taskListOrder ? getOrderedTaskListOrders(taskListOrder) : []),
+        ) + 1;
+      const now = Date.now();
+      const batch = writeBatch(db);
+      batch.set(
+        taskListOrderRef,
+        {
+          [taskListId]: { order: nextOrder },
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+      if (!membershipSnapshot.exists()) {
+        batch.set(membershipRef, {
+          joinedAt: now,
+          joinCode: normalizedCode,
+        });
+        batch.update(taskListRef, {
+          memberCount: increment(1),
+          updatedAt: now,
+        });
+      }
+      return { committed: batch.commit() };
     },
-    { merge: true },
   );
-  batch.update(taskListRef, {
-    memberCount: increment(1),
-    updatedAt: now,
-  });
-  await batch.commit();
 }
 
 async function removeShareCode(taskListId: string) {
-  const snapshot = await getDocFromServer(
-    doc(getDbInstance(), "taskLists", taskListId),
-  );
-  const taskList = assertTaskListStore(snapshot.data(), taskListId);
-  if (!taskList.shareCode) return;
-  const normalizedCode = normalizeShareCode(taskList.shareCode);
-  const db = getDbInstance();
-  const batch = writeBatch(db);
-  if (normalizedCode) {
-    batch.delete(doc(db, "shareCodes", normalizedCode));
-  }
-  batch.update(doc(db, "taskLists", taskListId), {
-    shareCode: null,
-    updatedAt: Date.now(),
+  await enqueueTaskListMutation(taskListId, async () => {
+    const db = getDbInstance();
+    const snapshot = await getDocFromServer(doc(db, "taskLists", taskListId));
+    const taskList = assertTaskListStore(snapshot.data(), taskListId);
+    if (!taskList.shareCode) return;
+    const normalizedCode = normalizeShareCode(taskList.shareCode);
+    const batch = writeBatch(db);
+    if (normalizedCode) {
+      batch.delete(doc(db, "shareCodes", normalizedCode));
+    }
+    batch.update(doc(db, "taskLists", taskListId), {
+      shareCode: null,
+      updatedAt: Date.now(),
+    });
+    return { committed: batch.commit() };
   });
-  await batch.commit();
 }
 
 function generateRandomShareCode() {
@@ -3459,40 +3657,52 @@ function generateRandomShareCode() {
 }
 
 async function generateShareCode(taskListId: string): Promise<string> {
-  const db = getDbInstance();
-  for (let attempt = 0; attempt < MAX_SHARE_CODE_ATTEMPTS; attempt += 1) {
-    try {
-      const shareCode = generateRandomShareCode();
-      const shareCodeRef = doc(db, "shareCodes", shareCode);
-      const shareCodeSnapshot = await getDoc(shareCodeRef);
-      if (shareCodeSnapshot.exists()) continue;
-      const snapshot = await getDocFromServer(doc(db, "taskLists", taskListId));
-      const taskList = assertTaskListStore(snapshot.data(), taskListId);
-      const batch = writeBatch(db);
-      if (taskList.shareCode) {
-        const previousShareCode = normalizeShareCode(taskList.shareCode);
-        if (previousShareCode) {
-          batch.delete(doc(db, "shareCodes", previousShareCode));
+  const shareCode = await enqueueTaskListMutation<string>(
+    taskListId,
+    async () => {
+      const db = getDbInstance();
+      for (let attempt = 0; attempt < MAX_SHARE_CODE_ATTEMPTS; attempt += 1) {
+        try {
+          const nextShareCode = generateRandomShareCode();
+          const shareCodeRef = doc(db, "shareCodes", nextShareCode);
+          const shareCodeSnapshot = await getDocFromServer(shareCodeRef);
+          if (shareCodeSnapshot.exists()) continue;
+          const snapshot = await getDocFromServer(
+            doc(db, "taskLists", taskListId),
+          );
+          const taskList = assertTaskListStore(snapshot.data(), taskListId);
+          const batch = writeBatch(db);
+          if (taskList.shareCode) {
+            const previousShareCode = normalizeShareCode(taskList.shareCode);
+            if (previousShareCode) {
+              batch.delete(doc(db, "shareCodes", previousShareCode));
+            }
+          }
+          batch.set(shareCodeRef, {
+            taskListId,
+            createdAt: Date.now(),
+          });
+          batch.update(doc(db, "taskLists", taskListId), {
+            shareCode: nextShareCode,
+            updatedAt: Date.now(),
+          });
+          await batch.commit();
+          return {
+            committed: Promise.resolve(),
+            result: nextShareCode,
+          };
+        } catch (error) {
+          if (isAbortError(error) && attempt + 1 < MAX_SHARE_CODE_ATTEMPTS) {
+            continue;
+          }
+          throw error;
         }
       }
-      batch.set(shareCodeRef, {
-        taskListId,
-        createdAt: Date.now(),
-      });
-      batch.update(doc(db, "taskLists", taskListId), {
-        shareCode,
-        updatedAt: Date.now(),
-      });
-      await batch.commit();
-      return shareCode;
-    } catch (error) {
-      if (isAbortError(error) && attempt + 1 < MAX_SHARE_CODE_ATTEMPTS) {
-        continue;
-      }
-      throw error;
-    }
-  }
-  throw new Error("Failed to generate share code");
+      throw new Error("Failed to generate share code");
+    },
+  );
+  if (!shareCode) throw new Error("Failed to generate share code");
+  return shareCode;
 }
 
 async function updateSettings(settings: Partial<Settings>) {
@@ -4784,19 +4994,24 @@ const COLORS: readonly ColorOption[] = [
 const resolveTaskListBackground = (background: string | null): string =>
   background ?? "var(--tasklist-theme-bg)";
 
-const LAST_TASK_LIST_STORAGE_KEY = "lightlist.lastTaskList";
+const LAST_TASK_LIST_STORAGE_KEY_PREFIX = "lightlist.lastTaskList.";
 
 type LastTaskListSnapshot = {
   id: string;
   background: string;
 };
 
-const readLastTaskListSnapshot = (): LastTaskListSnapshot | null => {
+const readLastTaskListSnapshot = (
+  uid: string | null,
+): LastTaskListSnapshot | null => {
   if (typeof window === "undefined") {
     return null;
   }
+  if (!uid) return null;
   try {
-    const raw = window.localStorage.getItem(LAST_TASK_LIST_STORAGE_KEY);
+    const raw = window.localStorage.getItem(
+      `${LAST_TASK_LIST_STORAGE_KEY_PREFIX}${uid}`,
+    );
     if (!raw) {
       return null;
     }
@@ -4813,13 +5028,17 @@ const readLastTaskListSnapshot = (): LastTaskListSnapshot | null => {
   }
 };
 
-const writeLastTaskListSnapshot = (snapshot: LastTaskListSnapshot): void => {
+const writeLastTaskListSnapshot = (
+  uid: string | null,
+  snapshot: LastTaskListSnapshot,
+): void => {
   if (typeof window === "undefined") {
     return;
   }
+  if (!uid) return;
   try {
     window.localStorage.setItem(
-      LAST_TASK_LIST_STORAGE_KEY,
+      `${LAST_TASK_LIST_STORAGE_KEY_PREFIX}${uid}`,
       JSON.stringify(snapshot),
     );
   } catch {
@@ -5156,7 +5375,8 @@ function Carousel({
             fitContent
               ? { backgroundColor: indicatorBackground ?? "transparent" }
               : undefined
-          }        >
+          }
+        >
           {Array.from({ length: count }).map((_, idx) => (
             <button
               key={idx}
@@ -5365,7 +5585,7 @@ function useDateFnsLocale(language: Language): Locale | undefined {
         }
       })
       .catch((error) => {
-        logException(`date-fns locale load failed: ${String(error)}`, false);
+        logException("date_fns_locale_load", error);
       });
 
     return () => {
@@ -5464,6 +5684,7 @@ const getTaskDateFormatter = (language: string): Intl.DateTimeFormat => {
 function TaskItemComponent({
   task,
   index,
+  canEdit,
   isEditing,
   editingText,
   animateEnter,
@@ -5477,6 +5698,7 @@ function TaskItemComponent({
 }: {
   task: Task;
   index: number;
+  canEdit: boolean;
   isEditing: boolean;
   editingText: string;
   animateEnter: boolean;
@@ -5493,6 +5715,7 @@ function TaskItemComponent({
   const { ref, handleRef, isDragging } = useSortable({
     id: task.id,
     index,
+    disabled: !canEdit,
     transition: {
       duration: 220,
       easing: "cubic-bezier(0.22, 1, 0.36, 1)",
@@ -5558,49 +5781,60 @@ function TaskItemComponent({
       ref={ref}
       style={style}
       className={clsx(
-        "ll-task-row ll-flex ll-gap-2 ll-py-1x5",
+        "ll-task-row ll-flex ll-items-center ll-gap-0 ll-py-1x5",
+        dateDisplayValue ? "ll-task-row-with-date" : null,
         animateEnterRef.current && "ll-anim-task-enter",
         isExiting && "ll-anim-task-exit",
       )}
     >
-      <button
-        ref={handleRef}
-        title={t("pages.tasklist.dragHint")}
-        aria-label={t("pages.tasklist.dragHint")}
-        type="button"
-        onPointerDown={(event) => {
-          if (event.pointerType === "mouse" && event.button !== 0) return;
-          setIsHandlePointerDown(true);
-        }}
-        className="ll-flex ll-touch-none ll-items-center ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2"
-      >
-        <span className="ll-relative">
-          <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
-        </span>
-      </button>
-      <div className="ll-relative ll-flex ll-items-center ll-justify-center">
+      {canEdit ? (
+        <button
+          ref={handleRef}
+          title={t("pages.tasklist.dragHint")}
+          aria-label={t("pages.tasklist.dragHint")}
+          type="button"
+          onPointerDown={(event) => {
+            if (event.pointerType === "mouse" && event.button !== 0) return;
+            setIsHandlePointerDown(true);
+          }}
+          className="ll-task-row-handle ll-flex ll-h-12 ll-w-12 ll-shrink-0 ll-touch-none ll-items-center ll-justify-center ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2"
+        >
+          <span className="ll-relative">
+            <AppIcon
+              name="drag-indicator"
+              aria-hidden="true"
+              focusable="false"
+            />
+          </span>
+        </button>
+      ) : null}
+      <div className="ll-task-row-checkbox ll-relative ll-flex ll-h-12 ll-w-12 ll-shrink-0 ll-items-center ll-justify-center">
         <input
           type="checkbox"
           checked={task.completed}
+          disabled={!canEdit}
           onChange={() => onToggle(task)}
           aria-labelledby={taskTextId}
           className="ll-peer ll-absolute ll-inset-0 ll-z-10 ll-h-full ll-w-full ll-cursor-pointer ll-opacity-0"
         />
         <div
           data-completed={task.completed ? "true" : "false"}
-          className="ll-check-circle ll-task-completion-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-bg-transparent ll-transition-colors ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-peer-checked-bg-gray-700"
+          className="ll-check-circle ll-task-completion-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-bg-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-peer-checked-bg-gray-700"
         />
       </div>
-      <div className="ll-relative ll-flex ll-min-w-0 ll-flex-1 ll-flex-col">
+      <div
+        className={clsx(
+          "ll-task-row-content ll-flex ll-min-w-0 ll-flex-1 ll-flex-col",
+          !dateDisplayValue && "ll-justify-center",
+          dateDisplayValue && "ll-task-row-content-with-date",
+        )}
+      >
         {dateDisplayValue ? (
-          <span
-            className="ll-absolute ll-top-neg-2 ll-text-xs ll-leading-none ll-text-gray-600 ll-dark-text-gray-300"
-            style={{ insetInlineStart: 0 }}
-          >
+          <div className="ll-task-row-date ll-flex ll-h-5 ll-items-center ll-text-start ll-text-xs ll-leading-none ll-text-gray-600 ll-dark-text-gray-300">
             {dateDisplayValue}
-          </span>
+          </div>
         ) : null}
-        {isEditing ? (
+        {isEditing && canEdit ? (
           <input
             ref={editInputRef}
             id={taskTextId}
@@ -5615,53 +5849,54 @@ function TaskItemComponent({
             }}
             autoFocus
             className={clsx(
-              "ll-min-w-0 ll-w-full ll-bg-transparent ll-p-0 ll-font-semibold ll-leading-7 ll-focus-outline-none",
+              "ll-h-12 ll-min-w-0 ll-w-full ll-bg-transparent ll-p-0 ll-font-semibold ll-leading-7 ll-focus-outline-none",
               task.completed
                 ? "ll-text-gray-600 ll-line-through ll-dark-text-gray-300"
                 : "ll-text-gray-900 ll-dark-text-gray-50",
             )}
           />
         ) : (
-          <span
+          <button
             id={taskTextId}
-            role="button"
-            tabIndex={0}
-            onClick={() => onEditStart(task)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onEditStart(task);
-              }
-            }}
+            type="button"
+            onClick={canEdit ? () => onEditStart(task) : undefined}
             className={
               task.completed
-                ? "ll-task-text-wrap ll-block ll-min-h-7 ll-min-w-0 ll-cursor-pointer ll-text-start ll-font-semibold ll-leading-7 ll-text-gray-600 ll-line-through ll-underline-offset-4 ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+                ? clsx(
+                    "ll-task-row-text ll-task-text-wrap ll-flex ll-min-h-12 ll-min-w-0 ll-w-full ll-items-center ll-border-0 ll-bg-transparent ll-p-0 ll-text-start ll-font-semibold ll-leading-7 ll-text-gray-600 ll-line-through ll-underline-offset-4 ll-dark-text-gray-300",
+                    canEdit &&
+                      "ll-cursor-pointer ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300",
+                  )
                 : clsx(
-                    "ll-task-text-wrap ll-block ll-min-h-7 ll-min-w-0 ll-cursor-pointer ll-text-start ll-leading-7 ll-text-gray-900 ll-underline-offset-4 ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+                    "ll-task-row-text ll-task-text-wrap ll-flex ll-min-h-12 ll-min-w-0 ll-w-full ll-items-center ll-border-0 ll-bg-transparent ll-p-0 ll-text-start ll-leading-7 ll-text-gray-900 ll-dark-text-gray-50",
+                    canEdit &&
+                      "ll-cursor-pointer ll-underline-offset-4 ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300",
                     task.pinned ? "ll-font-bold" : "ll-font-semibold",
                   )
             }
           >
             {task.text}
-          </span>
+          </button>
         )}
       </div>
-      <button
-        ref={actionButtonRef}
-        type="button"
-        aria-label={taskActionLabel}
-        title={taskActionLabel}
-        onClick={() => onOpenTaskActions?.(task, actionButtonRef.current)}
-        className="ll-pressable ll-flex ll-items-center ll-rounded-lg ll-p-1 ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
-      >
-        <span className="ll-relative ll-inline-flex">
-          <AppIcon
-            name={task.pinned ? "push-pin" : "calendar-today"}
-            aria-hidden="true"
-            focusable="false"
-          />
-        </span>
-      </button>
+      {canEdit ? (
+        <button
+          ref={actionButtonRef}
+          type="button"
+          aria-label={taskActionLabel}
+          title={taskActionLabel}
+          onClick={() => onOpenTaskActions?.(task, actionButtonRef.current)}
+          className="ll-pressable ll-flex ll-h-12 ll-w-12 ll-shrink-0 ll-items-center ll-justify-center ll-rounded-lg ll-p-1 ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
+        >
+          <span className="ll-relative ll-inline-flex">
+            <AppIcon
+              name={task.pinned ? "push-pin" : "calendar-today"}
+              aria-hidden="true"
+              focusable="false"
+            />
+          </span>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -5700,6 +5935,7 @@ function EditTaskListDialog({
   const [background, setBackground] = useState<string | null>(
     taskList.background,
   );
+  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -5735,7 +5971,8 @@ function EditTaskListDialog({
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            if (!name.trim()) return;
+            if (!name.trim() || saving || deleting) return;
+            setSaving(true);
             void updateTaskList(taskList.id, {
               ...(name.trim() !== taskList.name ? { name: name.trim() } : {}),
               ...(background !== taskList.background ? { background } : {}),
@@ -5743,7 +5980,8 @@ function EditTaskListDialog({
               .then(() => setOpen(false))
               .catch((updateError) =>
                 setError(resolveErrorMessage(updateError, t, "common.error")),
-              );
+              )
+              .finally(() => setSaving(false));
           }}
         >
           <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
@@ -5811,7 +6049,7 @@ function EditTaskListDialog({
             </DialogClose>
             <button
               type="submit"
-              disabled={!name.trim()}
+              disabled={!name.trim() || saving || deleting}
               className={TASK_CARD_PRIMARY_BUTTON_CLASS}
             >
               {t("taskList.editDetails")}
@@ -5985,6 +6223,7 @@ function TaskListCard({
   onDeleted,
   canDeleteTaskList = true,
   canManageShareCode = true,
+  canEditTasks = true,
   activeTaskActionTaskId,
   onOpenTaskAction,
   onCloseTaskAction,
@@ -6001,6 +6240,7 @@ function TaskListCard({
   onDeleted?: () => void;
   canDeleteTaskList?: boolean;
   canManageShareCode?: boolean;
+  canEditTasks?: boolean;
   activeTaskActionTaskId?: string | null;
   onOpenTaskAction?: (taskListId: string, taskId: string) => void;
   onCloseTaskAction?: () => void;
@@ -6101,7 +6341,7 @@ function TaskListCard({
       pendingTasksRef.current = null;
       setPendingTasks(null);
     }
-  }, [normalizePendingTasks, pendingTasks, taskList.tasks]);
+  }, [normalizePendingTasks, pendingTasks, taskList.id, taskList.tasks]);
 
   useEffect(() => {
     if (isActive) return;
@@ -6320,13 +6560,15 @@ function TaskListCard({
                   </h2>
                 </div>
                 <div className="ll-relative ll-left-2 ll-flex ll-flex-wrap ll-justify-end">
-                  <EditTaskListDialog
-                    taskList={taskList}
-                    isActive={isActive}
-                    onActivate={onActivate}
-                    onDeleted={onDeleted}
-                    canDelete={canDeleteTaskList}
-                  />
+                  {canEditTasks ? (
+                    <EditTaskListDialog
+                      taskList={taskList}
+                      isActive={isActive}
+                      onActivate={onActivate}
+                      onDeleted={onDeleted}
+                      canDelete={canDeleteTaskList}
+                    />
+                  ) : null}
                   {canManageShareCode ? (
                     <ShareTaskListDialog
                       taskList={taskList}
@@ -6338,243 +6580,267 @@ function TaskListCard({
               </div>
               {taskError ? <Alert variant="error">{taskError}</Alert> : null}
             </div>
-            <form
-              ref={newTaskFormRef}
-              className="ll-flex ll-items-center"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const textToAdd = newTaskText.trim();
-                if (textToAdd === "") return;
-                addNewTask(textToAdd, textToAdd);
-              }}
-            >
-              <div className="ll-relative ll-min-w-0 ll-flex-1">
-                <CommandPrimitive
-                  shouldFilter={false}
-                  value={historyOptions[historyHighlightIndex] ?? ""}
-                  className="ll-bg-transparent"
+            {canEditTasks ? (
+              <>
+                <form
+                  ref={newTaskFormRef}
+                  className="ll-flex ll-items-center"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const textToAdd = newTaskText.trim();
+                    if (textToAdd === "") return;
+                    addNewTask(textToAdd, textToAdd);
+                  }}
                 >
-                  <input
-                    ref={newTaskInputRef}
-                    type="text"
-                    aria-label={t("pages.tasklist.addTaskPlaceholder")}
-                    role="combobox"
-                    aria-autocomplete="list"
-                    aria-haspopup="listbox"
-                    aria-controls={
-                      historyOptions.length > 0 ? historyListId : undefined
-                    }
-                    aria-expanded={historyOpen && historyOptions.length > 0}
-                    value={newTaskText}
-                    onChange={(event) => {
-                      setNewTaskText(event.target.value);
-                      setAddTaskError(null);
-                      setHistoryHighlightIndex(-1);
-                      setHistoryOpen(true);
-                    }}
-                    onFocus={() => {
-                      setHistoryHighlightIndex(-1);
-                      setHistoryOpen(true);
-                      setIsInputFocused(true);
-                      onNewTaskInputFocusChange(taskList.id, true);
-                    }}
-                    onBlur={() => {
-                      setHistoryOpen(false);
-                      setIsInputFocused(false);
-                      onNewTaskInputFocusChange(taskList.id, false);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.nativeEvent.isComposing) return;
-                      if (
-                        event.key === "ArrowDown" &&
-                        historyOpen &&
-                        historyOptions.length > 0
-                      ) {
-                        event.preventDefault();
-                        setHistoryHighlightIndex((current) =>
-                          Math.min(current + 1, historyOptions.length - 1),
-                        );
-                        return;
-                      }
-                      if (
-                        event.key === "ArrowUp" &&
-                        historyOpen &&
-                        historyOptions.length > 0
-                      ) {
-                        event.preventDefault();
-                        setHistoryHighlightIndex((current) =>
-                          Math.max(current - 1, -1),
-                        );
-                        return;
-                      }
-                      if (event.key === "Enter" && newTaskText.trim() !== "") {
-                        event.preventDefault();
-                        const selectedHistoryText =
-                          historyOptions[historyHighlightIndex];
-                        if (selectedHistoryText) {
-                          const previousText = newTaskText;
-                          addNewTask(selectedHistoryText, previousText);
-                          return;
-                        }
-                        event.currentTarget.form?.requestSubmit();
-                      }
-                      if (event.key === "Escape") {
-                        setHistoryOpen(false);
-                        setHistoryHighlightIndex(-1);
-                      }
-                    }}
-                    placeholder={t("pages.tasklist.addTaskPlaceholder")}
-                    className="ll-w-full ll-rounded-14px ll-border ll-border-gray-300 ll-bg-white-92 ll-px-3x5 ll-py-2x5 ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900-92 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
-                  />
-                  {historyOpen && historyOptions.length > 0 ? (
-                    <CommandPrimitive.List
-                      id={historyListId}
-                      className="ll-anim-pop ll-absolute ll-left-0 ll-right-0 ll-top-full ll-z-50 ll-mt-1 ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-p-1 ll-shadow-lg ll-dark-border-gray-700 ll-dark-bg-gray-900b"
+                  <div className="ll-relative ll-min-w-0 ll-flex-1">
+                    <CommandPrimitive
+                      shouldFilter={false}
+                      value={historyOptions[historyHighlightIndex] ?? ""}
+                      className="ll-bg-transparent"
                     >
-                      {historyOptions.map((text, index) => (
-                        <CommandPrimitive.Item
-                          key={text}
-                          value={text}
-                          aria-selected={index === historyHighlightIndex}
-                          data-selected={
-                            index === historyHighlightIndex ? "" : undefined
+                      <input
+                        ref={newTaskInputRef}
+                        type="text"
+                        aria-label={t("pages.tasklist.addTaskPlaceholder")}
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-haspopup="listbox"
+                        aria-controls={
+                          historyOptions.length > 0 ? historyListId : undefined
+                        }
+                        aria-expanded={historyOpen && historyOptions.length > 0}
+                        value={newTaskText}
+                        onChange={(event) => {
+                          setNewTaskText(event.target.value);
+                          setAddTaskError(null);
+                          setHistoryHighlightIndex(-1);
+                          setHistoryOpen(true);
+                        }}
+                        onFocus={() => {
+                          setHistoryHighlightIndex(-1);
+                          setHistoryOpen(true);
+                          setIsInputFocused(true);
+                          onNewTaskInputFocusChange(taskList.id, true);
+                        }}
+                        onBlur={() => {
+                          setHistoryOpen(false);
+                          setIsInputFocused(false);
+                          onNewTaskInputFocusChange(taskList.id, false);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.nativeEvent.isComposing) return;
+                          if (
+                            event.key === "ArrowDown" &&
+                            historyOpen &&
+                            historyOptions.length > 0
+                          ) {
+                            event.preventDefault();
+                            setHistoryHighlightIndex((current) =>
+                              Math.min(current + 1, historyOptions.length - 1),
+                            );
+                            return;
                           }
-                          onMouseDown={(event: MouseEvent<HTMLDivElement>) =>
-                            event.preventDefault()
+                          if (
+                            event.key === "ArrowUp" &&
+                            historyOpen &&
+                            historyOptions.length > 0
+                          ) {
+                            event.preventDefault();
+                            setHistoryHighlightIndex((current) =>
+                              Math.max(current - 1, -1),
+                            );
+                            return;
                           }
-                          onSelect={() => {
-                            const previousText = newTaskText;
-                            addNewTask(text, previousText);
-                          }}
-                          className={clsx(
-                            "ll-cursor-pointer ll-rounded-lg ll-px-3 ll-py-2 ll-text-sm ll-outline-none",
-                            index === historyHighlightIndex &&
-                              "ll-bg-gray-50 ll-dark-bg-gray-950",
-                          )}
+                          if (
+                            event.key === "Enter" &&
+                            newTaskText.trim() !== ""
+                          ) {
+                            event.preventDefault();
+                            const selectedHistoryText =
+                              historyOptions[historyHighlightIndex];
+                            if (selectedHistoryText) {
+                              const previousText = newTaskText;
+                              addNewTask(selectedHistoryText, previousText);
+                              return;
+                            }
+                            event.currentTarget.form?.requestSubmit();
+                          }
+                          if (event.key === "Escape") {
+                            setHistoryOpen(false);
+                            setHistoryHighlightIndex(-1);
+                          }
+                        }}
+                        placeholder={t("pages.tasklist.addTaskPlaceholder")}
+                        className="ll-w-full ll-rounded-14px ll-border ll-border-gray-300 ll-bg-white-92 ll-px-3x5 ll-py-2x5 ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900-92 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
+                      />
+                      {historyOpen && historyOptions.length > 0 ? (
+                        <CommandPrimitive.List
+                          id={historyListId}
+                          className="ll-anim-pop ll-absolute ll-left-0 ll-right-0 ll-top-full ll-z-50 ll-mt-1 ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-p-1 ll-shadow-lg ll-dark-border-gray-700 ll-dark-bg-gray-900b"
                         >
-                          {text}
-                        </CommandPrimitive.Item>
-                      ))}
-                    </CommandPrimitive.List>
-                  ) : null}
-                </CommandPrimitive>
-              </div>
-              <button
-                type="submit"
-                onMouseDown={(event) => event.preventDefault()}
-                disabled={newTaskText.trim() === ""}
-                aria-label={t("common.add")}
-                title={t("common.add")}
-                className={clsx(
-                  "ll-add-task-submit ll-pressable ll-ml-2 ll-inline-flex ll-h-10 ll-w-10 ll-shrink-0b ll-items-center ll-justify-center ll-overflow-hidden ll-rounded-xl ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-disabled-opacity-50",
-                  isInputFocused
-                    ? "ll-pointer-events-auto ll-opacity-100"
-                    : "ll-pointer-events-none ll-opacity-0",
-                )}
-              >
-                <span className="ll-sr-only">{t("common.add")}</span>
-                <span className="ll-relative ll-left-px">
-                  <AppIcon name="send" aria-hidden="true" focusable="false" />
-                </span>
-              </button>
-            </form>
-            {addTaskError ? (
-              <Alert variant="error">{addTaskError}</Alert>
-            ) : null}
-            <div className="ll-flex ll-items-center ll-justify-between ll-gap-2 ll-pb-6">
-              <button
-                type="button"
-                disabled={tasks.length < 2}
-                onClick={() => {
-                  void runTaskMutation({
-                    buildNextTasks: (currentTasks) => {
-                      if (autoSort) return currentTasks;
-                      const asStore = currentTasks.map((task, index) => ({
-                        ...task,
-                        order: (index + 1) * 1.0,
-                      }));
-                      const sorted = getAutoSortedTasks(asStore);
-                      return sorted.map(
-                        ({ id, text, completed, date, pinned }) => ({
-                          id,
-                          text,
-                          completed,
-                          date,
-                          pinned,
-                        }),
-                      );
-                    },
-                    commit: () => sortTasks(taskList.id),
-                    onSuccess: () => logTaskSort(),
-                    onError: (error) => {
-                      setTaskError(
-                        resolveErrorMessage(error, t, "common.error"),
-                      );
-                    },
-                  });
-                }}
-                className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-font-medium ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
-              >
-                <AppIcon name="sort" aria-hidden="true" focusable="false" />
-                {t("pages.tasklist.sort")}
-              </button>
-              <button
-                type="button"
-                disabled={deleteCompletedPending || completedTaskCount === 0}
-                onClick={async () => {
-                  if (
-                    completedTaskCount === 0 ||
-                    !window.confirm(
-                      t("pages.tasklist.deleteCompletedConfirm", {
-                        count: completedTaskCount,
-                      }),
-                    )
-                  ) {
-                    return;
-                  }
-                  setDeleteCompletedPending(true);
-                  if (
-                    !window.matchMedia("(prefers-reduced-motion: reduce)")
-                      .matches
-                  ) {
-                    setExitingTaskIds(
-                      new Set(
-                        tasks
-                          .filter((task) => task.completed)
-                          .map((task) => task.id),
-                      ),
-                    );
-                    await new Promise((resolve) => setTimeout(resolve, 120));
-                  }
-                  await runTaskMutationRef
-                    .current({
-                      buildNextTasks: (currentTasks) =>
-                        currentTasks.filter((task) => !task.completed),
-                      commit: () =>
-                        deleteCompletedTasks(taskList.id, resolvedTaskSettings),
-                      onSuccess: () =>
-                        logTaskDeleteCompleted({ count: completedTaskCount }),
-                      onError: (error) => {
-                        setTaskError(
-                          resolveErrorMessage(error, t, "common.error"),
+                          {historyOptions.map((text, index) => (
+                            <CommandPrimitive.Item
+                              key={text}
+                              value={text}
+                              aria-selected={index === historyHighlightIndex}
+                              data-selected={
+                                index === historyHighlightIndex ? "" : undefined
+                              }
+                              onMouseDown={(
+                                event: MouseEvent<HTMLDivElement>,
+                              ) => event.preventDefault()}
+                              onSelect={() => {
+                                const previousText = newTaskText;
+                                addNewTask(text, previousText);
+                              }}
+                              className={clsx(
+                                "ll-cursor-pointer ll-rounded-lg ll-px-3 ll-py-2 ll-text-sm ll-outline-none",
+                                index === historyHighlightIndex &&
+                                  "ll-bg-gray-50 ll-dark-bg-gray-950",
+                              )}
+                            >
+                              {text}
+                            </CommandPrimitive.Item>
+                          ))}
+                        </CommandPrimitive.List>
+                      ) : null}
+                    </CommandPrimitive>
+                  </div>
+                  <button
+                    type="submit"
+                    onMouseDown={(event) => event.preventDefault()}
+                    disabled={newTaskText.trim() === ""}
+                    aria-label={t("common.add")}
+                    title={t("common.add")}
+                    className={clsx(
+                      "ll-add-task-submit ll-pressable ll-ml-2 ll-inline-flex ll-h-10 ll-w-10 ll-shrink-0b ll-items-center ll-justify-center ll-overflow-hidden ll-rounded-xl ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-disabled-opacity-50",
+                      isInputFocused
+                        ? "ll-pointer-events-auto ll-opacity-100"
+                        : "ll-pointer-events-none ll-opacity-0",
+                    )}
+                  >
+                    <span className="ll-sr-only">{t("common.add")}</span>
+                    <span className="ll-relative ll-left-px">
+                      <AppIcon
+                        name="send"
+                        aria-hidden="true"
+                        focusable="false"
+                      />
+                    </span>
+                  </button>
+                </form>
+                {addTaskError ? (
+                  <Alert variant="error">{addTaskError}</Alert>
+                ) : null}
+                <div className="ll-flex ll-items-center ll-justify-between ll-gap-2 ll-pb-6">
+                  <button
+                    type="button"
+                    disabled={tasks.length < 2}
+                    onClick={() => {
+                      void runTaskMutation({
+                        buildNextTasks: (currentTasks) => {
+                          if (autoSort) return currentTasks;
+                          const asStore = currentTasks.map((task, index) => ({
+                            ...task,
+                            order: (index + 1) * 1.0,
+                          }));
+                          const sorted = getAutoSortedTasks(asStore);
+                          return sorted.map(
+                            ({ id, text, completed, date, pinned }) => ({
+                              id,
+                              text,
+                              completed,
+                              date,
+                              pinned,
+                            }),
+                          );
+                        },
+                        commit: () => sortTasks(taskList.id),
+                        onSuccess: () => logTaskSort(),
+                        onError: (error) => {
+                          setTaskError(
+                            resolveErrorMessage(error, t, "common.error"),
+                          );
+                        },
+                      });
+                    }}
+                    className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-font-medium ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
+                  >
+                    <AppIcon name="sort" aria-hidden="true" focusable="false" />
+                    {t("pages.tasklist.sort")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      deleteCompletedPending || completedTaskCount === 0
+                    }
+                    onClick={async () => {
+                      if (
+                        completedTaskCount === 0 ||
+                        !window.confirm(
+                          t("pages.tasklist.deleteCompletedConfirm", {
+                            count: completedTaskCount,
+                          }),
+                        )
+                      ) {
+                        return;
+                      }
+                      setDeleteCompletedPending(true);
+                      if (
+                        !window.matchMedia("(prefers-reduced-motion: reduce)")
+                          .matches
+                      ) {
+                        setExitingTaskIds(
+                          new Set(
+                            tasks
+                              .filter((task) => task.completed)
+                              .map((task) => task.id),
+                          ),
                         );
-                      },
-                    })
-                    .finally(() => {
-                      setDeleteCompletedPending(false);
-                      setExitingTaskIds(null);
-                    });
-                }}
-                className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-font-medium ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-50 ll-dark-focus-visible-outline-red-400"
-              >
-                {deleteCompletedPending
-                  ? t("common.deleting")
-                  : t("pages.tasklist.deleteCompleted")}
-                <span className="ll-pr-1">
-                  <AppIcon name="delete" aria-hidden="true" focusable="false" />
-                </span>
-              </button>
-            </div>
+                        await new Promise((resolve) =>
+                          setTimeout(resolve, 120),
+                        );
+                      }
+                      await runTaskMutationRef
+                        .current({
+                          buildNextTasks: (currentTasks) =>
+                            currentTasks.filter((task) => !task.completed),
+                          commit: () =>
+                            deleteCompletedTasks(
+                              taskList.id,
+                              resolvedTaskSettings,
+                            ),
+                          onSuccess: () =>
+                            logTaskDeleteCompleted({
+                              count: completedTaskCount,
+                            }),
+                          onError: (error) => {
+                            setTaskError(
+                              resolveErrorMessage(error, t, "common.error"),
+                            );
+                          },
+                        })
+                        .finally(() => {
+                          setDeleteCompletedPending(false);
+                          setExitingTaskIds(null);
+                        });
+                    }}
+                    className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-font-medium ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-50 ll-dark-focus-visible-outline-red-400"
+                  >
+                    {deleteCompletedPending
+                      ? t("common.deleting")
+                      : t("pages.tasklist.deleteCompleted")}
+                    <span className="ll-pr-1">
+                      <AppIcon
+                        name="delete"
+                        aria-hidden="true"
+                        focusable="false"
+                      />
+                    </span>
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
           <DragDropProvider
             sensors={SORTABLE_SENSORS}
@@ -6627,6 +6893,7 @@ function TaskListCard({
                     key={task.id}
                     task={task}
                     index={index}
+                    canEdit={canEditTasks}
                     animateEnter={
                       knownTaskIds !== null && !knownTaskIds.has(task.id)
                     }
@@ -6889,12 +7156,19 @@ const buildAppHistoryState = (
     taskListId: string;
     taskId: string;
   } | null = null,
+  historyDepth = currentState &&
+  typeof currentState === "object" &&
+  typeof (currentState as Record<string, unknown>).lightlistAppHistoryDepth ===
+    "number"
+    ? (currentState as Record<string, unknown>).lightlistAppHistoryDepth
+    : 0,
 ): Record<string, unknown> => ({
   ...(currentState && typeof currentState === "object"
     ? (currentState as Record<string, unknown>)
     : {}),
   lightlistMobileStackInitialized: true,
   lightlistAppView: route.view,
+  lightlistAppHistoryDepth: historyDepth,
   lightlistTaskListId: route.view === "detail" ? route.taskListId : null,
   lightlistTaskActionTaskListId: taskAction?.taskListId ?? null,
   lightlistTaskActionTaskId: taskAction?.taskId ?? null,
@@ -6928,6 +7202,16 @@ const isInitializedAppHistoryState = (state: unknown): boolean =>
     (state as Record<string, unknown>).lightlistMobileStackInitialized === true,
   );
 
+const getAppHistoryDepth = (state: unknown): number => {
+  if (!isInitializedAppHistoryState(state) || typeof state !== "object") {
+    return 0;
+  }
+  const depth = (state as Record<string, unknown>).lightlistAppHistoryDepth;
+  return typeof depth === "number" && Number.isInteger(depth) && depth >= 0
+    ? depth
+    : 0;
+};
+
 const getCurrentHistoryState = (): Record<string, unknown> | null =>
   window.history.state && typeof window.history.state === "object"
     ? (window.history.state as Record<string, unknown>)
@@ -6935,7 +7219,7 @@ const getCurrentHistoryState = (): Record<string, unknown> | null =>
 
 const replaceHistoryForRoute = (route: KnownAppHashRoute): void => {
   window.history.replaceState(
-    buildAppHistoryState(route, getCurrentHistoryState(), null),
+    buildAppHistoryState(route, null, null, 0),
     "",
     toAppUrl(route),
   );
@@ -6943,7 +7227,12 @@ const replaceHistoryForRoute = (route: KnownAppHashRoute): void => {
 
 const pushHistoryForRoute = (route: KnownAppHashRoute): void => {
   window.history.pushState(
-    buildAppHistoryState(route, getCurrentHistoryState(), null),
+    buildAppHistoryState(
+      route,
+      getCurrentHistoryState(),
+      null,
+      getAppHistoryDepth(window.history.state) + 1,
+    ),
     "",
     toAppUrl(route),
   );
@@ -7094,12 +7383,12 @@ function CalendarTaskItem({
   itemRef,
   isHighlighted,
 }: CalendarTaskItemProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = normalizeLanguage(i18n.language);
   const dateDisplayValue = useMemo(() => {
     if (!task.dateValue) return null;
-    const lang = document.documentElement.lang || "ja";
-    return getTaskDateFormatter(lang).format(task.dateValue);
-  }, [task.dateValue]);
+    return getTaskDateFormatter(language).format(task.dateValue);
+  }, [language, task.dateValue]);
 
   return (
     <div
@@ -7168,7 +7457,7 @@ function CalendarTaskItem({
           />
           <div
             data-completed={task.task.completed ? "true" : "false"}
-            className="ll-check-circle ll-task-completion-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-bg-transparent ll-transition-colors ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-peer-checked-bg-gray-700"
+            className="ll-check-circle ll-task-completion-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-bg-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-peer-checked-bg-gray-700"
           />
         </div>
         <button
@@ -7557,7 +7846,7 @@ function CalendarScreen({
       return left.taskIndex - right.taskIndex;
     });
     return flattened;
-  }, [optimisticDatedTasks, taskLists]);
+  }, [optimisticDatedTasks, taskLists, taskSettings.autoSort]);
 
   const datedTasksByMonth = useMemo<Record<string, DatedTask[]>>(() => {
     const map: Record<string, DatedTask[]> = {};
@@ -8134,7 +8423,9 @@ function AppShellPage() {
     taskListOrderStatus,
     taskLists: stateTaskLists,
   } = useTaskListIndexState();
-  const [startupTaskListSnapshot] = useState(readLastTaskListSnapshot);
+  const [startupTaskListSnapshot] = useState(() =>
+    readLastTaskListSnapshot(activeUid),
+  );
   const [selectedTaskListId, setSelectedTaskListId] = useState<string | null>(
     startupTaskListSnapshot?.id ?? null,
   );
@@ -8295,42 +8586,59 @@ function AppShellPage() {
     </div>
   );
 
-  const setViewState = (route: KnownAppHashRoute, mode: "push" | "replace") => {
-    setCurrentView(route.view);
-    setActiveTaskAction(null);
-    if (route.view === "detail") {
-      setSelectedTaskListId(route.taskListId);
-    }
-    setPendingInitialTaskListRoute(false);
+  const setViewState = useCallback(
+    (route: KnownAppHashRoute, mode: "push" | "replace") => {
+      startTransition(() => {
+        setCurrentView(route.view);
+        setActiveTaskAction(null);
+        if (route.view === "detail") {
+          setSelectedTaskListId(route.taskListId);
+        }
+        setPendingInitialTaskListRoute(false);
+      });
 
-    if (typeof window === "undefined") {
-      return;
-    }
+      if (typeof window === "undefined") {
+        return;
+      }
 
-    const nextState = buildAppHistoryState(route, window.history.state, null);
-    if (mode === "push") {
-      window.history.pushState(nextState, "", toAppUrl(route));
-      return;
-    }
+      const nextState = buildAppHistoryState(
+        route,
+        window.history.state,
+        null,
+        mode === "push"
+          ? getAppHistoryDepth(window.history.state) + 1
+          : getAppHistoryDepth(window.history.state),
+      );
+      if (mode === "push") {
+        window.history.pushState(nextState, "", toAppUrl(route));
+        return;
+      }
 
-    window.history.replaceState(nextState, "", toAppUrl(route));
-  };
-  const showTaskListsRoot = () =>
-    setViewState({ view: "taskLists" }, "replace");
-  const openTaskList = (
-    taskListId: string,
-    mode: "push" | "replace" = "replace",
-  ) =>
-    setViewState(
-      { view: "detail", taskListId },
-      isWideLayout ? "replace" : mode,
-    );
+      window.history.replaceState(nextState, "", toAppUrl(route));
+    },
+    [],
+  );
+  const showTaskListsRoot = useCallback(
+    () => setViewState({ view: "taskLists" }, "replace"),
+    [setViewState],
+  );
+  const openTaskList = useCallback(
+    (taskListId: string, mode: "push" | "replace" = "replace") =>
+      setViewState(
+        { view: "detail", taskListId },
+        isWideLayout ? "replace" : mode,
+      ),
+    [isWideLayout, setViewState],
+  );
   const openSettings = (mode: "push" | "replace" = "replace") =>
     setViewState({ view: "settings" }, isWideLayout ? "replace" : mode);
   const openLicenses = (mode: "push" | "replace" = "replace") =>
     setViewState({ view: "licenses" }, isWideLayout ? "replace" : mode);
-  const openCalendar = (mode: "push" | "replace" = "replace") =>
-    setViewState({ view: "calendar" }, isWideLayout ? "replace" : mode);
+  const openCalendar = useCallback(
+    (mode: "push" | "replace" = "replace") =>
+      setViewState({ view: "calendar" }, isWideLayout ? "replace" : mode),
+    [isWideLayout, setViewState],
+  );
   const getCurrentDetailRoute = (): KnownAppHashRoute | null => {
     if (currentView !== "detail" || selectedTaskListId === null) {
       return null;
@@ -8347,7 +8655,12 @@ function AppShellPage() {
       return;
     }
     window.history.pushState(
-      buildAppHistoryState(route, window.history.state, { taskListId, taskId }),
+      buildAppHistoryState(
+        route,
+        window.history.state,
+        { taskListId, taskId },
+        getAppHistoryDepth(window.history.state) + 1,
+      ),
       "",
       toAppUrl(route),
     );
@@ -8375,7 +8688,7 @@ function AppShellPage() {
   const handleBackToTaskLists = () => {
     if (
       typeof window !== "undefined" &&
-      window.history.length > 1 &&
+      getAppHistoryDepth(window.history.state) > 0 &&
       (currentView === "detail" ||
         currentView === "settings" ||
         currentView === "licenses" ||
@@ -8429,17 +8742,20 @@ function AppShellPage() {
     settings,
     settingsStatus,
     taskLists,
+    openCalendar,
+    openTaskList,
+    showTaskListsRoot,
   ]);
 
   useEffect(() => {
     if (!selectedTaskList) {
       return;
     }
-    writeLastTaskListSnapshot({
+    writeLastTaskListSnapshot(activeUid, {
       id: selectedTaskList.id,
       background: resolveTaskListBackground(selectedTaskList.background),
     });
-  }, [selectedTaskList]);
+  }, [activeUid, selectedTaskList]);
 
   useEffect(() => {
     if (activeTaskAction === null) {
@@ -8477,7 +8793,9 @@ function AppShellPage() {
     firstTaskListId,
     hasResolvedTaskLists,
     hasTaskLists,
+    openTaskList,
     selectedTaskList,
+    showTaskListsRoot,
   ]);
 
   const drawerPanel = (
@@ -8518,7 +8836,7 @@ function AppShellPage() {
           return;
         }
 
-        await addSharedTaskListToOrder(taskListId);
+        await addSharedTaskListToOrder(taskListId, code);
         openTaskList(taskListId, "push");
         logShareCodeJoin();
       }}
@@ -8661,8 +8979,7 @@ function AppShellPage() {
               <div
                 className={clsx(
                   !isWideLayout && "ll-h-full ll-overflow-y-auto",
-                  isWideLayout &&
-                    "ll-mx-auto ll-max-w-3xl ll-min-w-480px",
+                  isWideLayout && "ll-mx-auto ll-max-w-3xl ll-min-w-480px",
                 )}
               >
                 <TaskListCard
@@ -8968,15 +9285,16 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isProvisioning, setIsProvisioning] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
-    if (authStatus === "authenticated") {
+    if (authStatus === "authenticated" && !isProvisioning) {
       window.location.replace("/app/");
     }
-  }, [authStatus]);
+  }, [authStatus, isProvisioning]);
 
   const handleAuthAction = async (
     e: SubmitEvent<HTMLFormElement>,
@@ -9023,8 +9341,13 @@ function LoginPage() {
     void handleAuthAction(
       e,
       async () => {
-        await signUp(email, password, resolvedLanguage);
-        logSignUp();
+        setIsProvisioning(true);
+        try {
+          await signUp(email, password, resolvedLanguage);
+          logSignUp();
+        } finally {
+          setIsProvisioning(false);
+        }
       },
       { email, password, confirmPassword, requirePasswordConfirm: true },
       setLoading,
@@ -9474,6 +9797,7 @@ function HistoryBackButton() {
   const { t } = useTranslation();
   return (
     <button
+      type="button"
       onClick={() => window.history.back()}
       className="ll-pressable ll-rounded-full ll-p-2 ll-text-gray-600 ll-hover-bg-gray-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900"
       aria-label={t("common.back")}
@@ -9543,12 +9867,12 @@ function ShareCodePreviewPage() {
   const isMember = ownTaskLists.some((item) => item.id === sharedTaskListId);
 
   const handleAddToOrder = async () => {
-    if (!taskList || !user) return;
+    if (!taskList || !user || !sharecode) return;
 
     try {
       setAddToOrderLoading(true);
       setAddToOrderError(null);
-      await addSharedTaskListToOrder(taskList.id);
+      await addSharedTaskListToOrder(taskList.id, sharecode);
       logShareCodeJoin();
       window.location.assign("/app/");
     } catch (err) {
@@ -9598,6 +9922,7 @@ function ShareCodePreviewPage() {
         <HistoryBackButton />
         {user && (
           <button
+            type="button"
             onClick={handleAddToOrder}
             disabled={addToOrderLoading}
             className={TASK_CARD_PRIMARY_BUTTON_CLASS}
@@ -9630,6 +9955,7 @@ function ShareCodePreviewPage() {
             onNewTaskInputFocusChange={() => {}}
             canDeleteTaskList={isMember}
             canManageShareCode={isMember}
+            canEditTasks={isMember}
             activeTaskActionTaskId={activeTaskAction}
             onOpenTaskAction={(_, taskId) => setActiveTaskAction(taskId)}
             onCloseTaskAction={() => setActiveTaskAction(null)}
@@ -9668,14 +9994,29 @@ const warmUpStartupData = (): void => {
   const db = getDbInstance();
   void getDocFromCache(doc(db, "settings", uid)).catch(() => {});
   void getDocFromCache(doc(db, "taskListOrder", uid)).catch(() => {});
-  getTaskListIdChunks(readCachedTaskListOrderIds(uid)).forEach((chunk) => {
-    void getDocsFromCache(
-      query(collection(db, "taskLists"), where("__name__", "in", chunk)),
-    ).catch(() => {});
+  const cachedTaskListIds = readCachedTaskListOrderIds(uid);
+  void Promise.all(
+    cachedTaskListIds.map((taskListId) =>
+      getDocFromCache(
+        doc(db, "taskLists", taskListId, "members", uid),
+      )
+        .then((snapshot) => (snapshot.exists() ? taskListId : null))
+        .catch(() => null),
+    ),
+  ).then((memberTaskListIds) => {
+    getTaskListIdChunks(
+      memberTaskListIds.filter((taskListId): taskListId is string => taskListId !== null),
+    ).forEach((chunk) => {
+      void getDocsFromCache(
+        query(collection(db, "taskLists"), where("__name__", "in", chunk)),
+      ).catch(() => {});
+    });
   });
 };
 
-if (!isAuthFreePage()) {
+const loadAppData = pageKey === "app" || pageKey === "sharecodes";
+
+if (loadAppData) {
   getAuthInstance();
   getDbInstance();
   warmUpStartupData();
@@ -9686,7 +10027,7 @@ webBootstrapState.root = root;
 
 root.render(
   <StrictMode>
-    <AppWrapper>
+    <AppWrapper loadAppData={loadAppData}>
       <Page />
     </AppWrapper>
   </StrictMode>,

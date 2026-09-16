@@ -12,23 +12,11 @@ service cloud.firestore {
     }
 
     match /shareCodes/{shareCode} {
-      function getUserTaskListOrderBefore() {
-        return request.auth != null
-          ? get(/databases/$(database)/documents/taskListOrder/$(request.auth.uid)).data
-          : null;
-      }
-
-      function getUserTaskListOrderAfter() {
-        return request.auth != null
-          ? getAfter(/databases/$(database)/documents/taskListOrder/$(request.auth.uid)).data
-          : null;
-      }
-
       function canAccessTaskList(taskListId) {
-        let orderBefore = getUserTaskListOrderBefore();
-        let orderAfter = getUserTaskListOrderAfter();
-        return (orderBefore != null && taskListId in orderBefore)
-          || (orderAfter != null && taskListId in orderAfter);
+        return (request.auth != null
+            && exists(/databases/$(database)/documents/taskLists/$(taskListId)/members/$(request.auth.uid)))
+          || (request.auth != null
+            && existsAfter(/databases/$(database)/documents/taskLists/$(taskListId)/members/$(request.auth.uid)));
       }
 
       // 同一 commit で taskList.shareCode が自分を指すことを要求し、
@@ -58,26 +46,19 @@ service cloud.firestore {
         return ['id', 'name', 'tasks', 'history', 'shareCode', 'background', 'memberCount', 'createdAt', 'updatedAt'];
       }
 
-      // ヘルパー関数: taskListOrderを取得
-      function getTaskListOrderBefore() {
+      // membership document が存在するかを確認
+      function isMemberBefore() {
         return request.auth != null
-          ? get(/databases/$(database)/documents/taskListOrder/$(request.auth.uid)).data
-          : null;
+          && exists(/databases/$(database)/documents/taskLists/$(taskListId)/members/$(request.auth.uid));
       }
 
-      function getTaskListOrderAfter() {
+      function isMemberAfter() {
         return request.auth != null
-          ? getAfter(/databases/$(database)/documents/taskListOrder/$(request.auth.uid)).data
-          : null;
+          && existsAfter(/databases/$(database)/documents/taskLists/$(taskListId)/members/$(request.auth.uid));
       }
 
-      function hasTaskListInOrder(orderData) {
-        return orderData != null && taskListId in orderData;
-      }
-
-      // ヘルパー関数: taskListOrderに含まれているか確認
-      function isInTaskListOrder() {
-        return request.auth != null && hasTaskListInOrder(getTaskListOrderBefore());
+      function isMemberBeforeOrAfter() {
+        return isMemberBefore() || isMemberAfter();
       }
 
       // ヘルパー関数: 有効な共有コード紐付けがあるか確認
@@ -95,15 +76,31 @@ service cloud.firestore {
             || (
               request.auth != null
               && request.resource.data.memberCount == resource.data.memberCount + 1
-              && !hasTaskListInOrder(getTaskListOrderBefore())
-              && hasTaskListInOrder(getTaskListOrderAfter())
+              && !isMemberBefore()
+              && isMemberAfter()
             )
             || (
               request.auth != null
               && request.resource.data.memberCount == resource.data.memberCount - 1
-              && hasTaskListInOrder(getTaskListOrderBefore())
-              && !hasTaskListInOrder(getTaskListOrderAfter())
+              && isMemberBefore()
+              && !isMemberAfter()
             )
+          );
+      }
+
+      function hasValidTaskListFields() {
+        let background = request.resource.data.get('background', null);
+        return request.resource.data.id is string
+          && request.resource.data.name is string
+          && request.resource.data.tasks is map
+          && request.resource.data.history is list
+          && request.resource.data.history.size() <= 300
+          && request.resource.data.memberCount is int
+          && request.resource.data.createdAt is int
+          && request.resource.data.updatedAt is int
+          && (
+            background == null
+            || (background is string && background.matches('^#[0-9A-Fa-f]{6}$'))
           );
       }
 
@@ -128,22 +125,74 @@ service cloud.firestore {
           ));
       }
 
-      // 読み取り権限: taskListOrderに含まれている、または有効な共有コードが存在する
-      allow read: if isInTaskListOrder() || isValidShareCode();
+      match /members/{memberUid} {
+        function isSelf() {
+          return request.auth != null && request.auth.uid == memberUid;
+        }
 
-      // 作成権限: 認証済みユーザーであれば誰でも作成可能
+        function orderDocument() {
+          return /databases/$(database)/documents/taskListOrder/$(memberUid);
+        }
+
+        function hasOrderEntryAfter() {
+          return existsAfter(orderDocument())
+            && taskListId in getAfter(orderDocument()).data;
+        }
+
+        function isOwnerCreation() {
+          return !exists(/databases/$(database)/documents/taskLists/$(taskListId))
+            && existsAfter(/databases/$(database)/documents/taskLists/$(taskListId))
+            && getAfter(/databases/$(database)/documents/taskLists/$(taskListId)).data.memberCount == 1
+            && getAfter(/databases/$(database)/documents/taskLists/$(taskListId)).data.shareCode == null
+            && hasOrderEntryAfter()
+            && request.resource.data.get('joinCode', null) == null;
+        }
+
+        function isShareCodeJoin() {
+          let joinCode = request.resource.data.get('joinCode', null);
+          return joinCode is string
+            && joinCode.matches('^[A-Z0-9]{8}$')
+            && get(/databases/$(database)/documents/taskLists/$(taskListId)).data.shareCode == joinCode
+            && get(/databases/$(database)/documents/shareCodes/$(joinCode)).data.taskListId == taskListId
+            && get(/databases/$(database)/documents/taskLists/$(taskListId)).data.memberCount is int
+            && getAfter(/databases/$(database)/documents/taskLists/$(taskListId)).data.memberCount
+              == get(/databases/$(database)/documents/taskLists/$(taskListId)).data.memberCount + 1
+            && hasOrderEntryAfter();
+        }
+
+        allow read: if isSelf();
+        allow create: if isSelf()
+          && request.resource.data.keys().hasOnly(['joinedAt', 'joinCode'])
+          && request.resource.data.joinedAt is int
+          && (isOwnerCreation() || isShareCodeJoin());
+        allow update: if isSelf() && request.resource.data == resource.data;
+        allow delete: if isSelf()
+          && (
+            (!existsAfter(/databases/$(database)/documents/taskLists/$(taskListId))
+              && !hasOrderEntryAfter())
+            || (
+              exists(/databases/$(database)/documents/taskLists/$(taskListId))
+              && getAfter(/databases/$(database)/documents/taskLists/$(taskListId)).data.memberCount
+                == get(/databases/$(database)/documents/taskLists/$(taskListId)).data.memberCount - 1
+              && !hasOrderEntryAfter()
+            )
+          );
+      }
+
+      // 読み取り権限: membership documentに含まれている、または有効な共有コードが存在する
+      allow read: if isMemberBeforeOrAfter() || isValidShareCode();
+
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(allowedTaskListKeys())
+        && hasValidTaskListFields()
         && request.resource.data.id == taskListId
-        && request.resource.data.memberCount is int
         && request.resource.data.memberCount == 1
         && request.resource.data.get('shareCode', null) == null
-        && request.resource.data.createdAt is int
-        && request.resource.data.updatedAt is int;
+        && existsAfter(/databases/$(database)/documents/taskLists/$(taskListId)/members/$(request.auth.uid));
 
-      // 更新権限: taskListOrderに含まれている、または有効な共有コードが存在する場合
-      allow update: if (isInTaskListOrder() || isValidShareCode())
+      allow update: if isMemberBeforeOrAfter()
         && request.resource.data.keys().hasOnly(allowedTaskListKeys())
+        && hasValidTaskListFields()
         && request.resource.data.id == resource.data.id
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.updatedAt is int
@@ -151,10 +200,9 @@ service cloud.firestore {
         && isAllowedShareCodeChange();
 
       // 削除権限: 最後の保持者のみ実体削除可能
-      allow delete: if isInTaskListOrder()
+      allow delete: if isMemberBefore()
         && request.auth != null
-        && hasTaskListInOrder(getTaskListOrderBefore())
-        && !hasTaskListInOrder(getTaskListOrderAfter())
+        && !isMemberAfter()
         && resource.data.memberCount is int
         && resource.data.memberCount <= 1
         && isPreviousShareCodeRemoved();

@@ -181,6 +181,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
@@ -245,7 +246,6 @@ import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
 import com.google.firebase.FirebaseApp
-import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import java.text.DateFormatSymbols
 
@@ -689,15 +689,11 @@ private fun warmUpStartupData(context: Context) {
             .addOnSuccessListener { snapshot ->
                 val orderedTaskListIds = parseOrderedTaskListIds(snapshot.data ?: emptyMap())
                 writeCachedTaskListOrderIds(uid, orderedTaskListIds)
-                if (cachedTaskListIds.isEmpty()) {
-                    orderedTaskListIds.chunked(10).forEach { chunk ->
-                        db.collection("taskLists")
-                            .whereIn(FieldPath.documentId(), chunk)
-                            .get(Source.CACHE)
-                    }
-                }
             }
-        cachedTaskListIds.chunked(10).forEach { chunk ->
+        val cachedMemberTaskListIds = runBlocking {
+            resolveMemberTaskListIds(db, cachedTaskListIds, uid, Source.CACHE)
+        }
+        cachedMemberTaskListIds.chunked(10).forEach { chunk ->
             db.collection("taskLists")
                 .whereIn(FieldPath.documentId(), chunk)
                 .get(Source.CACHE)
@@ -718,13 +714,13 @@ private fun normalizeStartupView(value: String?): String = when (value) {
 }
 
 class MainActivity : ComponentActivity() {
-    private var pendingDeepLink by mutableStateOf(parseDeepLink(intent))
+    private var pendingDeepLink by mutableStateOf<PendingDeepLink?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingDeepLink = parseDeepLink(intent)
 
         FirebaseApp.initializeApp(this)
-        FirebaseAppCheck.getInstance().installAppCheckProviderFactory(appCheckProviderFactory())
         warmUpStartupData(applicationContext)
 
         enableEdgeToEdge()
@@ -1004,6 +1000,7 @@ private data class CalendarTask(
     val dateKey: String,
     val dateValue: java.util.Date?,
     val pinned: Boolean,
+    val order: Double,
     val taskListIndex: Int,
     val taskIndex: Int
 )
@@ -1224,6 +1221,11 @@ private suspend fun signUpWithInitialData(
     db.batch().apply {
         set(db.collection("settings").document(uid), settingsData)
         set(db.collection("taskLists").document(taskListId), taskListData)
+        set(
+            db.collection("taskLists").document(taskListId)
+                .collection("members").document(uid),
+            mapOf("joinedAt" to now, "joinCode" to null)
+        )
         set(db.collection("taskListOrder").document(uid), taskListOrderData)
     }.commit().await()
 }
@@ -1347,63 +1349,97 @@ private fun <T> subscribeToOrderedTaskLists(
     var orderListener: ListenerRegistration? = null
     var disposed = false
     var chunkGeneration = 0
+    var accessibleTaskListIds = emptyList<String>()
+    var membershipTask: Job? = null
     val failedScopes = mutableSetOf<String>()
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    lateinit var membershipRetry: SyncListenerRetryController
 
     fun publish() {
         onPublish(orderedTaskListIds.mapNotNull { taskListsById[it] })
         if (failedScopes.isNotEmpty()) onError?.invoke()
     }
 
-    fun subscribeToTaskLists(ids: List<String>) {
+    fun subscribeToTaskLists(ids: List<String>, forceMembershipRefresh: Boolean = false) {
         val key = ids.sorted().joinToString("|")
-        if (taskListIdsKey == key) { publish(); return }
+        if (!forceMembershipRefresh && taskListIdsKey == key) { publish(); return }
         taskListIdsKey = key
         chunkGeneration += 1
         val generation = chunkGeneration
+        membershipTask?.cancel()
+        membershipTask = null
         chunkDisposers.forEach { it() }
         failedScopes.removeAll { it != "order" }
-        taskListsById = taskListsById.filterKeys { it in ids }
-        chunkDisposers = ids.chunked(10).map { chunk ->
-            val chunkKey = chunk.joinToString("|")
-            var listener: ListenerRegistration? = null
-            lateinit var retry: SyncListenerRetryController
-            fun install() {
-                if (disposed || generation != chunkGeneration) return
-                listener?.remove()
-                listener = db.collection("taskLists")
-                    .whereIn(FieldPath.documentId(), chunk)
-                    .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
-                        if (disposed || generation != chunkGeneration) return@addSnapshotListener
-                        if (error != null) {
-                            listener?.remove()
-                            listener = null
-                            failedScopes.add(chunkKey)
-                            retry.fail("task_lists", error)
-                            onError?.invoke()
-                            return@addSnapshotListener
-                        }
-                        val next = taskListsById.filterKeys { it !in chunk }.toMutableMap()
-                        snapshot?.documents?.forEach { document ->
-                            scheduleMalformedTaskCleanup(
-                                document.id, document.data ?: emptyMap(),
-                                document.metadata.isFromCache, document.metadata.hasPendingWrites()
-                            )
-                            next[document.id] = parseDocument(document.id, decodeTaskListRecord(document))
-                        }
-                        taskListsById = next
-                        val fromCache = snapshot?.metadata?.isFromCache ?: true
-                        if (!fromCache) failedScopes.remove(chunkKey)
-                        retry.markHealthy(fromCache)
-                        publish()
-                    }
-            }
-            retry = SyncListenerRetryController(scope, ::install, ::recordSyncListenerError)
-            install()
-            val dispose: () -> Unit = { retry.dispose(); listener?.remove() }
-            dispose
+        accessibleTaskListIds = emptyList()
+        taskListsById = emptyMap()
+        chunkDisposers = emptyList()
+        if (ids.isEmpty()) {
+            publish()
+            return
         }
-        publish()
+        fun installTaskListChunks(taskListIds: List<String>) {
+            accessibleTaskListIds = taskListIds
+            chunkDisposers = taskListIds.chunked(10).map { chunk ->
+                    val chunkKey = chunk.joinToString("|")
+                    var listener: ListenerRegistration? = null
+                    lateinit var retry: SyncListenerRetryController
+                    fun install() {
+                        if (disposed || generation != chunkGeneration) return
+                        listener?.remove()
+                        listener = db.collection("taskLists")
+                            .whereIn(FieldPath.documentId(), chunk)
+                            .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
+                                if (disposed || generation != chunkGeneration) return@addSnapshotListener
+                                if (error != null) {
+                                    listener?.remove()
+                                    listener = null
+                                    failedScopes.add(chunkKey)
+                                    retry.fail("task_lists", error)
+                                    onError?.invoke()
+                                    return@addSnapshotListener
+                                }
+                                val next = taskListsById.filterKeys { it !in chunk }.toMutableMap()
+                                snapshot?.documents?.forEach { document ->
+                                    scheduleMalformedTaskCleanup(
+                                        document.id, document.data ?: emptyMap(),
+                                        document.metadata.isFromCache, document.metadata.hasPendingWrites()
+                                    )
+                                    next[document.id] = parseDocument(document.id, decodeTaskListRecord(document))
+                                }
+                                taskListsById = next
+                                val fromCache = snapshot?.metadata?.isFromCache ?: true
+                                if (!fromCache) failedScopes.remove(chunkKey)
+                                retry.markHealthy(fromCache)
+                                publish()
+                            }
+                    }
+                    retry = SyncListenerRetryController(scope, ::install, ::recordSyncListenerError)
+                    install()
+                    val dispose: () -> Unit = { retry.dispose(); listener?.remove() }
+                    dispose
+            }
+        }
+
+        membershipTask = scope.launch {
+            try {
+                val memberIds = resolveMemberTaskListIds(db, ids, userId)
+                if (disposed || generation != chunkGeneration) return@launch
+                failedScopes.remove("membership")
+                installTaskListChunks(memberIds)
+                publish()
+            } catch (error: Exception) {
+                if (disposed || generation != chunkGeneration) return@launch
+                if ((error as? FirebaseFirestoreException)?.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    failedScopes.remove("membership")
+                    installTaskListChunks(ids)
+                    publish()
+                    return@launch
+                }
+                failedScopes.add("membership")
+                membershipRetry.fail("task_list_membership", error)
+                onError?.invoke()
+            }
+        }
     }
 
     lateinit var orderRetry: SyncListenerRetryController
@@ -1426,15 +1462,22 @@ private fun <T> subscribeToOrderedTaskLists(
                 val fromCache = snapshot?.metadata?.isFromCache ?: true
                 if (!fromCache) failedScopes.remove("order")
                 orderRetry.markHealthy(fromCache)
-                subscribeToTaskLists(orderedTaskListIds)
+                subscribeToTaskLists(orderedTaskListIds, forceMembershipRefresh = true)
             }
     }
     orderRetry = SyncListenerRetryController(scope, ::installOrderListener, ::recordSyncListenerError)
+    membershipRetry = SyncListenerRetryController(
+        scope,
+        { subscribeToTaskLists(orderedTaskListIds, forceMembershipRefresh = true) },
+        ::recordSyncListenerError
+    )
     subscribeToTaskLists(orderedTaskListIds)
     installOrderListener()
     return {
         disposed = true
         orderRetry.dispose()
+        membershipRetry.dispose()
+        membershipTask?.cancel()
         orderListener?.remove()
         chunkDisposers.forEach { it() }
         scope.cancel()
@@ -1449,6 +1492,7 @@ fun RootScreen(
     val navController = rememberNavController()
     var isLoggedIn by remember { mutableStateOf(Firebase.auth.currentUser != null) }
     var currentUserId by remember { mutableStateOf(Firebase.auth.currentUser?.uid) }
+    var authStateResolved by remember { mutableStateOf(Firebase.auth.currentUser != null) }
     var authScreen by rememberSaveable { mutableStateOf(AuthScreen.SignIn) }
     var pendingPasswordResetCode by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingSharePreviewCode by rememberSaveable { mutableStateOf<String?>(null) }
@@ -1456,9 +1500,10 @@ fun RootScreen(
 
     DisposableEffect(Unit) {
         val listener = FirebaseAuth.AuthStateListener { auth ->
+            FirebaseCrashlytics.getInstance().setUserId(auth.currentUser?.uid ?: "")
             isLoggedIn = auth.currentUser != null
             currentUserId = auth.currentUser?.uid
-            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setUserId(auth.currentUser?.uid ?: "")
+            authStateResolved = true
         }
         Firebase.auth.addAuthStateListener(listener)
         onDispose { Firebase.auth.removeAuthStateListener(listener) }
@@ -1590,6 +1635,13 @@ fun RootScreen(
                         }
                     }
 
+                    LaunchedEffect(currentUserId) {
+                        navController.navigate(AppRoute.TaskLists.route) {
+                            popUpTo(navController.graph.startDestinationId)
+                            launchSingleTop = true
+                        }
+                    }
+
                     LaunchedEffect(requestedTaskListId, isLoggedIn) {
                         val taskListId = requestedTaskListId ?: return@LaunchedEffect
                         if (!isLoggedIn) {
@@ -1603,7 +1655,7 @@ fun RootScreen(
                 }
             }
 
-            if (!isLoggedIn) {
+            if (authStateResolved && !isLoggedIn) {
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -1615,6 +1667,14 @@ fun RootScreen(
                         onScreenChange = { authScreen = it }
                     )
                 }
+            }
+
+            if (!authStateResolved) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                )
             }
         }
     }
@@ -1654,6 +1714,7 @@ private fun SharedTaskListPreviewScreen(
                     taskInsertPosition = settingsState.taskInsertPosition,
                     autoSort = settingsState.autoSort,
                     topInset = 56.dp,
+                    allowTaskEditing = previewUiState.isAdded,
                     allowTaskListDeletion = previewUiState.isAdded,
                     allowShareCodeManagement = previewUiState.isAdded
                 )
@@ -1698,7 +1759,7 @@ private fun SharedTaskListPreviewScreen(
                             isJoining = true
                             addToOrderError = null
                             try {
-                                addSharedTaskListToOrder(previewUiState.taskListId)
+                                addSharedTaskListToOrder(previewUiState.taskListId, shareCode)
                                 logShareCodeJoin()
                                 onAdded(previewUiState.taskListId)
                             } catch (_: Exception) {
@@ -1878,6 +1939,30 @@ private fun parseOrderedTaskListIds(data: Map<String, Any>): List<String> {
             entry.key to order.toDouble()
         }
         .sortedWith(compareBy<Pair<String, Double>> { it.second }.thenBy { it.first })
+        .map { it.first }
+}
+
+private suspend fun resolveMemberTaskListIds(
+    db: FirebaseFirestore,
+    taskListIds: List<String>,
+    userId: String,
+    source: Source = Source.DEFAULT
+): List<String> = coroutineScope {
+    taskListIds.map { taskListId ->
+        async {
+            val membershipRef = db.collection("taskLists")
+                .document(taskListId)
+                .collection("members")
+                .document(userId)
+            val membershipSnapshot = if (source == Source.CACHE) {
+                runCatching { membershipRef.get(source).await() }.getOrNull()
+            } else {
+                membershipRef.get(source).await()
+            }
+            taskListId to (membershipSnapshot?.exists() == true)
+        }
+    }.awaitAll()
+        .filter { it.second }
         .map { it.first }
 }
 
@@ -2102,7 +2187,7 @@ private fun rememberSharedTaskListPreviewState(
             fun scheduleRetry(error: Exception) {
                 if (disposed || retryJob?.isActive == true) return
                 if (!reportedError) {
-                    recordSyncListenerError("task_list_order", error)
+                    recordSyncListenerError("membership", error)
                     reportedError = true
                 }
                 val delayMs = retryDelayMs
@@ -2117,16 +2202,16 @@ private fun rememberSharedTaskListPreviewState(
             installListener = listener@{
                 if (disposed) return@listener
                 clearListener()
-                listener = db.collection("taskListOrder").document(userId)
+                listener = db.collection("taskLists")
+                    .document(taskListId)
+                    .collection("members")
+                    .document(userId)
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
                             scheduleRetry(error)
                             return@addSnapshotListener
                         }
-                        val isAdded = snapshot?.data
-                            ?.let(::parseOrderedTaskListIds)
-                            ?.contains(taskListId)
-                            ?: false
+                        val isAdded = snapshot?.exists() == true
                         uiState = uiState.copy(isAdded = isAdded)
                         if (snapshot?.metadata?.isFromCache == false) {
                             retryDelayMs = 1000L
@@ -2205,15 +2290,17 @@ private suspend fun fetchTaskListIdByShareCode(shareCode: String): String? {
     return taskListId.takeIf { taskList.getString("shareCode") == normalized }
 }
 
-private suspend fun addSharedTaskListToOrder(taskListId: String) {
+private suspend fun addSharedTaskListToOrder(taskListId: String, joinCode: String) {
     val uid = Firebase.auth.currentUser?.uid ?: return
     val db = Firebase.firestore
     val taskListOrderRef = db.collection("taskListOrder").document(uid)
     val taskListRef = db.collection("taskLists").document(taskListId)
+    val membershipRef = taskListRef.collection("members").document(uid)
     val orderSnap = taskListOrderRef.get().await()
     val orderData = orderSnap.data ?: emptyMap()
+    val membershipSnap = membershipRef.get().await()
 
-    if (orderData.containsKey(taskListId)) {
+    if (orderData.containsKey(taskListId) && membershipSnap.exists()) {
         return
     }
 
@@ -2236,10 +2323,16 @@ private suspend fun addSharedTaskListToOrder(taskListId: String) {
             ),
             SetOptions.merge()
         )
-        update(taskListRef, mapOf(
-            "memberCount" to FieldValue.increment(1),
-            "updatedAt" to nowMillis()
-        ))
+        if (!membershipSnap.exists()) {
+            set(
+                membershipRef,
+                mapOf("joinedAt" to nowMillis(), "joinCode" to joinCode)
+            )
+            update(taskListRef, mapOf(
+                "memberCount" to FieldValue.increment(1),
+                "updatedAt" to nowMillis()
+            ))
+        }
     }.commit().await()
 }
 
@@ -2250,6 +2343,7 @@ private suspend fun removeTaskListMembership(
     taskListSnapshot: DocumentSnapshot
 ) {
     val taskListRef = taskListSnapshot.reference
+    val uid = Firebase.auth.currentUser?.uid ?: throw Exception("Missing user ID")
     db.batch().apply {
         update(
             taskListOrderRef,
@@ -2258,6 +2352,7 @@ private suspend fun removeTaskListMembership(
                 "updatedAt" to nowMillis()
             )
         )
+        delete(taskListRef.collection("members").document(uid))
         val memberCount = (taskListSnapshot.getLong("memberCount") ?: 1L).toInt()
         if (memberCount <= 1) {
             taskListSnapshot.getString("shareCode")
@@ -2286,23 +2381,33 @@ private fun flattenCalendarTasks(taskLists: List<TaskListDetail>): List<Calendar
         taskList.tasks
             .filter { !it.completed }
             .mapIndexed { taskIndex, task ->
-                val dateValue = task.date.takeIf { it.isNotBlank() }?.let(::parseTaskInputDate)
-                CalendarTask(
-                    id = "${taskList.id}:${task.id}",
-                    taskListId = taskList.id,
-                    taskListName = taskList.name,
-                    taskListBackground = taskList.background,
-                    taskId = task.id,
-                    text = task.text,
-                    completed = task.completed,
-                    dateKey = if (dateValue != null) task.date else "",
-                    dateValue = dateValue,
-                    pinned = task.pinned,
-                    taskListIndex = taskListIndex,
-                    taskIndex = taskIndex
-                )
+                makeCalendarTask(taskList, task, taskListIndex, taskIndex)
             }
     }.sortedWith(calendarTaskComparator)
+}
+
+private fun makeCalendarTask(
+    taskList: TaskListDetail,
+    task: TaskSummary,
+    taskListIndex: Int,
+    taskIndex: Int
+): CalendarTask {
+    val dateValue = task.date.takeIf { it.isNotBlank() }?.let(::parseTaskInputDate)
+    return CalendarTask(
+        id = "${taskList.id}:${task.id}",
+        taskListId = taskList.id,
+        taskListName = taskList.name,
+        taskListBackground = taskList.background,
+        taskId = task.id,
+        text = task.text,
+        completed = task.completed,
+        dateKey = if (dateValue != null) task.date else "",
+        dateValue = dateValue,
+        pinned = task.pinned,
+        order = task.order,
+        taskListIndex = taskListIndex,
+        taskIndex = taskIndex
+    )
 }
 
 private fun taskCountLabel(t: Translations, count: Int): String {
@@ -3529,7 +3634,7 @@ private fun CalendarTaskRow(
                         .size(TaskListDetailMetrics.completionDotSize)
                         .border(
                             width = 1.5.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
                             shape = CircleShape
                         )
                 )
@@ -3603,9 +3708,17 @@ private fun CalendarScreen(
         flattenCalendarTasks(calendarTaskLists)
     }
     var optimisticCalendarTasks by remember { mutableStateOf(emptyList<CalendarTask>()) }
-    val calendarTasks = remember(loadedCalendarTasks, optimisticCalendarTasks) {
+    var pendingCalendarTasks by remember { mutableStateOf<Map<String, CalendarTask?>>(emptyMap()) }
+    var calendarMutationRevisions by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var calendarMutationSequence by remember { mutableIntStateOf(0) }
+    val calendarTasks = remember(loadedCalendarTasks, optimisticCalendarTasks, pendingCalendarTasks) {
         val loadedIds = loadedCalendarTasks.mapTo(mutableSetOf()) { it.id }
-        (loadedCalendarTasks + optimisticCalendarTasks.filter { it.id !in loadedIds })
+        val pendingIds = pendingCalendarTasks.keys
+        (
+            loadedCalendarTasks.filter { it.id !in pendingIds } +
+                pendingCalendarTasks.values.filterNotNull() +
+                optimisticCalendarTasks.filter { it.id !in loadedIds && it.id !in pendingIds }
+            )
             .sortedWith(calendarTaskComparator)
     }
     var displayedMonth by remember {
@@ -3625,6 +3738,52 @@ private fun CalendarScreen(
     var editingTask by remember { mutableStateOf<CalendarTask?>(null) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = rememberCoroutineScope()
+
+    fun setPendingCalendarTasks(values: Map<String, CalendarTask?>): Int {
+        val revision = calendarMutationSequence + 1
+        calendarMutationSequence = revision
+        calendarMutationRevisions = calendarMutationRevisions + values.keys.associateWith { revision }
+        pendingCalendarTasks = pendingCalendarTasks + values
+        return revision
+    }
+
+    fun clearPendingCalendarTasks(values: Map<String, CalendarTask?>, revision: Int) {
+        val ids = values.keys.filter { calendarMutationRevisions[it] == revision }
+        if (ids.isEmpty()) return
+        pendingCalendarTasks = pendingCalendarTasks.filterKeys { it !in ids }
+        calendarMutationRevisions = calendarMutationRevisions.filterKeys { it !in ids }
+    }
+
+    fun displayedTasks(taskList: TaskListDetail): List<TaskSummary> {
+        val displayedById = calendarTasks
+            .filter { it.taskListId == taskList.id }
+            .associateBy { it.taskId }
+        val displayedTasks = taskList.tasks.map { currentTask ->
+            displayedById[currentTask.id]?.let { displayedTask ->
+                currentTask.copy(
+                    text = displayedTask.text,
+                    completed = displayedTask.completed,
+                    date = displayedTask.dateKey,
+                    pinned = displayedTask.pinned
+                )
+            } ?: currentTask
+        }
+        val existingTaskIds = taskList.tasks.mapTo(mutableSetOf()) { it.id }
+        val pendingOnlyTasks = displayedById.values
+            .filter { it.taskId !in existingTaskIds }
+            .map { pendingTask ->
+                TaskSummary(
+                    id = pendingTask.taskId,
+                    text = pendingTask.text,
+                    completed = pendingTask.completed,
+                    date = pendingTask.dateKey,
+                    order = pendingTask.order,
+                    pinned = pendingTask.pinned
+                )
+            }
+        return (displayedTasks + pendingOnlyTasks)
+            .sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
+    }
 
     LaunchedEffect(calendarTaskLists) {
         val loadedIds = calendarTaskLists.flatMap { taskList ->
@@ -3724,6 +3883,7 @@ private fun CalendarScreen(
             dateKey = if (dateValue != null) dateKey else "",
             dateValue = dateValue,
             pinned = pinned,
+            order = nextOrder,
             taskListIndex = taskListIndex,
             taskIndex = insertedIndex
         )
@@ -3750,20 +3910,39 @@ private fun CalendarScreen(
         transform: (TaskSummary) -> TaskSummary
     ) {
         val taskList = calendarTaskLists.firstOrNull { it.id == task.taskListId } ?: return
-        val currentTask = taskList.tasks.firstOrNull { it.id == task.taskId } ?: return
-        val orderedTasks = taskList.tasks.sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
+        val currentTask = displayedTasks(taskList).firstOrNull { it.id == task.taskId } ?: return
+        val orderedTasks = displayedTasks(taskList).sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
         val nextTasks = reconcileTasks(
             orderedTasks.map { if (it.id == task.taskId) transform(it) else it },
             settingsState.autoSort
         )
         val updates = buildTaskUpdateData(orderedTasks, nextTasks) +
             (additionalUpdatesBuilder?.invoke(taskList, currentTask) ?: emptyMap())
+        val nextTask = nextTasks.firstOrNull { it.id == task.taskId }
+        val pendingValue = nextTask?.let {
+            if (it.completed) {
+                null
+            } else {
+                makeCalendarTask(
+                    taskList,
+                    it,
+                    calendarTaskLists.indexOfFirst { list -> list.id == taskList.id },
+                    nextTasks.indexOf(it)
+                )
+            }
+        }
+        val pendingValues = mapOf(task.id to pendingValue)
+        val mutationRevision = setPendingCalendarTasks(pendingValues)
         logTaskUpdate(fields = logFields)
         addTaskError = null
-        TaskListMutationQueues.queueFor(taskList.id).enqueue(onError = { error ->
-            recordNonFatalException("calendar_task_update", error)
-            addTaskError = t.t("common.error")
-        }) {
+        TaskListMutationQueues.queueFor(taskList.id).enqueue(
+            onIdle = { clearPendingCalendarTasks(pendingValues, mutationRevision) },
+            onError = { error ->
+                clearPendingCalendarTasks(pendingValues, mutationRevision)
+                recordNonFatalException("calendar_task_update", error)
+                addTaskError = t.t("common.error")
+            }
+        ) {
             Firebase.firestore.collection("taskLists").document(taskList.id).update(updates)
         }
     }
@@ -3776,7 +3955,7 @@ private fun CalendarScreen(
     fun saveCalendarTask(task: CalendarTask, taskListId: String, text: String, pinned: Boolean, dateKey: String) {
         val trimmed = text.trim()
         val sourceTaskList = calendarTaskLists.firstOrNull { it.id == task.taskListId } ?: return
-        val currentTask = sourceTaskList.tasks.firstOrNull { it.id == task.taskId } ?: return
+        val currentTask = displayedTasks(sourceTaskList).firstOrNull { it.id == task.taskId } ?: return
         val resolved = resolveTaskInput(trimmed, t, currentTask)
         val nextText = if (trimmed.isEmpty()) "" else resolved.text
         if (taskListId == task.taskListId || !hasTaskContent(nextText, dateKey, pinned)) {
@@ -3795,7 +3974,8 @@ private fun CalendarScreen(
         }
 
         val targetTaskList = calendarTaskLists.firstOrNull { it.id == taskListId } ?: return
-        val orderedTargetTasks = targetTaskList.tasks.sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
+        val orderedTargetTasks = displayedTasks(targetTaskList)
+            .sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
         val nextOrder = if (settingsState.taskInsertPosition == "bottom") {
             (orderedTargetTasks.lastOrNull()?.order ?: 0.0) + 1.0
         } else {
@@ -3822,11 +4002,26 @@ private fun CalendarScreen(
             "updatedAt" to nowMillis()
         )
         logTaskUpdate(fields = "text,date,pinned,taskList")
+        val pendingValues = mapOf(
+            task.id to null,
+            "${targetTaskList.id}:${task.taskId}" to makeCalendarTask(
+                targetTaskList,
+                movedTask,
+                calendarTaskLists.indexOfFirst { it.id == targetTaskList.id },
+                nextTargetTasks.indexOfFirst { it.id == task.taskId }
+            )
+        )
+        val mutationRevision = setPendingCalendarTasks(pendingValues)
         addTaskError = null
-        TaskListMutationQueues.enqueueFor(listOf(task.taskListId, taskListId), onError = { error ->
-            recordNonFatalException("calendar_task_move", error)
-            addTaskError = t.t("common.error")
-        }) {
+        TaskListMutationQueues.enqueueFor(
+            listOf(task.taskListId, taskListId),
+            onIdle = { clearPendingCalendarTasks(pendingValues, mutationRevision) },
+            onError = { error ->
+                clearPendingCalendarTasks(pendingValues, mutationRevision)
+                recordNonFatalException("calendar_task_move", error)
+                addTaskError = t.t("common.error")
+            }
+        ) {
             val db = Firebase.firestore
             val batch = db.batch()
             batch.update(db.collection("taskLists").document(task.taskListId), sourceUpdates)
@@ -4729,6 +4924,11 @@ private fun TaskListsScreen(
                                     db.batch().apply {
                                         set(db.collection("taskLists").document(taskListId), newTaskList)
                                         set(
+                                            db.collection("taskLists").document(taskListId)
+                                                .collection("members").document(uid),
+                                            mapOf("joinedAt" to now, "joinCode" to null)
+                                        )
+                                        set(
                                             taskListOrderRef,
                                             taskListOrderUpdates,
                                             SetOptions.merge()
@@ -4804,7 +5004,7 @@ private fun TaskListsScreen(
                                     joiningList = false
                                     return@launch
                                 }
-                                addSharedTaskListToOrder(taskListId)
+                                addSharedTaskListToOrder(taskListId, code)
                                 logShareCodeJoin()
                                 showJoinDialog = false
                                 openTaskList(taskListId)
@@ -5176,6 +5376,7 @@ private fun TaskListRow(
     isEditing: Boolean,
     isDragged: Boolean,
     isExiting: Boolean,
+    allowTaskEditing: Boolean,
     reduceMotion: Boolean,
     taskDragOffset: Float,
     languageTag: String,
@@ -5252,15 +5453,16 @@ private fun TaskListRow(
                 )
                 .width(TaskListDetailMetrics.dragHandleTouchWidth)
                 .height(48.dp)
-                .pointerInput(task.id) {
+                .then(if (allowTaskEditing) Modifier.pointerInput(task.id) {
                     detectDragGestures(
                         onDragStart = { currentOnDragStart(it) },
                         onDragEnd = currentOnDragEnd,
                         onDragCancel = currentOnDragCancel,
                         onDrag = { change, dragAmount -> currentOnDrag(change, dragAmount) }
                     )
-                }
+                } else Modifier)
                 .onPreviewKeyEvent { event ->
+                    if (!allowTaskEditing) return@onPreviewKeyEvent false
                     if (event.type != KeyEventType.KeyDown || !event.isAltPressed) {
                         return@onPreviewKeyEvent false
                     }
@@ -5270,12 +5472,14 @@ private fun TaskListRow(
                         else -> false
                     }
                 }
-                .focusable()
+                .focusable(enabled = allowTaskEditing)
                 .semantics {
                     contentDescription = t.t("app.dragHint")
                     customActions = buildList {
-                        onMoveUp?.let { action -> add(CustomAccessibilityAction(t.t("a11y.moveUp")) { action() }) }
-                        onMoveDown?.let { action -> add(CustomAccessibilityAction(t.t("a11y.moveDown")) { action() }) }
+                        if (allowTaskEditing) {
+                            onMoveUp?.let { action -> add(CustomAccessibilityAction(t.t("a11y.moveUp")) { action() }) }
+                            onMoveDown?.let { action -> add(CustomAccessibilityAction(t.t("a11y.moveDown")) { action() }) }
+                        }
                     }
                 },
             contentAlignment = Alignment.Center
@@ -5294,11 +5498,11 @@ private fun TaskListRow(
                     contentDescription = if (task.completed) t.t("pages.tasklist.markIncomplete") else t.t("pages.tasklist.markComplete")
                     role = Role.Checkbox
                 }
-                .clickable { onToggleCompletion() },
+                .clickable(enabled = allowTaskEditing) { onToggleCompletion() },
             contentAlignment = Alignment.Center
         ) {
             val completionFillColor by animateColorAsState(
-                targetValue = if (task.completed) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+                targetValue = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 else Color.Transparent,
                 animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
                 label = "completionFillColor"
@@ -5317,7 +5521,7 @@ private fun TaskListRow(
                     .size(TaskListDetailMetrics.completionDotSize)
                     .border(
                         width = if (task.completed) 0.dp else 1.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
                         shape = CircleShape
                     )
                     .offset(x = (-3).dp),
@@ -5435,13 +5639,17 @@ private fun TaskListRow(
                                 start = TaskListDetailMetrics.taskTextStartPadding,
                                 top = TaskListDetailMetrics.taskTextTopPadding
                             )
-                            .clickable(onClickLabel = t.t("a11y.editTask")) { onTaskClick() }
+                            .clickable(
+                                enabled = allowTaskEditing,
+                                onClickLabel = t.t("a11y.editTask")
+                            ) { onTaskClick() }
                     )
                 }
             }
         }
         IconButton(
             onClick = onShowActions,
+            enabled = allowTaskEditing,
             modifier = Modifier
                 .width(TaskListDetailMetrics.trailingDateButtonWidth)
                 .height(48.dp)
@@ -5585,6 +5793,7 @@ private fun TaskListDetailContent(
     taskInsertPosition: String = "top",
     autoSort: Boolean = true,
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
+    allowTaskEditing: Boolean = true,
     allowTaskListDeletion: Boolean = true,
     allowShareCodeManagement: Boolean = true
 ) {
@@ -6143,15 +6352,17 @@ private fun TaskListDetailContent(
                     modifier = Modifier.offset(x = TaskListDetailMetrics.headerActionsEndOffset),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = { editName = taskList.name; editBackground = taskList.background; removeListError = null; showEditDialog = true },
-                        modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
-                    ) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = t.t("taskList.editTitle"),
-                            modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
-                        )
+                    if (allowTaskEditing) {
+                        IconButton(
+                            onClick = { editName = taskList.name; editBackground = taskList.background; removeListError = null; showEditDialog = true },
+                            modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
+                        ) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = t.t("taskList.editTitle"),
+                                modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
+                            )
+                        }
                     }
                     if (allowShareCodeManagement) {
                         Spacer(Modifier.width(TaskListDetailMetrics.headerActionSpacing))
@@ -6184,7 +6395,8 @@ private fun TaskListDetailContent(
                 )
             }
         }
-        item(key = "taskListInput", contentType = "input") {
+        if (allowTaskEditing) {
+            item(key = "taskListInput", contentType = "input") {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -6315,8 +6527,10 @@ private fun TaskListDetailContent(
                     }
                 }
             }
+            }
         }
-        item(key = "taskListActions", contentType = "actions") {
+        if (allowTaskEditing) {
+            item(key = "taskListActions", contentType = "actions") {
             Column(modifier = Modifier.padding(bottom = TaskListDetailMetrics.actionsBottomSpacing)) {
                 Row(
                     modifier = Modifier
@@ -6366,6 +6580,7 @@ private fun TaskListDetailContent(
                     }
                 }
             }
+            }
         }
         if (displayTasks.isEmpty()) {
             item(key = "emptyState", contentType = "emptyState") {
@@ -6404,6 +6619,7 @@ private fun TaskListDetailContent(
                     isEditing = isEditing,
                     isDragged = isDragged,
                     isExiting = exitingTaskIds.contains(task.id),
+                    allowTaskEditing = allowTaskEditing,
                     reduceMotion = reduceMotion,
                     taskDragOffset = taskDragOffset,
                     languageTag = languageTag,

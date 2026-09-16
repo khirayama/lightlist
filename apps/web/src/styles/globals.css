@@ -356,6 +356,36 @@ body {
   pointer-events: none;
 }
 
+.ll-task-row-with-date {
+  align-items: flex-end;
+}
+
+.ll-task-row-handle {
+  margin-inline-end: -1.25rem;
+}
+
+.ll-task-row-date {
+  translate: 0 0.5rem;
+}
+
+.ll-task-row-content {
+  min-height: 3rem;
+  margin-inline-start: -0.5rem;
+  justify-content: center;
+}
+
+.ll-task-row-content-with-date {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1.25rem minmax(3rem, auto);
+  justify-content: stretch;
+}
+
+.ll-task-row-text {
+  min-height: 3rem;
+  align-items: center;
+}
+
 .ll-calendar-task-row {
   padding-block-end: 0.25rem;
 }

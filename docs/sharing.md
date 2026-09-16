@@ -18,23 +18,22 @@
 
 - `addSharedTaskListToOrder()`: 事前 read 後の batch write で次を行う。
   - 自分の `taskListOrder` に末尾追加する。
+  - `taskLists/{taskListId}/members/{uid}` に共有コード加入の証明を作る。
   - `memberCount` を `+1` する。
   - `taskListOrder/{uid}` が欠損していても merge 書き込みで自動作成する。
   - 既に追加済みなら no-op とし、`memberCount` を重複加算しない。
 
 ## 共有権限モデル
 
-固定仕様。認可モデルの再設計は現時点で対応しない。
-
-- 共有 URL を知っているユーザーは、未認証でも共有リストを閲覧・編集できる。
-- 共有コードは bearer credential として扱う。コードを知る利用者は認証状態に関わらず、対象リストの `name` / `tasks` / `history` / `background` を更新できる。
-- ただし共有コードの発行・再生成・失効は `shareCodes` への書き込みを伴うため、認証済みかつ `taskListOrder` に保持しているユーザーだけが行える。コード保持者が任意のコードを勝手に張り替えることはできない。
+- 共有 URL を知っているユーザーは、未認証でも共有リストをプレビュー閲覧できる。
+- 共有コードはプレビュー取得用の bearer credential として扱う。対象リストの `name` / `tasks` / `history` / `background` の更新には membership document が必要で、未参加のコード保持者による編集は Rules で拒否する。
+- ただし共有コードの発行・再生成・失効は `shareCodes` への書き込みを伴うため、認証済みかつ membership document を持つユーザーだけが行える。コード保持者が任意のコードを勝手に張り替えることはできない。
 - 自分の一覧へ追加する操作だけは認証が必要。
-- 認証済みユーザーが `taskListOrder/{uid}` へ `taskListId` を追加することが、保持リストとしての権限付与の正本になる。
+- `taskListOrder/{uid}` は表示順専用であり、認証済みユーザーが任意の `taskListId` を追加しても権限は付与されない。加入時は、正しい共有コードを含む membership document を同一 batch で作成する。
 
 ## 画面導線
 
-- 共有コードプレビューは未認証でも開く。コード保持者はプレビュー上で名前・背景・タスク・履歴を編集できる。共有コード管理とタスクリスト削除の導線は、そのリストを `taskListOrder` に保持しているユーザーにだけ表示する（未参加の閲覧者には権限がなく必ず失敗するため）。ログイン済みかつ未参加のときだけ `taskListOrder` へ追加する導線を表示する。
+- 共有コードプレビューは未認証でも開く。未参加ユーザーの native / Web preview は task の追加・完了・編集・並び替えを含む編集 UI を表示せず、読み取り専用で扱う。編集と共有コード管理、タスクリスト削除の導線は membership document を持つユーザーにだけ表示する。ログイン済みかつ未参加のときだけ加入導線を表示する。
 - Web / HTTPS: `https://lightlist.com/sharecodes/?code=CODE`
 - iOS: `lightlist://sharecodes/CODE`、HTTPS 正規形
 - Android: `lightlist://sharecodes/CODE`、HTTPS 正規形

@@ -6,7 +6,7 @@
 
 - PII（メールアドレス、共有コード等）はイベント名・パラメータに含めない。
 - イベント一覧は helper の定義数ではなく、現行 UI から実際に送信されるものだけを記載する。
-- 開発時はデバッグ出力する（Web `console.log` / iOS `print` / Android `Log.d`）。
+- 開発時はデバッグ出力する（Web `console.log` / iOS `Logger` / Android `Log.d`）。
 - Web は Firebase App 初期化済みかつ `firebase/analytics` が利用可能な環境でのみ送信する。
 
 ## 例外送信

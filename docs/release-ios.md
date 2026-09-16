@@ -2,7 +2,7 @@
 
 ## ビルドツール
 
-- `Lightlist.xcodeproj` は Xcode 26.6 と XcodeGen 2.46.0 で `apps/ios/project.yml` から生成する。Swift 6 language mode、Firebase Apple SDK 12.18.0、LicensePlist 3.28.0 を使う。依存パッケージ解決と build tool plugin の実行を含め、提出物の生成前に `just build` または `just archive` を実行する。
+- `Lightlist.xcodeproj` は Xcode 26.6 と XcodeGen 2.46.0 で `apps/ios/project.yml` から生成する。Swift 6 language mode、MainActor デフォルト分離 + Approachable Concurrency、Firebase Apple SDK 12.19.2、LicensePlist 3.28.0 を使う。依存パッケージ解決と build tool plugin の実行を含め、提出物の生成前に `just build` または `just archive` を実行する。
 
 ## 判断事項
 
@@ -76,7 +76,7 @@ LIGHTLIST_IOS_TEAM_ID=XXXXXXXXXX just archive
 
 - アプリ内アカウント作成があるため、App Review に動作確認用のデモアカウント（メール + パスワード）を提供する。
 - アカウント削除導線はアプリ内 Settings に実装済み（App Store 必須要件）。
-- 共有コードの未認証閲覧・編集は仕様であることを Review Notes に記載すると審査がスムーズ。
+- 共有コードの未認証プレビュー閲覧と、認証済み membership 保持者だけが編集できる権限モデルを Review Notes に記載すると審査がスムーズ。
 
 ### 8. TestFlight → 公開
 

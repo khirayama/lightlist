@@ -7,7 +7,7 @@
 - 認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。`email` state はタブ間で共有する。
 - Web の `signin` / `signup` タブは選択中のタブだけを Tab 順に含め、左右矢印で切替、Home / End で先頭 / 末尾へ移動する。パスワードリセットはタブではない独立導線として扱い、表示中はタブリストを隠す。
 - メール / パスワードログインは Firebase Auth の応答待ちを 10 秒で打ち切り、loading state を戻して汎用認証エラーを表示する。
-- 認証完了直後に必要な初期ドキュメントは `settings` / `taskLists` / `taskListOrder` の 3 つ。
+- 認証完了直後に必要な初期ドキュメントは `settings` / `taskLists` / `taskLists/{taskListId}/members/{uid}` / `taskListOrder`。これらは同一 batch で作成する。
 - 設定画面は 3 プラットフォームとも淡いページ背景の上に、ボーダーレスの面カードを配置する。各セクション見出しはカード内の先頭に置き、設定行の操作領域は 44pt / 48dp 以上を維持する。
 
 ## Web の必須環境変数
@@ -26,9 +26,10 @@
 
 Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作成する。
 
-- 作成対象: `settings/{uid}` / `taskLists/{taskListId}` / `taskListOrder/{uid}`
+- 作成対象: `settings/{uid}` / `taskLists/{taskListId}` / `taskLists/{taskListId}/members/{uid}` / `taskListOrder/{uid}`
 - 初期設定: `theme: "system"` / `language: normalizeLanguage(language)` / `taskInsertPosition: "top"` / `autoSort: true` / `startupView: "taskList"`
 - 初期タスクリスト: `shared/locales/locales.json` の選択言語にある `app.initialTaskListName` / `tasks: {}` / `history: []` / `shareCode: null` / `background: null` / `memberCount: 1`
+- 初期 membership: `joinedAt` に作成時刻、`joinCode: null`。表示順の `taskListOrder` とは別に保持権限の正本として扱う。
 
 ## サインイン / サインアウト / 退会（Web）
 

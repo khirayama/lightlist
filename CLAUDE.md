@@ -22,7 +22,7 @@
 
 ## Firebase・配信
 
-- Firebase App Check は Web（reCAPTCHA v3）、iOS（Release は App Attest 優先、非対応端末は DeviceCheck、DEBUG は debug provider）、Android（Release は Play Integrity、debug は debug provider）で有効化する。Console 手順と enforcement の制約は `docs/app-check.md` を正とする。
+- Firebase App Check は使用しない。Web / iOS / Android のクライアントで provider を初期化せず、Firebase Console の enforcement も有効化しない。
 - Firebase のデプロイ設定（`firestore.rules`、`firebase.json`、`.firebaserc`、`firestore.indexes.json`）はリポジトリルートに置く。
 - Web の本番配信は Cloudflare Pages とする。Root directory は `apps/web`、output directory は `dist`、Node.js は `apps/web/.node-version` の `24.19.0`、package manager は `apps/web/package.json` の `npm@12.0.2` に固定する。
 - npm 12 の依存 install script は `apps/web/package.json` の完全バージョン付き `allowScripts` で明示承認し、依存更新時は `npm install-scripts ls` で未承認がないことを確認する。
@@ -42,7 +42,7 @@
 - Firestore の UI 更新は transaction を使わず、表示中の task 群を正規化して pending overlay に反映する。SDK への投入順とサーバー応答待ちを分離し、オフライン中も後続操作を SDK の永続キャッシュへ渡す。表示優先順は drag overlay → pending → listener。書き込み中の内容一致だけで pending を解放せず、同一リストの応答追跡が完了した時に解放する。
 - listener の再試行は settings / taskListOrder / 各 taskLists chunk ごとに独立させ、正常な購読を解除しない。他の購読の成功で失敗状態・再試行間隔をリセットしない。
 - カレンダー編集は本文・日付・ピンがすべて空になっても保存でき、そのタスクを削除する。空タスクの新規追加は禁止する。
-- 共有コードの生成・解除はサーバーの現在値を読み、Rules で旧コード文書の同時削除を保証する。コードの解決時もリストの現在コードと照合する。リストから参照されないコード文書は Rules で取得を拒否する。
+- 共有コードの生成・解除はサーバーの現在値を読み、Rules で旧コード文書の同時削除を保証する。コードの解決時もリストの現在コードと照合する。共有コードは未認証プレビューの読み取りに限り、taskList の更新には membership document を要求する。リストから参照されないコード文書は Rules で取得を拒否する。
 - 退会は確認画面のパスワードで `EmailAuthProvider` 再認証に成功してから Firestore を削除し、Auth ユーザー削除を最後に行う。パスワードは永続化・ログ出力しない。
 - Web の chunk group は `includeDependenciesRecursively: false`。明示 group の UI 依存は、group 外へ残った推移依存から entry へ戻る import が発生しないよう同じ group に含め、生成物の import 循環を確認する。date-fns の locale を通常 group へ入れず、英語の既定値と共通 helper は専用 group、他言語は言語別 dynamic import とする。Analytics とカレンダー翻訳の遅延分離を生成 HTML でも確認する。
 - Firestore の field path（`tasks.<id>.*` など）は update 系 API（Web `updateDoc` / iOS `updateData` / Android `update`）だけで書き込む。taskList の削除・共有参加も事前 read 後の batch write とする。

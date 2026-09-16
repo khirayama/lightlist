@@ -11,11 +11,12 @@
 
 ## タスクリスト操作
 
-- `createTaskList(name, background)`: `taskLists` 実体の作成と `taskListOrder` への追加を同時に行う。新規作成時の背景色は未設定（`null`）を既定とする。
+- `createTaskList(name, background)`: `taskLists` 実体、作成者の membership、`taskListOrder` への追加を同一 batch で行う。新規作成時の背景色は未設定（`null`）を既定とする。
 - `updateTaskList()`: `name` と `background` を更新する。
 - `updateTaskListOrder()`: 並び替え後に `1.0` 始まりの連番へ振り直す。連続操作時は listener 由来の旧順ではなく、ドラッグ開始時に表示していた pending を含む順序へ今回の移動を適用する。
 - `deleteTaskList()`: 事前 read 後の batch write で次を行う。transaction は使わない。
   - 自分の `taskListOrder` から対象を外す。
+  - 自分の `taskLists/{taskListId}/members/{uid}` を削除する。
   - `memberCount` を 1 減らす。
   - `memberCount` が 1 以下のときだけ `taskLists` 実体を削除する。
   - `shareCode` があれば対応する `shareCodes/{code}` も同じ batch で削除する。
@@ -66,6 +67,8 @@
 - 空または空白だけの `text` でも、日付あり・ピン留めの task はタスク一覧・カレンダー・タスクリスト件数に含める。本文・日付・ピンのすべてが空相当の task だけを除外する。
 - pinned task は強めの本文 weight で区別し、右端の task action はカレンダーではなくピンアイコンを表示する。
 - Web / iOS の task 本文は URL などの長い連続文字列でも行幅内で折り返し、右端 action や周辺レイアウトを横方向へ押し出さない。
+- Web のタスクリスト詳細では、drag handle・完了 checkbox・本文 1 行目・右端の日時 action を同じ縦の中心線へ揃える。日付なし task は空の日付行を表示せず本文を 48px の操作領域中央へ置き、日付あり task は上段 20px の日付表示 + 下段 48px の本文・操作領域とする。日付・本文は行の開始側（LTR は左、RTL は右）へ揃え、handle・checkbox・本文の操作領域は 48px を保ちつつ、隣接する見た目の間隔は詰める。
+- iOS / Android の完了 checkbox は未完了の枠と完了状態の塗りを共通の muted 色（light `#4B5563` / dark `#D1D5DB` 相当）で表示し、drag handle などの補助アイコンと色を揃える。システムのアクセント色は使わない。
 
 ## 追加・削除・並び替えの演出
 
@@ -110,12 +113,14 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 - 設定 `startupView` で、画面指定のない通常起動時の初期画面を切り替える。`taskList`（既定。選択中または先頭タスクリストの詳細）/ `calendar` / `taskLists`（タスクリスト一覧）。
 - どの選択肢でも戻る階層の root はタスクリスト一覧とする（Web は history stack、iOS は NavigationStack path、Android は back stack）。`taskLists` は root に留まり自動遷移しない。
 - 起動判定は cache-first とする。Web は settings の読込完了（cache 含む）後に初期遷移を確定し、iOS は UserDefaults cache（`lightlist.startupView`。settings listener で更新、ログアウトで削除）から同期的に初期 path / ペインを決める。Android は settings listener の初回 snapshot 後に自動遷移し、起動時の自動遷移は画面切替アニメーションを付けない。
+- Android は Firebase Auth の初回 state 通知を認証復元完了として扱い、通知前は認証画面を表示しない。UID が変わった場合は既存の back stack をタスクリスト一覧 root へ戻してから、そのユーザーの起動画面を判定する。
 - deep link（共有コード / パスワードリセット / Web の URL ハッシュ指定）は `startupView` より優先する。
 - タブレット / wide layout では `calendar` のときだけ初期表示ペインをカレンダーにする。`taskList` / `taskLists` は通常のタスクリスト詳細ペインとする。
 
 ## 同期の制約
 
 - task 更新は `現在表示中 task 群 -> 正規化済み next task 群 -> local pending 表示 -> taskListId 単位 queue 経由の差分保存` の順で処理する。正規化と pending 反映は操作ごとに一度だけ行い、その同じ task 群から保存差分を作る。
+- iOS / Android のカレンダー上の完了・本文・日付・ピン変更とタスクリスト移動も、listener の反映を待たず同じ taskListId 単位の local pending として表示し、最新世代の書き込み完了・失敗時に解放する。本文変更・追加で更新する入力候補履歴も同じ pending 世代で保持する。
 - 同一リストのタスク更新と同一ユーザーのリスト順更新は、操作順に Firestore SDK へ投入する。サーバーの応答待ちは後続操作の投入を止めず、オフライン中の連続操作も SDK の永続キャッシュに保持する。書き込み完了・失敗の監視は画面より長く保持し、画面移動ではキャンセルしない。
 - local pending は操作世代を持ち、最新世代の queue がドレインした時だけ解放する。内容一致だけでは古い listener snapshot と最新 pending を区別できないため、listener 一致を理由に書き込み中の pending を早期解放しない。
 - 表示優先順は `ドラッグ overlay -> local pending -> listener`。ドラッグは開始時の表示順を基準にし、overlay はキャンセルだけでなく正常終了でも必ず解放する。最新書き込み完了後は pending も必ず解放し、別端末の listener 更新を覆い続けない。

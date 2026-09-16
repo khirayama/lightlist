@@ -32,9 +32,9 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - manifest は `apps/web/public/manifest.webmanifest`。`start_url` は `/app`、`scope` は `/`、`display` は `standalone`。
 - manifest の screenshots は `apps/web/public/screenshots/store/wide/*.png`（`1920x1080`）と `apps/web/public/screenshots/store/narrow/*.png`（`750x1334`）を参照する。
 - icons は `/icons/icon-192.png` / `/icons/icon-512.png` / `/icons/maskable-512.png`。
-- service worker は `apps/web/public/sw.js`。`install` で `skipWaiting()`、`activate` で `clients.claim()`、`SKIP_WAITING` message で `skipWaiting()` を呼ぶだけの最小構成。
+- service worker は `apps/web/public/sw.js`。同一オリジンの Vite assets / フォント / アイコン / manifest と、過去に表示した navigation response を cache し、オフライン時は最後に取得した navigation を返す。build 後に `scripts/version-service-worker.mjs` が `dist` の revision から cache version を生成し、deploy 単位で旧 cache を activate 時に削除する。
 - LP とアプリ側 entry は、HTTPS / `localhost` / `127.0.0.1` でのみ `/sw.js` を登録し、登録後に `registration.update()` を呼ぶ。
-- オフラインキャッシュ戦略と更新通知 UI は持たない。
+- Firestore のデータ同期は Firestore SDK の永続 cache に任せ、service worker は静的 shell だけを扱う。更新通知 UI は持たず、`skipWaiting()` と `clients.claim()` で更新を適用する。
 
 ## Cloudflare Pages
 
@@ -46,18 +46,20 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - ローカル確認: `cd apps/web && npm run cf:preview`。`LIGHTLIST_IOS_TEAM_ID` と `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` が必須。
 - CI で `wrangler pages deploy` を使う場合は `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` を設定する。Pages project は事前に作成しておく。
 - response headers は `apps/web/public/_headers` を使う。AASA は build 後に `dist/.well-known/apple-app-site-association`、Digital Asset Links は `dist/.well-known/assetlinks.json` へ生成し、どちらも `application/json`・短い cache lifetime で配信する。通常の `npm run build` は Web 単体開発を許可するため、対応する環境変数が未設定なら関連付けファイルを生成しない。Pages Functions を追加した場合、Function response の header は Function 側で返す。
-- CSP は `_headers` で管理し、Cloudflare Insights の script / beacon と、フォント preload のハッシュ付き `onload` だけを許可する。HTML 側で `unsafe-inline` を追加しない。
+- CSP は `_headers` で管理し、Cloudflare Insights の script / beacon と、self-hosted の `theme.js` / `font-loader.js` を許可する。HTML 側に inline script / event handler を追加せず、`unsafe-inline` も追加しない。
 - `404.html` は `apps/web/dist/404.html` を custom 404 として使う。`500.html` は build 出力へ含めるが、Cloudflare Pages が自動で custom 500 として扱う前提は置かない。
 
 ## Web env
 
 - 本番 env は Vite の `.env.production` / `.env.production.local` または deploy 環境変数で供給する。build 前に `.env` をコピーしない。
 - Firebase Auth / Firestore に必要な env は [authentication.md](./authentication.md) を参照する。
-- App Check の env と Console 手順は [app-check.md](./app-check.md) を参照する。
+- App Check は使用しない。[app-check.md](./app-check.md) を参照する。
 
 ## Firestore デプロイ
 
 - リポジトリルートで実行する。
+- membership Rules を初回デプロイする前に、[data-model.md](./data-model.md) の membership 移行を完了し、既存リストの保持ユーザーと `memberCount` の照合結果を確認する。アプリの更新を先に配布すると、membership 読み取りが `permission-denied` になり、タスクリスト一覧を構築できない。
+- membership の backfill と Rules のデプロイが完了してからアプリを配布する。
 - staging: `just deploy-firestore`
 - production: `just deploy-firestore-prod`
 - deploy 設定（`firestore.rules` / `firebase.json` / `.firebaserc` / `firestore.indexes.json`）はリポジトリルートに置く。

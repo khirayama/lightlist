@@ -64,10 +64,6 @@ export default defineConfig({
               test: /node_modules\/(?:firebase\/auth|@firebase\/auth)/,
             },
             {
-              name: "firebase-appcheck",
-              test: /node_modules\/(?:firebase\/app-check|@firebase\/app-check)/,
-            },
-            {
               name: "firebase-firestore",
               test: /node_modules\/(?:firebase\/firestore|@firebase\/firestore)\//,
             },

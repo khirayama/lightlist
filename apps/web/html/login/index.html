@@ -26,62 +26,36 @@
       media="(prefers-color-scheme: dark)"
       content="#030712"
     />
-    <script>
-      (function () {
-        try {
-          var t = localStorage.getItem("lightlist.theme");
-          var d =
-            t === "dark" ||
-            (t !== "light" &&
-              matchMedia("(prefers-color-scheme:dark)").matches);
-          if (d) document.documentElement.classList.add("dark");
-        } catch (e) {}
-      })();
-    </script>
+    <script src="/theme.js"></script>
     <link
       rel="preload"
       as="style"
       href="/fonts/gen-interface-jp/400.css"
-      onload="
-        this.onload = null;
-        this.rel = 'stylesheet';
-      "
+      data-font-stylesheet
     />
     <link
       rel="preload"
       as="style"
       href="/fonts/gen-interface-jp/500.css"
-      onload="
-        this.onload = null;
-        this.rel = 'stylesheet';
-      "
+      data-font-stylesheet
     />
     <link
       rel="preload"
       as="style"
       href="/fonts/gen-interface-jp/600.css"
-      onload="
-        this.onload = null;
-        this.rel = 'stylesheet';
-      "
+      data-font-stylesheet
     />
     <link
       rel="preload"
       as="style"
       href="/fonts/gen-interface-jp/700.css"
-      onload="
-        this.onload = null;
-        this.rel = 'stylesheet';
-      "
+      data-font-stylesheet
     />
     <link
       rel="preload"
       as="style"
       href="/fonts/gen-interface-jp/display-700.css"
-      onload="
-        this.onload = null;
-        this.rel = 'stylesheet';
-      "
+      data-font-stylesheet
     />
     <noscript>
       <link rel="stylesheet" href="/fonts/gen-interface-jp/400.css" />
@@ -91,8 +65,9 @@
       <link rel="stylesheet" href="/fonts/gen-interface-jp/display-700.css" />
     </noscript>
 
+    <script src="/font-loader.js" defer></script>
+
     <link rel="preconnect" href="https://identitytoolkit.googleapis.com" />
-    <link rel="preconnect" href="https://firestore.googleapis.com" />
     <link rel="preconnect" href="https://apis.google.com" />
   </head>
   <body data-page="login">

@@ -1,4 +1,5 @@
 import babelParser from "@babel/eslint-parser";
+import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 
 const coreRules = {
@@ -59,7 +60,12 @@ export default [
         ...globals.es2024,
       },
     },
-    rules: coreRules,
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      ...coreRules,
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
   },
   {
     files: ["**/*.d.ts"],

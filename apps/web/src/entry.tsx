@@ -8452,6 +8452,10 @@ function AppShellPage() {
   const [currentView, setCurrentView] = useState<AppView>("detail");
   const previousViewRef = useRef(currentView);
   const [isViewAnimationReady, setIsViewAnimationReady] = useState(false);
+  const [viewTransitionDirection, setViewTransitionDirection] = useState<
+    "forward" | "backward"
+  >("forward");
+  const historyDepthRef = useRef(0);
   const [pendingInitialTaskListRoute, setPendingInitialTaskListRoute] =
     useState(false);
   const [activeTaskAction, setActiveTaskAction] = useState<{
@@ -8483,7 +8487,16 @@ function AppShellPage() {
         return;
       }
       const nextTaskAction = readTaskActionHistoryState(window.history.state);
+      const nextHistoryDepth = getAppHistoryDepth(window.history.state);
 
+      setViewTransitionDirection(
+        nextHistoryDepth < historyDepthRef.current ||
+          (route.view === "taskLists" &&
+            previousViewRef.current !== "taskLists")
+          ? "backward"
+          : "forward",
+      );
+      historyDepthRef.current = nextHistoryDepth;
       setCurrentView(route.view);
       if (route.view === "detail") {
         setSelectedTaskListId(route.taskListId);
@@ -8548,6 +8561,7 @@ function AppShellPage() {
     const initializedState = initializeAppHistory(
       parseAppHashRoute(window.location.hash),
     );
+    historyDepthRef.current = getAppHistoryDepth(window.history.state);
     setCurrentView(initializedState.currentView);
     if (!initializedState.pendingInitialTaskListRoute) {
       setSelectedTaskListId(initializedState.selectedTaskListId);
@@ -8587,8 +8601,27 @@ function AppShellPage() {
   );
 
   const setViewState = useCallback(
-    (route: KnownAppHashRoute, mode: "push" | "replace") => {
+    (
+      route: KnownAppHashRoute,
+      mode: "push" | "replace",
+      historyDepthOverride?: number,
+    ) => {
+      const currentHistoryDepth =
+        typeof window === "undefined"
+          ? 0
+          : getAppHistoryDepth(window.history.state);
+      const nextHistoryDepth =
+        historyDepthOverride ??
+        (mode === "push" ? currentHistoryDepth + 1 : currentHistoryDepth);
+      const nextViewTransitionDirection =
+        nextHistoryDepth < currentHistoryDepth ||
+        (route.view === "taskLists" &&
+          previousViewRef.current !== "taskLists")
+          ? "backward"
+          : "forward";
+
       startTransition(() => {
+        setViewTransitionDirection(nextViewTransitionDirection);
         setCurrentView(route.view);
         setActiveTaskAction(null);
         if (route.view === "detail") {
@@ -8601,13 +8634,12 @@ function AppShellPage() {
         return;
       }
 
+      historyDepthRef.current = nextHistoryDepth;
       const nextState = buildAppHistoryState(
         route,
         window.history.state,
         null,
-        mode === "push"
-          ? getAppHistoryDepth(window.history.state) + 1
-          : getAppHistoryDepth(window.history.state),
+        nextHistoryDepth,
       );
       if (mode === "push") {
         window.history.pushState(nextState, "", toAppUrl(route));
@@ -8619,7 +8651,7 @@ function AppShellPage() {
     [],
   );
   const showTaskListsRoot = useCallback(
-    () => setViewState({ view: "taskLists" }, "replace"),
+    () => setViewState({ view: "taskLists" }, "replace", 0),
     [setViewState],
   );
   const openTaskList = useCallback(
@@ -8856,10 +8888,14 @@ function AppShellPage() {
     }
 
     if (view === "taskLists") {
-      return compactBackTransform;
+      return viewTransitionDirection === "forward"
+        ? compactBackTransform
+        : compactForwardTransform;
     }
 
-    return compactForwardTransform;
+    return viewTransitionDirection === "forward"
+      ? compactForwardTransform
+      : compactBackTransform;
   };
   const renderDetailSkeleton = (taskRowCount: number) => (
     <div

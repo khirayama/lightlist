@@ -363,6 +363,23 @@ enum AppRoute: Hashable {
     }
 }
 
+private enum RootPresentation: Identifiable {
+    case auth
+    case passwordReset(String)
+    case sharePreview(String)
+
+    var id: String {
+        switch self {
+        case .auth:
+            return "auth"
+        case .passwordReset(let code):
+            return "passwordReset:\(code)"
+        case .sharePreview(let code):
+            return "sharePreview:\(code)"
+        }
+    }
+}
+
 func normalizedStartupView(_ value: String?) -> String {
     guard let value, value == "calendar" || value == "taskLists" else { return "taskList" }
     return value
@@ -2033,6 +2050,27 @@ struct RootView: View {
         translations.language == "ar" ? .rightToLeft : .leftToRight
     }
 
+    private var presentedScreen: RootPresentation? {
+        if let pendingPasswordResetCode {
+            return .passwordReset(pendingPasswordResetCode)
+        }
+        if let pendingSharePreviewCode {
+            return .sharePreview(pendingSharePreviewCode)
+        }
+        return isLoggedIn ? nil : .auth
+    }
+
+    private var presentedScreenBinding: Binding<RootPresentation?> {
+        Binding(
+            get: { presentedScreen },
+            set: { presented in
+                guard presented == nil else { return }
+                pendingPasswordResetCode = nil
+                pendingSharePreviewCode = nil
+            }
+        )
+    }
+
     public var body: some View {
         Group {
             if horizontalSizeClass == .regular {
@@ -2051,66 +2089,33 @@ struct RootView: View {
         .onChange(of: pendingDeepLink, initial: true) { _, deepLink in
             handlePendingDeepLink(deepLink)
         }
-        .fullScreenCover(
-            isPresented: Binding(
-                get: {
-                    !isLoggedIn &&
-                    pendingPasswordResetCode == nil &&
-                    pendingSharePreviewCode == nil
-                },
-                set: { _ in }
-            )
-        ) {
-            NavigationStack {
-                AuthView(language: translations.language)
-            }
-            .environmentObject(translations)
+        .onChange(of: horizontalSizeClass) { _, nextSizeClass in
+            syncNavigation(for: nextSizeClass)
         }
-        .fullScreenCover(
-            isPresented: Binding(
-                get: { pendingPasswordResetCode != nil },
-                set: { presented in
-                    if !presented {
-                        pendingPasswordResetCode = nil
-                    }
+        .fullScreenCover(item: presentedScreenBinding) { screen in
+            switch screen {
+            case .auth:
+                NavigationStack {
+                    AuthView(language: translations.language)
                 }
-            )
-        ) {
-            if let pendingPasswordResetCode {
+                .environmentObject(translations)
+            case .passwordReset(let code):
                 NavigationStack {
                     PasswordResetView(
-                        code: pendingPasswordResetCode,
+                        code: code,
                         onDismiss: { self.pendingPasswordResetCode = nil }
                     )
                 }
                 .environmentObject(translations)
-            }
-        }
-        .fullScreenCover(
-            isPresented: Binding(
-                get: { pendingSharePreviewCode != nil },
-                set: { presented in
-                    if !presented {
-                        pendingSharePreviewCode = nil
-                    }
-                }
-            )
-        ) {
-            if let pendingSharePreviewCode {
+            case .sharePreview(let code):
                 NavigationStack {
                     SharedTaskListPreviewView(
-                        shareCode: pendingSharePreviewCode,
+                        shareCode: code,
                         currentUserId: currentUserId,
                         onDismiss: { self.pendingSharePreviewCode = nil },
                         onAdded: { taskListId in
                             self.pendingSharePreviewCode = nil
-                            if horizontalSizeClass == .regular {
-                                selectedTaskListId = taskListId
-                                selectedRegularPane = .taskList
-                            } else {
-                                path = AppRoute.initialPath
-                                path.append(.taskList(taskListId: taskListId))
-                            }
+                            openTaskListFromExternalFlow(taskListId)
                         }
                     )
                 }
@@ -2118,6 +2123,54 @@ struct RootView: View {
             }
         }
         .environmentObject(translations)
+    }
+
+    private func syncNavigation(for sizeClass: UserInterfaceSizeClass?) {
+        if sizeClass == .regular {
+            switch path.last {
+            case .settings:
+                selectedRegularPane = .settings
+            case .calendar:
+                selectedRegularPane = .calendar
+            case .taskList(let taskListId):
+                if taskListId != "__initial__" {
+                    selectedTaskListId = taskListId
+                }
+                selectedRegularPane = .taskList
+            case .taskLists, nil:
+                break
+            }
+            return
+        }
+
+        switch selectedRegularPane {
+        case .settings:
+            path = [.settings]
+        case .calendar:
+            path = [.calendar]
+        case .taskList:
+            if let selectedTaskListId, selectedTaskListId != "__initial__" {
+                if path.last == .taskList(taskListId: selectedTaskListId) {
+                    return
+                }
+                if path.last == .calendar {
+                    path.append(.taskList(taskListId: selectedTaskListId))
+                } else {
+                    path = [.taskList(taskListId: selectedTaskListId)]
+                }
+            } else {
+                path = AppRoute.initialPath
+            }
+        }
+    }
+
+    private func openTaskListFromExternalFlow(_ taskListId: String) {
+        if horizontalSizeClass == .regular {
+            selectedTaskListId = taskListId
+            selectedRegularPane = .taskList
+        } else {
+            path = [.taskList(taskListId: taskListId)]
+        }
     }
 
     private var compactRoot: some View {
@@ -2420,7 +2473,7 @@ private struct TaskListIndicatorRow: View {
     let onSelect: (String) -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: -4) {
             ForEach(Array(taskLists.enumerated()), id: \.element.id) { index, taskList in
                 Button {
                     onSelect(taskList.id)

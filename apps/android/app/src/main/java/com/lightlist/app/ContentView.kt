@@ -28,6 +28,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,6 +85,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -126,8 +128,10 @@ import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavType
@@ -224,6 +228,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.window.PopupProperties
+import androidx.core.view.WindowCompat
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -1522,6 +1527,17 @@ fun RootScreen(
         "light" -> false
         else -> isSystemInDarkTheme()
     }
+    var startupNavigationUserId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    SideEffect {
+        val activity = context as? ComponentActivity ?: return@SideEffect
+        val insetsController = WindowCompat.getInsetsController(
+            activity.window,
+            activity.window.decorView
+        )
+        insetsController.isAppearanceLightStatusBars = !darkTheme
+        insetsController.isAppearanceLightNavigationBars = !darkTheme
+    }
 
     LaunchedEffect(pendingDeepLink) {
         when (pendingDeepLink) {
@@ -1541,7 +1557,14 @@ fun RootScreen(
 
     LightlistTheme(darkTheme = darkTheme) {
     key(startupLanguage) {
-    CompositionLocalProvider(LocalTranslations provides translations) {
+    CompositionLocalProvider(
+        LocalTranslations provides translations,
+        LocalLayoutDirection provides if (startupLanguage == "ar") {
+            LayoutDirection.Rtl
+        } else {
+            LayoutDirection.Ltr
+        }
+    ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         if (pendingPasswordResetCode != null) {
             ResetPasswordView(
@@ -1625,20 +1648,24 @@ fun RootScreen(
                         }
                     }
 
-                    LaunchedEffect(isLoggedIn, settingsState.isLoading) {
-                        if (!isLoggedIn || settingsState.isLoading) return@LaunchedEffect
-                        if (navController.currentDestination?.route != AppRoute.TaskLists.route) return@LaunchedEffect
+                    LaunchedEffect(currentUserId, isLoggedIn, settingsState.isLoading) {
+                        if (!isLoggedIn || currentUserId == null) {
+                            startupNavigationUserId = null
+                            return@LaunchedEffect
+                        }
+                        if (settingsState.isLoading || startupNavigationUserId == currentUserId) {
+                            return@LaunchedEffect
+                        }
+
+                        startupNavigationUserId = currentUserId
+                        navController.navigate(AppRoute.TaskLists.route) {
+                            popUpTo(navController.graph.startDestinationId)
+                            launchSingleTop = true
+                        }
                         when (settingsState.startupView) {
                             "calendar" -> navController.navigate(AppRoute.Calendar.createRoute(initial = true))
                             "taskLists" -> Unit
                             else -> navController.navigate(AppRoute.TaskList.createRoute("__initial__"))
-                        }
-                    }
-
-                    LaunchedEffect(currentUserId) {
-                        navController.navigate(AppRoute.TaskLists.route) {
-                            popUpTo(navController.graph.startDestinationId)
-                            launchSingleTop = true
                         }
                     }
 
@@ -2699,13 +2726,17 @@ private fun TaskListColorPicker(
     onSelect: (String?) -> Unit
 ) {
     val t = LocalTranslations.current
+    val colorScrollState = rememberScrollState()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             t.t("taskList.selectColor"),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.horizontalScroll(colorScrollState),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             TaskListBackgroundOptions.forEach { color ->
                 val isSelected = selected == color
                 Box(
@@ -2803,6 +2834,7 @@ private fun DetailScreenScaffold(
     val t = LocalTranslations.current
     val resolvedBackgroundColor = backgroundColor ?: MaterialTheme.colorScheme.background
     Scaffold(
+        contentWindowInsets = WindowInsets(0),
         topBar = if (showTopBar) {
             {
                 Box(
@@ -7100,9 +7132,22 @@ private fun SettingsSelectRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
+        Row(
+            modifier = Modifier.padding(start = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                value,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,

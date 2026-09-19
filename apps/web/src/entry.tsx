@@ -3067,11 +3067,12 @@ function buildTaskUpdateData(params: {
   deletedTaskIds?: string[];
 }): Record<string, unknown> {
   const updates: Record<string, unknown> = {};
+  const previousTasks = params.previousTasks ?? [];
   const previousById = new Map(
-    (params.previousTasks ?? []).map((task) => [task.id, task]),
+    previousTasks.map((task) => [task.id, task]),
   );
   const nextTaskIds = new Set(params.tasks.map((task) => task.id));
-  (params.previousTasks ?? []).forEach((task) => {
+  previousTasks.forEach((task) => {
     if (!nextTaskIds.has(task.id)) {
       updates[`tasks.${task.id}`] = deleteField();
     }

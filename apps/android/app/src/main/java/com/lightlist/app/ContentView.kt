@@ -3900,7 +3900,7 @@ private fun CalendarScreen(
         } else {
             listOf(insertedTask) + orderedTasks
         }
-        val nextTasks = reconcileTasks(insertedTasks, settingsState.autoSort)
+        val nextTasks = normalizeTasks(insertedTasks, settingsState.autoSort)
         val insertedIndex = nextTasks.indexOfFirst { it.id == taskId }
         val dateValue = dateKey.takeIf { it.isNotBlank() }?.let(::parseTaskInputDate)
 
@@ -3944,7 +3944,7 @@ private fun CalendarScreen(
         val taskList = calendarTaskLists.firstOrNull { it.id == task.taskListId } ?: return
         val currentTask = displayedTasks(taskList).firstOrNull { it.id == task.taskId } ?: return
         val orderedTasks = displayedTasks(taskList).sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
-        val nextTasks = reconcileTasks(
+        val nextTasks = normalizeTasks(
             orderedTasks.map { if (it.id == task.taskId) transform(it) else it },
             settingsState.autoSort
         )
@@ -4026,7 +4026,7 @@ private fun CalendarScreen(
         } else {
             listOf(movedTask) + orderedTargetTasks
         }
-        val nextTargetTasks = reconcileTasks(insertedTasks, settingsState.autoSort)
+        val nextTargetTasks = normalizeTasks(insertedTasks, settingsState.autoSort)
         val targetUpdates = buildTaskUpdateData(orderedTargetTasks, nextTargetTasks) +
             mapOf("history" to buildHistory(nextText, targetTaskList.history))
         val sourceUpdates = mapOf(
@@ -5753,15 +5753,6 @@ private fun normalizeTasks(tasks: List<TaskSummary>, autoSort: Boolean): List<Ta
     return if (autoSort) getAutoSortedTasks(tasks) else renumberTasks(tasks.filter(::hasTaskContent))
 }
 
-private fun reconcileTasks(tasks: List<TaskSummary>, autoSort: Boolean): List<TaskSummary> {
-    val validTasks = tasks.filter(::hasTaskContent)
-    return if (autoSort) {
-        getAutoSortedTasks(validTasks)
-    } else {
-        renumberTasks(validTasks)
-    }
-}
-
 private fun buildTaskUpdateData(
     previousTasks: List<TaskSummary>,
     tasks: List<TaskSummary>,
@@ -6000,7 +5991,7 @@ private fun TaskListDetailContent(
         additionalUpdates: Map<String, Any> = emptyMap()
     ) {
         val previousTasks = displayTasks
-        val nextTasks = reconcileTasks(buildNextTasks(previousTasks), autoSort)
+        val nextTasks = normalizeTasks(buildNextTasks(previousTasks), autoSort)
         setPendingTasks(nextTasks)
         persistTaskListUpdate(buildTaskUpdateData(previousTasks, nextTasks) + additionalUpdates)
     }

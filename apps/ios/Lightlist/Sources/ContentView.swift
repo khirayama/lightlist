@@ -98,28 +98,10 @@ private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
 }
 
 private enum AppPalette {
-    private static func dynamic(light: UIColor, dark: UIColor) -> Color {
-        Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark ? dark : light
-        })
-    }
-
-    static let pageBackground = dynamic(
-        light: UIColor(red: 0xF9 / 255, green: 0xFA / 255, blue: 0xFB / 255, alpha: 1),
-        dark: UIColor(red: 0x03 / 255, green: 0x07 / 255, blue: 0x12 / 255, alpha: 1)
-    )
-    static let cardSurface = dynamic(
-        light: .white,
-        dark: UIColor(red: 0x11 / 255, green: 0x18 / 255, blue: 0x27 / 255, alpha: 1)
-    )
-    static let rowHighlight = dynamic(
-        light: UIColor(red: 0xF9 / 255, green: 0xFA / 255, blue: 0xFB / 255, alpha: 1),
-        dark: UIColor(red: 0x37 / 255, green: 0x41 / 255, blue: 0x51 / 255, alpha: 1)
-    )
-    static let mutedText = dynamic(
-        light: UIColor(red: 0x4B / 255, green: 0x56 / 255, blue: 0x63 / 255, alpha: 1),
-        dark: UIColor(red: 0xD1 / 255, green: 0xD5 / 255, blue: 0xDB / 255, alpha: 1)
-    )
+    static let pageBackground = Color("AppPalettePageBackground")
+    static let cardSurface = Color("AppPaletteCardSurface")
+    static let rowHighlight = Color("AppPaletteRowHighlight")
+    static let mutedText = Color("AppPaletteMutedText")
 }
 
 private enum AppTypography {
@@ -619,12 +601,6 @@ private func renumberTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
 
 private func normalizeTasks(_ tasks: [TaskSummary], autoSort: Bool) -> [TaskSummary] {
     autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks.filter(hasTaskContent))
-}
-
-private func reconcileTasks(_ tasks: [TaskSummary], autoSort: Bool) -> [TaskSummary] {
-    let validTasks = tasks.filter(hasTaskContent)
-    if autoSort { return getAutoSortedTasks(validTasks) }
-    return renumberTasks(validTasks)
 }
 
 private func buildTaskUpdateData(
@@ -1448,7 +1424,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         let insertedTasks = taskInsertPosition == "bottom"
             ? orderedTasks + [insertedTask]
             : [insertedTask] + orderedTasks
-        let nextTasks = reconcileTasks(insertedTasks, autoSort: autoSort)
+        let nextTasks = normalizeTasks(insertedTasks, autoSort: autoSort)
         let nextHistory = buildHistory(
             newText: parsed.text,
             history: displayedHistory(for: taskList),
@@ -1551,11 +1527,11 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             order: nextOrder,
             pinned: pinned
         )
-        let nextSourceTasks = reconcileTasks(sourceTasks.filter { $0.id != task.taskId }, autoSort: autoSort)
+        let nextSourceTasks = normalizeTasks(sourceTasks.filter { $0.id != task.taskId }, autoSort: autoSort)
         let insertedTasks = taskInsertPosition == "bottom"
             ? targetTasks + [movedTask]
             : [movedTask] + targetTasks
-        let nextTargetTasks = reconcileTasks(insertedTasks, autoSort: autoSort)
+        let nextTargetTasks = normalizeTasks(insertedTasks, autoSort: autoSort)
         var sourceUpdates = buildTaskUpdateData(previousTasks: sourceTasks, tasks: nextSourceTasks)
         var targetUpdates = buildTaskUpdateData(previousTasks: targetTasks, tasks: nextTargetTasks)
         let targetHistory = buildHistory(
@@ -1611,7 +1587,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             return
         }
         let updatedTasks = orderedTasks.map { $0.id == taskId ? nextTask : $0 }
-        let nextTasks = reconcileTasks(updatedTasks, autoSort: autoSort)
+        let nextTasks = normalizeTasks(updatedTasks, autoSort: autoSort)
         var updates = buildTaskUpdateData(previousTasks: orderedTasks, tasks: nextTasks)
         additionalUpdates.forEach { updates[$0.key] = $0.value }
         let nextHistory = additionalUpdates["history"] as? [String]
@@ -4320,7 +4296,7 @@ private struct TaskListDetailPage: View {
         onSuccess: @escaping @MainActor @Sendable () -> Void = {}
     ) {
         let previousTasks = displayTasks
-        let nextTasks = reconcileTasks(buildNextTasks(previousTasks), autoSort: autoSort)
+        let nextTasks = normalizeTasks(buildNextTasks(previousTasks), autoSort: autoSort)
         setPendingTasks(nextTasks)
         var updates = buildTaskUpdateData(previousTasks: previousTasks, tasks: nextTasks)
         additionalUpdates.forEach { updates[$0.key] = $0.value }

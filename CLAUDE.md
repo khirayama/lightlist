@@ -32,7 +32,7 @@
 ## 共通仕様
 
 - locale の正本は `shared/locales/locales.json`。Web は sync script で `src/locales.json` と LP 用 `src/lp-locales.json` を生成し、iOS は `apps/ios/Lightlist/Resources/locales.json` を手動同期、Android は build 時に asset 化する。対応言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`、fallback は `ja`。
-- UI は 3 プラットフォーム共通のモノクロ palette と system/light/dark theme を使う。アクセント色を追加せず、iOS は `AccentColor.colorset`、Android は明示的な Material palette、Web は通常 CSS を正とする。詳細な色・寸法・motion は `AGENTS.md` を参照する。
+- UI は 3 プラットフォーム共通のモノクロ palette と system/light/dark theme を使う。アクセント色を追加せず、iOS は `AccentColor.colorset` と `AppPalette*.colorset`、Android は明示的な Material palette、Web は通常 CSS を正とする。詳細な色・寸法・motion は `AGENTS.md` を参照する。
 - 設定画面のセクション順は「アカウント → 表示と動作 → 法的情報 → アカウント操作」。カレンダーは日グリッドとタスク一覧を同じ横幅で直置きし、タスク一覧全体に囲い・角丸・面の背景色・行間 divider を付けない。タスク行は offset なしの 2 段構成（上段: 日付 + ピン / リスト名、下段: 完了操作 / 本文 / 編集操作）とし、下段の要素を上寄せして行末に 4 相当の余白を置く。操作領域は iOS 44pt / Android 48dp 以上を維持し、iOS の完了操作と本文の間には 8pt の間隔を置く。
 - `yyyy-MM-dd` は実在する暦日だけを厳密に受け入れ、不正値は日付なしへ正規化する。端末ローカルの暦日として扱い、Web の `new Date("yyyy-mm-dd")` や UTC formatter を使わない。Android Material3 `DatePicker` の millis 変換だけ UTC を許可し、iOS formatter は `en_US_POSIX` + gregorian を使う。
 - 入力 parser は Web の `entry.tsx` を正本とし、日付・相対表現・pin prefix・数字正規化を iOS / Android でも揃える。`taskInsertPosition` の既定は `top`、履歴は小文字比較で重複除去して最大 300 件とする。
@@ -55,7 +55,7 @@
 ## プラットフォーム固有の制約
 
 - iOS の Firebase plist は `Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` にローカル配置し、build configuration に応じて app bundle には標準名を 1 つだけコピーする。entitlements は `Lightlist/Lightlist.entitlements`、App Store archive は `LIGHTLIST_IOS_TEAM_ID=<Team ID> just archive` を使う。詳細は `docs/release-ios.md`。
-- Android の bundle identifier / Gradle namespace / Kotlin package は `com.lightlist.app`。Firebase 設定は debug / release variant ごとに分け、Firebase BoM v34 以降では main module を使う。release の R8 keep rule（Firebase component registrar と `FirestoreSettingsRecord` のリフレクション変換対象）、`isMinifyEnabled = true`、`allowBackup = false`、`androidx.profileinstaller` を維持する。
+- Android の bundle identifier / Gradle namespace / Kotlin package は `com.lightlist.app`。Firebase 設定は debug / release variant ごとに分け、Firebase BoM v34 以降では main module を使う。release の R8 keep rule（Firebase component registrar と `FirestoreSettingsRecord` のリフレクション変換対象）、`isMinifyEnabled = true`、`allowBackup = false`、`androidx.profileinstaller` を維持する。Crashlytics Gradle plugin は `bundleRelease` のときだけ適用し、内部確認用 `assembleRelease` では R8 の再実行を避ける。
 - Android の Google OSS Licenses runtime は従来版 Activity を含む `play-services-oss-licenses:17.2.2` に固定し、アプリ本体の Compose BOM と競合する Compose ベースの v2 Activity は使わない。従来版 Activity 用に AppCompat `1.7.1` を直接依存に含める。
 - Android の `just run` は通常上書きインストール、データを消す再インストールは `just run-clean`。Play 提出物は署名設定と versionCode を確認した `just bundle-play` の AAB とする。詳細は `docs/release-android.md`。
 - CI 品質ゲートは設定せず、変更した app のローカル検証を正とする。

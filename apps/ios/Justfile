@@ -2,16 +2,16 @@ set shell := ["zsh", "-cu"]
 
 build:
   DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer  xcodegen generate
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -skipPackagePluginValidation -project Lightlist.xcodeproj -scheme Lightlist -configuration Debug -derivedDataPath build -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -skipPackagePluginValidation -showBuildTimingSummary -project Lightlist.xcodeproj -scheme Lightlist -configuration Debug -derivedDataPath build -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" ARCHS=arm64 ONLY_ACTIVE_ARCH=YES COMPILER_INDEX_STORE_ENABLE=NO build
 
 build-release:
   DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodegen generate
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -skipPackagePluginValidation -project Lightlist.xcodeproj -scheme Lightlist -configuration Release -derivedDataPath build-release -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -skipPackagePluginValidation -showBuildTimingSummary -project Lightlist.xcodeproj -scheme Lightlist -configuration Release -derivedDataPath build-release -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" ARCHS=arm64 ONLY_ACTIVE_ARCH=YES COMPILER_INDEX_STORE_ENABLE=NO build
 
 archive:
   DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodegen generate
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -skipPackagePluginValidation -project Lightlist.xcodeproj -scheme Lightlist -configuration Release -destination 'generic/platform=iOS' -archivePath build-archive/Lightlist.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM="{{env_var('LIGHTLIST_IOS_TEAM_ID')}}" CODE_SIGN_STYLE=Automatic archive
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -exportArchive -archivePath build-archive/Lightlist.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build-archive/export -allowProvisioningUpdates
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -skipPackagePluginValidation -showBuildTimingSummary -project Lightlist.xcodeproj -scheme Lightlist -configuration Release -destination 'generic/platform=iOS' -archivePath build-archive/Lightlist.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM="{{env_var('LIGHTLIST_IOS_TEAM_ID')}}" CODE_SIGN_STYLE=Automatic COMPILER_INDEX_STORE_ENABLE=NO archive
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -showBuildTimingSummary -exportArchive -archivePath build-archive/Lightlist.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build-archive/export -allowProvisioningUpdates
 
 run:
   xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/Lightlist.app

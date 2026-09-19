@@ -7,7 +7,7 @@ build:
   ./gradlew assembleDebug
 
 build-release:
-  ./gradlew assembleRelease
+  ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease
 
 bundle-play:
   ./gradlew bundleRelease -PLIGHTLIST_REQUIRE_RELEASE_SIGNING=true

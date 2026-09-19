@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
-    alias(libs.plugins.firebase.crashlytics)
     id("com.google.android.gms.oss-licenses-plugin") apply false
 }
 
@@ -15,6 +14,7 @@ val shouldGenerateOssLicenses =
     }
 
 if (shouldGenerateOssLicenses) {
+    apply(plugin = "com.google.firebase.crashlytics")
     apply(plugin = "com.google.android.gms.oss-licenses-plugin")
 }
 

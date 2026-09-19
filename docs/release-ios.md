@@ -2,7 +2,8 @@
 
 ## ビルドツール
 
-- `Lightlist.xcodeproj` は Xcode 26.6 と XcodeGen 2.46.0 で `apps/ios/project.yml` から生成する。Swift 6 language mode、MainActor デフォルト分離 + Approachable Concurrency、Firebase Apple SDK 12.19.2、LicensePlist 3.28.0 を使う。依存パッケージ解決と build tool plugin の実行を含め、提出物の生成前に `just build` または `just archive` を実行する。
+- `Lightlist.xcodeproj` は Xcode 26.6 と XcodeGen 2.46.0 で `apps/ios/project.yml` から生成する。Swift 6 language mode、MainActor デフォルト分離 + Approachable Concurrency、Firebase Apple SDK 12.19.2、LicensePlist 3.28.0 を使う。Debug は incremental compilation・単一 active architecture・dwarf、Release は whole-module compilation・全 architecture・dSYM を使い分ける。CLI の Simulator 用 `just build` / `just build-release` は Apple Silicon の arm64 のみを対象にし、`just build` / `just build-release` / `just archive` は index store を無効化する。これらのコマンドは `-showBuildTimingSummary` でビルド計測も出力する。Debug では Crashlytics の dSYM upload を実行しない。依存パッケージ解決と build tool plugin の実行を含め、提出物の生成前に `just build` または `just archive` を実行する。
+- iOS のカスタム配色は `Lightlist/Resources/Assets.xcassets/AppPalette*.colorset` の Light/Dark named color を正とし、SwiftUI から `Color("AppPalette...")` で参照する。MainActor 隔離されたコードから `UIColor` の dynamic provider クロージャを生成しない。
 
 ## 判断事項
 

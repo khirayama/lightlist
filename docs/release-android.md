@@ -5,6 +5,12 @@
 - Android の `compileSdk` / `targetSdk` は API 37 を使う。API 37 のビルドには AGP 9.3.0 以上が必要で、リポジトリは AGP 9.3.1、Gradle wrapper 9.7.0、JDK 21、Kotlin 2.4.10 を使う。
 - Compose は BOM 2026.08.00、Firebase Android SDK は Firebase BOM 34.18.0 で統一する。Crashlytics Gradle plugin は 3.0.8、依存ライセンス生成の Google OSS Licenses plugin は 0.13.0 を使う。
 
+## ローカルビルドの前提
+
+- Android の Gradle は build cache・configuration cache・daemon・parallel execution・file-system watching・tooling parallelism を有効にする。Kotlin は incremental compilation を有効にし、Gradle daemon の heap は 4GB を割り当てる。
+- Kotlin の増分コンパイルキャッシュが壊れた場合は、`cd apps/android && ./gradlew clean assembleDebug` を一度実行して生成物を再構築する。通常の `just build` は clean を実行せず、configuration cache と build cache の再利用を優先する。
+- `just build-release` は内部確認用 APK のため release lint（`lintVital`）と Crashlytics の mapping upload/injection を除外し、R8 縮小・resource shrinking・署名を実行する。Google Play 提出用の `just bundle-play` は release lint と Crashlytics の mapping 処理を含む完全な release build とする。`./gradlew assembleRelease` を直接実行した場合も内部確認用経路になり、`./gradlew bundleRelease` を実行した場合だけ提出用の Crashlytics plugin を適用する。
+
 ## 判断事項
 
 ### applicationId / package name

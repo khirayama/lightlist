@@ -19,6 +19,17 @@ settings:
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+  configs:
+    Debug:
+      DEBUG_INFORMATION_FORMAT: dwarf
+      ONLY_ACTIVE_ARCH: YES
+      SWIFT_COMPILATION_MODE: incremental
+      SWIFT_OPTIMIZATION_LEVEL: -Onone
+    Release:
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+      ONLY_ACTIVE_ARCH: NO
+      SWIFT_COMPILATION_MODE: wholemodule
+      SWIFT_OPTIMIZATION_LEVEL: -O
 targets:
   Lightlist:
     type: application
@@ -99,6 +110,10 @@ targets:
         outputFiles:
           - "$(DERIVED_FILE_DIR)/licenseplist-copy"
       - script: |
+          if [ "${CONFIGURATION}" = "Debug" ]; then
+            touch "${DERIVED_FILE_DIR}/firebase-crashlytics-dsym-upload"
+            exit 0
+          fi
           "${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run"
           touch "${DERIVED_FILE_DIR}/firebase-crashlytics-dsym-upload"
         name: "Firebase Crashlytics dSYM Upload"

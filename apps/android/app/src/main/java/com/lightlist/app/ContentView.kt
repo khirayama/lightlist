@@ -465,16 +465,37 @@ private fun LightlistTheme(
     )
 }
 
+private fun readReduceMotion(context: Context): Boolean {
+    return android.provider.Settings.Global.getFloat(
+        context.contentResolver,
+        android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+        1f
+    ) == 0f
+}
+
 @Composable
 private fun rememberReduceMotion(): Boolean {
     val context = LocalContext.current
-    return remember {
-        android.provider.Settings.Global.getFloat(
-            context.contentResolver,
-            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
-            1f
-        ) == 0f
+    val reduceMotion = remember { mutableStateOf(readReduceMotion(context)) }
+    DisposableEffect(context) {
+        val observer = object : android.database.ContentObserver(
+            android.os.Handler(android.os.Looper.getMainLooper())
+        ) {
+            override fun onChange(selfChange: Boolean) {
+                reduceMotion.value = readReduceMotion(context)
+            }
+        }
+        val resolver = context.contentResolver
+        resolver.registerContentObserver(
+            android.provider.Settings.Global.getUriFor(
+                android.provider.Settings.Global.ANIMATOR_DURATION_SCALE
+            ),
+            false,
+            observer
+        )
+        onDispose { resolver.unregisterContentObserver(observer) }
     }
+    return reduceMotion.value
 }
 
 class Translations {
@@ -3586,7 +3607,13 @@ private fun CalendarTaskRow(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = onSelectDate)
+                    .then(
+                        if (dateLabel != null) {
+                            Modifier.clickable(onClick = onSelectDate)
+                        } else {
+                            Modifier
+                        }
+                    )
                     .padding(start = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -3676,7 +3703,13 @@ private fun CalendarTaskRow(
                     .weight(1f)
                     .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = onSelectDate),
+                    .then(
+                        if (dateLabel != null) {
+                            Modifier.clickable(onClick = onSelectDate)
+                        } else {
+                            Modifier
+                        }
+                    ),
                 contentAlignment = Alignment.TopStart
             ) {
                 Text(

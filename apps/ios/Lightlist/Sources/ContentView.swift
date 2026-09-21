@@ -6524,10 +6524,24 @@ private struct CalendarTaskRow: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(translations.t("pages.tasklist.markComplete"))
 
-                Button {
-                    triggerSelectionFeedback()
-                    onSelectDate()
-                } label: {
+                if task.dateValue != nil {
+                    Button {
+                        triggerSelectionFeedback()
+                        onSelectDate()
+                    } label: {
+                        Text(task.text)
+                            .font(AppTypography.body())
+                            .foregroundStyle(.primary)
+                            .padding(.leading, 8)
+                            .padding(.top, 6)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, minHeight: TaskListDetailMetrics.completionTouchHeight, alignment: .topLeading)
+                } else {
                     Text(task.text)
                         .font(AppTypography.body())
                         .foregroundStyle(.primary)
@@ -6536,10 +6550,8 @@ private struct CalendarTaskRow: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: TaskListDetailMetrics.completionTouchHeight, alignment: .topLeading)
                 }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity, minHeight: TaskListDetailMetrics.completionTouchHeight, alignment: .topLeading)
 
                 Button(action: onOpenActions) {
                     VStack(spacing: 0) {

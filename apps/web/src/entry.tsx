@@ -476,39 +476,8 @@ const log = async (eventName: string, params?: Record<string, unknown>) => {
   }
 };
 
-const logSignUp = () => log("sign_up", { method: "email" });
-const logLogin = () => log("login", { method: "email" });
-const logSignOut = () => log("app_sign_out");
-const logDeleteAccount = () => log("app_delete_account");
-const logPasswordResetEmailSent = () => log("app_password_reset_email_sent");
-const logEmailChangeRequested = () => log("app_email_change_requested");
-const logTaskListCreate = () => log("app_task_list_create");
-const logTaskListReorder = () => log("app_task_list_reorder");
-const logTaskAdd = (params: { has_date: boolean }) =>
-  log("app_task_add", params);
-const logTaskUpdate = (params: { fields: string }) =>
-  log("app_task_update", params);
-const logTaskReorder = () => log("app_task_reorder");
-const logTaskSort = () => log("app_task_sort");
-const logTaskDeleteCompleted = (params: { count: number }) =>
-  log("app_task_delete_completed", params);
-const logShareCodeGenerate = () => log("app_share_code_generate");
-const logShareCodeRemove = () => log("app_share_code_remove");
-const logShareCodeJoin = () => log("app_share_code_join");
-const logShare = () =>
-  log("share", { method: "share_code", content_type: "task_list" });
-const logSettingsThemeChange = (params: {
-  theme: "system" | "light" | "dark";
-}) => log("app_settings_theme_change", params);
-const logSettingsLanguageChange = (params: { language: string }) =>
-  log("app_settings_language_change", params);
-const logSettingsTaskInsertPositionChange = (params: {
-  position: "top" | "bottom";
-}) => log("app_settings_task_insert_position_change", params);
-const logSettingsAutoSortChange = (params: { enabled: boolean }) =>
-  log("app_settings_auto_sort_change", params);
-const logSettingsStartupViewChange = (params: { view: StartupView }) =>
-  log("app_settings_startup_view_change", params);
+const logAppEvent = (eventName: string, params?: Record<string, unknown>) =>
+  log(`app_${eventName}`, params);
 const getErrorCategory = (error: unknown): string => {
   if (isRecord(error) && typeof error.code === "string") {
     return error.code;
@@ -523,14 +492,15 @@ const logException = (operation: string, error?: unknown) => {
   if (error !== undefined) {
     params.error_category = getErrorCategory(error);
   }
-  return log("app_exception", params);
+  return logAppEvent("exception", params);
 };
 type SyncListenerSource =
   "settings" | "task_list_order" | "task_lists" | "shared_task_list";
 const logSyncListenerError = (
   source: SyncListenerSource,
   errorCategory: string,
-) => log("app_sync_listener_error", { source, error_category: errorCategory });
+) =>
+  logAppEvent("sync_listener_error", { source, error_category: errorCategory });
 
 const DEFAULT_LANGUAGE: Language = "ja";
 
@@ -865,14 +835,11 @@ const readCachedTaskListOrderIds = (uid: string): string[] => {
     const raw = window.localStorage.getItem(
       `${TASK_LIST_ORDER_IDS_STORAGE_KEY_PREFIX}${uid}`,
     );
-    if (!raw) {
-      return [];
-    }
+    if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter((id): id is string => typeof id === "string");
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === "string")
+      : [];
   } catch {
     return [];
   }
@@ -887,9 +854,7 @@ const writeCachedTaskListOrderIds = (
       `${TASK_LIST_ORDER_IDS_STORAGE_KEY_PREFIX}${uid}`,
       JSON.stringify(getOrderedTaskListIds(taskListOrder)),
     );
-  } catch {
-    return;
-  }
+  } catch {}
 };
 
 const applyTheme = (theme: Theme) => {
@@ -1301,15 +1266,6 @@ const getTaskListOrderEntries = (
           typeof (value as TaskListOrderEntry).order === "number",
       ) as Array<[string, TaskListOrderEntry]>)
     : [];
-
-const getTaskListIdsFromOrder = (
-  taskListOrder: TaskListOrderStore | null,
-): string[] =>
-  getTaskListOrderEntries(taskListOrder).map(([taskListId]) => taskListId);
-
-const getTaskListIdsKey = (taskListIds: string[]): string =>
-  taskListIds.length > 0 ? [...taskListIds].sort().join("|") : "";
-
 const mapTaskListStoreToTaskList = (
   taskListId: string,
   taskListData: TaskListStore,
@@ -1333,13 +1289,10 @@ const getOrderedTaskListIds = (
     .sort((a, b) => a[1].order - b[1].order || compareStringIds(a[0], b[0]))
     .map(([taskListId]) => taskListId);
 
-const getTaskListIdChunks = (taskListIds: string[]): string[][] => {
-  const chunks: string[][] = [];
-  for (let index = 0; index < taskListIds.length; index += 10) {
-    chunks.push(taskListIds.slice(index, index + 10));
-  }
-  return chunks;
-};
+const getTaskListIdChunks = (taskListIds: string[]): string[][] =>
+  Array.from({ length: Math.ceil(taskListIds.length / 10) }, (_, index) =>
+    taskListIds.slice(index * 10, index * 10 + 10),
+  );
 
 const resolveMemberTaskListIds = async (
   taskListIds: string[],
@@ -1411,7 +1364,7 @@ const taskListsReducer = (
         taskListOrder: action.taskListOrder,
         taskListOrderStatus: action.taskListOrderStatus,
         taskListDocsStatus:
-          getTaskListIdsFromOrder(action.taskListOrder).length > 0
+          getTaskListOrderEntries(action.taskListOrder).length > 0
             ? "loading"
             : "ready",
       };
@@ -1793,7 +1746,7 @@ function AppStateProvider({
   );
   const orderedTaskListIdsKey = useMemo(() => {
     const updatedAt = taskListsState.taskListOrder?.updatedAt;
-    return `${getTaskListIdsKey(orderedTaskListIds)}:${String(updatedAt ?? "")}`;
+    return `${orderedTaskListIds.length > 0 ? [...orderedTaskListIds].sort().join("|") : ""}:${String(updatedAt ?? "")}`;
   }, [orderedTaskListIds, taskListsState.taskListOrder?.updatedAt]);
   const orderedTaskListIdsRef = useRef(orderedTaskListIds);
   orderedTaskListIdsRef.current = orderedTaskListIds;
@@ -1857,7 +1810,6 @@ function AppStateProvider({
       type: "pruneTaskListsById",
       taskListIds: accessibleTaskListIds,
     });
-
 
     if (
       !activeUid ||
@@ -2278,9 +2230,6 @@ type TranslationBundle = {
 const getTranslationBundle = (language: Language): TranslationBundle =>
   i18next.getResourceBundle(language, "translation") as TranslationBundle;
 
-const getInitialTaskListName = (language: Language): string =>
-  getTranslationBundle(language).app.initialTaskListName;
-
 const requireCurrentUser = (): FirebaseAuthUser => {
   const user = getAuthInstance().currentUser;
   if (!user) {
@@ -2291,45 +2240,7 @@ const requireCurrentUser = (): FirebaseAuthUser => {
 
 const requireCurrentUserId = (): string => requireCurrentUser().uid;
 
-const createInitialSettingsStore = (
-  language: Language,
-  now: number,
-): SettingsStore => ({
-  theme: "system",
-  language,
-  taskInsertPosition: "top",
-  autoSort: true,
-  startupView: "taskList",
-  createdAt: now,
-  updatedAt: now,
-});
 
-const createInitialTaskListStore = (
-  taskListId: string,
-  language: Language,
-  now: number,
-): TaskListStore => {
-  return {
-    id: taskListId,
-    name: getInitialTaskListName(language),
-    tasks: {},
-    history: [],
-    shareCode: null,
-    background: null,
-    memberCount: 1,
-    createdAt: now,
-    updatedAt: now,
-  };
-};
-
-const createInitialTaskListOrderStore = (
-  taskListId: string,
-  now: number,
-): TaskListOrderStore => ({
-  [taskListId]: { order: 1.0 },
-  createdAt: now,
-  updatedAt: now,
-});
 
 const getPreferredLanguage = async (language?: Language): Promise<Language> => {
   if (language) {
@@ -2358,13 +2269,31 @@ async function signUp(email: string, password: string, language: Language) {
   const now = Date.now();
   const taskListId = doc(collection(db, "taskLists")).id;
   const normalizedLanguage = normalizeLanguage(language);
-  const settingsData = createInitialSettingsStore(normalizedLanguage, now);
-  const taskListData = createInitialTaskListStore(
-    taskListId,
-    normalizedLanguage,
-    now,
-  );
-  const taskListOrderData = createInitialTaskListOrderStore(taskListId, now);
+  const settingsData: SettingsStore = {
+    theme: "system",
+    language: normalizedLanguage,
+    taskInsertPosition: "top",
+    autoSort: true,
+    startupView: "taskList",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const taskListData: TaskListStore = {
+    id: taskListId,
+    name: getTranslationBundle(normalizedLanguage).app.initialTaskListName,
+    tasks: {},
+    history: [],
+    shareCode: null,
+    background: null,
+    memberCount: 1,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const taskListOrderData: TaskListOrderStore = {
+    [taskListId]: { order: 1.0 },
+    createdAt: now,
+    updatedAt: now,
+  };
 
   const batch = writeBatch(db);
   batch.set(doc(db, "settings", uid), settingsData);
@@ -2452,7 +2381,9 @@ async function deleteAccount(password: string) {
       taskListOrderSnapshot.data(),
       uid,
     );
-    const taskListIds = getTaskListIdsFromOrder(taskListOrderData);
+    const taskListIds = getTaskListOrderEntries(taskListOrderData).map(
+      ([taskListId]) => taskListId,
+    );
     const results = await Promise.allSettled(
       taskListIds.map((taskListId) => deleteTaskList(taskListId)),
     );
@@ -2874,13 +2805,6 @@ function assertShareCodeStore(
   return { taskListId: data.taskListId, createdAt: data.createdAt };
 }
 
-const getValidMemberCount = (taskList: TaskListStore): number => {
-  if (!Number.isInteger(taskList.memberCount) || taskList.memberCount < 1) {
-    throw new Error("Invalid member count");
-  }
-  return taskList.memberCount;
-};
-
 const shareCodePattern = /^[A-Z0-9]{8}$/;
 
 const normalizeShareCode = (shareCode: string): string | null => {
@@ -2915,10 +2839,9 @@ function getAutoSortedTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
 }
 
 async function getTaskListData(taskListId: string): Promise<TaskListStore> {
-  const db = getDbInstance();
-  const taskListRef = doc(db, "taskLists", taskListId);
-  const snapshot = await getDocFromServer(taskListRef).catch(() =>
-    getDocFromCache(taskListRef),
+  const taskListRef = doc(getDbInstance(), "taskLists", taskListId);
+  const snapshot = await getDocFromCache(taskListRef).catch(() =>
+    getDoc(taskListRef),
   );
   if (!snapshot.exists()) throw new Error("Task list not found");
   return normalizeTaskListStore(
@@ -2931,12 +2854,6 @@ async function getTaskListData(taskListId: string): Promise<TaskListStore> {
 
 function getOrderedTaskListOrders(taskListOrder: TaskListOrderStore): number[] {
   return getTaskListOrderEntries(taskListOrder).map(([, value]) => value.order);
-}
-
-async function getTaskListOrderData(uid: string): Promise<TaskListOrderStore> {
-  const db = getDbInstance();
-  const snapshot = await getDoc(doc(db, "taskListOrder", uid));
-  return assertTaskListOrderStore(snapshot.data(), uid);
 }
 
 function renumberTasks(tasks: TaskListStoreTask[]): TaskListStoreTask[] {
@@ -2958,19 +2875,14 @@ function hasTaskContent(
 
 function getOrderedTasks(
   taskList: Pick<TaskListStore, "tasks">,
-): TaskListStoreTask[] {
-  return Object.values(taskList.tasks)
-    .filter(hasTaskContent)
-    .sort((a, b) => a.order - b.order || compareStringIds(a.id, b.id));
-}
-
-function getDisplayOrderedTasks(
-  taskList: Pick<TaskListStore, "tasks">,
+  displayOrder = false,
 ): TaskListStoreTask[] {
   return Object.values(taskList.tasks)
     .filter(hasTaskContent)
     .sort((a, b) => {
-      const groupDifference = getTaskDisplayGroup(a) - getTaskDisplayGroup(b);
+      const groupDifference = displayOrder
+        ? getTaskDisplayGroup(a) - getTaskDisplayGroup(b)
+        : 0;
       return (
         groupDifference || a.order - b.order || compareStringIds(a.id, b.id)
       );
@@ -2982,7 +2894,7 @@ function getDisplayOrderedTaskArray(tasks: Task[], autoSort: boolean): Task[] {
   const taskRecords: Record<string, TaskListStoreTask> = Object.fromEntries(
     tasks.map((task, index) => [task.id, { ...task, order: index + 1 }]),
   );
-  return getDisplayOrderedTasks({ tasks: taskRecords }).map(
+  return getOrderedTasks({ tasks: taskRecords }, true).map(
     ({ id, text, completed, date, pinned }) => ({
       id,
       text,
@@ -3111,7 +3023,10 @@ async function createTaskList(name: string, background?: string | null) {
       const db = getDbInstance();
       const nextTaskListId = doc(collection(db, "taskLists")).id;
       const now = Date.now();
-      const taskListOrder = await getTaskListOrderData(uid);
+      const taskListOrder = assertTaskListOrderStore(
+        (await getDoc(doc(db, "taskListOrder", uid))).data(),
+        uid,
+      );
       const nextOrder =
         Math.max(0, ...getOrderedTaskListOrders(taskListOrder)) + 1;
       const normalizedName = name.trim();
@@ -3193,7 +3108,7 @@ async function deleteTaskList(taskListId: string) {
         updatedAt: now,
       });
       batch.delete(membershipRef);
-      if (getValidMemberCount(taskList) <= 1) {
+      if (taskList.memberCount <= 1) {
         if (taskList.shareCode) {
           const shareCode = normalizeShareCode(taskList.shareCode);
           if (shareCode) {
@@ -3525,7 +3440,7 @@ async function updateTasksOrder(
   await enqueueTaskListMutation(taskListId, async () => {
     const taskList = await getTaskListData(taskListId);
     const tasks = autoSort
-      ? getDisplayOrderedTasks(taskList)
+      ? getOrderedTasks(taskList, true)
       : getOrderedTasks(taskList);
     const nextTasks = reorderTasksByIds(tasks, orderedTaskIds, autoSort);
     if (!nextTasks) return;
@@ -4314,19 +4229,21 @@ function SettingsView({
 
   const handleThemeChange = async (theme: Theme) => {
     await updateSetting({ theme });
-    logSettingsThemeChange({ theme });
+    logAppEvent("settings_theme_change", { theme });
   };
 
   const handleLanguageChange = async (language: Language) => {
     await updateSetting({ language });
-    logSettingsLanguageChange({ language });
+    logAppEvent("settings_language_change", { language });
   };
 
   const handleTaskInsertPositionChange = async (
     taskInsertPosition: TaskInsertPosition,
   ) => {
     await updateSetting({ taskInsertPosition });
-    logSettingsTaskInsertPositionChange({ position: taskInsertPosition });
+    logAppEvent("settings_task_insert_position_change", {
+      position: taskInsertPosition,
+    });
   };
 
   const handleAutoSortChange = async (autoSort: boolean) => {
@@ -4334,7 +4251,7 @@ function SettingsView({
     setOptimisticAutoSort(autoSort);
     const updated = await updateSetting({ autoSort });
     if (updated) {
-      logSettingsAutoSortChange({ enabled: autoSort });
+      logAppEvent("settings_auto_sort_change", { enabled: autoSort });
     } else {
       setOptimisticAutoSort(previousAutoSort);
     }
@@ -4342,7 +4259,7 @@ function SettingsView({
 
   const handleStartupViewChange = async (startupView: StartupView) => {
     await updateSetting({ startupView });
-    logSettingsStartupViewChange({ view: startupView });
+    logAppEvent("settings_startup_view_change", { view: startupView });
   };
 
   const handleSignOut = async () => {
@@ -4355,7 +4272,7 @@ function SettingsView({
 
     try {
       await signOut();
-      logSignOut();
+      logAppEvent("sign_out");
       if (typeof window !== "undefined") {
         window.location.assign("/");
       }
@@ -4378,7 +4295,7 @@ function SettingsView({
       await deleteAccount(deletePassword);
       setDeletePassword("");
       setShowDeleteConfirm(false);
-      logDeleteAccount();
+      logAppEvent("delete_account");
       if (typeof window !== "undefined") {
         window.location.assign("/");
       }
@@ -4401,7 +4318,7 @@ function SettingsView({
       await sendEmailChangeVerification(newEmail);
       setEmailChangeSuccess(true);
       setNewEmail("");
-      logEmailChangeRequested();
+      logAppEvent("email_change_requested");
     } catch (err) {
       setEmailChangeError(resolveErrorMessage(err, t, "auth.error.general"));
     } finally {
@@ -4649,6 +4566,8 @@ function SettingsView({
                   <input
                     type="checkbox"
                     name="autoSort"
+                    role="switch"
+                    aria-checked={settings?.autoSort ?? true}
                     checked={settings?.autoSort ?? true}
                     onChange={(event) =>
                       void handleAutoSortChange(event.target.checked)
@@ -5074,6 +4993,11 @@ type DatedTask = {
 
 const getDatedTaskId = (task: DatedTask): string =>
   `${task.taskListId}:${task.task.id}`;
+
+type OptimisticDatedTaskOverride = {
+  revision: number;
+  task: DatedTask | null;
+};
 
 const TASK_LISTS_ROUTE = "/task-lists";
 const SETTINGS_ROUTE = "/settings";
@@ -5612,27 +5536,27 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={clsx("ll-p-2", className)}
+      className={clsx("ll-w-full", className)}
       locale={resolvedLocale}
       classNames={{
         months: "ll-flex ll-w-full ll-flex-col",
-        month: "ll-w-full ll-space-y-4",
+        month: "ll-w-full ll-space-y-2",
         month_caption:
           "ll-relative ll-flex ll-items-center ll-justify-center ll-pt-1",
         caption_label: "ll-text-sm ll-font-semibold",
         nav: "ll-flex ll-items-center ll-justify-between ll-space-x-1",
         button_previous:
-          "ll-pressable ll-h-8 ll-w-8 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+          "ll-pressable ll-h-11 ll-w-11 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
         button_next:
-          "ll-pressable ll-h-8 ll-w-8 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+          "ll-pressable ll-h-11 ll-w-11 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
         month_grid: "ll-w-full",
         weekdays: "ll-flex",
         weekday:
           "ll-flex-1 ll-text-0x8rem ll-font-medium ll-text-gray-600 ll-dark-text-gray-300",
         week: "ll-mt-2 ll-flex ll-w-full",
-        day: "ll-relative ll-flex ll-h-9 ll-flex-1 ll-justify-center ll-p-0 ll-text-center ll-text-sm",
+        day: "ll-relative ll-flex ll-h-12 ll-flex-1 ll-justify-center ll-p-0 ll-text-center ll-text-sm",
         day_button:
-          "ll-calendar-day ll-h-9 ll-w-9 ll-rounded-full ll-p-0 ll-font-medium ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-aria-selected-bg-gray-900 ll-aria-selected-text-gray-50 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-aria-selected-bg-gray-50 ll-dark-aria-selected-text-gray-900",
+          "ll-calendar-day ll-h-10 ll-w-10 ll-rounded-full ll-p-0 ll-font-medium ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-aria-selected-bg-gray-900 ll-aria-selected-text-gray-50 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-aria-selected-bg-gray-50 ll-dark-aria-selected-text-gray-900",
         selected: "ll-rounded-full ll-bg-gray-300 ll-dark-bg-white",
         today: "ll-border ll-border-gray-300 ll-dark-border-gray-700",
         outside: "ll-text-gray-400 ll-opacity-50 ll-dark-text-gray-500",
@@ -6158,7 +6082,7 @@ function ShareTaskListDialog({
                 void removeShareCode(taskList.id)
                   .then(() => {
                     setShareCode(null);
-                    logShareCodeRemove();
+                    logAppEvent("share_code_remove");
                   })
                   .catch((removeError) =>
                     setError(
@@ -6183,7 +6107,7 @@ function ShareTaskListDialog({
                 void generateShareCode(taskList.id)
                   .then((code) => {
                     setShareCode(code);
-                    logShareCodeGenerate();
+                    logAppEvent("share_code_generate");
                   })
                   .catch((generateError) =>
                     setError(
@@ -6510,7 +6434,7 @@ function TaskListCard({
           taskId: optimisticTask.id,
         }),
       onSuccess: () => {
-        logTaskAdd({ has_date: Boolean(parsed.date) });
+        logAppEvent("task_add", { has_date: Boolean(parsed.date) });
       },
       onError: (error) => {
         setNewTaskText((current) => (current === "" ? textOnError : current));
@@ -6532,7 +6456,7 @@ function TaskListCard({
       commit: () =>
         updateTask(taskList.id, task.id, updates, resolvedTaskSettings),
       onSuccess: () => {
-        logTaskUpdate({ fields: field });
+        logAppEvent("task_update", { fields: field });
         onCloseTaskAction?.();
       },
       onError: (error) => {
@@ -6757,7 +6681,7 @@ function TaskListCard({
                           );
                         },
                         commit: () => sortTasks(taskList.id),
-                        onSuccess: () => logTaskSort(),
+                        onSuccess: () => logAppEvent("task_sort"),
                         onError: (error) => {
                           setTaskError(
                             resolveErrorMessage(error, t, "common.error"),
@@ -6812,7 +6736,7 @@ function TaskListCard({
                               resolvedTaskSettings,
                             ),
                           onSuccess: () =>
-                            logTaskDeleteCompleted({
+                            logAppEvent("task_delete_completed", {
                               count: completedTaskCount,
                             }),
                           onError: (error) => {
@@ -6877,7 +6801,7 @@ function TaskListCard({
               setTaskError(null);
               try {
                 await reorderTask(draggedTaskId, targetTaskId);
-                logTaskReorder();
+                logAppEvent("task_reorder");
               } catch (error) {
                 setTaskError(resolveErrorMessage(error, t, "common.error"));
               }
@@ -6946,7 +6870,9 @@ function TaskListCard({
                           setEditingTaskId(null);
                           const fields = ["text", "date"];
                           if (resolved.pinnedChanged) fields.push("pinned");
-                          logTaskUpdate({ fields: fields.join(",") });
+                          logAppEvent("task_update", {
+                            fields: fields.join(","),
+                          });
                         },
                         onError: (error) => {
                           setTaskError(
@@ -6985,7 +6911,8 @@ function TaskListCard({
                             { completed: nextCompleted },
                             resolvedTaskSettings,
                           ),
-                        onSuccess: () => logTaskUpdate({ fields: "completed" }),
+                        onSuccess: () =>
+                          logAppEvent("task_update", { fields: "completed" }),
                         onError: (error) => {
                           setTaskError(
                             resolveErrorMessage(error, t, "common.error"),
@@ -7030,15 +6957,7 @@ function TaskListCard({
             ].join(" / ")}
           >
             <div className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-gap-3">
-              <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-3">
-                <div className="ll-min-w-0">
-                  <h2 className="ll-text-base ll-font-semibold">
-                    {t("pages.tasklist.setDate")}
-                  </h2>
-                  <p className="ll-truncate ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
-                    {activeTaskActionTask.text}
-                  </p>
-                </div>
+              <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-end ll-gap-3">
                 <DialogPrimitive.Close asChild>
                   <button
                     type="button"
@@ -7461,15 +7380,22 @@ function CalendarTaskItem({
             className="ll-check-circle ll-task-completion-circle ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border ll-bg-transparent ll-peer-checked-bg-gray-300 ll-peer-focus-visible-ring-2 ll-peer-focus-visible-ring-gray-600 ll-dark-peer-checked-bg-gray-700"
           />
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (task.dateValue) onSelectDate(task.dateValue);
-          }}
-          className="ll-calendar-task-text ll-task-text-wrap ll-flex ll-min-h-12 ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
-        >
-          {task.task.text}
-        </button>
+        {task.dateValue ? (
+          <button
+            type="button"
+            onClick={() => {
+              const dateValue = task.dateValue;
+              if (dateValue) onSelectDate(dateValue);
+            }}
+            className="ll-calendar-task-text ll-task-text-wrap ll-flex ll-min-h-12 ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
+          >
+            {task.task.text}
+          </button>
+        ) : (
+          <div className="ll-calendar-task-text ll-task-text-wrap ll-flex ll-min-h-12 ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-dark-text-gray-50">
+            {task.task.text}
+          </div>
+        )}
         <button
           type="button"
           aria-label={t("a11y.editTask")}
@@ -7682,20 +7608,53 @@ function CalendarScreen({
   const [optimisticDatedTasks, setOptimisticDatedTasks] = useState<DatedTask[]>(
     [],
   );
+  const [optimisticDatedTaskOverrides, setOptimisticDatedTaskOverrides] =
+    useState<Record<string, OptimisticDatedTaskOverride>>({});
   const [updateError, setUpdateError] = useState<string | null>(null);
   const datedTaskRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const optimisticDatedTaskRevisionRef = useRef(0);
+
+  const nextOptimisticDatedTaskRevision = () => {
+    optimisticDatedTaskRevisionRef.current += 1;
+    return optimisticDatedTaskRevisionRef.current;
+  };
+
+  const clearOptimisticDatedTaskOverrides = (
+    taskIds: string[],
+    revision: number,
+  ) => {
+    setOptimisticDatedTaskOverrides((current) => {
+      const next = { ...current };
+      taskIds.forEach((taskId) => {
+        if (next[taskId]?.revision === revision) {
+          delete next[taskId];
+        }
+      });
+      return next;
+    });
+  };
 
   const completeTask = (task: DatedTask) => {
-    logTaskUpdate({ fields: "completed" });
+    const taskId = getDatedTaskId(task);
+    const revision = nextOptimisticDatedTaskRevision();
+    logAppEvent("task_update", { fields: "completed" });
     setUpdateError(null);
+    setOptimisticDatedTaskOverrides((current) => ({
+      ...current,
+      [taskId]: { revision, task: null },
+    }));
     void updateTask(
       task.taskListId,
       task.task.id,
       { completed: true },
       taskSettings,
-    ).catch((error) =>
-      setUpdateError(resolveErrorMessage(error, t, "common.error")),
-    );
+    )
+      .catch((error) =>
+        setUpdateError(resolveErrorMessage(error, t, "common.error")),
+      )
+      .finally(() => {
+        clearOptimisticDatedTaskOverrides([taskId], revision);
+      });
   };
 
   const handleTaskSheetSubmit = (values: TaskSheetSubmitValues) => {
@@ -7745,7 +7704,7 @@ function CalendarScreen({
         pinned: values.pinned,
       })
         .then(() => {
-          logTaskAdd({ has_date: Boolean(values.date) });
+          logAppEvent("task_add", { has_date: Boolean(values.date) });
           setTaskSheet(null);
         })
         .catch((error) => {
@@ -7759,34 +7718,101 @@ function CalendarScreen({
     }
     const editedTask = taskSheet.task;
     const isMove = values.taskListId !== editedTask.taskListId;
-    const updates = {
-      text: values.text,
-      date: values.date,
+    const targetTaskList = taskLists.find(
+      (taskList) => taskList.id === values.taskListId,
+    );
+    const parsed = resolveTaskInput(
+      values.text,
+      taskSettings.language,
+      editedTask.task,
+    );
+    const nextDateValue = values.date ? createDateFromKey(values.date) : null;
+    const nextTask: Task = {
+      ...editedTask.task,
+      text: values.text.trim() === "" ? "" : parsed.text,
+      date: nextDateValue ? values.date : "",
       pinned: values.pinned,
     };
-    logTaskUpdate({
+    const shouldKeepTask = hasTaskContent(nextTask);
+    const sourceTaskId = getDatedTaskId(editedTask);
+    const targetTaskId =
+      targetTaskList && isMove
+        ? `${targetTaskList.id}:${editedTask.task.id}`
+        : null;
+    const revision = nextOptimisticDatedTaskRevision();
+    const optimisticOverrides: Record<string, OptimisticDatedTaskOverride> = {
+      [sourceTaskId]: {
+        revision,
+        task:
+          isMove || !shouldKeepTask
+            ? null
+            : {
+                ...editedTask,
+                task: nextTask,
+                dateValue: nextDateValue,
+                dateKey: nextDateValue ? values.date : "",
+              },
+      },
+    };
+    if (targetTaskList && isMove && shouldKeepTask && targetTaskId) {
+      optimisticOverrides[targetTaskId] = {
+        revision,
+        task: {
+          taskListId: targetTaskList.id,
+          taskListName: targetTaskList.name,
+          taskListBackground: targetTaskList.background,
+          task: nextTask,
+          dateValue: nextDateValue,
+          dateKey: nextDateValue ? values.date : "",
+          taskListIndex: taskLists.findIndex(
+            (taskList) => taskList.id === targetTaskList.id,
+          ),
+          taskIndex:
+            taskSettings.taskInsertPosition === "top"
+              ? -1
+              : targetTaskList.tasks.length,
+        },
+      };
+    }
+    const optimisticOverrideIds = Object.keys(optimisticOverrides);
+    setOptimisticDatedTaskOverrides((current) => ({
+      ...current,
+      ...optimisticOverrides,
+    }));
+    logAppEvent("task_update", {
       fields: isMove ? "text,date,pinned,taskList" : "text,date,pinned",
     });
-    void (
-      isMove
-        ? moveTask(
-            editedTask.taskListId,
-            values.taskListId,
-            editedTask.task.id,
-            updates,
-            taskSettings,
-          )
-        : updateTask(
-            editedTask.taskListId,
-            editedTask.task.id,
-            updates,
-            taskSettings,
-          )
-    )
-      .then(() => setTaskSheet(null))
-      .catch((error) =>
-        setTaskSheetError(resolveErrorMessage(error, t, "common.error")),
-      )
+    const taskWrite = isMove
+      ? moveTask(
+          editedTask.taskListId,
+          values.taskListId,
+          editedTask.task.id,
+          {
+            text: values.text,
+            date: values.date,
+            pinned: values.pinned,
+          },
+          taskSettings,
+        )
+      : updateTask(
+          editedTask.taskListId,
+          editedTask.task.id,
+          {
+            text: values.text,
+            date: values.date,
+            pinned: values.pinned,
+          },
+          taskSettings,
+        );
+    void taskWrite
+      .then(() => {
+        clearOptimisticDatedTaskOverrides(optimisticOverrideIds, revision);
+        setTaskSheet(null);
+      })
+      .catch((error) => {
+        clearOptimisticDatedTaskOverrides(optimisticOverrideIds, revision);
+        setTaskSheetError(resolveErrorMessage(error, t, "common.error"));
+      })
       .finally(() => setTaskSheetSaving(false));
   };
 
@@ -7833,6 +7859,19 @@ function CalendarScreen({
         flattened.push(task);
       }
     }
+    for (const [taskId, { task: override }] of Object.entries(
+      optimisticDatedTaskOverrides,
+    )) {
+      const existingIndex = flattened.findIndex(
+        (task) => getDatedTaskId(task) === taskId,
+      );
+      if (existingIndex >= 0) {
+        flattened.splice(existingIndex, 1);
+      }
+      if (override) {
+        flattened.push(override);
+      }
+    }
     flattened.sort((left, right) => {
       const byPinned =
         Number(right.task.pinned ?? false) - Number(left.task.pinned ?? false);
@@ -7847,7 +7886,12 @@ function CalendarScreen({
       return left.taskIndex - right.taskIndex;
     });
     return flattened;
-  }, [optimisticDatedTasks, taskLists, taskSettings.autoSort]);
+  }, [
+    optimisticDatedTaskOverrides,
+    optimisticDatedTasks,
+    taskLists,
+    taskSettings.autoSort,
+  ]);
 
   const datedTasksByMonth = useMemo<Record<string, DatedTask[]>>(() => {
     const map: Record<string, DatedTask[]> = {};
@@ -8017,7 +8061,7 @@ function CalendarScreen({
               </button>
             ) : null}
           </div>
-          <div className="ll-min-h-0 ll-overflow-y-auto ll-lg-h-full">
+          <div className="ll-min-h-0">
             {updateError ? (
               <div className="ll-p-4">
                 <Alert variant="error">{updateError}</Alert>
@@ -8841,7 +8885,7 @@ function AppShellPage() {
         setError(null);
         try {
           await reorderTaskList(draggedTaskListId, targetTaskListId);
-          logTaskListReorder();
+          logAppEvent("task_list_reorder");
         } catch (err) {
           setError(resolveErrorMessage(err, t, "common.error"));
         }
@@ -8854,7 +8898,7 @@ function AppShellPage() {
         setError(null);
         const newTaskListId = await createTaskList(name, background);
         openTaskList(newTaskListId, "push");
-        logTaskListCreate();
+        logAppEvent("task_list_create");
         return newTaskListId;
       }}
       onJoinList={async (code) => {
@@ -8871,7 +8915,7 @@ function AppShellPage() {
 
         await addSharedTaskListToOrder(taskListId, code);
         openTaskList(taskListId, "push");
-        logShareCodeJoin();
+        logAppEvent("share_code_join");
       }}
     />
   );
@@ -9366,7 +9410,7 @@ function LoginPage() {
       e,
       async () => {
         await signIn(email, password);
-        logLogin();
+        log("login", { method: "email" });
       },
       { email, password },
       setLoading,
@@ -9381,7 +9425,7 @@ function LoginPage() {
         setIsProvisioning(true);
         try {
           await signUp(email, password, resolvedLanguage);
-          logSignUp();
+          log("sign_up", { method: "email" });
         } finally {
           setIsProvisioning(false);
         }
@@ -9406,7 +9450,7 @@ function LoginPage() {
     try {
       await sendPasswordResetEmail(email, normalizeLanguage(i18n.language));
       setResetSent(true);
-      logPasswordResetEmailSent();
+      logAppEvent("password_reset_email_sent");
     } catch (error) {
       setErrors({
         general: resolveErrorMessage(error, t, "auth.error.general"),
@@ -9883,7 +9927,7 @@ function ShareCodePreviewPage() {
         }
 
         setSharedTaskListId(taskListId);
-        logShare();
+        log("share", { method: "share_code", content_type: "task_list" });
       } catch (err) {
         setError(resolveErrorMessage(err, t, "pages.sharecode.error"));
         setSharedTaskListId(null);
@@ -9910,7 +9954,7 @@ function ShareCodePreviewPage() {
       setAddToOrderLoading(true);
       setAddToOrderError(null);
       await addSharedTaskListToOrder(taskList.id, sharecode);
-      logShareCodeJoin();
+      logAppEvent("share_code_join");
       window.location.assign("/app/");
     } catch (err) {
       setAddToOrderError(

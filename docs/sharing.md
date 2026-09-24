@@ -11,6 +11,7 @@
 - リスト実体削除（アカウント削除を含む）でも、残った `shareCode` に対応する `shareCodes` doc を残さない。
 - 共有コードの解決ではコード文書と対象リストをサーバーから取得し、リストの現在のコードとの一致を確認する。Rules もリストから参照されない既存コード文書の取得を拒否する。古いコード文書が残っていても共有先を解決できず、共有コードを新たに開くには接続が必要になる。
 - 外部入力、deep link、既存の `taskLists.shareCode` から Firestore document path を作る前に、trim + uppercase 後の完全一致 `^[A-Z0-9]{8}$` を必ず検証する。不正な値は未検出として扱い、不正な document path を作らない。
+- 共有ダイアログのコピー操作は、コード文字列ではなく共有 URL（Web は `${origin}/sharecodes/?code=CODE`、native は `https://lightlist.com/sharecodes/?code=CODE`）をクリップボードへ入れる。コード自体は読み取り専用の等幅フィールドに表示する。
 - 1 リストにつき有効な `shareCodes` doc は最大 1 件。`shareCodes/{code}` の作成は、同一 commit で `taskLists/{taskListId}.shareCode == code` になることを rules が要求する。`taskLists` から辿れない共有コードは発行できないため、共有解除で必ず全コードが失効する。
 - `taskLists.shareCode` へ書けるのは `null` か `^[A-Z0-9]{8}$` のみ。新しいコードを設定する場合は同一 commit で対応する `shareCodes` doc を作る必要がある。
 

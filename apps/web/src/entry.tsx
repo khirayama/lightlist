@@ -13,6 +13,7 @@ import {
   useMemo,
   useDeferredValue,
   Children,
+  isValidElement,
   memo,
   useLayoutEffect,
   startTransition,
@@ -1753,14 +1754,30 @@ function AppStateProvider({
   const [memberTaskListIds, setMemberTaskListIds] = useState<string[] | null>(
     null,
   );
+  const membershipUidRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!activeUid) {
+      membershipUidRef.current = null;
       setMemberTaskListIds([]);
       return;
     }
 
-    setMemberTaskListIds(null);
+    if (membershipUidRef.current !== activeUid) {
+      setMemberTaskListIds(null);
+    }
+    const applyMemberTaskListIds = (nextIds: string[]) => {
+      membershipUidRef.current = activeUid;
+      setMemberTaskListIds((currentIds) => {
+        if (!currentIds || currentIds.length !== nextIds.length) {
+          return nextIds;
+        }
+        const nextIdSet = new Set(nextIds);
+        return currentIds.every((id) => nextIdSet.has(id))
+          ? currentIds
+          : nextIds;
+      });
+    };
     let disposed = false;
     let retryTimer: number | null = null;
     let retryDelayMs = 1000;
@@ -1779,13 +1796,13 @@ function AppStateProvider({
         ) {
           return;
         }
-        setMemberTaskListIds(accessibleIds);
+        applyMemberTaskListIds(accessibleIds);
         retryDelayMs = 1000;
       } catch (error) {
         if (disposed) return;
         logException("task_list_membership_decode", error);
         if (getErrorCategory(error) === "permission-denied") {
-          setMemberTaskListIds(orderedTaskListIdsRef.current);
+          applyMemberTaskListIds(orderedTaskListIdsRef.current);
           return;
         }
         const delayMs = retryDelayMs;
@@ -1811,10 +1828,7 @@ function AppStateProvider({
       taskListIds: accessibleTaskListIds,
     });
 
-    if (
-      !activeUid ||
-      memberTaskListIds === null
-    ) {
+    if (!activeUid || memberTaskListIds === null) {
       dispatchTaskLists({
         type: "setTaskListDocsStatus",
         taskListDocsStatus: "loading",
@@ -1943,7 +1957,7 @@ function AppStateProvider({
         if (chunk.retryTimer !== null) window.clearTimeout(chunk.retryTimer);
       });
     };
-  }, [activeUid, memberTaskListIds, orderedTaskListIdsKey]);
+  }, [activeUid, memberTaskListIds]);
 
   const registerSharedTaskList = useCallback((taskListId: string) => {
     const nextCount =
@@ -2239,8 +2253,6 @@ const requireCurrentUser = (): FirebaseAuthUser => {
 };
 
 const requireCurrentUserId = (): string => requireCurrentUser().uid;
-
-
 
 const getPreferredLanguage = async (language?: Language): Promise<Language> => {
   if (language) {
@@ -2910,9 +2922,10 @@ function canReorderTasks(
   second: Pick<TaskListStoreTask, "completed" | "date" | "pinned">,
   autoSort: boolean,
 ) {
+  if (!autoSort) return true;
   return (
     getTaskDisplayGroup(first) === getTaskDisplayGroup(second) &&
-    (!autoSort || first.date === second.date)
+    first.date === second.date
   );
 }
 
@@ -2980,9 +2993,7 @@ function buildTaskUpdateData(params: {
 }): Record<string, unknown> {
   const updates: Record<string, unknown> = {};
   const previousTasks = params.previousTasks ?? [];
-  const previousById = new Map(
-    previousTasks.map((task) => [task.id, task]),
-  );
+  const previousById = new Map(previousTasks.map((task) => [task.id, task]));
   const nextTaskIds = new Set(params.tasks.map((task) => task.id));
   previousTasks.forEach((task) => {
     if (!nextTaskIds.has(task.id)) {
@@ -3647,30 +3658,36 @@ type AppIconName =
   | "delete"
   | "arrow-back"
   | "alert-circle"
-  | "check";
+  | "check"
+  | "add"
+  | "link"
+  | "chevron-right";
 
 const ICON_PATHS: Record<AppIconName, string | string[]> = {
   menu: "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
-  edit: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.995.995 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
+  edit: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM5.92 19H5v-.92l9.06-9.06.92.92L5.92 19zM20.71 5.63l-2.34-2.34c-.2-.2-.45-.29-.71-.29s-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41z",
   share:
-    "M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z",
+    "M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92zM18 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM6 13c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm12 7.02c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z",
   "calendar-today":
     "M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z",
   "push-pin": "M16 9V4l1-1V2H7v1l1 1v5l-2 2v2h5.2v7h1.6v-7H18v-2l-2-2z",
   "drag-indicator":
     "M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
   settings:
-    "M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l-.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z",
+    "M19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.09-.16-.26-.25-.44-.25-.06 0-.12.01-.17.03l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.06-.02-.12-.03-.18-.03-.17 0-.34.09-.43.25l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.09.16.26.25.44.25.06 0 .12-.01.17-.03l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.06.02.12.03.18.03.17 0 .34-.09.43-.25l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zm-1.98-1.71c.04.31.05.52.05.73 0 .21-.02.43-.05.73l-.14 1.13.89.7 1.08.84-.7 1.21-1.27-.51-1.04-.42-.9.68c-.43.32-.84.56-1.25.73l-1.06.43-.16 1.13-.2 1.35h-1.4l-.19-1.35-.16-1.13-1.06-.43c-.43-.18-.83-.41-1.23-.71l-.91-.7-1.06.43-1.27.51-.7-1.21 1.08-.84.89-.7-.14-1.13c-.03-.31-.05-.54-.05-.74s.02-.43.05-.73l.14-1.13-.89-.7-1.08-.84.7-1.21 1.27.51 1.04.42.9-.68c.43-.32.84-.56 1.25-.73l1.06-.43.16-1.13.2-1.35h1.39l.19 1.35.16 1.13 1.06.43c.43.18.83.41 1.23.71l.91.7 1.06-.43 1.27-.51.7 1.21-1.07.85-.89.7.14 1.13zM12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z",
   close:
     "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
   send: "M2.01 21L23 12 2.01 3 2 10l15 2-15 2z",
   sort: "M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z",
   delete:
-    "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
+    "M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1zM18 7H6v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7z",
   "arrow-back": "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z",
   "alert-circle":
     "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z",
   check: "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z",
+  add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+  link: "M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z",
+  "chevron-right": "M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z",
 };
 
 type AlertVariant = "info" | "error" | "success" | "warning";
@@ -3747,7 +3764,8 @@ const AppIcon = ({
   const isRtl =
     typeof document !== "undefined" &&
     document.documentElement.dir.toLowerCase() === "rtl";
-  const shouldMirrorArrow = name === "arrow-back" && isRtl;
+  const shouldMirrorArrow =
+    (name === "arrow-back" || name === "chevron-right") && isRtl;
   const style = props.style as SVGProps<SVGSVGElement>["style"];
 
   return (
@@ -3828,12 +3846,20 @@ function ColorPicker({
   onSelect: (color: string | null) => void;
   ariaLabelPrefix: string;
 }) {
+  const { t } = useTranslation();
   return (
-    <div className="ll-flex ll-flex-wrap ll-gap-2">
+    <div className="ll-flex ll-flex-wrap ll-gap-1">
       {colors.map((color) => {
         const isSelected = selectedColor === color.value;
+        const colorNameKey: ColorNameKey | undefined =
+          color.value === null
+            ? "taskList.backgroundNoneShort"
+            : COLOR_NAME_KEYS[color.value];
         const ariaLabel =
-          color.label ?? `${ariaLabelPrefix} ${color.value ?? ""}`.trim();
+          color.label ??
+          (colorNameKey
+            ? `${ariaLabelPrefix}: ${t(colorNameKey)}`
+            : `${ariaLabelPrefix} ${color.value ?? ""}`.trim());
         const previewColor =
           color.preview ?? color.value ?? "var(--tasklist-theme-bg)";
 
@@ -3845,15 +3871,16 @@ function ColorPicker({
             aria-label={ariaLabel}
             title={color.label}
             onClick={() => onSelect(color.value)}
-            className={clsx(
-              "ll-flex ll-h-11 ll-w-11 ll-items-center ll-justify-center ll-rounded-10px ll-border ll-border-gray-300 ll-text-10px ll-font-semibold ll-text-gray-600 ll-dark-border-gray-700 ll-dark-text-gray-300",
-              isSelected
-                ? "ll-ring-2 ll-ring-gray-900 ll-ring-offset-2 ll-ring-offset-white ll-dark-ring-gray-50 ll-dark-ring-offset-gray-900"
-                : "",
-            )}
-            style={{ backgroundColor: previewColor }}
+            className="ll-color-swatch"
           >
-            {color.shortLabel ?? ""}
+            <span
+              aria-hidden="true"
+              className="ll-color-swatch-dot"
+              data-empty={color.value === null ? "true" : undefined}
+              style={{ backgroundColor: previewColor }}
+            >
+              {color.shortLabel ?? ""}
+            </span>
           </button>
         );
       })}
@@ -3916,7 +3943,7 @@ function DialogContent({
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "ll-anim-dialog ll-fixed ll-left-half ll-top-half ll-z-1300 ll-min-w-320px ll-max-w-dialog ll-translate-x-neg-half ll-translate-y-neg-half ll-rounded-xl ll-bg-dialog ll-outline-none ll-p-5 ll-text-dialog-fg ll-shadow-2xl",
+          "ll-anim-dialog ll-dialog-panel ll-fixed ll-left-half ll-top-half ll-z-1300 ll-translate-x-neg-half ll-translate-y-neg-half ll-bg-dialog ll-outline-none ll-p-6 ll-text-dialog-fg ll-shadow-2xl",
           className,
         )}
       >
@@ -3976,7 +4003,7 @@ function ActionSheetContent({
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "ll-anim-sheet ll-fixed ll-inset-x-0 ll-bottom-0 ll-z-1300 ll-flex ll-max-h-sheet ll-w-full ll-translate-x-0 ll-translate-y-0 ll-flex-col ll-overflow-hidden ll-rounded-t-28px ll-bg-white-b ll-outline-none ll-px-4 ll-pb-6 ll-pt-4 ll-text-gray-900 ll-shadow-2xl ll-sm-left-half ll-sm-top-half ll-sm-h-sheet ll-sm-w-dialog ll-sm-max-w-dialog ll-sm-translate-x-neg-half ll-sm-translate-y-neg-half ll-sm-rounded-28px ll-sm-border ll-sm-border-gray-300 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-sm-dark-border-gray-700",
+          "ll-anim-sheet ll-sheet-panel ll-fixed ll-inset-x-0 ll-bottom-0 ll-z-1300 ll-flex ll-max-h-sheet ll-w-full ll-translate-x-0 ll-translate-y-0 ll-flex-col ll-overflow-hidden ll-rounded-t-28px ll-bg-white-b ll-outline-none ll-px-4 ll-pb-6 ll-pt-3 ll-text-gray-900 ll-shadow-2xl ll-sm-left-half ll-sm-top-half ll-sm-translate-x-neg-half ll-sm-translate-y-neg-half ll-dark-bg-gray-900b ll-dark-text-gray-50",
           className,
         )}
       >
@@ -3997,13 +4024,28 @@ function ActionSheetContent({
   );
 }
 
-function DialogFooter({ children }: { children: ReactNode }) {
+function DialogFooter({
+  children,
+  start,
+}: {
+  children: ReactNode;
+  start?: ReactNode;
+}) {
   return (
-    <div className="ll-mt-4 ll-flex ll-flex-wrap ll-items-center ll-justify-end ll-gap-2">
+    <div className="ll-mt-6 ll-flex ll-flex-wrap ll-items-center ll-justify-end ll-gap-2">
+      {start ? <div className="ll-dialog-footer-start">{start}</div> : null}
       {children}
     </div>
   );
 }
+
+const BUTTON_PRIMARY_CLASS = "ll-pressable ll-btn ll-btn-primary";
+const BUTTON_SECONDARY_CLASS = "ll-pressable ll-btn ll-btn-secondary";
+const BUTTON_GHOST_CLASS = "ll-pressable ll-btn ll-btn-ghost";
+const BUTTON_TONAL_CLASS = "ll-pressable ll-btn ll-btn-tonal";
+const BUTTON_DANGER_CLASS = "ll-pressable ll-btn ll-btn-danger";
+const BUTTON_DESTRUCTIVE_CLASS = "ll-pressable ll-btn ll-btn-destructive";
+const ICON_BUTTON_CLASS = "ll-pressable ll-icon-btn";
 
 type SettingsViewProps = {
   onBack?: () => void;
@@ -4032,14 +4074,9 @@ function BackButton({ onBack }: { onBack?: () => void }) {
       onClick={onBack}
       title={t("common.back")}
       aria-label={t("common.back")}
-      className="ll-inline-flex ll-h-10 ll-w-10 ll-items-center ll-justify-center ll-rounded-full ll-text-gray-600 ll-transition ll-hover-bg-gray-300 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-300 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-focus-visible-outline-gray-700"
+      className={clsx(ICON_BUTTON_CLASS, "ll-page-header-back")}
     >
-      <AppIcon
-        name="arrow-back"
-        className="ll-h-5 ll-w-5"
-        aria-hidden="true"
-        focusable="false"
-      />
+      <AppIcon name="arrow-back" aria-hidden="true" focusable="false" />
     </button>
   );
 }
@@ -4085,13 +4122,6 @@ function ConfirmDialog({
   isDestructive = false,
   disabled = false,
 }: ConfirmDialogProps) {
-  const primaryButtonClass =
-    "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300";
-  const destructiveButtonClass =
-    "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-bg-red-600 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-white ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-red-400 ll-dark-focus-visible-outline-red-400";
-  const secondaryButtonClass =
-    "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-gray-300";
-
   return (
     <Dialog
       open={isOpen}
@@ -4113,7 +4143,7 @@ function ConfirmDialog({
               type="button"
               onClick={onClose}
               disabled={disabled}
-              className={secondaryButtonClass}
+              className={BUTTON_SECONDARY_CLASS}
             >
               {cancelText}
             </button>
@@ -4123,7 +4153,7 @@ function ConfirmDialog({
             onClick={onConfirm}
             disabled={disabled}
             className={
-              isDestructive ? destructiveButtonClass : primaryButtonClass
+              isDestructive ? BUTTON_DESTRUCTIVE_CLASS : BUTTON_PRIMARY_CLASS
             }
           >
             {confirmText}
@@ -4136,7 +4166,7 @@ function ConfirmDialog({
 
 function SettingsSection({ children }: SettingsSectionProps) {
   return (
-    <section className="ll-rounded-xl ll-bg-white-b ll-p-4 ll-dark-bg-gray-900b">
+    <section className="ll-rounded-xl ll-bg-white-b ll-px-4 ll-py-3 ll-dark-bg-gray-900b">
       {children}
     </section>
   );
@@ -4153,13 +4183,11 @@ function SelectRow({
   return (
     <label
       htmlFor={id}
-      className={`ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-4 ll-transition ll-focus-within-outline-1 ll-focus-within-outline-2 ll-focus-within-outline-offset-2 ll-focus-within-outline-gray-300 ll-dark-focus-within-outline-gray-700 ${
-        disabled ? "opacity-60" : ""
+      className={`ll-settings-row ll-transition ll-focus-within-outline-1 ll-focus-within-outline-2 ll-focus-within-outline-offset-2 ll-focus-within-outline-gray-300 ll-dark-focus-within-outline-gray-700 ${
+        disabled ? "ll-opacity-50" : ""
       }`}
     >
-      <span className="ll-min-w-0 ll-flex-1 ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
-        {label}
-      </span>
+      <span className="ll-min-w-0 ll-flex-1">{label}</span>
       <span className="ll-settings-select-wrap">
         <select
           id={id}
@@ -4378,13 +4406,24 @@ function SettingsView({
 
   return (
     <div className="ll-min-h-full ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
-      <div className="ll-mx-auto ll-flex ll-w-full ll-max-w-3xl ll-flex-col ll-gap-4 ll-px-4 ll-pb-10 ll-pt-6 ll-sm-px-6 ll-lg-pt-8">
-        <header className="ll-flex ll-items-center ll-gap-3 ll-px-1">
-          {showBackButton ? <BackButton onBack={onBack} /> : null}
-          <h1 className="ll-font-display ll-min-w-0 ll-flex-1 ll-text-2xl ll-font-semibold ll-tracking-tight">
-            {t("settings.title")}
-          </h1>
-        </header>
+      {showBackButton ? (
+        <AppHeader
+          backLabel={t("common.back")}
+          onBack={() => onBack?.()}
+          title={t("settings.title")}
+        />
+      ) : null}
+      <div
+        className={clsx(
+          "ll-page-container ll-flex ll-flex-col ll-gap-4",
+          showBackButton && "ll-page-container-compact",
+        )}
+      >
+        {showBackButton ? null : (
+          <header className="ll-page-header">
+            <h1 className="ll-page-title">{t("settings.title")}</h1>
+          </header>
+        )}
 
         {error && <Alert variant="error">{error}</Alert>}
 
@@ -4393,14 +4432,14 @@ function SettingsView({
         ) : (
           <>
             <SettingsSection>
-              <div className="ll-flex ll-flex-col ll-gap-2">
-                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
+              <div className="ll-flex ll-flex-col">
+                <h2 className="ll-settings-heading">
                   {t("settings.userInfo.title")}
                 </h2>
-                <div className="ll-mt-1 ll-flex ll-flex-col">
-                  <div className="ll-flex ll-min-h-11 ll-items-center">
+                <div className="ll-flex ll-flex-col">
+                  <div className="ll-settings-row">
                     {user ? (
-                      <p className="ll-break-all ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
+                      <p className="ll-m-0 ll-min-w-0 ll-break-all">
                         {user.email}
                       </p>
                     ) : (
@@ -4413,13 +4452,20 @@ function SettingsView({
                       type="button"
                       onClick={() => setShowEmailChangeForm(true)}
                       disabled={actionsDisabled}
-                      className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-text-left ll-text-sm ll-font-medium ll-text-gray-900 ll-transition ll-hover-bg-gray-50 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-50 ll-dark-hover-bg-gray-950"
+                      className="ll-settings-row"
                     >
                       {t("settings.emailChange.title")}
+                      <AppIcon
+                        name="chevron-right"
+                        size={20}
+                        className="ll-muted-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      />
                     </button>
                   )}
                   {showEmailChangeForm && (
-                    <div className="ll-mt-3 ll-flex ll-flex-col ll-gap-3">
+                    <div className="ll-flex ll-flex-col ll-gap-3 ll-pb-3 ll-pt-1">
                       {emailChangeSuccess ? (
                         <Alert variant="success">
                           {t("settings.emailChange.successMessage")}
@@ -4432,7 +4478,7 @@ function SettingsView({
                           <div>
                             <label
                               htmlFor="new-email"
-                              className="ll-mb-1 ll-block ll-text-xs ll-font-medium ll-text-gray-600 ll-dark-text-gray-300"
+                              className="ll-field-label ll-mb-1 ll-block"
                             >
                               {t("settings.emailChange.newEmailLabel")}
                             </label>
@@ -4445,15 +4491,15 @@ function SettingsView({
                               placeholder={t(
                                 "settings.emailChange.newEmailPlaceholder",
                               )}
-                              className="ll-w-full ll-rounded-md ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-focus-border-gray-600 ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-border-gray-300"
+                              className="ll-field"
                             />
                           </div>
-                          <div className="ll-flex ll-gap-2">
+                          <div className="ll-flex ll-justify-end ll-gap-2">
                             <button
                               type="button"
                               onClick={handleEmailChangeClose}
                               disabled={isChangingEmail}
-                              className="ll-pressable ll-inline-flex ll-min-h-11 ll-items-center ll-justify-center ll-rounded-2xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-transition ll-hover-border-gray-600 ll-hover-bg-gray-50 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-hover-border-gray-300 ll-dark-hover-bg-gray-900"
+                              className={BUTTON_SECONDARY_CLASS}
                             >
                               {t("common.cancel")}
                             </button>
@@ -4461,7 +4507,7 @@ function SettingsView({
                               type="button"
                               onClick={() => void handleEmailChangeSubmit()}
                               disabled={isChangingEmail || !newEmail.trim()}
-                              className="ll-pressable ll-inline-flex ll-min-h-11 ll-flex-1 ll-items-center ll-justify-center ll-rounded-2xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-transition ll-hover-opacity-90 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900"
+                              className={BUTTON_PRIMARY_CLASS}
                             >
                               {isChangingEmail
                                 ? t("settings.emailChange.submitting")
@@ -4487,10 +4533,10 @@ function SettingsView({
 
             <SettingsSection>
               <fieldset className="ll-flex ll-flex-col ll-gap-0">
-                <legend className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
+                <legend className="ll-settings-heading">
                   {t("settings.preferences.title")}
                 </legend>
-                <div className="ll-mt-2 ll-divide-y ll-divide-gray-300 ll-dark-divide-gray-700">
+                <div className="ll-divide-y ll-divide-gray-300 ll-dark-divide-gray-700">
                   {settings ? (
                     <>
                       <SelectRow
@@ -4546,21 +4592,16 @@ function SettingsView({
                         t("settings.taskInsertPosition.title"),
                       ],
                     ].map(([key, label]) => (
-                      <div
-                        key={key}
-                        className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-4"
-                      >
-                        <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
-                          {label}
-                        </span>
+                      <div key={key} className="ll-settings-row">
+                        <span>{label}</span>
                         {skeletonSelect}
                       </div>
                     ))
                   )}
                 </div>
                 <label
-                  className={`ll-mt-1 ll-flex ll-cursor-pointer ll-items-center ll-justify-between ll-gap-4 ll-border-t ll-border-gray-300 ll-py-3 ll-transition ll-focus-within-outline-1 ll-focus-within-outline-2 ll-focus-within-outline-offset-2 ll-focus-within-outline-gray-300 ll-dark-border-gray-700 ll-dark-focus-within-outline-gray-700 ${
-                    settingsDisabled ? "cursor-not-allowed opacity-60" : ""
+                  className={`ll-flex ll-cursor-pointer ll-items-center ll-justify-between ll-gap-4 ll-border-t ll-border-gray-300 ll-py-3 ll-transition ll-focus-within-outline-1 ll-focus-within-outline-2 ll-focus-within-outline-offset-2 ll-focus-within-outline-gray-300 ll-dark-border-gray-700 ll-dark-focus-within-outline-gray-700 ${
+                    settingsDisabled ? "ll-opacity-50" : ""
                   }`}
                 >
                   <input
@@ -4601,8 +4642,8 @@ function SettingsView({
             </SettingsSection>
 
             <SettingsSection>
-              <div className="ll-flex ll-flex-col ll-gap-2">
-                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
+              <div className="ll-flex ll-flex-col">
+                <h2 className="ll-settings-heading">
                   {t("settings.legal.title")}
                 </h2>
                 {(["openSource", "bundledAssets"] as const).map(
@@ -4615,14 +4656,16 @@ function SettingsView({
                         type="button"
                         onClick={onOpenLicenses}
                         disabled={!onOpenLicenses}
-                        className="ll-flex ll-items-center ll-justify-between ll-gap-3 ll-rounded-lg ll-px-1 ll-py-2 ll-text-left ll-transition ll-hover-bg-gray-50 ll-disabled-cursor-default ll-disabled-hover-bg-transparent ll-dark-hover-bg-gray-950"
+                        className="ll-settings-row"
                       >
-                        <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
-                          {t(`settings.licenses.${key}`)}
-                        </span>
-                        <span className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-                          &gt;
-                        </span>
+                        {t(`settings.licenses.${key}`)}
+                        <AppIcon
+                          name="chevron-right"
+                          size={20}
+                          className="ll-muted-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        />
                       </button>
                     </Fragment>
                   ),
@@ -4631,8 +4674,8 @@ function SettingsView({
             </SettingsSection>
 
             <SettingsSection>
-              <div className="ll-flex ll-flex-col ll-gap-2">
-                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-600 ll-dark-text-gray-300">
+              <div className="ll-flex ll-flex-col">
+                <h2 className="ll-settings-heading">
                   {t("settings.actions.title")}
                 </h2>
                 <div className="ll-flex ll-flex-col">
@@ -4640,7 +4683,7 @@ function SettingsView({
                     type="button"
                     onClick={() => setShowSignOutConfirm(true)}
                     disabled={actionsDisabled}
-                    className="ll-flex ll-w-full ll-items-center ll-rounded-lg ll-px-1 ll-py-3 ll-text-left ll-text-sm ll-font-medium ll-text-gray-900 ll-transition ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-50 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-gray-700"
+                    className="ll-settings-row"
                   >
                     {signOutLabel}
                   </button>
@@ -4649,7 +4692,7 @@ function SettingsView({
                     type="button"
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={actionsDisabled}
-                    className="ll-flex ll-w-full ll-items-center ll-rounded-lg ll-px-1 ll-py-3 ll-text-left ll-text-sm ll-font-medium ll-text-red-600 ll-transition ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-red-400 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-red-500"
+                    className="ll-settings-row ll-settings-row-danger"
                   >
                     {deleteAccountLabel}
                   </button>
@@ -4709,7 +4752,7 @@ function SettingsView({
                   <button
                     type="button"
                     disabled={Boolean(pendingAction)}
-                    className={AUTH_SECONDARY_BUTTON_CLASS}
+                    className={BUTTON_SECONDARY_CLASS}
                   >
                     {t("common.cancel")}
                   </button>
@@ -4717,7 +4760,7 @@ function SettingsView({
                 <button
                   type="submit"
                   disabled={!deletePassword || Boolean(pendingAction)}
-                  className={AUTH_PRIMARY_BUTTON_CLASS}
+                  className={BUTTON_DESTRUCTIVE_CLASS}
                 >
                   {pendingAction === "deleteAccount"
                     ? t("settings.deletingAccount")
@@ -4735,13 +4778,14 @@ function SettingsView({
 type LicensesViewProps = {
   onBack?: () => void;
   showBackButton?: boolean;
+  compact?: boolean;
 };
 
 function LicenseCard({ entry }: { entry: LicenseEntry }) {
   const sourceUrl = entry.repository ?? entry.source;
 
   return (
-    <details className="ll-rounded-xl ll-bg-white-b ll-px-4 ll-py-3 ll-dark-bg-gray-900b">
+    <details className="ll-license-card ll-py-3">
       <summary className="ll-cursor-pointer ll-list-none">
         <div className="ll-flex ll-items-start ll-justify-between ll-gap-3">
           <div className="ll-min-w-0">
@@ -4752,9 +4796,13 @@ function LicenseCard({ entry }: { entry: LicenseEntry }) {
               {[entry.version, entry.license].filter(Boolean).join(" / ")}
             </p>
           </div>
-          <span className="ll-mt-0x5 ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-            &gt;
-          </span>
+          <AppIcon
+            name="chevron-right"
+            size={20}
+            className="ll-license-chevron ll-muted-icon"
+            aria-hidden="true"
+            focusable="false"
+          />
         </div>
       </summary>
       {sourceUrl ? (
@@ -4774,7 +4822,11 @@ function LicenseCard({ entry }: { entry: LicenseEntry }) {
   );
 }
 
-function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
+function LicensesView({
+  onBack,
+  showBackButton = false,
+  compact = false,
+}: LicensesViewProps) {
   const { t } = useTranslation();
   const [payload, setPayload] = useState<LicensePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -4811,13 +4863,25 @@ function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
 
   return (
     <div className="ll-min-h-full ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
-      <div className="ll-mx-auto ll-flex ll-w-full ll-max-w-4xl ll-flex-col ll-gap-4 ll-px-4 ll-pb-10 ll-pt-6 ll-sm-px-6 ll-lg-pt-8">
-        <header className="ll-flex ll-items-center ll-gap-3 ll-px-1">
-          {showBackButton ? <BackButton onBack={onBack} /> : null}
-          <h1 className="ll-font-display ll-min-w-0 ll-flex-1 ll-text-2xl ll-font-semibold ll-tracking-tight">
-            {t("settings.licenses.title")}
-          </h1>
-        </header>
+      {compact ? (
+        <AppHeader
+          backLabel={t("common.back")}
+          onBack={() => onBack?.()}
+          title={t("settings.licenses.title")}
+        />
+      ) : null}
+      <div
+        className={clsx(
+          "ll-page-container ll-flex ll-flex-col ll-gap-4",
+          compact && "ll-page-container-compact",
+        )}
+      >
+        {compact ? null : (
+          <header className="ll-page-header">
+            {showBackButton ? <BackButton onBack={onBack} /> : null}
+            <h1 className="ll-page-title">{t("settings.licenses.title")}</h1>
+          </header>
+        )}
 
         {error ? <Alert variant="error">{error}</Alert> : null}
 
@@ -4826,11 +4890,11 @@ function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
         {payload ? (
           <>
             <SettingsSection>
-              <div className="ll-flex ll-flex-col ll-gap-3">
-                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-900 ll-dark-text-gray-50">
+              <div className="ll-flex ll-flex-col">
+                <h2 className="ll-settings-heading">
                   {t("settings.licenses.openSource")}
                 </h2>
-                <div className="ll-flex ll-flex-col ll-gap-3">
+                <div className="ll-flex ll-flex-col ll-divide-y ll-divide-gray-300 ll-dark-divide-gray-700">
                   {payload.openSourceLicenses.map((entry) => (
                     <LicenseCard
                       key={`${entry.name}-${entry.version ?? ""}`}
@@ -4842,11 +4906,11 @@ function LicensesView({ onBack, showBackButton = false }: LicensesViewProps) {
             </SettingsSection>
 
             <SettingsSection>
-              <div className="ll-flex ll-flex-col ll-gap-3">
-                <h2 className="ll-text-sm ll-font-semibold ll-tracking-wide ll-text-gray-900 ll-dark-text-gray-50">
+              <div className="ll-flex ll-flex-col">
+                <h2 className="ll-settings-heading">
                   {t("settings.licenses.bundledAssets")}
                 </h2>
-                <div className="ll-flex ll-flex-col ll-gap-3">
+                <div className="ll-flex ll-flex-col ll-divide-y ll-divide-gray-300 ll-dark-divide-gray-700">
                   {payload.bundledLicenses.map((entry) => (
                     <LicenseCard key={entry.id ?? entry.name} entry={entry} />
                   ))}
@@ -4911,8 +4975,28 @@ const COLORS: readonly ColorOption[] = [
   { value: "#A78BFA" },
 ];
 
+type ColorNameKey =
+  | "taskList.colorRed"
+  | "taskList.colorYellow"
+  | "taskList.colorGreen"
+  | "taskList.colorBlue"
+  | "taskList.colorIndigo"
+  | "taskList.colorPurple"
+  | "taskList.backgroundNoneShort";
+
+const COLOR_NAME_KEYS: Partial<Record<string, ColorNameKey>> = {
+  "#F87171": "taskList.colorRed",
+  "#FBBF24": "taskList.colorYellow",
+  "#34D399": "taskList.colorGreen",
+  "#38BDF8": "taskList.colorBlue",
+  "#818CF8": "taskList.colorIndigo",
+  "#A78BFA": "taskList.colorPurple",
+};
+
 const resolveTaskListBackground = (background: string | null): string =>
-  background ?? "var(--tasklist-theme-bg)";
+  background
+    ? `color-mix(in oklab, ${background} var(--tasklist-color-strength), var(--tasklist-theme-bg))`
+    : "var(--tasklist-theme-bg)";
 
 const LAST_TASK_LIST_STORAGE_KEY_PREFIX = "lightlist.lastTaskList.";
 
@@ -5046,27 +5130,17 @@ type AppHeaderProps = {
 
 function AppHeader({ backLabel, onBack, title }: AppHeaderProps) {
   return (
-    <header className="ll-relative ll-flex ll-items-center ll-px-1 ll-py-1x5">
+    <header className="ll-app-header">
       <button
         type="button"
         onClick={onBack}
         aria-label={backLabel}
         title={backLabel}
-        className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded ll-p-3 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-border-gray-700 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
+        className={ICON_BUTTON_CLASS}
       >
-        <AppIcon
-          className="ll-h-6 ll-w-6"
-          name="arrow-back"
-          aria-hidden="true"
-          focusable="false"
-        />
-        <span className="ll-sr-only">{backLabel}</span>
+        <AppIcon name="arrow-back" aria-hidden="true" focusable="false" />
       </button>
-      {title ? (
-        <h1 className="ll-pointer-events-none ll-absolute ll-top-half ll-left-half ll-translate-x-neg-half ll-translate-y-neg-half ll-text-lg ll-font-semibold">
-          {title}
-        </h1>
-      ) : null}
+      {title ? <h1 className="ll-app-header-title">{title}</h1> : null}
     </header>
   );
 }
@@ -5335,7 +5409,7 @@ function Carousel({
         ref={containerRef}
         onScroll={scrollEnabled ? handleScroll : undefined}
         className={clsx(
-          "ll-flex ll-w-full ll-snap-x ll-snap-mandatory no-scrollbar ll-scroll-smooth",
+          "ll-relative ll-flex ll-w-full ll-snap-x ll-snap-mandatory no-scrollbar ll-scroll-smooth",
           !fitContent && "ll-h-full",
           scrollEnabled
             ? "ll-overflow-x-auto ll-overflow-y-hidden"
@@ -5349,7 +5423,7 @@ function Carousel({
       >
         {Children.map(children, (child, idx) => (
           <div
-            key={idx}
+            key={isValidElement(child) && child.key !== null ? child.key : idx}
             role="group"
             aria-roledescription="slide"
             aria-label={getIndicatorLabel?.(idx, count) ?? `${idx + 1}`}
@@ -5536,31 +5610,29 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      navLayout="around"
       className={clsx("ll-w-full", className)}
       locale={resolvedLocale}
       classNames={{
         months: "ll-flex ll-w-full ll-flex-col",
-        month: "ll-w-full ll-space-y-2",
-        month_caption:
-          "ll-relative ll-flex ll-items-center ll-justify-center ll-pt-1",
-        caption_label: "ll-text-sm ll-font-semibold",
-        nav: "ll-flex ll-items-center ll-justify-between ll-space-x-1",
-        button_previous:
-          "ll-pressable ll-h-11 ll-w-11 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
-        button_next:
-          "ll-pressable ll-h-11 ll-w-11 ll-rounded-full ll-p-0 ll-text-gray-600 ll-hover-bg-gray-300 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300",
+        month: "ll-calendar-month ll-w-full",
+        month_caption: "ll-flex ll-h-11 ll-items-center ll-justify-center",
+        caption_label: "ll-font-semibold",
+        button_previous: "ll-pressable ll-calendar-nav-button",
+        button_next: "ll-pressable ll-calendar-nav-button",
+        chevron: "ll-calendar-chevron",
         month_grid: "ll-w-full",
         weekdays: "ll-flex",
         weekday:
-          "ll-flex-1 ll-text-0x8rem ll-font-medium ll-text-gray-600 ll-dark-text-gray-300",
-        week: "ll-mt-2 ll-flex ll-w-full",
-        day: "ll-relative ll-flex ll-h-12 ll-flex-1 ll-justify-center ll-p-0 ll-text-center ll-text-sm",
+          "ll-flex-1 ll-text-xs ll-font-medium ll-text-gray-600 ll-dark-text-gray-300",
+        week: "ll-mt-1 ll-flex ll-w-full",
+        day: "ll-calendar-cell ll-relative ll-flex ll-h-12 ll-flex-1 ll-items-center ll-justify-center ll-p-0 ll-text-center ll-text-sm",
         day_button:
-          "ll-calendar-day ll-h-10 ll-w-10 ll-rounded-full ll-p-0 ll-font-medium ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-aria-selected-bg-gray-900 ll-aria-selected-text-gray-50 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-aria-selected-bg-gray-50 ll-dark-aria-selected-text-gray-900",
-        selected: "ll-rounded-full ll-bg-gray-300 ll-dark-bg-white",
-        today: "ll-border ll-border-gray-300 ll-dark-border-gray-700",
-        outside: "ll-text-gray-400 ll-opacity-50 ll-dark-text-gray-500",
-        disabled: "ll-text-gray-400 ll-opacity-50 ll-dark-text-gray-500",
+          "ll-calendar-day ll-h-10 ll-w-10 ll-rounded-full ll-p-0 ll-font-medium",
+        selected: "",
+        today: "",
+        outside: "",
+        disabled: "ll-opacity-50",
         hidden: "ll-invisible",
         ...classNames,
       }}
@@ -5706,7 +5778,7 @@ function TaskItemComponent({
       ref={ref}
       style={style}
       className={clsx(
-        "ll-task-row ll-flex ll-items-center ll-gap-0 ll-py-1x5",
+        "ll-task-row ll-flex ll-items-center ll-gap-0",
         dateDisplayValue ? "ll-task-row-with-date" : null,
         animateEnterRef.current && "ll-anim-task-enter",
         isExiting && "ll-anim-task-exit",
@@ -5722,18 +5794,17 @@ function TaskItemComponent({
             if (event.pointerType === "mouse" && event.button !== 0) return;
             setIsHandlePointerDown(true);
           }}
-          className="ll-task-row-handle ll-flex ll-h-12 ll-w-12 ll-shrink-0 ll-touch-none ll-items-center ll-justify-center ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2"
+          className="ll-task-row-handle ll-muted-icon ll-flex ll-h-12 ll-w-12 ll-shrink-0 ll-touch-none ll-items-center ll-justify-center ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2"
         >
-          <span className="ll-relative">
-            <AppIcon
-              name="drag-indicator"
-              aria-hidden="true"
-              focusable="false"
-            />
-          </span>
+          <AppIcon
+            name="drag-indicator"
+            size={20}
+            aria-hidden="true"
+            focusable="false"
+          />
         </button>
       ) : null}
-      <div className="ll-task-row-checkbox ll-relative ll-flex ll-h-12 ll-w-12 ll-shrink-0 ll-items-center ll-justify-center">
+      <div className="ll-relative ll-flex ll-h-12 ll-w-12 ll-shrink-0 ll-items-center ll-justify-center">
         <input
           type="checkbox"
           checked={task.completed}
@@ -5755,7 +5826,7 @@ function TaskItemComponent({
         )}
       >
         {dateDisplayValue ? (
-          <div className="ll-task-row-date ll-flex ll-h-5 ll-items-center ll-text-start ll-text-xs ll-leading-none ll-text-gray-600 ll-dark-text-gray-300">
+          <div className="ll-task-row-date ll-muted-text ll-flex ll-h-5 ll-items-center ll-text-start ll-text-xs ll-leading-none">
             {dateDisplayValue}
           </div>
         ) : null}
@@ -5774,10 +5845,12 @@ function TaskItemComponent({
             }}
             autoFocus
             className={clsx(
-              "ll-h-12 ll-min-w-0 ll-w-full ll-bg-transparent ll-p-0 ll-font-semibold ll-leading-7 ll-focus-outline-none",
+              "ll-h-12 ll-min-w-0 ll-w-full ll-bg-transparent ll-p-0 ll-leading-7 ll-focus-outline-none",
               task.completed
-                ? "ll-text-gray-600 ll-line-through ll-dark-text-gray-300"
+                ? "ll-font-medium ll-text-gray-600 ll-line-through ll-dark-text-gray-300"
                 : "ll-text-gray-900 ll-dark-text-gray-50",
+              !task.completed &&
+                (task.pinned ? "ll-font-bold" : "ll-font-medium"),
             )}
           />
         ) : (
@@ -5788,15 +5861,15 @@ function TaskItemComponent({
             className={
               task.completed
                 ? clsx(
-                    "ll-task-row-text ll-task-text-wrap ll-flex ll-min-h-12 ll-min-w-0 ll-w-full ll-items-center ll-border-0 ll-bg-transparent ll-p-0 ll-text-start ll-font-semibold ll-leading-7 ll-text-gray-600 ll-line-through ll-underline-offset-4 ll-dark-text-gray-300",
+                    "ll-task-row-text ll-task-text-wrap ll-flex ll-min-h-12 ll-min-w-0 ll-w-full ll-items-center ll-border-0 ll-bg-transparent ll-p-0 ll-text-start ll-font-medium ll-leading-7 ll-text-gray-600 ll-line-through ll-underline-offset-4 ll-dark-text-gray-300",
                     canEdit &&
-                      "ll-cursor-pointer ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300",
+                      "ll-cursor-pointer ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300",
                   )
                 : clsx(
                     "ll-task-row-text ll-task-text-wrap ll-flex ll-min-h-12 ll-min-w-0 ll-w-full ll-items-center ll-border-0 ll-bg-transparent ll-p-0 ll-text-start ll-leading-7 ll-text-gray-900 ll-dark-text-gray-50",
                     canEdit &&
                       "ll-cursor-pointer ll-underline-offset-4 ll-hover-underline ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300",
-                    task.pinned ? "ll-font-bold" : "ll-font-semibold",
+                    task.pinned ? "ll-font-bold" : "ll-font-medium",
                   )
             }
           >
@@ -5811,15 +5884,14 @@ function TaskItemComponent({
           aria-label={taskActionLabel}
           title={taskActionLabel}
           onClick={() => onOpenTaskActions?.(task, actionButtonRef.current)}
-          className="ll-pressable ll-flex ll-h-12 ll-w-12 ll-shrink-0 ll-items-center ll-justify-center ll-rounded-lg ll-p-1 ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
+          className="ll-pressable ll-icon-btn ll-muted-icon ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
         >
-          <span className="ll-relative ll-inline-flex">
-            <AppIcon
-              name={task.pinned ? "push-pin" : "calendar-today"}
-              aria-hidden="true"
-              focusable="false"
-            />
-          </span>
+          <AppIcon
+            name={task.pinned ? "push-pin" : "calendar-today"}
+            size={20}
+            aria-hidden="true"
+            focusable="false"
+          />
         </button>
       ) : null}
     </div>
@@ -5827,19 +5899,6 @@ function TaskItemComponent({
 }
 
 const TaskItem = memo(TaskItemComponent);
-
-const TASK_CARD_INPUT_CLASS =
-  "ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white ll-px-3 ll-py-2 ll-text-gray-900 ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700";
-const TASK_CARD_PRIMARY_BUTTON_CLASS =
-  "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-font-semibold ll-text-gray-50 ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300";
-const TASK_CARD_SECONDARY_BUTTON_CLASS =
-  "ll-inline-flex ll-items-center ll-justify-center ll-h-12 ll-w-12 ll-rounded-xl ll-border-gray-300 ll-font-semibold ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300";
-const TASK_CARD_DESTRUCTIVE_BUTTON_CLASS =
-  "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-bg-red-600 ll-px-4 ll-py-2 ll-font-semibold ll-text-white ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-red-400 ll-dark-focus-visible-outline-red-400";
-const TASK_CARD_ICON_BUTTON_CLASS = clsx(
-  TASK_CARD_SECONDARY_BUTTON_CLASS,
-  "ll-pressable ll-px-2",
-);
 
 function EditTaskListDialog({
   taskList,
@@ -5881,18 +5940,15 @@ function EditTaskListDialog({
         <button
           type="button"
           onClick={() => onActivate?.(taskList.id)}
-          className={TASK_CARD_ICON_BUTTON_CLASS}
+          className={ICON_BUTTON_CLASS}
           aria-label={t("taskList.editDetails")}
           title={t("taskList.editDetails")}
         >
-          <AppIcon name="edit" aria-hidden="true" focusable="false" />
+          <AppIcon name="edit" size={22} aria-hidden="true" focusable="false" />
           <span className="ll-sr-only">{t("taskList.editDetails")}</span>
         </button>
       </DialogTrigger>
-      <DialogContent
-        title={t("taskList.editDetails")}
-        description={t("app.taskListName")}
-      >
+      <DialogContent title={t("taskList.editTitle")}>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -5909,20 +5965,22 @@ function EditTaskListDialog({
               .finally(() => setSaving(false));
           }}
         >
-          <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
+          <div className="ll-mt-5 ll-flex ll-flex-col ll-gap-5">
             {error ? <Alert variant="error">{error}</Alert> : null}
-            <label className="ll-flex ll-flex-col ll-gap-1">
-              <span>{t("app.taskListName")}</span>
+            <label className="ll-flex ll-flex-col ll-gap-2">
+              <span className="ll-field-label">{t("app.taskListName")}</span>
               <input
                 type="text"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder={t("app.taskListNamePlaceholder")}
-                className={TASK_CARD_INPUT_CLASS}
+                className="ll-field"
               />
             </label>
-            <div className="ll-flex ll-flex-col ll-gap-2">
-              <span>{t("taskList.selectColor")}</span>
+            <div className="ll-flex ll-flex-col ll-gap-1">
+              <span className="ll-field-label">
+                {t("taskList.selectColor")}
+              </span>
               <ColorPicker
                 colors={COLORS}
                 selectedColor={background ?? null}
@@ -5930,54 +5988,51 @@ function EditTaskListDialog({
                 ariaLabelPrefix={t("taskList.selectColor")}
               />
             </div>
-            {canDelete ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (
-                    !window.confirm(t("taskList.deleteListConfirm.message"))
-                  ) {
-                    return;
-                  }
-                  setDeleting(true);
-                  setError(null);
-                  void deleteTaskList(taskList.id)
-                    .then(() => {
-                      setOpen(false);
-                      onDeleted?.();
-                    })
-                    .catch((deleteError) =>
-                      setError(
-                        resolveErrorMessage(deleteError, t, "common.error"),
-                      ),
-                    )
-                    .finally(() => setDeleting(false));
-                }}
-                disabled={deleting}
-                className={clsx(
-                  TASK_CARD_DESTRUCTIVE_BUTTON_CLASS,
-                  "ll-mt-6 ll-w-full",
-                )}
-              >
-                {deleting ? t("common.deleting") : t("taskList.deleteList")}
-              </button>
-            ) : null}
           </div>
-          <DialogFooter>
+          <DialogFooter
+            start={
+              canDelete ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      !window.confirm(t("taskList.deleteListConfirm.message"))
+                    ) {
+                      return;
+                    }
+                    setDeleting(true);
+                    setError(null);
+                    void deleteTaskList(taskList.id)
+                      .then(() => {
+                        setOpen(false);
+                        onDeleted?.();
+                      })
+                      .catch((deleteError) =>
+                        setError(
+                          resolveErrorMessage(deleteError, t, "common.error"),
+                        ),
+                      )
+                      .finally(() => setDeleting(false));
+                  }}
+                  disabled={deleting}
+                  className={BUTTON_DANGER_CLASS}
+                >
+                  {deleting ? t("common.deleting") : t("taskList.deleteList")}
+                </button>
+              ) : null
+            }
+          >
             <DialogClose asChild>
-              <button
-                type="button"
-                className={TASK_CARD_SECONDARY_BUTTON_CLASS}
-              >
+              <button type="button" className={BUTTON_SECONDARY_CLASS}>
                 {t("common.cancel")}
               </button>
             </DialogClose>
             <button
               type="submit"
               disabled={!name.trim() || saving || deleting}
-              className={TASK_CARD_PRIMARY_BUTTON_CLASS}
+              className={BUTTON_PRIMARY_CLASS}
             >
-              {t("taskList.editDetails")}
+              {t("taskList.save")}
             </button>
           </DialogFooter>
         </form>
@@ -6031,11 +6086,16 @@ function ShareTaskListDialog({
         <button
           type="button"
           onClick={() => onActivate?.(taskList.id)}
-          className={TASK_CARD_ICON_BUTTON_CLASS}
+          className={ICON_BUTTON_CLASS}
           aria-label={t("taskList.share")}
           title={t("taskList.share")}
         >
-          <AppIcon name="share" aria-hidden="true" focusable="false" />
+          <AppIcon
+            name="share"
+            size={22}
+            aria-hidden="true"
+            focusable="false"
+          />
           <span className="ll-sr-only">{t("taskList.share")}</span>
         </button>
       </DialogTrigger>
@@ -6043,62 +6103,75 @@ function ShareTaskListDialog({
         title={t("taskList.shareTitle")}
         description={t("taskList.shareDescription")}
       >
-        {error ? <Alert variant="error">{error}</Alert> : null}
+        {error ? (
+          <Alert variant="error" className="ll-mt-4">
+            {error}
+          </Alert>
+        ) : null}
         {shareCode ? (
-          <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
-            <label className="ll-flex ll-flex-col ll-gap-1x5">
-              <span>{t("taskList.shareCode")}</span>
-              <div className="ll-flex ll-flex-wrap ll-gap-2">
-                <input
-                  type="text"
-                  value={shareCode}
-                  readOnly
-                  className={clsx(TASK_CARD_INPUT_CLASS, "ll-font-mono")}
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(
-                        `${window.location.origin}/sharecodes/?code=${shareCode}`,
-                      );
-                      setCopySuccess(true);
-                      setTimeout(() => setCopySuccess(false), 2000);
-                    } catch {
-                      setError(t("common.error"));
-                    }
-                  }}
-                  className={TASK_CARD_SECONDARY_BUTTON_CLASS}
-                >
-                  {copySuccess ? t("common.copied") : t("common.copy")}
-                </button>
-              </div>
-            </label>
-            <button
-              type="button"
-              onClick={() => {
-                setRemoving(true);
-                setError(null);
-                void removeShareCode(taskList.id)
-                  .then(() => {
-                    setShareCode(null);
-                    logAppEvent("share_code_remove");
-                  })
-                  .catch((removeError) =>
-                    setError(
-                      resolveErrorMessage(removeError, t, "common.error"),
-                    ),
-                  )
-                  .finally(() => setRemoving(false));
-              }}
-              disabled={removing}
-              className={TASK_CARD_DESTRUCTIVE_BUTTON_CLASS}
-            >
-              {removing ? t("common.deleting") : t("taskList.removeShare")}
+          <label className="ll-mt-5 ll-flex ll-flex-col ll-gap-2">
+            <span className="ll-field-label">{t("taskList.shareCode")}</span>
+            <div className="ll-flex ll-gap-2">
+              <input
+                type="text"
+                value={shareCode}
+                readOnly
+                className="ll-field ll-font-mono ll-min-w-0"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(
+                      `${window.location.origin}/sharecodes/?code=${shareCode}`,
+                    );
+                    setCopySuccess(true);
+                    setTimeout(() => setCopySuccess(false), 2000);
+                  } catch {
+                    setError(t("common.error"));
+                  }
+                }}
+                className={BUTTON_SECONDARY_CLASS}
+              >
+                {copySuccess ? t("common.copied") : t("common.copy")}
+              </button>
+            </div>
+          </label>
+        ) : null}
+        <DialogFooter
+          start={
+            shareCode ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setRemoving(true);
+                  setError(null);
+                  void removeShareCode(taskList.id)
+                    .then(() => {
+                      setShareCode(null);
+                      logAppEvent("share_code_remove");
+                    })
+                    .catch((removeError) =>
+                      setError(
+                        resolveErrorMessage(removeError, t, "common.error"),
+                      ),
+                    )
+                    .finally(() => setRemoving(false));
+                }}
+                disabled={removing}
+                className={BUTTON_DANGER_CLASS}
+              >
+                {removing ? t("common.deleting") : t("taskList.removeShare")}
+              </button>
+            ) : null
+          }
+        >
+          <DialogClose asChild>
+            <button type="button" className={BUTTON_SECONDARY_CLASS}>
+              {t("common.close")}
             </button>
-          </div>
-        ) : (
-          <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
+          </DialogClose>
+          {shareCode ? null : (
             <button
               type="button"
               onClick={() => {
@@ -6117,18 +6190,11 @@ function ShareTaskListDialog({
                   .finally(() => setGenerating(false));
               }}
               disabled={generating}
-              className={TASK_CARD_PRIMARY_BUTTON_CLASS}
+              className={BUTTON_PRIMARY_CLASS}
             >
               {generating ? t("common.loading") : t("taskList.generateShare")}
             </button>
-          </div>
-        )}
-        <DialogFooter>
-          <DialogClose asChild>
-            <button type="button" className={TASK_CARD_SECONDARY_BUTTON_CLASS}>
-              {t("common.close")}
-            </button>
-          </DialogClose>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -6472,19 +6538,21 @@ function TaskListCard({
         isActive ? "ll-pointer-events-auto" : "ll-pointer-events-none",
       )}
       onClickCapture={handleTaskListClickCapture}
-      style={{ backgroundColor: taskList.background ?? undefined }}
+      style={{
+        backgroundColor: taskList.background
+          ? resolveTaskListBackground(taskList.background)
+          : undefined,
+      }}
     >
       <div className="ll-min-h-full ll-px-4">
         <div className="ll-flex ll-flex-col ll-gap-4">
           <div className="ll-flex ll-flex-col ll-gap-4">
             <div className="ll-flex ll-flex-col ll-gap-4">
-              <div className="ll-flex ll-flex-wrap ll-items-center ll-justify-between ll-gap-3">
-                <div className="ll-flex ll-flex-col ll-gap-1x5">
-                  <h2 className="ll-font-display ll-m-0 ll-text-xl ll-font-semibold">
-                    {taskList.name}
-                  </h2>
-                </div>
-                <div className="ll-relative ll-left-2 ll-flex ll-flex-wrap ll-justify-end">
+              <div className="ll-flex ll-min-h-12 ll-items-center ll-justify-between ll-gap-3">
+                <h2 className="ll-font-display ll-task-text-wrap ll-m-0 ll-min-w-0 ll-flex-1 ll-text-xl ll-font-semibold">
+                  {taskList.name}
+                </h2>
+                <div className="ll-task-card-actions">
                   {canEditTasks ? (
                     <EditTaskListDialog
                       taskList={taskList}
@@ -6596,7 +6664,7 @@ function TaskListCard({
                           }
                         }}
                         placeholder={t("pages.tasklist.addTaskPlaceholder")}
-                        className="ll-w-full ll-rounded-14px ll-border ll-border-gray-300 ll-bg-white-92 ll-px-3x5 ll-py-2x5 ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900-92 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
+                        className="ll-add-task-input ll-w-full ll-rounded-14px ll-border ll-border-gray-300 ll-bg-white-92 ll-px-3x5 ll-py-2x5 ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-bg-gray-900-92 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
                       />
                       {historyOpen && historyOptions.length > 0 ? (
                         <CommandPrimitive.List
@@ -6630,34 +6698,32 @@ function TaskListCard({
                         </CommandPrimitive.List>
                       ) : null}
                     </CommandPrimitive>
-                  </div>
-                  <button
-                    type="submit"
-                    onMouseDown={(event) => event.preventDefault()}
-                    disabled={newTaskText.trim() === ""}
-                    aria-label={t("common.add")}
-                    title={t("common.add")}
-                    className={clsx(
-                      "ll-add-task-submit ll-pressable ll-ml-2 ll-inline-flex ll-h-10 ll-w-10 ll-shrink-0b ll-items-center ll-justify-center ll-overflow-hidden ll-rounded-xl ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300 ll-dark-disabled-opacity-50",
-                      isInputFocused
-                        ? "ll-pointer-events-auto ll-opacity-100"
-                        : "ll-pointer-events-none ll-opacity-0",
-                    )}
-                  >
-                    <span className="ll-sr-only">{t("common.add")}</span>
-                    <span className="ll-relative ll-left-px">
+                    <button
+                      type="submit"
+                      onMouseDown={(event) => event.preventDefault()}
+                      disabled={newTaskText.trim() === ""}
+                      aria-label={t("common.add")}
+                      title={t("common.add")}
+                      className={clsx(
+                        "ll-add-task-submit ll-pressable ll-icon-btn ll-text-gray-900 ll-dark-text-gray-50",
+                        newTaskText.trim() === ""
+                          ? "ll-pointer-events-none ll-opacity-0"
+                          : "ll-opacity-100",
+                      )}
+                    >
                       <AppIcon
                         name="send"
+                        size={20}
                         aria-hidden="true"
                         focusable="false"
                       />
-                    </span>
-                  </button>
+                    </button>
+                  </div>
                 </form>
                 {addTaskError ? (
                   <Alert variant="error">{addTaskError}</Alert>
                 ) : null}
-                <div className="ll-flex ll-items-center ll-justify-between ll-gap-2 ll-pb-6">
+                <div className="ll-task-toolbar ll-flex ll-items-center ll-justify-between ll-gap-2">
                   <button
                     type="button"
                     disabled={tasks.length < 2}
@@ -6689,9 +6755,16 @@ function TaskListCard({
                         },
                       });
                     }}
-                    className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-font-medium ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-border-gray-700 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
+                    className="ll-pressable ll-task-toolbar-button"
                   >
-                    <AppIcon name="sort" aria-hidden="true" focusable="false" />
+                    <span className="ll-task-toolbar-icon">
+                      <AppIcon
+                        name="sort"
+                        size={20}
+                        aria-hidden="true"
+                        focusable="false"
+                      />
+                    </span>
                     {t("pages.tasklist.sort")}
                   </button>
                   <button
@@ -6750,14 +6823,15 @@ function TaskListCard({
                           setExitingTaskIds(null);
                         });
                     }}
-                    className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-font-medium ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-red-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-60 ll-dark-text-gray-50 ll-dark-focus-visible-outline-red-400"
+                    className="ll-pressable ll-task-toolbar-button"
                   >
                     {deleteCompletedPending
                       ? t("common.deleting")
                       : t("pages.tasklist.deleteCompleted")}
-                    <span className="ll-pr-1">
+                    <span className="ll-task-toolbar-icon">
                       <AppIcon
                         name="delete"
+                        size={20}
                         aria-hidden="true"
                         focusable="false"
                       />
@@ -6812,7 +6886,7 @@ function TaskListCard({
                 {t("pages.tasklist.noTasks")}
               </p>
             ) : (
-              <div className="ll-flex ll-flex-col ll-gap-1">
+              <div className="ll-flex ll-flex-col">
                 {tasks.map((task, index) => (
                   <TaskItem
                     key={task.id}
@@ -6957,79 +7031,40 @@ function TaskListCard({
             ].join(" / ")}
           >
             <div className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-gap-3">
-              <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-end ll-gap-3">
-                <DialogPrimitive.Close asChild>
-                  <button
-                    type="button"
-                    className="ll-inline-flex ll-min-h-11 ll-items-center ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
-                  >
-                    {t("common.close")}
-                  </button>
-                </DialogPrimitive.Close>
-              </div>
-              <button
-                type="button"
-                aria-pressed={activeTaskActionTask.pinned}
-                aria-label={
-                  activeTaskActionTask.pinned
-                    ? t("pages.tasklist.unpinTask")
-                    : t("pages.tasklist.pinTask")
+              <TaskSheetHeader
+                title={
+                  activeTaskActionTask.text.trim() ||
+                  t("pages.tasklist.setDate")
                 }
-                onClick={() => {
-                  updateTaskFromAction(
-                    activeTaskActionTask,
-                    { pinned: !activeTaskActionTask.pinned },
-                    "pinned",
-                  );
-                }}
-                className="ll-flex ll-min-h-12 ll-w-full ll-items-center ll-justify-between ll-rounded-xl ll-bg-gray-50 ll-px-4 ll-py-3 ll-text-start ll-text-sm ll-font-semibold ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
-              >
-                <span className="ll-flex ll-items-center ll-gap-3">
-                  <AppIcon
-                    name="push-pin"
-                    size={18}
-                    aria-hidden="true"
-                    focusable="false"
-                  />
-                  {activeTaskActionTask.pinned
-                    ? t("pages.tasklist.unpinTask")
-                    : t("pages.tasklist.pinTask")}
-                </span>
-                <span
-                  aria-hidden="true"
-                  className={clsx(
-                    "ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border",
-                    activeTaskActionTask.pinned
-                      ? "ll-border-gray-900 ll-bg-gray-900 ll-text-gray-50 ll-dark-border-gray-50 ll-dark-bg-gray-50 ll-dark-text-gray-900"
-                      : "ll-border-gray-300 ll-dark-border-gray-700",
-                  )}
+              />
+              <div className="ll-flex ll-items-center ll-justify-between ll-gap-2">
+                <button
+                  type="button"
+                  disabled={!activeTaskActionTask.date}
+                  onClick={() => {
+                    if (!activeTaskActionTask.date) return;
+                    updateTaskFromAction(
+                      activeTaskActionTask,
+                      { date: "" },
+                      "date",
+                    );
+                  }}
+                  className={clsx(BUTTON_GHOST_CLASS, "ll-sheet-start-action")}
                 >
-                  {activeTaskActionTask.pinned ? (
-                    <AppIcon
-                      name="check"
-                      size={14}
-                      aria-hidden="true"
-                      focusable="false"
-                    />
-                  ) : null}
-                </span>
-              </button>
-              <button
-                type="button"
-                disabled={!activeTaskActionTask.date}
-                onClick={() => {
-                  if (!activeTaskActionTask.date) return;
-                  updateTaskFromAction(
-                    activeTaskActionTask,
-                    { date: "" },
-                    "date",
-                  );
-                }}
-                className="ll-inline-flex ll-min-h-11 ll-w-fit ll-items-center ll-self-start ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
-              >
-                {t("pages.tasklist.clearDate")}
-              </button>
-              <div className="ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-rounded-xl ll-bg-gray-50 ll-p-3 ll-dark-bg-gray-950">
+                  {t("pages.tasklist.clearDate")}
+                </button>
+                <PinToggleButton
+                  pinned={activeTaskActionTask.pinned}
+                  onToggle={() => {
+                    updateTaskFromAction(
+                      activeTaskActionTask,
+                      { pinned: !activeTaskActionTask.pinned },
+                      "pinned",
+                    );
+                  }}
+                />
+              </div>
+              <div className="ll-sheet-calendar">
                 <Calendar
                   mode="single"
                   selected={parseTaskDateValue(activeTaskActionTask.date)}
@@ -7245,40 +7280,54 @@ function SortableTaskListItem({
         transition: "opacity 180ms ease",
         opacity: isDragging ? 0.5 : 1,
       }}
-      className={clsx(
-        "ll-flex ll-items-center ll-gap-2 ll-rounded-10px ll-p-2",
-        isActive ? "ll-bg-gray-50 ll-dark-bg-gray-900b" : "ll-bg-transparent",
-      )}
+      data-active={isActive ? "true" : "false"}
+      className="ll-sidebar-item ll-reveal-group"
     >
+      <button
+        type="button"
+        onClick={() => onSelect(taskList.id)}
+        aria-current={isActive ? "page" : undefined}
+        className="ll-sidebar-item-main"
+      >
+        <span className="ll-sidebar-icon-slot">
+          <span
+            aria-hidden="true"
+            className="ll-list-dot"
+            data-empty={taskList.background ? undefined : "true"}
+            style={
+              taskList.background
+                ? { backgroundColor: taskList.background }
+                : undefined
+            }
+          />
+        </span>
+        <span className="ll-flex ll-min-w-0 ll-flex-1 ll-flex-col">
+          <span
+            className={clsx(
+              "ll-truncate ll-text-sm",
+              isActive ? "ll-font-semibold" : "ll-font-medium",
+            )}
+          >
+            {taskList.name}
+          </span>
+          <span className="ll-muted-text ll-truncate ll-text-xs">
+            {taskCountLabel}
+          </span>
+        </span>
+      </button>
       <button
         ref={handleRef}
         title={dragHintLabel}
         aria-label={dragHintLabel}
         type="button"
-        className="ll-flex ll-touch-none ll-items-center ll-rounded-lg ll-p-1 ll-text-gray-600 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300"
+        className="ll-sidebar-item-handle ll-reveal-on-hover ll-muted-icon"
       >
-        <AppIcon name="drag-indicator" aria-hidden="true" focusable="false" />
-      </button>
-
-      <span
-        aria-hidden="true"
-        className="ll-h-3 ll-w-3 ll-rounded-full ll-border ll-border-gray-300 ll-dark-border-gray-700"
-        style={{
-          backgroundColor: resolveTaskListBackground(taskList.background),
-        }}
-      />
-
-      <button
-        type="button"
-        onClick={() => onSelect(taskList.id)}
-        className="ll-flex ll-flex-1 ll-flex-col ll-items-start ll-gap-0x5 ll-text-start"
-      >
-        <span className={clsx(isActive ? "ll-font-bold" : "ll-font-medium")}>
-          {taskList.name}
-        </span>
-        <span className="ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
-          {taskCountLabel}
-        </span>
+        <AppIcon
+          name="drag-indicator"
+          size={20}
+          aria-hidden="true"
+          focusable="false"
+        />
       </button>
     </div>
   );
@@ -7313,28 +7362,22 @@ function CalendarTaskItem({
   return (
     <div
       ref={itemRef}
-      className={clsx(
-        "ll-calendar-task-row",
-        isHighlighted && "ll-bg-gray-50 ll-dark-bg-gray-700",
-      )}
+      data-highlighted={isHighlighted ? "true" : undefined}
+      className="ll-calendar-task-row"
     >
       <div className="ll-calendar-task-meta">
-        <span className="ll-flex ll-min-w-0 ll-flex-1 ll-items-center ll-gap-1 ll-text-gray-600 ll-dark-text-gray-300">
+        <span className="ll-muted-text ll-flex ll-min-w-0 ll-flex-1 ll-items-center ll-gap-1">
           {task.dateValue && dateDisplayValue ? (
             <button
               type="button"
               onClick={() => {
                 if (task.dateValue) onSelectDate(task.dateValue);
               }}
-              className="ll-rounded-md ll-text-xs ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+              className="ll-rounded-md ll-text-xs ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
             >
               {dateDisplayValue}
             </button>
-          ) : (
-            <span className="ll-text-xs ll-text-gray-400 ll-dark-text-gray-500">
-              {t("pages.tasklist.noDate")}
-            </span>
-          )}
+          ) : null}
           {task.task.pinned ? (
             <AppIcon
               name="push-pin"
@@ -7347,14 +7390,12 @@ function CalendarTaskItem({
         <button
           type="button"
           onClick={() => onOpenTaskList(task.taskListId)}
-          className="ll-calendar-task-list-meta ll-inline-flex ll-min-w-0 ll-items-center ll-justify-end ll-gap-2 ll-rounded-md ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
+          className="ll-calendar-task-list-meta ll-inline-flex ll-min-w-0 ll-items-center ll-justify-end ll-gap-1x5 ll-rounded-md ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
         >
           <span
             aria-hidden="true"
-            className={clsx(
-              "ll-h-4 ll-w-4 ll-shrink-0b ll-rounded-full ll-border ll-border-gray-300 ll-dark-border-gray-700",
-              !task.taskListBackground && "ll-bg-transparent",
-            )}
+            className="ll-list-dot"
+            data-empty={task.taskListBackground ? undefined : "true"}
             style={
               task.taskListBackground
                 ? { backgroundColor: task.taskListBackground }
@@ -7401,11 +7442,9 @@ function CalendarTaskItem({
           aria-label={t("a11y.editTask")}
           title={t("a11y.editTask")}
           onClick={onOpenActions}
-          className="ll-calendar-task-edit ll-pressable ll-flex ll-h-12 ll-w-12 ll-justify-center ll-rounded-lg ll-text-gray-400 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
+          className="ll-calendar-task-edit ll-pressable ll-muted-icon ll-flex ll-h-12 ll-w-12 ll-justify-center ll-rounded-lg ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
         >
-          <span className="ll-relative ll-inline-flex">
-            <AppIcon name="edit" aria-hidden="true" focusable="false" />
-          </span>
+          <AppIcon name="edit" size={20} aria-hidden="true" focusable="false" />
         </button>
       </div>
     </div>
@@ -7426,6 +7465,54 @@ type TaskSheetSubmitValues = {
   pinned: boolean;
   date: string;
 };
+
+function TaskSheetHeader({
+  title,
+  closeDisabled = false,
+}: {
+  title: string;
+  closeDisabled?: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-3">
+      <span className="ll-min-w-0 ll-truncate ll-font-semibold">{title}</span>
+      <DialogPrimitive.Close asChild>
+        <button
+          type="button"
+          disabled={closeDisabled}
+          className={clsx(BUTTON_GHOST_CLASS, "ll-sheet-end-action")}
+        >
+          {t("common.close")}
+        </button>
+      </DialogPrimitive.Close>
+    </div>
+  );
+}
+
+function PinToggleButton({
+  pinned,
+  onToggle,
+  disabled = false,
+}: {
+  pinned: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      aria-pressed={pinned}
+      disabled={disabled}
+      onClick={onToggle}
+      className="ll-pressable ll-btn ll-pin-toggle"
+    >
+      <AppIcon name="push-pin" size={18} aria-hidden="true" focusable="false" />
+      {pinned ? t("pages.tasklist.unpinTask") : t("pages.tasklist.pinTask")}
+    </button>
+  );
+}
 
 function TaskSheetContent({
   mode,
@@ -7477,25 +7564,14 @@ function TaskSheetContent({
           });
         }}
       >
-        <div className="ll-flex ll-min-h-11 ll-items-center ll-justify-between ll-gap-3">
-          <span className="ll-text-sm ll-font-semibold">{title}</span>
-          <DialogPrimitive.Close asChild>
-            <button
-              type="button"
-              disabled={submitting}
-              className="ll-inline-flex ll-min-h-11 ll-items-center ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
-            >
-              {t("common.close")}
-            </button>
-          </DialogPrimitive.Close>
-        </div>
+        <TaskSheetHeader title={title} closeDisabled={submitting} />
         {error ? <Alert variant="error">{error}</Alert> : null}
-        <label className="ll-flex ll-flex-col ll-gap-1">
+        <label className="ll-select-wrap">
           <span className="ll-sr-only">{t("app.drawerTitle")}</span>
           <select
             value={taskListId}
             onChange={(event) => setTaskListId(event.target.value)}
-            className={TASK_CARD_INPUT_CLASS}
+            className="ll-field"
           >
             {taskLists.map((taskList) => (
               <option key={taskList.id} value={taskList.id}>
@@ -7504,7 +7580,7 @@ function TaskSheetContent({
             ))}
           </select>
         </label>
-        <label className="ll-flex ll-flex-col ll-gap-1">
+        <label className="ll-flex ll-flex-col">
           <span className="ll-sr-only">
             {t("pages.tasklist.addTaskPlaceholder")}
           </span>
@@ -7514,7 +7590,7 @@ function TaskSheetContent({
             value={text}
             onChange={(event) => setText(event.target.value)}
             placeholder={t("pages.tasklist.addTaskPlaceholder")}
-            className={TASK_CARD_INPUT_CLASS}
+            className="ll-field"
           />
         </label>
         <div className="ll-flex ll-items-center ll-justify-between ll-gap-2">
@@ -7522,46 +7598,17 @@ function TaskSheetContent({
             type="button"
             disabled={!date || submitting}
             onClick={() => setDate(null)}
-            className="ll-inline-flex ll-min-h-11 ll-w-fit ll-items-center ll-rounded-xl ll-px-2 ll-text-sm ll-font-semibold ll-text-gray-600 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-opacity-50 ll-dark-text-gray-300 ll-dark-focus-visible-outline-gray-300"
+            className={clsx(BUTTON_GHOST_CLASS, "ll-sheet-start-action")}
           >
             {t("pages.tasklist.clearDate")}
           </button>
-          <button
-            type="button"
-            aria-pressed={pinned}
-            onClick={() => setPinned((current) => !current)}
-            className="ll-inline-flex ll-min-h-11 ll-items-center ll-gap-3 ll-rounded-xl ll-bg-gray-50 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
-          >
-            <AppIcon
-              name="push-pin"
-              size={18}
-              aria-hidden="true"
-              focusable="false"
-            />
-            {pinned
-              ? t("pages.tasklist.unpinTask")
-              : t("pages.tasklist.pinTask")}
-            <span
-              aria-hidden="true"
-              className={clsx(
-                "ll-flex ll-h-5 ll-w-5 ll-items-center ll-justify-center ll-rounded-full ll-border",
-                pinned
-                  ? "ll-border-gray-900 ll-bg-gray-900 ll-text-gray-50 ll-dark-border-gray-50 ll-dark-bg-gray-50 ll-dark-text-gray-900"
-                  : "ll-border-gray-300 ll-dark-border-gray-700",
-              )}
-            >
-              {pinned ? (
-                <AppIcon
-                  name="check"
-                  size={14}
-                  aria-hidden="true"
-                  focusable="false"
-                />
-              ) : null}
-            </span>
-          </button>
+          <PinToggleButton
+            pinned={pinned}
+            disabled={submitting}
+            onToggle={() => setPinned((current) => !current)}
+          />
         </div>
-        <div className="ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-rounded-xl ll-bg-gray-50 ll-p-3 ll-dark-bg-gray-950">
+        <div className="ll-sheet-calendar">
           <Calendar
             mode="single"
             selected={date ?? undefined}
@@ -7575,7 +7622,7 @@ function TaskSheetContent({
             !taskListId ||
             submitting
           }
-          className={TASK_CARD_PRIMARY_BUTTON_CLASS}
+          className={clsx(BUTTON_PRIMARY_CLASS, "ll-w-full")}
         >
           {submitting
             ? t("common.loading")
@@ -7987,114 +8034,142 @@ function CalendarScreen({
 
   return (
     <section className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
-      <div className="ll-flex ll-h-full ll-min-h-0 ll-flex-col ll-px-4 ll-pt-1 ll-pb-2">
-        {showCompactHeaderOffset ? <div className="ll-h-14" /> : null}
+      <div className="ll-flex ll-h-full ll-min-h-0 ll-flex-col">
+        {showCompactHeaderOffset ? (
+          <div className="ll-h-14 ll-shrink-0" />
+        ) : null}
         <div
           className={clsx(
-            "ll-min-h-0 ll-flex-1 ll-overflow-y-auto ll-pb-2",
-            "ll-lg-grid ll-lg-grid-cols-main",
-            "ll-flex ll-flex-col ll-gap-2",
+            "ll-min-h-0 ll-flex-1 ll-overflow-y-auto",
+            showCompactHeaderOffset ? "ll-px-4 ll-pb-6" : "ll-calendar-page",
           )}
         >
-          <div className="ll-w-full ll-lg-sticky ll-lg-top-0 ll-lg-self-start">
-            <Calendar
-              className="ll-w-full"
-              mode="single"
-              selected={selectedCalendarDate}
-              onSelect={(next) =>
-                handleSelectCalendarDate(next, visibleDatedTasks)
-              }
-              month={displayedMonth}
-              onMonthChange={(newMonth) => {
-                setDisplayedMonth(newMonth);
-                setSelectedCalendarDate(undefined);
-              }}
-              modifiers={{ hasTask: calendarTaskDates }}
-              components={{
-                DayButton: (props) => {
-                  const dateKey = formatDate(props.day.date);
-                  const colors = dateDotColors[dateKey] ?? [];
-                  return (
-                    <DayPickerDayButton {...props}>
-                      <span className="ll-relative ll-flex ll-h-full ll-w-full ll-items-center ll-justify-center">
-                        <span className={clsx(colors.length > 0 && "ll-pb-2")}>
-                          {props.day.date.getDate()}
-                        </span>
-                        {colors.length > 0 ? (
-                          <span className="ll-pointer-events-none ll-absolute ll-bottom-1 ll-left-half ll-flex ll-translate-x-neg-half ll-gap-0x5">
-                            {colors.map((color, index) => (
-                              <span
-                                key={`${dateKey}-${color}-${index}`}
-                                className={clsx(
-                                  "ll-h-1x5 ll-w-1x5 ll-rounded-full",
-                                  color === null &&
-                                    "ll-border ll-border-gray-400 ll-dark-border-gray-500",
-                                )}
-                                style={
-                                  color !== null
-                                    ? { backgroundColor: color }
-                                    : undefined
-                                }
-                              />
-                            ))}
+          {showCompactHeaderOffset ? null : (
+            <header className="ll-page-header ll-mb-2">
+              <h1 className="ll-page-title">{t("app.calendar")}</h1>
+            </header>
+          )}
+          <div className="ll-calendar-layout">
+            <div className="ll-calendar-layout-aside ll-w-full">
+              <Calendar
+                className="ll-w-full"
+                mode="single"
+                selected={selectedCalendarDate}
+                onSelect={(next) =>
+                  handleSelectCalendarDate(next, visibleDatedTasks)
+                }
+                month={displayedMonth}
+                onMonthChange={(newMonth) => {
+                  setDisplayedMonth(newMonth);
+                  setSelectedCalendarDate(undefined);
+                }}
+                modifiers={{ hasTask: calendarTaskDates }}
+                components={{
+                  DayButton: (props) => {
+                    const dateKey = formatDate(props.day.date);
+                    const colors = dateDotColors[dateKey] ?? [];
+                    return (
+                      <DayPickerDayButton {...props}>
+                        <span className="ll-relative ll-flex ll-h-full ll-w-full ll-items-center ll-justify-center">
+                          <span
+                            className={clsx(colors.length > 0 && "ll-pb-2")}
+                          >
+                            {props.day.date.getDate()}
                           </span>
-                        ) : null}
-                      </span>
-                    </DayPickerDayButton>
-                  );
-                },
-              }}
-            />
-            {selectedCalendarDate ? (
+                          {colors.length > 0 ? (
+                            <span className="ll-pointer-events-none ll-absolute ll-bottom-1 ll-left-half ll-flex ll-translate-x-neg-half ll-gap-0x5">
+                              {colors.map((color, index) => (
+                                <span
+                                  key={`${dateKey}-${color}-${index}`}
+                                  className={clsx(
+                                    "ll-h-1x5 ll-w-1x5 ll-rounded-full",
+                                    color === null &&
+                                      "ll-border ll-border-gray-400 ll-dark-border-gray-500",
+                                  )}
+                                  style={
+                                    color !== null
+                                      ? { backgroundColor: color }
+                                      : undefined
+                                  }
+                                />
+                              ))}
+                            </span>
+                          ) : null}
+                        </span>
+                      </DayPickerDayButton>
+                    );
+                  },
+                }}
+              />
               <button
                 type="button"
                 onClick={() => {
-                  setTaskSheet({ mode: "add", date: selectedCalendarDate });
+                  setTaskSheet({
+                    mode: "add",
+                    date: selectedCalendarDate ?? new Date(),
+                  });
                   setTaskSheetError(null);
                 }}
-                className="ll-pressable ll-mt-2 ll-inline-flex ll-min-h-11 ll-w-full ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300"
+                className={clsx(BUTTON_PRIMARY_CLASS, "ll-mt-2 ll-w-full")}
               >
-                {getTaskDateFormatter(i18n.language).format(
-                  selectedCalendarDate,
-                )}{" "}
-                · {t("a11y.addTask")}
+                <AppIcon
+                  name="add"
+                  size={20}
+                  aria-hidden="true"
+                  focusable="false"
+                />
+                {selectedCalendarDate
+                  ? `${getTaskDateFormatter(i18n.language).format(
+                      selectedCalendarDate,
+                    )} · ${t("a11y.addTask")}`
+                  : t("a11y.addTask")}
               </button>
-            ) : null}
-          </div>
-          <div className="ll-min-h-0">
-            {updateError ? (
-              <div className="ll-p-4">
-                <Alert variant="error">{updateError}</Alert>
-              </div>
-            ) : null}
-            {visibleDatedTasks.length > 0 ? (
-              visibleDatedTasks.map((task) => {
-                const taskId = getDatedTaskId(task);
-                return (
-                  <CalendarTaskItem
-                    key={taskId}
-                    task={task}
-                    onOpenTaskList={onSelectTaskList}
-                    onSelectDate={(date) =>
-                      handleSelectCalendarDate(date, visibleDatedTasks)
-                    }
-                    onToggleComplete={() => completeTask(task)}
-                    onOpenActions={() => {
-                      setTaskSheet({ mode: "edit", task });
-                      setTaskSheetError(null);
-                    }}
-                    isHighlighted={selectedCalendarDateKey === task.dateKey}
-                    itemRef={(element) => {
-                      datedTaskRefs.current[taskId] = element;
-                    }}
-                  />
-                );
-              })
-            ) : (
-              <p className="ll-p-4 ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
-                {t("app.calendarNoDatedTasks")}
-              </p>
-            )}
+            </div>
+            <div className="ll-calendar-task-list">
+              {updateError ? (
+                <div className="ll-p-4">
+                  <Alert variant="error">{updateError}</Alert>
+                </div>
+              ) : null}
+              {visibleDatedTasks.length > 0 ? (
+                visibleDatedTasks.map((task, index) => {
+                  const taskId = getDatedTaskId(task);
+                  const startsUndatedGroup =
+                    !task.dateValue &&
+                    (index === 0 ||
+                      Boolean(visibleDatedTasks[index - 1]?.dateValue));
+                  return (
+                    <Fragment key={taskId}>
+                      {startsUndatedGroup ? (
+                        <p className="ll-calendar-group-label">
+                          {t("pages.tasklist.noDate")}
+                        </p>
+                      ) : null}
+                      <CalendarTaskItem
+                        task={task}
+                        onOpenTaskList={onSelectTaskList}
+                        onSelectDate={(date) =>
+                          handleSelectCalendarDate(date, visibleDatedTasks)
+                        }
+                        onToggleComplete={() => completeTask(task)}
+                        onOpenActions={() => {
+                          setTaskSheet({ mode: "edit", task });
+                          setTaskSheetError(null);
+                        }}
+                        isHighlighted={selectedCalendarDateKey === task.dateKey}
+                        itemRef={(element) => {
+                          datedTaskRefs.current[taskId] = element;
+                        }}
+                      />
+                    </Fragment>
+                  );
+                })
+              ) : (
+                <p className="ll-muted-text ll-m-0 ll-py-4 ll-text-sm">
+                  {t("app.calendarNoDatedTasks")}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -8139,31 +8214,36 @@ function CalendarScreen({
 
 type CalendarEntryButtonProps = {
   onOpen: () => void;
+  isActive: boolean;
 };
 
-function CalendarEntryButton({ onOpen }: CalendarEntryButtonProps) {
+function CalendarEntryButton({ onOpen, isActive }: CalendarEntryButtonProps) {
   const { t } = useTranslation();
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="ll-inline-flex ll-items-center ll-justify-center ll-gap-2 ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-shadow-sm ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-gray-300"
+      aria-current={isActive ? "page" : undefined}
+      className="ll-nav-row"
     >
-      <AppIcon
-        name="calendar-today"
-        aria-hidden="true"
-        focusable="false"
-        className="ll-h-5 ll-w-5"
-      />
-      <span>{t("app.calendarCheckButton")}</span>
+      <span className="ll-sidebar-icon-slot">
+        <AppIcon
+          name="calendar-today"
+          size={20}
+          aria-hidden="true"
+          focusable="false"
+        />
+      </span>
+      <span className="ll-min-w-0 ll-truncate">{t("app.calendar")}</span>
     </button>
   );
 }
 
 type SidebarProps = {
-  userEmail: string;
   hasTaskLists: boolean;
+  calendarActive: boolean;
+  settingsActive: boolean;
   taskLists: TaskList[];
   onOpenCalendar: () => void;
   onReorderTaskList: (
@@ -8179,8 +8259,9 @@ type SidebarProps = {
 };
 
 function TaskListSidebarPanel({
-  userEmail,
   hasTaskLists,
+  calendarActive,
+  settingsActive,
   taskLists,
   onOpenCalendar,
   onReorderTaskList,
@@ -8201,10 +8282,6 @@ function TaskListSidebarPanel({
   const [joinListInput, setJoinListInput] = useState("");
   const [joiningList, setJoiningList] = useState(false);
   const [joinListError, setJoinListError] = useState<string | null>(null);
-  const dialogPrimaryButtonClass =
-    "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-bg-gray-900 ll-px-4 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-50 ll-shadow-sm ll-hover-opacity-90 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-disabled-cursor-not-allowed ll-disabled-opacity-50 ll-dark-bg-gray-50 ll-dark-text-gray-900 ll-dark-focus-visible-outline-gray-300";
-  const dialogSecondaryButtonClass =
-    "ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-font-semibold ll-text-gray-900 ll-shadow-sm ll-hover-bg-gray-50 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-50 ll-dark-hover-bg-gray-950 ll-dark-focus-visible-outline-gray-300";
 
   const taskListDndAccessibility = useMemo(
     () =>
@@ -8256,36 +8333,49 @@ function TaskListSidebarPanel({
   };
 
   return (
-    <div className="ll-flex ll-h-full ll-flex-col ll-gap-4">
+    <div className="ll-flex ll-h-full ll-flex-col ll-gap-3">
       <DrawerHeader>
         <h2 id="drawer-task-lists-title" className="ll-sr-only">
           {t("app.drawerTitle")}
         </h2>
-        <div className="ll-flex ll-items-center ll-justify-between ll-gap-2">
-          <div className="ll-flex ll-min-w-0 ll-flex-1 ll-items-center ll-gap-2">
-            <p
-              id="drawer-task-lists-description"
-              className="ll-m-0 ll-min-w-0 ll-flex-1 ll-truncate ll-text-sm ll-text-gray-600 ll-dark-text-gray-300"
-            >
-              {userEmail}
-            </p>
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              title={t("settings.title")}
-              aria-label={t("settings.title")}
-              data-vaul-no-drag
-              className="ll-pressable ll-inline-flex ll-items-center ll-justify-center ll-rounded-xl ll-p-2 ll-text-gray-600 ll-hover-bg-gray-50 ll-hover-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-300 ll-dark-hover-bg-gray-900 ll-dark-hover-text-gray-50 ll-dark-focus-visible-outline-gray-300"
-            >
-              <AppIcon name="settings" aria-hidden="true" focusable="false" />
-            </button>
-          </div>
+        <div className="ll-sidebar-header">
+          <span className="ll-sidebar-brand">
+            <img
+              src="/brand/logo.svg"
+              alt=""
+              aria-hidden="true"
+              className="ll-sidebar-brand-logo"
+            />
+            {t("title")}
+          </span>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            title={t("settings.title")}
+            aria-label={t("settings.title")}
+            aria-current={settingsActive ? "page" : undefined}
+            data-vaul-no-drag
+            className={clsx(ICON_BUTTON_CLASS, "ll-sidebar-settings")}
+          >
+            <AppIcon
+              name="settings"
+              size={22}
+              aria-hidden="true"
+              focusable="false"
+            />
+          </button>
         </div>
       </DrawerHeader>
 
-      <CalendarEntryButton onOpen={onOpenCalendar} />
+      <nav aria-label={t("app.calendar")}>
+        <CalendarEntryButton
+          onOpen={onOpenCalendar}
+          isActive={calendarActive}
+        />
+      </nav>
 
-      <div className="ll-flex ll-flex-1 ll-flex-col ll-gap-3 ll-overflow-y-auto">
+      <div className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-overflow-y-auto">
+        <p className="ll-sidebar-section-label">{t("app.drawerTitle")}</p>
         {hasTaskLists ? (
           <DragDropProvider
             sensors={SORTABLE_SENSORS}
@@ -8303,20 +8393,21 @@ function TaskListSidebarPanel({
                   onCloseDrawer();
                 }}
                 dragHintLabel={t("app.dragHint")}
-                taskCountLabel={t("taskList.taskCount", {
-                  count: taskList.tasks.length,
+                taskCountLabel={t("taskList.remainingCount", {
+                  count: taskList.tasks.filter((task) => !task.completed)
+                    .length,
                 })}
                 isActive={selectedTaskListId === taskList.id}
               />
             ))}
           </DragDropProvider>
         ) : (
-          <p className="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300">
+          <p className="ll-muted-text ll-m-0 ll-px-3 ll-py-2 ll-text-sm">
             {t("app.emptyState")}
           </p>
         )}
 
-        <div className="ll-grid ll-grid-cols-2 ll-gap-2">
+        <div className="ll-mt-3 ll-grid ll-grid-cols-2 ll-gap-2">
           <Dialog
             open={showCreateListDialog}
             onOpenChange={(open: boolean) => {
@@ -8328,33 +8419,40 @@ function TaskListSidebarPanel({
             }}
           >
             <DialogTrigger asChild>
-              <button type="button" className={dialogPrimaryButtonClass}>
+              <button type="button" className={BUTTON_TONAL_CLASS}>
+                <AppIcon
+                  name="add"
+                  size={18}
+                  aria-hidden="true"
+                  focusable="false"
+                />
                 {t("app.createNew")}
               </button>
             </DialogTrigger>
-            <DialogContent
-              title={t("app.createTaskList")}
-              description={t("app.taskListName")}
-            >
+            <DialogContent title={t("app.createTaskList")}>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   void handleCreateList();
                 }}
               >
-                <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
-                  <label className="ll-flex ll-flex-col ll-gap-1">
-                    <span>{t("app.taskListName")}</span>
+                <div className="ll-mt-5 ll-flex ll-flex-col ll-gap-5">
+                  <label className="ll-flex ll-flex-col ll-gap-2">
+                    <span className="ll-field-label">
+                      {t("app.taskListName")}
+                    </span>
                     <input
                       type="text"
                       value={createListInput}
                       onChange={(e) => setCreateListInput(e.target.value)}
                       placeholder={t("app.taskListNamePlaceholder")}
-                      className="ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-dark-border-gray-700 ll-dark-bg-gray-900 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
+                      className="ll-field"
                     />
                   </label>
-                  <div className="ll-flex ll-flex-col ll-gap-2">
-                    <span>{t("taskList.selectColor")}</span>
+                  <div className="ll-flex ll-flex-col ll-gap-1">
+                    <span className="ll-field-label">
+                      {t("taskList.selectColor")}
+                    </span>
                     <ColorPicker
                       colors={COLORS}
                       selectedColor={createListBackground}
@@ -8365,17 +8463,14 @@ function TaskListSidebarPanel({
                 </div>
                 <DialogFooter>
                   <DialogClose asChild>
-                    <button
-                      type="button"
-                      className={dialogSecondaryButtonClass}
-                    >
+                    <button type="button" className={BUTTON_SECONDARY_CLASS}>
                       {t("app.cancel")}
                     </button>
                   </DialogClose>
                   <button
                     type="submit"
                     disabled={!createListInput.trim()}
-                    className={dialogPrimaryButtonClass}
+                    className={BUTTON_PRIMARY_CLASS}
                   >
                     {t("app.create")}
                   </button>
@@ -8395,7 +8490,13 @@ function TaskListSidebarPanel({
             }}
           >
             <DialogTrigger asChild>
-              <button type="button" className={dialogSecondaryButtonClass}>
+              <button type="button" className={BUTTON_TONAL_CLASS}>
+                <AppIcon
+                  name="link"
+                  size={18}
+                  aria-hidden="true"
+                  focusable="false"
+                />
                 {t("app.joinList")}
               </button>
             </DialogTrigger>
@@ -8409,12 +8510,14 @@ function TaskListSidebarPanel({
                   void handleJoinList();
                 }}
               >
-                <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-3">
+                <div className="ll-mt-5 ll-flex ll-flex-col ll-gap-5">
                   {joinListError ? (
                     <Alert variant="error">{joinListError}</Alert>
                   ) : null}
-                  <label className="ll-flex ll-flex-col ll-gap-1">
-                    <span>{t("taskList.shareCode")}</span>
+                  <label className="ll-flex ll-flex-col ll-gap-2">
+                    <span className="ll-field-label">
+                      {t("taskList.shareCode")}
+                    </span>
                     <input
                       type="text"
                       value={joinListInput}
@@ -8423,7 +8526,7 @@ function TaskListSidebarPanel({
                         setJoinListError(null);
                       }}
                       placeholder={t("app.shareCodePlaceholder")}
-                      className="ll-rounded-xl ll-border ll-border-gray-300 ll-bg-white ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-shadow-sm ll-focus-border-gray-600 ll-focus-outline-none ll-focus-ring-2 ll-focus-ring-gray-300 ll-dark-border-gray-700 ll-dark-bg-gray-900 ll-dark-text-gray-50 ll-dark-focus-border-gray-300 ll-dark-focus-ring-gray-700"
+                      className="ll-field"
                     />
                   </label>
                 </div>
@@ -8432,7 +8535,7 @@ function TaskListSidebarPanel({
                     <button
                       type="button"
                       disabled={joiningList}
-                      className={dialogSecondaryButtonClass}
+                      className={BUTTON_SECONDARY_CLASS}
                     >
                       {t("app.cancel")}
                     </button>
@@ -8440,7 +8543,7 @@ function TaskListSidebarPanel({
                   <button
                     type="submit"
                     disabled={!joinListInput.trim() || joiningList}
-                    className={dialogPrimaryButtonClass}
+                    className={BUTTON_PRIMARY_CLASS}
                   >
                     {joiningList ? t("app.joining") : t("app.join")}
                   </button>
@@ -8627,7 +8730,6 @@ function AppShellPage() {
     (taskList) => taskList.id === selectedTaskListId,
   );
   const firstTaskListId = taskLists[0]?.id ?? null;
-  const userEmail = user?.email || t("app.drawerNoEmail");
   const selectedTaskListIndex = Math.max(
     0,
     taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
@@ -8660,8 +8762,7 @@ function AppShellPage() {
         (mode === "push" ? currentHistoryDepth + 1 : currentHistoryDepth);
       const nextViewTransitionDirection =
         nextHistoryDepth < currentHistoryDepth ||
-        (route.view === "taskLists" &&
-          previousViewRef.current !== "taskLists")
+        (route.view === "taskLists" && previousViewRef.current !== "taskLists")
           ? "backward"
           : "forward";
 
@@ -8877,8 +8978,12 @@ function AppShellPage() {
 
   const drawerPanel = (
     <TaskListSidebarPanel
-      userEmail={userEmail}
       hasTaskLists={!isTaskListsHydrating && hasTaskLists}
+      calendarActive={isWideLayout && currentView === "calendar"}
+      settingsActive={
+        isWideLayout &&
+        (currentView === "settings" || currentView === "licenses")
+      }
       taskLists={taskLists}
       onOpenCalendar={() => openCalendar("push")}
       onReorderTaskList={async (draggedTaskListId, targetTaskListId) => {
@@ -8890,7 +8995,9 @@ function AppShellPage() {
           setError(resolveErrorMessage(err, t, "common.error"));
         }
       }}
-      selectedTaskListId={selectedTaskListId}
+      selectedTaskListId={
+        !isWideLayout || currentView === "detail" ? selectedTaskListId : null
+      }
       onSelectTaskList={(taskListId) => openTaskList(taskListId, "push")}
       onCloseDrawer={() => {}}
       onOpenSettings={() => openSettings("push")}
@@ -9035,7 +9142,7 @@ function AppShellPage() {
               openTaskList(taskList.id);
             }
           }}
-          showIndicators={true}
+          showIndicators={!isWideLayout}
           indicatorPosition="top"
           ariaLabel={t("app.taskListLocator.label")}
           getIndicatorLabel={(index, total) =>
@@ -9056,11 +9163,12 @@ function AppShellPage() {
                 backgroundColor: resolveTaskListBackground(taskList.background),
               }}
             >
-              <div className="ll-h-88px" />
+              <div className={isWideLayout ? "ll-h-10" : "ll-h-88px"} />
               <div
                 className={clsx(
-                  !isWideLayout && "ll-h-full ll-overflow-y-auto",
-                  isWideLayout && "ll-mx-auto ll-max-w-3xl ll-min-w-480px",
+                  !isWideLayout && "ll-h-full ll-overflow-y-auto ll-pb-10",
+                  isWideLayout &&
+                    "ll-task-column ll-mx-auto ll-w-full ll-pb-12",
                 )}
               >
                 <TaskListCard
@@ -9235,6 +9343,7 @@ function AppShellPage() {
                   <LicensesView
                     onBack={handleBackToTaskLists}
                     showBackButton={true}
+                    compact={true}
                   />
                 </div>,
                 "ll-bg-gray-50 ll-dark-bg-gray-950",
@@ -10006,7 +10115,7 @@ function ShareCodePreviewPage() {
             type="button"
             onClick={handleAddToOrder}
             disabled={addToOrderLoading}
-            className={TASK_CARD_PRIMARY_BUTTON_CLASS}
+            className={BUTTON_PRIMARY_CLASS}
           >
             {addToOrderLoading
               ? t("common.loading")
@@ -10078,15 +10187,15 @@ const warmUpStartupData = (): void => {
   const cachedTaskListIds = readCachedTaskListOrderIds(uid);
   void Promise.all(
     cachedTaskListIds.map((taskListId) =>
-      getDocFromCache(
-        doc(db, "taskLists", taskListId, "members", uid),
-      )
+      getDocFromCache(doc(db, "taskLists", taskListId, "members", uid))
         .then((snapshot) => (snapshot.exists() ? taskListId : null))
         .catch(() => null),
     ),
   ).then((memberTaskListIds) => {
     getTaskListIdChunks(
-      memberTaskListIds.filter((taskListId): taskListId is string => taskListId !== null),
+      memberTaskListIds.filter(
+        (taskListId): taskListId is string => taskListId !== null,
+      ),
     ).forEach((chunk) => {
       void getDocsFromCache(
         query(collection(db, "taskLists"), where("__name__", "in", chunk)),

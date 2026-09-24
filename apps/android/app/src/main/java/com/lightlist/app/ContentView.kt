@@ -10,15 +10,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -28,7 +25,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,24 +56,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material3.Button
-import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
@@ -168,14 +155,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import com.google.firebase.firestore.SetOptions
@@ -230,9 +213,6 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.view.WindowCompat
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Settings
@@ -256,6 +236,44 @@ import java.text.DateFormatSymbols
 
 import org.json.JSONObject
 import org.json.JSONArray
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.RowScope
+import androidx.core.net.toUri
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 private const val COMPLETED_TASK_ALPHA = 0.55f
 private const val STARTUP_CACHE_PREFERENCES = "lightlist.startup"
@@ -458,11 +476,13 @@ private fun LightlistTheme(
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
+    val reduceMotion = rememberReduceMotion()
     MaterialTheme(
         colorScheme = colorScheme,
         typography = LightlistTypography,
-        content = content,
-    )
+    ) {
+        CompositionLocalProvider(LocalReduceMotion provides reduceMotion, content = content)
+    }
 }
 
 private fun readReduceMotion(context: Context): Boolean {
@@ -991,7 +1011,7 @@ private data class ActionSheetState(
 private data class TaskListSummary(
     val id: String,
     val name: String,
-    val taskCount: Int,
+    val remainingTaskCount: Int,
     val memberCount: Int,
     val background: String?
 )
@@ -1038,52 +1058,942 @@ private const val TASK_LIST_ALREADY_ADDED_ERROR = "TASK_LIST_ALREADY_ADDED"
 private const val TABLET_MIN_WIDTH_DP = 840
 private object AppIconMetrics {
     val standardActionIconSize = 24.dp
-    val leadingButtonIconSize = 22.dp
+    val headerActionIconSize = 22.dp
     val compactActionIconSize = 20.dp
     val inlineActionIconSize = 18.dp
-    val dragHandleDotSize = 4.dp
-    val dragHandleDotSpacing = 2.5.dp
+    val metaIconSize = 14.dp
 }
 private object TaskListDetailMetrics {
     val topBarHeight = 48.dp
     val indicatorContentInset = 42.dp
     val indicatorTouchSize = 24.dp
     val indicatorDotSize = 8.dp
-    val headerActionIconButtonSize = 40.dp
-    val headerActionIconSize = AppIconMetrics.standardActionIconSize
-    val headerActionSpacing = 0.dp
-    val headerActionsEndOffset = 11.dp
+    val contentMaxWidth = 672.dp
+    val sectionSpacing = 16.dp
+    val toolbarTopSpacing = 12.dp
+    val toolbarBottomSpacing = 8.dp
     val inputCornerRadius = 14.dp
     val inputHorizontalPadding = 14.dp
     val inputVerticalPadding = 10.dp
     val inputMinHeight = 44.dp
-    val inputActionSpacing = 8.dp
-    val addActionIconButtonSize = 40.dp
-    val addActionIconSize = AppIconMetrics.standardActionIconSize
-    val actionRowVerticalPadding = 4.dp
-    val actionControlVerticalPadding = 4.dp
-    val actionControlIconSize = 22.dp
-    val actionControlIconSpacing = 6.dp
-    val sectionBottomSpacing = 14.dp
-    val actionsBottomSpacing = 24.dp
-    val taskRowSpacing = 3.dp
-    val taskRowVerticalPadding = 4.dp
-    val taskContentHeight = 48.dp
-    val taskTextTopPadding = 13.dp
-    val taskDateTopInset = (-3).dp
-    val dragHandleTopPadding = 0.dp
-    val dragHandleEndPadding = 0.dp
-    val dragHandleTouchWidth = 22.dp
-    val completionTopPadding = 1.dp
-    val completionEndPadding = 2.dp
-    val completionTouchWidth = 28.dp
+    val inputActionSize = 44.dp
+    val rowBleed = 12.dp
+    val rowVerticalPadding = 2.dp
+    val controlSize = 48.dp
+    val handleOverlap = 20.dp
+    val completionOverlap = 8.dp
     val completionDotSize = 20.dp
-    val taskTextStartPadding = 6.dp
-    val trailingDateButtonWidth = 24.dp
-    val trailingDateIconSize = AppIconMetrics.standardActionIconSize
-    val trailingActionEndOffset = 3.dp
-    val textLineHeight = 22.sp
-    val dateLineHeight = 16.sp
+    val dateRowHeight = 20.dp
+    val dateOffset = 8.dp
+    val textLineHeight = 28.sp
+    val inputLineHeight = 24.sp
+}
+
+private object AppGray {
+    val g300 = Color(0xFFD1D5DB)
+    val g400 = Color(0xFF9CA3AF)
+    val g500 = Color(0xFF6B7280)
+    val g700 = Color(0xFF374151)
+}
+
+private val LocalReduceMotion = compositionLocalOf { false }
+
+@Composable
+@ReadOnlyComposable
+private fun isAppDarkTheme(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+@Composable
+@ReadOnlyComposable
+private fun mutedTextColor(): Color =
+    MaterialTheme.colorScheme.onSurface.copy(alpha = if (isAppDarkTheme()) 0.68f else 0.64f)
+
+@Composable
+@ReadOnlyComposable
+private fun mutedIconColor(): Color =
+    MaterialTheme.colorScheme.onSurface.copy(alpha = if (isAppDarkTheme()) 0.45f else 0.42f)
+
+@Composable
+@ReadOnlyComposable
+private fun rowActiveColor(): Color =
+    MaterialTheme.colorScheme.onSurface.copy(alpha = if (isAppDarkTheme()) 0.1f else 0.07f)
+
+@Composable
+@ReadOnlyComposable
+private fun subtleOutlineColor(): Color = if (isAppDarkTheme()) AppGray.g500 else AppGray.g400
+
+@Composable
+@ReadOnlyComposable
+private fun completedFillColor(): Color = if (isAppDarkTheme()) AppGray.g700 else AppGray.g300
+
+private val AppButtonTextStyle = TextStyle(
+    fontFamily = GenInterfaceJPBodyFontFamily,
+    fontSize = 14.sp,
+    fontWeight = FontWeight.SemiBold,
+    lineHeight = 20.sp
+)
+
+private val AppFieldTextStyle = TextStyle(
+    fontFamily = GenInterfaceJPBodyFontFamily,
+    fontSize = 16.sp,
+    lineHeight = 24.sp
+)
+
+private val AppFieldLabelTextStyle = TextStyle(
+    fontFamily = GenInterfaceJPBodyFontFamily,
+    fontSize = 14.sp,
+    fontWeight = FontWeight.Medium,
+    lineHeight = 20.sp
+)
+
+private val AppDialogTitleTextStyle = TextStyle(
+    fontFamily = GenInterfaceJPDisplayFontFamily,
+    fontSize = 18.sp,
+    fontWeight = FontWeight.Bold,
+    lineHeight = 28.sp,
+    letterSpacing = 0.18.sp
+)
+
+private val AppHeaderTitleTextStyle = TextStyle(
+    fontFamily = GenInterfaceJPBodyFontFamily,
+    fontSize = 16.sp,
+    fontWeight = FontWeight.SemiBold,
+    lineHeight = 24.sp
+)
+
+private val AppPageTitleTextStyle = TextStyle(
+    fontFamily = GenInterfaceJPDisplayFontFamily,
+    fontSize = 24.sp,
+    fontWeight = FontWeight.Bold,
+    lineHeight = 32.sp,
+    letterSpacing = 0.24.sp
+)
+
+private val AppBodySmallTextStyle = TextStyle(
+    fontFamily = GenInterfaceJPBodyFontFamily,
+    fontSize = 14.sp,
+    lineHeight = 20.sp
+)
+
+private val AppRowTextStyle = TextStyle(
+    fontFamily = GenInterfaceJPBodyFontFamily,
+    fontSize = 14.sp,
+    fontWeight = FontWeight.Medium,
+    lineHeight = 20.sp
+)
+
+private val AppCaptionTextStyle = TextStyle(
+    fontFamily = GenInterfaceJPBodyFontFamily,
+    fontSize = 12.sp,
+    fontWeight = FontWeight.SemiBold,
+    lineHeight = 16.sp
+)
+
+private fun Modifier.bleed(start: Dp = 0.dp, end: Dp = 0.dp): Modifier = layout { measurable, constraints ->
+    val startPx = start.roundToPx()
+    val endPx = end.roundToPx()
+    val extra = startPx + endPx
+    val placeable = measurable.measure(
+        constraints.copy(
+            minWidth = if (constraints.minWidth > 0) constraints.minWidth + extra else 0,
+            maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + extra else constraints.maxWidth
+        )
+    )
+    layout((placeable.width - extra).coerceAtLeast(0), placeable.height) {
+        placeable.placeRelative(-startPx, 0)
+    }
+}
+
+@Composable
+private fun rememberPressScale(interactionSource: MutableInteractionSource): Float {
+    val pressed by interactionSource.collectIsPressedAsState()
+    val reduceMotion = LocalReduceMotion.current
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && !reduceMotion) 0.97f else 1f,
+        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 150),
+        label = "pressScale"
+    )
+    return scale
+}
+
+@Composable
+private fun windowWidthDp(): Dp {
+    val windowInfo = LocalWindowInfo.current
+    return with(LocalDensity.current) { windowInfo.containerSize.width.toDp() }
+}
+
+private fun shareCodeUrl(code: String): String {
+    val baseUri = BuildConfig.PASSWORD_RESET_URL.toUri()
+    return "${baseUri.scheme}://${baseUri.authority}/sharecodes/?code=$code"
+}
+
+private enum class AppButtonStyle { Primary, Secondary, Tonal, Ghost, Danger, Destructive }
+
+@Composable
+private fun AppButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    style: AppButtonStyle = AppButtonStyle.Primary,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    iconSize: Dp = 18.dp
+) {
+    val colors = MaterialTheme.colorScheme
+    val containerColor = when (style) {
+        AppButtonStyle.Primary -> colors.primary
+        AppButtonStyle.Secondary -> colors.surfaceContainer
+        AppButtonStyle.Tonal -> rowActiveColor()
+        AppButtonStyle.Ghost, AppButtonStyle.Danger -> Color.Transparent
+        AppButtonStyle.Destructive -> colors.error
+    }
+    val contentColor = when (style) {
+        AppButtonStyle.Primary -> colors.onPrimary
+        AppButtonStyle.Secondary, AppButtonStyle.Tonal -> colors.onSurface
+        AppButtonStyle.Ghost -> colors.onSurfaceVariant
+        AppButtonStyle.Danger -> colors.error
+        AppButtonStyle.Destructive -> Color.White
+    }
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale = rememberPressScale(interactionSource)
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+        contentColor = contentColor,
+        border = if (style == AppButtonStyle.Secondary) BorderStroke(1.dp, colors.outlineVariant) else null,
+        interactionSource = interactionSource,
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .alpha(if (enabled) 1f else 0.45f)
+    ) {
+        Row(
+            modifier = Modifier
+                .heightIn(min = 44.dp)
+                .padding(
+                    horizontal = if (style == AppButtonStyle.Ghost || style == AppButtonStyle.Danger) 12.dp else 16.dp
+                ),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize))
+            }
+            Text(text, style = AppButtonTextStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun AppIconButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    iconSize: Dp = AppIconMetrics.standardActionIconSize,
+    tint: Color = LocalContentColor.current,
+    enabled: Boolean = true,
+    size: Dp = 48.dp
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale = rememberPressScale(interactionSource)
+    Box(
+        modifier = modifier
+            .size(size)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick
+            )
+            .then(
+                if (contentDescription != null) {
+                    Modifier.semantics { this.contentDescription = contentDescription }
+                } else {
+                    Modifier
+                }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (enabled) tint else tint.copy(alpha = tint.alpha * 0.45f),
+            modifier = Modifier.size(iconSize)
+        )
+    }
+}
+
+@Composable
+private fun AppFieldLabel(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        style = AppFieldLabelTextStyle,
+        color = if (isAppDarkTheme()) AppGray.g300 else AppGray.g700,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun AppTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    enabled: Boolean = true,
+    readOnly: Boolean = false,
+    monospace: Boolean = false,
+    password: Boolean = false,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val focused by interactionSource.collectIsFocusedAsState()
+    val dark = isAppDarkTheme()
+    val colors = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(12.dp)
+    val ringColor = if (dark) AppGray.g700.copy(alpha = 0.7f) else AppGray.g300.copy(alpha = 0.7f)
+    val textStyle = AppFieldTextStyle.copy(
+        color = colors.onSurface,
+        fontFamily = if (monospace) FontFamily.Monospace else GenInterfaceJPBodyFontFamily
+    )
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        readOnly = readOnly,
+        singleLine = true,
+        textStyle = textStyle,
+        keyboardOptions = if (password) keyboardOptions.copy(keyboardType = KeyboardType.Password) else keyboardOptions,
+        keyboardActions = keyboardActions,
+        visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
+        interactionSource = interactionSource,
+        cursorBrush = SolidColor(colors.onSurface),
+        modifier = modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.6f)
+            .drawBehind {
+                if (focused && !readOnly) {
+                    val ring = 3.dp.toPx()
+                    drawRoundRect(
+                        color = ringColor,
+                        topLeft = Offset(-ring, -ring),
+                        size = Size(size.width + ring * 2, size.height + ring * 2),
+                        cornerRadius = CornerRadius(12.dp.toPx() + ring)
+                    )
+                }
+            }
+            .background(colors.background, shape)
+            .border(1.dp, if (focused && !readOnly) colors.onSurfaceVariant else colors.outlineVariant, shape)
+            .heightIn(min = 44.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        decorationBox = { innerTextField ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 28.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (value.isEmpty() && placeholder != null) {
+                    Text(
+                        placeholder,
+                        style = textStyle.copy(color = if (dark) AppGray.g500 else AppGray.g400),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                innerTextField()
+            }
+        }
+    )
+}
+
+@Composable
+private fun AppDialogFooter(
+    start: (@Composable () -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (start != null) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .bleed(start = 12.dp)
+            ) {
+                start()
+            }
+        }
+        content()
+    }
+}
+
+@Composable
+private fun AppDialog(
+    onDismissRequest: () -> Unit,
+    title: String,
+    description: String? = null,
+    footerStart: (@Composable () -> Unit)? = null,
+    footer: @Composable () -> Unit,
+    content: (@Composable ColumnScope.() -> Unit)? = null
+) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .padding(16.dp)
+                .widthIn(max = 416.dp)
+                .fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        title,
+                        style = AppDialogTitleTextStyle,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                    if (description != null) {
+                        Text(
+                            description,
+                            style = AppBodySmallTextStyle,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                content?.invoke(this)
+                AppDialogFooter(start = footerStart, content = footer)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppConfirmDialog(
+    title: String,
+    message: String?,
+    confirmLabel: String,
+    cancelLabel: String,
+    destructive: Boolean,
+    enabled: Boolean = true,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AppDialog(
+        onDismissRequest = { if (enabled) onDismiss() },
+        title = title,
+        description = message,
+        footer = {
+            AppButton(cancelLabel, onDismiss, style = AppButtonStyle.Secondary, enabled = enabled)
+            AppButton(
+                confirmLabel,
+                onConfirm,
+                style = if (destructive) AppButtonStyle.Destructive else AppButtonStyle.Primary,
+                enabled = enabled
+            )
+        }
+    )
+}
+
+@Composable
+private fun AppDialogField(label: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        AppFieldLabel(label)
+        content()
+    }
+}
+
+@Composable
+private fun AppColorPicker(
+    selected: String?,
+    enabled: Boolean = true,
+    onSelect: (String?) -> Unit
+) {
+    val t = LocalTranslations.current
+    val selectedRing = MaterialTheme.colorScheme.primary
+    val ringGap = MaterialTheme.colorScheme.surfaceContainer
+    val emptyFill = MaterialTheme.colorScheme.surfaceDim
+    val emptyOutline = subtleOutlineColor()
+    val swatchOutline = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        AppFieldLabel(t.t("taskList.selectColor"))
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val optionCount = TaskListBackgroundOptions.size
+            val swatchSize = minOf(44.dp, (maxWidth - 4.dp * (optionCount - 1)) / optionCount)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TaskListBackgroundOptions.forEach { color ->
+                    val isSelected = selected == color
+                    Box(
+                        modifier = Modifier
+                            .size(swatchSize)
+                            .clip(CircleShape)
+                            .clickable(enabled = enabled, role = Role.Button) { onSelect(color) }
+                            .semantics {
+                                contentDescription = "${t.t("taskList.selectColor")}: ${colorLabel(t, color)}"
+                                this.selected = isSelected
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(swatchSize * (32f / 44f))
+                                .drawBehind {
+                                    if (isSelected) {
+                                        drawCircle(selectedRing, radius = size.minDimension / 2 + 4.dp.toPx())
+                                        drawCircle(ringGap, radius = size.minDimension / 2 + 2.dp.toPx())
+                                    }
+                                }
+                                .background(color?.let(::parseHexColor) ?: emptyFill, CircleShape)
+                                .border(1.dp, if (color == null) emptyOutline else swatchOutline, CircleShape)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppListDot(background: String?, modifier: Modifier = Modifier, size: Dp = 10.dp) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .then(
+                if (background != null) {
+                    Modifier.background(parseHexColor(background), CircleShape)
+                } else {
+                    Modifier.border(1.5.dp, subtleOutlineColor(), CircleShape)
+                }
+            )
+    )
+}
+
+@Composable
+private fun AppSwitch(checked: Boolean, modifier: Modifier = Modifier) {
+    val reduceMotion = LocalReduceMotion.current
+    val dark = isAppDarkTheme()
+    val colors = MaterialTheme.colorScheme
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 24.dp else 4.dp,
+        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 150),
+        label = "switchThumb"
+    )
+    val trackColor = if (checked) colors.primary else if (dark) colors.surfaceContainer else AppGray.g300
+    val borderColor = if (checked) colors.primary else if (dark) AppGray.g700 else AppGray.g300
+    Box(
+        modifier = modifier
+            .size(width = 48.dp, height = 28.dp)
+            .background(trackColor, CircleShape)
+            .border(1.dp, borderColor, CircleShape)
+            .padding(1.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(thumbOffset.roundToPx(), 0) }
+                .size(20.dp)
+                .shadow(1.dp, CircleShape)
+                .background(if (dark) colors.background else Color.White, CircleShape)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AppSheet(
+    onDismissRequest: () -> Unit,
+    paneTitle: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val containerColor = MaterialTheme.colorScheme.surfaceContainer
+    val windowInfo = LocalWindowInfo.current
+    val density = LocalDensity.current
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val maxSheetHeight = with(density) {
+        minOf(704.dp, windowInfo.containerSize.height.toDp() * 0.88f, windowInfo.containerSize.height.toDp() - statusBarTop - 8.dp)
+    }
+    if (windowWidthDp() >= 640.dp) {
+        Dialog(
+            onDismissRequest = onDismissRequest,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = containerColor,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .padding(16.dp)
+                    .widthIn(max = 448.dp)
+                    .fillMaxWidth()
+                    .semantics { this.paneTitle = paneTitle }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = maxSheetHeight)
+                        .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    content = content
+                )
+            }
+        }
+    } else {
+        ModalBottomSheet(
+            onDismissRequest = onDismissRequest,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            sheetMaxWidth = Dp.Unspecified,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            containerColor = containerColor,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            dragHandle = null,
+            contentWindowInsets = { WindowInsets(0) },
+            modifier = Modifier.semantics { this.paneTitle = paneTitle }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = maxSheetHeight)
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                content = content
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppSheetHeader(title: String, onClose: () -> Unit, closeEnabled: Boolean = true) {
+    val t = LocalTranslations.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            title,
+            style = AppHeaderTitleTextStyle,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f)
+                .semantics { heading() }
+        )
+        AppButton(
+            t.t("common.close"),
+            onClose,
+            style = AppButtonStyle.Ghost,
+            enabled = closeEnabled,
+            modifier = Modifier.bleed(end = 12.dp)
+        )
+    }
+}
+
+@Composable
+private fun AppPinToggleButton(pinned: Boolean, onToggle: () -> Unit, enabled: Boolean = true) {
+    val t = LocalTranslations.current
+    AppButton(
+        text = t.t(if (pinned) "pages.tasklist.unpinTask" else "pages.tasklist.pinTask"),
+        onClick = onToggle,
+        style = if (pinned) AppButtonStyle.Primary else AppButtonStyle.Tonal,
+        enabled = enabled,
+        icon = Icons.Default.PushPin,
+        modifier = Modifier.semantics { selected = pinned }
+    )
+}
+
+@Composable
+private fun AppSheetCalendarSurface(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceDim)
+            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 12.dp)
+    ) {
+        content()
+    }
+}
+
+private data class CalendarMonth(val year: Int, val month: Int) {
+    val key: String get() = String.format(Locale.US, "%04d-%02d", year, month)
+
+    fun plus(months: Int): CalendarMonth {
+        val index = year * 12 + (month - 1) + months
+        return CalendarMonth(Math.floorDiv(index, 12), Math.floorMod(index, 12) + 1)
+    }
+
+    companion object {
+        fun current(): CalendarMonth {
+            val calendar = Calendar.getInstance()
+            return CalendarMonth(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1)
+        }
+
+        fun fromDateKey(dateKey: String?): CalendarMonth? {
+            val date = dateKey?.takeIf { it.isNotBlank() }?.let(::parseTaskInputDate) ?: return null
+            val calendar = Calendar.getInstance().apply { time = date }
+            return CalendarMonth(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1)
+        }
+    }
+}
+
+private fun calendarWeekStart(languageTag: String): Int = when (languageTag) {
+    "es", "de", "fr", "zh-CN", "id" -> Calendar.MONDAY
+    "ar" -> Calendar.SATURDAY
+    else -> Calendar.SUNDAY
+}
+
+private fun calendarMonthDateKeys(month: CalendarMonth, weekStart: Int): List<String> {
+    val first = taskInputDateFrom(month.year, month.month, 1) ?: return emptyList()
+    val calendar = Calendar.getInstance().apply { time = first }
+    val leadingDays = (calendar.get(Calendar.DAY_OF_WEEK) - weekStart + 7) % 7
+    val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val totalDays = (leadingDays + daysInMonth + 6) / 7 * 7
+    calendar.add(Calendar.DAY_OF_MONTH, -leadingDays)
+    return List(totalDays) {
+        formatTaskInputDate(calendar.time).also { calendar.add(Calendar.DAY_OF_MONTH, 1) }
+    }
+}
+
+@Composable
+private fun AppMonthCalendar(
+    month: CalendarMonth,
+    onMonthChange: (CalendarMonth) -> Unit,
+    selectedDateKey: String?,
+    onSelectDate: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+    dotColorsByDate: Map<String, List<String?>> = emptyMap()
+) {
+    val t = LocalTranslations.current
+    val languageTag = t.languageTag()
+    val weekStart = calendarWeekStart(languageTag)
+    val monthTitle = remember(month, languageTag) {
+        val locale = localeForLanguage(languageTag)
+        val pattern = DateFormat.getBestDateTimePattern(locale, "yMMMM")
+        taskInputDateFrom(month.year, month.month, 1)
+            ?.let { SimpleDateFormat(pattern, locale).format(it) }
+            .orEmpty()
+    }
+    val weekdayLabels = remember(languageTag, weekStart) {
+        val names = android.icu.text.DateFormatSymbols.getInstance(localeForLanguage(languageTag))
+            .getWeekdays(
+                android.icu.text.DateFormatSymbols.STANDALONE,
+                android.icu.text.DateFormatSymbols.SHORT
+            )
+        List(7) { index -> names[(weekStart - 1 + index) % 7 + 1] }
+    }
+    val dateKeys = remember(month, weekStart) { calendarMonthDateKeys(month, weekStart) }
+    val todayKey = formatTaskInputDate(Date())
+    val monthPrefix = month.key
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppIconButton(
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = t.t("app.calendarPreviousMonth"),
+                onClick = { onMonthChange(month.plus(-1)) },
+                iconSize = 20.dp,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                size = 44.dp,
+                modifier = Modifier.clip(CircleShape)
+            )
+            Text(
+                monthTitle,
+                style = AppHeaderTitleTextStyle,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { heading() }
+            )
+            AppIconButton(
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = t.t("app.calendarNextMonth"),
+                onClick = { onMonthChange(month.plus(1)) },
+                iconSize = 20.dp,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                size = 44.dp,
+                modifier = Modifier.clip(CircleShape)
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            weekdayLabels.forEach { label ->
+                Text(
+                    label,
+                    style = TextStyle(
+                        fontFamily = GenInterfaceJPBodyFontFamily,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 16.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        dateKeys.chunked(7).forEach { week ->
+            Spacer(Modifier.height(4.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                week.forEach { dateKey ->
+                    val isOutside = !dateKey.startsWith(monthPrefix)
+                    val isSelected = dateKey == selectedDateKey
+                    AppCalendarDay(
+                        dayNumber = dateKey.takeLast(2).toInt(),
+                        isOutside = isOutside,
+                        isToday = dateKey == todayKey,
+                        isSelected = isSelected,
+                        dots = dotColorsByDate[dateKey].orEmpty(),
+                        onClick = {
+                            if (isSelected) {
+                                onSelectDate(null)
+                            } else {
+                                if (isOutside) {
+                                    CalendarMonth.fromDateKey(dateKey)?.let(onMonthChange)
+                                }
+                                onSelectDate(dateKey)
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppCalendarDay(
+    dayNumber: Int,
+    isOutside: Boolean,
+    isToday: Boolean,
+    isSelected: Boolean,
+    dots: List<String?>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val t = LocalTranslations.current
+    val reduceMotion = LocalReduceMotion.current
+    val colors = MaterialTheme.colorScheme
+    val fillColor by animateColorAsState(
+        targetValue = if (isSelected) colors.primary else Color.Transparent,
+        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
+        label = "calendarDayFill"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = when {
+            isSelected -> colors.onPrimary
+            isOutside -> subtleOutlineColor()
+            else -> colors.onSurface
+        },
+        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
+        label = "calendarDayContent"
+    )
+    val selectionScale by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0.84f,
+        animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium),
+        label = "calendarDayScale"
+    )
+    val todayOutline = subtleOutlineColor()
+    val emptyDotOutline = subtleOutlineColor()
+    val dayLabel = buildList {
+        add("$dayNumber")
+        if (isToday) add(t.t("a11y.today"))
+        if (dots.isNotEmpty()) add(t.t("a11y.hasTasks"))
+    }.joinToString(", ")
+    Box(
+        modifier = modifier.height(48.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .clickable(role = Role.Button, onClick = onClick)
+                .semantics {
+                    contentDescription = dayLabel
+                    selected = isSelected
+                }
+                .then(
+                    if (isToday && !isSelected) Modifier.border(1.dp, todayOutline, CircleShape) else Modifier
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .graphicsLayer {
+                        scaleX = selectionScale
+                        scaleY = selectionScale
+                    }
+                    .background(fillColor, CircleShape)
+            )
+            Text(
+                "$dayNumber",
+                style = TextStyle(
+                    fontFamily = GenInterfaceJPBodyFontFamily,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 20.sp
+                ),
+                color = contentColor,
+                modifier = Modifier.padding(bottom = if (dots.isNotEmpty()) 8.dp else 0.dp)
+            )
+            if (dots.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    dots.forEach { hexColor ->
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .then(
+                                    if (hexColor == null) {
+                                        Modifier.border(1.dp, emptyDotOutline, CircleShape)
+                                    } else {
+                                        Modifier.background(parseHexColor(hexColor), CircleShape)
+                                    }
+                                )
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 private val AUTH_ERROR_KEY_MAP = mapOf(
@@ -1790,18 +2700,16 @@ private fun SharedTaskListPreviewScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = t.t("common.back"),
-                        modifier = Modifier.size(AppIconMetrics.leadingButtonIconSize)
-                    )
-                }
-            }
+            AppIconButton(
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = t.t("common.back"),
+                onClick = onDismiss,
+                modifier = Modifier.bleed(start = 12.dp)
+            )
 
             if (userId != null && !previewUiState.isAdded && previewUiState.taskListId != null) {
-                Button(
+                AppButton(
+                    text = if (isJoining) t.t("common.loading") else t.t("pages.sharecode.addToOrder"),
                     onClick = {
                         scope.launch {
                             isJoining = true
@@ -1818,9 +2726,7 @@ private fun SharedTaskListPreviewScreen(
                         }
                     },
                     enabled = !isJoining
-                ) {
-                    Text(if (isJoining) t.t("common.loading") else t.t("pages.sharecode.addToOrder"))
-                }
+                )
             }
         }
 
@@ -2022,7 +2928,7 @@ private fun parseTaskListSummary(taskListId: String, data: FirestoreTaskListReco
     return TaskListSummary(
         id = taskListId,
         name = name,
-        taskCount = data.taskSummaries().size,
+        remainingTaskCount = data.taskSummaries().count { !it.completed },
         memberCount = memberCount,
         background = background
     )
@@ -2458,9 +3364,11 @@ private fun makeCalendarTask(
     )
 }
 
-private fun taskCountLabel(t: Translations, count: Int): String {
-    val key = if (count == 1) "taskList.taskCount_one" else "taskList.taskCount_other"
-    return t.t(key, mapOf("count" to count.toString()))
+private fun remainingCountLabel(t: Translations, count: Int): String {
+    val pluralKey = if (count == 1) "taskList.remainingCount_one" else "taskList.remainingCount_other"
+    val vars = mapOf("count" to count.toString())
+    val plural = t.t(pluralKey, vars)
+    return if (plural != pluralKey) plural else t.t("taskList.remainingCount", vars)
 }
 
 private fun colorLabel(t: Translations, hex: String?): String = when (hex) {
@@ -2582,17 +3490,6 @@ private fun parseTaskInputDate(value: String): Date? {
     val day = parts[2].toIntOrNull() ?: return null
     return taskInputDateFrom(year, month, day)
 }
-
-private fun parseTaskDatePickerMillis(value: String): Long? {
-    if (!TASK_INPUT_DATE_PATTERN.matches(value)) return null
-    val formatter = taskInputDateFormatter(TimeZone.getTimeZone("UTC"))
-    return runCatching { formatter.parse(value) }.getOrNull()
-        ?.takeIf { formatter.format(it) == value }
-        ?.time
-}
-
-private fun formatTaskDatePickerMillis(millis: Long): String =
-    taskInputDateFormatter(TimeZone.getTimeZone("UTC")).format(Date(millis))
 
 private fun nextTaskWeekdayOffset(targetDay: Int, currentDay: Int): Int {
     val diff = targetDay - currentDay
@@ -2737,50 +3634,9 @@ private fun settingsStartupViewLabel(t: Translations, startupView: String): Stri
 
 @Composable
 private fun resolveTaskListBackgroundColor(background: String?): Color {
-    return background?.let(::parseHexColor) ?: MaterialTheme.colorScheme.background
-}
-
-@Composable
-private fun TaskListColorPicker(
-    selected: String?,
-    enabled: Boolean = true,
-    onSelect: (String?) -> Unit
-) {
-    val t = LocalTranslations.current
-    val colorScrollState = rememberScrollState()
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            t.t("taskList.selectColor"),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Row(
-            modifier = Modifier.horizontalScroll(colorScrollState),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            TaskListBackgroundOptions.forEach { color ->
-                val isSelected = selected == color
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(
-                            color?.let(::parseHexColor) ?: MaterialTheme.colorScheme.surface,
-                            CircleShape
-                        )
-                        .then(
-                            if (isSelected) Modifier.border(2.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                            else if (color == null) Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                            else Modifier
-                        )
-                        .semantics {
-                            contentDescription = colorLabel(t, color)
-                            role = Role.Button
-                        }
-                        .clickable(enabled = enabled) { onSelect(color) }
-                )
-            }
-        }
-    }
+    val themeBackground = MaterialTheme.colorScheme.surfaceDim
+    val color = background?.let(::parseHexColor) ?: return themeBackground
+    return if (isAppDarkTheme()) lerp(themeBackground, color, 0.26f) else color
 }
 
 private fun dragAutoScrollSpeed(
@@ -2796,50 +3652,6 @@ private fun dragAutoScrollSpeed(
     fingerInViewport > viewportHeight - edgeZone && canScrollForward ->
         maxSpeed * (1f - (viewportHeight - fingerInViewport).coerceAtLeast(0f) / edgeZone)
     else -> 0f
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ScreenScaffold(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 480.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                tonalElevation = 0.dp,
-                shadowElevation = 0.dp
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(24.dp))
-                    content()
-                }
-            }
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -2869,22 +3681,19 @@ private fun DetailScreenScaffold(
                         .height(topBarHeight)
                 ) {
                     if (onBack != null) {
-                        IconButton(
+                        AppIconButton(
+                            icon = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = t.t("common.back"),
                             onClick = onBack,
                             modifier = Modifier
                                 .align(Alignment.CenterStart)
-                                .size(48.dp)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = t.t("common.back"),
-                                modifier = Modifier.size(AppIconMetrics.standardActionIconSize)
-                            )
-                        }
+                                .padding(start = 4.dp)
+                        )
                     }
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = AppHeaderTitleTextStyle,
+                        overflow = TextOverflow.Ellipsis,
                         maxLines = 1,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
@@ -2906,7 +3715,11 @@ private fun DetailScreenScaffold(
                 .padding(innerPadding)
                 .windowInsetsPadding(
                     WindowInsets.safeDrawing.only(
-                        WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                        if (showTopBar) {
+                            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                        } else {
+                            WindowInsetsSides.Top + WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                        }
                     )
                 )
                 .imePadding()
@@ -2922,6 +3735,98 @@ private fun DetailScreenScaffold(
     }
 }
 
+
+@Composable
+private fun ScreenScaffold(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val t = LocalTranslations.current
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceDim)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                modifier = Modifier
+                    .widthIn(max = 544.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        title,
+                        style = AppPageTitleTextStyle,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp)
+                            .semantics { heading() }
+                    )
+                    content()
+                }
+            }
+            Text(
+                t.t("copyright"),
+                style = TextStyle(
+                    fontFamily = GenInterfaceJPBodyFontFamily,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 24.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppAlert(message: String, isError: Boolean) {
+    val dark = isAppDarkTheme()
+    val background = when {
+        isError && dark -> Color(0x33991B1B)
+        isError -> Color(0xFFFEF2F2)
+        dark -> Color(0x33064E3B)
+        else -> Color(0xFFECFDF5)
+    }
+    val border = when {
+        isError && dark -> Color(0x66991B1B)
+        isError -> Color(0xFFFECACA)
+        dark -> Color(0x66064E3B)
+        else -> Color(0xFFA7F3D0)
+    }
+    val content = when {
+        isError && dark -> Color(0xFFFEE2E2)
+        isError -> Color(0xFF7F1D1D)
+        dark -> Color(0xFFD1FAE5)
+        else -> Color(0xFF064E3B)
+    }
+    Text(
+        message,
+        style = AppBodySmallTextStyle,
+        color = content,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(background)
+            .border(1.dp, border, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    )
+}
 
 @Composable
 private fun AuthView(
@@ -2944,78 +3849,117 @@ private fun AuthView(
         selectedLanguage = language
     }
 
-    ScreenScaffold(
-        title = when (selectedScreen) {
-            AuthScreen.SignIn -> t.t("auth.button.signin")
-            AuthScreen.SignUp -> t.t("auth.button.signup")
-            AuthScreen.Reset -> t.t("auth.passwordReset.title")
-        }
-    ) {
-        Box(Modifier.fillMaxWidth()) {
-            TextButton(
-                onClick = { showLanguageMenu = true },
-                modifier = Modifier.align(Alignment.CenterEnd)
-            ) {
-                Icon(Icons.Default.Language, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text(supportedLanguages.firstOrNull { it.first == selectedLanguage }?.second ?: selectedLanguage)
-            }
-            DropdownMenu(
-                expanded = showLanguageMenu,
-                onDismissRequest = { showLanguageMenu = false },
-                modifier = Modifier.heightIn(max = 320.dp)
-            ) {
-                supportedLanguages.forEach { (code, name) ->
-                    DropdownMenuItem(
-                        text = { Text(name) },
-                        onClick = {
-                            selectedLanguage = code
-                            t.load(context, code)
-                            logSettingsLanguageChange(code)
-                            showLanguageMenu = false
-                        }
+    fun showScreen(screen: AuthScreen) {
+        selectedScreen = screen
+        onScreenChange(screen)
+    }
+
+    ScreenScaffold(title = t.t("title")) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+            contentAlignment = Alignment.CenterEnd
+        ) {
+            Box {
+                Row(
+                    modifier = Modifier
+                        .heightIn(min = 40.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
+                        .clickable(role = Role.DropdownList) { showLanguageMenu = true }
+                        .semantics { contentDescription = t.t("settings.language.title") }
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        supportedLanguages.firstOrNull { it.first == selectedLanguage }?.second ?: selectedLanguage,
+                        style = AppBodySmallTextStyle,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(AppIconMetrics.inlineActionIconSize)
                     )
                 }
+                DropdownMenu(
+                    expanded = showLanguageMenu,
+                    onDismissRequest = { showLanguageMenu = false },
+                    shape = RoundedCornerShape(12.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.heightIn(max = 320.dp)
+                ) {
+                    supportedLanguages.forEach { (code, name) ->
+                        DropdownMenuItem(
+                            text = { Text(name, style = AppBodySmallTextStyle) },
+                            trailingIcon = if (code == selectedLanguage) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(AppIconMetrics.inlineActionIconSize)) }
+                            } else {
+                                null
+                            },
+                            onClick = {
+                                selectedLanguage = code
+                                t.load(context, code)
+                                logSettingsLanguageChange(code)
+                                showLanguageMenu = false
+                            }
+                        )
+                    }
+                }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        PrimaryTabRow(selectedTabIndex = selectedScreen.ordinal, modifier = Modifier.fillMaxWidth()) {
-            listOf(
-                AuthScreen.SignIn to t.t("auth.tabs.signin"),
-                AuthScreen.SignUp to t.t("auth.tabs.signup"),
-                AuthScreen.Reset to t.t("auth.passwordReset.title")
-            ).forEachIndexed { index, (screen, title) ->
-                Tab(
-                    selected = selectedScreen.ordinal == index,
-                    onClick = {
-                        selectedScreen = screen
-                        onScreenChange(screen)
-                    },
-                    text = { Text(title) }
-                )
+        if (selectedScreen != AuthScreen.Reset) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isAppDarkTheme()) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surfaceDim)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    AuthScreen.SignIn to t.t("auth.tabs.signin"),
+                    AuthScreen.SignUp to t.t("auth.tabs.signup")
+                ).forEach { (screen, label) ->
+                    val isSelected = selectedScreen == screen
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 40.dp)
+                            .then(
+                                if (isSelected) {
+                                    Modifier.shadow(1.dp, RoundedCornerShape(8.dp))
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSelected) MaterialTheme.colorScheme.surfaceContainer else Color.Transparent)
+                            .clickable(role = Role.Tab) { showScreen(screen) }
+                            .semantics { selected = isSelected },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            label,
+                            style = AppButtonTextStyle,
+                            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
-        Spacer(Modifier.height(24.dp))
         when (selectedScreen) {
-            AuthScreen.SignIn -> SignInView(
-                onShowReset = {
-                    selectedScreen = AuthScreen.Reset
-                    onScreenChange(AuthScreen.Reset)
-                }
-            )
-            AuthScreen.SignUp -> SignUpView(
-                language = selectedLanguage,
-                onShowSignIn = {
-                    selectedScreen = AuthScreen.SignIn
-                    onScreenChange(AuthScreen.SignIn)
-                }
-            )
+            AuthScreen.SignIn -> SignInView(onShowReset = { showScreen(AuthScreen.Reset) })
+            AuthScreen.SignUp -> SignUpView(language = selectedLanguage)
             AuthScreen.Reset -> PasswordResetRequestView(
                 language = selectedLanguage,
-                onBackToSignIn = {
-                    selectedScreen = AuthScreen.SignIn
-                    onScreenChange(AuthScreen.SignIn)
-                }
+                onBackToSignIn = { showScreen(AuthScreen.SignIn) }
             )
         }
     }
@@ -3028,44 +3972,50 @@ private fun AuthTextField(
     label: String,
     contentType: ContentType,
     password: Boolean = false,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    error: String? = null
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = if (password) KeyboardType.Password else KeyboardType.Email
-        ),
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth().semantics {
-            this.contentType = contentType
-        },
-        enabled = enabled
-    )
+    val t = LocalTranslations.current
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            label,
+            style = AppFieldLabelTextStyle,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        AppTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = t.t(if (password) "auth.placeholder.password" else "auth.placeholder.email"),
+            enabled = enabled,
+            password = password,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (password) KeyboardType.Password else KeyboardType.Email
+            ),
+            modifier = Modifier.semantics { this.contentType = contentType }
+        )
+        if (error != null) {
+            Text(
+                error,
+                style = TextStyle(
+                    fontFamily = GenInterfaceJPBodyFontFamily,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                ),
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
 }
 
 @Composable
 private fun AuthMessages(errors: List<String?>, success: String? = null) {
     errors.filterNotNull().forEach { message ->
-        Spacer(Modifier.height(8.dp))
-        Text(
-            message,
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.fillMaxWidth()
-        )
+        AppAlert(message, isError = true)
     }
-    success?.let {
-        Spacer(Modifier.height(8.dp))
-        Text(
-            it,
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
+    success?.let { AppAlert(it, isError = false) }
 }
 
 @Composable
@@ -3079,74 +4029,73 @@ private fun SignInView(onShowReset: () -> Unit) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
-    AuthTextField(
-        value = email,
-        onValueChange = {
-            email = it
-            emailError = null
-            errorMessage = null
-        },
-        label = t.t("auth.form.email"),
-        contentType = ContentType.Username + ContentType.EmailAddress
-    )
-    Spacer(Modifier.height(8.dp))
-    AuthTextField(
-        value = password,
-        onValueChange = {
-            password = it
-            passwordError = null
-            errorMessage = null
-        },
-        label = t.t("auth.form.password"),
-        contentType = ContentType.Password,
-        password = true
-    )
-    AuthMessages(listOf(emailError, passwordError, errorMessage))
-    Spacer(Modifier.height(16.dp))
-    Button(
-        onClick = {
-            emailError = validateEmailField(t, email.trim())
-            passwordError = validatePasswordField(t, password, requireLength = false)
-            if (emailError != null || passwordError != null) {
-                return@Button
-            }
-            isLoading = true
-            errorMessage = null
-            scope.launch {
-                try {
-                    withTimeout(10_000) {
-                        Firebase.auth.signInWithEmailAndPassword(email.trim(), password).await()
-                    }
-                    logLogin()
-                } catch (e: TimeoutCancellationException) {
-                    recordNonFatalException("sign_in_timeout")
-                    errorMessage = t.t("auth.error.general")
-                } catch (e: Exception) {
-                    errorMessage = resolveAuthErrorMessage(t, e)
-                } finally {
-                    isLoading = false
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        AuthTextField(
+            value = email,
+            onValueChange = {
+                email = it
+                emailError = null
+                errorMessage = null
+            },
+            label = t.t("auth.form.email"),
+            contentType = ContentType.Username + ContentType.EmailAddress,
+            enabled = !isLoading,
+            error = emailError
+        )
+        AuthTextField(
+            value = password,
+            onValueChange = {
+                password = it
+                passwordError = null
+                errorMessage = null
+            },
+            label = t.t("auth.form.password"),
+            contentType = ContentType.Password,
+            password = true,
+            enabled = !isLoading,
+            error = passwordError
+        )
+        AuthMessages(listOf(errorMessage))
+        AppButton(
+            text = if (isLoading) t.t("auth.button.signingIn") else t.t("auth.button.signin"),
+            onClick = {
+                emailError = validateEmailField(t, email.trim())
+                passwordError = validatePasswordField(t, password, requireLength = false)
+                if (emailError != null || passwordError != null) {
+                    return@AppButton
                 }
-            }
-        },
-        enabled = !isLoading,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(if (isLoading) t.t("auth.button.signingIn") else t.t("auth.button.signin"))
-    }
-    Spacer(Modifier.height(8.dp))
-    TextButton(
-        onClick = onShowReset,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(t.t("auth.button.forgotPassword"))
+                isLoading = true
+                errorMessage = null
+                scope.launch {
+                    try {
+                        withTimeout(10_000) {
+                            Firebase.auth.signInWithEmailAndPassword(email.trim(), password).await()
+                        }
+                        logLogin()
+                    } catch (e: TimeoutCancellationException) {
+                        recordNonFatalException("sign_in_timeout")
+                        errorMessage = t.t("auth.error.general")
+                    } catch (e: Exception) {
+                        errorMessage = resolveAuthErrorMessage(t, e)
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth()
+        )
+        AppButton(
+            text = t.t("auth.button.forgotPassword"),
+            onClick = onShowReset,
+            style = AppButtonStyle.Secondary,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
 @Composable
-private fun SignUpView(
-    language: String,
-    onShowSignIn: () -> Unit
-) {
+private fun SignUpView(language: String) {
     val t = LocalTranslations.current
     val scope = rememberCoroutineScope()
     var email by rememberSaveable { mutableStateOf("") }
@@ -3158,84 +4107,84 @@ private fun SignUpView(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
-    AuthTextField(
-        value = email,
-        onValueChange = {
-            email = it
-            emailError = null
-            errorMessage = null
-        },
-        label = t.t("auth.form.email"),
-        contentType = ContentType.NewUsername + ContentType.EmailAddress
-    )
-    Spacer(Modifier.height(8.dp))
-    AuthTextField(
-        value = password,
-        onValueChange = {
-            password = it
-            passwordError = null
-            confirmPasswordError = null
-            errorMessage = null
-        },
-        label = t.t("auth.form.password"),
-        contentType = ContentType.NewPassword,
-        password = true
-    )
-    Spacer(Modifier.height(8.dp))
-    AuthTextField(
-        value = confirmPassword,
-        onValueChange = {
-            confirmPassword = it
-            confirmPasswordError = null
-            errorMessage = null
-        },
-        label = t.t("auth.form.confirmPassword"),
-        contentType = ContentType.NewPassword,
-        password = true
-    )
-    AuthMessages(listOf(emailError, passwordError, confirmPasswordError, errorMessage))
-    Spacer(Modifier.height(16.dp))
-    Button(
-        onClick = {
-            val trimmedEmail = email.trim()
-            emailError = validateEmailField(t, trimmedEmail)
-            passwordError = validatePasswordField(t, password, requireLength = true)
-            confirmPasswordError = validateConfirmPasswordField(t, password, confirmPassword)
-            if (emailError != null || passwordError != null || confirmPasswordError != null) {
-                return@Button
-            }
-
-            isLoading = true
-            errorMessage = null
-            scope.launch {
-                try {
-                    withTimeout(10_000) {
-                        signUpWithInitialData(
-                            trimmedEmail,
-                            password,
-                            language,
-                            t.t("app.initialTaskListName")
-                        )
-                    }
-                    logSignUp()
-                } catch (e: TimeoutCancellationException) {
-                    recordNonFatalException("sign_up_timeout")
-                    errorMessage = t.t("auth.error.general")
-                } catch (e: Exception) {
-                    errorMessage = resolveAuthErrorMessage(t, e)
-                } finally {
-                    isLoading = false
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        AuthTextField(
+            value = email,
+            onValueChange = {
+                email = it
+                emailError = null
+                errorMessage = null
+            },
+            label = t.t("auth.form.email"),
+            contentType = ContentType.NewUsername + ContentType.EmailAddress,
+            enabled = !isLoading,
+            error = emailError
+        )
+        AuthTextField(
+            value = password,
+            onValueChange = {
+                password = it
+                passwordError = null
+                confirmPasswordError = null
+                errorMessage = null
+            },
+            label = t.t("auth.form.password"),
+            contentType = ContentType.NewPassword,
+            password = true,
+            enabled = !isLoading,
+            error = passwordError
+        )
+        AuthTextField(
+            value = confirmPassword,
+            onValueChange = {
+                confirmPassword = it
+                confirmPasswordError = null
+                errorMessage = null
+            },
+            label = t.t("auth.form.confirmPassword"),
+            contentType = ContentType.NewPassword,
+            password = true,
+            enabled = !isLoading,
+            error = confirmPasswordError
+        )
+        AuthMessages(listOf(errorMessage))
+        AppButton(
+            text = if (isLoading) t.t("auth.button.signingUp") else t.t("auth.button.signup"),
+            onClick = {
+                val trimmedEmail = email.trim()
+                emailError = validateEmailField(t, trimmedEmail)
+                passwordError = validatePasswordField(t, password, requireLength = true)
+                confirmPasswordError = validateConfirmPasswordField(t, password, confirmPassword)
+                if (emailError != null || passwordError != null || confirmPasswordError != null) {
+                    return@AppButton
                 }
-            }
-        },
-        enabled = !isLoading,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(if (isLoading) t.t("auth.button.signingUp") else t.t("auth.button.signup"))
-    }
-    Spacer(Modifier.height(8.dp))
-    TextButton(onClick = onShowSignIn, modifier = Modifier.fillMaxWidth()) {
-        Text(t.t("auth.button.backToSignIn"))
+
+                isLoading = true
+                errorMessage = null
+                scope.launch {
+                    try {
+                        withTimeout(10_000) {
+                            signUpWithInitialData(
+                                trimmedEmail,
+                                password,
+                                language,
+                                t.t("app.initialTaskListName")
+                            )
+                        }
+                        logSignUp()
+                    } catch (e: TimeoutCancellationException) {
+                        recordNonFatalException("sign_up_timeout")
+                        errorMessage = t.t("auth.error.general")
+                    } catch (e: Exception) {
+                        errorMessage = resolveAuthErrorMessage(t, e)
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -3252,62 +4201,68 @@ private fun PasswordResetRequestView(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
-    Text(
-        t.t("auth.passwordReset.instruction"),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth()
-    )
-    Spacer(Modifier.height(12.dp))
-    AuthTextField(
-        value = email,
-        onValueChange = {
-            email = it
-            emailError = null
-            errorMessage = null
-            successMessage = null
-        },
-        label = t.t("auth.form.email"),
-        contentType = ContentType.Username + ContentType.EmailAddress
-    )
-    AuthMessages(listOf(emailError, errorMessage), successMessage)
-    Spacer(Modifier.height(16.dp))
-    Button(
-        onClick = {
-            val trimmedEmail = email.trim()
-            emailError = validateEmailField(t, trimmedEmail)
-            if (emailError != null) {
-                return@Button
-            }
-
-            isLoading = true
-            errorMessage = null
-            successMessage = null
-            scope.launch {
-                try {
-                    withTimeout(10_000) {
-                        sendPasswordResetEmail(trimmedEmail, language)
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        val sentMessage = successMessage
+        if (sentMessage != null) {
+            AppAlert(sentMessage, isError = false)
+        } else {
+            Text(
+                t.t("auth.passwordReset.instruction"),
+                style = AppBodySmallTextStyle,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            )
+            AuthTextField(
+                value = email,
+                onValueChange = {
+                    email = it
+                    emailError = null
+                    errorMessage = null
+                },
+                label = t.t("auth.form.email"),
+                contentType = ContentType.Username + ContentType.EmailAddress,
+                enabled = !isLoading,
+                error = emailError
+            )
+            AuthMessages(listOf(errorMessage))
+            AppButton(
+                text = if (isLoading) t.t("auth.button.sending") else t.t("auth.button.sendResetEmail"),
+                onClick = {
+                    val trimmedEmail = email.trim()
+                    emailError = validateEmailField(t, trimmedEmail)
+                    if (emailError != null) {
+                        return@AppButton
                     }
-                    logPasswordResetEmailSent()
-                    successMessage = t.t("auth.passwordReset.success")
-                } catch (e: TimeoutCancellationException) {
-                    recordNonFatalException("password_reset_timeout")
-                    errorMessage = t.t("auth.error.general")
-                } catch (e: Exception) {
-                    errorMessage = resolveAuthErrorMessage(t, e)
-                } finally {
-                    isLoading = false
-                }
-            }
-        },
-        enabled = !isLoading,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(if (isLoading) t.t("auth.button.sending") else t.t("auth.button.sendResetEmail"))
-    }
-    Spacer(Modifier.height(8.dp))
-    TextButton(onClick = onBackToSignIn, modifier = Modifier.fillMaxWidth()) {
-        Text(t.t("auth.button.backToSignIn"))
+
+                    isLoading = true
+                    errorMessage = null
+                    scope.launch {
+                        try {
+                            withTimeout(10_000) {
+                                sendPasswordResetEmail(trimmedEmail, language)
+                            }
+                            logPasswordResetEmailSent()
+                            successMessage = t.t("auth.passwordReset.success")
+                        } catch (e: TimeoutCancellationException) {
+                            recordNonFatalException("password_reset_timeout")
+                            errorMessage = t.t("auth.error.general")
+                        } catch (e: Exception) {
+                            errorMessage = resolveAuthErrorMessage(t, e)
+                        } finally {
+                            isLoading = false
+                        }
+                    }
+                },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        AppButton(
+            text = t.t("auth.button.backToSignIn"),
+            onClick = onBackToSignIn,
+            style = AppButtonStyle.Secondary,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -3354,7 +4309,7 @@ private fun ResetPasswordView(
                 password = true,
                 enabled = !isVerifying && !isSubmitting
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
             AuthTextField(
                 value = confirmPassword,
                 onValueChange = {
@@ -3368,378 +4323,49 @@ private fun ResetPasswordView(
                 enabled = !isVerifying && !isSubmitting
             )
         }
-        AuthMessages(listOf(passwordError, confirmPasswordError, errorMessage), successMessage)
-        if (isVerifying) {
-            Spacer(Modifier.height(8.dp))
-            CircularProgressIndicator()
-        }
         Spacer(Modifier.height(16.dp))
-        Button(
-            onClick = {
-                passwordError = validatePasswordField(t, password, requireLength = true)
-                confirmPasswordError = validateConfirmPasswordField(t, password, confirmPassword)
-                if (passwordError != null || confirmPasswordError != null) {
-                    return@Button
-                }
-
-                isSubmitting = true
-                errorMessage = null
-                scope.launch {
-                    try {
-                        Firebase.auth.confirmPasswordReset(code, password).await()
-                        successMessage = t.t("auth.passwordReset.resetSuccess")
-                    } catch (e: Exception) {
-                        errorMessage = resolveAuthErrorMessage(t, e)
-                    } finally {
-                        isSubmitting = false
-                    }
-                }
-            },
-            enabled = !isVerifying && !isSubmitting && successMessage == null,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (isSubmitting) t.t("auth.passwordReset.settingNewPassword") else t.t("auth.passwordReset.setNewPassword"))
-        }
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-            Text(t.t("common.close"))
-        }
-    }
-}
-
-@Composable
-private fun CalendarDayCell(
-    dayNum: Int,
-    isToday: Boolean,
-    isSelected: Boolean,
-    dots: List<String?>,
-    reduceMotion: Boolean,
-    onTap: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val t = LocalTranslations.current
-    val selectionFillColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
-        label = "calendar selection fill"
-    )
-    val selectionContentColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
-        label = "calendar selection content"
-    )
-    val selectionScale by animateFloatAsState(
-        targetValue = if (isSelected) 1f else 0.82f,
-        animationSpec = if (reduceMotion) snap() else spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "calendar selection scale"
-    )
-    val dayLabel = buildList {
-        add("$dayNum")
-        if (isToday) add(t.t("a11y.today"))
-        if (dots.isNotEmpty()) add(t.t("a11y.hasTasks"))
-    }.joinToString(", ")
-    Column(
-        modifier = modifier
-            .height(48.dp)
-            .semantics {
-                contentDescription = dayLabel
-                role = Role.Button
-                selected = isSelected
-            }
-            .clickable(onClick = onTap),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(40.dp)
-                .then(
-                    if (isToday && !isSelected)
-                        Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    else Modifier
-                )
-        ) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .graphicsLayer {
-                        scaleX = selectionScale
-                        scaleY = selectionScale
-                    }
-                    .background(selectionFillColor, CircleShape)
-            )
-            Text(
-                "$dayNum",
-                style = MaterialTheme.typography.bodyMedium,
-                color = selectionContentColor
-            )
-        }
-        if (dots.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.height(8.dp)) {
-                dots.take(3).forEach { hexColor ->
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .then(
-                                if (hexColor == null) {
-                                    Modifier.border(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.outline,
-                                        shape = CircleShape
-                                    )
-                                } else {
-                                    Modifier.background(parseHexColor(hexColor), CircleShape)
-                                }
-                            )
-                    )
-                }
-            }
-        } else {
-            Spacer(Modifier.height(8.dp))
-        }
-    }
-}
-
-@Composable
-private fun CalendarGrid(
-    month: java.util.Date,
-    selectedDateKey: String?,
-    dotColorsByDate: Map<String, List<String?>>,
-    reduceMotion: Boolean,
-    onSelectDate: (String) -> Unit
-) {
-    val t = LocalTranslations.current
-    val cal = Calendar.getInstance().apply { time = month }
-    val year = cal.get(Calendar.YEAR)
-    val monthNum = cal.get(Calendar.MONTH)
-    val firstDayOfWeek = Calendar.getInstance().apply {
-        set(year, monthNum, 1)
-    }.get(Calendar.DAY_OF_WEEK) - 1
-    val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-    val todayKey = formatTaskInputDate(java.util.Date())
-
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        val weekDays = remember(t.languageTag()) {
-            DateFormatSymbols(localeForLanguage(t.languageTag())).shortWeekdays
-                .drop(1)
-                .map { it.trimEnd('.') }
-        }
-        Row(modifier = Modifier.fillMaxWidth()) {
-            weekDays.forEach { label ->
-                Text(
-                    label,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-            }
-        }
-        Spacer(Modifier.height(4.dp))
-        val totalCells = firstDayOfWeek + daysInMonth
-        val rows = (totalCells + 6) / 7
-        repeat(rows) { rowIndex ->
-            Row(modifier = Modifier.fillMaxWidth()) {
-                repeat(7) { colIndex ->
-                    val cellIndex = rowIndex * 7 + colIndex
-                    val dayNum = cellIndex - firstDayOfWeek + 1
-                    if (dayNum in 1..daysInMonth) {
-                        val dateKey = String.format(Locale.US, "%04d-%02d-%02d", year, monthNum + 1, dayNum)
-                        CalendarDayCell(
-                            dayNum = dayNum,
-                            isToday = dateKey == todayKey,
-                            isSelected = selectedDateKey == dateKey,
-                            dots = dotColorsByDate[dateKey] ?: emptyList(),
-                            reduceMotion = reduceMotion,
-                            onTap = { onSelectDate(dateKey) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    } else {
-                        Box(modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-            Spacer(Modifier.height(2.dp))
-        }
-    }
-}
-
-@Composable
-private fun CalendarTaskRow(
-    task: CalendarTask,
-    isHighlighted: Boolean,
-    reduceMotion: Boolean,
-    onSelectDate: () -> Unit,
-    onOpenTaskList: () -> Unit,
-    onToggleComplete: () -> Unit,
-    onOpenActions: () -> Unit
-) {
-    val t = LocalTranslations.current
-    val highlightColor by animateColorAsState(
-        targetValue = if (isHighlighted) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
-        label = "calendar task highlight"
-    )
-    val dateLabel = remember(task.dateKey, t.languageTag()) {
-        task.dateKey.takeIf { it.isNotBlank() }?.let {
-            formatDateForLocale(it, t.languageTag(), "MMM d EEE")
-        }
-    }
-    val markCompleteLabel = t.t("pages.tasklist.markComplete")
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(highlightColor)
-            .padding(bottom = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 20.dp)
-                .padding(start = 48.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .then(
-                        if (dateLabel != null) {
-                            Modifier.clickable(onClick = onSelectDate)
-                        } else {
-                            Modifier
-                        }
-                    )
-                    .padding(start = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (dateLabel != null) {
-                    Text(
-                        dateLabel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    Text(
-                        t.t("pages.tasklist.noDate"),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                }
-                if (task.pinned) {
-                    Icon(
-                        Icons.Default.PushPin,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier
-                    .widthIn(min = 48.dp, max = 132.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = onOpenTaskList)
-                    .padding(start = 4.dp, end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            AuthMessages(listOf(passwordError, confirmPasswordError, errorMessage), successMessage)
+            if (isVerifying) {
+                CircularProgressIndicator(
+                    color = mutedTextColor(),
+                    strokeWidth = 2.dp,
                     modifier = Modifier
-                        .size(16.dp)
-                        .then(
-                            if (task.taskListBackground == null) {
-                                Modifier.border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = CircleShape
-                                )
-                            } else {
-                                Modifier.background(parseHexColor(task.taskListBackground), CircleShape)
-                            }
-                        )
-                )
-                Text(
-                    task.taskListName,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        .size(24.dp)
+                        .align(Alignment.CenterHorizontally)
                 )
             }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onToggleComplete)
-                    .semantics {
-                        contentDescription = markCompleteLabel
-                        role = Role.Button
+            AppButton(
+                text = if (isSubmitting) t.t("auth.passwordReset.settingNewPassword") else t.t("auth.passwordReset.setNewPassword"),
+                onClick = {
+                    passwordError = validatePasswordField(t, password, requireLength = true)
+                    confirmPasswordError = validateConfirmPasswordField(t, password, confirmPassword)
+                    if (passwordError != null || confirmPasswordError != null) {
+                        return@AppButton
                     }
-                    .padding(top = 8.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                Box(
-                    Modifier
-                        .size(TaskListDetailMetrics.completionDotSize)
-                        .border(
-                            width = 1.5.dp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
-                            shape = CircleShape
-                        )
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .then(
-                        if (dateLabel != null) {
-                            Modifier.clickable(onClick = onSelectDate)
-                        } else {
-                            Modifier
+
+                    isSubmitting = true
+                    errorMessage = null
+                    scope.launch {
+                        try {
+                            Firebase.auth.confirmPasswordReset(code, password).await()
+                            successMessage = t.t("auth.passwordReset.resetSuccess")
+                        } catch (e: Exception) {
+                            errorMessage = resolveAuthErrorMessage(t, e)
+                        } finally {
+                            isSubmitting = false
                         }
-                    ),
-                contentAlignment = Alignment.TopStart
-            ) {
-                Text(
-                    task.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 2.dp, top = 6.dp),
-                    maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onOpenActions)
-                    .semantics {
-                        contentDescription = t.t("a11y.editTask")
-                        role = Role.Button
                     }
-                    .padding(top = 6.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(AppIconMetrics.inlineActionIconSize)
-                )
-            }
+                },
+                enabled = !isVerifying && !isSubmitting && successMessage == null,
+                modifier = Modifier.fillMaxWidth()
+            )
+            AppButton(
+                text = t.t("common.close"),
+                onClick = onDismiss,
+                style = AppButtonStyle.Secondary,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -3786,17 +4412,7 @@ private fun CalendarScreen(
             )
             .sortedWith(calendarTaskComparator)
     }
-    var displayedMonth by remember {
-        mutableStateOf(
-            Calendar.getInstance().apply {
-                set(Calendar.DAY_OF_MONTH, 1)
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }.time
-        )
-    }
+    var displayedMonth by remember { mutableStateOf(CalendarMonth.current()) }
     var selectedDateKey by remember { mutableStateOf<String?>(null) }
     var showAddTaskSheet by remember { mutableStateOf(false) }
     var addTaskError by remember { mutableStateOf<String?>(null) }
@@ -3857,9 +4473,7 @@ private fun CalendarScreen(
         optimisticCalendarTasks = optimisticCalendarTasks.filter { it.id !in loadedIds }
     }
 
-    val monthKey = remember(displayedMonth) {
-        SimpleDateFormat("yyyy-MM", Locale.US).format(displayedMonth)
-    }
+    val monthKey = displayedMonth.key
     val tasksInMonth = remember(calendarTasks, monthKey) {
         calendarTasks.filter { it.dateKey.isBlank() || it.dateKey.startsWith(monthKey) }
     }
@@ -3874,14 +4488,10 @@ private fun CalendarScreen(
         map as Map<String, List<String?>>
     }
 
-    val monthTitle = remember(displayedMonth, t.languageTag()) {
-        val locale = localeForLanguage(t.languageTag())
-        val pattern = DateFormat.getBestDateTimePattern(locale, "yMMMM")
-        SimpleDateFormat(pattern, locale).format(displayedMonth)
-    }
     val selectedDateLabel = remember(selectedDateKey, t.languageTag()) {
-        selectedDateKey?.let { formatDateForLocale(it, t.languageTag(), "yMMM d EEE") }.orEmpty()
+        selectedDateKey?.let { formatDateForLocale(it, t.languageTag(), "MMM d EEE") }.orEmpty()
     }
+    var calendarListHeaderCount by remember { mutableIntStateOf(0) }
 
     fun selectDate(dateKey: String?) {
         if (selectedDateKey != dateKey) {
@@ -3891,7 +4501,17 @@ private fun CalendarScreen(
         if (dateKey != null) {
             val targetIndex = tasksInMonth.indexOfFirst { it.dateKey == dateKey }
             if (targetIndex >= 0) {
-                scope.launch { listState.animateScrollToItem(targetIndex) }
+                val itemIndex = targetIndex + calendarListHeaderCount
+                val layoutInfo = listState.layoutInfo
+                val itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == itemIndex }
+                val isFullyVisible = itemInfo != null &&
+                    itemInfo.offset >= layoutInfo.viewportStartOffset &&
+                    itemInfo.offset + itemInfo.size <= layoutInfo.viewportEndOffset
+                if (!isFullyVisible) {
+                    scope.launch {
+                        listState.animateScrollToItem(itemIndex, -layoutInfo.viewportSize.height / 3)
+                    }
+                }
             }
         }
     }
@@ -4095,6 +4715,100 @@ private fun CalendarScreen(
         }
     }
 
+    val defaultTaskListId = selectedTaskListIdState?.value
+        ?.takeIf { id -> calendarTaskLists.any { it.id == id } }
+        ?: calendarTaskLists.firstOrNull()?.id.orEmpty()
+    val calendarBlock: @Composable () -> Unit = {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            if (hasLoadError && calendarTaskLists.isNotEmpty()) {
+                Text(
+                    t.t("app.loadError"),
+                    color = MaterialTheme.colorScheme.error,
+                    style = AppBodySmallTextStyle,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+            AppMonthCalendar(
+                month = displayedMonth,
+                onMonthChange = {
+                    displayedMonth = it
+                    selectedDateKey = null
+                },
+                selectedDateKey = selectedDateKey,
+                onSelectDate = { selectDate(it) },
+                dotColorsByDate = dotColorsByDate
+            )
+            AppButton(
+                text = if (selectedDateKey != null) {
+                    "$selectedDateLabel · ${t.t("a11y.addTask")}"
+                } else {
+                    t.t("a11y.addTask")
+                },
+                onClick = {
+                    addTaskError = null
+                    showAddTaskSheet = true
+                },
+                enabled = calendarTaskLists.isNotEmpty(),
+                icon = Icons.Default.Add,
+                iconSize = AppIconMetrics.compactActionIconSize,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            )
+            addTaskError?.let { message ->
+                Text(
+                    message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = AppBodySmallTextStyle,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+    }
+
+    fun LazyListScope.calendarTaskItems() {
+        if (tasksInMonth.isEmpty()) {
+            item(key = "calendarEmpty") {
+                Text(
+                    if (hasLoadError) t.t("app.loadError") else t.t("app.calendarNoDatedTasks"),
+                    style = AppBodySmallTextStyle,
+                    color = if (hasLoadError) MaterialTheme.colorScheme.error else mutedTextColor(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
+                )
+            }
+            return
+        }
+        itemsIndexed(tasksInMonth, key = { _, task -> task.id }) { index, task ->
+            val startsUndatedGroup = task.dateKey.isBlank() &&
+                (index == 0 || tasksInMonth[index - 1].dateKey.isNotBlank())
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (startsUndatedGroup) {
+                    Text(
+                        t.t("pages.tasklist.noDate"),
+                        style = AppCaptionTextStyle,
+                        color = mutedTextColor(),
+                        modifier = Modifier
+                            .padding(start = 48.dp, top = 16.dp, bottom = 4.dp)
+                            .semantics { heading() }
+                    )
+                }
+                CalendarTaskRow(
+                    task = task,
+                    isHighlighted = selectedDateKey == task.dateKey && task.dateKey.isNotBlank(),
+                    reduceMotion = reduceMotion,
+                    onSelectDate = {
+                        if (task.dateKey.isNotBlank()) selectDate(task.dateKey)
+                    },
+                    onOpenTaskList = { openTaskList(task.taskListId) },
+                    onToggleComplete = { completeCalendarTask(task) },
+                    onOpenActions = { editingTask = task }
+                )
+            }
+        }
+    }
+
     DetailScreenScaffold(
         title = t.t("app.calendar"),
         onBack = if (navController != null) ({ navController.navigateUp() }) else null,
@@ -4102,134 +4816,82 @@ private fun CalendarScreen(
         topBarHeight = 56.dp,
         backgroundColor = MaterialTheme.colorScheme.surfaceDim
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .widthIn(max = 960.dp)
-                .align(Alignment.CenterHorizontally)
-                .padding(top = 2.dp)
-                .padding(bottom = 8.dp)
-        ) {
-            if (hasLoadError && calendarTaskLists.isNotEmpty()) {
-                Text(
-                    t.t("app.loadError"),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
-                )
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val availableWidth = maxWidth
+            val isTwoColumn = !showTopBar && availableWidth >= 720.dp
+            SideEffect {
+                calendarListHeaderCount = if (isTwoColumn) 0 else 1
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = {
-                    displayedMonth = Calendar.getInstance().apply {
-                        time = displayedMonth
-                        add(Calendar.MONTH, -1)
-                        set(Calendar.DAY_OF_MONTH, 1)
-                    }.time
-                    selectedDateKey = null
-                }) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = t.t("app.calendarPreviousMonth"),
-                        modifier = Modifier.size(AppIconMetrics.standardActionIconSize)
-                    )
-                }
-                Text(monthTitle, style = MaterialTheme.typography.titleLarge)
-                IconButton(onClick = {
-                    displayedMonth = Calendar.getInstance().apply {
-                        time = displayedMonth
-                        add(Calendar.MONTH, 1)
-                        set(Calendar.DAY_OF_MONTH, 1)
-                    }.time
-                    selectedDateKey = null
-                }) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = t.t("app.calendarNextMonth"),
-                        modifier = Modifier.size(AppIconMetrics.standardActionIconSize)
-                    )
-                }
-            }
-
-            CalendarGrid(
-                month = displayedMonth,
-                selectedDateKey = selectedDateKey,
-                dotColorsByDate = dotColorsByDate,
-                reduceMotion = reduceMotion,
-                onSelectDate = { dateKey ->
-                    selectDate(if (selectedDateKey == dateKey) null else dateKey)
-                }
-            )
-
-            if (selectedDateKey != null) {
-                Button(
-                    onClick = {
-                        addTaskError = null
-                        showAddTaskSheet = true
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp)
+            if (showTopBar) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp)
                 ) {
-                    Text("$selectedDateLabel · ${t.t("a11y.addTask")}")
+                    item(key = "calendar") {
+                        Column {
+                            calendarBlock()
+                            Spacer(Modifier.height(12.dp))
+                        }
+                    }
+                    calendarTaskItems()
                 }
-            }
-
-            if (addTaskError != null) {
-                Text(
-                    addTaskError.orEmpty(),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 8.dp)
-            ) {
-                if (tasksInMonth.isEmpty()) {
+            } else {
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 1152.dp)
+                        .fillMaxSize()
+                        .align(Alignment.TopCenter)
+                        .padding(start = 24.dp, end = 24.dp, top = 40.dp)
+                ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
+                            .heightIn(min = 48.dp)
+                            .padding(bottom = 8.dp),
+                        contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
-                            if (hasLoadError) t.t("app.loadError") else t.t("app.calendarNoDatedTasks"),
-                            color = if (hasLoadError) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.onSurfaceVariant
+                            t.t("app.calendar"),
+                            style = AppPageTitleTextStyle,
+                            modifier = Modifier.semantics { heading() }
                         )
                     }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(tasksInMonth, key = { it.id }) { task ->
-                            CalendarTaskRow(
-                                task = task,
-                                isHighlighted = selectedDateKey == task.dateKey && task.dateKey.isNotBlank(),
-                                reduceMotion = reduceMotion,
-                                onSelectDate = {
-                                    if (task.dateKey.isNotBlank()) selectDate(task.dateKey)
-                                },
-                                onOpenTaskList = { openTaskList(task.taskListId) },
-                                onToggleComplete = { completeCalendarTask(task) },
-                                onOpenActions = { editingTask = task }
-                            )
+                    if (isTwoColumn) {
+                        val asideWidth = (availableWidth - 48.dp - 48.dp - 320.dp).coerceIn(288.dp, 416.dp)
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.spacedBy(48.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .width(asideWidth)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                calendarBlock()
+                            }
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                contentPadding = PaddingValues(bottom = 48.dp)
+                            ) {
+                                calendarTaskItems()
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 48.dp)
+                        ) {
+                            item(key = "calendar") {
+                                Column {
+                                    calendarBlock()
+                                    Spacer(Modifier.height(12.dp))
+                                }
+                            }
+                            calendarTaskItems()
                         }
                     }
                 }
@@ -4237,15 +4899,15 @@ private fun CalendarScreen(
         }
     }
 
-    if (showAddTaskSheet && selectedDateKey != null) {
+    if (showAddTaskSheet) {
         CalendarTaskSheet(
             title = t.t("a11y.addTask"),
             submitLabel = t.t("a11y.addTask"),
             taskLists = calendarTaskLists,
-            initialTaskListId = calendarTaskLists.firstOrNull()?.id.orEmpty(),
+            initialTaskListId = defaultTaskListId,
             initialText = "",
             initialPinned = false,
-            initialDateKey = selectedDateKey,
+            initialDateKey = selectedDateKey ?: formatTaskInputDate(Date()),
             onDismiss = { showAddTaskSheet = false },
             onSubmit = { taskListId, text, pinned, dateKey ->
                 addCalendarTask(taskListId, text, pinned, dateKey)
@@ -4275,7 +4937,6 @@ private fun CalendarScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CalendarTaskSheet(
     title: String,
@@ -4298,185 +4959,270 @@ private fun CalendarTaskSheet(
     }
     var text by remember { mutableStateOf(initialText) }
     var pinned by remember { mutableStateOf(initialPinned) }
+    var dateKey by remember { mutableStateOf(initialDateKey?.takeIf { it.isNotBlank() }) }
+    var month by remember { mutableStateOf(CalendarMonth.fromDateKey(dateKey) ?: CalendarMonth.current()) }
     var taskListMenuExpanded by remember { mutableStateOf(false) }
-    val initialSelectedMillis = remember(initialDateKey) {
-        initialDateKey?.takeIf { it.isNotBlank() }?.let(::parseTaskDatePickerMillis)
-    }
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialSelectedMillis)
-    val pinnedLabel = t.t(if (pinned) "pages.tasklist.unpinTask" else "pages.tasklist.pinTask")
+    val textFocusRequester = remember { FocusRequester() }
+    val canSubmit = (isEditing || text.trim().isNotEmpty() || pinned || dateKey != null) && taskListId.isNotEmpty()
+    val selectedTaskListName = taskLists.firstOrNull { it.id == taskListId }?.name ?: t.t("app.drawerTitle")
 
     fun submit() {
-        val trimmed = text.trim()
-        val dateKey = datePickerState.selectedDateMillis?.let(::formatTaskDatePickerMillis).orEmpty()
-        if ((!isEditing && !hasTaskContent(trimmed, dateKey, pinned)) || taskListId.isEmpty()) return
-        onSubmit(taskListId, trimmed, pinned, dateKey)
+        if (!canSubmit) return
+        onSubmit(taskListId, text.trim(), pinned, dateKey.orEmpty())
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        contentWindowInsets = { WindowInsets(0) },
-        modifier = Modifier.semantics {
-            paneTitle = title
-        }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 640.dp)
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+    LaunchedEffect(isEditing) {
+        if (!isEditing) textFocusRequester.requestFocus()
+    }
+
+    AppSheet(onDismissRequest = onDismiss, paneTitle = title) {
+        AppSheetHeader(title = title, onClose = onDismiss)
+        Box {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp),
+                    .heightIn(min = 44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.background)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                    .clickable(role = Role.DropdownList) { taskListMenuExpanded = true }
+                    .semantics { contentDescription = "${t.t("app.drawerTitle")}: $selectedTaskListName" }
+                    .padding(start = 14.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    selectedTaskListName,
+                    style = AppFieldTextStyle,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                TextButton(
-                    onClick = onDismiss,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Text(t.t("common.close"))
-                }
-            }
-
-            Box {
-                OutlinedButton(
-                    onClick = { taskListMenuExpanded = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius),
-                    contentPadding = PaddingValues(horizontal = 14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            taskLists.firstOrNull { it.id == taskListId }?.name
-                                ?: t.t("app.drawerTitle"),
-                            modifier = Modifier.weight(1f),
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                        Icon(
-                            Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            modifier = Modifier.size(AppIconMetrics.inlineActionIconSize)
-                        )
-                    }
-                }
-                DropdownMenu(
-                    expanded = taskListMenuExpanded,
-                    onDismissRequest = { taskListMenuExpanded = false }
-                ) {
-                    taskLists.forEach { taskList ->
-                        DropdownMenuItem(
-                            text = { Text(taskList.name) },
-                            onClick = {
-                                taskListId = taskList.id
-                                taskListMenuExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text(t.t("pages.tasklist.addTaskPlaceholder")) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { submit() }),
-                shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TextButton(
-                    onClick = { datePickerState.selectedDateMillis = null },
-                    modifier = Modifier.height(48.dp),
-                    enabled = datePickerState.selectedDateMillis != null
-                ) {
-                    Text(t.t("pages.tasklist.clearDate"))
-                }
-                Spacer(Modifier.weight(1f))
-                Surface(
-                    onClick = { pinned = !pinned },
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceDim,
-                    modifier = Modifier.semantics {
-                        contentDescription = pinnedLabel
-                        role = Role.Switch
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.PushPin, contentDescription = null)
-                        Text(pinnedLabel)
-                        Switch(checked = pinned, onCheckedChange = null)
-                    }
-                }
-            }
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceDim,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                DatePicker(
-                    state = datePickerState,
-                    modifier = Modifier.fillMaxWidth(),
-                    title = null,
-                    headline = null,
-                    showModeToggle = false
+                Icon(
+                    Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                    modifier = Modifier.size(AppIconMetrics.compactActionIconSize)
                 )
             }
-
-            }
-
-            Button(
-                onClick = { submit() },
-                enabled = (
-                    isEditing || text.trim().isNotEmpty() || pinned || datePickerState.selectedDateMillis != null
-                ) && taskListId.isNotEmpty(),
+            DropdownMenu(
+                expanded = taskListMenuExpanded,
+                onDismissRequest = { taskListMenuExpanded = false },
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
-                Text(submitLabel)
+                taskLists.forEach { taskList ->
+                    DropdownMenuItem(
+                        text = { Text(taskList.name, style = AppBodySmallTextStyle) },
+                        leadingIcon = { AppListDot(taskList.background) },
+                        trailingIcon = if (taskList.id == taskListId) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(AppIconMetrics.inlineActionIconSize)) }
+                        } else {
+                            null
+                        },
+                        onClick = {
+                            taskListId = taskList.id
+                            taskListMenuExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+        AppTextField(
+            value = text,
+            onValueChange = { text = it },
+            placeholder = t.t("pages.tasklist.addTaskPlaceholder"),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { submit() }),
+            modifier = Modifier.focusRequester(textFocusRequester)
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppButton(
+                t.t("pages.tasklist.clearDate"),
+                onClick = { dateKey = null },
+                style = AppButtonStyle.Ghost,
+                enabled = dateKey != null,
+                modifier = Modifier.bleed(start = 12.dp)
+            )
+            Spacer(Modifier.weight(1f))
+            AppPinToggleButton(pinned = pinned, onToggle = { pinned = !pinned })
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+        ) {
+            AppSheetCalendarSurface {
+                AppMonthCalendar(
+                    month = month,
+                    onMonthChange = { month = it },
+                    selectedDateKey = dateKey,
+                    onSelectDate = { dateKey = it }
+                )
+            }
+        }
+        AppButton(
+            submitLabel,
+            onClick = { submit() },
+            enabled = canSubmit,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun CalendarTaskRow(
+    task: CalendarTask,
+    isHighlighted: Boolean,
+    reduceMotion: Boolean,
+    onSelectDate: () -> Unit,
+    onOpenTaskList: () -> Unit,
+    onToggleComplete: () -> Unit,
+    onOpenActions: () -> Unit
+) {
+    val t = LocalTranslations.current
+    val highlightColor by animateColorAsState(
+        targetValue = if (isHighlighted) MaterialTheme.colorScheme.surfaceContainer else Color.Transparent,
+        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
+        label = "calendar task highlight"
+    )
+    val dateLabel = remember(task.dateKey, t.languageTag()) {
+        task.dateKey.takeIf { it.isNotBlank() }?.let {
+            formatDateForLocale(it, t.languageTag(), "MMM d EEE")
+        }
+    }
+    val mutedText = mutedTextColor()
+    val mutedIcon = mutedIconColor()
+    val metaTextStyle = TextStyle(
+        fontFamily = GenInterfaceJPBodyFontFamily,
+        fontSize = 12.sp,
+        lineHeight = 16.sp
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(highlightColor, RoundedCornerShape(12.dp))
+            .padding(bottom = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 20.dp)
+                .padding(start = 48.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (dateLabel != null) {
+                    Text(
+                        dateLabel,
+                        style = metaTextStyle,
+                        color = mutedText,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable(role = Role.Button, onClick = onSelectDate)
+                    )
+                }
+                if (task.pinned) {
+                    Icon(
+                        Icons.Default.PushPin,
+                        contentDescription = null,
+                        tint = mutedText,
+                        modifier = Modifier.size(AppIconMetrics.metaIconSize)
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .widthIn(min = 48.dp, max = 160.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable(role = Role.Button, onClick = onOpenTaskList)
+                    .padding(end = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AppListDot(task.taskListBackground)
+                Text(
+                    task.taskListName,
+                    style = metaTextStyle.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(role = Role.Checkbox, onClick = onToggleComplete)
+                    .semantics {
+                        contentDescription = "${t.t("pages.tasklist.markComplete")}: ${task.text}"
+                    }
+                    .padding(top = 8.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Box(
+                    Modifier
+                        .size(TaskListDetailMetrics.completionDotSize)
+                        .border(1.dp, if (task.completed) Color.Transparent else mutedIcon, CircleShape)
+                        .background(if (task.completed) completedFillColor() else Color.Transparent, CircleShape)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .then(
+                        if (dateLabel != null) {
+                            Modifier.clickable(onClick = onSelectDate)
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .padding(top = 6.dp),
+                contentAlignment = Alignment.TopStart
+            ) {
+                Text(
+                    task.text,
+                    style = TextStyle(
+                        fontFamily = GenInterfaceJPBodyFontFamily,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 24.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClick = onOpenActions)
+                    .semantics { contentDescription = t.t("a11y.editTask") }
+                    .padding(top = 8.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Icon(
+                    Icons.Outlined.Edit,
+                    contentDescription = null,
+                    tint = mutedIcon,
+                    modifier = Modifier.size(AppIconMetrics.compactActionIconSize)
+                )
             }
         }
     }
@@ -4484,25 +5230,12 @@ private fun CalendarTaskSheet(
 
 @Composable
 private fun DragHandleIcon(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(AppIconMetrics.dragHandleDotSpacing)
-    ) {
-        repeat(3) {
-            Row(horizontalArrangement = Arrangement.spacedBy(AppIconMetrics.dragHandleDotSpacing)) {
-                repeat(2) {
-                    Box(
-                        Modifier
-                            .size(AppIconMetrics.dragHandleDotSize)
-                            .background(
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                CircleShape
-                            )
-                    )
-                }
-            }
-        }
-    }
+    Icon(
+        Icons.Default.DragIndicator,
+        contentDescription = null,
+        tint = mutedIconColor(),
+        modifier = modifier.size(AppIconMetrics.compactActionIconSize)
+    )
 }
 
 @Composable
@@ -4512,13 +5245,14 @@ private fun TaskListsScreen(
     selectedTaskListId: String? = null,
     onTaskListSelected: ((String) -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
-    onOpenCalendar: (() -> Unit)? = null
+    onOpenCalendar: (() -> Unit)? = null,
+    calendarActive: Boolean = false,
+    settingsActive: Boolean = false
 ) {
     val t = LocalTranslations.current
     val haptic = LocalHapticFeedback.current
     val reduceMotion = rememberReduceMotion()
     val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListSummary)
-    val userEmail = Firebase.auth.currentUser?.email ?: ""
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var createName by remember { mutableStateOf("") }
@@ -4535,7 +5269,6 @@ private fun TaskListsScreen(
     var joinListInput by remember { mutableStateOf("") }
     var joiningList by remember { mutableStateOf(false) }
     var joinListError by remember { mutableStateOf<String?>(null) }
-    val displayedUserEmail = userEmail.ifBlank { t.t("app.drawerNoEmail") }
     var pendingTaskListOrder by remember { mutableStateOf<List<TaskListSummary>?>(null) }
     val taskListOrderMutationQueue = remember(userId) {
         TaskListMutationQueues.queueFor("taskListOrder:$userId")
@@ -4545,7 +5278,7 @@ private fun TaskListsScreen(
 
     val displayTaskLists = dragOrderedTaskLists ?: pendingTaskListOrder ?: uiState.taskLists
     val density = LocalDensity.current
-    val taskListSpacingPx = with(density) { 24.dp.toPx() }
+    val taskListSpacingPx = 0f
 
     fun openTaskList(taskListId: String) {
         if (onTaskListSelected != null) {
@@ -4650,95 +5383,142 @@ private fun TaskListsScreen(
     val currentHaptic by rememberUpdatedState(haptic)
     val currentDensity by rememberUpdatedState(density)
 
+    val mutedText = mutedTextColor()
+    val rowActive = rowActiveColor()
+    val navColor = if (isAppDarkTheme()) AppGray.g300 else AppGray.g700
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(
-                WindowInsets.safeDrawing.only(
-                    WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-                )
-            )
-            .padding(horizontal = 16.dp)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 16.dp, bottom = 16.dp),
+                .heightIn(min = 48.dp)
+                .padding(start = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                displayedUserEmail,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground,
+            Row(
                 modifier = Modifier.weight(1f),
-                maxLines = 1
-            )
-            IconButton(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.brand_logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    t.t("title"),
+                    style = TextStyle(
+                        fontFamily = GenInterfaceJPDisplayFontFamily,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 28.sp,
+                        letterSpacing = 0.18.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    modifier = Modifier.semantics { heading() }
+                )
+            }
+            AppIconButton(
+                icon = Icons.Outlined.Settings,
+                contentDescription = t.t("settings.title"),
                 onClick = {
                     if (onOpenSettings != null) {
                         onOpenSettings()
                     } else {
                         navController?.navigate(AppRoute.Settings.route)
                     }
-                }
-            ) {
-                Icon(
-                    Icons.Outlined.Settings,
-                    contentDescription = t.t("settings.title"),
-                    modifier = Modifier.size(AppIconMetrics.standardActionIconSize),
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-            }
+                },
+                iconSize = AppIconMetrics.headerActionIconSize,
+                tint = if (settingsActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (settingsActive) rowActive else Color.Transparent)
+            )
         }
 
-        OutlinedButton(
-            onClick = { openCalendar() },
+        Row(
             modifier = Modifier
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                .fillMaxWidth()
+                .heightIn(min = 44.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (calendarActive) rowActive else Color.Transparent)
+                .clickable(role = Role.Button) { openCalendar() }
+                .semantics { if (calendarActive) selected = true }
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Filled.CalendarToday,
-                contentDescription = t.t("app.calendar"),
-                modifier = Modifier.size(AppIconMetrics.leadingButtonIconSize)
+                Icons.Default.CalendarToday,
+                contentDescription = null,
+                tint = if (calendarActive) MaterialTheme.colorScheme.onSurface else navColor,
+                modifier = Modifier.size(AppIconMetrics.compactActionIconSize)
             )
-            Spacer(Modifier.width(8.dp))
-            Text(t.t("app.calendarCheckButton"))
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        if (uiState.hasError && displayTaskLists.isNotEmpty()) {
             Text(
-                t.t("app.loadError"),
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(bottom = 12.dp)
+                t.t("app.calendar"),
+                style = AppRowTextStyle.copy(
+                    fontWeight = if (calendarActive) FontWeight.SemiBold else FontWeight.Medium
+                ),
+                color = if (calendarActive) MaterialTheme.colorScheme.onSurface else navColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
 
-        when {
-            uiState.isLoading -> {
-                Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            displayTaskLists.isEmpty() -> {
+        LazyColumn(
+            state = lazyListState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            item(key = 1, contentType = "label") {
                 Text(
-                    if (uiState.hasError) t.t("app.loadError") else t.t("app.emptyState"),
-                    color = if (uiState.hasError) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    t.t("app.drawerTitle"),
+                    style = AppCaptionTextStyle,
+                    color = mutedText,
                     modifier = Modifier
+                        .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
+                        .semantics { heading() }
                 )
             }
-            else -> {
-                LazyColumn(
-                    state = lazyListState,
-                    modifier = Modifier
-                        .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+            if (uiState.hasError && displayTaskLists.isNotEmpty()) {
+                item(key = 2, contentType = "error") {
+                    Text(
+                        t.t("app.loadError"),
+                        color = MaterialTheme.colorScheme.error,
+                        style = AppBodySmallTextStyle,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+            }
+            when {
+                uiState.isLoading -> {
+                    item(key = 3, contentType = "loading") {
+                        Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = mutedText, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                }
+                displayTaskLists.isEmpty() -> {
+                    item(key = 3, contentType = "empty") {
+                        Text(
+                            if (uiState.hasError) t.t("app.loadError") else t.t("app.emptyState"),
+                            style = AppBodySmallTextStyle,
+                            color = if (uiState.hasError) MaterialTheme.colorScheme.error else mutedText,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+                else -> {
                     items(
                         items = displayTaskLists,
                         key = { it.id },
@@ -4750,29 +5530,60 @@ private fun TaskListsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(enabled = draggingTaskListId == null) {
-                                    openTaskList(taskList.id)
-                                }
                                 .offset { IntOffset(0, if (isDragged) taskListDragOffset.toInt() else 0) }
                                 .zIndex(if (isDragged) 1f else 0f)
-                                .alpha(if (isDragged && !reduceMotion) 0.8f else 1f)
+                                .alpha(if (isDragged && !reduceMotion) 0.5f else 1f)
                                 .graphicsLayer {
                                     scaleX = if (isDragged && !reduceMotion) 1.03f else 1f
                                     scaleY = if (isDragged && !reduceMotion) 1.03f else 1f
                                 }
                                 .then(if (!isDragged && !reduceMotion) Modifier.animateItem() else Modifier)
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) rowActive else Color.Transparent),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 52.dp)
+                                    .clickable(enabled = draggingTaskListId == null, role = Role.Button) {
+                                        openTaskList(taskList.id)
+                                    }
+                                    .semantics { if (isSelected) selected = true }
+                                    .padding(start = 12.dp, top = 6.dp, bottom = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(Modifier.width(20.dp), contentAlignment = Alignment.Center) {
+                                    AppListDot(taskList.background)
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        taskList.name,
+                                        style = AppRowTextStyle.copy(
+                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        remainingCountLabel(t, taskList.remainingTaskCount),
+                                        style = TextStyle(
+                                            fontFamily = GenInterfaceJPBodyFontFamily,
+                                            fontSize = 12.sp,
+                                            lineHeight = 16.sp
+                                        ),
+                                        color = mutedText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
                             Box(
                                 modifier = Modifier
-                                    .width(TaskListDetailMetrics.dragHandleTouchWidth)
-                                    .height(48.dp)
+                                    .width(40.dp)
+                                    .height(44.dp)
                                             .pointerInput(taskList.id) {
                                                 detectDragGestures(
                                                     onDragStart = { _ ->
@@ -4855,74 +5666,40 @@ private fun TaskListsScreen(
                             ) {
                                 DragHandleIcon()
                             }
-
-                            Box(
-                                Modifier
-                                    .size(14.dp)
-                                    .background(
-                                        if (taskList.background != null) parseHexColor(taskList.background)
-                                        else MaterialTheme.colorScheme.outlineVariant,
-                                        CircleShape
-                                    )
-                                    .then(
-                                        if (taskList.background == null)
-                                            Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                        else Modifier
-                                    )
-                            )
-
-                            Column {
-                                Text(
-                                    taskList.name,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    taskCountLabel(t, taskList.taskCount),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
                         }
                     }
                 }
             }
-        }
-
-        if (displayTaskLists.isEmpty() || uiState.isLoading) {
-            Spacer(Modifier.weight(1f))
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Button(
-                onClick = {
-                    createName = ""
-                    createBackground = null
-                    showCreateDialog = true
-                },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(t.t("app.createNew"), fontWeight = FontWeight.Medium)
-            }
-            OutlinedButton(
-                onClick = {
-                    joinListInput = ""
-                    joinListError = null
-                    showJoinDialog = true
-                },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Text(t.t("app.joinList"), fontWeight = FontWeight.Medium)
+            item(key = 4, contentType = "actions") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppButton(
+                        t.t("app.createNew"),
+                        onClick = {
+                            createName = ""
+                            createBackground = null
+                            showCreateDialog = true
+                        },
+                        style = AppButtonStyle.Tonal,
+                        icon = Icons.Default.Add,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AppButton(
+                        t.t("app.joinList"),
+                        onClick = {
+                            joinListInput = ""
+                            joinListError = null
+                            showJoinDialog = true
+                        },
+                        style = AppButtonStyle.Tonal,
+                        icon = Icons.Default.Link,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
@@ -4939,157 +5716,167 @@ private fun TaskListsScreen(
         onTaskListSelected(uiState.taskLists.first().id)
     }
 
+    fun createTaskList() {
+        val trimmed = createName.trim()
+        if (trimmed.isNotEmpty()) {
+            val uid = Firebase.auth.currentUser?.uid ?: return
+            val db = Firebase.firestore
+            val taskListId = db.collection("taskLists").document().id
+            val nextOrder = (uiState.taskLists.size + 1).toDouble()
+            val now = nowMillis()
+            val newTaskList = hashMapOf<String, Any?>(
+                "id" to taskListId,
+                "name" to trimmed,
+                "tasks" to emptyMap<String, Any>(),
+                "history" to emptyList<Any>(),
+                "shareCode" to null,
+                "background" to createBackground,
+                "memberCount" to 1,
+                "createdAt" to now,
+                "updatedAt" to now
+            )
+            scope.launch {
+                try {
+                    val taskListOrderRef = db.collection("taskListOrder").document(uid)
+                    val taskListOrderUpdates = mutableMapOf<String, Any>(
+                        taskListId to mapOf("order" to nextOrder),
+                        "updatedAt" to now
+                    )
+                    if (!taskListOrderRef.get().await().exists()) {
+                        taskListOrderUpdates["createdAt"] = now
+                    }
+                    db.batch().apply {
+                        set(db.collection("taskLists").document(taskListId), newTaskList)
+                        set(
+                            db.collection("taskLists").document(taskListId)
+                                .collection("members").document(uid),
+                            mapOf("joinedAt" to now, "joinCode" to null)
+                        )
+                        set(
+                            taskListOrderRef,
+                            taskListOrderUpdates,
+                            SetOptions.merge()
+                        )
+                    }.commit().await()
+                    logTaskListCreate()
+                    openTaskList(taskListId)
+                } catch (e: Exception) {
+                    recordNonFatalException("task_list_create", e)
+                }
+            }
+            showCreateDialog = false
+        }
+    }
+
+    fun joinTaskList() {
+        scope.launch {
+            val code = normalizedShareCode(joinListInput)
+            if (code == null) {
+                joinListError = t.t("pages.sharecode.notFound")
+                return@launch
+            }
+            joiningList = true
+            joinListError = null
+            try {
+                val taskListId = fetchTaskListIdByShareCode(code)
+                if (taskListId == null) {
+                    joinListError = t.t("pages.sharecode.notFound")
+                    joiningList = false
+                    return@launch
+                }
+                if (uiState.taskLists.any { it.id == taskListId }) {
+                    showJoinDialog = false
+                    openTaskList(taskListId)
+                    joiningList = false
+                    return@launch
+                }
+                addSharedTaskListToOrder(taskListId, code)
+                logShareCodeJoin()
+                showJoinDialog = false
+                openTaskList(taskListId)
+            } catch (e: Exception) {
+                joinListError = localizeJoinListError(t, e)
+            } finally {
+                joiningList = false
+            }
+        }
+    }
+
     if (showCreateDialog) {
-        AlertDialog(
+        AppDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text(t.t("app.createTaskList")) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    OutlinedTextField(
+            title = t.t("app.createTaskList"),
+            footer = {
+                AppButton(
+                    t.t("common.cancel"),
+                    onClick = { showCreateDialog = false },
+                    style = AppButtonStyle.Secondary
+                )
+                AppButton(
+                    t.t("app.create"),
+                    onClick = { createTaskList() },
+                    enabled = createName.trim().isNotEmpty()
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier.padding(top = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                AppDialogField(t.t("app.taskListName")) {
+                    AppTextField(
                         value = createName,
                         onValueChange = { createName = it },
-                        label = { Text(t.t("app.taskListName")) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        placeholder = t.t("app.taskListNamePlaceholder"),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { createTaskList() })
                     )
-                    TaskListColorPicker(selected = createBackground) { createBackground = it }
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val trimmed = createName.trim()
-                        if (trimmed.isNotEmpty()) {
-                            val uid = Firebase.auth.currentUser?.uid ?: return@TextButton
-                            val db = Firebase.firestore
-                            val taskListId = db.collection("taskLists").document().id
-                            val nextOrder = (uiState.taskLists.size + 1).toDouble()
-                            val now = nowMillis()
-                            val newTaskList = hashMapOf<String, Any?>(
-                                "id" to taskListId,
-                                "name" to trimmed,
-                                "tasks" to emptyMap<String, Any>(),
-                                "history" to emptyList<Any>(),
-                                "shareCode" to null,
-                                "background" to createBackground,
-                                "memberCount" to 1,
-                                "createdAt" to now,
-                                "updatedAt" to now
-                            )
-                            scope.launch {
-                                try {
-                                    val taskListOrderRef = db.collection("taskListOrder").document(uid)
-                                    val taskListOrderUpdates = mutableMapOf<String, Any>(
-                                        taskListId to mapOf("order" to nextOrder),
-                                        "updatedAt" to now
-                                    )
-                                    if (!taskListOrderRef.get().await().exists()) {
-                                        taskListOrderUpdates["createdAt"] = now
-                                    }
-                                    db.batch().apply {
-                                        set(db.collection("taskLists").document(taskListId), newTaskList)
-                                        set(
-                                            db.collection("taskLists").document(taskListId)
-                                                .collection("members").document(uid),
-                                            mapOf("joinedAt" to now, "joinCode" to null)
-                                        )
-                                        set(
-                                            taskListOrderRef,
-                                            taskListOrderUpdates,
-                                            SetOptions.merge()
-                                        )
-                                    }.commit().await()
-                                    logTaskListCreate()
-                                    openTaskList(taskListId)
-                                } catch (e: Exception) {
-                                    recordNonFatalException("task_list_create", e)
-                                }
-                            }
-                            showCreateDialog = false
-                        }
-                    },
-                    enabled = createName.trim().isNotEmpty()
-                ) { Text(t.t("app.create")) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCreateDialog = false }) { Text(t.t("common.cancel")) }
+                AppColorPicker(selected = createBackground) { createBackground = it }
             }
-        )
+        }
     }
 
     if (showJoinDialog) {
-        AlertDialog(
+        AppDialog(
             onDismissRequest = { if (!joiningList) showJoinDialog = false },
-            title = { Text(t.t("app.joinListTitle")) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        t.t("app.joinListDescription"),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (joinListError != null) {
-                        Text(
-                            joinListError!!,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    OutlinedTextField(
+            title = t.t("app.joinListTitle"),
+            description = t.t("app.joinListDescription"),
+            footer = {
+                AppButton(
+                    t.t("common.cancel"),
+                    onClick = { showJoinDialog = false },
+                    style = AppButtonStyle.Secondary,
+                    enabled = !joiningList
+                )
+                AppButton(
+                    if (joiningList) t.t("app.joining") else t.t("app.join"),
+                    onClick = { joinTaskList() },
+                    enabled = joinListInput.trim().isNotEmpty() && !joiningList
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier.padding(top = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                joinListError?.let { error ->
+                    Text(error, color = MaterialTheme.colorScheme.error, style = AppBodySmallTextStyle)
+                }
+                AppDialogField(t.t("taskList.shareCode")) {
+                    AppTextField(
                         value = joinListInput,
                         onValueChange = { joinListInput = it; joinListError = null },
-                        label = { Text(t.t("taskList.shareCode")) },
-                        placeholder = { Text(t.t("app.shareCodePlaceholder")) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        placeholder = t.t("app.shareCodePlaceholder"),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Characters,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = { joinTaskList() })
                     )
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            val code = normalizedShareCode(joinListInput)
-                            if (code == null) {
-                                joinListError = t.t("pages.sharecode.notFound")
-                                return@launch
-                            }
-                            joiningList = true
-                            joinListError = null
-                            try {
-                                val taskListId = fetchTaskListIdByShareCode(code)
-                                if (taskListId == null) {
-                                    joinListError = t.t("pages.sharecode.notFound")
-                                    joiningList = false
-                                    return@launch
-                                }
-                                if (uiState.taskLists.any { it.id == taskListId }) {
-                                    showJoinDialog = false
-                                    openTaskList(taskListId)
-                                    joiningList = false
-                                    return@launch
-                                }
-                                addSharedTaskListToOrder(taskListId, code)
-                                logShareCodeJoin()
-                                showJoinDialog = false
-                                openTaskList(taskListId)
-                            } catch (e: Exception) {
-                                joinListError = localizeJoinListError(t, e)
-                            } finally {
-                                joiningList = false
-                            }
-                        }
-                    },
-                    enabled = joinListInput.trim().isNotEmpty() && !joiningList
-                ) { Text(if (joiningList) t.t("app.joining") else t.t("app.join")) }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showJoinDialog = false },
-                    enabled = !joiningList
-                ) { Text(t.t("common.cancel")) }
             }
-        )
+        }
     }
 
 }
@@ -5134,7 +5921,9 @@ private fun TabletRootScreen(
             TaskListsScreen(
                 navController = null,
                 userId = userId,
-                selectedTaskListId = selectedTaskListState.value,
+                selectedTaskListId = selectedTaskListState.value.takeIf { selectedPane == TabletPane.TaskList },
+                calendarActive = selectedPane == TabletPane.Calendar,
+                settingsActive = selectedPane == TabletPane.Settings,
                 onTaskListSelected = { taskListId ->
                     selectedTaskListState.value = taskListId
                     selectedPane = TabletPane.TaskList
@@ -5255,9 +6044,12 @@ private fun TaskListDetailPagerScreen(
     val currentTaskList =
         uiState.taskLists.getOrNull(pagerState.currentPage) ?: uiState.taskLists.firstOrNull()
     val taskListBackgroundColor = resolveTaskListBackgroundColor(currentTaskList?.background)
-    val showIndicator = uiState.taskLists.size > 1 && currentTaskList != null
-    val taskPageTopInset =
-        if (showIndicator) TaskListDetailMetrics.indicatorContentInset else 0.dp
+    val showIndicator = showTopBar && uiState.taskLists.size > 1 && currentTaskList != null
+    val taskPageTopInset = when {
+        !showTopBar -> 40.dp
+        showIndicator -> TaskListDetailMetrics.indicatorContentInset
+        else -> 0.dp
+    }
 
     LaunchedEffect(uiState.taskLists.size, selectedTaskListIndex) {
         if (uiState.taskLists.isEmpty()) {
@@ -5304,8 +6096,8 @@ private fun TaskListDetailPagerScreen(
         ) {
             Column(
                 modifier = Modifier
+                    .widthIn(max = TaskListDetailMetrics.contentMaxWidth + 32.dp)
                     .fillMaxSize()
-                    .widthIn(max = 768.dp)
                     .align(Alignment.CenterHorizontally)
             ) {
                 when {
@@ -5437,7 +6229,6 @@ private fun TaskListIndicator(
 private fun TaskListRow(
     modifier: Modifier = Modifier,
     task: TaskSummary,
-    index: Int,
     isEditing: Boolean,
     isDragged: Boolean,
     isExiting: Boolean,
@@ -5500,65 +6291,76 @@ private fun TaskListRow(
             .alpha(rowAlpha)
     }
 
+    val hasDate = task.date.isNotBlank()
+    val mutedIcon = mutedIconColor()
+    val completionFillColor by animateColorAsState(
+        targetValue = if (task.completed) completedFillColor() else Color.Transparent,
+        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
+        label = "completionFillColor"
+    )
+    val completionBorderColor by animateColorAsState(
+        targetValue = if (task.completed) Color.Transparent else mutedIcon,
+        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
+        label = "completionBorderColor"
+    )
+    val completionFillScale by animateFloatAsState(
+        targetValue = if (task.completed) 1f else 0.4f,
+        animationSpec = if (reduceMotion) {
+            snap()
+        } else {
+            spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)
+        },
+        label = "completionFillScale"
+    )
+
     Row(
         modifier = modifier
+            .bleed(start = TaskListDetailMetrics.rowBleed, end = TaskListDetailMetrics.rowBleed)
             .fillMaxWidth()
-            .padding(
-                top = if (index == 0) 0.dp else TaskListDetailMetrics.taskRowSpacing,
-                bottom = TaskListDetailMetrics.taskRowVerticalPadding
-            )
-            .then(rowModifier),
-        verticalAlignment = Alignment.CenterVertically
+            .then(rowModifier)
+            .padding(vertical = TaskListDetailMetrics.rowVerticalPadding),
+        verticalAlignment = if (hasDate) Alignment.Bottom else Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .padding(
-                    top = TaskListDetailMetrics.dragHandleTopPadding,
-                    end = TaskListDetailMetrics.dragHandleEndPadding
-                )
-                .width(TaskListDetailMetrics.dragHandleTouchWidth)
-                .height(48.dp)
-                .then(if (allowTaskEditing) Modifier.pointerInput(task.id) {
-                    detectDragGestures(
-                        onDragStart = { currentOnDragStart(it) },
-                        onDragEnd = currentOnDragEnd,
-                        onDragCancel = currentOnDragCancel,
-                        onDrag = { change, dragAmount -> currentOnDrag(change, dragAmount) }
-                    )
-                } else Modifier)
-                .onPreviewKeyEvent { event ->
-                    if (!allowTaskEditing) return@onPreviewKeyEvent false
-                    if (event.type != KeyEventType.KeyDown || !event.isAltPressed) {
-                        return@onPreviewKeyEvent false
+        if (allowTaskEditing) {
+            Box(
+                modifier = Modifier
+                    .bleed(end = TaskListDetailMetrics.handleOverlap)
+                    .size(TaskListDetailMetrics.controlSize)
+                    .pointerInput(task.id) {
+                        detectDragGestures(
+                            onDragStart = { currentOnDragStart(it) },
+                            onDragEnd = currentOnDragEnd,
+                            onDragCancel = currentOnDragCancel,
+                            onDrag = { change, dragAmount -> currentOnDrag(change, dragAmount) }
+                        )
                     }
-                    when (event.key) {
-                        Key.DirectionUp -> onMoveUp?.invoke() ?: false
-                        Key.DirectionDown -> onMoveDown?.invoke() ?: false
-                        else -> false
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown || !event.isAltPressed) {
+                            return@onPreviewKeyEvent false
+                        }
+                        when (event.key) {
+                            Key.DirectionUp -> onMoveUp?.invoke() ?: false
+                            Key.DirectionDown -> onMoveDown?.invoke() ?: false
+                            else -> false
+                        }
                     }
-                }
-                .focusable(enabled = allowTaskEditing)
-                .semantics {
-                    contentDescription = t.t("app.dragHint")
-                    customActions = buildList {
-                        if (allowTaskEditing) {
+                    .focusable()
+                    .semantics {
+                        contentDescription = t.t("app.dragHint")
+                        customActions = buildList {
                             onMoveUp?.let { action -> add(CustomAccessibilityAction(t.t("a11y.moveUp")) { action() }) }
                             onMoveDown?.let { action -> add(CustomAccessibilityAction(t.t("a11y.moveDown")) { action() }) }
                         }
-                    }
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            DragHandleIcon()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                DragHandleIcon()
+            }
         }
         Box(
             modifier = Modifier
-                .padding(
-                    top = TaskListDetailMetrics.completionTopPadding,
-                    end = TaskListDetailMetrics.completionEndPadding
-                )
-                .width(TaskListDetailMetrics.completionTouchWidth)
-                .height(48.dp)
+                .bleed(end = TaskListDetailMetrics.completionOverlap)
+                .size(TaskListDetailMetrics.controlSize)
                 .semantics {
                     contentDescription = if (task.completed) t.t("pages.tasklist.markIncomplete") else t.t("pages.tasklist.markComplete")
                     role = Role.Checkbox
@@ -5566,31 +6368,10 @@ private fun TaskListRow(
                 .clickable(enabled = allowTaskEditing) { onToggleCompletion() },
             contentAlignment = Alignment.Center
         ) {
-            val completionFillColor by animateColorAsState(
-                targetValue = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                else Color.Transparent,
-                animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
-                label = "completionFillColor"
-            )
-            val completionFillScale by animateFloatAsState(
-                targetValue = if (task.completed) 1f else 0.4f,
-                animationSpec = if (reduceMotion) {
-                    snap()
-                } else {
-                    spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)
-                },
-                label = "completionFillScale"
-            )
             Box(
                 modifier = Modifier
                     .size(TaskListDetailMetrics.completionDotSize)
-                    .border(
-                        width = if (task.completed) 0.dp else 1.5.dp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
-                        shape = CircleShape
-                    )
-                    .offset(x = (-3).dp),
-                contentAlignment = Alignment.Center
+                    .border(1.dp, completionBorderColor, CircleShape)
             ) {
                 Box(
                     modifier = Modifier
@@ -5603,30 +6384,42 @@ private fun TaskListRow(
                 )
             }
         }
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .heightIn(min = TaskListDetailMetrics.taskContentHeight)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = TaskListDetailMetrics.taskContentHeight)
-            ) {
-                if (task.date.isNotBlank()) {
-                    val displayDate = remember(task.date, languageTag) {
-                        formatDateForLocale(task.date, languageTag, "MMM d EEE")
-                    }
+        Column(modifier = Modifier.weight(1f)) {
+            if (hasDate) {
+                val displayDate = remember(task.date, languageTag) {
+                    formatDateForLocale(task.date, languageTag, "MMM d EEE")
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(TaskListDetailMetrics.dateRowHeight),
+                    contentAlignment = Alignment.CenterStart
+                ) {
                     Text(
                         text = displayDate,
                         style = taskDateTextStyle,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(start = TaskListDetailMetrics.taskTextStartPadding)
-                            .offset(y = TaskListDetailMetrics.taskDateTopInset)
+                        color = mutedTextColor(),
+                        modifier = Modifier.offset(y = TaskListDetailMetrics.dateOffset)
                     )
                 }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = TaskListDetailMetrics.controlSize)
+                    .then(
+                        if (isEditing) {
+                            Modifier
+                        } else {
+                            Modifier.clickable(
+                                enabled = allowTaskEditing,
+                                onClickLabel = t.t("a11y.editTask")
+                            ) { onTaskClick() }
+                        }
+                    ),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                val textWeight = if (task.pinned && !task.completed) FontWeight.Bold else FontWeight.Medium
                 if (isEditing) {
                     var hasFocused by remember { mutableStateOf(false) }
                     var hasCommitted by remember { mutableStateOf(false) }
@@ -5664,7 +6457,12 @@ private fun TaskListRow(
                     BasicTextField(
                         value = editingTextFieldValue,
                         onValueChange = onEditingTextFieldValueChange,
-                        textStyle = taskTextStyle.copy(color = MaterialTheme.colorScheme.onSurface),
+                        textStyle = taskTextStyle.copy(
+                            color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = textWeight,
+                            textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = {
                             hasCommitted = true
@@ -5673,10 +6471,6 @@ private fun TaskListRow(
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(
-                                start = TaskListDetailMetrics.taskTextStartPadding,
-                                top = TaskListDetailMetrics.taskTextTopPadding
-                            )
                             .focusRequester(focusRequester)
                             .then(inlineEditKeyModifier)
                             .onFocusChanged { state ->
@@ -5697,41 +6491,46 @@ private fun TaskListRow(
                         style = taskTextStyle,
                         textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
                         color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                        fontWeight = if (task.pinned && !task.completed) FontWeight.Bold else FontWeight.SemiBold,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                start = TaskListDetailMetrics.taskTextStartPadding,
-                                top = TaskListDetailMetrics.taskTextTopPadding
-                            )
-                            .clickable(
-                                enabled = allowTaskEditing,
-                                onClickLabel = t.t("a11y.editTask")
-                            ) { onTaskClick() }
+                        fontWeight = textWeight,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
         }
-        IconButton(
-            onClick = onShowActions,
-            enabled = allowTaskEditing,
-            modifier = Modifier
-                .width(TaskListDetailMetrics.trailingDateButtonWidth)
-                .height(48.dp)
-                .offset(x = TaskListDetailMetrics.trailingActionEndOffset)
-        ) {
-            Crossfade(
-                targetState = task.pinned,
-                animationSpec = if (reduceMotion) snap() else tween(durationMillis = 200),
-                label = "trailingActionIcon"
-            ) { pinned ->
-                Icon(
-                    imageVector = if (pinned) Icons.Default.PushPin else Icons.Default.CalendarToday,
-                    contentDescription = t.t(if (pinned) "pages.tasklist.unpinTask" else "pages.tasklist.setDate"),
-                    tint = if (pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                    modifier = Modifier
-                        .size(TaskListDetailMetrics.trailingDateIconSize)
-                )
+        if (allowTaskEditing) {
+            val actionInteractionSource = remember { MutableInteractionSource() }
+            val actionScale = rememberPressScale(actionInteractionSource)
+            Box(
+                modifier = Modifier
+                    .size(TaskListDetailMetrics.controlSize)
+                    .graphicsLayer {
+                        scaleX = actionScale
+                        scaleY = actionScale
+                    }
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(
+                        interactionSource = actionInteractionSource,
+                        indication = ripple(),
+                        role = Role.Button,
+                        onClick = onShowActions
+                    )
+                    .semantics {
+                        contentDescription = t.t(if (task.pinned) "pages.tasklist.unpinTask" else "pages.tasklist.setDate")
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Crossfade(
+                    targetState = task.pinned,
+                    animationSpec = if (reduceMotion) snap() else tween(durationMillis = 200),
+                    label = "trailingActionIcon"
+                ) { pinned ->
+                    Icon(
+                        imageVector = if (pinned) Icons.Default.PushPin else Icons.Default.CalendarToday,
+                        contentDescription = null,
+                        tint = mutedIcon,
+                        modifier = Modifier.size(AppIconMetrics.compactActionIconSize)
+                    )
+                }
             }
         }
     }
@@ -5900,9 +6699,8 @@ private fun TaskListDetailContent(
         }
     }
     val taskDensity = LocalDensity.current
-    val taskSpacingPx = with(taskDensity) { TaskListDetailMetrics.taskRowSpacing.toPx() }
-    val chromeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
-    val inputBackgroundColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+    val taskSpacingPx = 0f
+    val inputBackgroundColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f)
     val detailBodyTextStyle = MaterialTheme.typography.bodyMedium.copy(
         platformStyle = PlatformTextStyle(includeFontPadding = false),
         lineHeightStyle = LineHeightStyle(
@@ -5910,34 +6708,33 @@ private fun TaskListDetailContent(
             trim = LineHeightStyle.Trim.None
         )
     )
-    val titleTextStyle = MaterialTheme.typography.titleLarge.copy(
+    val titleTextStyle = TextStyle(
+        fontFamily = GenInterfaceJPDisplayFontFamily,
         fontSize = 20.sp,
-        fontWeight = FontWeight.Bold
+        fontWeight = FontWeight.Bold,
+        lineHeight = 28.sp,
+        letterSpacing = 0.2.sp
     )
     val inputTextStyle = detailBodyTextStyle.copy(
         fontSize = 16.sp,
-        fontWeight = FontWeight.Medium,
-        lineHeight = TaskListDetailMetrics.textLineHeight
+        fontWeight = FontWeight.Normal,
+        lineHeight = TaskListDetailMetrics.inputLineHeight
     )
-    val actionTextStyle = MaterialTheme.typography.bodySmall.copy(
-        fontSize = 15.sp,
-        fontWeight = FontWeight.SemiBold
-    )
-    val taskContentHeightPx = with(taskDensity) { TaskListDetailMetrics.taskContentHeight.roundToPx() }
     val taskTextStyle = detailBodyTextStyle.copy(
         fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Medium,
         lineHeight = TaskListDetailMetrics.textLineHeight
     )
-    val taskDateTextStyle = MaterialTheme.typography.labelSmall.copy(
+    val taskDateTextStyle = TextStyle(
+        fontFamily = GenInterfaceJPBodyFontFamily,
         fontSize = 12.sp,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Normal,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
         lineHeightStyle = LineHeightStyle(
             alignment = LineHeightStyle.Alignment.Center,
-            trim = LineHeightStyle.Trim.None
+            trim = LineHeightStyle.Trim.Both
         ),
-        lineHeight = TaskListDetailMetrics.dateLineHeight
+        lineHeight = 12.sp
     )
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
@@ -5956,7 +6753,6 @@ private fun TaskListDetailContent(
     val languageTag = t.languageTag()
     val canSort = remember(displayTasks) { displayTasks.size >= 2 }
     val hasCompletedTasks = remember(displayTasks) { displayTasks.any { it.completed } }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var newTaskInputWidthPx by remember { mutableIntStateOf(0) }
     var newTaskInputBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
     var taskListCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
@@ -6393,50 +7189,41 @@ private fun TaskListDetailContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = TaskListDetailMetrics.sectionBottomSpacing),
+                    .heightIn(min = 48.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     taskList.name,
                     style = titleTextStyle,
-                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
                         .weight(1f)
                         .semantics { heading() }
                 )
                 Row(
-                    modifier = Modifier.offset(x = TaskListDetailMetrics.headerActionsEndOffset),
+                    modifier = Modifier.bleed(end = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (allowTaskEditing) {
-                        IconButton(
+                        AppIconButton(
+                            icon = Icons.Outlined.Edit,
+                            contentDescription = t.t("taskList.editDetails"),
                             onClick = { editName = taskList.name; editBackground = taskList.background; removeListError = null; showEditDialog = true },
-                            modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
-                        ) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = t.t("taskList.editTitle"),
-                                modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
-                            )
-                        }
+                            iconSize = AppIconMetrics.headerActionIconSize
+                        )
                     }
                     if (allowShareCodeManagement) {
-                        Spacer(Modifier.width(TaskListDetailMetrics.headerActionSpacing))
-                        IconButton(
+                        AppIconButton(
+                            icon = Icons.Default.Share,
+                            contentDescription = t.t("taskList.share"),
                             onClick = {
                                 currentShareCode = normalizedShareCode(taskList.shareCode)
                                 shareCopySuccess = false
                                 shareError = null
                                 showShareDialog = true
                             },
-                            modifier = Modifier.size(TaskListDetailMetrics.headerActionIconButtonSize)
-                        ) {
-                            Icon(
-                                Icons.Default.Share,
-                                contentDescription = t.t("taskList.share"),
-                                modifier = Modifier.size(TaskListDetailMetrics.headerActionIconSize)
-                            )
-                        }
+                            iconSize = AppIconMetrics.headerActionIconSize
+                        )
                     }
                 }
             }
@@ -6446,8 +7233,8 @@ private fun TaskListDetailContent(
                 Text(
                     message,
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(bottom = TaskListDetailMetrics.sectionBottomSpacing)
+                    style = AppBodySmallTextStyle,
+                    modifier = Modifier.padding(top = TaskListDetailMetrics.sectionSpacing)
                 )
             }
         }
@@ -6456,118 +7243,101 @@ private fun TaskListDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(top = TaskListDetailMetrics.sectionSpacing)
                     .onGloballyPositioned { coordinates ->
                         newTaskInputBoundsInRoot = coordinates.boundsInRoot()
+                        newTaskInputWidthPx = coordinates.size.width
                     }
-                    .padding(bottom = TaskListDetailMetrics.sectionBottomSpacing),
             ) {
-                Row(
+                val inputShape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius)
+                val canAddTask = newTaskText.trim().isNotEmpty()
+                val addActionAlpha by animateFloatAsState(
+                    targetValue = if (canAddTask) 1f else 0f,
+                    animationSpec = if (reduceMotion) snap() else tween(durationMillis = 150),
+                    label = "addActionAlpha"
+                )
+                BasicTextField(
+                    value = newTaskText,
+                    onValueChange = { newTaskText = it },
+                    textStyle = inputTextStyle.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { addTask() }),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .onGloballyPositioned { coordinates ->
-                            newTaskInputWidthPx = coordinates.size.width
-                        },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    BasicTextField(
-                        value = newTaskText,
-                        onValueChange = { newTaskText = it },
-                        textStyle = inputTextStyle.copy(
-                            color = MaterialTheme.colorScheme.onSurface
+                        .focusRequester(newTaskFocusRequester)
+                        .onFocusChanged { state ->
+                            isNewTaskInputFocused = state.isFocused
+                        }
+                        .background(inputBackgroundColor, inputShape)
+                        .border(
+                            width = 1.dp,
+                            color = if (isNewTaskInputFocused) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant,
+                            shape = inputShape
+                        )
+                        .heightIn(min = TaskListDetailMetrics.inputMinHeight)
+                        .padding(
+                            start = TaskListDetailMetrics.inputHorizontalPadding,
+                            end = TaskListDetailMetrics.inputActionSize,
+                            top = TaskListDetailMetrics.inputVerticalPadding,
+                            bottom = TaskListDetailMetrics.inputVerticalPadding
                         ),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { addTask() }),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-                        modifier = Modifier
-                            .weight(1f)
-                            .focusRequester(newTaskFocusRequester)
-                            .onFocusChanged { state ->
-                                isNewTaskInputFocused = state.isFocused
-                            }
-                            .heightIn(min = TaskListDetailMetrics.inputMinHeight)
-                            .background(inputBackgroundColor, RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius))
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = RoundedCornerShape(TaskListDetailMetrics.inputCornerRadius)
-                            )
-                            .padding(
-                                horizontal = TaskListDetailMetrics.inputHorizontalPadding,
-                                vertical = TaskListDetailMetrics.inputVerticalPadding
-                            ),
-                        decorationBox = { innerTextField ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = TaskListDetailMetrics.inputMinHeight - (TaskListDetailMetrics.inputVerticalPadding * 2)),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                if (newTaskText.isEmpty()) {
-                                    Text(
-                                        t.t("pages.tasklist.addTaskPlaceholder"),
-                                        style = inputTextStyle,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        }
-                    )
-                    AnimatedVisibility(
-                        visible = newTaskText.trim().isNotEmpty(),
-                        enter = if (reduceMotion) {
-                            EnterTransition.None
-                        } else {
-                            fadeIn(animationSpec = tween(durationMillis = 180)) +
-                                expandHorizontally(
-                                    expandFrom = Alignment.Start,
-                                    animationSpec = tween(durationMillis = 240)
-                                )
-                        },
-                        exit = if (reduceMotion) {
-                            ExitTransition.None
-                        } else {
-                            fadeOut(animationSpec = tween(durationMillis = 120)) +
-                                shrinkHorizontally(
-                                    shrinkTowards = Alignment.Start,
-                                    animationSpec = tween(durationMillis = 180)
-                                )
-                        }
-                    ) {
-                        Box(modifier = Modifier.padding(start = TaskListDetailMetrics.inputActionSpacing)) {
-                            IconButton(
-                                onClick = {
-                                    addTask()
-                                    newTaskFocusRequester.requestFocus()
-                                },
-                                enabled = newTaskText.trim().isNotEmpty(),
-                                modifier = Modifier.size(TaskListDetailMetrics.addActionIconButtonSize)
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = t.t("common.add"),
-                                    modifier = Modifier.size(TaskListDetailMetrics.addActionIconSize)
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = TaskListDetailMetrics.inputMinHeight - (TaskListDetailMetrics.inputVerticalPadding * 2)),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (newTaskText.isEmpty()) {
+                                Text(
+                                    t.t("pages.tasklist.addTaskPlaceholder"),
+                                    style = inputTextStyle,
+                                    color = if (isAppDarkTheme()) AppGray.g500 else AppGray.g400,
+                                    maxLines = 1
                                 )
                             }
+                            innerTextField()
                         }
                     }
-                }
+                )
+                AppIconButton(
+                    icon = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = t.t("common.add"),
+                    onClick = {
+                        addTask()
+                        newTaskFocusRequester.requestFocus()
+                    },
+                    enabled = canAddTask,
+                    iconSize = AppIconMetrics.compactActionIconSize,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    size = TaskListDetailMetrics.inputActionSize,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 2.dp)
+                        .alpha(addActionAlpha)
+                )
                 DropdownMenu(
                     expanded = isNewTaskInputFocused && historyOptions.isNotEmpty(),
                     onDismissRequest = { focusManager.clearFocus(force = true) },
                     offset = DpOffset(0.dp, 4.dp),
                     properties = PopupProperties(focusable = false, dismissOnClickOutside = false),
+                    shape = RoundedCornerShape(12.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier
                         .width(with(density) { newTaskInputWidthPx.toDp() })
                         .heightIn(max = 220.dp)
                 ) {
-                    historyOptions.forEachIndexed { index, option ->
+                    historyOptions.forEach { option ->
                         DropdownMenuItem(
                             text = {
                                 Text(
                                     text = option,
-                                    style = inputTextStyle,
+                                    style = AppBodySmallTextStyle,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             },
@@ -6577,9 +7347,6 @@ private fun TaskListDetailContent(
                                 newTaskFocusRequester.requestFocus()
                             }
                         )
-                        if (index != historyOptions.lastIndex) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-                        }
                     }
                 }
             }
@@ -6587,67 +7354,76 @@ private fun TaskListDetailContent(
         }
         if (allowTaskEditing) {
             item(key = "taskListActions", contentType = "actions") {
-            Column(modifier = Modifier.padding(bottom = TaskListDetailMetrics.actionsBottomSpacing)) {
+                val toolbarColor = mutedTextColor()
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = TaskListDetailMetrics.actionRowVerticalPadding),
+                        .padding(
+                            top = TaskListDetailMetrics.toolbarTopSpacing,
+                            bottom = TaskListDetailMetrics.toolbarBottomSpacing
+                        ),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
                         modifier = Modifier
-                            .clickable(enabled = canSort) { sortTasks() }
-                            .padding(vertical = TaskListDetailMetrics.actionControlVerticalPadding),
+                            .heightIn(min = 44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(enabled = canSort, role = Role.Button) { sortTasks() }
+                            .alpha(if (canSort) 1f else 0.5f),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.FilterList,
-                            contentDescription = t.t("pages.tasklist.sort"),
-                            modifier = Modifier.size(TaskListDetailMetrics.actionControlIconSize),
-                            tint = if (canSort) chromeColor else chromeColor.copy(alpha = 0.45f)
-                        )
-                        Spacer(Modifier.width(TaskListDetailMetrics.actionControlIconSpacing))
+                        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = null,
+                                modifier = Modifier.size(AppIconMetrics.compactActionIconSize),
+                                tint = toolbarColor
+                            )
+                        }
                         Text(
                             t.t("pages.tasklist.sort"),
-                            style = actionTextStyle,
-                            color = if (canSort) chromeColor else chromeColor.copy(alpha = 0.45f)
+                            style = AppRowTextStyle,
+                            color = toolbarColor
                         )
                     }
                     Row(
                         modifier = Modifier
-                            .clickable(enabled = hasCompletedTasks) { showDeleteCompletedConfirm = true }
-                            .padding(vertical = TaskListDetailMetrics.actionControlVerticalPadding),
+                            .heightIn(min = 44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(enabled = hasCompletedTasks, role = Role.Button) { showDeleteCompletedConfirm = true }
+                            .alpha(if (hasCompletedTasks) 1f else 0.5f),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val deleteEnabled = hasCompletedTasks
                         Text(
                             t.t("pages.tasklist.deleteCompleted"),
-                            style = actionTextStyle,
-                            color = if (deleteEnabled) chromeColor else chromeColor.copy(alpha = 0.45f)
+                            style = AppRowTextStyle,
+                            color = toolbarColor
                         )
-                        Spacer(Modifier.width(TaskListDetailMetrics.actionControlIconSpacing))
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = t.t("pages.tasklist.deleteCompleted"),
-                            modifier = Modifier.size(TaskListDetailMetrics.actionControlIconSize).offset(x = 2.dp),
-                            tint = if (deleteEnabled) chromeColor else chromeColor.copy(alpha = 0.45f)
-                        )
+                        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Outlined.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(AppIconMetrics.compactActionIconSize),
+                                tint = toolbarColor
+                            )
+                        }
                     }
                 }
-            }
             }
         }
         if (displayTasks.isEmpty()) {
             item(key = "emptyState", contentType = "emptyState") {
-                Box(
+                Text(
+                    t.t("pages.tasklist.noTasks"),
+                    style = AppFieldTextStyle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
-                        .fillParentMaxHeight()
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(t.t("pages.tasklist.noTasks"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                )
             }
         } else {
             itemsIndexed(
@@ -6671,7 +7447,6 @@ private fun TaskListDetailContent(
                         Modifier
                     },
                     task = task,
-                    index = index,
                     isEditing = isEditing,
                     isDragged = isDragged,
                     isExiting = exitingTaskIds.contains(task.id),
@@ -6764,48 +7539,34 @@ private fun TaskListDetailContent(
     }
 
     if (showEditDialog) {
-        AlertDialog(
+        AppDialog(
             onDismissRequest = {
                 if (!removingList) {
                     showEditDialog = false
                 }
             },
-            title = { Text(t.t("taskList.editTitle")) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    removeListError?.let { error ->
-                        Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                    }
-                    OutlinedTextField(
-                        value = editName,
-                        onValueChange = { editName = it },
-                        label = { Text(t.t("app.taskListName")) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+            title = t.t("taskList.editTitle"),
+            footerStart = if (allowTaskListDeletion) {
+                {
+                    AppButton(
+                        if (removingList) t.t("common.deleting") else t.t("taskList.deleteList"),
+                        onClick = { showRemoveListConfirm = true },
+                        style = AppButtonStyle.Danger,
                         enabled = !removingList
                     )
-                    TaskListColorPicker(
-                        selected = editBackground,
-                        enabled = !removingList
-                    ) { editBackground = it }
-                    if (allowTaskListDeletion) {
-                        Button(
-                            onClick = { showRemoveListConfirm = true },
-                            enabled = !removingList,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(if (removingList) t.t("common.deleting") else t.t("taskList.deleteList"))
-                        }
-                    }
                 }
+            } else {
+                null
             },
-            confirmButton = {
-                TextButton(
+            footer = {
+                AppButton(
+                    t.t("common.cancel"),
+                    onClick = { showEditDialog = false },
+                    style = AppButtonStyle.Secondary,
+                    enabled = !removingList
+                )
+                AppButton(
+                    t.t("taskList.save"),
                     onClick = {
                         val trimmed = editName.trim()
                         if (trimmed.isNotEmpty()) {
@@ -6825,173 +7586,169 @@ private fun TaskListDetailContent(
                                         recordNonFatalException("task_list_update", e)
                                     }
                                 }
-                            }
-                            if (updates.size <= 1) {
+                            } else {
                                 showEditDialog = false
                             }
                         }
                     },
                     enabled = editName.trim().isNotEmpty() && !removingList
-                ) { Text(t.t("taskList.save")) }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showEditDialog = false },
-                    enabled = !removingList
-                ) { Text(t.t("common.cancel")) }
+                )
             }
-        )
+        ) {
+            Column(
+                modifier = Modifier.padding(top = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                removeListError?.let { error ->
+                    Text(error, color = MaterialTheme.colorScheme.error, style = AppBodySmallTextStyle)
+                }
+                AppDialogField(t.t("app.taskListName")) {
+                    AppTextField(
+                        value = editName,
+                        onValueChange = { editName = it },
+                        placeholder = t.t("app.taskListNamePlaceholder"),
+                        enabled = !removingList
+                    )
+                }
+                AppColorPicker(
+                    selected = editBackground,
+                    enabled = !removingList
+                ) { editBackground = it }
+            }
+        }
     }
 
     if (showRemoveListConfirm) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!removingList) {
-                    showRemoveListConfirm = false
-                }
-            },
-            title = { Text(t.t("taskList.deleteListConfirm.title")) },
-            text = { Text(t.t("taskList.deleteListConfirm.message")) },
-            confirmButton = {
-                TextButton(
-                    onClick = { removeTaskList() },
-                    enabled = !removingList
-                ) {
-                    Text(
-                        if (removingList) t.t("common.deleting") else t.t("auth.button.delete"),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showRemoveListConfirm = false },
-                    enabled = !removingList
-                ) { Text(t.t("common.cancel")) }
-            }
+        AppConfirmDialog(
+            title = t.t("taskList.deleteListConfirm.title"),
+            message = t.t("taskList.deleteListConfirm.message"),
+            confirmLabel = if (removingList) t.t("common.deleting") else t.t("auth.button.delete"),
+            cancelLabel = t.t("common.cancel"),
+            destructive = true,
+            enabled = !removingList,
+            onConfirm = { removeTaskList() },
+            onDismiss = { showRemoveListConfirm = false }
         )
     }
 
     if (showDeleteCompletedConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteCompletedConfirm = false },
-            title = { Text(t.t("pages.tasklist.deleteCompletedConfirmTitle")) },
-            confirmButton = {
-                TextButton(onClick = { deleteCompletedTasks(); showDeleteCompletedConfirm = false }) {
-                    Text(t.t("auth.button.delete"), color = MaterialTheme.colorScheme.error)
-                }
+        AppConfirmDialog(
+            title = t.t("pages.tasklist.deleteCompletedConfirmTitle"),
+            message = null,
+            confirmLabel = t.t("auth.button.delete"),
+            cancelLabel = t.t("common.cancel"),
+            destructive = true,
+            onConfirm = {
+                deleteCompletedTasks()
+                showDeleteCompletedConfirm = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteCompletedConfirm = false }) { Text(t.t("common.cancel")) }
-            }
+            onDismiss = { showDeleteCompletedConfirm = false }
         )
     }
 
     if (showShareDialog) {
         val clipboard = LocalClipboard.current
-        AlertDialog(
+        val code = currentShareCode
+        AppDialog(
             onDismissRequest = { showShareDialog = false },
-            title = { Text(t.t("taskList.shareTitle")) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    val err = shareError
-                    if (err != null) {
-                        Text(
-                            err,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-
-                    val code = currentShareCode
-                    if (code != null) {
-                        Text(
-                            t.t("taskList.shareCode"),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    code,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                                )
-                                TextButton(onClick = {
-                                    scope.launch {
-                                        clipboard.setClipEntry(
-                                            ClipEntry(ClipData.newPlainText("share_code", code))
-                                        )
-                                        shareCopySuccess = true
-                                    }
-                                }) {
-                                    Text(if (shareCopySuccess) t.t("common.copied") else t.t("common.copy"))
+            title = t.t("taskList.shareTitle"),
+            description = t.t("taskList.shareDescription"),
+            footerStart = if (code != null) {
+                {
+                    AppButton(
+                        if (removingShareCode) t.t("common.deleting") else t.t("taskList.removeShare"),
+                        onClick = {
+                            scope.launch {
+                                removingShareCode = true
+                                shareError = null
+                                try {
+                                    removeShareCode(taskList.id)
+                                    logShareCodeRemove()
+                                    currentShareCode = null
+                                } catch (e: Exception) {
+                                    shareError = t.t("common.error")
+                                } finally {
+                                    removingShareCode = false
                                 }
                             }
-                        }
-                        TextButton(
-                            onClick = {
-                                scope.launch {
-                                    removingShareCode = true
-                                    shareError = null
-                                    try {
-                                        removeShareCode(taskList.id)
-                                        logShareCodeRemove()
-                                        currentShareCode = null
-                                    } catch (e: Exception) {
-                                        shareError = t.t("common.error")
-                                    } finally {
-                                        removingShareCode = false
-                                    }
+                        },
+                        style = AppButtonStyle.Danger,
+                        enabled = !removingShareCode
+                    )
+                }
+            } else {
+                null
+            },
+            footer = {
+                AppButton(
+                    t.t("common.close"),
+                    onClick = { showShareDialog = false },
+                    style = AppButtonStyle.Secondary
+                )
+                if (code == null) {
+                    AppButton(
+                        if (generatingShareCode) t.t("common.loading") else t.t("taskList.generateShare"),
+                        onClick = {
+                            scope.launch {
+                                generatingShareCode = true
+                                shareError = null
+                                try {
+                                    val generatedCode = generateShareCode(taskList.id)
+                                    logShareCodeGenerate()
+                                    currentShareCode = generatedCode
+                                } catch (e: Exception) {
+                                    shareError = t.t("common.error")
+                                } finally {
+                                    generatingShareCode = false
                                 }
-                            },
-                            enabled = !removingShareCode,
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text(if (removingShareCode) t.t("common.deleting") else t.t("taskList.removeShare"))
-                        }
-                    } else {
-                        Text(
-                            t.t("taskList.shareDescription"),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        },
+                        enabled = !generatingShareCode
+                    )
+                }
+            }
+        ) {
+            shareError?.let { error ->
+                Text(
+                    error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = AppBodySmallTextStyle,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+            }
+            if (code != null) {
+                Column(
+                    modifier = Modifier.padding(top = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppFieldLabel(t.t("taskList.shareCode"))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AppTextField(
+                            value = code,
+                            onValueChange = {},
+                            readOnly = true,
+                            monospace = true,
+                            modifier = Modifier.weight(1f)
                         )
-                        Button(
+                        AppButton(
+                            if (shareCopySuccess) t.t("common.copied") else t.t("common.copy"),
                             onClick = {
                                 scope.launch {
-                                    generatingShareCode = true
-                                    shareError = null
-                                    try {
-                                        val code = generateShareCode(taskList.id)
-                                        logShareCodeGenerate()
-                                        currentShareCode = code
-                                    } catch (e: Exception) {
-                                        shareError = t.t("common.error")
-                                    } finally {
-                                        generatingShareCode = false
-                                    }
+                                    clipboard.setClipEntry(
+                                        ClipEntry(ClipData.newPlainText("share_code", shareCodeUrl(code)))
+                                    )
+                                    shareCopySuccess = true
                                 }
                             },
-                            enabled = !generatingShareCode,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (generatingShareCode) t.t("common.loading") else t.t("taskList.generateShare"))
-                        }
+                            style = AppButtonStyle.Secondary
+                        )
                     }
                 }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showShareDialog = false }) { Text(t.t("common.close")) }
             }
-        )
+        }
     }
 
     actionSheetState?.let { actionState ->
@@ -7002,108 +7759,59 @@ private fun TaskListDetailContent(
             }
         } else {
             key(task.id) {
-                val initialSelectedMillis = remember(task.date) {
-                    task.date.takeIf { it.isNotBlank() }?.let(::parseTaskDatePickerMillis)
+                var sheetMonth by remember(task.id) {
+                    mutableStateOf(CalendarMonth.fromDateKey(task.date) ?: CalendarMonth.current())
                 }
-                val datePickerState = rememberDatePickerState(
-                    initialSelectedDateMillis = initialSelectedMillis
-                )
-                var ignoreInitialSelection by remember(task.id) { mutableStateOf(true) }
-                val pinnedLabel = t.t(if (task.pinned) "pages.tasklist.unpinTask" else "pages.tasklist.pinTask")
-                LaunchedEffect(datePickerState.selectedDateMillis) {
-                    val millis = datePickerState.selectedDateMillis ?: return@LaunchedEffect
-                    if (ignoreInitialSelection) {
-                        ignoreInitialSelection = false
-                        if (initialSelectedMillis == millis) return@LaunchedEffect
-                    }
-                    val nextDate = formatTaskDatePickerMillis(millis)
-                    if (nextDate == task.date) return@LaunchedEffect
-                    commitDate(task, nextDate)
-                    actionSheetState = null
-                }
-                ModalBottomSheet(
+                AppSheet(
                     onDismissRequest = { actionSheetState = null },
-                    sheetState = sheetState,
-                    sheetMaxWidth = Dp.Unspecified,
-                    contentWindowInsets = { WindowInsets(0) },
-                    modifier = Modifier.semantics {
-                        paneTitle = t.t("pages.tasklist.setDate")
-                    }
+                    paneTitle = t.t("pages.tasklist.setDate")
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 640.dp)
-                            .verticalScroll(rememberScrollState())
-                            .navigationBarsPadding()
-                            .padding(horizontal = 16.dp)
-                            .padding(bottom = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    AppSheetHeader(
+                        title = task.text.trim().ifEmpty { t.t("pages.tasklist.setDate") },
+                        onClose = { actionSheetState = null }
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(onClick = { actionSheetState = null }) {
-                                Text(t.t("common.close"))
-                            }
-                        }
-                        Surface(
+                        AppButton(
+                            t.t("pages.tasklist.clearDate"),
                             onClick = {
-                                togglePinned(task)
-                                actionSheetState = null
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceDim,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .semantics {
-                                    contentDescription = pinnedLabel
-                                    role = Role.Switch
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.PushPin, contentDescription = null)
-                                    Text(pinnedLabel)
-                                }
-                                Switch(checked = task.pinned, onCheckedChange = null)
-                            }
-                        }
-                        TextButton(
-                            onClick = {
-                                if (task.date.isBlank()) return@TextButton
+                                if (task.date.isBlank()) return@AppButton
                                 commitDate(task, "")
                                 actionSheetState = null
                             },
-                            modifier = Modifier.height(48.dp),
-                            enabled = task.date.isNotBlank()
-                        ) {
-                            Text(t.t("pages.tasklist.clearDate"))
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceDim,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            DatePicker(
-                                state = datePickerState,
-                                modifier = Modifier.fillMaxWidth(),
-                                title = null,
-                                headline = null,
-                                showModeToggle = false
+                            style = AppButtonStyle.Ghost,
+                            enabled = task.date.isNotBlank(),
+                            modifier = Modifier.bleed(start = 12.dp)
+                        )
+                        Spacer(Modifier.weight(1f))
+                        AppPinToggleButton(
+                            pinned = task.pinned,
+                            onToggle = {
+                                togglePinned(task)
+                                actionSheetState = null
+                            }
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        AppSheetCalendarSurface {
+                            AppMonthCalendar(
+                                month = sheetMonth,
+                                onMonthChange = { sheetMonth = it },
+                                selectedDateKey = task.date.takeIf { it.isNotBlank() },
+                                onSelectDate = { dateKey ->
+                                    val nextDate = dateKey.orEmpty()
+                                    if (nextDate != task.date) {
+                                        commitDate(task, nextDate)
+                                    }
+                                    actionSheetState = null
+                                }
                             )
                         }
                     }
@@ -7122,22 +7830,57 @@ private val supportedLanguages = listOf(
 
 @Composable
 private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.labelLarge,
+        Text(
+            title,
+            style = TextStyle(
+                fontFamily = GenInterfaceJPBodyFontFamily,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            content()
-        }
+                lineHeight = 20.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .padding(bottom = 4.dp)
+                .semantics { heading() }
+        )
+        content()
     }
+}
+
+@Composable
+private fun SettingsDivider() {
+    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+@Composable
+private fun SettingsRow(
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null,
+    content: @Composable RowScope.() -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                } else {
+                    Modifier
+                }
+            )
+            .alpha(if (enabled) 1f else 0.6f),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content
+    )
 }
 
 @Composable
@@ -7147,38 +7890,55 @@ private fun SettingsSelectRow(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick)
-            .alpha(if (enabled) 1f else 0.6f)
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    SettingsRow(enabled = enabled, onClick = onClick) {
         Text(
             label,
+            style = AppRowTextStyle,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
             maxLines = 2,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis
         )
         Row(
-            modifier = Modifier.padding(start = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 value,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = AppRowTextStyle,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis
             )
             Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
-                modifier = Modifier.size(AppIconMetrics.standardActionIconSize),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                modifier = Modifier.size(AppIconMetrics.compactActionIconSize),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
             )
         }
+    }
+}
+
+@Composable
+private fun SettingsNavigationRow(
+    label: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    SettingsRow(enabled = enabled, onClick = onClick) {
+        Text(
+            label,
+            style = AppRowTextStyle,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            modifier = Modifier.size(AppIconMetrics.compactActionIconSize),
+            tint = mutedIconColor()
+        )
     }
 }
 
@@ -7189,14 +7949,8 @@ private fun SettingsActionRow(
     color: Color = MaterialTheme.colorScheme.onSurface,
     onClick: () -> Unit
 ) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, color = color)
+    SettingsRow(enabled = enabled, onClick = onClick) {
+        Text(label, style = AppRowTextStyle, color = color)
     }
 }
 
@@ -7205,42 +7959,47 @@ private fun SettingsOptionDialog(
     title: String,
     options: List<Pair<String, String>>,
     selected: String,
-    scrollable: Boolean = false,
     enabled: Boolean = true,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val t = LocalTranslations.current
-    val scrollState = rememberScrollState()
-    AlertDialog(
+    AppDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(if (scrollable) Modifier.verticalScroll(scrollState) else Modifier) {
-                options.forEach { (option, label) ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable(enabled = enabled) {
-                            onSelect(option)
-                            onDismiss()
-                        }.padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(label, Modifier.weight(1f))
-                        if (selected == option) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = t.t("common.selected"),
-                                modifier = Modifier.size(AppIconMetrics.standardActionIconSize)
-                            )
-                        }
+        title = title,
+        footer = {
+            AppButton(t.t("common.cancel"), onDismiss, style = AppButtonStyle.Secondary)
+        }
+    ) {
+        Column(modifier = Modifier.padding(top = 12.dp)) {
+            options.forEachIndexed { index, (option, label) ->
+                if (index > 0) SettingsDivider()
+                SettingsRow(
+                    enabled = enabled,
+                    onClick = {
+                        onSelect(option)
+                        onDismiss()
+                    }
+                ) {
+                    Text(
+                        label,
+                        style = AppRowTextStyle.copy(
+                            fontWeight = if (selected == option) FontWeight.SemiBold else FontWeight.Medium
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (selected == option) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = t.t("common.selected"),
+                            modifier = Modifier.size(AppIconMetrics.compactActionIconSize)
+                        )
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(t.t("common.cancel")) }
         }
-    )
+    }
 }
 
 @Composable
@@ -7310,71 +8069,195 @@ private fun SettingsView(
         )
     }
 
+    fun closeEmailChange() {
+        showEmailChangeDialog = false
+        newEmail = ""
+        emailChangeError = null
+        emailChangeSuccess = false
+    }
+
+    fun submitEmailChange() {
+        if (isChangingEmail || newEmail.isBlank()) return
+        isChangingEmail = true
+        emailChangeError = null
+        scope.launch {
+            try {
+                val user = Firebase.auth.currentUser ?: return@launch
+                user.verifyBeforeUpdateEmail(newEmail).await()
+                logEmailChangeRequested()
+                emailChangeSuccess = true
+                newEmail = ""
+            } catch (e: Exception) {
+                emailChangeError = resolveAuthErrorMessage(t, e)
+            } finally {
+                isChangingEmail = false
+            }
+        }
+    }
+
     DetailScreenScaffold(
         title = t.t("settings.title"),
         onBack = if (navController != null) ({ navController.navigateUp() }) else null,
         showTopBar = showTopBar,
+        topBarHeight = 56.dp,
         backgroundColor = MaterialTheme.colorScheme.surfaceDim
     ) {
         Column(
             Modifier
+                .widthIn(max = 640.dp)
                 .fillMaxWidth()
-                .widthIn(max = 768.dp)
                 .align(Alignment.CenterHorizontally)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 24.dp)
+                .padding(
+                    start = if (showTopBar) 16.dp else 24.dp,
+                    end = if (showTopBar) 16.dp else 24.dp,
+                    top = if (showTopBar) 8.dp else 40.dp,
+                    bottom = 40.dp
+                ),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (!showTopBar) {
+                Box(modifier = Modifier.heightIn(min = 48.dp), contentAlignment = Alignment.CenterStart) {
+                    Text(
+                        t.t("settings.title"),
+                        style = AppPageTitleTextStyle,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                }
+            }
             if (uiState.isLoading) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(
+                        color = mutedTextColor(),
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             } else {
                 if (uiState.hasError) {
                     Text(
                         t.t("app.loadError"),
                         color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        style = AppBodySmallTextStyle
                     )
+                }
+                errorMessage?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = AppBodySmallTextStyle)
                 }
                 SettingsSectionCard(title = t.t("settings.userInfo.title")) {
-                    Text(
-                        uiState.userEmail,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
-                    )
-                    HorizontalDivider()
-                    SettingsSelectRow(label = t.t("settings.emailChange.title"), value = "") {
-                        showEmailChangeDialog = true
+                    SettingsRow {
+                        Text(
+                            uiState.userEmail,
+                            style = AppRowTextStyle,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    SettingsDivider()
+                    if (!showEmailChangeDialog) {
+                        SettingsNavigationRow(label = t.t("settings.emailChange.title")) {
+                            showEmailChangeDialog = true
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            if (emailChangeSuccess) {
+                                Text(
+                                    t.t("settings.emailChange.successMessage"),
+                                    style = AppBodySmallTextStyle,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceDim)
+                                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                                AppButton(
+                                    t.t("common.close"),
+                                    onClick = { closeEmailChange() },
+                                    style = AppButtonStyle.Ghost,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                )
+                            } else {
+                                emailChangeError?.let {
+                                    Text(it, color = MaterialTheme.colorScheme.error, style = AppBodySmallTextStyle)
+                                }
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    AppFieldLabel(t.t("settings.emailChange.newEmailLabel"))
+                                    AppTextField(
+                                        value = newEmail,
+                                        onValueChange = { newEmail = it },
+                                        placeholder = t.t("settings.emailChange.newEmailPlaceholder"),
+                                        enabled = !isChangingEmail,
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Email,
+                                            imeAction = ImeAction.Done
+                                        ),
+                                        keyboardActions = KeyboardActions(onDone = { submitEmailChange() }),
+                                        modifier = Modifier.semantics {
+                                            contentType = ContentType.NewUsername + ContentType.EmailAddress
+                                        }
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.align(Alignment.End),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    AppButton(
+                                        t.t("common.cancel"),
+                                        onClick = { closeEmailChange() },
+                                        style = AppButtonStyle.Secondary,
+                                        enabled = !isChangingEmail
+                                    )
+                                    AppButton(
+                                        if (isChangingEmail) t.t("settings.emailChange.submitting") else t.t("settings.emailChange.submitButton"),
+                                        onClick = { submitEmailChange() },
+                                        enabled = !isChangingEmail && newEmail.isNotBlank()
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-                Spacer(Modifier.height(16.dp))
                 SettingsSectionCard(title = t.t("settings.preferences.title")) {
                     SettingsSelectRow(
                         label = t.t("settings.language.title"),
                         value = supportedLanguages.firstOrNull { it.first == uiState.language }?.second ?: uiState.language,
                         enabled = !isUpdatingSettings
                     ) { showLanguageDialog = true }
-                    HorizontalDivider()
+                    SettingsDivider()
                     SettingsSelectRow(
                         t.t("settings.theme.title"),
                         settingsThemeLabel(t, uiState.theme),
                         enabled = !isUpdatingSettings
                     ) { showThemeDialog = true }
-                    HorizontalDivider()
+                    SettingsDivider()
                     SettingsSelectRow(
                         t.t("settings.startupView.title"),
                         settingsStartupViewLabel(t, uiState.startupView),
                         enabled = !isUpdatingSettings
                     ) { showStartupViewDialog = true }
-                    HorizontalDivider()
+                    SettingsDivider()
                     SettingsSelectRow(
                         t.t("settings.taskInsertPosition.title"),
                         settingsTaskInsertPositionLabel(t, uiState.taskInsertPosition),
                         enabled = !isUpdatingSettings
                     ) { showPositionDialog = true }
-                    HorizontalDivider()
+                    SettingsDivider()
                     Row(
-                        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = uiState.autoSort,
+                                enabled = !isUpdatingSettings,
+                                role = Role.Switch,
+                                onValueChange = ::updateAutoSort
+                            )
+                            .alpha(if (isUpdatingSettings) 0.5f else 1f)
+                            .padding(vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -7382,26 +8265,26 @@ private fun SettingsView(
                             Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            Text(t.t("settings.autoSort.title"))
+                            Text(
+                                t.t("settings.autoSort.title"),
+                                style = AppRowTextStyle,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                             Text(
                                 t.t("settings.autoSort.enable"),
-                                style = MaterialTheme.typography.bodySmall,
+                                style = TextStyle(
+                                    fontFamily = GenInterfaceJPBodyFontFamily,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Switch(
-                            checked = uiState.autoSort,
-                            onCheckedChange = ::updateAutoSort,
-                            enabled = !isUpdatingSettings
-                        )
+                        AppSwitch(checked = uiState.autoSort)
                     }
                 }
-                Spacer(Modifier.height(16.dp))
                 SettingsSectionCard(title = t.t("settings.legal.title")) {
-                    SettingsSelectRow(
-                        label = t.t("settings.licenses.openSource"),
-                        value = ""
-                    ) {
+                    SettingsNavigationRow(label = t.t("settings.licenses.openSource")) {
                         try {
                             OssLicensesMenuActivity.setActivityTitle(t.t("settings.licenses.openSource"))
                             context.startActivity(Intent(context, OssLicensesMenuActivity::class.java))
@@ -7410,20 +8293,18 @@ private fun SettingsView(
                             errorMessage = t.t("settings.licenses.loadError")
                         }
                     }
-                    HorizontalDivider()
-                    SettingsSelectRow(
-                        label = t.t("settings.licenses.bundledAssets"),
-                        value = ""
-                    ) { showBundledLicensesSheet = true }
+                    SettingsDivider()
+                    SettingsNavigationRow(label = t.t("settings.licenses.bundledAssets")) {
+                        showBundledLicensesSheet = true
+                    }
                 }
-                Spacer(Modifier.height(16.dp))
                 SettingsSectionCard(title = t.t("settings.actions.title")) {
                     SettingsActionRow(
                         label = if (isSigningOut) t.t("settings.signingOut") else t.t("settings.danger.signOut"),
-                        enabled = !isSigningOut,
+                        enabled = !isSigningOut && !isDeletingAccount,
                         onClick = { showSignOutDialog = true }
                     )
-                    HorizontalDivider()
+                    SettingsDivider()
                     SettingsActionRow(
                         label = if (isDeletingAccount) t.t("settings.deletingAccount") else t.t("settings.danger.deleteAccount"),
                         enabled = !isDeletingAccount && !isSigningOut,
@@ -7431,108 +8312,124 @@ private fun SettingsView(
                         onClick = { showDeleteDialog = true }
                     )
                 }
-                errorMessage?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                }
             }
         }
     }
 
     if (showSignOutDialog) {
-        AlertDialog(
-            onDismissRequest = { showSignOutDialog = false },
-            title = { Text(t.t("auth.button.signOut")) },
-            text = { Text(t.t("auth.signOutConfirm.message")) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showSignOutDialog = false
-                    isSigningOut = true
-                    errorMessage = null
-                    scope.launch {
-                        try {
-                            Firebase.auth.signOut()
-                            logSignOut()
-                        } catch (e: Exception) {
-                            errorMessage = resolveAuthErrorMessage(t, e)
-                        } finally {
-                            isSigningOut = false
-                        }
+        AppConfirmDialog(
+            title = t.t("auth.signOutConfirm.title"),
+            message = t.t("auth.signOutConfirm.message"),
+            confirmLabel = t.t("auth.button.signOut"),
+            cancelLabel = t.t("auth.button.cancel"),
+            destructive = false,
+            onConfirm = {
+                showSignOutDialog = false
+                isSigningOut = true
+                errorMessage = null
+                scope.launch {
+                    try {
+                        Firebase.auth.signOut()
+                        logSignOut()
+                    } catch (e: Exception) {
+                        errorMessage = resolveAuthErrorMessage(t, e)
+                    } finally {
+                        isSigningOut = false
                     }
-                }) { Text(t.t("auth.button.signOut")) }
+                }
             },
-            dismissButton = { TextButton(onClick = { showSignOutDialog = false }) { Text(t.t("common.cancel")) } }
+            onDismiss = { showSignOutDialog = false }
         )
     }
 
     if (showDeleteDialog) {
         var deletePassword by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text(t.t("settings.danger.deleteAccount")) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(t.t("auth.deleteAccountConfirm.message"))
-                    AuthTextField(
-                        value = deletePassword, onValueChange = { deletePassword = it },
-                        label = t.t("auth.form.password"), contentType = ContentType.Password,
-                        password = true, enabled = !isDeletingAccount
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(enabled = deletePassword.isNotEmpty() && !isDeletingAccount, onClick = {
-                    val password = deletePassword
-                    deletePassword = ""
-                    showDeleteDialog = false
-                    isDeletingAccount = true
-                    errorMessage = null
-                    scope.launch {
-                        try {
-                            val user = Firebase.auth.currentUser ?: return@launch
-                            val email = user.email ?: return@launch
-                            user.reauthenticate(com.google.firebase.auth.EmailAuthProvider.getCredential(email, password)).await()
-                            val uid = user.uid
-                            val db = Firebase.firestore
-                            val taskListOrderRef = db.collection("taskListOrder").document(uid)
-                            val taskListOrderSnapshot = taskListOrderRef.get().await()
-                            if (taskListOrderSnapshot.exists()) {
-                                val taskListIds = taskListOrderSnapshot.data
-                                    ?.keys
-                                    ?.filter { it != "createdAt" && it != "updatedAt" }
-                                    ?: emptyList()
-                                coroutineScope {
-                                    taskListIds.map { taskListId ->
-                                        async {
-                                            val taskListRef = db.collection("taskLists").document(taskListId)
-                                            val snap = taskListRef.get().await()
-                                            if (!snap.exists()) return@async
-                                            removeTaskListMembership(
-                                                db,
-                                                taskListOrderRef,
-                                                taskListId,
-                                                snap
-                                            )
-                                        }
-                                    }.awaitAll()
+        fun deleteAccount() {
+            if (deletePassword.isEmpty() || isDeletingAccount) return
+            val password = deletePassword
+            deletePassword = ""
+            showDeleteDialog = false
+            isDeletingAccount = true
+            errorMessage = null
+            scope.launch {
+                try {
+                    val user = Firebase.auth.currentUser ?: return@launch
+                    val email = user.email ?: return@launch
+                    user.reauthenticate(com.google.firebase.auth.EmailAuthProvider.getCredential(email, password)).await()
+                    val uid = user.uid
+                    val db = Firebase.firestore
+                    val taskListOrderRef = db.collection("taskListOrder").document(uid)
+                    val taskListOrderSnapshot = taskListOrderRef.get().await()
+                    if (taskListOrderSnapshot.exists()) {
+                        val taskListIds = taskListOrderSnapshot.data
+                            ?.keys
+                            ?.filter { it != "createdAt" && it != "updatedAt" }
+                            ?: emptyList()
+                        coroutineScope {
+                            taskListIds.map { taskListId ->
+                                async {
+                                    val taskListRef = db.collection("taskLists").document(taskListId)
+                                    val snap = taskListRef.get().await()
+                                    if (!snap.exists()) return@async
+                                    removeTaskListMembership(
+                                        db,
+                                        taskListOrderRef,
+                                        taskListId,
+                                        snap
+                                    )
                                 }
-                            }
-                            db.batch().apply {
-                                delete(db.collection("settings").document(uid))
-                                delete(db.collection("taskListOrder").document(uid))
-                            }.commit().await()
-                            user.delete().await()
-                            logDeleteAccount()
-                        } catch (e: Exception) {
-                            errorMessage = resolveAuthErrorMessage(t, e)
-                        } finally {
-                            isDeletingAccount = false
+                            }.awaitAll()
                         }
                     }
-                }) { Text(t.t("auth.button.delete"), color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text(t.t("common.cancel")) } }
-        )
+                    db.batch().apply {
+                        delete(db.collection("settings").document(uid))
+                        delete(db.collection("taskListOrder").document(uid))
+                    }.commit().await()
+                    user.delete().await()
+                    logDeleteAccount()
+                } catch (e: Exception) {
+                    errorMessage = resolveAuthErrorMessage(t, e)
+                } finally {
+                    isDeletingAccount = false
+                }
+            }
+        }
+        AppDialog(
+            onDismissRequest = { if (!isDeletingAccount) showDeleteDialog = false },
+            title = t.t("auth.deleteAccountConfirm.title"),
+            description = t.t("auth.deleteAccountConfirm.message"),
+            footer = {
+                AppButton(
+                    t.t("common.cancel"),
+                    onClick = { showDeleteDialog = false },
+                    style = AppButtonStyle.Secondary,
+                    enabled = !isDeletingAccount
+                )
+                AppButton(
+                    if (isDeletingAccount) t.t("settings.deletingAccount") else t.t("auth.button.delete"),
+                    onClick = { deleteAccount() },
+                    style = AppButtonStyle.Destructive,
+                    enabled = deletePassword.isNotEmpty() && !isDeletingAccount
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier.padding(top = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                AppFieldLabel(t.t("auth.form.password"))
+                AppTextField(
+                    value = deletePassword,
+                    onValueChange = { deletePassword = it },
+                    placeholder = t.t("auth.form.password"),
+                    enabled = !isDeletingAccount,
+                    password = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { deleteAccount() }),
+                    modifier = Modifier.semantics { contentType = ContentType.Password }
+                )
+            }
+        }
     }
 
     if (showThemeDialog) {
@@ -7593,7 +8490,6 @@ private fun SettingsView(
             title = t.t("settings.language.title"),
             options = supportedLanguages,
             selected = uiState.language,
-            scrollable = true,
             enabled = !isUpdatingSettings,
             onSelect = { code ->
                 logSettingsLanguageChange(language = code)
@@ -7603,118 +8499,56 @@ private fun SettingsView(
         )
     }
 
-    if (showEmailChangeDialog) {
-        AlertDialog(
-            onDismissRequest = { showEmailChangeDialog = false },
-            title = { Text(t.t("settings.emailChange.title")) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = newEmail,
-                        onValueChange = { newEmail = it },
-                        label = { Text(t.t("settings.emailChange.newEmailLabel")) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().semantics {
-                            contentType = ContentType.NewUsername + ContentType.EmailAddress
-                        }
-                    )
-                    emailChangeError?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                    }
-                    if (emailChangeSuccess) {
-                        Text(t.t("settings.emailChange.successMessage"), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        isChangingEmail = true
-                        emailChangeError = null
-                        scope.launch {
-                            try {
-                                val user = Firebase.auth.currentUser ?: return@launch
-                                user.verifyBeforeUpdateEmail(newEmail).await()
-                                logEmailChangeRequested()
-                                emailChangeSuccess = true
-                                newEmail = ""
-                            } catch (e: Exception) {
-                                emailChangeError = resolveAuthErrorMessage(t, e)
-                            } finally {
-                                isChangingEmail = false
-                            }
-                        }
-                    },
-                    enabled = !isChangingEmail && newEmail.isNotBlank()
-                ) { Text(if (isChangingEmail) "..." else t.t("settings.emailChange.submitButton")) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showEmailChangeDialog = false
-                    newEmail = ""
-                    emailChangeError = null
-                    emailChangeSuccess = false
-                }) { Text(t.t("common.cancel")) }
-            }
-        )
-    }
-
     if (showBundledLicensesSheet) {
-        ModalBottomSheet(
+        AppSheet(
             onDismissRequest = { showBundledLicensesSheet = false },
-            contentWindowInsets = { WindowInsets(0) }
+            paneTitle = t.t("settings.licenses.bundledAssets")
         ) {
+            AppSheetHeader(
+                title = t.t("settings.licenses.bundledAssets"),
+                onClose = { showBundledLicensesSheet = false }
+            )
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    t.t("settings.licenses.bundledAssets"),
-                    style = MaterialTheme.typography.titleMedium
-                )
                 if (manualLicenses.isEmpty()) {
                     Text(
                         t.t("settings.licenses.loadError"),
                         color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
+                        style = AppBodySmallTextStyle
                     )
                 } else {
                     manualLicenses.forEachIndexed { index, license ->
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(license.name, style = MaterialTheme.typography.titleSmall)
+                        if (index > 0) SettingsDivider()
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                license.name,
+                                style = AppRowTextStyle.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                             Text(
                                 license.license,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = AppCaptionTextStyle.copy(fontWeight = FontWeight.Normal),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             license.source?.let { source ->
                                 Text(
                                     source,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
+                                    style = AppCaptionTextStyle.copy(fontWeight = FontWeight.Normal),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textDecoration = TextDecoration.Underline
                                 )
                             }
                             Text(
                                 license.text,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = AppCaptionTextStyle.copy(fontWeight = FontWeight.Normal),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
-                        if (index != manualLicenses.lastIndex) {
-                            HorizontalDivider()
-                        }
                     }
-                }
-                TextButton(
-                    onClick = { showBundledLicensesSheet = false },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(t.t("common.close"))
                 }
             }
         }

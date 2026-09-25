@@ -1,4 +1,5 @@
 const CACHE_NAME = "lightlist-static-__BUILD_ID__";
+const NAVIGATION_TIMEOUT_MS = 3000;
 
 const isCacheableStaticRequest = (request) => {
   const url = new URL(request.url);
@@ -52,23 +53,42 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   if (request.mode === "navigate") {
+    const network = fetch(request).then((response) => {
+      cacheResponse(request, response);
+      return response;
+    });
+    const offlineResponse = () =>
+      new Response("Lightlist is unavailable offline.", {
+        status: 503,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          cacheResponse(request, response);
-          return response;
-        })
-        .catch(() =>
-          caches.match(request).then(
-            (cached) =>
-              cached ??
-              new Response("Lightlist is unavailable offline.", {
-                status: 503,
-                headers: { "Content-Type": "text/plain; charset=utf-8" },
-              }),
-          ),
-        ),
+      new Promise((resolve) => {
+        let settled = false;
+        const settle = (response) => {
+          if (settled) return;
+          settled = true;
+          resolve(response);
+        };
+        const timer = setTimeout(() => {
+          caches.match(request).then((cached) => {
+            if (cached) settle(cached);
+          });
+        }, NAVIGATION_TIMEOUT_MS);
+        network
+          .then((response) => {
+            clearTimeout(timer);
+            settle(response);
+          })
+          .catch(() => {
+            clearTimeout(timer);
+            caches
+              .match(request)
+              .then((cached) => settle(cached ?? offlineResponse()));
+          });
+      }),
     );
+    event.waitUntil(network.catch(() => {}));
     return;
   }
 

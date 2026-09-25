@@ -1,5 +1,10 @@
 package com.lightlist.app
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import android.net.ConnectivityManager
+import android.net.Network
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
@@ -99,6 +104,9 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -275,7 +283,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-private const val COMPLETED_TASK_ALPHA = 0.55f
 private const val STARTUP_CACHE_PREFERENCES = "lightlist.startup"
 private val autoSortOverrides = mutableStateMapOf<String, Boolean>()
 private val TaskListBackgroundOptions = listOf<String?>(
@@ -371,8 +378,8 @@ private val DarkColorScheme = darkColorScheme(
     surfaceContainerHighest = Color(0xFF374151),
     outline = Color(0xFF4B5563),
     outlineVariant = Color(0xFF374151),
-    error = Color(0xFFEF4444),
-    onError = Color(0xFFF9FAFB),
+    error = Color(0xFFF87171),
+    onError = Color(0xFF111827),
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -804,7 +811,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        if (scheme == "https" && host == "lightlist.com" && (data.port == -1 || data.port == 443)) {
+        if (scheme == "https" && host == "lightlist.app" && (data.port == -1 || data.port == 443)) {
             if (pathSegments.size == 1 && pathSegments[0].equals("sharecodes", ignoreCase = true)) {
                 normalizedShareCode(data.getQueryParameter("code"))?.let { shareCode ->
                     return PendingDeepLink.ShareCode(shareCode)
@@ -1091,12 +1098,17 @@ private object TaskListDetailMetrics {
 
 private object AppGray {
     val g300 = Color(0xFFD1D5DB)
-    val g400 = Color(0xFF9CA3AF)
     val g500 = Color(0xFF6B7280)
     val g700 = Color(0xFF374151)
 }
 
+private object AppRed {
+    val destructive = Color(0xFFDC2626)
+}
+
 private val LocalReduceMotion = compositionLocalOf { false }
+
+private val LocalOnColoredBackground = compositionLocalOf { false }
 
 @Composable
 @ReadOnlyComposable
@@ -1105,12 +1117,24 @@ private fun isAppDarkTheme(): Boolean = MaterialTheme.colorScheme.background.lum
 @Composable
 @ReadOnlyComposable
 private fun mutedTextColor(): Color =
-    MaterialTheme.colorScheme.onSurface.copy(alpha = if (isAppDarkTheme()) 0.68f else 0.64f)
+    MaterialTheme.colorScheme.onSurface.copy(
+        alpha = when {
+            isAppDarkTheme() -> 0.68f
+            LocalOnColoredBackground.current -> 0.84f
+            else -> 0.64f
+        }
+    )
 
 @Composable
 @ReadOnlyComposable
 private fun mutedIconColor(): Color =
-    MaterialTheme.colorScheme.onSurface.copy(alpha = if (isAppDarkTheme()) 0.45f else 0.42f)
+    MaterialTheme.colorScheme.onSurface.copy(
+        alpha = when {
+            isAppDarkTheme() -> 0.45f
+            LocalOnColoredBackground.current -> 0.66f
+            else -> 0.5f
+        }
+    )
 
 @Composable
 @ReadOnlyComposable
@@ -1119,7 +1143,7 @@ private fun rowActiveColor(): Color =
 
 @Composable
 @ReadOnlyComposable
-private fun subtleOutlineColor(): Color = if (isAppDarkTheme()) AppGray.g500 else AppGray.g400
+private fun subtleOutlineColor(): Color = AppGray.g500
 
 @Composable
 @ReadOnlyComposable
@@ -1244,7 +1268,7 @@ private fun AppButton(
         AppButtonStyle.Secondary -> colors.surfaceContainer
         AppButtonStyle.Tonal -> rowActiveColor()
         AppButtonStyle.Ghost, AppButtonStyle.Danger -> Color.Transparent
-        AppButtonStyle.Destructive -> colors.error
+        AppButtonStyle.Destructive -> AppRed.destructive
     }
     val contentColor = when (style) {
         AppButtonStyle.Primary -> colors.onPrimary
@@ -1406,7 +1430,7 @@ private fun AppTextField(
                 if (value.isEmpty() && placeholder != null) {
                     Text(
                         placeholder,
-                        style = textStyle.copy(color = if (dark) AppGray.g500 else AppGray.g400),
+                        style = textStyle.copy(color = mutedTextColor()),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1455,36 +1479,38 @@ private fun AppDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier
-                .padding(16.dp)
-                .widthIn(max = 416.dp)
-                .fillMaxWidth()
-        ) {
-            Column(
+        CompositionLocalProvider(LocalOnColoredBackground provides false) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
+                    .padding(16.dp)
+                    .widthIn(max = 416.dp)
+                    .fillMaxWidth()
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        title,
-                        style = AppDialogTitleTextStyle,
-                        modifier = Modifier.semantics { heading() }
-                    )
-                    if (description != null) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            description,
-                            style = AppBodySmallTextStyle,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            title,
+                            style = AppDialogTitleTextStyle,
+                            modifier = Modifier.semantics { heading() }
                         )
+                        if (description != null) {
+                            Text(
+                                description,
+                                style = AppBodySmallTextStyle,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
+                    content?.invoke(this)
+                    AppDialogFooter(start = footerStart, content = footer)
                 }
-                content?.invoke(this)
-                AppDialogFooter(start = footerStart, content = footer)
             }
         }
     }
@@ -1627,6 +1653,9 @@ private fun AppSheet(
     paneTitle: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val neutralContent: @Composable ColumnScope.() -> Unit = {
+        CompositionLocalProvider(LocalOnColoredBackground provides false) { content() }
+    }
     val containerColor = MaterialTheme.colorScheme.surfaceContainer
     val windowInfo = LocalWindowInfo.current
     val density = LocalDensity.current
@@ -1654,7 +1683,7 @@ private fun AppSheet(
                         .heightIn(max = maxSheetHeight)
                         .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    content = content
+                    content = neutralContent
                 )
             }
         }
@@ -1678,7 +1707,7 @@ private fun AppSheet(
                     .imePadding()
                     .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                content = content
+                content = neutralContent
             )
         }
     }
@@ -1914,7 +1943,7 @@ private fun AppCalendarDay(
     val contentColor by animateColorAsState(
         targetValue = when {
             isSelected -> colors.onPrimary
-            isOutside -> subtleOutlineColor()
+            isOutside -> mutedTextColor()
             else -> colors.onSurface
         },
         animationSpec = if (reduceMotion) snap() else tween(durationMillis = 180),
@@ -2635,9 +2664,59 @@ fun RootScreen(
                 )
             }
         }
+        OfflineNotice(Modifier.align(Alignment.BottomCenter))
     }
 }
     }
+    }
+}
+
+@Composable
+private fun OfflineNotice(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val t = LocalTranslations.current
+    val reduceMotion = LocalReduceMotion.current
+    var isOnline by remember { mutableStateOf(true) }
+    DisposableEffect(context) {
+        val manager = context.getSystemService(ConnectivityManager::class.java)
+        if (manager == null) {
+            onDispose {}
+        } else {
+            isOnline = manager.activeNetwork != null
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    isOnline = true
+                }
+
+                override fun onLost(network: Network) {
+                    isOnline = false
+                }
+            }
+            manager.registerDefaultNetworkCallback(callback)
+            onDispose { manager.unregisterNetworkCallback(callback) }
+        }
+    }
+    AnimatedVisibility(
+        visible = !isOnline,
+        modifier = modifier
+            .navigationBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        enter = if (reduceMotion) EnterTransition.None else fadeIn(tween(160)),
+        exit = if (reduceMotion) ExitTransition.None else fadeOut(tween(160))
+    ) {
+        Text(
+            text = t.t("common.offline"),
+            modifier = Modifier
+                .widthIn(max = 448.dp)
+                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .semantics { liveRegion = LiveRegionMode.Polite },
+            color = MaterialTheme.colorScheme.onPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            lineHeight = 20.sp,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -2667,15 +2746,17 @@ private fun SharedTaskListPreviewScreen(
                 }
             }
             previewUiState.taskList != null -> {
-                TaskListDetailContent(
-                    taskList = previewUiState.taskList,
-                    taskInsertPosition = settingsState.taskInsertPosition,
-                    autoSort = settingsState.autoSort,
-                    topInset = 56.dp,
-                    allowTaskEditing = previewUiState.isAdded,
-                    allowTaskListDeletion = previewUiState.isAdded,
-                    allowShareCodeManagement = previewUiState.isAdded
-                )
+                CompositionLocalProvider(LocalOnColoredBackground provides (previewUiState.taskList.background != null)) {
+                    TaskListDetailContent(
+                        taskList = previewUiState.taskList,
+                        taskInsertPosition = settingsState.taskInsertPosition,
+                        autoSort = settingsState.autoSort,
+                        topInset = 56.dp,
+                        allowTaskEditing = previewUiState.isAdded,
+                        allowTaskListDeletion = previewUiState.isAdded,
+                        allowShareCodeManagement = previewUiState.isAdded
+                    )
+                }
             }
             else -> {
                 Box(
@@ -3415,14 +3496,19 @@ private fun formatDateForLocale(
     skeleton: String
 ): String {
     return try {
-        val locale = localeForLanguage(languageTag)
         val date = parseTaskInputDate(dateKey) ?: return dateKey
-        val pattern = DateFormat.getBestDateTimePattern(locale, skeleton)
-        SimpleDateFormat(pattern, locale).format(date)
+        synchronized(localeDateFormats) {
+            localeDateFormats.getOrPut("$languageTag|$skeleton") {
+                val locale = localeForLanguage(languageTag)
+                SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, skeleton), locale)
+            }.apply { timeZone = TimeZone.getDefault() }.format(date)
+        }
     } catch (_: Exception) {
         dateKey
     }
 }
+
+private val localeDateFormats = HashMap<String, SimpleDateFormat>()
 
 private data class ParsedTaskInput(
     val text: String,
@@ -3454,17 +3540,19 @@ private fun normalizeTaskDateDigits(value: String): String =
 
 private val TASK_INPUT_DATE_PATTERN = Regex("""\d{4}-\d{2}-\d{2}""")
 
-private fun taskInputDateFormatter(
-    timeZone: TimeZone = TimeZone.getDefault()
-): SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-    isLenient = false
-    calendar = GregorianCalendar(timeZone, Locale.ROOT).apply {
+private fun formatTaskInputDate(date: Date): String {
+    val calendar = GregorianCalendar(TimeZone.getDefault(), Locale.ROOT).apply {
         gregorianChange = Date(Long.MIN_VALUE)
+        time = date
     }
+    return String.format(
+        Locale.ROOT,
+        "%04d-%02d-%02d",
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH) + 1,
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
 }
-
-private fun formatTaskInputDate(date: Date): String =
-    taskInputDateFormatter().format(date)
 
 private fun taskInputDateFrom(year: Int, month: Int, day: Int): Date? {
     if (year < 1) return null
@@ -4491,7 +4579,6 @@ private fun CalendarScreen(
     val selectedDateLabel = remember(selectedDateKey, t.languageTag()) {
         selectedDateKey?.let { formatDateForLocale(it, t.languageTag(), "MMM d EEE") }.orEmpty()
     }
-    var calendarListHeaderCount by remember { mutableIntStateOf(0) }
 
     fun selectDate(dateKey: String?) {
         if (selectedDateKey != dateKey) {
@@ -4501,15 +4588,14 @@ private fun CalendarScreen(
         if (dateKey != null) {
             val targetIndex = tasksInMonth.indexOfFirst { it.dateKey == dateKey }
             if (targetIndex >= 0) {
-                val itemIndex = targetIndex + calendarListHeaderCount
                 val layoutInfo = listState.layoutInfo
-                val itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == itemIndex }
+                val itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
                 val isFullyVisible = itemInfo != null &&
                     itemInfo.offset >= layoutInfo.viewportStartOffset &&
                     itemInfo.offset + itemInfo.size <= layoutInfo.viewportEndOffset
                 if (!isFullyVisible) {
                     scope.launch {
-                        listState.animateScrollToItem(itemIndex, -layoutInfo.viewportSize.height / 3)
+                        listState.animateScrollToItem(targetIndex, -layoutInfo.viewportSize.height / 3)
                     }
                 }
             }
@@ -4819,22 +4905,20 @@ private fun CalendarScreen(
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val availableWidth = maxWidth
             val isTwoColumn = !showTopBar && availableWidth >= 720.dp
-            SideEffect {
-                calendarListHeaderCount = if (isTwoColumn) 0 else 1
-            }
             if (showTopBar) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp)
-                ) {
-                    item(key = "calendar") {
-                        Column {
-                            calendarBlock()
-                            Spacer(Modifier.height(12.dp))
-                        }
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                        calendarBlock()
                     }
-                    calendarTaskItems()
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp)
+                    ) {
+                        calendarTaskItems()
+                    }
                 }
             } else {
                 Column(
@@ -4880,17 +4964,16 @@ private fun CalendarScreen(
                             }
                         }
                     } else {
+                        Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                            calendarBlock()
+                        }
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 48.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentPadding = PaddingValues(top = 4.dp, bottom = 48.dp)
                         ) {
-                            item(key = "calendar") {
-                                Column {
-                                    calendarBlock()
-                                    Spacer(Modifier.height(12.dp))
-                                }
-                            }
                             calendarTaskItems()
                         }
                     }
@@ -5111,7 +5194,7 @@ private fun CalendarTaskRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 20.dp)
+                .heightIn(min = 24.dp)
                 .padding(start = 48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -5128,6 +5211,8 @@ private fun CalendarTaskRow(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .clickable(role = Role.Button, onClick = onSelectDate)
+                            .heightIn(min = 24.dp)
+                            .wrapContentHeight()
                     )
                 }
                 if (task.pinned) {
@@ -5142,6 +5227,7 @@ private fun CalendarTaskRow(
             Row(
                 modifier = Modifier
                     .widthIn(min = 48.dp, max = 160.dp)
+                    .heightIn(min = 24.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .clickable(role = Role.Button, onClick = onOpenTaskList)
                     .padding(end = 14.dp),
@@ -5169,7 +5255,8 @@ private fun CalendarTaskRow(
                     .clip(RoundedCornerShape(12.dp))
                     .clickable(role = Role.Checkbox, onClick = onToggleComplete)
                     .semantics {
-                        contentDescription = "${t.t("pages.tasklist.markComplete")}: ${task.text}"
+                        contentDescription = task.text
+                        toggleableState = ToggleableState(task.completed)
                     }
                     .padding(top = 8.dp),
                 contentAlignment = Alignment.TopCenter
@@ -5213,7 +5300,7 @@ private fun CalendarTaskRow(
                     .size(48.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .clickable(role = Role.Button, onClick = onOpenActions)
-                    .semantics { contentDescription = t.t("a11y.editTask") }
+                    .semantics { contentDescription = "${t.t("a11y.editTask")}: ${task.text}" }
                     .padding(top = 8.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
@@ -6132,25 +6219,29 @@ private fun TaskListDetailPagerScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) { page ->
                                 val taskList = uiState.taskLists[page]
-                                TaskListDetailContent(
-                                    taskList = taskList,
-                                    taskInsertPosition = settingsState.taskInsertPosition,
-                                    autoSort = settingsState.autoSort,
-                                    topInset = taskPageTopInset,
-                                )
+                                CompositionLocalProvider(LocalOnColoredBackground provides (taskList.background != null)) {
+                                    TaskListDetailContent(
+                                        taskList = taskList,
+                                        taskInsertPosition = settingsState.taskInsertPosition,
+                                        autoSort = settingsState.autoSort,
+                                        topInset = taskPageTopInset,
+                                    )
+                                }
                             }
                             if (showIndicator) {
-                                TaskListIndicator(
-                                    count = uiState.taskLists.size,
-                                    selectedIndex = selectedTaskListIndex,
-                                    labels = uiState.taskLists.map { it.name },
-                                    backgroundColor = taskListBackgroundColor,
-                                    onSelect = { index ->
-                                        val nextTaskList = uiState.taskLists.getOrNull(index) ?: return@TaskListIndicator
-                                        updateSelectedTaskListId(nextTaskList.id)
-                                    },
-                                    modifier = Modifier.align(Alignment.TopCenter)
-                                )
+                                CompositionLocalProvider(LocalOnColoredBackground provides (currentTaskList.background != null)) {
+                                    TaskListIndicator(
+                                        count = uiState.taskLists.size,
+                                        selectedIndex = selectedTaskListIndex,
+                                        labels = uiState.taskLists.map { it.name },
+                                        backgroundColor = taskListBackgroundColor,
+                                        onSelect = { index ->
+                                            val nextTaskList = uiState.taskLists.getOrNull(index) ?: return@TaskListIndicator
+                                            updateSelectedTaskListId(nextTaskList.id)
+                                        },
+                                        modifier = Modifier.align(Alignment.TopCenter)
+                                    )
+                                }
                             }
                             if (uiState.hasError) {
                                 Text(
@@ -6213,9 +6304,7 @@ private fun TaskListIndicator(
                         modifier = Modifier
                             .size(TaskListDetailMetrics.indicatorDotSize)
                             .background(
-                                MaterialTheme.colorScheme.onBackground.copy(
-                                    alpha = if (isSelected) 1f else 0.4f
-                                ),
+                                if (isSelected) MaterialTheme.colorScheme.onBackground else mutedIconColor(),
                                 CircleShape
                             )
                     )
@@ -6264,7 +6353,7 @@ private fun TaskListRow(
         Modifier
             .offset { IntOffset(0, taskDragOffset.toInt()) }
             .zIndex(1f)
-            .alpha((if (!reduceMotion) 0.8f else 1f) * if (task.completed) COMPLETED_TASK_ALPHA else 1f)
+            .alpha(if (!reduceMotion) 0.8f else 1f)
             .then(
                 if (reduceMotion) {
                     Modifier
@@ -6279,7 +6368,6 @@ private fun TaskListRow(
         val rowAlpha by animateFloatAsState(
             targetValue = when {
                 isExiting -> 0f
-                task.completed -> COMPLETED_TASK_ALPHA
                 else -> 1f
             },
             animationSpec = if (reduceMotion) snap() else tween(
@@ -6362,8 +6450,9 @@ private fun TaskListRow(
                 .bleed(end = TaskListDetailMetrics.completionOverlap)
                 .size(TaskListDetailMetrics.controlSize)
                 .semantics {
-                    contentDescription = if (task.completed) t.t("pages.tasklist.markIncomplete") else t.t("pages.tasklist.markComplete")
+                    contentDescription = task.text
                     role = Role.Checkbox
+                    toggleableState = ToggleableState(task.completed)
                 }
                 .clickable(enabled = allowTaskEditing) { onToggleCompletion() },
             contentAlignment = Alignment.Center
@@ -6392,7 +6481,7 @@ private fun TaskListRow(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(TaskListDetailMetrics.dateRowHeight),
+                        .heightIn(min = TaskListDetailMetrics.dateRowHeight),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Text(
@@ -6458,7 +6547,7 @@ private fun TaskListRow(
                         value = editingTextFieldValue,
                         onValueChange = onEditingTextFieldValueChange,
                         textStyle = taskTextStyle.copy(
-                            color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            color = if (task.completed) mutedTextColor() else MaterialTheme.colorScheme.onSurface,
                             fontWeight = textWeight,
                             textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
                         ),
@@ -6490,7 +6579,7 @@ private fun TaskListRow(
                         task.text,
                         style = taskTextStyle,
                         textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
-                        color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        color = if (task.completed) mutedTextColor() else MaterialTheme.colorScheme.onSurface,
                         fontWeight = textWeight,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -7296,7 +7385,7 @@ private fun TaskListDetailContent(
                                 Text(
                                     t.t("pages.tasklist.addTaskPlaceholder"),
                                     style = inputTextStyle,
-                                    color = if (isAppDarkTheme()) AppGray.g500 else AppGray.g400,
+                                    color = mutedTextColor(),
                                     maxLines = 1
                                 )
                             }

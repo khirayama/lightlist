@@ -1,4 +1,4 @@
-import "@/styles/globals.css";
+import "@/styles/base.css";
 import "@/styles/lp-styles.css";
 import lpLocales from "./lp-locales.json";
 

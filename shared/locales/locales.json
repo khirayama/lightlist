@@ -14,7 +14,8 @@
       "copied": "تم النسخ",
       "error": "حدث خطأ",
       "done": "تم",
-      "selected": "محدد"
+      "selected": "محدد",
+      "offline": "أنت غير متصل. ستتم مزامنة التغييرات عند إعادة الاتصال"
     },
     "auth": {
       "tabs": {
@@ -354,7 +355,8 @@
       "copied": "Kopiert",
       "error": "Ein Fehler ist aufgetreten",
       "done": "Fertig",
-      "selected": "Ausgewählt"
+      "selected": "Ausgewählt",
+      "offline": "Offline. Änderungen werden nach der erneuten Verbindung synchronisiert"
     },
     "auth": {
       "tabs": {
@@ -705,7 +707,8 @@
       "copied": "Copied",
       "error": "An error occurred",
       "done": "Done",
-      "selected": "Selected"
+      "selected": "Selected",
+      "offline": "You're offline. Changes will sync when you reconnect"
     },
     "auth": {
       "tabs": {
@@ -1055,7 +1058,8 @@
       "copied": "Copiado",
       "error": "Ocurrió un error",
       "done": "Listo",
-      "selected": "Seleccionado"
+      "selected": "Seleccionado",
+      "offline": "Sin conexión. Los cambios se sincronizarán al reconectarte"
     },
     "auth": {
       "tabs": {
@@ -1410,7 +1414,8 @@
       "copied": "Copié",
       "error": "Une erreur est survenue",
       "done": "Terminé",
-      "selected": "Sélectionné"
+      "selected": "Sélectionné",
+      "offline": "Hors ligne. Les modifications seront synchronisées à la reconnexion"
     },
     "auth": {
       "tabs": {
@@ -1762,7 +1767,8 @@
       "copied": "कॉपी हो गया",
       "error": "एक त्रुटि हुई",
       "done": "हो गया",
-      "selected": "चयनित"
+      "selected": "चयनित",
+      "offline": "आप ऑफ़लाइन हैं। दोबारा कनेक्ट होने पर बदलाव सिंक हो जाएंगे"
     },
     "auth": {
       "tabs": {
@@ -2101,7 +2107,8 @@
       "copied": "Tersalin",
       "error": "Terjadi kesalahan",
       "done": "Selesai",
-      "selected": "Dipilih"
+      "selected": "Dipilih",
+      "offline": "Anda sedang offline. Perubahan akan disinkronkan saat terhubung kembali"
     },
     "auth": {
       "tabs": {
@@ -2446,7 +2453,8 @@
       "copied": "コピーしました",
       "error": "エラーが発生しました",
       "done": "完了",
-      "selected": "選択中"
+      "selected": "選択中",
+      "offline": "オフラインです。変更は再接続時に同期されます"
     },
     "auth": {
       "tabs": {
@@ -2785,7 +2793,8 @@
       "copied": "복사됨",
       "error": "오류가 발생했습니다",
       "done": "완료",
-      "selected": "선택됨"
+      "selected": "선택됨",
+      "offline": "오프라인 상태입니다. 다시 연결되면 변경 사항이 동기화됩니다"
     },
     "auth": {
       "tabs": {
@@ -3131,7 +3140,8 @@
       "copied": "Copiado",
       "error": "Ocorreu um erro",
       "done": "Concluído",
-      "selected": "Selecionado"
+      "selected": "Selecionado",
+      "offline": "Você está offline. As alterações serão sincronizadas ao reconectar"
     },
     "auth": {
       "tabs": {
@@ -3491,7 +3501,8 @@
       "copied": "已复制",
       "error": "发生错误",
       "done": "完成",
-      "selected": "已选择"
+      "selected": "已选择",
+      "offline": "当前处于离线状态。重新连接后将同步更改"
     },
     "auth": {
       "tabs": {

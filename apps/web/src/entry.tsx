@@ -34,7 +34,7 @@ import type { Root } from "react-dom/client";
 import "@/styles/globals.css";
 import i18next from "i18next";
 import type { Resource, TFunction } from "i18next";
-import rawLocales from "./locales.json";
+import jaLocale from "./locales/ja.json";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import clsx from "clsx";
 import LanguageDetector from "i18next-browser-languagedetector";
@@ -53,7 +53,10 @@ import {
   deleteUser,
   EmailAuthProvider,
   reauthenticateWithCredential,
-  getAuth,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  indexedDBLocalPersistence,
+  initializeAuth,
   onAuthStateChanged,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -110,6 +113,7 @@ import type {
 } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import { DayButton as DayPickerDayButton, DayPicker } from "react-day-picker";
+import type { DayButtonProps } from "react-day-picker";
 
 const SORTABLE_SENSORS = [
   PointerSensor.configure({
@@ -400,7 +404,13 @@ const getAuthInstance = (): Auth => {
   }
 
   const app = getApp();
-  cachedAuth = getAuth(app);
+  cachedAuth = initializeAuth(app, {
+    persistence: [
+      indexedDBLocalPersistence,
+      browserLocalPersistence,
+      browserSessionPersistence,
+    ],
+  });
   webBootstrapState.auth = cachedAuth;
   return cachedAuth;
 };
@@ -503,7 +513,7 @@ const logSyncListenerError = (
 ) =>
   logAppEvent("sync_listener_error", { source, error_category: errorCategory });
 
-const DEFAULT_LANGUAGE: Language = "ja";
+const DEFAULT_LANGUAGE = "ja" satisfies Language;
 
 const SUPPORTED_LANGUAGES = [
   "ja",
@@ -574,14 +584,49 @@ function getLanguageDirection(value: string | null | undefined): "ltr" | "rtl" {
     : "ltr";
 }
 
-const localeResources = rawLocales as Record<Language, Record<string, unknown>>;
+const LOCALE_LOADERS: Record<
+  Exclude<Language, typeof DEFAULT_LANGUAGE>,
+  () => Promise<{ default: Record<string, unknown> }>
+> = {
+  en: () => import("./locales/en.json"),
+  es: () => import("./locales/es.json"),
+  de: () => import("./locales/de.json"),
+  fr: () => import("./locales/fr.json"),
+  ko: () => import("./locales/ko.json"),
+  "zh-CN": () => import("./locales/zh-CN.json"),
+  hi: () => import("./locales/hi.json"),
+  ar: () => import("./locales/ar.json"),
+  "pt-BR": () => import("./locales/pt-BR.json"),
+  id: () => import("./locales/id.json"),
+};
 
-const resources = Object.fromEntries(
-  SUPPORTED_LANGUAGES.map((language) => [
-    language,
-    { translation: localeResources[language] },
-  ]),
-) as Resource;
+const localeLoadPromises = new Map<Language, Promise<void>>();
+
+const loadLocaleResources = (language: Language): Promise<void> => {
+  if (language === DEFAULT_LANGUAGE) return Promise.resolve();
+  const existing = localeLoadPromises.get(language);
+  if (existing) return existing;
+  const promise = LOCALE_LOADERS[language]()
+    .then((module) => {
+      i18next.addResourceBundle(language, "translation", module.default);
+    })
+    .catch((error: unknown) => {
+      localeLoadPromises.delete(language);
+      throw error;
+    });
+  localeLoadPromises.set(language, promise);
+  return promise;
+};
+
+const changeAppLanguage = async (value: string): Promise<void> => {
+  const language = normalizeLanguage(value);
+  await loadLocaleResources(language).catch(() => {});
+  await i18next.changeLanguage(language);
+};
+
+const resources: Resource = {
+  [DEFAULT_LANGUAGE]: { translation: jaLocale },
+};
 
 i18next
   .use(LanguageDetector)
@@ -593,6 +638,7 @@ i18next
     defaultNS: "translation",
     ns: ["translation"],
     resources,
+    partialBundledLanguages: true,
     detection: {
       order: ["querystring", "localStorage", "navigator", "htmlTag"],
       lookupQuerystring: "lang",
@@ -865,6 +911,13 @@ const applyTheme = (theme: Theme) => {
     (theme === "system" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.classList.toggle("dark", isDark);
+  document
+    .querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
+    .forEach((meta) => {
+      const media = meta.getAttribute("media") ?? "";
+      const metaIsDark = theme === "system" ? media.includes("dark") : isDark;
+      meta.content = metaIsDark ? "#030712" : "#ffffff";
+    });
   try {
     localStorage.setItem("lightlist.theme", theme);
   } catch {}
@@ -901,8 +954,13 @@ function ErrorPageContent({
   headingLevel?: "h1" | "h2";
 }) {
   const Heading = headingLevel;
+  const Container = headingLevel === "h1" ? "main" : "div";
   return (
-    <div className="ll-flex ll-min-h-dvh ll-w-full ll-flex-col ll-items-center ll-justify-center ll-bg-white-b ll-p-4 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
+    <Container
+      id={headingLevel === "h1" ? MAIN_CONTENT_ID : undefined}
+      tabIndex={headingLevel === "h1" ? -1 : undefined}
+      className="ll-flex ll-min-h-dvh ll-w-full ll-flex-col ll-items-center ll-justify-center ll-bg-white-b ll-p-4 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50"
+    >
       <div className="ll-w-full ll-max-w-md ll-space-y-4 ll-text-center">
         <div
           className={clsx(
@@ -938,7 +996,7 @@ function ErrorPageContent({
           </button>
         )}
       </div>
-    </div>
+    </Container>
   );
 }
 
@@ -985,6 +1043,29 @@ class ErrorBoundaryBase extends Component<
 }
 
 const ErrorBoundary = withTranslation()(ErrorBoundaryBase);
+
+function OfflineNotice() {
+  const { t } = useTranslation();
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+
+  useEffect(() => {
+    const update = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+
+  return (
+    <div role="status" className="ll-offline-notice">
+      {isOnline ? null : (
+        <p className="ll-offline-notice-pill ll-m-0">{t("common.offline")}</p>
+      )}
+    </div>
+  );
+}
 
 function AppWrapperBody({ children }: { children: ReactNode }) {
   const prevLanguageRef = useRef<string | null>(null);
@@ -1046,7 +1127,7 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
       applyTheme(settings.theme);
       if (prevLanguageRef.current !== settings.language) {
         prevLanguageRef.current = settings.language;
-        void i18next.changeLanguage(settings.language);
+        void changeAppLanguage(settings.language);
       }
     }
   }, [settings]);
@@ -1074,6 +1155,7 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
           {children}
         </div>
       </div>
+      <OfflineNotice />
     </ErrorBoundary>
   );
 }
@@ -1095,7 +1177,7 @@ function AppWrapper({
 declare module "i18next" {
   interface CustomTypeOptions {
     defaultNS: "translation";
-    resources: { translation: (typeof rawLocales)["ja"] };
+    resources: { translation: typeof jaLocale };
   }
 }
 
@@ -4924,13 +5006,19 @@ function LicensesView({
   );
 }
 
-// pages/404.tsx
-function NotFoundPage() {
+function useDocumentTitle(pageTitle: string | null | undefined) {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = t("pages.notFound.title");
-  }, [t]);
+    const appTitle = t("title");
+    document.title = pageTitle ? `${pageTitle} - ${appTitle}` : appTitle;
+  }, [pageTitle, t]);
+}
+
+// pages/404.tsx
+function NotFoundPage() {
+  const { t } = useTranslation();
+  useDocumentTitle(t("pages.notFound.title"));
 
   return (
     <ErrorPageContent
@@ -4945,10 +5033,7 @@ function NotFoundPage() {
 // pages/500.tsx
 function ServerErrorPage() {
   const { t } = useTranslation();
-
-  useEffect(() => {
-    document.title = t("pages.serverError.title");
-  }, [t]);
+  useDocumentTitle(t("pages.serverError.title"));
 
   return (
     <ErrorPageContent
@@ -5237,6 +5322,7 @@ function Carousel({
   indicatorInFlow = false,
   fitContent = false,
   indicatorBackground,
+  indicatorOnColoredBackground = false,
   onScrollStart,
   onScrollEnd,
 }: {
@@ -5253,6 +5339,7 @@ function Carousel({
   indicatorInFlow?: boolean;
   fitContent?: boolean;
   indicatorBackground?: string | null;
+  indicatorOnColoredBackground?: boolean;
   onScrollStart?: () => void;
   onScrollEnd?: (index: number) => void;
 }) {
@@ -5356,6 +5443,9 @@ function Carousel({
       {showIndicators && count > 0 ? (
         <nav
           aria-label={ariaLabel}
+          data-colored-background={
+            indicatorOnColoredBackground ? "true" : undefined
+          }
           className={clsx(
             indicatorInFlow
               ? "ll-flex ll-justify-center ll-gap-0x5"
@@ -5398,7 +5488,7 @@ function Carousel({
                   "ll-carousel-indicator-dot ll-h-2 ll-w-2 ll-rounded-full",
                   idx === currentIndex
                     ? "ll-scale-110 ll-bg-gray-900 ll-dark-bg-gray-50"
-                    : "ll-bg-gray-900-40 ll-dark-bg-gray-50-40",
+                    : "ll-carousel-indicator-dot-inactive",
                 )}
               />
             </button>
@@ -5707,7 +5797,6 @@ function TaskItemComponent({
   onOpenTaskActions?: (task: Task, trigger: HTMLButtonElement | null) => void;
   onDragInteractionChange?: (active: boolean) => void;
 }) {
-  const completedTaskOpacity = 0.55;
   const { t, i18n } = useTranslation();
   const { ref, handleRef, isDragging } = useSortable({
     id: task.id,
@@ -5719,12 +5808,10 @@ function TaskItemComponent({
       idle: true,
     },
   });
-  const rowOpacity =
-    (isDragging ? 0.8 : 1) * (task.completed ? completedTaskOpacity : 1);
   const style = {
     scale: isDragging ? "1.03" : undefined,
     transition: "opacity 180ms ease",
-    opacity: rowOpacity,
+    opacity: isDragging ? 0.8 : 1,
   };
   const [isHandlePointerDown, setIsHandlePointerDown] = useState(false);
   const animateEnterRef = useRef(animateEnter);
@@ -5847,7 +5934,7 @@ function TaskItemComponent({
             className={clsx(
               "ll-h-12 ll-min-w-0 ll-w-full ll-bg-transparent ll-p-0 ll-leading-7 ll-focus-outline-none",
               task.completed
-                ? "ll-font-medium ll-text-gray-600 ll-line-through ll-dark-text-gray-300"
+                ? "ll-muted-text ll-font-medium ll-line-through"
                 : "ll-text-gray-900 ll-dark-text-gray-50",
               !task.completed &&
                 (task.pinned ? "ll-font-bold" : "ll-font-medium"),
@@ -5861,7 +5948,7 @@ function TaskItemComponent({
             className={
               task.completed
                 ? clsx(
-                    "ll-task-row-text ll-task-text-wrap ll-flex ll-min-h-12 ll-min-w-0 ll-w-full ll-items-center ll-border-0 ll-bg-transparent ll-p-0 ll-text-start ll-font-medium ll-leading-7 ll-text-gray-600 ll-line-through ll-underline-offset-4 ll-dark-text-gray-300",
+                    "ll-task-row-text ll-task-text-wrap ll-flex ll-min-h-12 ll-min-w-0 ll-w-full ll-items-center ll-border-0 ll-bg-transparent ll-p-0 ll-text-start ll-font-medium ll-leading-7 ll-muted-text ll-line-through ll-underline-offset-4",
                     canEdit &&
                       "ll-cursor-pointer ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300",
                   )
@@ -5921,7 +6008,23 @@ function EditTaskListDialog({
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeleting(true);
+    setError(null);
+    void deleteTaskList(taskList.id)
+      .then(() => {
+        setOpen(false);
+        onDeleted?.();
+      })
+      .catch((deleteError) =>
+        setError(resolveErrorMessage(deleteError, t, "common.error")),
+      )
+      .finally(() => setDeleting(false));
+  };
 
   return (
     <Dialog
@@ -5994,26 +6097,7 @@ function EditTaskListDialog({
               canDelete ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (
-                      !window.confirm(t("taskList.deleteListConfirm.message"))
-                    ) {
-                      return;
-                    }
-                    setDeleting(true);
-                    setError(null);
-                    void deleteTaskList(taskList.id)
-                      .then(() => {
-                        setOpen(false);
-                        onDeleted?.();
-                      })
-                      .catch((deleteError) =>
-                        setError(
-                          resolveErrorMessage(deleteError, t, "common.error"),
-                        ),
-                      )
-                      .finally(() => setDeleting(false));
-                  }}
+                  onClick={() => setShowDeleteConfirm(true)}
                   disabled={deleting}
                   className={BUTTON_DANGER_CLASS}
                 >
@@ -6036,6 +6120,17 @@ function EditTaskListDialog({
             </button>
           </DialogFooter>
         </form>
+        <ConfirmDialog
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDelete}
+          title={t("taskList.deleteListConfirm.title")}
+          message={t("taskList.deleteListConfirm.message")}
+          confirmText={t("auth.button.delete")}
+          cancelText={t("common.cancel")}
+          isDestructive
+          disabled={deleting}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -6273,6 +6368,8 @@ function TaskListCard({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyHighlightIndex, setHistoryHighlightIndex] = useState(-1);
   const [deleteCompletedPending, setDeleteCompletedPending] = useState(false);
+  const [showDeleteCompletedConfirm, setShowDeleteCompletedConfirm] =
+    useState(false);
   const [exitingTaskIds, setExitingTaskIds] =
     useState<ReadonlySet<string> | null>(null);
   const knownTaskIdsRef = useRef<ReadonlySet<string> | null>(null);
@@ -6531,6 +6628,35 @@ function TaskListCard({
     });
   };
 
+  const handleDeleteCompleted = async () => {
+    setShowDeleteCompletedConfirm(false);
+    if (completedTaskCount === 0) return;
+    setDeleteCompletedPending(true);
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setExitingTaskIds(
+        new Set(tasks.filter((task) => task.completed).map((task) => task.id)),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+    await runTaskMutationRef
+      .current({
+        buildNextTasks: (currentTasks) =>
+          currentTasks.filter((task) => !task.completed),
+        commit: () => deleteCompletedTasks(taskList.id, resolvedTaskSettings),
+        onSuccess: () =>
+          logAppEvent("task_delete_completed", {
+            count: completedTaskCount,
+          }),
+        onError: (error) => {
+          setTaskError(resolveErrorMessage(error, t, "common.error"));
+        },
+      })
+      .finally(() => {
+        setDeleteCompletedPending(false);
+        setExitingTaskIds(null);
+      });
+  };
+
   return (
     <section
       className={clsx(
@@ -6538,6 +6664,7 @@ function TaskListCard({
         isActive ? "ll-pointer-events-auto" : "ll-pointer-events-none",
       )}
       onClickCapture={handleTaskListClickCapture}
+      data-colored-background={taskList.background ? "true" : undefined}
       style={{
         backgroundColor: taskList.background
           ? resolveTaskListBackground(taskList.background)
@@ -6549,9 +6676,9 @@ function TaskListCard({
           <div className="ll-flex ll-flex-col ll-gap-4">
             <div className="ll-flex ll-flex-col ll-gap-4">
               <div className="ll-flex ll-min-h-12 ll-items-center ll-justify-between ll-gap-3">
-                <h2 className="ll-font-display ll-task-text-wrap ll-m-0 ll-min-w-0 ll-flex-1 ll-text-xl ll-font-semibold">
+                <h1 className="ll-font-display ll-task-text-wrap ll-m-0 ll-min-w-0 ll-flex-1 ll-text-xl ll-font-semibold">
                   {taskList.name}
-                </h2>
+                </h1>
                 <div className="ll-task-card-actions">
                   {canEditTasks ? (
                     <EditTaskListDialog
@@ -6772,57 +6899,7 @@ function TaskListCard({
                     disabled={
                       deleteCompletedPending || completedTaskCount === 0
                     }
-                    onClick={async () => {
-                      if (
-                        completedTaskCount === 0 ||
-                        !window.confirm(
-                          t("pages.tasklist.deleteCompletedConfirm", {
-                            count: completedTaskCount,
-                          }),
-                        )
-                      ) {
-                        return;
-                      }
-                      setDeleteCompletedPending(true);
-                      if (
-                        !window.matchMedia("(prefers-reduced-motion: reduce)")
-                          .matches
-                      ) {
-                        setExitingTaskIds(
-                          new Set(
-                            tasks
-                              .filter((task) => task.completed)
-                              .map((task) => task.id),
-                          ),
-                        );
-                        await new Promise((resolve) =>
-                          setTimeout(resolve, 120),
-                        );
-                      }
-                      await runTaskMutationRef
-                        .current({
-                          buildNextTasks: (currentTasks) =>
-                            currentTasks.filter((task) => !task.completed),
-                          commit: () =>
-                            deleteCompletedTasks(
-                              taskList.id,
-                              resolvedTaskSettings,
-                            ),
-                          onSuccess: () =>
-                            logAppEvent("task_delete_completed", {
-                              count: completedTaskCount,
-                            }),
-                          onError: (error) => {
-                            setTaskError(
-                              resolveErrorMessage(error, t, "common.error"),
-                            );
-                          },
-                        })
-                        .finally(() => {
-                          setDeleteCompletedPending(false);
-                          setExitingTaskIds(null);
-                        });
-                    }}
+                    onClick={() => setShowDeleteCompletedConfirm(true)}
                     className="ll-pressable ll-task-toolbar-button"
                   >
                     {deleteCompletedPending
@@ -7082,6 +7159,19 @@ function TaskListCard({
           </ActionSheetContent>
         ) : null}
       </Dialog>
+      <ConfirmDialog
+        isOpen={showDeleteCompletedConfirm}
+        onClose={() => setShowDeleteCompletedConfirm(false)}
+        onConfirm={() => void handleDeleteCompleted()}
+        title={t("pages.tasklist.deleteCompletedConfirmTitle")}
+        message={t("pages.tasklist.deleteCompletedConfirm", {
+          count: completedTaskCount,
+        })}
+        confirmText={t("auth.button.delete")}
+        cancelText={t("common.cancel")}
+        isDestructive
+        disabled={deleteCompletedPending}
+      />
     </section>
   );
 }
@@ -7413,7 +7503,7 @@ function CalendarTaskItem({
             type="checkbox"
             checked={task.task.completed}
             onChange={onToggleComplete}
-            aria-label={`${t("pages.tasklist.markComplete")}: ${task.task.text}`}
+            aria-label={task.task.text}
             className="ll-peer ll-absolute ll-inset-0 ll-z-10 ll-h-full ll-w-full ll-cursor-pointer ll-opacity-0"
           />
           <div
@@ -7439,7 +7529,7 @@ function CalendarTaskItem({
         )}
         <button
           type="button"
-          aria-label={t("a11y.editTask")}
+          aria-label={`${t("a11y.editTask")}: ${task.task.text}`}
           title={t("a11y.editTask")}
           onClick={onOpenActions}
           className="ll-calendar-task-edit ll-pressable ll-muted-icon ll-flex ll-h-12 ll-w-12 ll-justify-center ll-rounded-lg ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300"
@@ -7450,6 +7540,42 @@ function CalendarTaskItem({
     </div>
   );
 }
+
+const CalendarDotColorsContext = createContext<
+  Record<string, Array<string | null>>
+>({});
+
+function CalendarDotDayButton(props: DayButtonProps) {
+  const dotColorsByDate = useContext(CalendarDotColorsContext);
+  const dateKey = formatDate(props.day.date);
+  const colors = dotColorsByDate[dateKey] ?? [];
+  return (
+    <DayPickerDayButton {...props}>
+      <span className="ll-relative ll-flex ll-h-full ll-w-full ll-items-center ll-justify-center">
+        <span className={clsx(colors.length > 0 && "ll-pb-2")}>
+          {props.day.date.getDate()}
+        </span>
+        {colors.length > 0 ? (
+          <span className="ll-pointer-events-none ll-absolute ll-bottom-1 ll-left-half ll-flex ll-translate-x-neg-half ll-gap-0x5">
+            {colors.map((color, index) => (
+              <span
+                key={`${dateKey}-${color}-${index}`}
+                className={clsx(
+                  "ll-h-1x5 ll-w-1x5 ll-rounded-full",
+                  color === null &&
+                    "ll-border ll-border-gray-400 ll-dark-border-gray-500",
+                )}
+                style={color !== null ? { backgroundColor: color } : undefined}
+              />
+            ))}
+          </span>
+        ) : null}
+      </span>
+    </DayPickerDayButton>
+  );
+}
+
+const CALENDAR_DOT_COMPONENTS = { DayButton: CalendarDotDayButton };
 
 type CalendarScreenProps = {
   showCompactHeaderOffset?: boolean;
@@ -7658,6 +7784,8 @@ function CalendarScreen({
   const [optimisticDatedTaskOverrides, setOptimisticDatedTaskOverrides] =
     useState<Record<string, OptimisticDatedTaskOverride>>({});
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const taskScrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const calendarAsideRef = useRef<HTMLDivElement | null>(null);
   const datedTaskRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const optimisticDatedTaskRevisionRef = useRef(0);
 
@@ -8003,19 +8131,27 @@ function CalendarScreen({
     if (!targetElement) return;
 
     requestAnimationFrame(() => {
-      const container = targetElement.parentElement;
+      const container = taskScrollContainerRef.current;
       if (!container) return;
       const containerRect = container.getBoundingClientRect();
       const targetRect = targetElement.getBoundingClientRect();
+      const asideRect = calendarAsideRef.current?.getBoundingClientRect();
+      const visibleTop =
+        asideRect &&
+        asideRect.left < targetRect.right &&
+        asideRect.right > targetRect.left
+          ? Math.max(containerRect.top, asideRect.bottom)
+          : containerRect.top;
       const top =
-        targetRect.top -
-        containerRect.top -
-        container.clientHeight / 2 +
-        targetElement.clientHeight / 2;
+        targetRect.top +
+        targetRect.height / 2 -
+        (visibleTop + containerRect.bottom) / 2;
 
       container.scrollTo({
         top: container.scrollTop + top,
-        behavior: "smooth",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
       });
     });
   };
@@ -8039,6 +8175,7 @@ function CalendarScreen({
           <div className="ll-h-14 ll-shrink-0" />
         ) : null}
         <div
+          ref={taskScrollContainerRef}
           className={clsx(
             "ll-min-h-0 ll-flex-1 ll-overflow-y-auto",
             showCompactHeaderOffset ? "ll-px-4 ll-pb-6" : "ll-calendar-page",
@@ -8050,57 +8187,27 @@ function CalendarScreen({
             </header>
           )}
           <div className="ll-calendar-layout">
-            <div className="ll-calendar-layout-aside ll-w-full">
-              <Calendar
-                className="ll-w-full"
-                mode="single"
-                selected={selectedCalendarDate}
-                onSelect={(next) =>
-                  handleSelectCalendarDate(next, visibleDatedTasks)
-                }
-                month={displayedMonth}
-                onMonthChange={(newMonth) => {
-                  setDisplayedMonth(newMonth);
-                  setSelectedCalendarDate(undefined);
-                }}
-                modifiers={{ hasTask: calendarTaskDates }}
-                components={{
-                  DayButton: (props) => {
-                    const dateKey = formatDate(props.day.date);
-                    const colors = dateDotColors[dateKey] ?? [];
-                    return (
-                      <DayPickerDayButton {...props}>
-                        <span className="ll-relative ll-flex ll-h-full ll-w-full ll-items-center ll-justify-center">
-                          <span
-                            className={clsx(colors.length > 0 && "ll-pb-2")}
-                          >
-                            {props.day.date.getDate()}
-                          </span>
-                          {colors.length > 0 ? (
-                            <span className="ll-pointer-events-none ll-absolute ll-bottom-1 ll-left-half ll-flex ll-translate-x-neg-half ll-gap-0x5">
-                              {colors.map((color, index) => (
-                                <span
-                                  key={`${dateKey}-${color}-${index}`}
-                                  className={clsx(
-                                    "ll-h-1x5 ll-w-1x5 ll-rounded-full",
-                                    color === null &&
-                                      "ll-border ll-border-gray-400 ll-dark-border-gray-500",
-                                  )}
-                                  style={
-                                    color !== null
-                                      ? { backgroundColor: color }
-                                      : undefined
-                                  }
-                                />
-                              ))}
-                            </span>
-                          ) : null}
-                        </span>
-                      </DayPickerDayButton>
-                    );
-                  },
-                }}
-              />
+            <div
+              ref={calendarAsideRef}
+              className="ll-calendar-layout-aside ll-w-full"
+            >
+              <CalendarDotColorsContext.Provider value={dateDotColors}>
+                <Calendar
+                  className="ll-w-full"
+                  mode="single"
+                  selected={selectedCalendarDate}
+                  onSelect={(next) =>
+                    handleSelectCalendarDate(next, visibleDatedTasks)
+                  }
+                  month={displayedMonth}
+                  onMonthChange={(newMonth) => {
+                    setDisplayedMonth(newMonth);
+                    setSelectedCalendarDate(undefined);
+                  }}
+                  modifiers={{ hasTask: calendarTaskDates }}
+                  components={CALENDAR_DOT_COMPONENTS}
+                />
+              </CalendarDotColorsContext.Provider>
               <button
                 type="button"
                 onClick={() => {
@@ -8730,6 +8837,17 @@ function AppShellPage() {
     (taskList) => taskList.id === selectedTaskListId,
   );
   const firstTaskListId = taskLists[0]?.id ?? null;
+  useDocumentTitle(
+    currentView === "detail"
+      ? selectedTaskList?.name
+      : currentView === "settings"
+        ? t("settings.title")
+        : currentView === "licenses"
+          ? t("settings.licenses.title")
+          : currentView === "calendar"
+            ? t("app.calendar")
+            : t("app.drawerTitle"),
+  );
   const selectedTaskListIndex = Math.max(
     0,
     taskLists.findIndex((taskList) => taskList.id === selectedTaskListId),
@@ -9113,6 +9231,9 @@ function AppShellPage() {
         <Carousel
           className={isWideLayout ? "ll-min-h-full" : "ll-h-full"}
           fitContent={isWideLayout}
+          indicatorOnColoredBackground={Boolean(
+            taskLists[selectedTaskListIndex]?.background,
+          )}
           indicatorBackground={
             isCarouselScrolling
               ? null
@@ -9469,6 +9590,11 @@ function LoginPage() {
   const { t, i18n } = useTranslation();
   const authStatus = useAuthStatus();
   const [activeTab, setActiveTab] = useState<AuthTab>("signin");
+  useDocumentTitle(
+    activeTab === "reset"
+      ? t("auth.passwordReset.title")
+      : t(`auth.tabs.${activeTab}`),
+  );
   const signInTabRef = useRef<HTMLButtonElement>(null);
   const signUpTabRef = useRef<HTMLButtonElement>(null);
   const [email, setEmail] = useState("");
@@ -9616,9 +9742,7 @@ function LoginPage() {
       <div className="ll-mb-6 ll-flex ll-justify-end">
         <select
           value={selectedLanguage}
-          onChange={(event) =>
-            void i18n.changeLanguage(normalizeLanguage(event.target.value))
-          }
+          onChange={(event) => void changeAppLanguage(event.target.value)}
           className="ll-rounded-md ll-border ll-border-gray-300 ll-bg-white-b ll-px-3 ll-py-2 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-focus-border-gray-600 ll-dark-border-gray-700 ll-dark-bg-gray-950 ll-dark-text-gray-50 ll-dark-focus-border-gray-300"
           aria-label={t("settings.language.title")}
         >
@@ -9821,6 +9945,7 @@ function LoginPage() {
 // pages/password_reset.tsx
 function PasswordResetPage() {
   const { t } = useTranslation();
+  useDocumentTitle(t("auth.passwordReset.title"));
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -10055,6 +10180,7 @@ function ShareCodePreviewPage() {
 
   const taskList = useTaskList(sharedTaskListId);
   const isMember = ownTaskLists.some((item) => item.id === sharedTaskListId);
+  useDocumentTitle(taskList?.name ?? error);
 
   const handleAddToOrder = async () => {
     if (!taskList || !user || !sharecode) return;
@@ -10082,9 +10208,10 @@ function ShareCodePreviewPage() {
         <div className="ll-bg-white-b ll-p-4 ll-shadow-sm ll-dark-bg-gray-900b">
           <HistoryBackButton />
         </div>
-        <div className="ll-p-4">
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="ll-p-4">
+          <h1 className="ll-sr-only">{t("title")}</h1>
           <Alert variant="error">{error}</Alert>
-        </div>
+        </main>
       </div>
     );
   }
@@ -10097,11 +10224,11 @@ function ShareCodePreviewPage() {
         <div className="ll-bg-white-b ll-p-4 ll-shadow-sm ll-dark-bg-gray-900b">
           <HistoryBackButton />
         </div>
-        <div className="ll-p-4">
-          <p className="ll-text-center ll-text-gray-600 ll-dark-text-gray-300">
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="ll-p-4">
+          <h1 className="ll-text-center ll-text-gray-600 ll-dark-text-gray-300">
             {t("pages.sharecode.notFound")}
-          </p>
-        </div>
+          </h1>
+        </main>
       </div>
     );
   }
@@ -10125,7 +10252,7 @@ function ShareCodePreviewPage() {
       </header>
 
       <main
-        id="main-content"
+        id={MAIN_CONTENT_ID}
         tabIndex={-1}
         className="ll-flex-1 ll-overflow-y-auto"
       >
@@ -10215,10 +10342,12 @@ if (loadAppData) {
 const root = webBootstrapState.root ?? createRoot(rootElement);
 webBootstrapState.root = root;
 
-root.render(
-  <StrictMode>
-    <AppWrapper loadAppData={loadAppData}>
-      <Page />
-    </AppWrapper>
-  </StrictMode>,
-);
+void changeAppLanguage(i18next.language).finally(() => {
+  root.render(
+    <StrictMode>
+      <AppWrapper loadAppData={loadAppData}>
+        <Page />
+      </AppWrapper>
+    </StrictMode>,
+  );
+});

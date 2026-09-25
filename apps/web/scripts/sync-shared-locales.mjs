@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,13 +13,19 @@ const sourcePath = path.join(
   "locales",
   "locales.json",
 );
-const targetPath = path.join(webRoot, "src", "locales.json");
+const localesDir = path.join(webRoot, "src", "locales");
 const lpTargetPath = path.join(webRoot, "src", "lp-locales.json");
 
-mkdirSync(path.dirname(targetPath), { recursive: true });
-copyFileSync(sourcePath, targetPath);
-
 const locales = JSON.parse(readFileSync(sourcePath, "utf8"));
+
+rmSync(localesDir, { recursive: true, force: true });
+mkdirSync(localesDir, { recursive: true });
+for (const [language, translation] of Object.entries(locales)) {
+  writeFileSync(
+    path.join(localesDir, `${language}.json`),
+    `${JSON.stringify(translation, null, 2)}\n`,
+  );
+}
 
 const flatten = (value, prefix, out) => {
   if (typeof value === "string") {

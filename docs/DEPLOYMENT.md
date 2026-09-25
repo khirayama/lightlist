@@ -22,23 +22,28 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 
 - 初期 HTML の module script は初回表示に必要な runtime に絞る。
 - Firebase Analytics は dynamic import で読み込む。
+- アプリの翻訳は fallback の `ja` だけを entry に静的同梱し、その他の言語は `apps/web/src/locales/<lang>.json` を言語別 chunk として dynamic import する。初回描画は検出言語の翻訳を読み込んでから行い、言語切替も読み込み完了後に反映する。
+- Firebase Auth は `initializeAuth` に IndexedDB / localStorage / sessionStorage の persistence だけを渡し、popup / redirect resolver を同梱しない（popup / redirect サインインは使わない）。HTML の preconnect は `identitytoolkit.googleapis.com` と、Firestore を使う `app` / `sharecodes` の `firestore.googleapis.com` に限る。
 - カレンダーの翻訳は英語をライブラリ既定値として使い、それ以外の `date-fns` locale は利用時に言語別の dynamic import で読み込む。
 - chunk 分割は Vite 8 / Rolldown の `build.rolldownOptions.output.codeSplitting.groups` を正とし、Firebase / i18n / app UI / React vendor などを分ける。
 - chunk group は依存モジュールを再帰的に取り込まない設定にする。明示的な group へ分ける UI 依存は、group 外へ残った推移依存から entry へ戻る import が発生しないよう同じ group に含める。英語のカレンダー既定値と共通 helper は `date-fns-default` group に置き、その他の locale は利用時の dynamic import に残す。Analytics とカレンダー翻訳が初期 HTML の module script やその静的依存へ混入しないことを build 成果物で確認する。chunk size warning の閾値は 550 kB。
-- フォントは通常書体 400 / 500 / 600 / 700 と表示書体 700 だけを各 HTML entry から非同期で読み、JavaScript bundle には含めない。使用しない表示書体 800 は配信物に含めない。
+- フォントは通常書体 400 / 500 / 600 / 700 と表示書体 700 だけを各 HTML entry から非同期で読み、JavaScript bundle には含めない。使用しない表示書体 800 は配信物に含めない。`/fonts/*` は `_headers` で 7 日の `max-age` と 30 日の `stale-while-revalidate` を付けて配信する。
+- LP は utility と共通 base（`apps/web/src/styles/base.css`）と LP 専用 CSS だけを読み、アプリの component / motion CSS（`globals.css`）を含めない。
+- アプリ側 HTML の `theme.js` は描画前に、保存済みテーマの `dark` class と `theme-color` meta、`?lang=` → `localStorage.i18nextLng` → ブラウザ言語から解決した `html[lang]` / `dir` を設定し、RTL やテーマの初回描画後の切り替わりを防ぐ。
 
 ## PWA
 
 - manifest は `apps/web/public/manifest.webmanifest`。`start_url` は `/app`、`scope` は `/`、`display` は `standalone`。
 - manifest の screenshots は `apps/web/public/screenshots/store/wide/*.png`（`1920x1080`）と `apps/web/public/screenshots/store/narrow/*.png`（`750x1334`）を参照する。
 - icons は `/icons/icon-192.png` / `/icons/icon-512.png` / `/icons/maskable-512.png`。
-- service worker は `apps/web/public/sw.js`。同一オリジンの Vite assets / フォント / アイコン / manifest と、過去に表示した navigation response を cache し、オフライン時は最後に取得した navigation を返す。build 後に `scripts/version-service-worker.mjs` が `dist` の revision から cache version を生成し、deploy 単位で旧 cache を activate 時に削除する。
+- service worker は `apps/web/public/sw.js`。同一オリジンの Vite assets / フォント / アイコン / manifest と、過去に表示した navigation response を cache し、オフライン時は最後に取得した navigation を返す。navigation は network-first だが、3 秒以内に応答がなく cache がある場合は cache を返し、network 応答は裏で cache を更新する。build 後に `scripts/version-service-worker.mjs` が `dist` の revision から cache version を生成し、deploy 単位で旧 cache を activate 時に削除する。
 - LP とアプリ側 entry は、HTTPS / `localhost` / `127.0.0.1` でのみ `/sw.js` を登録し、登録後に `registration.update()` を呼ぶ。
 - Firestore のデータ同期は Firestore SDK の永続 cache に任せ、service worker は静的 shell だけを扱う。更新通知 UI は持たず、`skipWaiting()` と `clients.claim()` で更新を適用する。
 
 ## Cloudflare Pages
 
-- Git integration: Root directory は `apps/web`、build command は `npm ci && npm run cf:build`、output directory は `dist` とする。Node.js は `apps/web/.node-version`（`24.19.0`）で固定し、npm は `apps/web/package.json` の `packageManager`（`npm@12.0.2`）で固定する。Node.js 22.22.2 同梱 npm から npm 12 への直接更新は npm の自己更新中に `promise-retry` 欠損で失敗するため、Cloudflare Pages の build には使用しない。`LIGHTLIST_IOS_TEAM_ID` に Apple Developer Team ID（10 文字の英大文字・数字）、`LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` に Play App Signing certificate の SHA-256 fingerprint を設定する。後者はカンマ区切りで複数指定でき、生成時に大文字・コロン区切りへ正規化する。どちらかが欠けると `cf:build` は失敗し、Universal Links / Android App Links の関連付けを欠いた本番デプロイを防ぐ。
+- 本番ドメインは `https://lightlist.app/`（`www.lightlist.app` も同じ Pages project）とし、native の共有 URL・パスワードリセット URL・Universal Links / App Links もこのドメインに揃える。`lightlist.com` は Lightlist の配信先ではないため使わない。
+- Git integration: Root directory は `apps/web`、output directory は `dist` とする。build command は、`LIGHTLIST_IOS_TEAM_ID` と `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` を両方設定するまでは `npm run build`（未設定の関連付けファイルは生成しない）とし、両方を設定したら `npm ci && npm run cf:build` に切り替えて欠落をビルド失敗にする。Node.js は `apps/web/.node-version`（`24.19.0`）で固定し、npm は `apps/web/package.json` の `packageManager`（`npm@12.0.2`）で固定する。Node.js 22.22.2 同梱 npm から npm 12 への直接更新は npm の自己更新中に `promise-retry` 欠損で失敗するため、Cloudflare Pages の build には使用しない。`LIGHTLIST_IOS_TEAM_ID` に Apple Developer Team ID（10 文字の英大文字・数字）、`LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` に Play App Signing certificate の SHA-256 fingerprint を設定する。後者はカンマ区切りで複数指定でき、生成時に大文字・コロン区切りへ正規化する。どちらかが欠けると `cf:build` は失敗し、Universal Links / Android App Links の関連付けを欠いた本番デプロイを防ぐ。
 - `cf:build` は `prepare:assets` で locale / license を準備した後に Vite build を一度だけ実行し、関連付けファイルを必須設定として生成する。通常の `build` にある任意生成の postbuild は重ねて実行しない。
 - Web は TypeScript 7 系を `strict` + `skipLibCheck=false` で使い、依存packageの型定義も typecheck 対象にする。runtime source は TS / TSX に限定する。`i18next` / `react-i18next` の peer 範囲が追いつくまでは、`apps/web/.npmrc` の `legacy-peer-deps=true` を前提に npm install / ci を行う。
 - npm 12 は依存パッケージの install script を既定で実行しない。build に必要な Firebase utility、esbuild、protobufjs、workerd と開発時の fsevents は `apps/web/package.json` の完全バージョン付き `allowScripts` で承認する。依存更新後は `npm install-scripts ls` が未承認なしになるよう承認バージョンを更新してから `npm ci` する。

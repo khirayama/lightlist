@@ -1,17 +1,109 @@
 set shell := ["zsh", "-cu"]
+set dotenv-filename := ".env.local"
+
+export DEVELOPER_DIR := "/Applications/Xcode.app/Contents/Developer"
+
+lint:
+  xcrun swift-format lint --strict --recursive --parallel Lightlist
+
+format:
+  xcrun swift-format format --in-place --recursive --parallel Lightlist
 
 build:
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer  xcodegen generate
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -skipPackagePluginValidation -showBuildTimingSummary -project Lightlist.xcodeproj -scheme Lightlist -configuration Debug -derivedDataPath build -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" ARCHS=arm64 ONLY_ACTIVE_ARCH=YES COMPILER_INDEX_STORE_ENABLE=NO build
+  xcodegen generate
+  xcodebuild -skipPackagePluginValidation -showBuildTimingSummary -project Lightlist.xcodeproj -scheme Lightlist -configuration Debug -derivedDataPath build -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" ARCHS=arm64 ONLY_ACTIVE_ARCH=YES COMPILER_INDEX_STORE_ENABLE=NO build
 
 build-release:
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodegen generate
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -skipPackagePluginValidation -showBuildTimingSummary -project Lightlist.xcodeproj -scheme Lightlist -configuration Release -derivedDataPath build-release -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" ARCHS=arm64 ONLY_ACTIVE_ARCH=YES COMPILER_INDEX_STORE_ENABLE=NO build
+  xcodegen generate
+  xcodebuild -skipPackagePluginValidation -showBuildTimingSummary -project Lightlist.xcodeproj -scheme Lightlist -configuration Release -derivedDataPath build-release -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" ARCHS=arm64 ONLY_ACTIVE_ARCH=YES COMPILER_INDEX_STORE_ENABLE=NO build
 
 archive:
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodegen generate
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -skipPackagePluginValidation -showBuildTimingSummary -project Lightlist.xcodeproj -scheme Lightlist -configuration Release -destination 'generic/platform=iOS' -archivePath build-archive/Lightlist.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM="{{env_var('LIGHTLIST_IOS_TEAM_ID')}}" CODE_SIGN_STYLE=Automatic COMPILER_INDEX_STORE_ENABLE=NO archive
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -showBuildTimingSummary -exportArchive -archivePath build-archive/Lightlist.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build-archive/export -allowProvisioningUpdates
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  : "${LIGHTLIST_IOS_TEAM_ID:?LIGHTLIST_IOS_TEAM_ID を環境変数または apps/ios/.env.local に設定してください}"
+  auth=(${(f)"$(just _asc-auth)"})
+  rm -rf build-archive
+  mkdir -p build-archive
+  cp ExportOptions.plist build-archive/ExportOptions.plist
+  plutil -replace teamID -string "$LIGHTLIST_IOS_TEAM_ID" build-archive/ExportOptions.plist
+  xcodegen generate
+  xcodebuild -skipPackagePluginValidation -showBuildTimingSummary -project Lightlist.xcodeproj -scheme Lightlist -configuration Release -destination 'generic/platform=iOS' -archivePath build-archive/Lightlist.xcarchive -allowProvisioningUpdates "${auth[@]}" DEVELOPMENT_TEAM="$LIGHTLIST_IOS_TEAM_ID" CODE_SIGN_STYLE=Automatic COMPILER_INDEX_STORE_ENABLE=NO archive
+  xcodebuild -showBuildTimingSummary -exportArchive -archivePath build-archive/Lightlist.xcarchive -exportOptionsPlist build-archive/ExportOptions.plist -exportPath build-archive/export -allowProvisioningUpdates "${auth[@]}"
+  just verify-ipa
+
+upload:
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  auth=(${(f)"$(just _asc-auth)"})
+  cp build-archive/ExportOptions.plist build-archive/ExportOptions.upload.plist
+  plutil -replace destination -string upload build-archive/ExportOptions.upload.plist
+  xcodebuild -exportArchive -archivePath build-archive/Lightlist.xcarchive -exportOptionsPlist build-archive/ExportOptions.upload.plist -exportPath build-archive/upload -allowProvisioningUpdates "${auth[@]}"
+
+verify-ipa:
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  : "${LIGHTLIST_IOS_TEAM_ID:?LIGHTLIST_IOS_TEAM_ID を環境変数または apps/ios/.env.local に設定してください}"
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  unzip -q build-archive/export/Lightlist.ipa -d "$work"
+  app="$work/Payload/Lightlist.app"
+  codesign --verify --strict --deep "$app"
+  signature="$(codesign -dvv "$app" 2>&1)"
+  team="$(print -r -- "$signature" | awk -F= '/^TeamIdentifier=/ { print $2 }')"
+  authority="$(print -r -- "$signature" | awk -F= '/^Authority=/ { print $2; exit }')"
+  codesign -d --entitlements - --xml "$app" > "$work/entitlements.plist" 2>/dev/null
+  security cms -D -i "$app/embedded.mobileprovision" > "$work/profile.plist"
+  plist() { /usr/libexec/PlistBuddy -c "Print :$2" "$1" 2>/dev/null || true }
+  firebase_bundle_id="$(plist "$app/GoogleService-Info.plist" BUNDLE_ID)"
+  failures=()
+  [[ "$team" == "$LIGHTLIST_IOS_TEAM_ID" ]] || failures+=("TeamIdentifier が $LIGHTLIST_IOS_TEAM_ID ではありません: $team")
+  [[ "$authority" == "Apple Distribution:"* ]] || failures+=("配布用証明書で署名されていません: $authority")
+  [[ "$(plist "$work/entitlements.plist" get-task-allow)" != "true" ]] || failures+=("get-task-allow が true です")
+  [[ "$(plist "$work/entitlements.plist" com.apple.developer.associated-domains:0)" == "applinks:lightlist.app" ]] || failures+=("associated domains がありません")
+  [[ -z "$(plist "$work/profile.plist" ProvisionedDevices)" ]] || failures+=("App Store 用 provisioning profile ではありません")
+  [[ "$firebase_bundle_id" == "com.lightlist.app" ]] || failures+=("GoogleService-Info.plist の BUNDLE_ID が不正です: $firebase_bundle_id")
+  echo "Signing: $authority ($team)"
+  echo "Profile: $(plist "$work/profile.plist" Name) / 有効期限 $(plist "$work/profile.plist" ExpirationDate)"
+  echo "Version: $(plist "$app/Info.plist" CFBundleShortVersionString) ($(plist "$app/Info.plist" CFBundleVersion))"
+  echo "Firebase: $(plist "$app/GoogleService-Info.plist" PROJECT_ID)"
+  if (( ${#failures} )); then
+    printf '%s\n' "${failures[@]}" >&2
+    exit 1
+  fi
+  echo "IPA の署名を確認しました: build-archive/export/Lightlist.ipa"
+
+signing-report:
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  echo "== Team ID"
+  echo "${LIGHTLIST_IOS_TEAM_ID:-未設定（apps/ios/.env.local）}"
+  echo "== App Store Connect API key"
+  if [[ -n "${LIGHTLIST_ASC_KEY_ID:-}" ]]; then
+    just _asc-auth | sed -n 2p
+  else
+    echo "未設定（Xcode の Apple ID ログインを使用）"
+  fi
+  echo "== code signing identities"
+  security find-identity -v -p codesigning
+  echo "== provisioning profiles (com.lightlist.app)"
+  for profile in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"/*(N) "$HOME/Library/MobileDevice/Provisioning Profiles"/*(N); do
+    decoded="$(security cms -D -i "$profile" 2>/dev/null)" || continue
+    app_id="$(plutil -extract Entitlements.application-identifier raw -o - - <<< "$decoded" 2>/dev/null)" || continue
+    [[ "$app_id" == *.com.lightlist.app ]] || continue
+    echo "$(plutil -extract Name raw -o - - <<< "$decoded") / 有効期限 $(plutil -extract ExpirationDate raw -o - - <<< "$decoded")"
+  done
+
+_asc-auth:
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  [[ -n "${LIGHTLIST_ASC_KEY_ID:-}" ]] || exit 0
+  : "${LIGHTLIST_ASC_ISSUER_ID:?LIGHTLIST_ASC_KEY_ID を使う場合は LIGHTLIST_ASC_ISSUER_ID も設定してください}"
+  key_path="${LIGHTLIST_ASC_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_${LIGHTLIST_ASC_KEY_ID}.p8}"
+  if [[ ! -f "$key_path" ]]; then
+    echo "App Store Connect API key がありません: $key_path" >&2
+    exit 1
+  fi
+  print -l -- -authenticationKeyPath "$key_path" -authenticationKeyID "$LIGHTLIST_ASC_KEY_ID" -authenticationKeyIssuerID "$LIGHTLIST_ASC_ISSUER_ID"
 
 run:
   xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/Lightlist.app

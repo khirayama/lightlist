@@ -55,6 +55,7 @@ yarn-error.log*
 *.cer
 *.mobileprovision
 *.provisionprofile
+*.p8
 
 # Firebase local configuration
 apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist
@@ -75,3 +76,6 @@ pubsub-debug.log
 # Crashlytics
 crashlytics-build.properties
 com_crashlytics_export_strings.xml
+
+# Shared iOS formatter configuration
+!apps/ios/.swift-format

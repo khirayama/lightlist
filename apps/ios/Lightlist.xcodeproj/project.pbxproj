@@ -313,7 +313,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ ! -f \"${FIREBASE_PLIST_SOURCE}\" ]; then\n  echo \"Missing Firebase config: ${FIREBASE_PLIST_SOURCE}\" >&2\n  exit 1\nfi\ncp \"${FIREBASE_PLIST_SOURCE}\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\n";
+			shellScript = "if [ ! -f \"${FIREBASE_PLIST_SOURCE}\" ]; then\n  echo \"Missing Firebase config: ${FIREBASE_PLIST_SOURCE}\" >&2\n  exit 1\nfi\nFIREBASE_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c \"Print :BUNDLE_ID\" \"${FIREBASE_PLIST_SOURCE}\")\nif [ \"${FIREBASE_BUNDLE_ID}\" != \"${PRODUCT_BUNDLE_IDENTIFIER}\" ]; then\n  echo \"Firebase config BUNDLE_ID ${FIREBASE_BUNDLE_ID} does not match ${PRODUCT_BUNDLE_IDENTIFIER}\" >&2\n  exit 1\nfi\ncp \"${FIREBASE_PLIST_SOURCE}\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -442,7 +442,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = NO;
-				PASSWORD_RESET_URL = "https://lightlist.com/password_reset";
+				PASSWORD_RESET_URL = "https://lightlist.app/password_reset";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -528,7 +528,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PASSWORD_RESET_URL = "https://lightlist.com/password_reset";
+				PASSWORD_RESET_URL = "https://lightlist.app/password_reset";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;

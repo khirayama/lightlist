@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:lightlist.com</string>
+		<string>applinks:lightlist.app</string>
 	</array>
 	<key>keychain-access-groups</key>
 	<array>

@@ -17,6 +17,7 @@
     "format": "prettier --write .",
     "lint": "eslint . --max-warnings=0",
     "knip": "knip",
+    "check": "npm run prepare:assets && eslint . --max-warnings=0 && tsc --noEmit && knip",
     "build": "vite build",
     "postbuild": "node scripts/write-apple-app-site-association.mjs dist --if-configured && node scripts/write-assetlinks.mjs dist --if-configured && node scripts/version-service-worker.mjs dist",
     "preview": "vite preview",

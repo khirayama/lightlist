@@ -15,7 +15,14 @@ xcuserdata/
 *.gcno
 *.dSYM.zip
 *.dSYM
-Lightlist.xcodeproj/
+Lightlist.xcodeproj/*
+!Lightlist.xcodeproj/project.xcworkspace/
+Lightlist.xcodeproj/project.xcworkspace/*
+!Lightlist.xcodeproj/project.xcworkspace/xcshareddata/
+Lightlist.xcodeproj/project.xcworkspace/xcshareddata/*
+!Lightlist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+Lightlist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!Lightlist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 Tuist/.build/
 .build/
 .swiftpm/

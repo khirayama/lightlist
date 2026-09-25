@@ -48,8 +48,8 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
 ## パスワードリセット
 
 - Web: `sendPasswordResetEmail(email, language?)`。`ActionCodeSettings` は `url: VITE_PASSWORD_RESET_URL`、`handleCodeInApp: false`。`/password_reset/` ページが `oobCode` を検証し、成功時は 2 秒後に `/` へ遷移する。
-- Native: iOS は Info.plist の `PASSWORD_RESET_URL`、Android は `BuildConfig.PASSWORD_RESET_URL` を使う。既定値は `https://lightlist.com/password_reset`。
-- Android の送信は `handleCodeInApp: true`、`setAndroidPackageName(com.lightlist.app, false, null)`、`setLinkDomain(BuildConfig.PASSWORD_RESET_LINK_DOMAIN)` を使う。debug は `lightlist-dev.firebaseapp.com`、release は `lightlist-prod-b0269.firebaseapp.com` を既定の Firebase Hosting link domain とし、Firebase Hosting で実際に構成した custom link domain を使う場合だけ `LIGHTLIST_FIREBASE_AUTH_LINK_DOMAIN` で両 variant を上書きする。Cloudflare Pages の `lightlist.com` は Firebase Hosting link domain として登録済みでない限り、この値に使わない。
+- Native: iOS は Info.plist の `PASSWORD_RESET_URL`、Android は `BuildConfig.PASSWORD_RESET_URL` を使う。既定値は `https://lightlist.app/password_reset`。
+- Android の送信は `handleCodeInApp: true`、`setAndroidPackageName(com.lightlist.app, false, null)`、`setLinkDomain(BuildConfig.PASSWORD_RESET_LINK_DOMAIN)` を使う。debug は `lightlist-dev.firebaseapp.com`、release は `lightlist-prod-b0269.firebaseapp.com` を既定の Firebase Hosting link domain とし、Firebase Hosting で実際に構成した custom link domain を使う場合だけ `LIGHTLIST_FIREBASE_AUTH_LINK_DOMAIN` で両 variant を上書きする。Cloudflare Pages の `lightlist.app` は Firebase Hosting link domain として登録済みでない限り、この値に使わない。
 - Android は Firebase Hosting link の `mode=resetPassword` と `oobCode` を処理し、対応アプリがない端末では Firebase Authentication のメールテンプレートに設定した Web fallback へ遷移する。Web の `/password_reset/` はその fallback を担当する。
 - 検証は `verifyPasswordResetCode(code)`、確定は `confirmPasswordReset(code, newPassword)`。
 - 送信メールの言語は、明示引数 -> 現在設定 -> `ja` の順で解決する。
@@ -61,14 +61,14 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
 
 ## deep link
 
-- パスワードリセット: `lightlist://password-reset?oobCode=...` と `https://lightlist.com/password_reset?oobCode=...`（iOS / Android）
+- パスワードリセット: `lightlist://password-reset?oobCode=...` と `https://lightlist.app/password_reset?oobCode=...`（iOS / Android）
 - 共有コード: [sharing.md](./sharing.md) を参照。
 
 ## Cloudflare Pages 配信時の前提
 
 - Firebase Authentication の authorized domains に Cloudflare Pages の `*.pages.dev` または運用 custom domain を追加する。
 - `VITE_PASSWORD_RESET_URL` は実際に配信する `/password_reset` URL に合わせる。
-- Firebase Console の Authentication > Settings > Authorized domains には Web fallback domain を登録する。Authentication の mobile link / Hosting links 設定では Android app `com.lightlist.app` と、配布に使う signing certificate の SHA-1 / SHA-256 を登録し、`PASSWORD_RESET_LINK_DOMAIN` と同じ Firebase Hosting link domain を有効化する。メールテンプレートの fallback URL は `https://lightlist.com/password_reset` にする。
+- Firebase Console の Authentication > Settings > Authorized domains には Web fallback domain を登録する。Authentication の mobile link / Hosting links 設定では Android app `com.lightlist.app` と、配布に使う signing certificate の SHA-1 / SHA-256 を登録し、`PASSWORD_RESET_LINK_DOMAIN` と同じ Firebase Hosting link domain を有効化する。メールテンプレートの fallback URL は `https://lightlist.app/password_reset` にする。
 
 ## サポート言語
 

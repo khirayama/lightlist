@@ -16,7 +16,7 @@ Web / iOS / Android はアプリ内設定画面からライセンス表記へ遷
 
 ## 運用
 
-- Web のライセンス JSON 生成は `npm run dev` / `build` / `lint` / `typecheck` の前処理に含める。前処理は毎回 `shared/locales/locales.json` の同期とライセンス JSON の再生成を行う。
+- Web のライセンス JSON 生成は `npm run dev` / `build` / `lint` / `typecheck` / `check` の前処理に含める。前処理は毎回 `shared/locales/locales.json` の同期とライセンス JSON の再生成を行う（`check` は前処理を 1 回だけ実行して lint / typecheck / knip を続けて行う）。
 - iOS の `LicensePlist` build tool plugin は初回 build 時に Xcode 上で trust が必要になる。
 - iOS の unattended build で plugin trust dialog を回避する場合は `xcodebuild` に `-skipPackagePluginValidation` を付ける。
 - Android の Debug build と `assembleRelease` では OSS licenses の生成リソースが存在しない場合がある。設定画面から `OssLicensesMenuActivity` を開けない場合は汎用のライセンス読み込みエラーを表示し、Google Play 提出用 AAB では生成済みリソースで表示する。

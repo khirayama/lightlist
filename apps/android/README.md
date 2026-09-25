@@ -11,7 +11,7 @@ just emulator Medium_Phone_API_36.1
 - 生成物は `apps/android/app/build/outputs/apk/release/app-release.apk`。
 - `just bundle-play` は Google Play 提出用の署名済み release AAB を生成する。
 - 生成物は `apps/android/app/build/outputs/bundle/release/app-release.aab`。
-- `just bundle-play` は `LIGHTLIST_ANDROID_KEYSTORE`、`LIGHTLIST_ANDROID_KEYSTORE_PASSWORD`、`LIGHTLIST_ANDROID_KEY_ALIAS`、`LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数として必要とする。
+- 署名情報の管理は `docs/release-android.md` の「Play App Signing」を参照する（keystore のパスと alias は `apps/android/.env.local`、パスワードは login Keychain）。
 
 ## Current UI
 

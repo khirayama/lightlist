@@ -1,4 +1,8 @@
 set shell := ["zsh", "-cu"]
+set dotenv-filename := ".env.local"
+
+keychain_service := "com.lightlist.android.upload-key"
+aab := "app/build/outputs/bundle/release/app-release.aab"
 
 lint:
   ./gradlew lintDebug
@@ -10,7 +14,79 @@ build-release:
   ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease
 
 bundle-play:
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  signing_env="$(just _signing-env)"
+  eval "$signing_env"
   ./gradlew bundleRelease -PLIGHTLIST_REQUIRE_RELEASE_SIGNING=true
+  just verify-bundle
+
+verify-bundle:
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  signing_env="$(just _signing-env)"
+  eval "$signing_env"
+  expected="$(keytool -J-Duser.language=en -list -v -keystore "$LIGHTLIST_ANDROID_KEYSTORE" -alias "$LIGHTLIST_ANDROID_KEY_ALIAS" -storepass:env LIGHTLIST_ANDROID_KEYSTORE_PASSWORD | awk '/SHA256:/ { print $2; exit }')"
+  actual="$(keytool -J-Duser.language=en -printcert -jarfile {{aab}} | awk '/SHA256:/ { print $2; exit }')"
+  if [[ -z "$actual" || "$actual" != "$expected" ]]; then
+    echo "AAB の署名が upload key と一致しません: ${actual:-署名なし}" >&2
+    exit 1
+  fi
+  echo "AAB は upload key で署名済み: {{aab}}"
+  echo "versionCode $(awk -F= '/^LIGHTLIST_VERSION_CODE=/ { print $2 }' gradle.properties) が Play Console のアップロード済みの値より大きいことを確認してください。"
+
+keystore-create:
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  keystore="${LIGHTLIST_ANDROID_KEYSTORE:-$HOME/.lightlist/android/upload-keystore.p12}"
+  key_alias="${LIGHTLIST_ANDROID_KEY_ALIAS:-upload}"
+  if [[ -e "$keystore" ]]; then
+    echo "keystore は既に存在します: $keystore" >&2
+    exit 1
+  fi
+  if security find-generic-password -s {{keychain_service}} -a "$key_alias" >/dev/null 2>&1; then
+    echo "Keychain に {{keychain_service}} / $key_alias が既に存在します" >&2
+    exit 1
+  fi
+  mkdir -p -m 700 "${keystore:h}"
+  export LIGHTLIST_ANDROID_KEYSTORE_PASSWORD="$(openssl rand -base64 48 | tr -d '/+=\n')"
+  keytool -genkeypair -keystore "$keystore" -storetype PKCS12 -alias "$key_alias" \
+    -keyalg RSA -keysize 4096 -validity 10950 -dname "CN=Lightlist Upload Key" \
+    -storepass:env LIGHTLIST_ANDROID_KEYSTORE_PASSWORD -keypass:env LIGHTLIST_ANDROID_KEYSTORE_PASSWORD
+  chmod 600 "$keystore"
+  security add-generic-password -s {{keychain_service}} -a "$key_alias" -l "Lightlist Android upload key" -w "$LIGHTLIST_ANDROID_KEYSTORE_PASSWORD"
+  echo "作成しました: $keystore (alias: $key_alias、パスワードは login Keychain の {{keychain_service}})"
+  echo "apps/android/.env.local に次を設定してください:"
+  echo "LIGHTLIST_ANDROID_KEYSTORE=$keystore"
+  echo "LIGHTLIST_ANDROID_KEY_ALIAS=$key_alias"
+  echo "keystore と 'security find-generic-password -s {{keychain_service}} -a $key_alias -w' のパスワードを別の安全な場所へバックアップしてください。"
+
+signing-report:
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  echo "== debug keystore"
+  keytool -J-Duser.language=en -list -v -keystore "$HOME/.android/debug.keystore" -alias androiddebugkey -storepass android | grep -E 'SHA1:|SHA256:|Valid from'
+  echo "== upload key"
+  if [[ -z "${LIGHTLIST_ANDROID_KEYSTORE:-}" ]]; then
+    echo "LIGHTLIST_ANDROID_KEYSTORE が未設定です（apps/android/.env.local）"
+  else
+    signing_env="$(just _signing-env)"
+    eval "$signing_env"
+    keytool -J-Duser.language=en -list -v -keystore "$LIGHTLIST_ANDROID_KEYSTORE" -alias "$LIGHTLIST_ANDROID_KEY_ALIAS" -storepass:env LIGHTLIST_ANDROID_KEYSTORE_PASSWORD | grep -E 'SHA1:|SHA256:|Valid from'
+  fi
+  echo "== app signing key"
+  echo "Play App Signing の fingerprint は Play Console > App integrity で確認し、Firebase と LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT に使ってください。"
+
+_signing-env:
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  : "${LIGHTLIST_ANDROID_KEYSTORE:?LIGHTLIST_ANDROID_KEYSTORE を環境変数または apps/android/.env.local に設定してください}"
+  : "${LIGHTLIST_ANDROID_KEY_ALIAS:?LIGHTLIST_ANDROID_KEY_ALIAS を環境変数または apps/android/.env.local に設定してください}"
+  password="${LIGHTLIST_ANDROID_KEYSTORE_PASSWORD:-$(security find-generic-password -s {{keychain_service}} -a "$LIGHTLIST_ANDROID_KEY_ALIAS" -w)}"
+  print -r -- "export LIGHTLIST_ANDROID_KEYSTORE=${(q)LIGHTLIST_ANDROID_KEYSTORE}"
+  print -r -- "export LIGHTLIST_ANDROID_KEY_ALIAS=${(q)LIGHTLIST_ANDROID_KEY_ALIAS}"
+  print -r -- "export LIGHTLIST_ANDROID_KEYSTORE_PASSWORD=${(q)password}"
+  print -r -- "export LIGHTLIST_ANDROID_KEY_PASSWORD=${(q)${LIGHTLIST_ANDROID_KEY_PASSWORD:-$password}}"
 
 run:
   adb install -r app/build/outputs/apk/debug/app-debug.apk || { adb uninstall com.lightlist.app || true; adb install app/build/outputs/apk/debug/app-debug.apk; }

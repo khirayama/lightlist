@@ -29,14 +29,17 @@
 ### 1. Apple Developer / App Store Connect の初期設定
 
 - Apple Developer Program に登録する。
-- Team ID を確認し、`LIGHTLIST_IOS_TEAM_ID` として archive 時に渡せるようにする。
+- Team ID を確認し、`apps/ios/.env.local` の `LIGHTLIST_IOS_TEAM_ID` に設定する。
 - App Store Connect で新規 App を作成する。bundle ID は `com.lightlist.app`、プラットフォームは iOS。
 - App 名、プライマリ言語、SKU を決める。価格は無料で開始する想定。
 
-### 2. 署名
+### 2. 署名と証明書
 
-- automatic signing（`CODE_SIGN_STYLE=Automatic` + `-allowProvisioningUpdates`）を使う。
-- archive を実行する Mac に、App Store Connect へアクセスできる Apple ID を Xcode へログインしておく。
+- automatic signing（`CODE_SIGN_STYLE=Automatic` + `-allowProvisioningUpdates`）を使い、Apple Distribution 証明書と App Store 用 provisioning profile は Xcode に作成・更新させる。証明書や profile の手動作成・リポジトリ保存はしない（`*.p12` / `*.cer` / `*.mobileprovision` / `*.p8` は gitignore 対象）。
+- Team ID と App Store Connect API key の識別子は gitignore 対象の `apps/ios/.env.local` に書く（`apps/ios/.env.sample` をコピーして作る）。シェルの環境変数は `.env.local` より優先する。Team ID は Apple Developer の Account > Membership details で確認でき、秘密情報ではない。
+- API key を使う場合は App Store Connect の Users and Access > Integrations で Team key（署名資産を作成できる Admin 権限）を発行し、`.p8` をリポジトリ外（既定 `~/.appstoreconnect/private_keys/`）に置く。`.p8` は再ダウンロードできないため別の安全な場所にもバックアップする。`LIGHTLIST_ASC_KEY_ID` を設定すると `just archive` / `just upload` の `xcodebuild` に `-authenticationKeyPath` / `-authenticationKeyID` / `-authenticationKeyIssuerID` を渡し、Xcode へのログインなしで署名資産を取得する。
+- API key を使わない場合は、App Store Connect へアクセスできる Apple ID を Xcode の Accounts へログインしておく。
+- `just signing-report` で Team ID・API key のパス・手元の code signing identity・`com.lightlist.app` の provisioning profile と有効期限を確認する。
 
 ### 3. Firebase 設定
 
@@ -45,11 +48,11 @@
 
 ### 4. Universal Links / deep links
 
-- associated domains は `applinks:lightlist.com`（`Lightlist/Lightlist.entitlements`）。
-- Universal Links を有効にするには `https://lightlist.com/.well-known/apple-app-site-association` を配置する（Content-Type: `application/json`、リダイレクトなし）。AASA は `apps/web/apple-app-site-association.template.json` から build 後に生成する。
+- associated domains は `applinks:lightlist.app`（`Lightlist/Lightlist.entitlements`）。
+- Universal Links を有効にするには `https://lightlist.app/.well-known/apple-app-site-association` を配置する（Content-Type: `application/json`、リダイレクトなし）。AASA は `apps/web/apple-app-site-association.template.json` から build 後に生成する。
 - Cloudflare Pages の Git integration build と Direct Upload の両方で `LIGHTLIST_IOS_TEAM_ID` を設定する。`npm run cf:preview` / `npm run cf:deploy` は値なしで失敗する。通常の `npm run build` は Web 単体開発を許可するため、値がないと AASA を生成しない。
 - AASA の `appIDs` は `LIGHTLIST_IOS_TEAM_ID.com.lightlist.app`、components は正規共有 URL 用の `/sharecodes/`、互換 URL 用の `/sharecodes/*`、`/password_reset` を対象にする。デプロイ前に実際の endpoint が JSON を返すことを確認する。
-- HTTPS 共有リンクの正規形は `https://lightlist.com/sharecodes/?code=CODE`。`lightlist://password-reset?oobCode=...` と `lightlist://sharecodes/CODE` の custom scheme も確認する。
+- HTTPS 共有リンクの正規形は `https://lightlist.app/sharecodes/?code=CODE`。`lightlist://password-reset?oobCode=...` と `lightlist://sharecodes/CODE` の custom scheme も確認する。
 - AASA 未配置でも審査はブロックされない（https リンクは Web へフォールバックする）。
 
 ### 5. App Store 提出物の生成
@@ -58,12 +61,15 @@
 
 ```sh
 cd apps/ios
-LIGHTLIST_IOS_TEAM_ID=XXXXXXXXXX just archive
+just archive
+just upload
 ```
 
-- 出力 IPA は `apps/ios/build-archive/export/Lightlist.ipa`。
-- アップロードは Xcode Organizer、Transporter app、または `xcodebuild -exportArchive` 後に Transporter で行う。
-- export 設定は `apps/ios/ExportOptions.plist`（method `app-store-connect`、automatic signing、dSYM upload あり）。
+- `just archive` は `build-archive/` を作り直し、`ExportOptions.plist` に Team ID を入れた export 設定で archive と IPA export を行う。出力 IPA は `apps/ios/build-archive/export/Lightlist.ipa`。
+- `just archive` は最後に `just verify-ipa` を実行し、Apple Distribution 証明書での署名・TeamIdentifier・`get-task-allow` が無効・`applinks:lightlist.app` の entitlement・App Store 用 profile（登録端末なし）・同梱 `GoogleService-Info.plist` の `BUNDLE_ID` を検証する。profile の有効期限、版数、Firebase project ID も表示する。
+- `just upload` は同じ archive を `destination=upload` で export し、App Store Connect へ直接アップロードする。Xcode Organizer や Transporter で `Lightlist.ipa` をアップロードしてもよい。
+- export 設定の正本は `apps/ios/ExportOptions.plist`（method `app-store-connect`、automatic signing、dSYM upload あり）。
+- Debug / Release の build は `Copy Firebase Config` script で `GoogleService-Info.plist` の存在と `BUNDLE_ID` が `PRODUCT_BUNDLE_IDENTIFIER` と一致することを確認し、不一致なら失敗する。
 
 ### 6. Store listing
 

@@ -1,3 +1,5 @@
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -7,14 +9,14 @@ plugins {
 }
 
 val requestedTaskNames = gradle.startParameter.taskNames
-val shouldGenerateOssLicenses =
+val isPlaySubmissionBuild =
     requestedTaskNames.any { taskName ->
         taskName == "bundle-play" ||
             taskName == "bundleRelease" ||
             taskName.endsWith(":bundleRelease")
     }
 
-if (shouldGenerateOssLicenses) {
+if (isPlaySubmissionBuild) {
     apply(plugin = "com.google.android.gms.oss-licenses-plugin")
 }
 
@@ -30,7 +32,7 @@ val lightlistApplicationId =
     providers.gradleProperty("LIGHTLIST_APPLICATION_ID").orElse("com.lightlist.app").get()
 val passwordResetUrl =
     providers.gradleProperty("PASSWORD_RESET_URL")
-        .orElse("https://lightlist.com/password_reset")
+        .orElse("https://lightlist.app/password_reset")
         .get()
 val passwordResetLinkDomainOverride =
     providers.gradleProperty("LIGHTLIST_FIREBASE_AUTH_LINK_DOMAIN")
@@ -40,10 +42,8 @@ val debugPasswordResetLinkDomain =
 val releasePasswordResetLinkDomain =
     passwordResetLinkDomainOverride.orElse("lightlist-prod-b0269.firebaseapp.com").get()
 val versionCodeValue =
-    providers.gradleProperty("LIGHTLIST_VERSION_CODE")
-        .map(String::toInt)
-        .orElse(1)
-        .get()
+    providers.gradleProperty("LIGHTLIST_VERSION_CODE").map(String::toInt).get()
+val versionNameValue = providers.gradleProperty("LIGHTLIST_VERSION_NAME").get()
 val releaseKeystorePath =
     providers.gradleProperty("LIGHTLIST_ANDROID_KEYSTORE")
         .orElse(providers.environmentVariable("LIGHTLIST_ANDROID_KEYSTORE"))
@@ -78,6 +78,9 @@ if (requireReleaseSigning && !hasReleaseSigning) {
         "Google Play submission requires LIGHTLIST_ANDROID_KEYSTORE, LIGHTLIST_ANDROID_KEYSTORE_PASSWORD, LIGHTLIST_ANDROID_KEY_ALIAS, and LIGHTLIST_ANDROID_KEY_PASSWORD."
     )
 }
+if (hasReleaseSigning && !file(releaseKeystorePath!!).isFile) {
+    throw GradleException("Release keystore not found: $releaseKeystorePath")
+}
 
 android {
     namespace = "com.lightlist.app"
@@ -88,7 +91,7 @@ android {
         minSdk = 24
         targetSdk = 37
         versionCode = versionCodeValue
-        versionName = "1.0"
+        versionName = versionNameValue
         buildConfigField("String", "PASSWORD_RESET_URL", "\"$passwordResetUrl\"")
         buildConfigField(
             "String",
@@ -122,6 +125,9 @@ android {
                 }
             isMinifyEnabled = true
             isShrinkResources = true
+            configure<CrashlyticsExtension> {
+                mappingFileUploadEnabled = isPlaySubmissionBuild
+            }
             buildConfigField(
                 "String",
                 "PASSWORD_RESET_LINK_DOMAIN",

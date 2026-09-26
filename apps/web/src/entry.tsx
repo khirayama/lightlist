@@ -2324,7 +2324,8 @@ type TranslationBundle = {
 };
 
 const getTranslationBundle = (language: Language): TranslationBundle =>
-  i18next.getResourceBundle(language, "translation") as TranslationBundle;
+  (i18next.getResourceBundle(language, "translation") ??
+    i18next.getResourceBundle(DEFAULT_LANGUAGE, "translation")) as TranslationBundle;
 
 const requireCurrentUser = (): FirebaseAuthUser => {
   const user = getAuthInstance().currentUser;
@@ -2633,7 +2634,9 @@ const getRelativePatterns = (language: Language): DatePattern[] => {
       return null;
     },
   }));
-  relativePatternsCache.set(language, result);
+  if (i18next.hasResourceBundle(language, "translation")) {
+    relativePatternsCache.set(language, result);
+  }
   return result;
 };
 
@@ -2654,7 +2657,9 @@ const getPinPrefixRegex = (language: Language): RegExp => {
     String.raw`^(?:${tokens.map(escapeRegex).join("|")})(?=\s|$)`,
     "iu",
   );
-  pinPrefixRegexCache.set(language, result);
+  if (i18next.hasResourceBundle(language, "translation")) {
+    pinPrefixRegexCache.set(language, result);
+  }
   return result;
 };
 

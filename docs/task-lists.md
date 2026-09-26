@@ -93,7 +93,7 @@
 
 ## 入力解析
 
-Web の parser を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。本文編集の確定時も同じ parser を通す。
+Web の parser を正本とし、iOS / Android も対応言語・数字正規化・先頭一致ルールを揃える。本文編集の確定時も同じ parser を通す。選択中の言語 bundle が読み込み中の場合は既定言語 bundle を使い、タスク入力を例外で中断しない。
 
 - 先頭から最大 2 つの修飾子を順不同で剥がす。`pin prefix -> date -> text` と `date -> pin prefix -> text` の両方を許可する。
 - 日付表現は `yyyy-mm-dd` / `mm-dd` / `mm/dd` / `mm.dd` と各言語の相対表現を扱う。全言語で英語相対表現（`today` / `tomorrow` / `day after tomorrow` / `in N days` / `N days later` / 英語曜日名）も許可する。

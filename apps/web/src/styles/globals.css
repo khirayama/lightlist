@@ -559,6 +559,43 @@
   }
 }
 
+@keyframes ll-check-fill {
+  0% {
+    box-shadow: 0 0 0 0 var(--ll-check-ring);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+:root {
+  --ll-ease-spring: linear(
+    0,
+    0.009,
+    0.035 2.1%,
+    0.141 4.4%,
+    0.723 12.9%,
+    0.938 16.7%,
+    1.017 19.4%,
+    1.067,
+    1.099 24.3%,
+    1.108 26%,
+    1.103,
+    1.089 30.4%,
+    1.013 38.2%,
+    0.994 43%,
+    0.988 46.5%,
+    0.99 51.4%,
+    1.001 66.6%,
+    1
+  );
+  --ll-check-ring: rgb(17 24 39 / 0.25);
+}
+
+.dark {
+  --ll-check-ring: rgb(249 250 251 / 0.3);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .ll-anim-task-enter {
     animation: ll-task-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
@@ -574,12 +611,6 @@
 
   .ll-offline-notice-pill {
     animation: ll-pop-in 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .ll-check-circle {
-    transition:
-      background-color 0.18s ease,
-      border-color 0.18s ease;
   }
 
   .ll-calendar-day {
@@ -646,23 +677,30 @@
     }
   }
 
-  .ll-settings-toggle,
-  .ll-settings-toggle-thumb,
-  .ll-add-task-submit {
-    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-    transition-duration: 0.18s;
-  }
-
   .ll-settings-toggle {
-    transition-property: background-color, border-color;
+    transition:
+      background-color 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.18s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .ll-settings-toggle-thumb {
-    transition-property: transform;
+    transition: transform 0.32s var(--ll-ease-spring);
   }
 
-  .ll-add-task-submit {
-    transition-property: opacity;
+  .ll-add-task-submit.ll-pressable {
+    transition:
+      opacity 0.16s ease-out,
+      scale 0.28s var(--ll-ease-spring),
+      rotate 0.28s var(--ll-ease-spring);
+  }
+
+  .ll-add-task-submit.ll-opacity-0 {
+    scale: 0.6;
+    rotate: -30deg;
+  }
+
+  [dir="rtl"] .ll-add-task-submit.ll-opacity-0 {
+    rotate: 30deg;
   }
 
   .ll-carousel-indicator {
@@ -676,11 +714,59 @@
   }
 
   .ll-pressable {
-    transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1);
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      opacity 0.16s ease-out,
+      scale 0.32s var(--ll-ease-spring);
   }
 
-  .ll-pressable:active {
-    transform: scale(0.97);
+  .ll-pressable:active:not(:disabled) {
+    scale: 0.94;
+    transition-duration: 0.08s;
+    transition-timing-function: ease-out;
+  }
+
+  .ll-btn.ll-pressable:active:not(:disabled) {
+    scale: 0.97;
+  }
+
+  .ll-nav-row,
+  .ll-sidebar-item,
+  .ll-settings-row {
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      scale 0.32s var(--ll-ease-spring);
+  }
+
+  .ll-nav-row:active,
+  .ll-sidebar-item:active,
+  .ll-settings-row:active {
+    scale: 0.985;
+    transition-duration: 0.08s;
+  }
+
+  .ll-check-circle {
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      scale 0.36s var(--ll-ease-spring);
+  }
+
+  .ll-peer:active:not(:disabled) + .ll-check-circle {
+    scale: 0.78;
+    transition-duration: 0.08s;
+  }
+
+  .ll-peer:focus + .ll-task-completion-circle[data-completed="true"] {
+    animation: ll-check-fill 0.36s var(--ll-ease-spring);
+  }
+
+  .ll-task-row-text {
+    transition:
+      color 0.2s ease,
+      text-decoration-color 0.2s ease;
   }
 
   .ll-task-row {

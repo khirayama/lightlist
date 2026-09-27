@@ -236,6 +236,56 @@ private enum AppButtonVariant {
     case danger
 }
 
+private enum AppMotion {
+    static let pressIn = Animation.easeOut(duration: 0.08)
+    static let release = Animation.spring(response: 0.32, dampingFraction: 0.55)
+
+    static func press(_ isPressed: Bool, reduceMotion: Bool) -> Animation? {
+        reduceMotion ? nil : (isPressed ? pressIn : release)
+    }
+}
+
+private struct CompletionPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.78 : 1)
+            .animation(AppMotion.press(configuration.isPressed, reduceMotion: reduceMotion), value: configuration.isPressed)
+    }
+}
+
+private struct CompletionRipple: View {
+    let completed: Bool
+    let reduceMotion: Bool
+
+    private struct Frame {
+        var scale: CGFloat = 1
+        var opacity: Double = 0
+    }
+
+    var body: some View {
+        Circle()
+            .fill(Color.primary)
+            .keyframeAnimator(initialValue: Frame(), trigger: completed) { content, frame in
+                content
+                    .scaleEffect(frame.scale)
+                    .opacity(frame.opacity)
+            } keyframes: { _ in
+                KeyframeTrack(\.scale) {
+                    MoveKeyframe(1)
+                    CubicKeyframe(2, duration: 0.36)
+                }
+                KeyframeTrack(\.opacity) {
+                    MoveKeyframe(completed && !reduceMotion ? 0.25 : 0)
+                    LinearKeyframe(0, duration: 0.36)
+                }
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
 private struct AppButtonStyle: ButtonStyle {
     let variant: AppButtonVariant
     var fullWidth = false
@@ -260,7 +310,7 @@ private struct AppButtonStyle: ButtonStyle {
             .contentShape(shape)
             .opacity(isEnabled ? 1 : 0.45)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
+            .animation(AppMotion.press(configuration.isPressed, reduceMotion: reduceMotion), value: configuration.isPressed)
     }
 
     private var foregroundColor: Color {
@@ -293,7 +343,7 @@ private struct AppIconButtonStyle: ButtonStyle {
             .contentShape(Rectangle())
             .opacity(isEnabled ? 1 : 0.45)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.94 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
+            .animation(AppMotion.press(configuration.isPressed, reduceMotion: reduceMotion), value: configuration.isPressed)
     }
 }
 
@@ -453,7 +503,7 @@ private struct TaskToolbarButtonStyle: ButtonStyle {
             .contentShape(Rectangle())
             .opacity(isEnabled ? 1 : 0.5)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
+            .animation(AppMotion.press(configuration.isPressed, reduceMotion: reduceMotion), value: configuration.isPressed)
     }
 }
 
@@ -4653,6 +4703,7 @@ private struct TaskListRowFrameKey: PreferenceKey {
 private struct TaskListDetailPage: View {
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.layoutDirection) private var layoutDirection
     let taskList: TaskListDetail
     let taskInsertPosition: String
     let autoSort: Bool
@@ -4845,6 +4896,8 @@ private struct TaskListDetailPage: View {
             toggleCompletion(task)
         } label: {
             ZStack {
+                CompletionRipple(completed: task.completed, reduceMotion: reduceMotion)
+                    .frame(width: TaskListDetailMetrics.completionDotSize, height: TaskListDetailMetrics.completionDotSize)
                 Circle()
                     .strokeBorder(mutedIconColor, lineWidth: strokeWidth)
                     .background(
@@ -4857,7 +4910,7 @@ private struct TaskListDetailPage: View {
             .frame(width: TaskListDetailMetrics.completionTouchWidth, height: TaskListDetailMetrics.completionTouchHeight)
             .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.65), value: task.completed)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(CompletionPressStyle())
         .disabled(!allowsTaskEditing)
         .alignmentGuide(.taskRowContentCenter) { dimensions in
             dimensions[VerticalAlignment.center]
@@ -5330,8 +5383,10 @@ private struct TaskListDetailPage: View {
             .buttonStyle(AppIconButtonStyle())
             .padding(.trailing, 2)
             .opacity(trimmedNewTaskText.isEmpty ? 0 : 1)
+            .scaleEffect(trimmedNewTaskText.isEmpty && !reduceMotion ? 0.6 : 1)
+            .rotationEffect(.degrees(trimmedNewTaskText.isEmpty && !reduceMotion ? (layoutDirection == .rightToLeft ? 30 : -30) : 0))
             .disabled(trimmedNewTaskText.isEmpty)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: trimmedNewTaskText.isEmpty)
+            .animation(reduceMotion ? nil : AppMotion.release, value: trimmedNewTaskText.isEmpty)
             .accessibilityLabel(translations.t("common.add"))
             .accessibilityHidden(trimmedNewTaskText.isEmpty)
         }
@@ -7459,7 +7514,7 @@ private struct CalendarTaskRow: View {
                         )
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(CompletionPressStyle())
                 .accessibilityLabel(task.text)
                 .accessibilityValue(translations.t("pages.tasklist.markComplete"))
 

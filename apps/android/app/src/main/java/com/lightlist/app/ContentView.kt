@@ -21,6 +21,8 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -75,6 +77,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
@@ -1228,15 +1231,50 @@ private fun Modifier.bleed(start: Dp = 0.dp, end: Dp = 0.dp): Modifier = layout 
 }
 
 @Composable
-private fun rememberPressScale(interactionSource: MutableInteractionSource): Float {
+private fun rememberPressScale(
+    interactionSource: MutableInteractionSource,
+    pressedScale: Float = 0.97f
+): Float {
     val pressed by interactionSource.collectIsPressedAsState()
     val reduceMotion = LocalReduceMotion.current
     val scale by animateFloatAsState(
-        targetValue = if (pressed && !reduceMotion) 0.97f else 1f,
-        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 150),
+        targetValue = if (pressed && !reduceMotion) pressedScale else 1f,
+        animationSpec = when {
+            reduceMotion -> snap()
+            pressed -> tween(durationMillis = 80, easing = LinearOutSlowInEasing)
+            else -> AppMotion.releaseSpring()
+        },
         label = "pressScale"
     )
     return scale
+}
+
+@Composable
+private fun Modifier.completionRipple(completed: Boolean): Modifier {
+    val reduceMotion = LocalReduceMotion.current
+    val ringColor = MaterialTheme.colorScheme.onSurface
+    val progress = remember { Animatable(1f) }
+    var previous by remember { mutableStateOf(completed) }
+    LaunchedEffect(completed) {
+        if (completed && !previous && !reduceMotion) {
+            progress.snapTo(0f)
+            progress.animateTo(1f, tween(durationMillis = 360, easing = LinearOutSlowInEasing))
+        }
+        previous = completed
+    }
+    return drawBehind {
+        val value = progress.value
+        if (value < 1f) {
+            drawCircle(
+                color = ringColor.copy(alpha = 0.25f * (1f - value)),
+                radius = size.minDimension / 2f + 10.dp.toPx() * value
+            )
+        }
+    }
+}
+
+private object AppMotion {
+    fun <T> releaseSpring() = spring<T>(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow)
 }
 
 @Composable
@@ -1323,7 +1361,7 @@ private fun AppIconButton(
     size: Dp = 48.dp
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource)
+    val scale = rememberPressScale(interactionSource, pressedScale = 0.94f)
     Box(
         modifier = modifier
             .size(size)
@@ -1623,7 +1661,7 @@ private fun AppSwitch(checked: Boolean, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 24.dp else 4.dp,
-        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 150),
+        animationSpec = if (reduceMotion) snap() else AppMotion.releaseSpring(),
         label = "switchThumb"
     )
     val trackColor = if (checked) colors.primary else if (dark) colors.surfaceContainer else AppGray.g300
@@ -5180,6 +5218,8 @@ private fun CalendarTaskRow(
     }
     val mutedText = mutedTextColor()
     val mutedIcon = mutedIconColor()
+    val calendarCompletionInteractionSource = remember { MutableInteractionSource() }
+    val calendarCompletionPressScale = rememberPressScale(calendarCompletionInteractionSource, pressedScale = 0.78f)
     val metaTextStyle = TextStyle(
         fontFamily = GenInterfaceJPBodyFontFamily,
         fontSize = 12.sp,
@@ -5253,7 +5293,12 @@ private fun CalendarTaskRow(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable(role = Role.Checkbox, onClick = onToggleComplete)
+                    .clickable(
+                        interactionSource = calendarCompletionInteractionSource,
+                        indication = LocalIndication.current,
+                        role = Role.Checkbox,
+                        onClick = onToggleComplete
+                    )
                     .semantics {
                         contentDescription = task.text
                         toggleableState = ToggleableState(task.completed)
@@ -5264,6 +5309,10 @@ private fun CalendarTaskRow(
                 Box(
                     Modifier
                         .size(TaskListDetailMetrics.completionDotSize)
+                        .graphicsLayer {
+                            scaleX = calendarCompletionPressScale
+                            scaleY = calendarCompletionPressScale
+                        }
                         .border(1.dp, if (task.completed) Color.Transparent else mutedIcon, CircleShape)
                         .background(if (task.completed) completedFillColor() else Color.Transparent, CircleShape)
                 )
@@ -6400,6 +6449,8 @@ private fun TaskListRow(
         },
         label = "completionFillScale"
     )
+    val completionInteractionSource = remember { MutableInteractionSource() }
+    val completionPressScale = rememberPressScale(completionInteractionSource, pressedScale = 0.78f)
 
     Row(
         modifier = modifier
@@ -6454,12 +6505,21 @@ private fun TaskListRow(
                     role = Role.Checkbox
                     toggleableState = ToggleableState(task.completed)
                 }
-                .clickable(enabled = allowTaskEditing) { onToggleCompletion() },
+                .clickable(
+                    interactionSource = completionInteractionSource,
+                    indication = LocalIndication.current,
+                    enabled = allowTaskEditing
+                ) { onToggleCompletion() },
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
                     .size(TaskListDetailMetrics.completionDotSize)
+                    .completionRipple(task.completed)
+                    .graphicsLayer {
+                        scaleX = completionPressScale
+                        scaleY = completionPressScale
+                    }
                     .border(1.dp, completionBorderColor, CircleShape)
             ) {
                 Box(
@@ -6588,7 +6648,7 @@ private fun TaskListRow(
         }
         if (allowTaskEditing) {
             val actionInteractionSource = remember { MutableInteractionSource() }
-            val actionScale = rememberPressScale(actionInteractionSource)
+            val actionScale = rememberPressScale(actionInteractionSource, pressedScale = 0.94f)
             Box(
                 modifier = Modifier
                     .size(TaskListDetailMetrics.controlSize)
@@ -7345,6 +7405,12 @@ private fun TaskListDetailContent(
                     animationSpec = if (reduceMotion) snap() else tween(durationMillis = 150),
                     label = "addActionAlpha"
                 )
+                val addActionProgress by animateFloatAsState(
+                    targetValue = if (canAddTask || reduceMotion) 1f else 0f,
+                    animationSpec = if (reduceMotion) snap() else AppMotion.releaseSpring(),
+                    label = "addActionProgress"
+                )
+                val addActionRotation = if (LocalLayoutDirection.current == LayoutDirection.Rtl) 30f else -30f
                 BasicTextField(
                     value = newTaskText,
                     onValueChange = { newTaskText = it },
@@ -7407,6 +7473,12 @@ private fun TaskListDetailContent(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .padding(end = 2.dp)
+                        .graphicsLayer {
+                            val scale = 0.6f + 0.4f * addActionProgress
+                            scaleX = scale
+                            scaleY = scale
+                            rotationZ = (1f - addActionProgress) * addActionRotation
+                        }
                         .alpha(addActionAlpha)
                 )
                 DropdownMenu(

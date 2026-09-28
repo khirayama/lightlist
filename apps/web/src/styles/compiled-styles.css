@@ -872,17 +872,9 @@
     border-top-style: var(--ll-border-style);
     border-top-width: 1px;
   }
-  .ll-border-r {
-    border-right-style: var(--ll-border-style);
-    border-right-width: 1px;
-  }
   .ll-border-b {
     border-bottom-style: var(--ll-border-style);
     border-bottom-width: 1px;
-  }
-  .ll-border-l {
-    border-left-style: var(--ll-border-style);
-    border-left-width: 1px;
   }
   .ll-border-0 {
     border-style: var(--ll-border-style);

@@ -2552,8 +2552,6 @@ struct RootView: View {
         normalizedStartupView(UserDefaults.standard.string(forKey: cachedStartupViewKey)) == "calendar"
         ? .calendar
         : .taskList
-    @State private var splitVisibility: NavigationSplitViewVisibility = .all
-    @State private var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
     @State private var pendingPasswordResetCode: String?
     @State private var pendingSharePreviewCode: String?
     @State private var pendingShareCode: String?
@@ -2743,10 +2741,7 @@ struct RootView: View {
     }
 
     private var regularRoot: some View {
-        NavigationSplitView(
-            columnVisibility: $splitVisibility,
-            preferredCompactColumn: $preferredCompactColumn
-        ) {
+        HStack(spacing: 0) {
             TaskListsView(
                 path: $path,
                 pendingShareCode: $pendingShareCode,
@@ -2766,8 +2761,8 @@ struct RootView: View {
                     selectedRegularPane = .calendar
                 }
             )
-            .navigationSplitViewColumnWidth(min: 360, ideal: 360, max: 360)
-        } detail: {
+            .frame(width: 360)
+
             ZStack {
                 AppPalette.pageBackground
                     .ignoresSafeArea()
@@ -2794,6 +2789,7 @@ struct RootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func startListening() {

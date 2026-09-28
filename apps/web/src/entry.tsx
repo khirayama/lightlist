@@ -9393,13 +9393,8 @@ function AppShellPage() {
         )}
       >
         {isWideLayout ? (
-          <aside
-            className={clsx(
-              "ll-sticky ll-top-0 ll-w-360px ll-max-w-420px ll-shrink-0b ll-self-stretch ll-border-gray-300",
-              isRtl ? "ll-border-l" : "ll-border-r",
-            )}
-          >
-            <div className="ll-flex ll-h-full ll-flex-col ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-dark-border-gray-700 ll-dark-bg-gray-900b">
+          <aside className="ll-sticky ll-top-0 ll-w-360px ll-max-w-420px ll-shrink-0b ll-self-stretch">
+            <div className="ll-flex ll-h-full ll-flex-col ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-dark-bg-gray-900b">
               {isSessionPending || isTaskListsHydrating
                 ? taskListsPanelSkeleton
                 : drawerPanel}

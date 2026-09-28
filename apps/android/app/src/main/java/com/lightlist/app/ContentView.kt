@@ -6075,13 +6075,6 @@ private fun TabletRootScreen(
 
         Box(
             modifier = Modifier
-                .fillMaxHeight()
-                .width(1.dp)
-                .background(MaterialTheme.colorScheme.outlineVariant)
-        )
-
-        Box(
-            modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
         ) {

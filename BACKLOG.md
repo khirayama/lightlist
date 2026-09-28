@@ -1,0 +1,3 @@
+- LP最新化
+- Android配信開始
+- SignUpできるか確認

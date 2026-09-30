@@ -14,7 +14,9 @@
     "error": "Une erreur est survenue",
     "done": "Terminé",
     "selected": "Sélectionné",
-    "offline": "Hors ligne. Les modifications seront synchronisées à la reconnexion"
+    "offline": "Hors ligne. Les modifications seront synchronisées à la reconnexion",
+    "syncFailed": "Certaines modifications n'ont pas pu être synchronisées. Le contenu le plus récent est affiché",
+    "requiresConnection": "Cette action nécessite une connexion Internet"
   },
   "auth": {
     "tabs": {
@@ -82,7 +84,8 @@
     },
     "signOutConfirm": {
       "title": "Se déconnecter",
-      "message": "Voulez-vous vraiment vous déconnecter ?"
+      "message": "Voulez-vous vraiment vous déconnecter ?",
+      "unsyncedMessage": "Certaines modifications ne sont pas encore synchronisées. Elles restent sur cet appareil et seront synchronisées lorsque vous vous reconnecterez avec le même compte. Se déconnecter ?"
     },
     "deleteAccountConfirm": {
       "title": "Supprimer le compte",
@@ -310,6 +313,7 @@
       "markComplete": "Non terminée. Touchez pour marquer comme terminée",
       "markIncomplete": "Terminée. Touchez pour marquer comme non terminée",
       "noTasks": "Aucune tâche",
+      "allCompleted": "Tout est terminé",
       "dragHint": "Glisser pour réorganiser",
       "sort": "Trier",
       "deleteCompleted": "Supprimer les tâches terminées",

@@ -23,6 +23,7 @@
 ## Firebase・配信
 
 - Firebase App Check は使用しない。Web / iOS / Android のクライアントで provider を初期化せず、Firebase Console の enforcement も有効化しない。
+- Rules が要求する書き込み形をクライアントへ入れる変更は、本番 Rules のデプロイ（必要なら Admin backfill 先行）をアプリ配布より先に行い、本番 ruleset がリポジトリと一致することを確認する。サインアップ初期データは冪等な `ensureInitialUserData` で作成し、settings の不在をサーバー確定 snapshot で検知したら自己修復する。
 - Firebase のデプロイ設定（`firestore.rules`、`firebase.json`、`.firebaserc`、`firestore.indexes.json`）はリポジトリルートに置く。
 - Web の本番配信は Cloudflare Pages とする。Root directory は `apps/web`、output directory は `dist`、Node.js は `apps/web/.node-version` の `24.19.0`、package manager は `apps/web/package.json` の `npm@12.0.2` に固定する。
 - npm 12 の依存 install script は `apps/web/package.json` の完全バージョン付き `allowScripts` で明示承認し、依存更新時は `npm install-scripts ls` で未承認がないことを確認する。
@@ -50,9 +51,10 @@
 - 起動は cache-first とし、Web / iOS / Android の設定・taskListOrder・taskLists cache を listener の live snapshot より先に利用できるようにする。taskListOrder の順序付き ID は uid ごとの軽量な端末 storage に保持し、次回起動の taskLists 先読み・購読を order snapshot より先に開始する。Web は listener の初回 cache snapshot を hydrate に使って同一参照の cache get を重ねず、iOS の warm-up は cache read を並列化する。cache の古い内容は後続 listener で更新する。
 - Web の compact layout / carousel は表示中の画面だけを Tab 順と accessibility tree に含め、画面切替時は main landmark へフォーカスを移す（初回表示を除く）。認証は signin / signup の選択中タブだけを Tab 順に含め、左右矢印・Home / End で切り替える。並び替えはスクリーンリーダーとハードウェアキーボードでも実行できる。
 - Web の build は Vite 8 / Rolldown の `codeSplitting.groups` を使い、フォントは通常 400 / 500 / 600 / 700 と表示 700 だけを非同期配信する。
-- 削除系の確認は 3 プラットフォームともアプリの確認ダイアログで行い、Web で `window.confirm` を使わない。オフライン中は各 app のルートに置いた `OfflineNotice` で画面下部に `common.offline` を表示する。
+- 削除系の確認は 3 プラットフォームともアプリの確認ダイアログで行い、Web で `window.confirm` を使わない。オフライン中は各 app のルートに置いた `OfflineNotice` で画面下部に `common.offline` を表示し、同じ場所にサーバーに拒否された書き込みの `common.syncFailed` も表示する。
+- オフライン対応は Firestore の永続 cache とローカル書き込みに任せ、UI は書き込みのサーバー応答を待たずに SDK 投入時点で閉じる・遷移する。サーバー応答は pending の解放と同期失敗通知だけに使う。書き込み前の読み取りは cache 優先とし、サーバー判定が必要な操作（認証・メール変更・退会・共有コード・共有参加）はオフライン中に無効化して `common.requiresConnection` を表示する。ログアウトは `waitForPendingWrites` で未送信を確認して警告し、cache は削除しない。詳細は `AGENTS.md`。
 - 3 プラットフォームは WCAG 2.2 AA のコントラスト（文字 4.5:1、アイコン・枠線・状態表示 3:1）を light / dark と背景色付きタスクリストを含めて満たす。補助色は前景色の透過で表し、背景色付きリスト上では濃くする。完了 task は行の opacity でなく muted 文字色 + 取り消し線で表し、完了トグルはタスク本文を名前にして状態を公開する。詳細値は `AGENTS.md` を参照する。
-- Web / iOS / Android の motion は Reduce Motion を尊重する。iOS / Android のタスク操作には共通方針の触覚 feedback を返す。
+- Web / iOS / Android の motion は Reduce Motion を尊重する。iOS / Android のタスク操作には共通方針の触覚 feedback を返す。autoSort の完了切替は行を約 200ms 元の位置に留めてから移動し、位置保持は描画用の配列だけに適用して保存・pending の基準配列に混ぜない。
 - Web の並び替えは現行 `@dnd-kit/react` / `@dnd-kit/dom` / `@dnd-kit/abstract` を使い、旧 dnd-kit package 群を混在させない。
 
 ## プラットフォーム固有の制約

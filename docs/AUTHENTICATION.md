@@ -25,7 +25,12 @@
 
 ## サインアップ（Web / Native 共通）
 
-Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作成する。
+Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作成する。初期データ作成は Web / iOS / Android 共通の冪等処理として扱う。
+
+- サーバーから `settings/{uid}` を読み、存在すれば何もしない。`taskListOrder/{uid}` が既にあれば `settings` だけを作成する。
+- 初期データ作成に失敗しても Auth ユーザーは削除せず、サインアップは完了扱いにして失敗を匿名の例外ログに残す。
+- ログイン中の settings listener がサーバー確定（`fromCache == false` かつ `hasPendingWrites == false`）で `settings/{uid}` の不在を受け取ったら、同じ処理で初期データを作成して自己修復する。言語は端末（Web は現在の UI 言語）から解決する。
+- 同一プロセス内の同時実行は uid 単位で 1 本にまとめる。
 
 - 作成対象: `settings/{uid}` / `taskLists/{taskListId}` / `taskLists/{taskListId}/members/{uid}` / `taskListOrder/{uid}`
 - 初期設定: `theme: "system"` / `language: normalizeLanguage(language)` / `taskInsertPosition: "top"` / `autoSort: true` / `startupView: "taskList"`

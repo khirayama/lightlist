@@ -14,7 +14,9 @@
     "error": "Ein Fehler ist aufgetreten",
     "done": "Fertig",
     "selected": "Ausgewählt",
-    "offline": "Offline. Änderungen werden nach der erneuten Verbindung synchronisiert"
+    "offline": "Offline. Änderungen werden nach der erneuten Verbindung synchronisiert",
+    "syncFailed": "Einige Änderungen konnten nicht synchronisiert werden. Der aktuelle Stand wird angezeigt",
+    "requiresConnection": "Für diese Aktion ist eine Internetverbindung erforderlich"
   },
   "auth": {
     "tabs": {
@@ -82,7 +84,8 @@
     },
     "signOutConfirm": {
       "title": "Abmelden",
-      "message": "Möchtest du dich wirklich abmelden?"
+      "message": "Möchtest du dich wirklich abmelden?",
+      "unsyncedMessage": "Einige Änderungen sind noch nicht synchronisiert. Sie bleiben auf diesem Gerät und werden synchronisiert, wenn du dich erneut mit demselben Konto anmeldest. Abmelden?"
     },
     "deleteAccountConfirm": {
       "title": "Konto löschen",
@@ -309,6 +312,7 @@
       "markComplete": "Nicht erledigt. Tippe, um als erledigt zu markieren",
       "markIncomplete": "Erledigt. Tippe, um als nicht erledigt zu markieren",
       "noTasks": "Keine Aufgaben",
+      "allCompleted": "Alles erledigt",
       "dragHint": "Zum Neuordnen ziehen",
       "sort": "Sortieren",
       "deleteCompleted": "Abgeschlossene Aufgaben löschen",

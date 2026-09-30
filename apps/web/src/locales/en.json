@@ -14,7 +14,9 @@
     "error": "An error occurred",
     "done": "Done",
     "selected": "Selected",
-    "offline": "You're offline. Changes will sync when you reconnect"
+    "offline": "You're offline. Changes will sync when you reconnect",
+    "syncFailed": "Some changes couldn't be synced. Showing the latest content",
+    "requiresConnection": "This action requires an internet connection"
   },
   "auth": {
     "tabs": {
@@ -82,7 +84,8 @@
     },
     "signOutConfirm": {
       "title": "Sign Out",
-      "message": "Are you sure you want to sign out?"
+      "message": "Are you sure you want to sign out?",
+      "unsyncedMessage": "You have changes that haven't synced yet. They'll stay on this device and sync when you sign in again with the same account. Sign out?"
     },
     "deleteAccountConfirm": {
       "title": "Delete Account",
@@ -308,6 +311,7 @@
       "markComplete": "Not completed, tap to mark as completed",
       "markIncomplete": "Completed, tap to mark as not completed",
       "noTasks": "No tasks",
+      "allCompleted": "All done",
       "dragHint": "Drag to reorder",
       "sort": "Sort",
       "deleteCompleted": "Delete completed tasks",

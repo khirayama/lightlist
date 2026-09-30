@@ -14,7 +14,9 @@
     "error": "エラーが発生しました",
     "done": "完了",
     "selected": "選択中",
-    "offline": "オフラインです。変更は再接続時に同期されます"
+    "offline": "オフラインです。変更は再接続時に同期されます",
+    "syncFailed": "一部の変更を同期できませんでした。最新の内容を表示しています",
+    "requiresConnection": "この操作にはインターネット接続が必要です"
   },
   "auth": {
     "tabs": {
@@ -82,7 +84,8 @@
     },
     "signOutConfirm": {
       "title": "ログアウト",
-      "message": "ログアウトしてもよろしいですか？"
+      "message": "ログアウトしてもよろしいですか？",
+      "unsyncedMessage": "同期されていない変更があります。変更はこの端末に残り、同じアカウントで再度ログインすると同期されます。ログアウトしますか？"
     },
     "deleteAccountConfirm": {
       "title": "アカウント削除",
@@ -297,6 +300,7 @@
       "markComplete": "未完了、タップで完了にする",
       "markIncomplete": "完了済み、タップで未完了にする",
       "noTasks": "タスクがありません",
+      "allCompleted": "すべて完了しました",
       "dragHint": "ドラッグして並び替え",
       "sort": "並び替え",
       "deleteCompleted": "完了タスクを削除",

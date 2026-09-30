@@ -14,7 +14,9 @@
     "error": "发生错误",
     "done": "完成",
     "selected": "已选择",
-    "offline": "当前处于离线状态。重新连接后将同步更改"
+    "offline": "当前处于离线状态。重新连接后将同步更改",
+    "syncFailed": "部分更改未能同步。正在显示最新内容",
+    "requiresConnection": "此操作需要网络连接"
   },
   "auth": {
     "tabs": {
@@ -82,7 +84,8 @@
     },
     "signOutConfirm": {
       "title": "退出登录",
-      "message": "确定要退出登录吗？"
+      "message": "确定要退出登录吗？",
+      "unsyncedMessage": "有尚未同步的更改。这些更改会保留在此设备上，使用同一账号重新登录后将会同步。确定要退出登录吗？"
     },
     "deleteAccountConfirm": {
       "title": "删除账户",
@@ -306,6 +309,7 @@
       "markComplete": "未完成，点按标记为已完成",
       "markIncomplete": "已完成，点按标记为未完成",
       "noTasks": "暂无任务",
+      "allCompleted": "全部完成",
       "dragHint": "拖动以重新排序",
       "sort": "排序",
       "deleteCompleted": "删除已完成任务",

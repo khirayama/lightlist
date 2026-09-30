@@ -65,6 +65,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - リポジトリルートで実行する。
 - membership Rules を初回デプロイする前に、[data-model.md](./data-model.md) の membership 移行を完了し、既存リストの保持ユーザーと `memberCount` の照合結果を確認する。アプリの更新を先に配布すると、membership 読み取りが `permission-denied` になり、タスクリスト一覧を構築できない。
 - membership の backfill と Rules のデプロイが完了してからアプリを配布する。
+- クライアントが新しいコレクション・field を書き込む変更は、本番 Rules のデプロイ後に配布する。配布前に本番の Rules release（`firebaserules.googleapis.com/v1/projects/lightlist-prod-b0269/releases/cloud.firestore`）の ruleset がリポジトリの `firestore.rules` と一致することを確認する。Cloudflare Pages の Git integration は production branch への push で Web を本番配布するため、Rules 変更を含む commit は push 前に `just deploy-firestore-prod` を済ませる。
 - staging: `just deploy-firestore`
 - production: `just deploy-firestore-prod`
 - deploy 設定（`firestore.rules` / `firebase.json` / `.firebaserc` / `firestore.indexes.json`）はリポジトリルートに置く。

@@ -41,6 +41,7 @@
 - Android の release build は `isMinifyEnabled = true` とし、`allowBackup = false` を維持する。
 - Android の `just build-release` は内部配布確認用 release APK（`apps/android/app/build/outputs/apk/release/app-release.apk`）を生成し、release 署名情報を渡さなければ debug keystore で署名する。
 - Android の `just bundle-play` は release upload key 署名なしでは失敗させ、Google Play 提出用 AAB を生成する。
+- Android の Firestore は `MainActivity.onCreate` の `configureFirestore()` で `PersistentCacheSettings`（`CACHE_SIZE_UNLIMITED`）を設定する。設定は Firestore の初回利用前に 1 回だけ（Activity 再生成で再設定すると例外）行う。オンライン判定は `rememberIsOnline()`、オンライン必須操作の説明は `ConnectionRequiredNote`、同期失敗は `SyncFailureState.report()`（queue 外の batch は `commitReportingFailure`）を使い、書き込みの `Task` を Composition の `scope` で `await` して UI を待たせない。
 - Android の Baseline Profile は未導入（library profile を `profileinstaller` で適用するのみ）。導入時は、AGP の instrumentation 実行がアプリをアンインストールするためログイン後画面のプロファイルに自動ログインが必要なこと、release 系 variant は release 用 Firebase 設定を使うことを前提に設計する。
 
 ## 主要コマンド

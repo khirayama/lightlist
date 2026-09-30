@@ -14,7 +14,9 @@
     "error": "Terjadi kesalahan",
     "done": "Selesai",
     "selected": "Dipilih",
-    "offline": "Anda sedang offline. Perubahan akan disinkronkan saat terhubung kembali"
+    "offline": "Anda sedang offline. Perubahan akan disinkronkan saat terhubung kembali",
+    "syncFailed": "Beberapa perubahan tidak dapat disinkronkan. Menampilkan konten terbaru",
+    "requiresConnection": "Tindakan ini memerlukan koneksi internet"
   },
   "auth": {
     "tabs": {
@@ -82,7 +84,8 @@
     },
     "signOutConfirm": {
       "title": "Keluar",
-      "message": "Apakah Anda yakin ingin keluar?"
+      "message": "Apakah Anda yakin ingin keluar?",
+      "unsyncedMessage": "Ada perubahan yang belum disinkronkan. Perubahan akan tetap tersimpan di perangkat ini dan disinkronkan saat Anda masuk kembali dengan akun yang sama. Keluar?"
     },
     "deleteAccountConfirm": {
       "title": "Hapus akun",
@@ -303,6 +306,7 @@
       "markComplete": "Belum selesai, ketuk untuk menandai selesai",
       "markIncomplete": "Selesai, ketuk untuk menandai belum selesai",
       "noTasks": "Tidak ada tugas",
+      "allCompleted": "Semua selesai",
       "dragHint": "Seret untuk mengurutkan ulang",
       "sort": "Urutkan",
       "deleteCompleted": "Hapus tugas yang selesai",

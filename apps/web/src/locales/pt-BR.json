@@ -14,7 +14,9 @@
     "error": "Ocorreu um erro",
     "done": "Concluído",
     "selected": "Selecionado",
-    "offline": "Você está offline. As alterações serão sincronizadas ao reconectar"
+    "offline": "Você está offline. As alterações serão sincronizadas ao reconectar",
+    "syncFailed": "Não foi possível sincronizar algumas alterações. Mostrando o conteúdo mais recente",
+    "requiresConnection": "Esta ação requer conexão com a internet"
   },
   "auth": {
     "tabs": {
@@ -82,7 +84,8 @@
     },
     "signOutConfirm": {
       "title": "Sair",
-      "message": "Tem certeza de que deseja sair?"
+      "message": "Tem certeza de que deseja sair?",
+      "unsyncedMessage": "Há alterações ainda não sincronizadas. Elas ficarão neste dispositivo e serão sincronizadas quando você entrar novamente com a mesma conta. Sair?"
     },
     "deleteAccountConfirm": {
       "title": "Excluir conta",
@@ -318,6 +321,7 @@
       "markComplete": "Não concluída, toque para marcar como concluída",
       "markIncomplete": "Concluída, toque para marcar como não concluída",
       "noTasks": "Sem tarefas",
+      "allCompleted": "Tudo concluído",
       "dragHint": "Arraste para reordenar",
       "sort": "Ordenar",
       "deleteCompleted": "Excluir tarefas concluídas",

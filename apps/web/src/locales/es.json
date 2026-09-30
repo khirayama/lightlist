@@ -14,7 +14,9 @@
     "error": "Ocurrió un error",
     "done": "Listo",
     "selected": "Seleccionado",
-    "offline": "Sin conexión. Los cambios se sincronizarán al reconectarte"
+    "offline": "Sin conexión. Los cambios se sincronizarán al reconectarte",
+    "syncFailed": "No se pudieron sincronizar algunos cambios. Se muestra el contenido más reciente",
+    "requiresConnection": "Esta acción requiere conexión a internet"
   },
   "auth": {
     "tabs": {
@@ -82,7 +84,8 @@
     },
     "signOutConfirm": {
       "title": "Cerrar sesión",
-      "message": "¿Seguro que quieres cerrar sesión?"
+      "message": "¿Seguro que quieres cerrar sesión?",
+      "unsyncedMessage": "Tienes cambios sin sincronizar. Se quedarán en este dispositivo y se sincronizarán cuando vuelvas a iniciar sesión con la misma cuenta. ¿Cerrar sesión?"
     },
     "deleteAccountConfirm": {
       "title": "Eliminar cuenta",
@@ -313,6 +316,7 @@
       "markComplete": "Sin completar. Toca para marcar como completada",
       "markIncomplete": "Completada. Toca para marcar como pendiente",
       "noTasks": "No hay tareas",
+      "allCompleted": "Todo listo",
       "dragHint": "Arrastra para reordenar",
       "sort": "Ordenar",
       "deleteCompleted": "Eliminar tareas completadas",

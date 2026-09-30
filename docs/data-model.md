@@ -83,12 +83,22 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 - 起動時は永続 Firestore cache を有効にし、settings / taskListOrder / taskLists の cache 読み取りを初回 UI 構築と並行して開始する。iOS は cache 読み取りを並列実行し、Android は翻訳 JSON の preload と同じ background thread から開始する。
 - taskListOrder の順序付き ID は uid ごとに Web の localStorage、iOS の UserDefaults、Android の SharedPreferences へ保持する。次回起動では Firestore の taskListOrder snapshot を待たずに、その ID から taskLists の chunk 先読み・購読を開始し、後続 snapshot で ID と表示を更新する。
 - Web の通常購読は listener が返す初回 cache snapshot をそのまま hydrate に使い、同じ参照への明示的な cache get を重ねない。起動前 warm-up の cache get は IndexedDB と Firestore client の初期化だけを目的とする。
-- settings listener は metadata change を受け取り、cache snapshot で即時表示を更新する。server 確定かつ pending write なしの snapshot だけを同期復旧・通常のキャッシュ更新の確定点とする。iOS の `startupView` だけは設定選択時に起動用 UserDefaults も即時更新し、書き込み失敗時は直前値へ戻す。設定画面の書き込み失敗は画面に表示し、更新中は別の設定変更を受け付けない。
+- settings listener は metadata change を受け取り、cache snapshot で即時表示を更新する。server 確定かつ pending write なしの snapshot だけを同期復旧・通常のキャッシュ更新の確定点とする。iOS の `startupView` だけは設定選択時に起動用 UserDefaults も即時更新し、書き込み失敗時は直前値へ戻す。設定変更はサーバー応答を待たずに次の変更を受け付け、書き込み失敗は後述の同期失敗通知で知らせる。
 - `taskLists` chunk は cache / live snapshot とも snapshot 全体を chunk 単位で反映する（差分適用しない）。
 - Firestore listener がエラーを返した場合は、現在の購読を解除して同じ参照を再登録する。再試行は 1 秒から始め、2 倍ずつ最大 30 秒まで待ち、画面・ユーザーの購読スコープが終了するまで継続する。cache snapshot は復旧扱いにせず、server snapshot の受信で待ち時間を初期化する。
 - UI 更新系は listener 反映より先に画面上の編集結果を捨てない。保存後も Firestore が同じ内容へ追いつくまで local pending 表示を優先する。詳細は [task-lists.md](./task-lists.md)。
-- mutation の差分計算は server snapshot を優先し、オフライン時だけ cache snapshot にフォールバックする。オンライン中に古い cache を正として共同編集の変更を上書きしない。
+- 書き込み前の読み取り（task mutation の基準・リスト作成時の順序・リスト削除時の `memberCount`）は、listener が最新に保っている cache を優先し、cache にない場合だけ SDK の既定取得を使う。共有コードの生成・解除・解決、共有参加、退会、サインアップ初期データはサーバー値を読む。
 - taskLists listener はmetadata changeを受け取り、部分mapの自動除去は `isFromCache/fromCache == false` かつ `hasPendingWrites == false` のsnapshotだけで行う。cacheの古い状態を根拠にserverデータを削除しない。
+
+## オフライン
+
+- Firestore の永続 cache（Web / iOS は容量無制限、Android も `CACHE_SIZE_UNLIMITED`）を正とし、オフライン中も閲覧・タスク操作・リスト作成 / 名前 / 背景 / 並び替え / 削除・設定変更を行える。書き込みは SDK が端末へ即時反映し、未送信分は再起動後も保持して再接続時に自動送信する。
+- UI は書き込みを SDK へ投入した時点で完了として扱い、sheet / dialog を閉じ、画面遷移する。サーバー応答（Web の write Promise、iOS の completion、Android の Task）は後から監視し、UI を待たせない。local pending / 楽観表示だけは従来どおりサーバー応答（queue のドレイン）まで保持し、listener への反映前に旧表示へ戻さない。
+- 再接続後に Rules などでサーバーが書き込みを拒否した場合、SDK が端末上の変更を取り消す。3 プラットフォームともルートの `OfflineNotice` に `common.syncFailed` を閉じるボタン付きで表示し、スクリーンリーダーへ通知する。自動実行の部分 map 除去の失敗は通知しない。
+- サーバーでの判定が必要な操作（ログイン / サインアップ / パスワードリセット、メールアドレス変更、退会、共有コードの生成・解除・解決、共有参加）はオフライン中に無効化し、`common.requiresConnection` を表示する。退会で離脱するリストの batch はサーバー応答を待ってから次の削除へ進む。
+- 新規作成したリストは、一覧の listener に現れてから詳細を開く（現れる前に開くとページャーが先頭リストへ選択を戻すため）。書き込み失敗を受け取った場合は待機を解除する。
+- ログアウト前に SDK の `waitForPendingWrites` を 1 秒だけ待ち、完了しなければ確認ダイアログを `auth.signOutConfirm.unsyncedMessage` に切り替える。未送信の書き込みは uid ごとに端末へ残り、同じユーザーがその端末で再ログインすると送信されるため、ログアウト時に Firestore の cache は削除しない。
+- Web の Firestore は Firebase Auth の初期化完了（保存済みユーザーのサーバー再検証を含む）まで cache 読み取りと書き込みを開始しない。完全なオフラインでは再検証が即座に失敗して進むが、通信が極端に不安定な環境では Auth のタイムアウト（最大 30 秒）まで表示が遅れる。iOS / Android の Auth は保存済みユーザーを同期的に復元するため影響しない。
 
 ## createdAt / updatedAt
 

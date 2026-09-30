@@ -326,15 +326,16 @@ function waitForTaskListMutations(taskListIds: string[]): Promise<void> {
 async function enqueueTaskListMutation<Result = void>(
   taskListId: string,
   operation: () => Promise<TaskListWrite<Result> | void>,
+  options?: TaskListMutationOptions,
 ): Promise<Result | undefined> {
-  return enqueueTaskListMutations([taskListId], operation);
+  return enqueueTaskListMutations([taskListId], operation, options);
 }
 
 async function enqueueTaskListMutations<Result = void>(
   taskListIds: string[],
   operation: () => Promise<TaskListWrite<Result> | void>,
-): Promise<Result | undefined> {
   { waitForCommit = false }: TaskListMutationOptions = {},
+): Promise<Result | undefined> {
   const ids = [...new Set(taskListIds)].sort(compareStringIds);
   const previousSubmissions = ids.map(
     (id) => taskListSubmissionQueues.get(id) ?? Promise.resolve(),
@@ -1080,7 +1081,6 @@ function useIsOnline() {
     };
   }, []);
 
-  return (
   return isOnline;
 }
 
@@ -1090,6 +1090,7 @@ function ConnectionRequiredNote({
   className?: string;
 }) {
   const { t } = useTranslation();
+  return (
     <p className={clsx("ll-m-0 ll-text-xs ll-muted-text", className)}>
       {t("common.requiresConnection")}
     </p>
@@ -1780,6 +1781,17 @@ function AppStateProvider({
             ) {
               retryDelayMs = 1000;
               reportedError = false;
+              if (
+                !snapshot.exists() &&
+                getAuthInstance().currentUser?.uid === activeUid
+              ) {
+                void ensureInitialUserData(
+                  activeUid,
+                  normalizeLanguage(i18next.language),
+                ).catch((error: unknown) => {
+                  logException("initial_user_data", error);
+                });
+              }
             }
           } catch (error) {
             console.error("settings decode error:", error);
@@ -1852,17 +1864,6 @@ function AppStateProvider({
         if (!disposed) installListener();
       }, delayMs);
     };
-              if (
-                !snapshot.exists() &&
-                getAuthInstance().currentUser?.uid === activeUid
-              ) {
-                void ensureInitialUserData(
-                  activeUid,
-                  normalizeLanguage(i18next.language),
-                ).catch((error: unknown) => {
-                  logException("initial_user_data", error);
-                });
-              }
     const installListener = () => {
       if (disposed) return;
       clearListener();
@@ -2407,7 +2408,10 @@ type TranslationBundle = {
 
 const getTranslationBundle = (language: Language): TranslationBundle =>
   (i18next.getResourceBundle(language, "translation") ??
-    i18next.getResourceBundle(DEFAULT_LANGUAGE, "translation")) as TranslationBundle;
+    i18next.getResourceBundle(
+      DEFAULT_LANGUAGE,
+      "translation",
+    )) as TranslationBundle;
 
 const requireCurrentUser = (): FirebaseAuthUser => {
   const user = getAuthInstance().currentUser;
@@ -2434,41 +2438,6 @@ const getPreferredLanguage = async (language?: Language): Promise<Language> => {
   return normalizeLanguage(settingsStore?.language ?? DEFAULT_LANGUAGE);
 };
 
-async function signUp(email: string, password: string, language: Language) {
-  const auth = getAuthInstance();
-  const db = getDbInstance();
-  const userCredential = await createUserWithEmailAndPassword(
-    auth,
-    email,
-    password,
-  );
-  await ensureInitialUserData(userCredential.user.uid, language).catch(
-    (error: unknown) => {
-      logException("initial_user_data", error);
-    },
-  );
-}
-
-async function signIn(email: string, password: string) {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      logException("auth_sign_in_timeout");
-      reject(new Error("auth-timeout"));
-    }, AUTH_SIGN_IN_TIMEOUT_MS);
-  });
-
-  try {
-    await Promise.race([
-      signInWithEmailAndPassword(getAuthInstance(), email, password),
-      timeoutPromise,
-    ]);
-  } finally {
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId);
-    }
-  }
-}
 const initialUserDataRequests = new Map<string, Promise<void>>();
 
 const ensureInitialUserData = (
@@ -2532,6 +2501,39 @@ const ensureInitialUserData = (
   return request;
 };
 
+async function signUp(email: string, password: string, language: Language) {
+  const userCredential = await createUserWithEmailAndPassword(
+    getAuthInstance(),
+    email,
+    password,
+  );
+  await ensureInitialUserData(userCredential.user.uid, language).catch(
+    (error: unknown) => {
+      logException("initial_user_data", error);
+    },
+  );
+}
+
+async function signIn(email: string, password: string) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      logException("auth_sign_in_timeout");
+      reject(new Error("auth-timeout"));
+    }, AUTH_SIGN_IN_TIMEOUT_MS);
+  });
+
+  try {
+    await Promise.race([
+      signInWithEmailAndPassword(getAuthInstance(), email, password),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
 
 async function signOut() {
   await firebaseSignOut(getAuthInstance());
@@ -3251,8 +3253,12 @@ async function createTaskList(name: string, background?: string | null) {
       const db = getDbInstance();
       const nextTaskListId = doc(collection(db, "taskLists")).id;
       const now = Date.now();
+      const taskListOrderRef = doc(db, "taskListOrder", uid);
+      const taskListOrderSnapshot = await getDocFromCache(
+        taskListOrderRef,
+      ).catch(() => getDoc(taskListOrderRef));
       const taskListOrder = assertTaskListOrderStore(
-        (await getDoc(doc(db, "taskListOrder", uid))).data(),
+        taskListOrderSnapshot.data(),
         uid,
       );
       const nextOrder =
@@ -3358,6 +3364,7 @@ async function deleteTaskList(
       }
       return { committed: batch.commit() };
     },
+    { waitForCommit: serverConfirmed },
   );
 }
 
@@ -3374,6 +3381,7 @@ async function updateTaskListOrder(
       committed: updateDoc(doc(getDbInstance(), "taskListOrder", uid), updates),
     };
   });
+  await waitForTaskListMutations([`taskListOrder:${uid}`]);
 }
 
 async function addTask(
@@ -3387,7 +3395,6 @@ async function addTask(
     const parsed = resolveTaskInput(rawText, settings.language);
     const now = Date.now();
     const tasks = getOrderedTasks(taskList);
-    { waitForCommit: serverConfirmed },
     const nextOrder =
       settings.taskInsertPosition === "bottom"
         ? (tasks[tasks.length - 1]?.order ?? 0) + 1
@@ -3404,7 +3411,6 @@ async function addTask(
       throw new Error("Task has no content");
     }
     const nextTasks = getSortedTasks(
-  await waitForTaskListMutations([`taskListOrder:${uid}`]);
       settings.taskInsertPosition === "top"
         ? [nextTask, ...tasks]
         : [...tasks, nextTask],
@@ -3778,6 +3784,7 @@ async function addSharedTaskListToOrder(taskListId: string, shareCode: string) {
       }
       return { committed: batch.commit() };
     },
+    { waitForCommit: true },
   );
 }
 
@@ -3811,7 +3818,6 @@ function generateRandomShareCode() {
     (value) => chars[value % chars.length],
   ).join("");
 }
-    { waitForCommit: true },
 
 async function generateShareCode(taskListId: string): Promise<string> {
   const shareCode = await enqueueTaskListMutation<string>(
@@ -3862,7 +3868,9 @@ async function generateShareCode(taskListId: string): Promise<string> {
   return shareCode;
 }
 
-async function updateSettings(settings: Partial<Settings>) {
+const PENDING_WRITES_CHECK_MS = 1000;
+
+function updateSettings(settings: Partial<Settings>) {
   const uid = requireCurrentUserId();
   trackCommit(
     setDoc(
@@ -3874,6 +3882,18 @@ async function updateSettings(settings: Partial<Settings>) {
       { merge: true },
     ),
   );
+}
+
+async function hasPendingWrites(): Promise<boolean> {
+  return Promise.race([
+    waitForPendingWrites(getDbInstance()).then(
+      () => false,
+      () => false,
+    ),
+    new Promise<boolean>((resolve) =>
+      setTimeout(() => resolve(true), PENDING_WRITES_CHECK_MS),
+    ),
+  ]);
 }
 
 type AppIconName =
@@ -3907,18 +3927,6 @@ const ICON_PATHS: Record<AppIconName, string | string[]> = {
     "M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
   settings:
     "M19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.09-.16-.26-.25-.44-.25-.06 0-.12.01-.17.03l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.06-.02-.12-.03-.18-.03-.17 0-.34.09-.43.25l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.09.16.26.25.44.25.06 0 .12-.01.17-.03l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.06.02.12.03.18.03.17 0 .34-.09.43-.25l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zm-1.98-1.71c.04.31.05.52.05.73 0 .21-.02.43-.05.73l-.14 1.13.89.7 1.08.84-.7 1.21-1.27-.51-1.04-.42-.9.68c-.43.32-.84.56-1.25.73l-1.06.43-.16 1.13-.2 1.35h-1.4l-.19-1.35-.16-1.13-1.06-.43c-.43-.18-.83-.41-1.23-.71l-.91-.7-1.06.43-1.27.51-.7-1.21 1.08-.84.89-.7-.14-1.13c-.03-.31-.05-.54-.05-.74s.02-.43.05-.73l.14-1.13-.89-.7-1.08-.84.7-1.21 1.27.51 1.04.42.9-.68c.43-.32.84-.56 1.25-.73l1.06-.43.16-1.13.2-1.35h1.39l.19 1.35.16 1.13 1.06.43c.43.18.83.41 1.23.71l.91.7 1.06-.43 1.27-.51.7 1.21-1.07.85-.89.7.14 1.13zM12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z",
-async function hasPendingWrites(): Promise<boolean> {
-  return Promise.race([
-    waitForPendingWrites(getDbInstance()).then(
-      () => false,
-      () => false,
-    ),
-    new Promise<boolean>((resolve) =>
-      setTimeout(() => resolve(true), PENDING_WRITES_CHECK_MS),
-    ),
-  ]);
-}
-
   close:
     "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
   send: "M2.01 21L23 12 2.01 3 2 10l15 2-15 2z",
@@ -4477,54 +4485,49 @@ function SettingsView({
   const [emailChangeSuccess, setEmailChangeSuccess] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
 
-  const updateSetting = async (next: {
+  const updateSetting = (next: {
     theme?: Theme;
     language?: Language;
     taskInsertPosition?: TaskInsertPosition;
     autoSort?: boolean;
     startupView?: StartupView;
-  }): Promise<boolean> => {
-    if (isUpdating) {
-      return false;
-    }
-
+  }): boolean => {
     setError(null);
-    setIsUpdating(true);
     try {
-      await updateSettings(next);
+      updateSettings(next);
       return true;
     } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
       return false;
-    } finally {
-      setIsUpdating(false);
     }
   };
 
-  const handleThemeChange = async (theme: Theme) => {
-    await updateSetting({ theme });
-    logAppEvent("settings_theme_change", { theme });
+  const handleThemeChange = (theme: Theme) => {
+    if (updateSetting({ theme })) {
+      logAppEvent("settings_theme_change", { theme });
+    }
   };
 
-  const handleLanguageChange = async (language: Language) => {
-    await updateSetting({ language });
-    logAppEvent("settings_language_change", { language });
+  const handleLanguageChange = (language: Language) => {
+    if (updateSetting({ language })) {
+      logAppEvent("settings_language_change", { language });
+    }
   };
 
-  const handleTaskInsertPositionChange = async (
+  const handleTaskInsertPositionChange = (
     taskInsertPosition: TaskInsertPosition,
   ) => {
-    await updateSetting({ taskInsertPosition });
-    logAppEvent("settings_task_insert_position_change", {
-      position: taskInsertPosition,
-    });
+    if (updateSetting({ taskInsertPosition })) {
+      logAppEvent("settings_task_insert_position_change", {
+        position: taskInsertPosition,
+      });
+    }
   };
 
-  const handleAutoSortChange = async (autoSort: boolean) => {
+  const handleAutoSortChange = (autoSort: boolean) => {
     const previousAutoSort = settings?.autoSort ?? true;
     setOptimisticAutoSort(autoSort);
-    const updated = await updateSetting({ autoSort });
-    if (updated) {
+    if (updateSetting({ autoSort })) {
       logAppEvent("settings_auto_sort_change", { enabled: autoSort });
     } else {
       setOptimisticAutoSort(previousAutoSort);
@@ -4627,7 +4630,7 @@ function SettingsView({
     (!settings && settingsStatus !== "error");
   const actionsDisabled =
     isLoading || pendingAction !== null || isChangingEmail;
-  const settingsDisabled = isLoading || isUpdating || actionsDisabled;
+  const settingsDisabled = isLoading || actionsDisabled;
   const signOutLabel =
     pendingAction === "signOut"
       ? t("settings.signingOut")
@@ -4719,6 +4722,7 @@ function SettingsView({
                       />
                     </button>
                   )}
+                  {!isOnline && <ConnectionRequiredNote />}
                   {showEmailChangeForm && (
                     <div className="ll-flex ll-flex-col ll-gap-3 ll-pb-3 ll-pt-1">
                       {emailChangeSuccess ? (
@@ -4745,7 +4749,6 @@ function SettingsView({
                               disabled={isChangingEmail}
                               placeholder={t(
                                 "settings.emailChange.newEmailPlaceholder",
-                  {!isOnline && <ConnectionRequiredNote />}
                               )}
                               className="ll-field"
                             />
@@ -4939,8 +4942,8 @@ function SettingsView({
                 <div className="ll-flex ll-flex-col">
                   <button
                     type="button"
-                    onClick={() => setShowSignOutConfirm(true)}
-                    disabled={actionsDisabled}
+                    onClick={() => void handleSignOutRequest()}
+                    disabled={actionsDisabled || checkingPendingWrites}
                     className="ll-settings-row"
                   >
                     {signOutLabel}
@@ -4954,6 +4957,7 @@ function SettingsView({
                   >
                     {deleteAccountLabel}
                   </button>
+                  {!isOnline && <ConnectionRequiredNote />}
                 </div>
               </div>
             </SettingsSection>
@@ -4968,7 +4972,11 @@ function SettingsView({
             void handleSignOut();
           }}
           title={t("auth.signOutConfirm.title")}
-          message={t("auth.signOutConfirm.message")}
+          message={t(
+            hasUnsyncedChanges
+              ? "auth.signOutConfirm.unsyncedMessage"
+              : "auth.signOutConfirm.message",
+          )}
           confirmText={t("auth.button.signOut")}
           cancelText={t("auth.button.cancel")}
           disabled={actionsDisabled}
@@ -4980,7 +4988,6 @@ function SettingsView({
             if (pendingAction) return;
             setShowDeleteConfirm(open);
             setDeletePassword("");
-                  {!isOnline && <ConnectionRequiredNote />}
             setDeleteError(null);
           }}
         >
@@ -5523,6 +5530,7 @@ function Carousel({
   onScrollEnd?: (index: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentIndexRef = useRef(0);
@@ -6158,11 +6166,12 @@ function TaskItemComponent({
           <button
             id={taskTextId}
             type="button"
+            data-completed={task.completed ? "true" : undefined}
             onClick={canEdit ? () => onEditStart(task) : undefined}
             className={
               task.completed
                 ? clsx(
-                    "ll-task-row-text ll-task-text-wrap ll-flex ll-min-h-12 ll-min-w-0 ll-w-full ll-items-center ll-border-0 ll-bg-transparent ll-p-0 ll-text-start ll-font-medium ll-leading-7 ll-muted-text ll-line-through ll-underline-offset-4",
+                    "ll-task-row-text ll-task-text-wrap ll-flex ll-min-h-12 ll-min-w-0 ll-w-full ll-items-center ll-border-0 ll-bg-transparent ll-p-0 ll-text-start ll-font-medium ll-leading-7 ll-muted-text",
                     canEdit &&
                       "ll-cursor-pointer ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300",
                   )
@@ -6387,6 +6396,7 @@ function ShareTaskListDialog({
   const [generating, setGenerating] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isOnline = useIsOnline();
 
   useEffect(() => {
     if (!open) return;
@@ -6466,6 +6476,7 @@ function ShareTaskListDialog({
             </div>
           </label>
         ) : null}
+        {isOnline ? null : <ConnectionRequiredNote className="ll-mt-4" />}
         <DialogFooter
           start={
             shareCode ? (
@@ -6473,7 +6484,6 @@ function ShareTaskListDialog({
                 type="button"
                 onClick={() => {
                   setRemoving(true);
-  const isOnline = useIsOnline();
                   setError(null);
                   void removeShareCode(taskList.id)
                     .then(() => {
@@ -6553,7 +6563,6 @@ function TaskListCard({
   taskInsertPosition: TaskInsertPosition;
   isActive: boolean;
   shouldFocusNewTaskInput: boolean;
-        {isOnline ? null : <ConnectionRequiredNote className="ll-mt-4" />}
   onNewTaskInputFocusChange: (taskListId: string, isFocused: boolean) => void;
   onActivate?: (taskListId: string) => void;
   onSortingChange?: (sorting: boolean) => void;
@@ -6583,7 +6592,7 @@ function TaskListCard({
     pendingTasks ?? getDisplayOrderedTaskArray(taskList.tasks, autoSort);
   const taskListTasksRef = useRef(taskList.tasks);
   taskListTasksRef.current = taskList.tasks;
-  const { items: tasks, reorder: reorderTask } = useOptimisticReorder(
+  const { items: orderedTasks, reorder: reorderTask } = useOptimisticReorder(
     baseTasks,
     (_draggedId, _targetId, nextItems) =>
       updateTasksOrder(
@@ -6763,7 +6772,7 @@ function TaskListCard({
               setPendingTasks(null);
             }
           }, 0);
-        }
+        });
       }
     },
     [applyPendingTasks, taskList.id],
@@ -7334,6 +7343,7 @@ function TaskListCard({
                           (current) => current.id === task.id,
                         ) ?? task;
                       const nextCompleted = !currentTask.completed;
+                      if (autoSort) holdTaskPosition(task.id);
                       void runTaskMutation({
                         buildNextTasks: (currentTasks) =>
                           currentTasks.map((currentTask) =>
@@ -7751,6 +7761,7 @@ type CalendarTaskItemProps = {
   onOpenActions: () => void;
   itemRef: (element: HTMLDivElement | null) => void;
   isHighlighted: boolean;
+  isExiting: boolean;
 };
 
 function CalendarTaskItem({
@@ -7761,6 +7772,7 @@ function CalendarTaskItem({
   onOpenActions,
   itemRef,
   isHighlighted,
+  isExiting,
 }: CalendarTaskItemProps) {
   const { t, i18n } = useTranslation();
   const language = normalizeLanguage(i18n.language);
@@ -8346,8 +8358,13 @@ function CalendarScreen({
         );
     void taskWrite
       .then(() => {
-        clearOptimisticDatedTaskOverrides(optimisticOverrideIds, revision);
         setTaskSheet(null);
+        void waitForTaskListMutations([
+          editedTask.taskListId,
+          values.taskListId,
+        ]).then(() =>
+          clearOptimisticDatedTaskOverrides(optimisticOverrideIds, revision),
+        );
       })
       .catch((error) => {
         clearOptimisticDatedTaskOverrides(optimisticOverrideIds, revision);
@@ -8538,12 +8555,6 @@ function CalendarScreen({
       <div className="ll-flex ll-h-full ll-min-h-0 ll-flex-col">
         {showCompactHeaderOffset ? (
           <div className="ll-h-14 ll-shrink-0" />
-        void waitForTaskListMutations([
-          editedTask.taskListId,
-          values.taskListId,
-        ]).then(() =>
-          clearOptimisticDatedTaskOverrides(optimisticOverrideIds, revision),
-        );
         ) : null}
         <div
           ref={taskScrollContainerRef}
@@ -8760,6 +8771,7 @@ function TaskListSidebarPanel({
   const [showJoinListDialog, setShowJoinListDialog] = useState(false);
   const [joinListInput, setJoinListInput] = useState("");
   const [joiningList, setJoiningList] = useState(false);
+  const isOnline = useIsOnline();
   const [joinListError, setJoinListError] = useState<string | null>(null);
 
   const taskListDndAccessibility = useMemo(
@@ -8794,7 +8806,7 @@ function TaskListSidebarPanel({
 
   const handleJoinList = async () => {
     const code = joinListInput.trim();
-    if (!code) return;
+    if (!code || !navigator.onLine) return;
     setJoiningList(true);
     setJoinListError(null);
     try {
@@ -8862,23 +8874,28 @@ function TaskListSidebarPanel({
             plugins={(defaults) => [...defaults, taskListDndAccessibility]}
             onDragEnd={handleDragEnd}
           >
-            {taskLists.map((taskList, index) => (
-              <SortableTaskListItem
-                key={taskList.id}
-                taskList={taskList}
-                index={index}
-                onSelect={(taskListId) => {
-                  onSelectTaskList(taskListId);
-                  onCloseDrawer();
-                }}
-                dragHintLabel={t("app.dragHint")}
-                taskCountLabel={t("taskList.remainingCount", {
-                  count: taskList.tasks.filter((task) => !task.completed)
-                    .length,
-                })}
-                isActive={selectedTaskListId === taskList.id}
-              />
-            ))}
+            {taskLists.map((taskList, index) => {
+              const remainingTaskCount = taskList.tasks.filter(
+                (task) => !task.completed,
+              ).length;
+              return (
+                <SortableTaskListItem
+                  key={taskList.id}
+                  taskList={taskList}
+                  index={index}
+                  onSelect={(taskListId) => {
+                    onSelectTaskList(taskListId);
+                    onCloseDrawer();
+                  }}
+                  dragHintLabel={t("app.dragHint")}
+                  taskCount={remainingTaskCount}
+                  taskCountLabel={t("taskList.remainingCount", {
+                    count: remainingTaskCount,
+                  })}
+                  isActive={selectedTaskListId === taskList.id}
+                />
+              );
+            })}
           </DragDropProvider>
         ) : (
           <p className="ll-muted-text ll-m-0 ll-px-3 ll-py-2 ll-text-sm">
@@ -8951,7 +8968,6 @@ function TaskListSidebarPanel({
                     disabled={!createListInput.trim()}
                     className={BUTTON_PRIMARY_CLASS}
                   >
-  const isOnline = useIsOnline();
                     {t("app.create")}
                   </button>
                 </DialogFooter>
@@ -9009,6 +9025,7 @@ function TaskListSidebarPanel({
                       className="ll-field"
                     />
                   </label>
+                  {isOnline ? null : <ConnectionRequiredNote className="" />}
                 </div>
                 <DialogFooter>
                   <DialogClose asChild>
@@ -9060,6 +9077,9 @@ function AppShellPage() {
   const [focusedNewTaskListId, setFocusedNewTaskListId] = useState<
     string | null
   >(null);
+  const [awaitingTaskListId, setAwaitingTaskListId] = useState<string | null>(
+    null,
+  );
   const moveNewTaskFocusOnCarouselScrollRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const { items: taskLists, reorder: reorderTaskList } = useOptimisticReorder(
@@ -9205,7 +9225,6 @@ function AppShellPage() {
     taskListOrderStatus !== "ready" ||
     (stateTaskLists.length === 0 && taskListDocsStatus === "loading");
   const hasResolvedTaskLists = !isTaskListsHydrating;
-                  {isOnline ? null : <ConnectionRequiredNote className="" />}
   const hasTaskLists = taskLists.length > 0;
   const selectedTaskList = taskLists.find(
     (taskList) => taskList.id === selectedTaskListId,
@@ -9448,7 +9467,22 @@ function AppShellPage() {
   }, [activeTaskAction, currentView, selectedTaskListId, taskLists]);
 
   useEffect(() => {
+    if (!awaitingTaskListId) return;
+    const clearAwaitingTaskList = () => setAwaitingTaskListId(null);
+    syncFailureListeners.add(clearAwaitingTaskList);
+    return () => {
+      syncFailureListeners.delete(clearAwaitingTaskList);
+    };
+  }, [awaitingTaskListId]);
+
+  useEffect(() => {
+    if (selectedTaskList && selectedTaskList.id === awaitingTaskListId) {
+      setAwaitingTaskListId(null);
+    }
     if (!hasResolvedTaskLists || currentView !== "detail" || selectedTaskList) {
+      return;
+    }
+    if (selectedTaskListId && selectedTaskListId === awaitingTaskListId) {
       return;
     }
 
@@ -9459,12 +9493,14 @@ function AppShellPage() {
 
     openTaskList(firstTaskListId);
   }, [
+    awaitingTaskListId,
     currentView,
     firstTaskListId,
     hasResolvedTaskLists,
     hasTaskLists,
     openTaskList,
     selectedTaskList,
+    selectedTaskListId,
     showTaskListsRoot,
   ]);
 
@@ -9496,6 +9532,7 @@ function AppShellPage() {
       onCreateList={async (name, background) => {
         setError(null);
         const newTaskListId = await createTaskList(name, background);
+        setAwaitingTaskListId(newTaskListId);
         openTaskList(newTaskListId, "push");
         logAppEvent("task_list_create");
         return newTaskListId;
@@ -9647,18 +9684,6 @@ function AppShellPage() {
             })
           }
         >
-    if (!awaitingTaskListId) return;
-    const clearAwaitingTaskList = () => setAwaitingTaskListId(null);
-    syncFailureListeners.add(clearAwaitingTaskList);
-    return () => {
-      syncFailureListeners.delete(clearAwaitingTaskList);
-    };
-  }, [awaitingTaskListId]);
-
-  useEffect(() => {
-    if (selectedTaskList && selectedTaskList.id === awaitingTaskListId) {
-      setAwaitingTaskListId(null);
-    }
           {taskLists.map((taskList) => (
             <div
               key={taskList.id}
@@ -9983,6 +10008,7 @@ function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isProvisioning, setIsProvisioning] = useState(false);
+  const isOnline = useIsOnline();
   const [errors, setErrors] = useState<FormErrors>({});
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
@@ -10188,7 +10214,6 @@ function LoginPage() {
               onChange={setEmail}
               error={errors.email}
               disabled={loading}
-  const isOnline = useIsOnline();
               placeholder={t("auth.placeholder.email")}
               autoComplete="email"
             />
@@ -10204,9 +10229,10 @@ function LoginPage() {
               autoComplete="current-password"
             />
             {errors.general && <Alert variant="error">{errors.general}</Alert>}
+            {isOnline ? null : <ConnectionRequiredNote className="" />}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isOnline}
               className={primaryButtonClass}
             >
               {loading ? t("auth.button.signingIn") : t("auth.button.signin")}
@@ -10259,11 +10285,12 @@ function LoginPage() {
               value={confirmPassword}
               onChange={setConfirmPassword}
               error={errors.confirmPassword}
-              disabled={loading || !isOnline}
+              disabled={loading}
               placeholder={t("auth.placeholder.password")}
               autoComplete="new-password"
             />
             {errors.general && <Alert variant="error">{errors.general}</Alert>}
+            {isOnline ? null : <ConnectionRequiredNote className="" />}
             <button
               type="submit"
               disabled={loading || !isOnline}
@@ -10299,6 +10326,7 @@ function LoginPage() {
                 {errors.general && (
                   <Alert variant="error">{errors.general}</Alert>
                 )}
+                {isOnline ? null : <ConnectionRequiredNote className="" />}
                 <button
                   type="submit"
                   disabled={resetLoading || !isOnline}
@@ -10334,6 +10362,7 @@ function PasswordResetPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const isOnline = useIsOnline();
 
   const primaryButtonClass = AUTH_PRIMARY_BUTTON_CLASS;
   const secondaryButtonClass = AUTH_SECONDARY_BUTTON_CLASS;
@@ -10411,7 +10440,6 @@ function PasswordResetPage() {
           </Alert>
           <button
             type="button"
-            {isOnline ? null : <ConnectionRequiredNote className="" />}
             onClick={() => window.location.assign("/")}
             className={secondaryButtonClass}
           >
@@ -10463,6 +10491,7 @@ function PasswordResetPage() {
             autoComplete="new-password"
           />
 
+          {isOnline ? null : <ConnectionRequiredNote className="" />}
           <button
             type="submit"
             disabled={loading || !isOnline}
@@ -10472,7 +10501,6 @@ function PasswordResetPage() {
               ? t("auth.passwordReset.settingNewPassword")
               : t("auth.passwordReset.setNewPassword")}
           </button>
-            {isOnline ? null : <ConnectionRequiredNote className="" />}
         </form>
 
         <button
@@ -10508,7 +10536,6 @@ function HistoryBackButton() {
   );
 }
 
-                {isOnline ? null : <ConnectionRequiredNote className="" />}
 function ShareCodePreviewPage() {
   const { t } = useTranslation();
   const user = useUser();
@@ -10544,7 +10571,6 @@ function ShareCodePreviewPage() {
         if (!taskListId) {
           setSharedTaskListId(null);
           setError(t("pages.sharecode.notFound"));
-  const isOnline = useIsOnline();
           return;
         }
 
@@ -10572,6 +10598,7 @@ function ShareCodePreviewPage() {
 
   const taskList = useTaskList(sharedTaskListId);
   const isMember = ownTaskLists.some((item) => item.id === sharedTaskListId);
+  const isOnline = useIsOnline();
   useDocumentTitle(taskList?.name ?? error);
 
   const handleAddToOrder = async () => {
@@ -10653,6 +10680,9 @@ function ShareCodePreviewPage() {
             <Alert variant="error">{addToOrderError}</Alert>
           </div>
         )}
+        {user && !isOnline ? (
+          <ConnectionRequiredNote className="ll-p-4 ll-pb-0" />
+        ) : null}
 
         <div className="ll-mx-auto ll-min-h-full ll-w-full ll-max-w-3xl">
           <TaskListCard
@@ -10675,7 +10705,6 @@ function ShareCodePreviewPage() {
   );
 }
 
-          {isOnline ? null : <ConnectionRequiredNote className="" />}
 const PAGE_COMPONENTS = {
   "404": NotFoundPage,
   "500": ServerErrorPage,
@@ -10744,7 +10773,3 @@ void changeAppLanguage(i18next.language).finally(() => {
     </StrictMode>,
   );
 });
-  const isOnline = useIsOnline();
-        {user && !isOnline ? (
-          <ConnectionRequiredNote className="ll-p-4 ll-pb-0" />
-        ) : null}

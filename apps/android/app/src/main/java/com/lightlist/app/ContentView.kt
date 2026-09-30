@@ -24,6 +24,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -49,6 +54,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -150,8 +156,13 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.Source
+import com.google.firebase.firestore.PersistentCacheSettings
+import com.google.firebase.firestore.FirebaseFirestoreSettings
+import com.google.firebase.firestore.WriteBatch
 import com.google.firebase.firestore.firestore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -184,6 +195,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.focus.FocusManager
@@ -274,6 +286,10 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.style.ResolvedTextDirection
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
@@ -734,6 +750,20 @@ sealed class PendingDeepLink {
     data class ShareCode(val shareCode: String) : PendingDeepLink()
 }
 
+private var isFirestoreConfigured = false
+
+private fun configureFirestore() {
+    if (isFirestoreConfigured) return
+    isFirestoreConfigured = true
+    Firebase.firestore.firestoreSettings = FirebaseFirestoreSettings.Builder()
+        .setLocalCacheSettings(
+            PersistentCacheSettings.newBuilder()
+                .setSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                .build()
+        )
+        .build()
+}
+
 private fun warmUpStartupData(context: Context) {
     Thread {
         Translations.preload(context)
@@ -777,6 +807,7 @@ class MainActivity : ComponentActivity() {
         pendingDeepLink = parseDeepLink(intent)
 
         FirebaseApp.initializeApp(this)
+        configureFirestore()
         warmUpStartupData(applicationContext)
 
         enableEdgeToEdge()
@@ -950,6 +981,7 @@ private class TaskListMutationQueue(
     private val idleHandlers = mutableListOf<() -> Unit>()
 
     fun enqueue(
+        reportsFailure: Boolean = true,
         onIdle: () -> Unit = {},
         onError: (Exception) -> Unit = {},
         block: () -> com.google.android.gms.tasks.Task<Void>
@@ -962,12 +994,14 @@ private class TaskListMutationQueue(
                 try {
                     write.await()
                 } catch (error: Exception) {
+                    if (reportsFailure) SyncFailureState.report()
                     onError(error)
                 } finally {
                     finish()
                 }
             }
         } catch (error: Exception) {
+            if (reportsFailure) SyncFailureState.report()
             onError(error)
             finish()
         }
@@ -981,7 +1015,6 @@ private class TaskListMutationQueue(
             handlers.forEach { it() }
         }
     }
-        reportsFailure: Boolean = true,
 }
 
 private object TaskListMutationQueues {
@@ -994,14 +1027,12 @@ private object TaskListMutationQueues {
     }
 
     fun enqueueFor(
-                    if (reportsFailure) SyncFailureState.report()
         taskListIds: List<String>,
         onIdle: () -> Unit = {},
         onError: (Exception) -> Unit = {},
         block: () -> com.google.android.gms.tasks.Task<Void>
     ) {
         try {
-            if (reportsFailure) SyncFailureState.report()
             val write = block()
             val ids = taskListIds.distinct().sorted()
             ids.forEachIndexed { index, id ->
@@ -1011,9 +1042,26 @@ private object TaskListMutationQueues {
                 ) { write }
             }
         } catch (error: Exception) {
+            SyncFailureState.report()
             onError(error)
             onIdle()
         }
+    }
+}
+
+private object SyncFailureState {
+    var hasFailure by mutableStateOf(false)
+        private set
+    var failureRevision by mutableStateOf(0)
+        private set
+
+    fun report() {
+        hasFailure = true
+        failureRevision += 1
+    }
+
+    fun dismiss() {
+        hasFailure = false
     }
 }
 
@@ -1042,28 +1090,11 @@ private data class TaskListDetail(
 
 private data class SharedTaskListPreviewUiState(
     val taskListId: String? = null,
-            SyncFailureState.report()
     val taskList: TaskListDetail? = null,
     val isLoading: Boolean = false,
     val isAdded: Boolean = false,
     val errorMessage: String? = null
 )
-
-private object SyncFailureState {
-    var hasFailure by mutableStateOf(false)
-        private set
-    var failureRevision by mutableStateOf(0)
-        private set
-
-    fun report() {
-        hasFailure = true
-        failureRevision += 1
-    }
-
-    fun dismiss() {
-        hasFailure = false
-    }
-}
 
 private data class CalendarTask(
     val id: String,
@@ -2227,49 +2258,62 @@ private suspend fun createInitialUserDataIfMissing(
     language: String,
     initialTaskListName: String
 ) {
-    val auth = Firebase.auth
     val db = Firebase.firestore
-    val normalizedLanguage = normalizeLanguageCode(language)
-    val userCredential = auth.createUserWithEmailAndPassword(email, password).await()
-    val uid = userCredential.user?.uid ?: throw IllegalStateException("Missing user ID")
-    val taskListId = db.collection("taskLists").document().id
+    val settingsRef = db.collection("settings").document(uid)
+    val taskListOrderRef = db.collection("taskListOrder").document(uid)
+    if (settingsRef.get(Source.SERVER).await().exists()) return
+    val hasTaskListOrder = taskListOrderRef.get(Source.SERVER).await().exists()
     val now = nowMillis()
     val settingsData = mapOf(
         "theme" to "system",
-        "language" to normalizedLanguage,
+        "language" to normalizeLanguageCode(language),
         "taskInsertPosition" to "top",
         "autoSort" to true,
         "startupView" to "taskList",
         "createdAt" to now,
         "updatedAt" to now
     )
-    val taskListData = hashMapOf<String, Any?>(
-        "id" to taskListId,
-        "name" to initialTaskListName,
-        "tasks" to emptyMap<String, Any>(),
-        "history" to emptyList<Any>(),
-        "shareCode" to null,
-        "background" to null,
-        "memberCount" to 1,
-        "createdAt" to now,
-        "updatedAt" to now
-    )
-    val taskListOrderData = mapOf(
-        taskListId to mapOf("order" to 1.0),
-        "createdAt" to now,
-        "updatedAt" to now
-    )
-
     db.batch().apply {
-        set(db.collection("settings").document(uid), settingsData)
-        set(db.collection("taskLists").document(taskListId), taskListData)
-        set(
-            db.collection("taskLists").document(taskListId)
-                .collection("members").document(uid),
-            mapOf("joinedAt" to now, "joinCode" to null)
-        )
-        set(db.collection("taskListOrder").document(uid), taskListOrderData)
+        set(settingsRef, settingsData)
+        if (!hasTaskListOrder) {
+            val taskListRef = db.collection("taskLists").document()
+            val taskListData = hashMapOf<String, Any?>(
+                "id" to taskListRef.id,
+                "name" to initialTaskListName,
+                "tasks" to emptyMap<String, Any>(),
+                "history" to emptyList<Any>(),
+                "shareCode" to null,
+                "background" to null,
+                "memberCount" to 1,
+                "createdAt" to now,
+                "updatedAt" to now
+            )
+            set(taskListRef, taskListData)
+            set(
+                taskListRef.collection("members").document(uid),
+                mapOf("joinedAt" to now, "joinCode" to null)
+            )
+            set(
+                taskListOrderRef,
+                mapOf(
+                    taskListRef.id to mapOf("order" to 1.0),
+                    "createdAt" to now,
+                    "updatedAt" to now
+                )
+            )
+        }
     }.commit().await()
+}
+
+private suspend fun signUpWithInitialData(
+    email: String,
+    password: String,
+    language: String,
+    initialTaskListName: String
+) {
+    val userCredential = Firebase.auth.createUserWithEmailAndPassword(email, password).await()
+    val uid = userCredential.user?.uid ?: throw IllegalStateException("Missing user ID")
+    ensureInitialUserData(uid, language, initialTaskListName)
 }
 
 private suspend fun sendPasswordResetEmail(email: String, language: String) {
@@ -2325,17 +2369,6 @@ private fun resolveSettingsState(
         isLoading = false,
         hasError = false
     )
-private suspend fun signUpWithInitialData(
-    email: String,
-    password: String,
-    language: String,
-    initialTaskListName: String
-) {
-    val userCredential = Firebase.auth.createUserWithEmailAndPassword(email, password).await()
-    val uid = userCredential.user?.uid ?: throw IllegalStateException("Missing user ID")
-    ensureInitialUserData(uid, language, initialTaskListName)
-}
-
 }
 
 @Composable
@@ -2762,8 +2795,6 @@ fun RootScreen(
 @Composable
 private fun rememberIsOnline(): Boolean {
     val context = LocalContext.current
-    val t = LocalTranslations.current
-    val reduceMotion = LocalReduceMotion.current
     var isOnline by remember { mutableStateOf(true) }
     DisposableEffect(context) {
         val manager = context.getSystemService(ConnectivityManager::class.java)
@@ -2808,8 +2839,8 @@ private fun OfflineNotice(modifier: Modifier = Modifier) {
         modifier = modifier
             .navigationBarsPadding()
             .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-        enter = if (reduceMotion) EnterTransition.None else fadeIn(tween(160)),
-        exit = if (reduceMotion) ExitTransition.None else fadeOut(tween(160))
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         AnimatedVisibility(visible = SyncFailureState.hasFailure, enter = enter, exit = exit) {
             Row(
@@ -2873,6 +2904,7 @@ private fun SharedTaskListPreviewScreen(
     onDismiss: () -> Unit,
     onAdded: (String) -> Unit
 ) {
+    val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
     val previewUiState = rememberSharedTaskListPreviewState(shareCode, userId)
     val settingsState = resolvedSettingsState(userId, rememberSettingsState(userId))
@@ -2904,7 +2936,6 @@ private fun SharedTaskListPreviewScreen(
                     )
                 }
             }
-    val isOnline = rememberIsOnline()
             else -> {
                 Box(
                     modifier = Modifier
@@ -2958,6 +2989,9 @@ private fun SharedTaskListPreviewScreen(
             }
         }
 
+        if (userId != null && !previewUiState.isAdded && previewUiState.taskListId != null && !isOnline) {
+            ConnectionRequiredNote(Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        }
         if (addToOrderError != null) {
             Text(
                 addToOrderError!!,
@@ -2989,9 +3023,6 @@ private fun <T> rememberOrderedTaskListsState(
         if (userId == null) {
             uiState = OrderedTaskListsUiState()
             onDispose {}
-        if (userId != null && !previewUiState.isAdded && previewUiState.taskListId != null && !isOnline) {
-            ConnectionRequiredNote(Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-        }
         } else {
             uiState = OrderedTaskListsUiState(isLoading = true, hasError = false)
             val dispose = subscribeToOrderedTaskLists(
@@ -3029,6 +3060,7 @@ private data class OrderedTaskListsUiState<T>(
 
 @Composable
 private fun rememberSettingsState(userId: String?): SettingsState {
+    val context = LocalContext.current.applicationContext
     var uiState by remember(userId) { mutableStateOf(SettingsState(isLoading = userId != null)) }
     DisposableEffect(userId) {
         if (userId == null) {
@@ -3098,6 +3130,14 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                         ) {
                             retryDelayMs = 1000L
                             reportedError = false
+                            if (!snapshot.exists() && Firebase.auth.currentUser?.uid == userId) {
+                                val language = resolveDeviceLanguage(context)
+                                val initialTaskListName = Translations.from(context, language)
+                                    .t("app.initialTaskListName")
+                                scope.launch {
+                                    ensureInitialUserData(userId, language, initialTaskListName)
+                                }
+                            }
                         }
                     }
             }
@@ -3208,18 +3248,11 @@ private fun scheduleMalformedTaskCleanup(
         Unit
     }
     TaskListMutationQueues.queueFor(taskListId).enqueue(
+        reportsFailure = false,
         onIdle = releaseCleanupKey,
         onError = { releaseCleanupKey() }
     ) {
         Firebase.firestore.collection("taskLists").document(taskListId).update(updates)
-                            if (!snapshot.exists() && Firebase.auth.currentUser?.uid == userId) {
-                                val language = resolveDeviceLanguage(context)
-                                val initialTaskListName = Translations.from(context, language)
-                                    .t("app.initialTaskListName")
-                                scope.launch {
-                                    ensureInitialUserData(userId, language, initialTaskListName)
-                                }
-                            }
     }
 }
 
@@ -3248,7 +3281,6 @@ private fun rememberSharedTaskListPreviewState(
     userId: String?
 ): SharedTaskListPreviewUiState {
     val t = LocalTranslations.current
-        reportsFailure = false,
     val db = Firebase.firestore
     var uiState by remember(shareCode) {
         mutableStateOf(SharedTaskListPreviewUiState(isLoading = true))
@@ -3530,15 +3562,15 @@ private suspend fun addSharedTaskListToOrder(taskListId: String, joinCode: Strin
     }.commit().await()
 }
 
-private suspend fun removeTaskListMembership(
+private fun makeTaskListMembershipRemovalBatch(
     db: FirebaseFirestore,
     taskListOrderRef: DocumentReference,
     taskListId: String,
     taskListSnapshot: DocumentSnapshot
-) {
+): WriteBatch {
     val taskListRef = taskListSnapshot.reference
     val uid = Firebase.auth.currentUser?.uid ?: throw Exception("Missing user ID")
-    db.batch().apply {
+    return db.batch().apply {
         update(
             taskListOrderRef,
             mapOf(
@@ -3562,8 +3594,27 @@ private suspend fun removeTaskListMembership(
                 )
             )
         }
-    }.commit().await()
+    }
 }
+
+private suspend fun cacheFirstDocument(reference: DocumentReference): DocumentSnapshot =
+    try {
+        reference.get(Source.CACHE).await()
+    } catch (_: FirebaseFirestoreException) {
+        reference.get().await()
+    }
+
+private fun commitReportingFailure(batch: WriteBatch) {
+    batch.commit().addOnFailureListener { SyncFailureState.report() }
+}
+
+private const val PendingWritesCheckMillis = 1000L
+
+private suspend fun hasPendingWrites(): Boolean =
+    withTimeoutOrNull(PendingWritesCheckMillis) {
+        runCatching { Firebase.firestore.waitForPendingWrites().await() }
+        false
+    } ?: true
 
 private val calendarTaskComparator = compareByDescending<CalendarTask> { it.pinned }
     .thenBy { it.dateKey.ifBlank { "9999-12-31" } }
@@ -3597,25 +3648,6 @@ private fun makeCalendarTask(
         completed = task.completed,
         dateKey = if (dateValue != null) task.date else "",
         dateValue = dateValue,
-private suspend fun cacheFirstDocument(reference: DocumentReference): DocumentSnapshot =
-    try {
-        reference.get(Source.CACHE).await()
-    } catch (_: FirebaseFirestoreException) {
-        reference.get().await()
-    }
-
-private fun commitReportingFailure(batch: WriteBatch) {
-    batch.commit().addOnFailureListener { SyncFailureState.report() }
-}
-
-private const val PendingWritesCheckMillis = 1000L
-
-private suspend fun hasPendingWrites(): Boolean =
-    withTimeoutOrNull(PendingWritesCheckMillis) {
-        runCatching { Firebase.firestore.waitForPendingWrites().await() }
-        false
-    } ?: true
-
         pinned = task.pinned,
         order = task.order,
         taskListIndex = taskListIndex,
@@ -4412,6 +4444,7 @@ private fun AuthMessages(errors: List<String?>, success: String? = null) {
 
 @Composable
 private fun SignInView(onShowReset: () -> Unit) {
+    val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
     val scope = rememberCoroutineScope()
     var email by rememberSaveable { mutableStateOf("") }
@@ -4448,6 +4481,7 @@ private fun SignInView(onShowReset: () -> Unit) {
             error = passwordError
         )
         AuthMessages(listOf(errorMessage))
+        if (!isOnline) ConnectionRequiredNote()
         AppButton(
             text = if (isLoading) t.t("auth.button.signingIn") else t.t("auth.button.signin"),
             onClick = {
@@ -4474,7 +4508,7 @@ private fun SignInView(onShowReset: () -> Unit) {
                     }
                 }
             },
-            enabled = !isLoading,
+            enabled = !isLoading && isOnline,
             modifier = Modifier.fillMaxWidth()
         )
         AppButton(
@@ -4488,6 +4522,7 @@ private fun SignInView(onShowReset: () -> Unit) {
 
 @Composable
 private fun SignUpView(language: String) {
+    val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
     val scope = rememberCoroutineScope()
     var email by rememberSaveable { mutableStateOf("") }
@@ -4536,10 +4571,11 @@ private fun SignUpView(language: String) {
             label = t.t("auth.form.confirmPassword"),
             contentType = ContentType.NewPassword,
             password = true,
-            enabled = !isLoading && isOnline,
+            enabled = !isLoading,
             error = confirmPasswordError
         )
         AuthMessages(listOf(errorMessage))
+        if (!isOnline) ConnectionRequiredNote()
         AppButton(
             text = if (isLoading) t.t("auth.button.signingUp") else t.t("auth.button.signup"),
             onClick = {
@@ -4570,7 +4606,6 @@ private fun SignUpView(language: String) {
                     } catch (e: Exception) {
                         errorMessage = resolveAuthErrorMessage(t, e)
                     } finally {
-    val isOnline = rememberIsOnline()
                         isLoading = false
                     }
                 }
@@ -4586,6 +4621,7 @@ private fun PasswordResetRequestView(
     language: String,
     onBackToSignIn: () -> Unit
 ) {
+    val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
     val scope = rememberCoroutineScope()
     var email by rememberSaveable { mutableStateOf("") }
@@ -4607,7 +4643,6 @@ private fun PasswordResetRequestView(
             )
             AuthTextField(
                 value = email,
-        if (!isOnline) ConnectionRequiredNote()
                 onValueChange = {
                     email = it
                     emailError = null
@@ -4619,6 +4654,7 @@ private fun PasswordResetRequestView(
                 error = emailError
             )
             AuthMessages(listOf(errorMessage))
+            if (!isOnline) ConnectionRequiredNote()
             AppButton(
                 text = if (isLoading) t.t("auth.button.sending") else t.t("auth.button.sendResetEmail"),
                 onClick = {
@@ -4648,7 +4684,6 @@ private fun PasswordResetRequestView(
                     }
                 },
                 enabled = !isLoading && isOnline,
-    val isOnline = rememberIsOnline()
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -4666,6 +4701,7 @@ private fun ResetPasswordView(
     code: String,
     onDismiss: () -> Unit
 ) {
+    val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
     val scope = rememberCoroutineScope()
     var password by rememberSaveable { mutableStateOf("") }
@@ -4701,7 +4737,6 @@ private fun ResetPasswordView(
                 },
                 label = t.t("auth.passwordReset.newPassword"),
                 contentType = ContentType.NewPassword,
-        if (!isOnline) ConnectionRequiredNote()
                 password = true,
                 enabled = !isVerifying && !isSubmitting
             )
@@ -4722,6 +4757,7 @@ private fun ResetPasswordView(
         Spacer(Modifier.height(16.dp))
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             AuthMessages(listOf(passwordError, confirmPasswordError, errorMessage), successMessage)
+            if (!isOnline && successMessage == null) ConnectionRequiredNote()
             if (isVerifying) {
                 CircularProgressIndicator(
                     color = mutedTextColor(),
@@ -4747,7 +4783,6 @@ private fun ResetPasswordView(
                             Firebase.auth.confirmPasswordReset(code, password).await()
                             successMessage = t.t("auth.passwordReset.resetSuccess")
                         } catch (e: Exception) {
-    val isOnline = rememberIsOnline()
                             errorMessage = resolveAuthErrorMessage(t, e)
                         } finally {
                             isSubmitting = false
@@ -4780,7 +4815,6 @@ private fun CalendarScreen(
 ) {
     val t = LocalTranslations.current
     val haptic = LocalHapticFeedback.current
-            if (!isOnline) ConnectionRequiredNote()
     val reduceMotion = rememberReduceMotion()
     val settingsState = resolvedSettingsState(
         userId,
@@ -4836,7 +4870,6 @@ private fun CalendarScreen(
     }
 
     fun clearPendingCalendarTasks(values: Map<String, CalendarTask?>, revision: Int) {
-    val isOnline = rememberIsOnline()
         val ids = values.keys.filter { calendarMutationRevisions[it] == revision }
         if (ids.isEmpty()) return
         pendingCalendarTasks = pendingCalendarTasks.filterKeys { it !in ids }
@@ -4882,8 +4915,8 @@ private fun CalendarScreen(
     }
 
     val monthKey = displayedMonth.key
-    val tasksInMonth = remember(calendarTasks, monthKey) {
-        calendarTasks.filter { it.dateKey.isBlank() || it.dateKey.startsWith(monthKey) }
+    val tasksInMonth = remember(visibleCalendarTasks, monthKey) {
+        visibleCalendarTasks.filter { it.dateKey.isBlank() || it.dateKey.startsWith(monthKey) }
     }
     val dotColorsByDate = remember(tasksInMonth) {
         val map = mutableMapOf<String, MutableList<String?>>()
@@ -4892,7 +4925,6 @@ private fun CalendarScreen(
             if (!colors.contains(task.taskListBackground) && colors.size < 3) {
                 colors.add(task.taskListBackground)
             }
-            if (!isOnline && successMessage == null) ConnectionRequiredNote()
         }
         map as Map<String, List<String?>>
     }
@@ -4989,7 +5021,6 @@ private fun CalendarScreen(
         TaskListMutationQueues.queueFor(taskList.id).enqueue(onError = { error ->
             recordNonFatalException("calendar_task_add", error)
             optimisticCalendarTasks = optimisticCalendarTasks.filter { it.taskId != taskId }
-            addTaskError = t.t("common.error")
         }) {
             Firebase.firestore.collection("taskLists").document(taskList.id).update(updates)
         }
@@ -5032,7 +5063,6 @@ private fun CalendarScreen(
             onError = { error ->
                 clearPendingCalendarTasks(pendingValues, mutationRevision)
                 recordNonFatalException("calendar_task_update", error)
-                addTaskError = t.t("common.error")
             }
         ) {
             Firebase.firestore.collection("taskLists").document(taskList.id).update(updates)
@@ -5117,7 +5147,6 @@ private fun CalendarScreen(
             onError = { error ->
                 clearPendingCalendarTasks(pendingValues, mutationRevision)
                 recordNonFatalException("calendar_task_move", error)
-                addTaskError = t.t("common.error")
             }
         ) {
             val db = Firebase.firestore
@@ -5196,7 +5225,24 @@ private fun CalendarScreen(
         itemsIndexed(tasksInMonth, key = { _, task -> task.id }) { index, task ->
             val startsUndatedGroup = task.dateKey.isBlank() &&
                 (index == 0 || tasksInMonth[index - 1].dateKey.isNotBlank())
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (reduceMotion) {
+                            Modifier
+                        } else {
+                            Modifier.animateItem(
+                                fadeInSpec = tween(durationMillis = 240),
+                                placementSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                ),
+                                fadeOutSpec = tween(durationMillis = 120)
+                            )
+                        }
+                    )
+            ) {
                 if (startsUndatedGroup) {
                     Text(
                         t.t("pages.tasklist.noDate"),
@@ -5676,12 +5722,14 @@ private fun TaskListsScreen(
     calendarActive: Boolean = false,
     settingsActive: Boolean = false
 ) {
+    val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
     val haptic = LocalHapticFeedback.current
     val reduceMotion = rememberReduceMotion()
     val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListSummary)
 
     var showCreateDialog by remember { mutableStateOf(false) }
+    var awaitingTaskListId by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var createName by remember { mutableStateOf("") }
     var createBackground by remember { mutableStateOf<String?>(null) }
 
@@ -5865,7 +5913,6 @@ private fun TaskListsScreen(
                     }
                 },
                 iconSize = AppIconMetrics.headerActionIconSize,
-    val isOnline = rememberIsOnline()
                 tint = if (settingsActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
@@ -6172,7 +6219,7 @@ private fun TaskListsScreen(
                     if (!cacheFirstDocument(taskListOrderRef).exists()) {
                         taskListOrderUpdates["createdAt"] = now
                     }
-                    db.batch().apply {
+                    val batch = db.batch().apply {
                         set(db.collection("taskLists").document(taskListId), newTaskList)
                         set(
                             db.collection("taskLists").document(taskListId)
@@ -6187,7 +6234,7 @@ private fun TaskListsScreen(
                     }
                     commitReportingFailure(batch)
                     logTaskListCreate()
-                    openTaskList(taskListId)
+                    awaitingTaskListId = taskListId to SyncFailureState.failureRevision
                 } catch (e: Exception) {
                     recordNonFatalException("task_list_create", e)
                 }
@@ -6196,7 +6243,18 @@ private fun TaskListsScreen(
         }
     }
 
+    LaunchedEffect(uiState.taskLists, awaitingTaskListId, SyncFailureState.failureRevision) {
+        val (taskListId, failureRevision) = awaitingTaskListId ?: return@LaunchedEffect
+        if (uiState.taskLists.any { it.id == taskListId }) {
+            awaitingTaskListId = null
+            openTaskList(taskListId)
+        } else if (SyncFailureState.failureRevision != failureRevision) {
+            awaitingTaskListId = null
+        }
+    }
+
     fun joinTaskList() {
+        if (!isOnline) return
         scope.launch {
             val code = normalizedShareCode(joinListInput)
             if (code == null) {
@@ -6214,7 +6272,7 @@ private fun TaskListsScreen(
                 }
                 if (uiState.taskLists.any { it.id == taskListId }) {
                     showJoinDialog = false
-                    awaitingTaskListId = taskListId to SyncFailureState.failureRevision
+                    openTaskList(taskListId)
                     joiningList = false
                     return@launch
                 }
@@ -6303,6 +6361,7 @@ private fun TaskListsScreen(
                         keyboardActions = KeyboardActions(onDone = { joinTaskList() })
                     )
                 }
+                if (!isOnline) ConnectionRequiredNote()
             }
         }
     }
@@ -6385,18 +6444,7 @@ private fun TabletRootScreen(
                     showTopBar = false,
                     externalTaskLists = sharedTaskLists,
                     externalSettingsState = settingsState
-    LaunchedEffect(uiState.taskLists, awaitingTaskListId, SyncFailureState.failureRevision) {
-        val (taskListId, failureRevision) = awaitingTaskListId ?: return@LaunchedEffect
-        if (uiState.taskLists.any { it.id == taskListId }) {
-            awaitingTaskListId = null
-            openTaskList(taskListId)
-        } else if (SyncFailureState.failureRevision != failureRevision) {
-            awaitingTaskListId = null
-        }
-    }
-
                 )
-        if (!isOnline) return
             } else {
                 TaskListDetailPagerScreen(
                     navController = null,
@@ -6503,7 +6551,6 @@ private fun TaskListDetailPagerScreen(
             }
     }
 
-                if (!isOnline) ConnectionRequiredNote()
     LaunchedEffect(pagerState, uiState.taskLists) {
         snapshotFlow { pagerState.settledPage }
             .collectLatest { page ->
@@ -6579,6 +6626,7 @@ private fun TaskListDetailPagerScreen(
                                     TaskListIndicator(
                                         count = uiState.taskLists.size,
                                         selectedIndex = selectedTaskListIndex,
+                                        progress = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
                                         labels = uiState.taskLists.map { it.name },
                                         backgroundColor = taskListBackgroundColor,
                                         onSelect = { index ->
@@ -6611,12 +6659,15 @@ private fun TaskListDetailPagerScreen(
 private fun TaskListIndicator(
     count: Int,
     selectedIndex: Int,
+    progress: () -> Float,
     labels: List<String>,
     backgroundColor: Color,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val t = LocalTranslations.current
+    val activeColor = MaterialTheme.colorScheme.onBackground
+    val inactiveColor = mutedIconColor()
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -6624,8 +6675,28 @@ private fun TaskListIndicator(
         contentAlignment = Alignment.Center
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
+            modifier = Modifier.drawWithContent {
+                drawContent()
+                if (count == 0) return@drawWithContent
+                val value = progress().coerceIn(0f, (count - 1).toFloat())
+                val base = kotlin.math.floor(value)
+                val fraction = value - base
+                val start = base + maxOf(0f, fraction * 2f - 1f)
+                val end = base + minOf(1f, fraction * 2f)
+                val pitch = size.width / count
+                val dotSize = TaskListDetailMetrics.indicatorDotSize.toPx()
+                val startX = (pitch - dotSize) / 2f + start * pitch
+                val width = dotSize + (end - start) * pitch
+                drawRoundRect(
+                    color = activeColor,
+                    topLeft = Offset(
+                        if (layoutDirection == LayoutDirection.Rtl) size.width - startX - width else startX,
+                        (size.height - dotSize) / 2f
+                    ),
+                    size = Size(width, dotSize),
+                    cornerRadius = CornerRadius(dotSize / 2f)
+                )
+            }
         ) {
             repeat(count) { index ->
                 val isSelected = index == selectedIndex
@@ -6649,10 +6720,7 @@ private fun TaskListIndicator(
                     Box(
                         modifier = Modifier
                             .size(TaskListDetailMetrics.indicatorDotSize)
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.onBackground else mutedIconColor(),
-                                CircleShape
-                            )
+                            .background(inactiveColor, CircleShape)
                     )
                 }
             }
@@ -7100,6 +7168,7 @@ private fun TaskListDetailContent(
     allowTaskListDeletion: Boolean = true,
     allowShareCodeManagement: Boolean = true
 ) {
+    val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
     val haptic = LocalHapticFeedback.current
     val reduceMotion = rememberReduceMotion()
@@ -7138,7 +7207,6 @@ private fun TaskListDetailContent(
     var removeListError by remember { mutableStateOf<String?>(null) }
     var shareCopySuccess by remember { mutableStateOf(false) }
     var shareError by remember { mutableStateOf<String?>(null) }
-    var taskMutationError by remember { mutableStateOf<String?>(null) }
     val newTaskFocusRequester = remember { FocusRequester() }
 
     val displayTasks = remember(taskList.tasks, dragOrderedTasks, pendingDisplayedTasks, autoSort) {
@@ -7234,7 +7302,6 @@ private fun TaskListDetailContent(
         editBackground = null
         shareCopySuccess = false
         shareError = null
-        taskMutationError = null
         removeListError = null
     }
 
@@ -7245,7 +7312,6 @@ private fun TaskListDetailContent(
     fun persistTaskListUpdate(updates: Map<String, Any>) {
         val mutationRevision = taskMutationRevision + 1
         taskMutationRevision = mutationRevision
-        taskMutationError = null
         val taskListDebugId = shortDebugId(taskList.id)
         logDebugSync("task update enqueue taskList=$taskListDebugId fields=${updates.keys.sorted().joinToString(",")}")
         mutationQueue.enqueue(
@@ -7260,7 +7326,6 @@ private fun TaskListDetailContent(
                 if (taskMutationRevision == mutationRevision) {
                     pendingDisplayedTasks = null
                 }
-                taskMutationError = t.t("common.error")
             }
         ) {
             logDebugSync("task update start taskList=$taskListDebugId fields=${updates.size}")
@@ -7317,7 +7382,6 @@ private fun TaskListDetailContent(
                 haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                 return
             }
-    val isOnline = rememberIsOnline()
         }
 
         if (currentIdx > 0) {
@@ -7707,16 +7771,6 @@ private fun TaskListDetailContent(
                 }
             }
         }
-        taskMutationError?.let { message ->
-            item(key = "taskMutationError", contentType = "error") {
-                Text(
-                    message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = AppBodySmallTextStyle,
-                    modifier = Modifier.padding(top = TaskListDetailMetrics.sectionSpacing)
-                )
-            }
-        }
         if (allowTaskEditing) {
             item(key = "taskListInput", contentType = "input") {
             Box(
@@ -7918,10 +7972,11 @@ private fun TaskListDetailContent(
             }
         } else {
             itemsIndexed(
-                items = displayTasks,
+                items = visibleTasks,
                 key = { _, task -> task.id },
                 contentType = { _, _ -> "task" }
-            ) { index, task ->
+            ) { _, task ->
+                val index = displayTasks.indexOfFirst { it.id == task.id }
                 val isEditing = editingTaskId == task.id
                 val isDragged = draggingTaskId == task.id
                 TaskListRow(
@@ -8083,21 +8138,14 @@ private fun TaskListDetailContent(
                             if (trimmed != taskList.name) updates["name"] = trimmed
                             if (editBackground != taskList.background) updates["background"] = editBackground
                             if (updates.size > 1) {
-                                scope.launch {
-                                    try {
-                                        removeListError = null
-                                        db.collection("taskLists").document(taskList.id).update(
-                                            updates.toMap()
-                                        ).await()
-                                        showEditDialog = false
-                                    } catch (e: Exception) {
-                                        removeListError = t.t("common.error")
-                                        recordNonFatalException("task_list_update", e)
-                                    }
+                                removeListError = null
+                                mutationQueue.enqueue(
+                                    onError = { error -> recordNonFatalException("task_list_update", error) }
+                                ) {
+                                    db.collection("taskLists").document(taskList.id).update(updates.toMap())
                                 }
-                            } else {
-                                showEditDialog = false
                             }
+                            showEditDialog = false
                         }
                     },
                     enabled = editName.trim().isNotEmpty() && !removingList
@@ -8225,6 +8273,7 @@ private fun TaskListDetailContent(
                     modifier = Modifier.padding(top = 16.dp)
                 )
             }
+            if (!isOnline) ConnectionRequiredNote(Modifier.padding(top = 16.dp))
             if (code != null) {
                 Column(
                     modifier = Modifier.padding(top = 20.dp),
@@ -8463,7 +8512,6 @@ private fun SettingsActionRow(
     }
 }
 
-            if (!isOnline) ConnectionRequiredNote(Modifier.padding(top = 16.dp))
 @Composable
 private fun SettingsOptionDialog(
     title: String,
@@ -8549,26 +8597,20 @@ private fun SettingsView(
 
     fun updateSettings(
         partial: Map<String, Any>,
-        onSuccess: () -> Unit = {},
         onFailure: () -> Unit = {}
     ) {
-        if (userId == null || isUpdatingSettings) return
-        isUpdatingSettings = true
+        if (userId == null) return
         errorMessage = null
         Firebase.firestore.collection("settings").document(userId)
             .set(partial + mapOf("updatedAt" to nowMillis()), SetOptions.merge())
             .addOnFailureListener {
                 SyncFailureState.report()
                 onFailure()
-            } finally {
-                isUpdatingSettings = false
             }
-        }
     }
 
     fun updateAutoSort(enabled: Boolean) {
         val uid = userId ?: return
-        if (isUpdatingSettings) return
         autoSortOverrides[uid] = enabled
         logSettingsAutoSortChange(enabled = enabled)
         updateSettings(
@@ -8666,6 +8708,9 @@ private fun SettingsView(
                         SettingsNavigationRow(label = t.t("settings.emailChange.title"), enabled = isOnline) {
                             showEmailChangeDialog = true
                         }
+                        if (!isOnline) {
+                            ConnectionRequiredNote(Modifier.padding(bottom = 12.dp))
+                        }
                     } else {
                         Column(
                             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
@@ -8733,26 +8778,22 @@ private fun SettingsView(
                 SettingsSectionCard(title = t.t("settings.preferences.title")) {
                     SettingsSelectRow(
                         label = t.t("settings.language.title"),
-                        value = supportedLanguages.firstOrNull { it.first == uiState.language }?.second ?: uiState.language,
-                        enabled = !isUpdatingSettings
+                        value = supportedLanguages.firstOrNull { it.first == uiState.language }?.second ?: uiState.language
                     ) { showLanguageDialog = true }
                     SettingsDivider()
                     SettingsSelectRow(
                         t.t("settings.theme.title"),
-                        settingsThemeLabel(t, uiState.theme),
-                        enabled = !isUpdatingSettings
+                        settingsThemeLabel(t, uiState.theme)
                     ) { showThemeDialog = true }
                     SettingsDivider()
                     SettingsSelectRow(
                         t.t("settings.startupView.title"),
-                        settingsStartupViewLabel(t, uiState.startupView),
-                        enabled = !isUpdatingSettings
+                        settingsStartupViewLabel(t, uiState.startupView)
                     ) { showStartupViewDialog = true }
                     SettingsDivider()
                     SettingsSelectRow(
                         t.t("settings.taskInsertPosition.title"),
-                        settingsTaskInsertPositionLabel(t, uiState.taskInsertPosition),
-                        enabled = !isUpdatingSettings
+                        settingsTaskInsertPositionLabel(t, uiState.taskInsertPosition)
                     ) { showPositionDialog = true }
                     SettingsDivider()
                     Row(
@@ -8760,11 +8801,9 @@ private fun SettingsView(
                             .fillMaxWidth()
                             .toggleable(
                                 value = uiState.autoSort,
-                                enabled = !isUpdatingSettings,
                                 role = Role.Switch,
                                 onValueChange = ::updateAutoSort
                             )
-                            .alpha(if (isUpdatingSettings) 0.5f else 1f)
                             .padding(vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -8826,6 +8865,9 @@ private fun SettingsView(
                         color = MaterialTheme.colorScheme.error,
                         onClick = { showDeleteDialog = true }
                     )
+                    if (!isOnline) {
+                        ConnectionRequiredNote(Modifier.padding(bottom = 12.dp))
+                    }
                 }
             }
         }
@@ -8834,7 +8876,9 @@ private fun SettingsView(
     if (showSignOutDialog) {
         AppConfirmDialog(
             title = t.t("auth.signOutConfirm.title"),
-            message = t.t("auth.signOutConfirm.message"),
+            message = t.t(
+                if (hasUnsyncedChanges) "auth.signOutConfirm.unsyncedMessage" else "auth.signOutConfirm.message"
+            ),
             confirmLabel = t.t("auth.button.signOut"),
             cancelLabel = t.t("auth.button.cancel"),
             destructive = false,
@@ -8886,12 +8930,12 @@ private fun SettingsView(
                                     val taskListRef = db.collection("taskLists").document(taskListId)
                                     val snap = taskListRef.get().await()
                                     if (!snap.exists()) return@async
-                                    removeTaskListMembership(
+                                    makeTaskListMembershipRemovalBatch(
                                         db,
                                         taskListOrderRef,
                                         taskListId,
                                         snap
-                                    )
+                                    ).commit().await()
                                 }
                             }.awaitAll()
                         }
@@ -8905,9 +8949,6 @@ private fun SettingsView(
                 } catch (e: Exception) {
                     errorMessage = resolveAuthErrorMessage(t, e)
                 } finally {
-                        if (!isOnline) {
-                            ConnectionRequiredNote(Modifier.padding(bottom = 12.dp))
-                        }
                     isDeletingAccount = false
                 }
             }
@@ -8959,7 +9000,6 @@ private fun SettingsView(
                 "dark" to t.t("settings.theme.dark")
             ),
             selected = uiState.theme,
-            enabled = !isUpdatingSettings,
             onSelect = { option ->
                 logSettingsThemeChange(theme = option)
                 updateSettings(mapOf("theme" to option))
@@ -8976,7 +9016,6 @@ private fun SettingsView(
                 "bottom" to t.t("settings.taskInsertPosition.bottom")
             ),
             selected = uiState.taskInsertPosition,
-            enabled = !isUpdatingSettings,
             onSelect = { option ->
                 logSettingsTaskInsertPositionChange(position = option)
                 updateSettings(mapOf("taskInsertPosition" to option))
@@ -8994,7 +9033,6 @@ private fun SettingsView(
                 "taskLists" to t.t("settings.startupView.taskLists")
             ),
             selected = uiState.startupView,
-            enabled = !isUpdatingSettings,
             onSelect = { option ->
                 logSettingsStartupViewChange(view = option)
                 updateSettings(mapOf("startupView" to option))
@@ -9008,7 +9046,6 @@ private fun SettingsView(
             title = t.t("settings.language.title"),
             options = supportedLanguages,
             selected = uiState.language,
-            enabled = !isUpdatingSettings,
             onSelect = { code ->
                 logSettingsLanguageChange(language = code)
                 updateSettings(mapOf("language" to code))
@@ -9055,9 +9092,6 @@ private fun SettingsView(
                             license.source?.let { source ->
                                 Text(
                                     source,
-                    if (!isOnline) {
-                        ConnectionRequiredNote(Modifier.padding(bottom = 12.dp))
-                    }
                                     style = AppCaptionTextStyle.copy(fontWeight = FontWeight.Normal),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textDecoration = TextDecoration.Underline

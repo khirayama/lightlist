@@ -747,6 +747,12 @@ final class Translations: ObservableObject {
         return dict
     }
 
+    static func initialTaskListName(for language: String) -> String {
+        let lang = supported.contains(language) ? language : "ja"
+        let app = (loadAllLocales()[lang] as? [String: Any])?["app"] as? [String: Any]
+        return app?["initialTaskListName"] as? String ?? "app.initialTaskListName"
+    }
+
     fileprivate func getRelativePatterns() -> [TaskDatePattern] {
         return Self.getRelativePatterns(from: dict)
     }
@@ -818,60 +824,6 @@ private func nowMillis() -> Int64 {
     Int64(Date().timeIntervalSince1970 * 1000)
 }
 
-func logSignUp() { log(AnalyticsEventSignUp, [AnalyticsParameterMethod: "email"]) }
-func logLogin() { log(AnalyticsEventLogin, [AnalyticsParameterMethod: "email"]) }
-func logSignOut() { log("app_sign_out") }
-func logDeleteAccount() { log("app_delete_account") }
-func logPasswordResetEmailSent() { log("app_password_reset_email_sent") }
-func logEmailChangeRequested() { log("app_email_change_requested") }
-func logTaskListCreate() { log("app_task_list_create") }
-func logTaskListDelete() { log("app_task_list_delete") }
-func logTaskListReorder() { log("app_task_list_reorder") }
-func logTaskAdd(hasDate: Bool) { log("app_task_add", ["has_date": hasDate]) }
-func logTaskUpdate(fields: String) { log("app_task_update", ["fields": fields]) }
-func logTaskReorder() { log("app_task_reorder") }
-func logTaskSort() { log("app_task_sort") }
-func logTaskDeleteCompleted(count: Int) { log("app_task_delete_completed", ["count": count]) }
-func logShareCodeGenerate() { log("app_share_code_generate") }
-func logShareCodeRemove() { log("app_share_code_remove") }
-func logShareCodeJoin() { log("app_share_code_join") }
-func logShare() { log(AnalyticsEventShare, [AnalyticsParameterMethod: "share_code", AnalyticsParameterContentType: "task_list"]) }
-func logSettingsThemeChange(theme: String) { log("app_settings_theme_change", ["theme": theme]) }
-func logSettingsLanguageChange(language: String) { log("app_settings_language_change", ["language": language]) }
-func logSettingsTaskInsertPositionChange(position: String) { log("app_settings_task_insert_position_change", ["position": position]) }
-func logSettingsAutoSortChange(enabled: Bool) { log("app_settings_auto_sort_change", ["enabled": enabled]) }
-func logSettingsStartupViewChange(view: String) { log("app_settings_startup_view_change", ["view": view]) }
-
-func logException(operation: String, errorCategory: String? = nil) {
-    var params: [String: Any] = ["operation": operation]
-    if let errorCategory {
-        params["error_category"] = errorCategory
-    }
-    log("app_exception", params)
-    let error = NSError(domain: "com.lightlist.\(operation)", code: 0, userInfo: nil)
-    Crashlytics.crashlytics().record(error: error)
-}
-
-enum AppRoute: Hashable {
-    case taskLists
-    case taskList(taskListId: String)
-    case settings
-    case calendar
-
-    var title: String {
-        switch self {
-        case .taskLists:
-            return "TaskLists"
-        case .taskList:
-            return "TaskList"
-        case .settings:
-            return "Settings"
-        case .calendar:
-            return "Calendar"
-        }
-    }
-
-    static var initialPath: [AppRoute] {
 @MainActor
 private enum InitialUserData {
     private static var requests: [String: Task<Void, Error>] = [:]
@@ -946,6 +898,60 @@ private func ensureInitialUserData(uid: String, language: String) async {
     }
 }
 
+func logSignUp() { log(AnalyticsEventSignUp, [AnalyticsParameterMethod: "email"]) }
+func logLogin() { log(AnalyticsEventLogin, [AnalyticsParameterMethod: "email"]) }
+func logSignOut() { log("app_sign_out") }
+func logDeleteAccount() { log("app_delete_account") }
+func logPasswordResetEmailSent() { log("app_password_reset_email_sent") }
+func logEmailChangeRequested() { log("app_email_change_requested") }
+func logTaskListCreate() { log("app_task_list_create") }
+func logTaskListDelete() { log("app_task_list_delete") }
+func logTaskListReorder() { log("app_task_list_reorder") }
+func logTaskAdd(hasDate: Bool) { log("app_task_add", ["has_date": hasDate]) }
+func logTaskUpdate(fields: String) { log("app_task_update", ["fields": fields]) }
+func logTaskReorder() { log("app_task_reorder") }
+func logTaskSort() { log("app_task_sort") }
+func logTaskDeleteCompleted(count: Int) { log("app_task_delete_completed", ["count": count]) }
+func logShareCodeGenerate() { log("app_share_code_generate") }
+func logShareCodeRemove() { log("app_share_code_remove") }
+func logShareCodeJoin() { log("app_share_code_join") }
+func logShare() { log(AnalyticsEventShare, [AnalyticsParameterMethod: "share_code", AnalyticsParameterContentType: "task_list"]) }
+func logSettingsThemeChange(theme: String) { log("app_settings_theme_change", ["theme": theme]) }
+func logSettingsLanguageChange(language: String) { log("app_settings_language_change", ["language": language]) }
+func logSettingsTaskInsertPositionChange(position: String) { log("app_settings_task_insert_position_change", ["position": position]) }
+func logSettingsAutoSortChange(enabled: Bool) { log("app_settings_auto_sort_change", ["enabled": enabled]) }
+func logSettingsStartupViewChange(view: String) { log("app_settings_startup_view_change", ["view": view]) }
+
+func logException(operation: String, errorCategory: String? = nil) {
+    var params: [String: Any] = ["operation": operation]
+    if let errorCategory {
+        params["error_category"] = errorCategory
+    }
+    log("app_exception", params)
+    let error = NSError(domain: "com.lightlist.\(operation)", code: 0, userInfo: nil)
+    Crashlytics.crashlytics().record(error: error)
+}
+
+enum AppRoute: Hashable {
+    case taskLists
+    case taskList(taskListId: String)
+    case settings
+    case calendar
+
+    var title: String {
+        switch self {
+        case .taskLists:
+            return "TaskLists"
+        case .taskList:
+            return "TaskList"
+        case .settings:
+            return "Settings"
+        case .calendar:
+            return "Calendar"
+        }
+    }
+
+    static var initialPath: [AppRoute] {
         [.taskList(taskListId: "__initial__")]
     }
 
@@ -1351,6 +1357,7 @@ private final class TaskListMutationQueue {
 
     func enqueue(
         _ operation: (@escaping @Sendable (Error?) -> Void) -> Void,
+        reportsFailure: Bool = true,
         onError: @escaping @MainActor @Sendable () -> Void = {},
         onIdle: @escaping @MainActor @Sendable () -> Void = {}
     ) {
@@ -1408,20 +1415,19 @@ private enum TaskListMutationQueues {
         }
         submit(0) { _ in }
     }
-        reportsFailure: Bool = true,
 
     static func remove(for taskListId: String) {
         queues.removeValue(forKey: taskListId)
     }
 }
 
-private func removeTaskListMembership(
+private func makeTaskListMembershipRemovalBatch(
     db: Firestore,
     taskListOrderRef: DocumentReference,
     taskListId: String,
     taskListSnapshot: DocumentSnapshot,
     shareCodeDocumentId: String?
-) async throws {
+) throws -> WriteBatch {
     let taskListRef = taskListSnapshot.reference
     guard let uid = Auth.auth().currentUser?.uid else {
         throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing user ID"])
@@ -1648,6 +1654,7 @@ private func scheduleMalformedTaskCleanup(
         { completion in
             Firestore.firestore().collection("taskLists").document(taskListId).updateData(updates, completion: completion)
         },
+        reportsFailure: false,
         onError: {
             malformedTaskCleanupKeys.remove(cleanupKey)
         },
@@ -1702,7 +1709,6 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
     private var retryDelays: [String: UInt64] = [:]
     private var failedScopes: Set<String> = []
     private var currentUid: String?
-        reportsFailure: false,
     private var orderedIds: [String] = []
     private var accessibleIds: [String] = []
     private var taskListsById: [String: Item] = [:]
@@ -1931,7 +1937,6 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         pendingTaskArrayRevisions = [:]
         pendingHistories = [:]
         pendingHistoryRevisions = [:]
-        failedMutationRevisions = []
         calendarError = nil
     }
 
@@ -2000,7 +2005,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
     private func beginPending(
         _ taskLists: [String: [TaskSummary]],
         histories: [String: [String]]
-    ) -> (revisions: [String: Int], historyRevisions: [String: Int], operationRevision: Int) {
+    ) -> (revisions: [String: Int], historyRevisions: [String: Int]) {
         mutationRevision += 1
         let operationRevision = mutationRevision
         var revisions: [String: Int] = [:]
@@ -2022,7 +2027,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             historyRevisions[taskListId] = operationRevision
         }
         calendarError = nil
-        return (revisions, historyRevisions, operationRevision)
+        return (revisions, historyRevisions)
     }
 
     private func finishPending(_ revisions: [String: Int], histories: [String: Int]) {
@@ -2039,30 +2044,18 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
     private func enqueueMutation(
         taskLists nextTaskLists: [String: [TaskSummary]],
         histories nextHistories: [String: [String]] = [:],
-        translations: Translations,
         operation: @escaping (@escaping @Sendable (Error?) -> Void) -> Void,
-        onSuccess: @escaping @MainActor @Sendable () -> Void = {},
-        onFailure: @escaping @MainActor @Sendable () -> Void = {}
+        onSuccess: @escaping @MainActor @Sendable () -> Void = {}
     ) {
         let pending = beginPending(nextTaskLists, histories: nextHistories)
         TaskListMutationQueues.enqueue(
             for: Array(nextTaskLists.keys),
             operation,
-            onError: { [weak self] in
-                guard let self else { return }
-                self.failedMutationRevisions.insert(pending.operationRevision)
-                self.finishPending(pending.revisions, histories: pending.historyRevisions)
-                self.calendarError = translations.t("common.error")
-                onFailure()
-            },
             onIdle: { [weak self] in
-                guard let self else { return }
-                self.finishPending(pending.revisions, histories: pending.historyRevisions)
-                if self.failedMutationRevisions.remove(pending.operationRevision) == nil {
-                    onSuccess()
-                }
+                self?.finishPending(pending.revisions, histories: pending.historyRevisions)
             }
         )
+        onSuccess()
     }
 
     func addTask(
@@ -2121,12 +2114,10 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         enqueueMutation(
             taskLists: [taskList.id: nextTasks],
             histories: [taskList.id: nextHistory],
-            translations: translations,
             operation: { [db] completion in
                 db.collection("taskLists").document(taskList.id).updateData(updates, completion: completion)
             },
-            onSuccess: onSuccess,
-            onFailure: onFailure
+            onSuccess: onSuccess
         )
         logTaskAdd(hasDate: !dateStr.isEmpty)
     }
@@ -2293,12 +2284,10 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         enqueueMutation(
             taskLists: [taskListId: nextTasks],
             histories: nextHistory.map { [taskListId: $0] } ?? [:],
-            translations: translations,
             operation: { [db] completion in
                 db.collection("taskLists").document(taskListId).updateData(updates, completion: completion)
             },
-            onSuccess: onSuccess,
-            onFailure: onFailure
+            onSuccess: onSuccess
         )
     }
 }
@@ -2698,8 +2687,36 @@ private func resolveAuthErrorMessage(translations: Translations, error: Error) -
     }
 }
 
+@MainActor private final class SyncFailureCenter: ObservableObject {
+    static let shared = SyncFailureCenter()
+
+    @Published private(set) var hasFailure = false
+    @Published private(set) var failureRevision = 0
+
+    func report() {
+        hasFailure = true
+        failureRevision += 1
+    }
+
+    func dismiss() {
+        hasFailure = false
+    }
+}
+
+private struct ConnectionRequiredNote: View {
+    @EnvironmentObject private var translations: Translations
+
+    var body: some View {
+        Text(translations.t("common.requiresConnection"))
+            .font(AppTypography.caption())
+            .foregroundStyle(AppPalette.mutedText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 private struct OfflineNotice: View {
     @ObservedObject private var networkStatus = NetworkStatus.shared
+    @ObservedObject private var syncFailures = SyncFailureCenter.shared
     @EnvironmentObject private var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -2732,17 +2749,23 @@ private struct OfflineNotice: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(AppPalette.primary, in: Capsule())
-                    .frame(maxWidth: 448)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
+                    .allowsHitTesting(false)
                     .transition(.opacity)
             }
         }
+        .frame(maxWidth: 448)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: networkStatus.isOnline)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: syncFailures.hasFailure)
         .onChange(of: networkStatus.isOnline) { _, isOnline in
             if !isOnline {
                 AccessibilityNotification.Announcement(translations.t("common.offline")).post()
+            }
+        }
+        .onChange(of: syncFailures.hasFailure) { _, hasFailure in
+            if hasFailure {
+                AccessibilityNotification.Announcement(translations.t("common.syncFailed")).post()
             }
         }
     }
@@ -2784,36 +2807,8 @@ struct RootView: View {
 
     private var colorScheme: ColorScheme? {
         switch theme {
-@MainActor private final class SyncFailureCenter: ObservableObject {
-    static let shared = SyncFailureCenter()
-
-    @Published private(set) var hasFailure = false
-    @Published private(set) var failureRevision = 0
-
-    func report() {
-        hasFailure = true
-        failureRevision += 1
-    }
-
-    func dismiss() {
-        hasFailure = false
-    }
-}
-
-private struct ConnectionRequiredNote: View {
-    @EnvironmentObject private var translations: Translations
-
-    var body: some View {
-        Text(translations.t("common.requiresConnection"))
-            .font(AppTypography.caption())
-            .foregroundStyle(AppPalette.mutedText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
         case "light": return .light
         case "dark": return .dark
-    @ObservedObject private var syncFailures = SyncFailureCenter.shared
         default: return nil
         }
     }
@@ -2841,11 +2836,6 @@ private struct ConnectionRequiredNote: View {
     }
 
     private var presentedScreenBinding: Binding<RootPresentation?> {
-        .onChange(of: syncFailures.hasFailure) { _, hasFailure in
-            if hasFailure {
-                AccessibilityNotification.Announcement(translations.t("common.syncFailed")).post()
-            }
-        }
         Binding(
             get: { presentedScreen },
             set: { presented in
@@ -3096,6 +3086,15 @@ private struct ConnectionRequiredNote: View {
                         translations.load(language: "ja")
                         return
                     }
+                    if snapshot?.exists == false,
+                        snapshot?.metadata.isFromCache == false,
+                        snapshot?.metadata.hasPendingWrites == false,
+                        Auth.auth().currentUser?.uid == uid
+                    {
+                        Task { @MainActor in
+                            await ensureInitialUserData(uid: uid, language: resolveDeviceLanguage())
+                        }
+                    }
                     let nextTheme = data.theme ?? "system"
                     let language = data.language ?? "ja"
                     let startupView = normalizedStartupView(data.startupView)
@@ -3164,15 +3163,6 @@ private enum TaskListTopChromeMetrics {
     static let regularTopSpacing: CGFloat = 40
     static let horizontalPadding: CGFloat = 6
 }
-                    if snapshot?.exists == false,
-                        snapshot?.metadata.isFromCache == false,
-                        snapshot?.metadata.hasPendingWrites == false,
-                        Auth.auth().currentUser?.uid == uid
-                    {
-                        Task { @MainActor in
-                            await ensureInitialUserData(uid: uid, language: resolveDeviceLanguage())
-                        }
-                    }
 
 private extension VerticalAlignment {
     private enum TaskRowContentCenter: AlignmentID {
@@ -3349,9 +3339,8 @@ private struct TaskListIndicatorRow: View {
                     onSelect(taskList.id)
                 } label: {
                     Circle()
-                        .fill(index == selectedIndex ? AppPalette.primary : inactiveDotColor)
+                        .fill(inactiveDotColor)
                         .frame(width: TaskListTopChromeMetrics.indicatorDotSize, height: TaskListTopChromeMetrics.indicatorDotSize)
-                        .scaleEffect(index == selectedIndex ? 1.1 : 1)
                         .frame(width: TaskListTopChromeMetrics.indicatorPitch, height: TaskListTopChromeMetrics.indicatorHitHeight)
                         .contentShape(Rectangle())
                 }
@@ -3362,6 +3351,24 @@ private struct TaskListIndicatorRow: View {
                 .accessibilityAddTraits(index == selectedIndex ? [.isSelected] : [])
             }
         }
+        .overlay(alignment: .leading) {
+            activeIndicator
+        }
+    }
+
+    private var activeIndicator: some View {
+        let base = progress.value.rounded(.down)
+        let fraction = progress.value - base
+        let start = base + max(0, fraction * 2 - 1)
+        let end = base + min(1, fraction * 2)
+        let pitch = TaskListTopChromeMetrics.indicatorPitch
+        let dotSize = TaskListTopChromeMetrics.indicatorDotSize
+        return Capsule()
+            .fill(AppPalette.primary)
+            .frame(width: dotSize + CGFloat(end - start) * pitch, height: dotSize)
+            .padding(.leading, (pitch - dotSize) / 2 + CGFloat(start) * pitch)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
@@ -3396,6 +3403,7 @@ private struct TaskListTopChrome: View {
                 TaskListIndicatorRow(
                     taskLists: taskLists,
                     selectedIndex: selectedIndex,
+                    progress: progress,
                     onSelect: onSelect
                 )
                 .frame(height: TaskListTopChromeMetrics.indicatorRowHeight)
@@ -3527,6 +3535,7 @@ private struct SignInView: View {
     @State private var passwordError: String?
     @State private var errorMessage: String?
     @State private var isLoading = false
+    @ObservedObject private var networkStatus = NetworkStatus.shared
 
     var body: some View {
         VStack(spacing: 16) {
@@ -3553,6 +3562,10 @@ private struct SignInView: View {
                 AppAlert(message: errorMessage)
             }
 
+            if !networkStatus.isOnline {
+                ConnectionRequiredNote()
+            }
+
             Button(isLoading ? translations.t("auth.button.signingIn") : translations.t("auth.button.signin")) {
                 signIn()
             }
@@ -3567,6 +3580,7 @@ private struct SignInView: View {
     }
 
     private func signIn() {
+        guard networkStatus.isOnline else { return }
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         emailError =
             trimmedEmail.isEmpty
@@ -3619,6 +3633,7 @@ private struct SignUpView: View {
     @State private var confirmPasswordError: String?
     @State private var errorMessage: String?
     @State private var isLoading = false
+    @ObservedObject private var networkStatus = NetworkStatus.shared
 
     var body: some View {
         VStack(spacing: 16) {
@@ -3655,6 +3670,10 @@ private struct SignUpView: View {
                 AppAlert(message: errorMessage)
             }
 
+            if !networkStatus.isOnline {
+                ConnectionRequiredNote()
+            }
+
             Button(isLoading ? translations.t("auth.button.signingUp") : translations.t("auth.button.signup")) {
                 signUp()
             }
@@ -3664,16 +3683,13 @@ private struct SignUpView: View {
     }
 
     private func signUp() {
+        guard networkStatus.isOnline else { return }
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         emailError =
             trimmedEmail.isEmpty
             ? translations.t("auth.validation.email.required")
             : (!isValidEmail(trimmedEmail) ? translations.t("auth.validation.email.invalid") : nil)
         passwordError =
-            if !networkStatus.isOnline {
-                ConnectionRequiredNote()
-            }
-
             password.isEmpty
             ? translations.t("auth.validation.password.required")
             : (password.count < 8 ? translations.t("auth.validation.password.tooShort") : nil)
@@ -3688,10 +3704,8 @@ private struct SignUpView: View {
         isLoading = true
         errorMessage = nil
         var didComplete = false
-        guard networkStatus.isOnline else { return }
         let normalizedLanguage = normalizeLanguageCode(language)
         let auth = Auth.auth()
-        let db = Firestore.firestore()
 
         let timeoutTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(authSignInTimeoutSeconds * 1_000_000_000))
@@ -3742,6 +3756,7 @@ private struct PasswordResetRequestView: View {
     @State private var errorMessage: String?
     @State private var successMessage: String?
     @State private var isLoading = false
+    @ObservedObject private var networkStatus = NetworkStatus.shared
 
     var body: some View {
         VStack(spacing: 16) {
@@ -3767,6 +3782,10 @@ private struct PasswordResetRequestView: View {
                     AppAlert(message: errorMessage)
                 }
 
+                if !networkStatus.isOnline {
+                    ConnectionRequiredNote()
+                }
+
                 Button(isLoading ? translations.t("auth.button.sending") : translations.t("auth.button.sendResetEmail")) {
                     sendResetEmail()
                 }
@@ -3778,20 +3797,16 @@ private struct PasswordResetRequestView: View {
                 onBackToSignIn()
             }
             .buttonStyle(AppButtonStyle(variant: .secondary, fullWidth: true, cornerRadius: authButtonCornerRadius))
-            if !networkStatus.isOnline {
-                ConnectionRequiredNote()
-            }
-
         }
     }
 
     private func sendResetEmail() {
+        guard networkStatus.isOnline else { return }
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         emailError =
             trimmedEmail.isEmpty
             ? translations.t("auth.validation.email.required")
             : (!isValidEmail(trimmedEmail) ? translations.t("auth.validation.email.invalid") : nil)
-        guard networkStatus.isOnline else { return }
         guard emailError == nil else {
             return
         }
@@ -3828,6 +3843,7 @@ private struct PasswordResetView: View {
     @State private var successMessage: String?
     @State private var isVerifying = true
     @State private var isSubmitting = false
+    @ObservedObject private var networkStatus = NetworkStatus.shared
 
     private var isFormDisabled: Bool {
         isVerifying || isSubmitting || newPassword.isEmpty || confirmPassword.isEmpty || !networkStatus.isOnline
@@ -3867,6 +3883,10 @@ private struct PasswordResetView: View {
                         .frame(maxWidth: .infinity)
                 }
 
+                if successMessage == nil, !networkStatus.isOnline {
+                    ConnectionRequiredNote()
+                }
+
                 if successMessage == nil {
                     Button(
                         isSubmitting
@@ -3890,16 +3910,15 @@ private struct PasswordResetView: View {
 
     private func verifyCode() {
         isVerifying = true
-                if !networkStatus.isOnline {
-                    ConnectionRequiredNote()
-                }
-
         errorMessage = nil
         Auth.auth().verifyPasswordResetCode(code) { _, error in
             Task { @MainActor in
                 isVerifying = false
                 if let error {
-                    errorMessage = resolvePasswordResetErrorMessage(translations: translations, error: error)
+                    errorMessage =
+                        networkStatus.isOnline
+                        ? resolvePasswordResetErrorMessage(translations: translations, error: error)
+                        : translations.t("common.requiresConnection")
                 }
             }
         }
@@ -3909,7 +3928,6 @@ private struct PasswordResetView: View {
         guard !newPassword.isEmpty else {
             errorMessage = translations.t("auth.validation.password.required")
             return
-        guard networkStatus.isOnline else { return }
         }
 
         guard newPassword.count >= 8 else {
@@ -3933,10 +3951,7 @@ private struct PasswordResetView: View {
             Task { @MainActor in
                 isSubmitting = false
                 if let error {
-                    errorMessage =
-                        networkStatus.isOnline
-                        ? resolvePasswordResetErrorMessage(translations: translations, error: error)
-                        : translations.t("common.requiresConnection")
+                    errorMessage = resolvePasswordResetErrorMessage(translations: translations, error: error)
                     return
                 }
 
@@ -3994,10 +4009,6 @@ private final class DragAutoScroller {
                         return
                     }
                     let oldOffset = scrollView.contentOffset.y
-                if successMessage == nil, !networkStatus.isOnline {
-                    ConnectionRequiredNote()
-                }
-
                     let maxOffset = max(0, scrollView.contentSize.height - scrollView.bounds.height)
                     let newOffset = min(max(0, oldOffset + self.speed), maxOffset)
                     scrollView.setContentOffset(CGPoint(x: 0, y: newOffset), animated: false)
@@ -4085,6 +4096,9 @@ private struct TaskListsView: View {
     @State private var autoScroller = DragAutoScroller()
     @State private var scrollViewRef: UIScrollView? = nil
     @State private var showCreateSheet = false
+    @State private var awaitingTaskList: (id: String, failureRevision: Int)?
+    @ObservedObject private var networkStatus = NetworkStatus.shared
+    @ObservedObject private var syncFailures = SyncFailureCenter.shared
     @State private var createName = ""
     @State private var createBackground: String? = nil
     @State private var showJoinSheet = false
@@ -4204,9 +4218,6 @@ private struct TaskListsView: View {
                         Text(translations.t("title"))
                             .font(AppTypography.brand())
                             .foregroundStyle(.primary)
-    @State private var awaitingTaskList: (id: String, failureRevision: Int)?
-    @ObservedObject private var networkStatus = NetworkStatus.shared
-    @ObservedObject private var syncFailures = SyncFailureCenter.shared
                             .lineLimit(1)
                     }
                     .padding(.leading, 12)
@@ -4393,6 +4404,8 @@ private struct TaskListsView: View {
                     .disabled(createName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
+        .onChange(of: viewModel.taskLists) { _, _ in openAwaitingTaskList() }
+        .onChange(of: syncFailures.failureRevision) { _, _ in openAwaitingTaskList() }
         .sheet(isPresented: $showJoinSheet) {
             AppDialog(
                 title: translations.t("app.joinListTitle"),
@@ -4413,6 +4426,9 @@ private struct TaskListsView: View {
                         .submitLabel(.join)
                         .onSubmit(submitJoinList)
                         .appField()
+                    }
+                    if !networkStatus.isOnline {
+                        ConnectionRequiredNote()
                     }
                 }
             } footerLeading: {
@@ -4516,8 +4532,6 @@ private struct TaskListsView: View {
                                 ordered.map(\.id) != dragStartTaskListIds
                             {
                                 persistTaskListOrder(ordered.map(\.id))
-        .onChange(of: viewModel.taskLists) { _, _ in openAwaitingTaskList() }
-        .onChange(of: syncFailures.failureRevision) { _, _ in openAwaitingTaskList() }
                             }
                             dragOrderedTaskLists = nil
                             dragStartTaskListIds = []
@@ -4539,9 +4553,6 @@ private struct TaskListsView: View {
         .scaleEffect(draggingTaskListId == taskList.id ? 1.03 : 1.0)
         .animation(
             draggingTaskListId == taskList.id || reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.86),
-                    if !networkStatus.isOnline {
-                        ConnectionRequiredNote()
-                    }
             value: displayTaskLists.map(\.id)
         )
         .background(
@@ -4739,14 +4750,40 @@ private struct DetailPagerContent: View {
                         autoSort: autoSort,
                         focusedNewTaskListId: $focusedNewTaskListId
                     )
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: TaskListPageFrameKey.self,
+                                value: [taskList.id: proxy.frame(in: .global)]
+                            )
+                        }
+                    )
                     .tag(taskList.id)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear {
+                            pagerProgress.containerFrame = proxy.frame(in: .global)
+                            updatePagerProgress()
+                        }
+                        .onChange(of: proxy.frame(in: .global)) { _, frame in
+                            pagerProgress.containerFrame = frame
+                            updatePagerProgress()
+                        }
+                }
+            )
+            .onPreferenceChange(TaskListPageFrameKey.self) { frames in
+                pagerProgress.pageFrames = frames
+                updatePagerProgress()
+            }
             .onChange(of: selectedTaskListId) { previousTaskListId, nextTaskListId in
                 if focusedNewTaskListId == previousTaskListId {
                     focusedNewTaskListId = nextTaskListId
                 }
+                updatePagerProgress()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -4755,11 +4792,20 @@ private struct DetailPagerContent: View {
                 showBackButton: showBackButton,
                 taskLists: taskLists,
                 selectedIndex: selectedTaskListIndex,
+                progress: pagerProgress,
                 onSelect: { selectedTaskListId = $0 },
                 onBack: onBack
             )
         }
         .background(backgroundView)
+    }
+
+    private func updatePagerProgress() {
+        pagerProgress.update(
+            taskListIds: taskLists.map(\.id),
+            selectedId: selectedTaskListId,
+            isRightToLeft: layoutDirection == .rightToLeft
+        )
     }
 
     @ViewBuilder
@@ -5198,7 +5244,11 @@ private struct TaskListDetailPage: View {
         let accessibilityValue = translations.t(task.completed ? "pages.tasklist.markIncomplete" : "pages.tasklist.markComplete")
 
         Button {
-            triggerLightImpact()
+            if !task.completed && displayTasks.allSatisfy({ $0.id == task.id || $0.completed }) {
+                triggerSuccessFeedback()
+            } else {
+                triggerLightImpact()
+            }
             toggleCompletion(task)
         } label: {
             ZStack {
@@ -5234,9 +5284,6 @@ private struct TaskListDetailPage: View {
     private func updateTaskList(_ updates: [String: Any], onSuccess: @escaping () -> Void = {}) {
         taskMutationRevision += 1
         let mutationRevision = taskMutationRevision
-        taskMutationErrorRevision = nil
-        taskMutationError = nil
-        isTaskMutationSaving = true
         if let history = updates["history"] as? [String] {
             pendingHistory = history
         }
@@ -5244,25 +5291,13 @@ private struct TaskListDetailPage: View {
             { completion in
                 db.collection("taskLists").document(taskList.id).updateData(updates, completion: completion)
             },
-            onError: {
-                if taskMutationRevision == mutationRevision {
-                    pendingDisplayTasks = nil
-                    pendingHistory = nil
-                    taskMutationErrorRevision = mutationRevision
-                    taskMutationError = translations.t("common.error")
-                    isTaskMutationSaving = false
-                }
-            },
             onIdle: {
                 if taskMutationRevision == mutationRevision {
                     pendingDisplayTasks = nil
                     pendingHistory = nil
-                    isTaskMutationSaving = false
-                    if taskMutationErrorRevision != mutationRevision {
-                        onSuccess()
-                    }
                 }
             })
+        onSuccess()
     }
 
     private func performTaskMutation(
@@ -5305,7 +5340,7 @@ private struct TaskListDetailPage: View {
                     return
                 }
 
-                try await removeTaskListMembership(
+                let batch = try makeTaskListMembershipRemovalBatch(
                     db: db,
                     taskListOrderRef: taskListOrderRef,
                     taskListId: taskList.id,
@@ -5313,6 +5348,7 @@ private struct TaskListDetailPage: View {
                     shareCodeDocumentId: (taskListSnapshot.data()?["shareCode"] as? String)
                         .flatMap(normalizedShareCode)
                 )
+                commitReportingFailure(batch)
 
                 await MainActor.run {
                     TaskListMutationQueues.remove(for: taskList.id)
@@ -5334,6 +5370,7 @@ private struct TaskListDetailPage: View {
     @State private var editName = ""
     @State private var editBackground: String? = nil
     @State private var showShareSheet = false
+    @ObservedObject private var networkStatus = NetworkStatus.shared
     @State private var currentShareCode: String? = nil
     @State private var generatingShareCode = false
     @State private var removingShareCode = false
@@ -5483,7 +5520,6 @@ private struct TaskListDetailPage: View {
             .alignmentGuide(.taskRowContentCenter) { dimensions in
                 dimensions[VerticalAlignment.center]
             }
-                commitReportingFailure(batch)
             .accessibilityLabel(task.pinned ? translations.t("pages.tasklist.unpinTask") : translations.t("pages.tasklist.setDate"))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -5575,10 +5611,6 @@ private struct TaskListDetailPage: View {
                             dismissNewTaskInputFocus()
                         }
                     )
-
-                    if let taskMutationError, actionSheetState == nil {
-                        AppAlert(message: taskMutationError)
-                    }
 
                     if allowsTaskEditing {
                         newTaskInput
@@ -5786,14 +5818,9 @@ private struct TaskListDetailPage: View {
                 db.collection("taskLists").document(taskList.id).updateData(updates, completion: completion)
             },
             onError: {
-                removeListError = translations.t("common.error")
                 logException(operation: "task_list_update", errorCategory: "write_failed")
-            },
-            onIdle: {
-                if removeListError == nil {
-                    showEditSheet = false
-                }
             })
+        showEditSheet = false
     }
 
     private var editSheet: some View {
@@ -5850,9 +5877,6 @@ private struct TaskListDetailPage: View {
                 AppActionSheetHeader(title: trimmedText.isEmpty ? translations.t("pages.tasklist.setDate") : trimmedText) {
                     actionSheetState = nil
                 }
-                if let taskMutationError {
-                    AppAlert(message: taskMutationError)
-                }
                 HStack(spacing: 8) {
                     Button(translations.t("pages.tasklist.clearDate")) {
                         commitDate(task, dateStr: "") { actionSheetState = nil }
@@ -5889,6 +5913,9 @@ private struct TaskListDetailPage: View {
                 VStack(alignment: .leading, spacing: 20) {
                     if let shareError {
                         AppAlert(message: shareError)
+                    }
+                    if !networkStatus.isOnline {
+                        ConnectionRequiredNote()
                     }
                     if let code = currentShareCode {
                         AppFormField(label: translations.t("taskList.shareCode")) {
@@ -5954,6 +5981,9 @@ private struct TaskListDetailPage: View {
 
     private func toggleCompletion(_ task: TaskSummary) {
         logTaskUpdate(fields: "completed")
+        if autoSort {
+            holdTaskPosition(task.id)
+        }
         performTaskMutation(
             buildNextTasks: { currentTasks in
                 currentTasks.map { current in
@@ -6053,9 +6083,6 @@ private struct TaskListDetailPage: View {
         let order: Double =
             taskInsertPosition == "top"
             ? (currentTasks.first?.order ?? 1.0) - 1.0
-                    if !networkStatus.isOnline {
-                        ConnectionRequiredNote()
-                    }
             : (currentTasks.last?.order ?? 0.0) + 1.0
         let insertedTask = TaskSummary(
             id: taskId,
@@ -6509,6 +6536,7 @@ private struct SharedTaskListPreviewView: View {
     @StateObject private var settingsViewModel = SettingsViewModel()
     @ObservedObject private var autoSortOverrides = AutoSortOverrideStore.shared
     @State private var addToOrderError: String?
+    @ObservedObject private var networkStatus = NetworkStatus.shared
     @FocusState private var focusedNewTaskListId: String?
 
     var body: some View {
@@ -6591,6 +6619,11 @@ private struct SharedTaskListPreviewView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 16)
                 }
+                if currentUserId != nil, !viewModel.isAdded, viewModel.taskList != nil, !networkStatus.isOnline {
+                    ConnectionRequiredNote()
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                }
             }
         }
         .onAppear {
@@ -6625,8 +6658,6 @@ private final class SettingsViewModel: ObservableObject {
     @Published var userEmail: String = ""
     @Published private(set) var isLoading = true
     @Published private(set) var hasError = false
-    @Published private(set) var isUpdating = false
-    @Published private(set) var hasUpdateError = false
 
     private let db = Firestore.firestore()
     private var settingsListener: ListenerRegistration?
@@ -6668,7 +6699,6 @@ private final class SettingsViewModel: ObservableObject {
         userEmail = Auth.auth().currentUser?.email ?? ""
         isLoading = true
         hasError = false
-        hasUpdateError = false
         installSettingsListener(uid: uid)
     }
 
@@ -6683,8 +6713,6 @@ private final class SettingsViewModel: ObservableObject {
         settingsMutationRevision = 0
         isLoading = false
         hasError = false
-        isUpdating = false
-        hasUpdateError = false
     }
 
     private func installSettingsListener(uid: String) {
@@ -6748,7 +6776,7 @@ private final class SettingsViewModel: ObservableObject {
         onSuccess: (@MainActor @Sendable () -> Void)? = nil,
         onFailure: (@MainActor @Sendable () -> Void)? = nil
     ) {
-        guard let uid = currentUid, !isUpdating, let previousSettings = settings else { return }
+        guard let uid = currentUid, let previousSettings = settings else { return }
         var optimisticSettings = previousSettings
         if let theme = partial["theme"] as? String,
             theme == "system" || theme == "light" || theme == "dark"
@@ -6758,11 +6786,6 @@ private final class SettingsViewModel: ObservableObject {
         if let language = partial["language"] as? String,
             supportedLanguages.contains(where: { $0.code == language })
         {
-                if currentUserId != nil, !viewModel.isAdded, viewModel.taskList != nil, !networkStatus.isOnline {
-                    ConnectionRequiredNote()
-                        .padding(.horizontal, 16)
-                        .padding(.top, 12)
-                }
             optimisticSettings.language = language
         }
         if let position = partial["taskInsertPosition"] as? String,
@@ -6782,12 +6805,9 @@ private final class SettingsViewModel: ObservableObject {
         settings = optimisticSettings
         var data = partial
         data["updatedAt"] = nowMillis()
-        isUpdating = true
-        hasUpdateError = false
         db.collection("settings").document(uid).setData(data, merge: true) { [weak self] error in
             Task { @MainActor in
                 guard let self, self.currentUid == uid else { return }
-                self.isUpdating = false
                 if error != nil {
                     if self.settingsMutationRevision == mutationRevision {
                         self.pendingSettings = nil
@@ -6825,14 +6845,14 @@ private final class SettingsViewModel: ObservableObject {
                     let taskListRef = db.collection("taskLists").document(taskListId)
                     let taskListSnapshot = try await taskListRef.getDocument(source: .server)
                     guard taskListSnapshot.exists else { continue }
-                    try await removeTaskListMembership(
+                    try await makeTaskListMembershipRemovalBatch(
                         db: db,
                         taskListOrderRef: taskListOrderRef,
                         taskListId: taskListId,
                         taskListSnapshot: taskListSnapshot,
                         shareCodeDocumentId: (taskListSnapshot.data()?["shareCode"] as? String)
                             .flatMap(normalizedShareCode)
-                    )
+                    ).commit()
                 }
                 let batch = db.batch()
                 batch.deleteDocument(db.collection("settings").document(uid))
@@ -6936,18 +6956,18 @@ private struct SettingsView: View {
     @State private var errorMessage: String? = nil
     @State private var isDeletingAccount = false
     @State private var isSigningOut = false
+    @State private var isCheckingPendingWrites = false
+    @State private var hasUnsyncedChanges = false
+    @ObservedObject private var networkStatus = NetworkStatus.shared
 
     private var actionsDisabled: Bool {
-        isSigningOut || isDeletingAccount
+        isSigningOut || isDeletingAccount || isCheckingPendingWrites
     }
 
     var body: some View {
         SettingsPage(title: translations.t("settings.title"), showsBackButton: showsBackButton) {
             if let errorMessage {
                 AppAlert(message: errorMessage)
-            }
-            if viewModel.hasUpdateError {
-                AppAlert(message: translations.t("common.error"))
             }
             if viewModel.isLoading && viewModel.settings == nil {
                 ProgressView()
@@ -6971,6 +6991,10 @@ private struct SettingsView: View {
                             disabled: actionsDisabled || !networkStatus.isOnline
                         ) {
                             showEmailChangeForm = true
+                        }
+                        if !networkStatus.isOnline {
+                            ConnectionRequiredNote()
+                                .padding(.bottom, 12)
                         }
                     }
                 }
@@ -7026,7 +7050,7 @@ private struct SettingsView: View {
                         isOn: Binding(
                             get: { autoSortOverrides.value(for: currentUserId, fallback: settings.autoSort) },
                             set: { enabled in
-                                guard let uid = currentUserId, !viewModel.isUpdating else { return }
+                                guard let uid = currentUserId else { return }
                                 autoSortOverrides.set(enabled, for: uid)
                                 logSettingsAutoSortChange(enabled: enabled)
                                 viewModel.updateSettings(
@@ -7048,7 +7072,6 @@ private struct SettingsView: View {
                         }
                     }
                     .tint(AppPalette.primary)
-                    .disabled(viewModel.isUpdating)
                     .padding(.vertical, 12)
                 }
                 SettingsCard(title: translations.t("settings.legal.title")) {
@@ -7065,7 +7088,7 @@ private struct SettingsView: View {
                         label: isSigningOut ? translations.t("settings.signingOut") : translations.t("settings.danger.signOut"),
                         disabled: actionsDisabled
                     ) {
-                        showSignOutAlert = true
+                        requestSignOut()
                     }
                     SettingsDivider()
                     actionRow(
@@ -7075,6 +7098,10 @@ private struct SettingsView: View {
                         disabled: actionsDisabled || !networkStatus.isOnline
                     ) {
                         showDeleteAlert = true
+                    }
+                    if !networkStatus.isOnline {
+                        ConnectionRequiredNote()
+                            .padding(.bottom, 12)
                     }
                 }
             } else {
@@ -7110,7 +7137,9 @@ private struct SettingsView: View {
                 }
             }
         } message: {
-            Text(translations.t("auth.signOutConfirm.message"))
+            Text(
+                translations.t(hasUnsyncedChanges ? "auth.signOutConfirm.unsyncedMessage" : "auth.signOutConfirm.message")
+            )
         }
         .alert(translations.t("auth.deleteAccountConfirm.title"), isPresented: $showDeleteAlert) {
             SecureField(translations.t("auth.form.password"), text: $deletePassword)
@@ -7131,10 +7160,6 @@ private struct SettingsView: View {
                         isDeletingAccount = false
                         errorMessage = resolveAuthErrorMessage(translations: translations, error: err)
                     }
-                        if !networkStatus.isOnline {
-                            ConnectionRequiredNote()
-                                .padding(.bottom, 12)
-                        }
                 )
             }
             .disabled(deletePassword.isEmpty || isDeletingAccount || !networkStatus.isOnline)
@@ -7190,6 +7215,16 @@ private struct SettingsView: View {
         .padding(.bottom, 12)
     }
 
+    private func requestSignOut() {
+        guard !isCheckingPendingWrites else { return }
+        isCheckingPendingWrites = true
+        Task { @MainActor in
+            hasUnsyncedChanges = await hasPendingWrites()
+            isCheckingPendingWrites = false
+            showSignOutAlert = true
+        }
+    }
+
     private func closeEmailChangeForm() {
         showEmailChangeForm = false
         newEmail = ""
@@ -7241,10 +7276,6 @@ private struct SettingsView: View {
     ) -> some View {
         Menu {
             Picker(
-                    if !networkStatus.isOnline {
-                        ConnectionRequiredNote()
-                            .padding(.bottom, 12)
-                    }
                 label,
                 selection: Binding(
                     get: { value },
@@ -7276,8 +7307,6 @@ private struct SettingsView: View {
             .frame(minHeight: 48)
             .contentShape(Rectangle())
         }
-        .disabled(viewModel.isUpdating)
-        .opacity(viewModel.isUpdating ? 0.5 : 1)
     }
 
     private func navigationRow(
@@ -7354,16 +7383,6 @@ private struct LicenseCardRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     Image(systemName: "chevron.right")
                         .accessibilityHidden(true)
-    private func requestSignOut() {
-        guard !isCheckingPendingWrites else { return }
-        isCheckingPendingWrites = true
-        Task { @MainActor in
-            hasUnsyncedChanges = await hasPendingWrites()
-            isCheckingPendingWrites = false
-            showSignOutAlert = true
-        }
-    }
-
                         .font(.system(size: 15, weight: .semibold))
                         .flipsForRightToLeftLayoutDirection(true)
                         .foregroundStyle(AppPalette.subtleIcon)
@@ -8408,7 +8427,8 @@ private struct CalendarScreenView: View {
                                     for: currentUserId,
                                     fallback: settingsViewModel.settings?.autoSort ?? true
                                 ),
-                                translations: translations
+                                translations: translations,
+                                animated: !reduceMotion
                             )
                         },
                         onOpenActions: {
@@ -8417,6 +8437,7 @@ private struct CalendarScreenView: View {
                         }
                     )
                     .id(task.id)
+                    .transition(reduceMotion ? .identity : .opacity)
                 }
             }
         }

@@ -981,6 +981,7 @@ private class TaskListMutationQueue(
             handlers.forEach { it() }
         }
     }
+        reportsFailure: Boolean = true,
 }
 
 private object TaskListMutationQueues {
@@ -993,12 +994,14 @@ private object TaskListMutationQueues {
     }
 
     fun enqueueFor(
+                    if (reportsFailure) SyncFailureState.report()
         taskListIds: List<String>,
         onIdle: () -> Unit = {},
         onError: (Exception) -> Unit = {},
         block: () -> com.google.android.gms.tasks.Task<Void>
     ) {
         try {
+            if (reportsFailure) SyncFailureState.report()
             val write = block()
             val ids = taskListIds.distinct().sorted()
             ids.forEachIndexed { index, id ->
@@ -1039,11 +1042,28 @@ private data class TaskListDetail(
 
 private data class SharedTaskListPreviewUiState(
     val taskListId: String? = null,
+            SyncFailureState.report()
     val taskList: TaskListDetail? = null,
     val isLoading: Boolean = false,
     val isAdded: Boolean = false,
     val errorMessage: String? = null
 )
+
+private object SyncFailureState {
+    var hasFailure by mutableStateOf(false)
+        private set
+    var failureRevision by mutableStateOf(0)
+        private set
+
+    fun report() {
+        hasFailure = true
+        failureRevision += 1
+    }
+
+    fun dismiss() {
+        hasFailure = false
+    }
+}
 
 private data class CalendarTask(
     val id: String,
@@ -2740,7 +2760,7 @@ fun RootScreen(
 }
 
 @Composable
-private fun OfflineNotice(modifier: Modifier = Modifier) {
+private fun rememberIsOnline(): Boolean {
     val context = LocalContext.current
     val t = LocalTranslations.current
     val reduceMotion = LocalReduceMotion.current
@@ -2764,27 +2784,85 @@ private fun OfflineNotice(modifier: Modifier = Modifier) {
             onDispose { manager.unregisterNetworkCallback(callback) }
         }
     }
-    AnimatedVisibility(
-        visible = !isOnline,
+    return isOnline
+}
+
+@Composable
+private fun ConnectionRequiredNote(modifier: Modifier = Modifier) {
+    Text(
+        text = LocalTranslations.current.t("common.requiresConnection"),
+        modifier = modifier,
+        color = mutedTextColor(),
+        style = AppBodySmallTextStyle
+    )
+}
+
+@Composable
+private fun OfflineNotice(modifier: Modifier = Modifier) {
+    val t = LocalTranslations.current
+    val reduceMotion = LocalReduceMotion.current
+    val isOnline = rememberIsOnline()
+    val enter = if (reduceMotion) EnterTransition.None else fadeIn(tween(160))
+    val exit = if (reduceMotion) ExitTransition.None else fadeOut(tween(160))
+    Column(
         modifier = modifier
             .navigationBarsPadding()
             .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         enter = if (reduceMotion) EnterTransition.None else fadeIn(tween(160)),
         exit = if (reduceMotion) ExitTransition.None else fadeOut(tween(160))
     ) {
-        Text(
-            text = t.t("common.offline"),
-            modifier = Modifier
-                .widthIn(max = 448.dp)
-                .background(MaterialTheme.colorScheme.primary, CircleShape)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .semantics { liveRegion = LiveRegionMode.Polite },
-            color = MaterialTheme.colorScheme.onPrimary,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            lineHeight = 20.sp,
-            textAlign = TextAlign.Center
-        )
+        AnimatedVisibility(visible = SyncFailureState.hasFailure, enter = enter, exit = exit) {
+            Row(
+                modifier = Modifier
+                    .widthIn(max = 448.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    .padding(start = 16.dp, end = 4.dp)
+                    .semantics { liveRegion = LiveRegionMode.Assertive },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = t.t("common.syncFailed"),
+                    modifier = Modifier.weight(1f, fill = false),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 20.sp
+                )
+                Box(
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        .clip(CircleShape)
+                        .clickable(role = Role.Button) { SyncFailureState.dismiss() }
+                        .padding(horizontal = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = t.t("common.close"),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 20.sp,
+                        textDecoration = TextDecoration.Underline
+                    )
+                }
+            }
+        }
+        AnimatedVisibility(visible = !isOnline, enter = enter, exit = exit) {
+            Text(
+                text = t.t("common.offline"),
+                modifier = Modifier
+                    .widthIn(max = 448.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 20.sp,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
@@ -2826,6 +2904,7 @@ private fun SharedTaskListPreviewScreen(
                     )
                 }
             }
+    val isOnline = rememberIsOnline()
             else -> {
                 Box(
                     modifier = Modifier
@@ -2874,7 +2953,7 @@ private fun SharedTaskListPreviewScreen(
                             }
                         }
                     },
-                    enabled = !isJoining
+                    enabled = !isJoining && isOnline
                 )
             }
         }
@@ -2910,6 +2989,9 @@ private fun <T> rememberOrderedTaskListsState(
         if (userId == null) {
             uiState = OrderedTaskListsUiState()
             onDispose {}
+        if (userId != null && !previewUiState.isAdded && previewUiState.taskListId != null && !isOnline) {
+            ConnectionRequiredNote(Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        }
         } else {
             uiState = OrderedTaskListsUiState(isLoading = true, hasError = false)
             val dispose = subscribeToOrderedTaskLists(
@@ -3166,6 +3248,7 @@ private fun rememberSharedTaskListPreviewState(
     userId: String?
 ): SharedTaskListPreviewUiState {
     val t = LocalTranslations.current
+        reportsFailure = false,
     val db = Firebase.firestore
     var uiState by remember(shareCode) {
         mutableStateOf(SharedTaskListPreviewUiState(isLoading = true))
@@ -3514,6 +3597,25 @@ private fun makeCalendarTask(
         completed = task.completed,
         dateKey = if (dateValue != null) task.date else "",
         dateValue = dateValue,
+private suspend fun cacheFirstDocument(reference: DocumentReference): DocumentSnapshot =
+    try {
+        reference.get(Source.CACHE).await()
+    } catch (_: FirebaseFirestoreException) {
+        reference.get().await()
+    }
+
+private fun commitReportingFailure(batch: WriteBatch) {
+    batch.commit().addOnFailureListener { SyncFailureState.report() }
+}
+
+private const val PendingWritesCheckMillis = 1000L
+
+private suspend fun hasPendingWrites(): Boolean =
+    withTimeoutOrNull(PendingWritesCheckMillis) {
+        runCatching { Firebase.firestore.waitForPendingWrites().await() }
+        false
+    } ?: true
+
         pinned = task.pinned,
         order = task.order,
         taskListIndex = taskListIndex,
@@ -4308,7 +4410,7 @@ private fun SignUpView(language: String) {
             label = t.t("auth.form.confirmPassword"),
             contentType = ContentType.NewPassword,
             password = true,
-            enabled = !isLoading,
+            enabled = !isLoading && isOnline,
             error = confirmPasswordError
         )
         AuthMessages(listOf(errorMessage))
@@ -4342,11 +4444,12 @@ private fun SignUpView(language: String) {
                     } catch (e: Exception) {
                         errorMessage = resolveAuthErrorMessage(t, e)
                     } finally {
+    val isOnline = rememberIsOnline()
                         isLoading = false
                     }
                 }
             },
-            enabled = !isLoading,
+            enabled = !isLoading && isOnline,
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -4378,6 +4481,7 @@ private fun PasswordResetRequestView(
             )
             AuthTextField(
                 value = email,
+        if (!isOnline) ConnectionRequiredNote()
                 onValueChange = {
                     email = it
                     emailError = null
@@ -4417,7 +4521,8 @@ private fun PasswordResetRequestView(
                         }
                     }
                 },
-                enabled = !isLoading,
+                enabled = !isLoading && isOnline,
+    val isOnline = rememberIsOnline()
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -4470,6 +4575,7 @@ private fun ResetPasswordView(
                 },
                 label = t.t("auth.passwordReset.newPassword"),
                 contentType = ContentType.NewPassword,
+        if (!isOnline) ConnectionRequiredNote()
                 password = true,
                 enabled = !isVerifying && !isSubmitting
             )
@@ -4515,13 +4621,14 @@ private fun ResetPasswordView(
                             Firebase.auth.confirmPasswordReset(code, password).await()
                             successMessage = t.t("auth.passwordReset.resetSuccess")
                         } catch (e: Exception) {
+    val isOnline = rememberIsOnline()
                             errorMessage = resolveAuthErrorMessage(t, e)
                         } finally {
                             isSubmitting = false
                         }
                     }
                 },
-                enabled = !isVerifying && !isSubmitting && successMessage == null,
+                enabled = !isVerifying && !isSubmitting && successMessage == null && isOnline,
                 modifier = Modifier.fillMaxWidth()
             )
             AppButton(
@@ -4547,6 +4654,7 @@ private fun CalendarScreen(
 ) {
     val t = LocalTranslations.current
     val haptic = LocalHapticFeedback.current
+            if (!isOnline) ConnectionRequiredNote()
     val reduceMotion = rememberReduceMotion()
     val settingsState = resolvedSettingsState(
         userId,
@@ -4593,6 +4701,7 @@ private fun CalendarScreen(
     }
 
     fun clearPendingCalendarTasks(values: Map<String, CalendarTask?>, revision: Int) {
+    val isOnline = rememberIsOnline()
         val ids = values.keys.filter { calendarMutationRevisions[it] == revision }
         if (ids.isEmpty()) return
         pendingCalendarTasks = pendingCalendarTasks.filterKeys { it !in ids }
@@ -4648,6 +4757,7 @@ private fun CalendarScreen(
             if (!colors.contains(task.taskListBackground) && colors.size < 3) {
                 colors.add(task.taskListBackground)
             }
+            if (!isOnline && successMessage == null) ConnectionRequiredNote()
         }
         map as Map<String, List<String?>>
     }
@@ -5612,6 +5722,7 @@ private fun TaskListsScreen(
                     }
                 },
                 iconSize = AppIconMetrics.headerActionIconSize,
+    val isOnline = rememberIsOnline()
                 tint = if (settingsActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
@@ -5916,7 +6027,7 @@ private fun TaskListsScreen(
                         taskListId to mapOf("order" to nextOrder),
                         "updatedAt" to now
                     )
-                    if (!taskListOrderRef.get().await().exists()) {
+                    if (!cacheFirstDocument(taskListOrderRef).exists()) {
                         taskListOrderUpdates["createdAt"] = now
                     }
                     db.batch().apply {
@@ -5931,7 +6042,8 @@ private fun TaskListsScreen(
                             taskListOrderUpdates,
                             SetOptions.merge()
                         )
-                    }.commit().await()
+                    }
+                    commitReportingFailure(batch)
                     logTaskListCreate()
                     openTaskList(taskListId)
                 } catch (e: Exception) {
@@ -5960,7 +6072,7 @@ private fun TaskListsScreen(
                 }
                 if (uiState.taskLists.any { it.id == taskListId }) {
                     showJoinDialog = false
-                    openTaskList(taskListId)
+                    awaitingTaskListId = taskListId to SyncFailureState.failureRevision
                     joiningList = false
                     return@launch
                 }
@@ -6026,7 +6138,7 @@ private fun TaskListsScreen(
                 AppButton(
                     if (joiningList) t.t("app.joining") else t.t("app.join"),
                     onClick = { joinTaskList() },
-                    enabled = joinListInput.trim().isNotEmpty() && !joiningList
+                    enabled = joinListInput.trim().isNotEmpty() && !joiningList && isOnline
                 )
             }
         ) {
@@ -6131,7 +6243,18 @@ private fun TabletRootScreen(
                     showTopBar = false,
                     externalTaskLists = sharedTaskLists,
                     externalSettingsState = settingsState
+    LaunchedEffect(uiState.taskLists, awaitingTaskListId, SyncFailureState.failureRevision) {
+        val (taskListId, failureRevision) = awaitingTaskListId ?: return@LaunchedEffect
+        if (uiState.taskLists.any { it.id == taskListId }) {
+            awaitingTaskListId = null
+            openTaskList(taskListId)
+        } else if (SyncFailureState.failureRevision != failureRevision) {
+            awaitingTaskListId = null
+        }
+    }
+
                 )
+        if (!isOnline) return
             } else {
                 TaskListDetailPagerScreen(
                     navController = null,
@@ -6238,6 +6361,7 @@ private fun TaskListDetailPagerScreen(
             }
     }
 
+                if (!isOnline) ConnectionRequiredNote()
     LaunchedEffect(pagerState, uiState.taskLists) {
         snapshotFlow { pagerState.settledPage }
             .collectLatest { page ->
@@ -7044,6 +7168,7 @@ private fun TaskListDetailContent(
                 haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                 return
             }
+    val isOnline = rememberIsOnline()
         }
 
         if (currentIdx > 0) {
@@ -7247,16 +7372,18 @@ private fun TaskListDetailContent(
                 val taskListId = taskList.id
                 val taskListOrderRef = db.collection("taskListOrder").document(uid)
                 val taskListRef = db.collection("taskLists").document(taskListId)
-                val taskListOrderSnapshot = taskListOrderRef.get().await()
+                val taskListOrderSnapshot = cacheFirstDocument(taskListOrderRef)
                 if (!taskListOrderSnapshot.exists() || !taskListOrderSnapshot.contains(taskListId)) {
                     return@launch
                 }
-                val taskListSnapshot = taskListRef.get().await()
+                val taskListSnapshot = cacheFirstDocument(taskListRef)
                 if (!taskListSnapshot.exists()) {
                     return@launch
                 }
 
-                removeTaskListMembership(db, taskListOrderRef, taskListId, taskListSnapshot)
+                commitReportingFailure(
+                    makeTaskListMembershipRemovalBatch(db, taskListOrderRef, taskListId, taskListSnapshot)
+                )
                 showRemoveListConfirm = false
                 showEditDialog = false
             } catch (_: Exception) {
@@ -7865,7 +7992,7 @@ private fun TaskListDetailContent(
                             }
                         },
                         style = AppButtonStyle.Danger,
-                        enabled = !removingShareCode
+                        enabled = !removingShareCode && isOnline
                     )
                 }
             } else {
@@ -7895,7 +8022,7 @@ private fun TaskListDetailContent(
                                 }
                             }
                         },
-                        enabled = !generatingShareCode
+                        enabled = !generatingShareCode && isOnline
                     )
                 }
             }
@@ -8146,6 +8273,7 @@ private fun SettingsActionRow(
     }
 }
 
+            if (!isOnline) ConnectionRequiredNote(Modifier.padding(top = 16.dp))
 @Composable
 private fun SettingsOptionDialog(
     title: String,
@@ -8224,7 +8352,9 @@ private fun SettingsView(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isDeletingAccount by remember { mutableStateOf(false) }
     var isSigningOut by remember { mutableStateOf(false) }
-    var isUpdatingSettings by remember { mutableStateOf(false) }
+    var isCheckingPendingWrites by remember { mutableStateOf(false) }
+    var hasUnsyncedChanges by remember { mutableStateOf(false) }
+    val isOnline = rememberIsOnline()
     val manualLicenses = remember(context) { loadManualLicenses(context) }
 
     fun updateSettings(
@@ -8235,14 +8365,10 @@ private fun SettingsView(
         if (userId == null || isUpdatingSettings) return
         isUpdatingSettings = true
         errorMessage = null
-        scope.launch {
-            try {
-                Firebase.firestore.collection("settings").document(userId)
-                    .set(partial + mapOf("updatedAt" to nowMillis()), SetOptions.merge())
-                    .await()
-                onSuccess()
-            } catch (_: Exception) {
-                errorMessage = t.t("common.error")
+        Firebase.firestore.collection("settings").document(userId)
+            .set(partial + mapOf("updatedAt" to nowMillis()), SetOptions.merge())
+            .addOnFailureListener {
+                SyncFailureState.report()
                 onFailure()
             } finally {
                 isUpdatingSettings = false
@@ -8347,7 +8473,7 @@ private fun SettingsView(
                     }
                     SettingsDivider()
                     if (!showEmailChangeDialog) {
-                        SettingsNavigationRow(label = t.t("settings.emailChange.title")) {
+                        SettingsNavigationRow(label = t.t("settings.emailChange.title"), enabled = isOnline) {
                             showEmailChangeDialog = true
                         }
                     } else {
@@ -8407,7 +8533,7 @@ private fun SettingsView(
                                     AppButton(
                                         if (isChangingEmail) t.t("settings.emailChange.submitting") else t.t("settings.emailChange.submitButton"),
                                         onClick = { submitEmailChange() },
-                                        enabled = !isChangingEmail && newEmail.isNotBlank()
+                                        enabled = !isChangingEmail && newEmail.isNotBlank() && isOnline
                                     )
                                 }
                             }
@@ -8493,13 +8619,20 @@ private fun SettingsView(
                 SettingsSectionCard(title = t.t("settings.actions.title")) {
                     SettingsActionRow(
                         label = if (isSigningOut) t.t("settings.signingOut") else t.t("settings.danger.signOut"),
-                        enabled = !isSigningOut && !isDeletingAccount,
-                        onClick = { showSignOutDialog = true }
+                        enabled = !isSigningOut && !isDeletingAccount && !isCheckingPendingWrites,
+                        onClick = {
+                            isCheckingPendingWrites = true
+                            scope.launch {
+                                hasUnsyncedChanges = hasPendingWrites()
+                                isCheckingPendingWrites = false
+                                showSignOutDialog = true
+                            }
+                        }
                     )
                     SettingsDivider()
                     SettingsActionRow(
                         label = if (isDeletingAccount) t.t("settings.deletingAccount") else t.t("settings.danger.deleteAccount"),
-                        enabled = !isDeletingAccount && !isSigningOut,
+                        enabled = !isDeletingAccount && !isSigningOut && isOnline,
                         color = MaterialTheme.colorScheme.error,
                         onClick = { showDeleteDialog = true }
                     )
@@ -8537,7 +8670,7 @@ private fun SettingsView(
     if (showDeleteDialog) {
         var deletePassword by remember { mutableStateOf("") }
         fun deleteAccount() {
-            if (deletePassword.isEmpty() || isDeletingAccount) return
+            if (deletePassword.isEmpty() || isDeletingAccount || !isOnline) return
             val password = deletePassword
             deletePassword = ""
             showDeleteDialog = false
@@ -8582,6 +8715,9 @@ private fun SettingsView(
                 } catch (e: Exception) {
                     errorMessage = resolveAuthErrorMessage(t, e)
                 } finally {
+                        if (!isOnline) {
+                            ConnectionRequiredNote(Modifier.padding(bottom = 12.dp))
+                        }
                     isDeletingAccount = false
                 }
             }
@@ -8601,7 +8737,7 @@ private fun SettingsView(
                     if (isDeletingAccount) t.t("settings.deletingAccount") else t.t("auth.button.delete"),
                     onClick = { deleteAccount() },
                     style = AppButtonStyle.Destructive,
-                    enabled = deletePassword.isNotEmpty() && !isDeletingAccount
+                    enabled = deletePassword.isNotEmpty() && !isDeletingAccount && isOnline
                 )
             }
         ) {
@@ -8729,6 +8865,9 @@ private fun SettingsView(
                             license.source?.let { source ->
                                 Text(
                                     source,
+                    if (!isOnline) {
+                        ConnectionRequiredNote(Modifier.padding(bottom = 12.dp))
+                    }
                                     style = AppCaptionTextStyle.copy(fontWeight = FontWeight.Normal),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textDecoration = TextDecoration.Underline

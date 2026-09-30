@@ -87,6 +87,7 @@ import {
   increment,
   setDoc,
   updateDoc,
+  waitForPendingWrites,
   writeBatch,
   where,
 } from "firebase/firestore";
@@ -304,8 +305,23 @@ type TaskListWrite<Result = void> = {
   committed: Promise<void>;
   result?: Result;
 };
+type TaskListMutationOptions = { waitForCommit?: boolean };
 const taskListMutationQueues = new Map<string, Promise<void>>();
 const taskListSubmissionQueues = new Map<string, Promise<void>>();
+const syncFailureListeners = new Set<() => void>();
+
+function trackCommit(committed: Promise<void>) {
+  void committed.catch((error: unknown) => {
+    logException("sync_commit", error);
+    syncFailureListeners.forEach((listener) => listener());
+  });
+}
+
+function waitForTaskListMutations(taskListIds: string[]): Promise<void> {
+  return Promise.all(
+    taskListIds.map((id) => taskListMutationQueues.get(id)),
+  ).then(() => undefined);
+}
 
 async function enqueueTaskListMutation<Result = void>(
   taskListId: string,
@@ -318,6 +334,7 @@ async function enqueueTaskListMutations<Result = void>(
   taskListIds: string[],
   operation: () => Promise<TaskListWrite<Result> | void>,
 ): Promise<Result | undefined> {
+  { waitForCommit = false }: TaskListMutationOptions = {},
   const ids = [...new Set(taskListIds)].sort(compareStringIds);
   const previousSubmissions = ids.map(
     (id) => taskListSubmissionQueues.get(id) ?? Promise.resolve(),
@@ -347,9 +364,15 @@ async function enqueueTaskListMutations<Result = void>(
     },
   );
   ids.forEach((id) => taskListMutationQueues.set(id, pending));
-  await pending;
-  await committed;
-  return (await submitted)?.result;
+  void committed.catch(() => undefined);
+  const write = await submitted;
+  if (waitForCommit) {
+    await pending;
+    await committed;
+  } else if (write) {
+    trackCommit(write.committed);
+  }
+  return write?.result;
 }
 
 type AppState = {
@@ -1044,8 +1067,7 @@ class ErrorBoundaryBase extends Component<
 
 const ErrorBoundary = withTranslation()(ErrorBoundaryBase);
 
-function OfflineNotice() {
-  const { t } = useTranslation();
+function useIsOnline() {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
 
   useEffect(() => {
@@ -1059,10 +1081,55 @@ function OfflineNotice() {
   }, []);
 
   return (
-    <div role="status" className="ll-offline-notice">
-      {isOnline ? null : (
-        <p className="ll-offline-notice-pill ll-m-0">{t("common.offline")}</p>
-      )}
+  return isOnline;
+}
+
+function ConnectionRequiredNote({
+  className = "ll-pb-3",
+}: {
+  className?: string;
+}) {
+  const { t } = useTranslation();
+    <p className={clsx("ll-m-0 ll-text-xs ll-muted-text", className)}>
+      {t("common.requiresConnection")}
+    </p>
+  );
+}
+
+function OfflineNotice() {
+  const { t } = useTranslation();
+  const isOnline = useIsOnline();
+  const [hasSyncFailure, setHasSyncFailure] = useState(false);
+
+  useEffect(() => {
+    const listener = () => setHasSyncFailure(true);
+    syncFailureListeners.add(listener);
+    return () => {
+      syncFailureListeners.delete(listener);
+    };
+  }, []);
+
+  return (
+    <div className="ll-offline-notice">
+      <div role="alert">
+        {hasSyncFailure ? (
+          <p className="ll-offline-notice-pill ll-offline-notice-action ll-m-0">
+            <span>{t("common.syncFailed")}</span>
+            <button
+              type="button"
+              onClick={() => setHasSyncFailure(false)}
+              className="ll-offline-notice-close"
+            >
+              {t("common.close")}
+            </button>
+          </p>
+        ) : null}
+      </div>
+      <div role="status">
+        {isOnline ? null : (
+          <p className="ll-offline-notice-pill ll-m-0">{t("common.offline")}</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -1290,18 +1357,22 @@ function scheduleMalformedTaskCleanup(
   const cleanupKey = `${taskListId}:${malformedTaskIds.join("|")}`;
   if (malformedTaskCleanupKeys.has(cleanupKey)) return;
   malformedTaskCleanupKeys.add(cleanupKey);
-  void enqueueTaskListMutation(taskListId, async () => {
-    const updates: Record<string, unknown> = { updatedAt: Date.now() };
-    malformedTaskIds.forEach((taskId) => {
-      updates[`tasks.${taskId}`] = deleteField();
-    });
-    return {
-      committed: updateDoc(
-        doc(getDbInstance(), "taskLists", taskListId),
-        updates,
-      ),
-    };
-  })
+  void enqueueTaskListMutation(
+    taskListId,
+    async () => {
+      const updates: Record<string, unknown> = { updatedAt: Date.now() };
+      malformedTaskIds.forEach((taskId) => {
+        updates[`tasks.${taskId}`] = deleteField();
+      });
+      return {
+        committed: updateDoc(
+          doc(getDbInstance(), "taskLists", taskListId),
+          updates,
+        ),
+      };
+    },
+    { waitForCommit: true },
+  )
     .catch((error) => {
       console.error("malformed task cleanup error:", error);
       logException("malformed_task_cleanup", error);
@@ -2514,7 +2585,9 @@ async function deleteAccount(password: string) {
       ([taskListId]) => taskListId,
     );
     const results = await Promise.allSettled(
-      taskListIds.map((taskListId) => deleteTaskList(taskListId)),
+      taskListIds.map((taskListId) =>
+        deleteTaskList(taskListId, { serverConfirmed: true }),
+      ),
     );
     const rejected = results.filter(
       (result): result is PromiseRejectedResult => result.status === "rejected",
@@ -3205,7 +3278,10 @@ async function updateTaskList(
   }));
 }
 
-async function deleteTaskList(taskListId: string) {
+async function deleteTaskList(
+  taskListId: string,
+  { serverConfirmed = false }: { serverConfirmed?: boolean } = {},
+) {
   const uid = requireCurrentUserId();
   await enqueueTaskListMutations(
     [taskListId, `taskListOrder:${uid}`],
@@ -3214,10 +3290,13 @@ async function deleteTaskList(taskListId: string) {
       const taskListRef = doc(db, "taskLists", taskListId);
       const taskListOrderRef = doc(db, "taskListOrder", uid);
       const membershipRef = doc(db, "taskLists", taskListId, "members", uid);
-      const [taskListSnapshot, taskListOrderSnapshot] = await Promise.all([
-        getDocFromServer(taskListRef),
-        getDocFromServer(taskListOrderRef),
-      ]);
+      const [taskListSnapshot, taskListOrderSnapshot] = await Promise.all(
+        [taskListRef, taskListOrderRef].map((ref) =>
+          serverConfirmed
+            ? getDocFromServer(ref)
+            : getDocFromCache(ref).catch(() => getDoc(ref)),
+        ),
+      );
       const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
       if (!taskListOrderSnapshot.exists()) {
         return;
@@ -3285,6 +3364,7 @@ async function addTask(
     const parsed = resolveTaskInput(rawText, settings.language);
     const now = Date.now();
     const tasks = getOrderedTasks(taskList);
+    { waitForCommit: serverConfirmed },
     const nextOrder =
       settings.taskInsertPosition === "bottom"
         ? (tasks[tasks.length - 1]?.order ?? 0) + 1
@@ -3301,6 +3381,7 @@ async function addTask(
       throw new Error("Task has no content");
     }
     const nextTasks = getSortedTasks(
+  await waitForTaskListMutations([`taskListOrder:${uid}`]);
       settings.taskInsertPosition === "top"
         ? [nextTask, ...tasks]
         : [...tasks, nextTask],
@@ -3678,22 +3759,26 @@ async function addSharedTaskListToOrder(taskListId: string, shareCode: string) {
 }
 
 async function removeShareCode(taskListId: string) {
-  await enqueueTaskListMutation(taskListId, async () => {
-    const db = getDbInstance();
-    const snapshot = await getDocFromServer(doc(db, "taskLists", taskListId));
-    const taskList = assertTaskListStore(snapshot.data(), taskListId);
-    if (!taskList.shareCode) return;
-    const normalizedCode = normalizeShareCode(taskList.shareCode);
-    const batch = writeBatch(db);
-    if (normalizedCode) {
-      batch.delete(doc(db, "shareCodes", normalizedCode));
-    }
-    batch.update(doc(db, "taskLists", taskListId), {
-      shareCode: null,
-      updatedAt: Date.now(),
-    });
-    return { committed: batch.commit() };
-  });
+  await enqueueTaskListMutation(
+    taskListId,
+    async () => {
+      const db = getDbInstance();
+      const snapshot = await getDocFromServer(doc(db, "taskLists", taskListId));
+      const taskList = assertTaskListStore(snapshot.data(), taskListId);
+      if (!taskList.shareCode) return;
+      const normalizedCode = normalizeShareCode(taskList.shareCode);
+      const batch = writeBatch(db);
+      if (normalizedCode) {
+        batch.delete(doc(db, "shareCodes", normalizedCode));
+      }
+      batch.update(doc(db, "taskLists", taskListId), {
+        shareCode: null,
+        updatedAt: Date.now(),
+      });
+      return { committed: batch.commit() };
+    },
+    { waitForCommit: true },
+  );
 }
 
 function generateRandomShareCode() {
@@ -3703,6 +3788,7 @@ function generateRandomShareCode() {
     (value) => chars[value % chars.length],
   ).join("");
 }
+    { waitForCommit: true },
 
 async function generateShareCode(taskListId: string): Promise<string> {
   const shareCode = await enqueueTaskListMutation<string>(
@@ -3755,13 +3841,15 @@ async function generateShareCode(taskListId: string): Promise<string> {
 
 async function updateSettings(settings: Partial<Settings>) {
   const uid = requireCurrentUserId();
-  await setDoc(
-    doc(getDbInstance(), "settings", uid),
-    {
-      ...settings,
-      updatedAt: Date.now(),
-    },
-    { merge: true },
+  trackCommit(
+    setDoc(
+      doc(getDbInstance(), "settings", uid),
+      {
+        ...settings,
+        updatedAt: Date.now(),
+      },
+      { merge: true },
+    ),
   );
 }
 
@@ -3796,6 +3884,18 @@ const ICON_PATHS: Record<AppIconName, string | string[]> = {
     "M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
   settings:
     "M19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.09-.16-.26-.25-.44-.25-.06 0-.12.01-.17.03l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.06-.02-.12-.03-.18-.03-.17 0-.34.09-.43.25l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.09.16.26.25.44.25.06 0 .12-.01.17-.03l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.06.02.12.03.18.03.17 0 .34-.09.43-.25l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zm-1.98-1.71c.04.31.05.52.05.73 0 .21-.02.43-.05.73l-.14 1.13.89.7 1.08.84-.7 1.21-1.27-.51-1.04-.42-.9.68c-.43.32-.84.56-1.25.73l-1.06.43-.16 1.13-.2 1.35h-1.4l-.19-1.35-.16-1.13-1.06-.43c-.43-.18-.83-.41-1.23-.71l-.91-.7-1.06.43-1.27.51-.7-1.21 1.08-.84.89-.7-.14-1.13c-.03-.31-.05-.54-.05-.74s.02-.43.05-.73l.14-1.13-.89-.7-1.08-.84.7-1.21 1.27.51 1.04.42.9-.68c.43-.32.84-.56 1.25-.73l1.06-.43.16-1.13.2-1.35h1.39l.19 1.35.16 1.13 1.06.43c.43.18.83.41 1.23.71l.91.7 1.06-.43 1.27-.51.7 1.21-1.07.85-.89.7.14 1.13zM12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z",
+async function hasPendingWrites(): Promise<boolean> {
+  return Promise.race([
+    waitForPendingWrites(getDbInstance()).then(
+      () => false,
+      () => false,
+    ),
+    new Promise<boolean>((resolve) =>
+      setTimeout(() => resolve(true), PENDING_WRITES_CHECK_MS),
+    ),
+  ]);
+}
+
   close:
     "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
   send: "M2.01 21L23 12 2.01 3 2 10l15 2-15 2z",
@@ -4337,7 +4437,9 @@ function SettingsView({
   const { authStatus, user } = useSessionState();
   const { settings, settingsStatus, setOptimisticAutoSort } =
     useSettingsState();
-  const [isUpdating, setIsUpdating] = useState(false);
+  const isOnline = useIsOnline();
+  const [checkingPendingWrites, setCheckingPendingWrites] = useState(false);
+  const [hasUnsyncedChanges, setHasUnsyncedChanges] = useState(false);
   const [pendingAction, setPendingAction] = useState<
     "signOut" | "deleteAccount" | null
   >(null);
@@ -4406,9 +4508,18 @@ function SettingsView({
     }
   };
 
-  const handleStartupViewChange = async (startupView: StartupView) => {
-    await updateSetting({ startupView });
-    logAppEvent("settings_startup_view_change", { view: startupView });
+  const handleStartupViewChange = (startupView: StartupView) => {
+    if (updateSetting({ startupView })) {
+      logAppEvent("settings_startup_view_change", { view: startupView });
+    }
+  };
+
+  const handleSignOutRequest = async () => {
+    if (pendingAction || checkingPendingWrites) return;
+    setCheckingPendingWrites(true);
+    setHasUnsyncedChanges(await hasPendingWrites());
+    setCheckingPendingWrites(false);
+    setShowSignOutConfirm(true);
   };
 
   const handleSignOut = async () => {
@@ -4572,7 +4683,7 @@ function SettingsView({
                     <button
                       type="button"
                       onClick={() => setShowEmailChangeForm(true)}
-                      disabled={actionsDisabled}
+                      disabled={actionsDisabled || !isOnline}
                       className="ll-settings-row"
                     >
                       {t("settings.emailChange.title")}
@@ -4611,6 +4722,7 @@ function SettingsView({
                               disabled={isChangingEmail}
                               placeholder={t(
                                 "settings.emailChange.newEmailPlaceholder",
+                  {!isOnline && <ConnectionRequiredNote />}
                               )}
                               className="ll-field"
                             />
@@ -4627,7 +4739,9 @@ function SettingsView({
                             <button
                               type="button"
                               onClick={() => void handleEmailChangeSubmit()}
-                              disabled={isChangingEmail || !newEmail.trim()}
+                              disabled={
+                                isChangingEmail || !newEmail.trim() || !isOnline
+                              }
                               className={BUTTON_PRIMARY_CLASS}
                             >
                               {isChangingEmail
@@ -4812,7 +4926,7 @@ function SettingsView({
                   <button
                     type="button"
                     onClick={() => setShowDeleteConfirm(true)}
-                    disabled={actionsDisabled}
+                    disabled={actionsDisabled || !isOnline}
                     className="ll-settings-row ll-settings-row-danger"
                   >
                     {deleteAccountLabel}
@@ -4843,6 +4957,7 @@ function SettingsView({
             if (pendingAction) return;
             setShowDeleteConfirm(open);
             setDeletePassword("");
+                  {!isOnline && <ConnectionRequiredNote />}
             setDeleteError(null);
           }}
         >
@@ -4880,7 +4995,9 @@ function SettingsView({
                 </DialogClose>
                 <button
                   type="submit"
-                  disabled={!deletePassword || Boolean(pendingAction)}
+                  disabled={
+                    !deletePassword || Boolean(pendingAction) || !isOnline
+                  }
                   className={BUTTON_DESTRUCTIVE_CLASS}
                 >
                   {pendingAction === "deleteAccount"
@@ -6279,6 +6396,7 @@ function ShareTaskListDialog({
                 type="button"
                 onClick={() => {
                   setRemoving(true);
+  const isOnline = useIsOnline();
                   setError(null);
                   void removeShareCode(taskList.id)
                     .then(() => {
@@ -6292,7 +6410,7 @@ function ShareTaskListDialog({
                     )
                     .finally(() => setRemoving(false));
                 }}
-                disabled={removing}
+                disabled={removing || !isOnline}
                 className={BUTTON_DANGER_CLASS}
               >
                 {removing ? t("common.deleting") : t("taskList.removeShare")}
@@ -6323,7 +6441,7 @@ function ShareTaskListDialog({
                   )
                   .finally(() => setGenerating(false));
               }}
-              disabled={generating}
+              disabled={generating || !isOnline}
               className={BUTTON_PRIMARY_CLASS}
             >
               {generating ? t("common.loading") : t("taskList.generateShare")}
@@ -6358,6 +6476,7 @@ function TaskListCard({
   taskInsertPosition: TaskInsertPosition;
   isActive: boolean;
   shouldFocusNewTaskInput: boolean;
+        {isOnline ? null : <ConnectionRequiredNote className="ll-mt-4" />}
   onNewTaskInputFocusChange: (taskListId: string, isFocused: boolean) => void;
   onActivate?: (taskListId: string) => void;
   onSortingChange?: (sorting: boolean) => void;
@@ -6394,7 +6513,18 @@ function TaskListCard({
         taskList.id,
         nextItems.map((task) => task.id),
         autoSort,
-      ),
+      ).then(() => waitForTaskListMutations([taskList.id])),
+  );
+  const [heldTaskIndexes, setHeldTaskIndexes] = useState<ReadonlyMap<
+    string,
+    number
+  > | null>(null);
+  const releaseHeldTasksTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const tasks = useMemo(
+    () => holdTaskPositions(orderedTasks, heldTaskIndexes),
+    [heldTaskIndexes, orderedTasks],
   );
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState("");
@@ -6514,7 +6644,8 @@ function TaskListCard({
         }
         onError?.(error);
       } finally {
-        if (!taskListMutationQueues.has(taskList.id)) {
+        void waitForTaskListMutations([taskList.id]).then(() => {
+          if (taskListMutationQueues.has(taskList.id)) return;
           setTimeout(() => {
             if (!taskListMutationQueues.has(taskList.id)) {
               pendingTasksRef.current = null;
@@ -8060,6 +8191,22 @@ function CalendarScreen({
           task,
           dateValue: parsedDate ?? null,
           dateKey: parsedDate ? formatDate(parsedDate) : "",
+    };
+    void Promise.all([
+      updateTask(
+        task.taskListId,
+        task.task.id,
+        { completed: true },
+        taskSettings,
+      )
+        .then(() => waitForTaskListMutations([task.taskListId]))
+        .catch((error) =>
+          setUpdateError(resolveErrorMessage(error, t, "common.error")),
+        ),
+      hideCompletedTask(),
+    ]).then(() => {
+      clearOptimisticDatedTaskOverrides([taskId], revision);
+    });
           taskListIndex,
           taskIndex,
         });
@@ -8212,6 +8359,12 @@ function CalendarScreen({
       <div className="ll-flex ll-h-full ll-min-h-0 ll-flex-col">
         {showCompactHeaderOffset ? (
           <div className="ll-h-14 ll-shrink-0" />
+        void waitForTaskListMutations([
+          editedTask.taskListId,
+          values.taskListId,
+        ]).then(() =>
+          clearOptimisticDatedTaskOverrides(optimisticOverrideIds, revision),
+        );
         ) : null}
         <div
           ref={taskScrollContainerRef}
@@ -8618,6 +8771,7 @@ function TaskListSidebarPanel({
                     disabled={!createListInput.trim()}
                     className={BUTTON_PRIMARY_CLASS}
                   >
+  const isOnline = useIsOnline();
                     {t("app.create")}
                   </button>
                 </DialogFooter>
@@ -8688,7 +8842,7 @@ function TaskListSidebarPanel({
                   </DialogClose>
                   <button
                     type="submit"
-                    disabled={!joinListInput.trim() || joiningList}
+                    disabled={!joinListInput.trim() || joiningList || !isOnline}
                     className={BUTTON_PRIMARY_CLASS}
                   >
                     {joiningList ? t("app.joining") : t("app.join")}
@@ -8871,6 +9025,7 @@ function AppShellPage() {
     taskListOrderStatus !== "ready" ||
     (stateTaskLists.length === 0 && taskListDocsStatus === "loading");
   const hasResolvedTaskLists = !isTaskListsHydrating;
+                  {isOnline ? null : <ConnectionRequiredNote className="" />}
   const hasTaskLists = taskLists.length > 0;
   const selectedTaskList = taskLists.find(
     (taskList) => taskList.id === selectedTaskListId,
@@ -9312,6 +9467,18 @@ function AppShellPage() {
             })
           }
         >
+    if (!awaitingTaskListId) return;
+    const clearAwaitingTaskList = () => setAwaitingTaskListId(null);
+    syncFailureListeners.add(clearAwaitingTaskList);
+    return () => {
+      syncFailureListeners.delete(clearAwaitingTaskList);
+    };
+  }, [awaitingTaskListId]);
+
+  useEffect(() => {
+    if (selectedTaskList && selectedTaskList.id === awaitingTaskListId) {
+      setAwaitingTaskListId(null);
+    }
           {taskLists.map((taskList) => (
             <div
               key={taskList.id}
@@ -9841,6 +10008,7 @@ function LoginPage() {
               onChange={setEmail}
               error={errors.email}
               disabled={loading}
+  const isOnline = useIsOnline();
               placeholder={t("auth.placeholder.email")}
               autoComplete="email"
             />
@@ -9911,14 +10079,14 @@ function LoginPage() {
               value={confirmPassword}
               onChange={setConfirmPassword}
               error={errors.confirmPassword}
-              disabled={loading}
+              disabled={loading || !isOnline}
               placeholder={t("auth.placeholder.password")}
               autoComplete="new-password"
             />
             {errors.general && <Alert variant="error">{errors.general}</Alert>}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isOnline}
               className={primaryButtonClass}
             >
               {loading ? t("auth.button.signingUp") : t("auth.button.signup")}
@@ -9953,7 +10121,7 @@ function LoginPage() {
                 )}
                 <button
                   type="submit"
-                  disabled={resetLoading}
+                  disabled={resetLoading || !isOnline}
                   className={primaryButtonClass}
                 >
                   {resetLoading
@@ -10004,7 +10172,9 @@ function PasswordResetPage() {
         setCodeValid(true);
       } catch (err) {
         setErrors({
-          general: resolveErrorMessage(err, t, "auth.error.general"),
+          general: navigator.onLine
+            ? resolveErrorMessage(err, t, "auth.error.general")
+            : t("common.requiresConnection"),
         });
         setCodeValid(false);
       }
@@ -10061,6 +10231,7 @@ function PasswordResetPage() {
           </Alert>
           <button
             type="button"
+            {isOnline ? null : <ConnectionRequiredNote className="" />}
             onClick={() => window.location.assign("/")}
             className={secondaryButtonClass}
           >
@@ -10114,13 +10285,14 @@ function PasswordResetPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !isOnline}
             className={primaryButtonClass}
           >
             {loading
               ? t("auth.passwordReset.settingNewPassword")
               : t("auth.passwordReset.setNewPassword")}
           </button>
+            {isOnline ? null : <ConnectionRequiredNote className="" />}
         </form>
 
         <button
@@ -10156,6 +10328,7 @@ function HistoryBackButton() {
   );
 }
 
+                {isOnline ? null : <ConnectionRequiredNote className="" />}
 function ShareCodePreviewPage() {
   const { t } = useTranslation();
   const user = useUser();
@@ -10191,13 +10364,18 @@ function ShareCodePreviewPage() {
         if (!taskListId) {
           setSharedTaskListId(null);
           setError(t("pages.sharecode.notFound"));
+  const isOnline = useIsOnline();
           return;
         }
 
         setSharedTaskListId(taskListId);
         log("share", { method: "share_code", content_type: "task_list" });
       } catch (err) {
-        setError(resolveErrorMessage(err, t, "pages.sharecode.error"));
+        setError(
+          navigator.onLine
+            ? resolveErrorMessage(err, t, "pages.sharecode.error")
+            : t("common.requiresConnection"),
+        );
         setSharedTaskListId(null);
       } finally {
         if (!cancelled) {
@@ -10275,7 +10453,7 @@ function ShareCodePreviewPage() {
           <button
             type="button"
             onClick={handleAddToOrder}
-            disabled={addToOrderLoading}
+            disabled={addToOrderLoading || !isOnline}
             className={BUTTON_PRIMARY_CLASS}
           >
             {addToOrderLoading
@@ -10317,6 +10495,7 @@ function ShareCodePreviewPage() {
   );
 }
 
+          {isOnline ? null : <ConnectionRequiredNote className="" />}
 const PAGE_COMPONENTS = {
   "404": NotFoundPage,
   "500": ServerErrorPage,
@@ -10385,3 +10564,7 @@ void changeAppLanguage(i18next.language).finally(() => {
     </StrictMode>,
   );
 });
+  const isOnline = useIsOnline();
+        {user && !isOnline ? (
+          <ConnectionRequiredNote className="ll-p-4 ll-pb-0" />
+        ) : null}

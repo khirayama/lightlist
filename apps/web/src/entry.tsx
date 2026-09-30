@@ -1781,6 +1781,17 @@ function AppStateProvider({
         if (!disposed) installListener();
       }, delayMs);
     };
+              if (
+                !snapshot.exists() &&
+                getAuthInstance().currentUser?.uid === activeUid
+              ) {
+                void ensureInitialUserData(
+                  activeUid,
+                  normalizeLanguage(i18next.language),
+                ).catch((error: unknown) => {
+                  logException("initial_user_data", error);
+                });
+              }
     const installListener = () => {
       if (disposed) return;
       clearListener();
@@ -2360,51 +2371,11 @@ async function signUp(email: string, password: string, language: Language) {
     email,
     password,
   );
-  const uid = userCredential.user.uid;
-  const now = Date.now();
-  const taskListId = doc(collection(db, "taskLists")).id;
-  const normalizedLanguage = normalizeLanguage(language);
-  const settingsData: SettingsStore = {
-    theme: "system",
-    language: normalizedLanguage,
-    taskInsertPosition: "top",
-    autoSort: true,
-    startupView: "taskList",
-    createdAt: now,
-    updatedAt: now,
-  };
-  const taskListData: TaskListStore = {
-    id: taskListId,
-    name: getTranslationBundle(normalizedLanguage).app.initialTaskListName,
-    tasks: {},
-    history: [],
-    shareCode: null,
-    background: null,
-    memberCount: 1,
-    createdAt: now,
-    updatedAt: now,
-  };
-  const taskListOrderData: TaskListOrderStore = {
-    [taskListId]: { order: 1.0 },
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  const batch = writeBatch(db);
-  batch.set(doc(db, "settings", uid), settingsData);
-  batch.set(doc(db, "taskLists", taskListId), taskListData);
-  batch.set(doc(db, "taskLists", taskListId, "members", uid), {
-    joinedAt: now,
-    joinCode: null,
-  });
-  batch.set(doc(db, "taskListOrder", uid), taskListOrderData);
-  try {
-    await batch.commit();
-  } catch (error) {
-    await deleteUser(userCredential.user).catch(() => {});
-    await firebaseSignOut(auth).catch(() => {});
-    throw error;
-  }
+  await ensureInitialUserData(userCredential.user.uid, language).catch(
+    (error: unknown) => {
+      logException("initial_user_data", error);
+    },
+  );
 }
 
 async function signIn(email: string, password: string) {
@@ -2427,6 +2398,69 @@ async function signIn(email: string, password: string) {
     }
   }
 }
+const initialUserDataRequests = new Map<string, Promise<void>>();
+
+const ensureInitialUserData = (
+  uid: string,
+  language: Language,
+): Promise<void> => {
+  const pendingRequest = initialUserDataRequests.get(uid);
+  if (pendingRequest) return pendingRequest;
+  const request = (async () => {
+    const db = getDbInstance();
+    const settingsRef = doc(db, "settings", uid);
+    const taskListOrderRef = doc(db, "taskListOrder", uid);
+    const [settingsSnapshot, taskListOrderSnapshot] = await Promise.all([
+      getDocFromServer(settingsRef),
+      getDocFromServer(taskListOrderRef),
+    ]);
+    if (settingsSnapshot.exists()) return;
+    const now = Date.now();
+    const normalizedLanguage = normalizeLanguage(language);
+    const settingsData: SettingsStore = {
+      theme: "system",
+      language: normalizedLanguage,
+      taskInsertPosition: "top",
+      autoSort: true,
+      startupView: "taskList",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const batch = writeBatch(db);
+    batch.set(settingsRef, settingsData);
+    if (!taskListOrderSnapshot.exists()) {
+      const taskListId = doc(collection(db, "taskLists")).id;
+      const taskListData: TaskListStore = {
+        id: taskListId,
+        name: getTranslationBundle(normalizedLanguage).app.initialTaskListName,
+        tasks: {},
+        history: [],
+        shareCode: null,
+        background: null,
+        memberCount: 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const taskListOrderData: TaskListOrderStore = {
+        [taskListId]: { order: 1.0 },
+        createdAt: now,
+        updatedAt: now,
+      };
+      batch.set(doc(db, "taskLists", taskListId), taskListData);
+      batch.set(doc(db, "taskLists", taskListId, "members", uid), {
+        joinedAt: now,
+        joinCode: null,
+      });
+      batch.set(taskListOrderRef, taskListOrderData);
+    }
+    await batch.commit();
+  })().finally(() => {
+    initialUserDataRequests.delete(uid);
+  });
+  initialUserDataRequests.set(uid, request);
+  return request;
+};
+
 
 async function signOut() {
   await firebaseSignOut(getAuthInstance());

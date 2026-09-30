@@ -824,6 +824,80 @@ enum AppRoute: Hashable {
     }
 
     static var initialPath: [AppRoute] {
+@MainActor
+private enum InitialUserData {
+    private static var requests: [String: Task<Void, Error>] = [:]
+
+    static func ensure(uid: String, language: String) async throws {
+        if let request = requests[uid] {
+            return try await request.value
+        }
+        let request = Task { @MainActor in
+            defer { requests[uid] = nil }
+            try await createIfMissing(uid: uid, language: language)
+        }
+        requests[uid] = request
+        try await request.value
+    }
+
+    private static func createIfMissing(uid: String, language: String) async throws {
+        let db = Firestore.firestore()
+        let settingsRef = db.collection("settings").document(uid)
+        let taskListOrderRef = db.collection("taskListOrder").document(uid)
+        let settingsSnapshot = try await settingsRef.getDocument(source: .server)
+        guard !settingsSnapshot.exists else { return }
+        let taskListOrderSnapshot = try await taskListOrderRef.getDocument(source: .server)
+        let now = nowMillis()
+        let normalizedLanguage = normalizeLanguageCode(language)
+        let batch = db.batch()
+        batch.setData(
+            [
+                "theme": "system",
+                "language": normalizedLanguage,
+                "taskInsertPosition": "top",
+                "autoSort": true,
+                "startupView": "taskList",
+                "createdAt": now,
+                "updatedAt": now,
+            ], forDocument: settingsRef)
+        if !taskListOrderSnapshot.exists {
+            let taskListRef = db.collection("taskLists").document()
+            batch.setData(
+                [
+                    "id": taskListRef.documentID,
+                    "name": Translations.initialTaskListName(for: normalizedLanguage),
+                    "tasks": [:],
+                    "history": [],
+                    "shareCode": NSNull(),
+                    "background": NSNull(),
+                    "memberCount": 1,
+                    "createdAt": now,
+                    "updatedAt": now,
+                ], forDocument: taskListRef)
+            batch.setData(
+                [
+                    "joinedAt": now,
+                    "joinCode": NSNull(),
+                ], forDocument: taskListRef.collection("members").document(uid))
+            batch.setData(
+                [
+                    taskListRef.documentID: ["order": 1.0],
+                    "createdAt": now,
+                    "updatedAt": now,
+                ], forDocument: taskListOrderRef)
+        }
+        try await batch.commit()
+    }
+}
+
+private func ensureInitialUserData(uid: String, language: String) async {
+    do {
+        try await InitialUserData.ensure(uid: uid, language: language)
+    } catch {
+        logException(operation: "initial_user_data", errorCategory: syncErrorCategory(error))
+    }
+}
+
         [.taskList(taskListId: "__initial__")]
     }
 
@@ -3012,6 +3086,15 @@ private struct ScreenScaffold<Content: View>: View {
 
 private struct AuthTextField: View {
     let label: String
+                    if snapshot?.exists == false,
+                        snapshot?.metadata.isFromCache == false,
+                        snapshot?.metadata.hasPendingWrites == false,
+                        Auth.auth().currentUser?.uid == uid
+                    {
+                        Task { @MainActor in
+                            await ensureInitialUserData(uid: uid, language: resolveDeviceLanguage())
+                        }
+                    }
     let placeholder: String
     @Binding var text: String
     var error: String? = nil
@@ -3425,56 +3508,12 @@ private struct SignUpView: View {
                     return
                 }
 
-                let now = nowMillis()
-                let taskListId = db.collection("taskLists").document().documentID
-                let batch = db.batch()
-                batch.setData(
-                    [
-                        "theme": "system",
-                        "language": normalizedLanguage,
-                        "taskInsertPosition": "top",
-                        "autoSort": true,
-                        "startupView": "taskList",
-                        "createdAt": now,
-                        "updatedAt": now,
-                    ], forDocument: db.collection("settings").document(uid))
-                batch.setData(
-                    [
-                        "id": taskListId,
-                        "name": translations.t("app.initialTaskListName"),
-                        "tasks": [:],
-                        "history": [],
-                        "shareCode": NSNull(),
-                        "background": NSNull(),
-                        "memberCount": 1,
-                        "createdAt": now,
-                        "updatedAt": now,
-                    ], forDocument: db.collection("taskLists").document(taskListId))
-                batch.setData(
-                    [
-                        "joinedAt": now,
-                        "joinCode": NSNull(),
-                    ], forDocument: db.collection("taskLists").document(taskListId).collection("members").document(uid))
-                batch.setData(
-                    [
-                        taskListId: ["order": 1.0],
-                        "createdAt": now,
-                        "updatedAt": now,
-                    ], forDocument: db.collection("taskListOrder").document(uid))
-                do {
-                    try await batch.commit()
-                    guard !didComplete else { return }
-                    didComplete = true
-                    timeoutTask.cancel()
-                    isLoading = false
-                    logSignUp()
-                } catch {
-                    guard !didComplete else { return }
-                    didComplete = true
-                    timeoutTask.cancel()
-                    isLoading = false
-                    errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
-                }
+                await ensureInitialUserData(uid: uid, language: normalizedLanguage)
+                guard !didComplete else { return }
+                didComplete = true
+                timeoutTask.cancel()
+                isLoading = false
+                logSignUp()
             }
         }
     }

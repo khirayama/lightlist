@@ -2182,9 +2182,28 @@ private fun validateConfirmPasswordField(
     }
 }
 
-private suspend fun signUpWithInitialData(
-    email: String,
-    password: String,
+private val initialUserDataScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+private val initialUserDataRequests = mutableMapOf<String, Deferred<Unit>>()
+
+private suspend fun ensureInitialUserData(uid: String, language: String, initialTaskListName: String) {
+    val request = initialUserDataRequests[uid] ?: initialUserDataScope.async {
+        try {
+            createInitialUserDataIfMissing(uid, language, initialTaskListName)
+        } finally {
+            initialUserDataRequests.remove(uid)
+        }
+    }.also { initialUserDataRequests[uid] = it }
+    try {
+        request.await()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        recordNonFatalException("initial_user_data", e)
+    }
+}
+
+private suspend fun createInitialUserDataIfMissing(
+    uid: String,
     language: String,
     initialTaskListName: String
 ) {
@@ -2286,6 +2305,17 @@ private fun resolveSettingsState(
         isLoading = false,
         hasError = false
     )
+private suspend fun signUpWithInitialData(
+    email: String,
+    password: String,
+    language: String,
+    initialTaskListName: String
+) {
+    val userCredential = Firebase.auth.createUserWithEmailAndPassword(email, password).await()
+    val uid = userCredential.user?.uid ?: throw IllegalStateException("Missing user ID")
+    ensureInitialUserData(uid, language, initialTaskListName)
+}
+
 }
 
 @Composable
@@ -3100,6 +3130,14 @@ private fun scheduleMalformedTaskCleanup(
         onError = { releaseCleanupKey() }
     ) {
         Firebase.firestore.collection("taskLists").document(taskListId).update(updates)
+                            if (!snapshot.exists() && Firebase.auth.currentUser?.uid == userId) {
+                                val language = resolveDeviceLanguage(context)
+                                val initialTaskListName = Translations.from(context, language)
+                                    .t("app.initialTaskListName")
+                                scope.launch {
+                                    ensureInitialUserData(userId, language, initialTaskListName)
+                                }
+                            }
     }
 }
 

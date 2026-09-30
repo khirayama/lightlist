@@ -286,6 +286,54 @@ private struct CompletionRipple: View {
     }
 }
 
+private struct StrikethroughText: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let text: String
+    let font: Font
+    let foreground: Color
+    let strikeColor: Color
+    let isStruck: Bool
+
+    var body: some View {
+        Text(text)
+            .font(font)
+            .foregroundStyle(foreground)
+            .overlay {
+                Text(text)
+                    .font(font)
+                    .foregroundStyle(Color.clear)
+                    .strikethrough(true, color: strikeColor)
+                    .mask {
+                        GeometryReader { proxy in
+                            Rectangle()
+                                .frame(width: isStruck ? proxy.size.width : 0)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                        }
+                    }
+                    .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.15), value: isStruck)
+                    .accessibilityHidden(true)
+            }
+    }
+}
+
+private struct AllTasksCompletedNotice: View {
+    @EnvironmentObject var translations: Translations
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 14, weight: .semibold))
+            Text(translations.t("pages.tasklist.allCompleted"))
+                .font(AppTypography.subheadlineMedium())
+        }
+        .foregroundStyle(color)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 private struct AppButtonStyle: ButtonStyle {
     let variant: AppButtonVariant
     var fullWidth = false
@@ -1865,13 +1913,13 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
 private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> {
 
     @Published private(set) var calendarError: String?
+    @Published private var settlingTaskIds: Set<String> = []
     private let db = Firestore.firestore()
     private var pendingTaskArrays: [String: [TaskSummary]] = [:]
     private var pendingTaskArrayRevisions: [String: Int] = [:]
     private var pendingHistories: [String: [String]] = [:]
     private var pendingHistoryRevisions: [String: Int] = [:]
     private var mutationRevision = 0
-    private var failedMutationRevisions: Set<Int> = []
 
     init() {
         super.init(mapper: mapTaskListDetail)
@@ -1926,7 +1974,10 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         taskLists.enumerated().flatMap { taskListEntry in
             let taskListIndex = taskListEntry.offset
             let taskList = taskListEntry.element
-            return displayedTasks(for: taskList).enumerated().filter { !$0.element.completed }.map { taskEntry in
+            return displayedTasks(for: taskList).enumerated().filter {
+                !$0.element.completed || settlingTaskIds.contains("\(taskList.id):\($0.element.id)")
+            }
+            .map { taskEntry in
                 makeCalendarTask(
                     taskList: taskList,
                     task: taskEntry.element,
@@ -2187,22 +2238,28 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         enqueueMutation(
             taskLists: [sourceTaskListId: nextSourceTasks, targetTaskListId: nextTargetTasks],
             histories: [targetTaskListId: targetHistory],
-            translations: translations,
             operation: { [db] completion in
                 let batch = db.batch()
                 batch.updateData(sourceUpdates, forDocument: db.collection("taskLists").document(sourceTaskListId))
                 batch.updateData(targetUpdates, forDocument: db.collection("taskLists").document(targetTaskListId))
                 batch.commit(completion: completion)
             },
-            onSuccess: onSuccess,
-            onFailure: onFailure
+            onSuccess: onSuccess
         )
     }
 
-    func completeTask(_ task: CalendarTask, autoSort: Bool, translations: Translations) {
+    func completeTask(_ task: CalendarTask, autoSort: Bool, translations: Translations, animated: Bool) {
+        guard !task.completed else { return }
         logTaskUpdate(fields: "completed")
+        settlingTaskIds.insert(task.id)
         mutateTask(taskListId: task.taskListId, taskId: task.taskId, autoSort: autoSort, translations: translations) { current, _ in
             (current.updating(completed: true), [:])
+        }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: completionSettleNanoseconds)
+            withAnimation(animated ? .easeOut(duration: 0.12) : .none) {
+                _ = self?.settlingTaskIds.remove(task.id)
+            }
         }
     }
 
@@ -2382,6 +2439,27 @@ private let taskListColorOptions: [String?] = [nil, "#F87171", "#FBBF24", "#34D3
 @MainActor private func triggerWarningFeedback() {
     notificationFeedbackGenerator.notificationOccurred(.warning)
     notificationFeedbackGenerator.prepare()
+}
+
+@MainActor private func triggerSuccessFeedback() {
+    notificationFeedbackGenerator.notificationOccurred(.success)
+    notificationFeedbackGenerator.prepare()
+}
+
+private let completionSettleNanoseconds: UInt64 = 200_000_000
+
+private func holdTaskPositions(_ tasks: [TaskSummary], heldIndexes: [String: Int]) -> [TaskSummary] {
+    guard !heldIndexes.isEmpty else { return tasks }
+    let heldTasks = tasks.compactMap { task in
+        heldIndexes[task.id].map { (task: task, index: $0) }
+    }
+    .sorted { $0.index < $1.index }
+    guard !heldTasks.isEmpty else { return tasks }
+    var result = tasks.filter { heldIndexes[$0.id] == nil }
+    for held in heldTasks {
+        result.insert(held.task, at: min(held.index, result.count))
+    }
+    return result
 }
 
 nonisolated private func taskInputDateFrom(year: Int, month: Int, day: Int) -> Date? {
@@ -3224,10 +3302,39 @@ private struct AuthTextField: View {
 
 private let authButtonCornerRadius: CGFloat = 8
 
+@MainActor
+@Observable
+private final class TaskListPagerProgress {
+    var value: Double = 0
+    @ObservationIgnored var containerFrame: CGRect = .zero
+    @ObservationIgnored var pageFrames: [String: CGRect] = [:]
+
+    func update(taskListIds: [String], selectedId: String, isRightToLeft: Bool) {
+        guard let index = taskListIds.firstIndex(of: selectedId) else { return }
+        var progress = Double(index)
+        if containerFrame.width > 0, let frame = pageFrames[selectedId] {
+            let offset = Double((frame.minX - containerFrame.minX) / containerFrame.width)
+            progress += isRightToLeft ? offset : -offset
+        }
+        let clamped = min(max(progress, 0), Double(max(0, taskListIds.count - 1)))
+        if abs(clamped - value) > 0.001 {
+            value = clamped
+        }
+    }
+}
+
+private struct TaskListPageFrameKey: PreferenceKey {
+    static let defaultValue: [String: CGRect] = [:]
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
 private struct TaskListIndicatorRow: View {
     @EnvironmentObject var translations: Translations
     let taskLists: [TaskListDetail]
     let selectedIndex: Int
+    let progress: TaskListPagerProgress
     let onSelect: (String) -> Void
 
     private var inactiveDotColor: Color {
@@ -3263,6 +3370,7 @@ private struct TaskListTopChrome: View {
     let showBackButton: Bool
     let taskLists: [TaskListDetail]
     let selectedIndex: Int
+    let progress: TaskListPagerProgress
     let onSelect: (String) -> Void
     let onBack: (() -> Void)?
 
@@ -4349,6 +4457,8 @@ private struct TaskListsView: View {
                             .font(AppTypography.caption())
                             .foregroundStyle(AppPalette.subtleText)
                             .lineLimit(1)
+                            .contentTransition(reduceMotion ? .identity : .numericText(value: Double(taskList.remainingTaskCount)))
+                            .animation(reduceMotion ? nil : .snappy(duration: 0.32), value: taskList.remainingTaskCount)
                     }
                     Spacer(minLength: 0)
                 }
@@ -4610,6 +4720,8 @@ private struct TaskListsView: View {
 private struct DetailPagerContent: View {
     @Binding var selectedTaskListId: String
     @FocusState private var focusedNewTaskListId: String?
+    @Environment(\.layoutDirection) private var layoutDirection
+    @State private var pagerProgress = TaskListPagerProgress()
     let taskLists: [TaskListDetail]
     let taskInsertPosition: String
     let autoSort: Bool
@@ -4898,10 +5010,9 @@ private struct TaskListDetailPage: View {
     @State private var pendingDisplayTasks: [TaskSummary]? = nil
     @State private var pendingHistory: [String]? = nil
     @State private var taskMutationRevision = 0
-    @State private var taskMutationErrorRevision: Int?
-    @State private var taskMutationError: String?
-    @State private var isTaskMutationSaving = false
     @State private var exitingTaskIds: Set<String> = []
+    @State private var heldTaskIndexes: [String: Int] = [:]
+    @State private var heldTaskRevision = 0
     @State private var taskItemHeights: [String: CGFloat] = [:]
     @State private var taskAutoScroller = DragAutoScroller()
     @State private var taskScrollViewRef: UIScrollView? = nil
@@ -4953,8 +5064,27 @@ private struct TaskListDetailPage: View {
         return autoSort ? getDisplayOrderedTasks(taskList.tasks) : getOrderOrderedTasks(taskList.tasks)
     }
 
+    private var visibleTasks: [TaskSummary] {
+        holdTaskPositions(displayTasks, heldIndexes: heldTaskIndexes)
+    }
+
     private var displayHistory: [String] {
         pendingHistory ?? taskList.history
+    }
+
+    private func holdTaskPosition(_ taskId: String) {
+        if heldTaskIndexes[taskId] == nil, let index = visibleTasks.firstIndex(where: { $0.id == taskId }) {
+            heldTaskIndexes[taskId] = index
+        }
+        heldTaskRevision += 1
+        let revision = heldTaskRevision
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: completionSettleNanoseconds)
+            guard heldTaskRevision == revision, !heldTaskIndexes.isEmpty else { return }
+            withAnimation(reduceMotion ? .none : .spring(response: 0.22, dampingFraction: 0.86)) {
+                heldTaskIndexes = [:]
+            }
+        }
     }
 
     private func checkTaskSwap() -> CGFloat {
@@ -5019,6 +5149,8 @@ private struct TaskListDetailPage: View {
     private func handleTaskDragChanged(task: TaskSummary, displayTasks: [TaskSummary], fingerY: CGFloat) {
         if draggingTaskId == nil {
             triggerMediumImpact()
+            heldTaskRevision += 1
+            heldTaskIndexes = [:]
             draggingTaskId = task.id
             dragOrderedTasks = displayTasks
             dragStartTaskIds = displayTasks.map(\.id)
@@ -5311,13 +5443,16 @@ private struct TaskListDetailPage: View {
                         Button {
                             startEdit(task)
                         } label: {
-                            Text(task.text)
-                                .font(task.pinned && !task.completed ? AppTypography.bodyBold() : AppTypography.bodyMedium())
-                                .strikethrough(task.completed)
-                                .foregroundStyle(task.completed ? mutedTextColor : Color.primary)
-                                .multilineTextAlignment(.leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            StrikethroughText(
+                                text: task.text,
+                                font: task.pinned && !task.completed ? AppTypography.bodyBold() : AppTypography.bodyMedium(),
+                                foreground: task.completed ? mutedTextColor : Color.primary,
+                                strikeColor: mutedTextColor,
+                                isStruck: task.completed
+                            )
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .buttonStyle(.plain)
                         .disabled(!allowsTaskEditing)
@@ -5466,9 +5601,13 @@ private struct TaskListDetailPage: View {
                         .foregroundStyle(mutedTextColor)
                 } else {
                     LazyVStack(spacing: TaskListDetailMetrics.taskRowGap) {
-                        ForEach(displayTasks) { task in
+                        ForEach(visibleTasks) { task in
                             taskRow(task, displayTasks: displayTasks)
                         }
+                    }
+                    if displayTasks.allSatisfy(\.completed) {
+                        AllTasksCompletedNotice(color: mutedTextColor)
+                            .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.98)))
                     }
                 }
             }
@@ -7714,20 +7853,30 @@ private struct CalendarTaskRow: View {
                     triggerLightImpact()
                     onToggleComplete()
                 } label: {
-                    Circle()
-                        .strokeBorder(AppPalette.subtleIcon, lineWidth: 1)
-                        .frame(width: TaskListDetailMetrics.completionDotSize, height: TaskListDetailMetrics.completionDotSize)
-                        .padding(.top, CalendarTaskRowMetrics.controlTopPadding)
-                        .frame(
-                            width: CalendarTaskRowMetrics.sideColumnWidth,
-                            height: CalendarTaskRowMetrics.contentMinHeight,
-                            alignment: .top
-                        )
-                        .contentShape(Rectangle())
+                    ZStack {
+                        CompletionRipple(completed: task.completed, reduceMotion: reduceMotion)
+                            .frame(width: TaskListDetailMetrics.completionDotSize, height: TaskListDetailMetrics.completionDotSize)
+                        Circle()
+                            .strokeBorder(AppPalette.subtleIcon, lineWidth: task.completed ? 0 : 1)
+                            .background(
+                                Circle()
+                                    .fill(task.completed ? AppPalette.border : Color.clear)
+                                    .scaleEffect(task.completed ? 1.0 : 0.4)
+                            )
+                            .frame(width: TaskListDetailMetrics.completionDotSize, height: TaskListDetailMetrics.completionDotSize)
+                    }
+                    .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.65), value: task.completed)
+                    .padding(.top, CalendarTaskRowMetrics.controlTopPadding)
+                    .frame(
+                        width: CalendarTaskRowMetrics.sideColumnWidth,
+                        height: CalendarTaskRowMetrics.contentMinHeight,
+                        alignment: .top
+                    )
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(CompletionPressStyle())
                 .accessibilityLabel(task.text)
-                .accessibilityValue(translations.t("pages.tasklist.markComplete"))
+                .accessibilityValue(translations.t(task.completed ? "pages.tasklist.markIncomplete" : "pages.tasklist.markComplete"))
 
                 Group {
                     if task.dateValue != nil {
@@ -7769,13 +7918,18 @@ private struct CalendarTaskRow: View {
     }
 
     private var taskText: some View {
-        Text(task.text)
-            .font(AppTypography.bodyMedium())
-            .foregroundStyle(.primary)
-            .multilineTextAlignment(.leading)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, CalendarTaskRowMetrics.textTopPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        StrikethroughText(
+            text: task.text,
+            font: AppTypography.bodyMedium(),
+            foreground: task.completed ? AppPalette.subtleText : Color.primary,
+            strikeColor: AppPalette.subtleText,
+            isStruck: task.completed
+        )
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: task.completed)
+        .multilineTextAlignment(.leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.top, CalendarTaskRowMetrics.textTopPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -710,12 +710,6 @@
     --ll-translate-y: calc(var(--spacing) * 0);
     translate: var(--ll-translate-x) var(--ll-translate-y);
   }
-  .ll-scale-110 {
-    --ll-scale-x: 110%;
-    --ll-scale-y: 110%;
-    --ll-scale-z: 110%;
-    scale: var(--ll-scale-x) var(--ll-scale-y);
-  }
   .ll-animate-pulse {
     animation: var(--animate-pulse);
   }

@@ -3623,6 +3623,132 @@ private suspend fun hasPendingWrites(): Boolean =
     )
 }
 
+private const val CompletionSettleMillis = 200L
+
+private val SettleEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
+
+private fun holdTaskPositions(tasks: List<TaskSummary>, heldIndexes: Map<String, Int>): List<TaskSummary> {
+    if (heldIndexes.isEmpty()) return tasks
+    val heldTasks = tasks.mapNotNull { task -> heldIndexes[task.id]?.let { task to it } }
+        .sortedBy { it.second }
+    if (heldTasks.isEmpty()) return tasks
+    val result = tasks.filter { it.id !in heldIndexes }.toMutableList()
+    heldTasks.forEach { (task, index) -> result.add(index.coerceAtMost(result.size), task) }
+    return result
+}
+
+@Composable
+private fun StrikethroughText(
+    text: String,
+    style: TextStyle,
+    color: Color,
+    strikeColor: Color,
+    isStruck: Boolean,
+    reduceMotion: Boolean,
+    modifier: Modifier = Modifier,
+    fontWeight: FontWeight? = null
+) {
+    val progress by animateFloatAsState(
+        targetValue = if (isStruck) 1f else 0f,
+        animationSpec = if (reduceMotion) snap() else tween(durationMillis = 150, easing = SettleEasing),
+        label = "strikethrough"
+    )
+    var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    Text(
+        text,
+        style = style,
+        color = color,
+        fontWeight = fontWeight,
+        onTextLayout = { layoutResult = it },
+        modifier = modifier.drawWithContent {
+            drawContent()
+            val layout = layoutResult ?: return@drawWithContent
+            val fraction = progress
+            if (fraction <= 0f) return@drawWithContent
+            val fontSizePx = if (style.fontSize.isSpecified) style.fontSize.toPx() else 16.sp.toPx()
+            val thickness = maxOf(1.dp.toPx(), fontSizePx * 0.075f)
+            for (line in 0 until layout.lineCount) {
+                val left = layout.getLineLeft(line)
+                val right = layout.getLineRight(line)
+                if (right <= left) continue
+                val width = (right - left) * fraction
+                val isRtl = layout.getParagraphDirection(layout.getLineStart(line)) == ResolvedTextDirection.Rtl
+                val y = layout.getLineBaseline(line) - fontSizePx * 0.3f
+                drawRect(
+                    color = strikeColor,
+                    topLeft = Offset(if (isRtl) right - width else left, y - thickness / 2f),
+                    size = Size(width, thickness)
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun RollingCountText(
+    label: String,
+    count: Int,
+    style: TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val reduceMotion = rememberReduceMotion()
+    val countText = count.toString()
+    val countIndex = label.indexOf(countText)
+    if (reduceMotion || countIndex < 0) {
+        Text(label, style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
+        return
+    }
+    Row(modifier = modifier.semantics(mergeDescendants = true) {}) {
+        Text(label.substring(0, countIndex), style = style, color = color, maxLines = 1)
+        AnimatedContent(
+            targetState = count,
+            transitionSpec = {
+                val direction = if (targetState > initialState) 1 else -1
+                (slideInVertically(tween(320, easing = SettleEasing)) { height -> height * direction } +
+                    fadeIn(tween(320))) togetherWith
+                    (slideOutVertically(tween(320, easing = SettleEasing)) { height -> -height * direction } +
+                        fadeOut(tween(160)))
+            },
+            label = "remainingCount"
+        ) { value ->
+            Text(value.toString(), style = style, color = color, maxLines = 1)
+        }
+        Text(
+            label.substring(countIndex + countText.length),
+            style = style,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun AllTasksCompletedNotice(color: Color, modifier: Modifier = Modifier) {
+    val t = LocalTranslations.current
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp)
+            .semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Check, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+        Text(
+            t.t("pages.tasklist.allCompleted"),
+            style = TextStyle(
+                fontFamily = GenInterfaceJPBodyFontFamily,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 20.sp
+            ),
+            color = color
+        )
+    }
+}
+
 private fun remainingCountLabel(t: Translations, count: Int): String {
     val pluralKey = if (count == 1) "taskList.remainingCount_one" else "taskList.remainingCount_other"
     val vars = mapOf("count" to count.toString())
@@ -4684,6 +4810,15 @@ private fun CalendarScreen(
             )
             .sortedWith(calendarTaskComparator)
     }
+    var settlingCalendarTasks by remember { mutableStateOf<Map<String, CalendarTask>>(emptyMap()) }
+    val visibleCalendarTasks = remember(calendarTasks, settlingCalendarTasks) {
+        if (settlingCalendarTasks.isEmpty()) {
+            calendarTasks
+        } else {
+            (calendarTasks.filter { it.id !in settlingCalendarTasks } + settlingCalendarTasks.values)
+                .sortedWith(calendarTaskComparator)
+        }
+    }
     var displayedMonth by remember { mutableStateOf(CalendarMonth.current()) }
     var selectedDateKey by remember { mutableStateOf<String?>(null) }
     var showAddTaskSheet by remember { mutableStateOf(false) }
@@ -4905,8 +5040,14 @@ private fun CalendarScreen(
     }
 
     fun completeCalendarTask(task: CalendarTask) {
+        if (task.completed) return
         haptic.performHapticFeedback(HapticFeedbackType.ToggleOn)
+        settlingCalendarTasks = settlingCalendarTasks + (task.id to task.copy(completed = true))
         updateCalendarTask(task, "completed") { it.copy(completed = true) }
+        scope.launch {
+            delay(CompletionSettleMillis)
+            settlingCalendarTasks = settlingCalendarTasks - task.id
+        }
     }
 
     fun saveCalendarTask(task: CalendarTask, taskListId: String, text: String, pinned: Boolean, dateKey: String) {
@@ -5480,16 +5621,18 @@ private fun CalendarTaskRow(
                     .padding(top = 6.dp),
                 contentAlignment = Alignment.TopStart
             ) {
-                Text(
-                    task.text,
+                StrikethroughText(
+                    text = task.text,
                     style = TextStyle(
                         fontFamily = GenInterfaceJPBodyFontFamily,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         lineHeight = 24.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
+                    color = if (task.completed) mutedTextColor() else MaterialTheme.colorScheme.onSurface,
+                    strikeColor = mutedTextColor(),
+                    isStruck = task.completed,
+                    reduceMotion = reduceMotion
                 )
             }
             Box(
@@ -5852,16 +5995,15 @@ private fun TaskListsScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Text(
-                                        remainingCountLabel(t, taskList.remainingTaskCount),
+                                    RollingCountText(
+                                        label = remainingCountLabel(t, taskList.remainingTaskCount),
+                                        count = taskList.remainingTaskCount,
                                         style = TextStyle(
                                             fontFamily = GenInterfaceJPBodyFontFamily,
                                             fontSize = 12.sp,
                                             lineHeight = 16.sp
                                         ),
-                                        color = mutedText,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        color = mutedText
                                     )
                                 }
                             }
@@ -6790,11 +6932,13 @@ private fun TaskListRow(
                         focusRequester.requestFocus()
                     }
                 } else {
-                    Text(
-                        task.text,
+                    StrikethroughText(
+                        text = task.text,
                         style = taskTextStyle,
-                        textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
                         color = if (task.completed) mutedTextColor() else MaterialTheme.colorScheme.onSurface,
+                        strikeColor = mutedTextColor(),
+                        isStruck = task.completed,
+                        reduceMotion = reduceMotion,
                         fontWeight = textWeight,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -6974,6 +7118,8 @@ private fun TaskListDetailContent(
     var pendingDisplayedTasks by remember { mutableStateOf<List<TaskSummary>?>(null) }
     var taskMutationRevision by remember(taskList.id) { mutableIntStateOf(0) }
     var exitingTaskIds by remember(taskList.id) { mutableStateOf<Set<String>>(emptySet()) }
+    var heldTaskIndexes by remember(taskList.id) { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var heldTaskRevision by remember(taskList.id) { mutableIntStateOf(0) }
     var taskItemHeights by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
     var taskAutoScrollSpeed by remember { mutableFloatStateOf(0f) }
     val lazyListState = rememberLazyListState()
@@ -7001,6 +7147,9 @@ private fun TaskListDetailContent(
         } else {
             getOrderOrderedTasks(taskList.tasks)
         }
+    }
+    val visibleTasks = remember(displayTasks, heldTaskIndexes) {
+        holdTaskPositions(displayTasks, heldTaskIndexes)
     }
     val taskDensity = LocalDensity.current
     val taskSpacingPx = 0f
@@ -7209,11 +7358,34 @@ private fun TaskListDetailContent(
         return true
     }
 
+    fun holdTaskPosition(taskId: String) {
+        val index = visibleTasks.indexOfFirst { it.id == taskId }
+        if (index >= 0 && taskId !in heldTaskIndexes) {
+            heldTaskIndexes = heldTaskIndexes + (taskId to index)
+        }
+        heldTaskRevision += 1
+        val revision = heldTaskRevision
+        scope.launch {
+            delay(CompletionSettleMillis)
+            if (heldTaskRevision == revision) {
+                heldTaskIndexes = emptyMap()
+            }
+        }
+    }
+
     fun toggleCompletion(task: TaskSummary) {
         logTaskUpdate(fields = "completed")
+        val completesAllTasks = !task.completed && displayTasks.all { it.id == task.id || it.completed }
         haptic.performHapticFeedback(
-            if (task.completed) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn
+            when {
+                completesAllTasks -> HapticFeedbackType.Confirm
+                task.completed -> HapticFeedbackType.ToggleOff
+                else -> HapticFeedbackType.ToggleOn
+            }
         )
+        if (autoSort) {
+            holdTaskPosition(task.id)
+        }
         performTaskMutation(
             buildNextTasks = { currentTasks ->
                 currentTasks.map { current ->
@@ -7786,6 +7958,8 @@ private fun TaskListDetailContent(
                     },
                     onDragStart = {
                         haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                        heldTaskRevision += 1
+                        heldTaskIndexes = emptyMap()
                         draggingTaskId = task.id
                         dragOrderedTasks = displayTasks
                         dragStartTaskIds = displayTasks.map { it.id }
@@ -7847,6 +8021,22 @@ private fun TaskListDetailContent(
                     moveInlineCaretRight = ::moveInlineCaretRight,
                     onInlineEditBlur = { commitEdit(task, editingTextFieldValue.text) }
                 )
+            }
+            if (displayTasks.all { it.completed }) {
+                item(key = "allTasksCompleted", contentType = "allTasksCompleted") {
+                    AllTasksCompletedNotice(
+                        color = mutedTextColor(),
+                        modifier = if (reduceMotion) {
+                            Modifier
+                        } else {
+                            Modifier.animateItem(
+                                fadeInSpec = tween(durationMillis = 240),
+                                placementSpec = null,
+                                fadeOutSpec = tween(durationMillis = 120)
+                            )
+                        }
+                    )
+                }
             }
         }
     }

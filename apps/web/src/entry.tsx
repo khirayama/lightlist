@@ -3155,6 +3155,29 @@ function getSortedTasks(
   return settings.autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks);
 }
 
+const COMPLETION_SETTLE_MS = 200;
+const TASK_EXIT_MS = 120;
+
+function holdTaskPositions<T extends { id: string }>(
+  tasks: T[],
+  heldIndexes: ReadonlyMap<string, number> | null,
+): T[] {
+  if (!heldIndexes || heldIndexes.size === 0) return tasks;
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
+  const heldTasks = [...heldIndexes]
+    .flatMap(([taskId, index]) => {
+      const task = tasksById.get(taskId);
+      return task ? [{ task, index }] : [];
+    })
+    .sort((left, right) => left.index - right.index);
+  if (heldTasks.length === 0) return tasks;
+  const result = tasks.filter((task) => !heldIndexes.has(task.id));
+  for (const { task, index } of heldTasks) {
+    result.splice(Math.min(index, result.length), 0, task);
+  }
+  return result;
+}
+
 const MAX_TASK_HISTORY_ENTRIES = 300;
 
 function buildHistory(
@@ -5509,6 +5532,29 @@ function Carousel({
     count === 0 ? 0 : Math.max(0, Math.min(index, count - 1));
   currentIndexRef.current = currentIndex;
 
+  const setIndicatorProgress = useCallback(
+    (progress: number) => {
+      const indicator = indicatorRef.current;
+      if (!indicator) return;
+      const clamped = clamp(progress, 0, Math.max(0, count - 1));
+      const base = Math.floor(clamped);
+      const fraction = clamped - base;
+      indicator.style.setProperty(
+        "--ll-indicator-start",
+        String(base + Math.max(0, fraction * 2 - 1)),
+      );
+      indicator.style.setProperty(
+        "--ll-indicator-end",
+        String(base + Math.min(1, fraction * 2)),
+      );
+    },
+    [count],
+  );
+
+  useIsomorphicLayoutEffect(() => {
+    if (!isScrollingRef.current) setIndicatorProgress(currentIndex);
+  }, [currentIndex, setIndicatorProgress]);
+
   useEffect(() => {
     if (count === 0 || index === currentIndex) return;
     onIndexChange(currentIndex);
@@ -5553,6 +5599,15 @@ function Carousel({
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
+    if (container.clientWidth > 0) {
+      setIndicatorProgress(
+        getInlineOffsetFromScrollLeft(
+          container.scrollLeft,
+          Math.max(0, container.scrollWidth - container.clientWidth),
+          direction,
+        ) / container.clientWidth,
+      );
+    }
     if (!isScrollingRef.current) {
       onScrollStart?.();
     }
@@ -5578,7 +5633,14 @@ function Carousel({
         onIndexChange(clampedIndex);
       }
     }, 150);
-  }, [count, direction, onIndexChange, onScrollEnd, onScrollStart]);
+  }, [
+    count,
+    direction,
+    onIndexChange,
+    onScrollEnd,
+    onScrollStart,
+    setIndicatorProgress,
+  ]);
 
   return (
     <div
@@ -5622,33 +5684,29 @@ function Carousel({
               : undefined
           }
         >
-          {Array.from({ length: count }).map((_, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => {
-                if (idx === currentIndexRef.current) return;
-                skipSmoothSyncRef.current = false;
-                onIndexChange(idx);
-              }}
-              className={clsx(
-                "ll-carousel-indicator ll-inline-flex ll-items-center ll-justify-center ll-rounded-full ll-p-2",
-                !indicatorInFlow && "ll-pointer-events-auto",
-                "ll-hover-bg-gray-900-10 ll-dark-hover-bg-gray-50-10",
-              )}
-              aria-label={getIndicatorLabel?.(idx, count) ?? `${idx + 1}`}
-              aria-current={idx === currentIndex ? "true" : undefined}
-            >
-              <span
+          <div ref={indicatorRef} className="ll-carousel-dots">
+            <span aria-hidden="true" className="ll-carousel-indicator-active" />
+            {Array.from({ length: count }).map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  if (idx === currentIndexRef.current) return;
+                  skipSmoothSyncRef.current = false;
+                  onIndexChange(idx);
+                }}
                 className={clsx(
-                  "ll-carousel-indicator-dot ll-h-2 ll-w-2 ll-rounded-full",
-                  idx === currentIndex
-                    ? "ll-scale-110 ll-bg-gray-900 ll-dark-bg-gray-50"
-                    : "ll-carousel-indicator-dot-inactive",
+                  "ll-carousel-indicator ll-inline-flex ll-items-center ll-justify-center ll-rounded-full ll-p-2",
+                  !indicatorInFlow && "ll-pointer-events-auto",
+                  "ll-hover-bg-gray-900-10 ll-dark-hover-bg-gray-50-10",
                 )}
-              />
-            </button>
-          ))}
+                aria-label={getIndicatorLabel?.(idx, count) ?? `${idx + 1}`}
+                aria-current={idx === currentIndex ? "true" : undefined}
+              >
+                <span className="ll-carousel-indicator-dot ll-carousel-indicator-dot-inactive ll-h-2 ll-w-2 ll-rounded-full" />
+              </button>
+            ))}
+          </div>
         </nav>
       ) : null}
       <div
@@ -6116,7 +6174,9 @@ function TaskItemComponent({
                   )
             }
           >
-            {task.text}
+            <span className="ll-min-w-0">
+              <span className="ll-task-strike">{task.text}</span>
+            </span>
           </button>
         )}
       </div>
@@ -6142,6 +6202,23 @@ function TaskItemComponent({
 }
 
 const TaskItem = memo(TaskItemComponent);
+
+function AllTasksCompletedNotice({ animate }: { animate: boolean }) {
+  const { t } = useTranslation();
+  const animateRef = useRef(animate);
+  return (
+    <p
+      role="status"
+      className={clsx(
+        "ll-all-tasks-completed ll-muted-text",
+        animateRef.current && "ll-anim-pop",
+      )}
+    >
+      <AppIcon name="check" size={18} aria-hidden="true" focusable="false" />
+      {t("pages.tasklist.allCompleted")}
+    </p>
+  );
+}
 
 function EditTaskListDialog({
   taskList,
@@ -6610,6 +6687,40 @@ function TaskListCard({
     knownTaskIdsRef.current = new Set(tasks.map((task) => task.id));
   }, [tasks]);
 
+  const releaseHeldTasks = useCallback(() => {
+    if (releaseHeldTasksTimerRef.current) {
+      clearTimeout(releaseHeldTasksTimerRef.current);
+      releaseHeldTasksTimerRef.current = null;
+    }
+    setHeldTaskIndexes(null);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (releaseHeldTasksTimerRef.current) {
+        clearTimeout(releaseHeldTasksTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const holdTaskPosition = (taskId: string) => {
+    const index = tasks.findIndex((task) => task.id === taskId);
+    if (index === -1) return;
+    setHeldTaskIndexes((current) =>
+      current?.has(taskId)
+        ? current
+        : new Map(current ?? []).set(taskId, index),
+    );
+    if (releaseHeldTasksTimerRef.current) {
+      clearTimeout(releaseHeldTasksTimerRef.current);
+    }
+    releaseHeldTasksTimerRef.current = setTimeout(() => {
+      releaseHeldTasksTimerRef.current = null;
+      setHeldTaskIndexes(null);
+    }, COMPLETION_SETTLE_MS);
+  };
+
   const applyPendingTasks = useCallback(
     (buildNextTasks: (currentTasks: Task[]) => Task[]) => {
       const current = pendingTasksRef.current ?? taskListTasksRef.current;
@@ -6703,6 +6814,13 @@ function TaskListCard({
     (count, task) => count + (task.completed ? 1 : 0),
     0,
   );
+  const allTasksCompleted =
+    tasks.length > 0 && completedTaskCount === tasks.length;
+  const allTasksCompletedRef = useRef<boolean | null>(null);
+  const animateAllTasksCompleted = allTasksCompletedRef.current === false;
+  useEffect(() => {
+    allTasksCompletedRef.current = allTasksCompleted;
+  }, [allTasksCompleted]);
   const historyListId = `task-history-${reactId.replace(/:/g, "")}`;
   const activeTaskActionTask = useMemo(
     () =>
@@ -6806,7 +6924,7 @@ function TaskListCard({
       setExitingTaskIds(
         new Set(tasks.filter((task) => task.completed).map((task) => task.id)),
       );
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      await new Promise((resolve) => setTimeout(resolve, TASK_EXIT_MS));
     }
     await runTaskMutationRef
       .current({
@@ -7092,6 +7210,7 @@ function TaskListCard({
             sensors={SORTABLE_SENSORS}
             modifiers={SORTABLE_MODIFIERS}
             plugins={(defaults) => [...defaults, taskDndAccessibility]}
+            onBeforeDragStart={releaseHeldTasks}
             onDragStart={(event: DragStartEvent) => {
               if (typeof event.operation.source?.id === "string") {
                 onSortingChange?.(true);
@@ -7248,6 +7367,9 @@ function TaskListCard({
                     }}
                   />
                 ))}
+                {allTasksCompleted ? (
+                  <AllTasksCompletedNotice animate={animateAllTasksCompleted} />
+                ) : null}
               </div>
             )}
           </DragDropProvider>
@@ -7511,15 +7633,43 @@ type SortableTaskListItemProps = {
   index: number;
   onSelect: (taskListId: string) => void;
   dragHintLabel: string;
+  taskCount: number;
   taskCountLabel: string;
   isActive: boolean;
 };
+
+function RollingCountLabel({ label, count }: { label: string; count: number }) {
+  const [roll, setRoll] = useState<{
+    count: number;
+    direction: "up" | "down" | null;
+  }>({ count, direction: null });
+  if (roll.count !== count) {
+    setRoll({ count, direction: count > roll.count ? "up" : "down" });
+  }
+  const countText = String(count);
+  const countIndex = label.indexOf(countText);
+  if (countIndex === -1) return label;
+  return (
+    <>
+      {label.slice(0, countIndex)}
+      <span
+        key={countText}
+        className="ll-count-roll"
+        data-direction={roll.direction ?? undefined}
+      >
+        {countText}
+      </span>
+      {label.slice(countIndex + countText.length)}
+    </>
+  );
+}
 
 function SortableTaskListItem({
   taskList,
   index,
   onSelect,
   dragHintLabel,
+  taskCount,
   taskCountLabel,
   isActive,
 }: SortableTaskListItemProps) {
@@ -7571,7 +7721,7 @@ function SortableTaskListItem({
             {taskList.name}
           </span>
           <span className="ll-muted-text ll-truncate ll-text-xs">
-            {taskCountLabel}
+            <RollingCountLabel label={taskCountLabel} count={taskCount} />
           </span>
         </span>
       </button>
@@ -7623,7 +7773,7 @@ function CalendarTaskItem({
     <div
       ref={itemRef}
       data-highlighted={isHighlighted ? "true" : undefined}
-      className="ll-calendar-task-row"
+      className={clsx("ll-calendar-task-row", isExiting && "ll-anim-task-exit")}
     >
       <div className="ll-calendar-task-meta">
         <span className="ll-muted-text ll-flex ll-min-w-0 ll-flex-1 ll-items-center ll-gap-1">
@@ -7684,17 +7834,35 @@ function CalendarTaskItem({
         {task.dateValue ? (
           <button
             type="button"
+            data-completed={task.task.completed ? "true" : undefined}
             onClick={() => {
               const dateValue = task.dateValue;
               if (dateValue) onSelectDate(dateValue);
             }}
-            className="ll-calendar-task-text ll-task-text-wrap ll-flex ll-min-h-12 ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-text-gray-50 ll-dark-focus-visible-outline-gray-300"
+            className={clsx(
+              "ll-calendar-task-text ll-task-text-wrap ll-flex ll-min-h-12 ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-focus-visible-outline-gray-600 ll-dark-focus-visible-outline-gray-300",
+              task.task.completed
+                ? "ll-muted-text"
+                : "ll-text-gray-900 ll-dark-text-gray-50",
+            )}
           >
-            {task.task.text}
+            <span className="ll-min-w-0">
+              <span className="ll-task-strike">{task.task.text}</span>
+            </span>
           </button>
         ) : (
-          <div className="ll-calendar-task-text ll-task-text-wrap ll-flex ll-min-h-12 ll-rounded-md ll-text-start ll-font-medium ll-leading-6 ll-text-gray-900 ll-dark-text-gray-50">
-            {task.task.text}
+          <div
+            data-completed={task.task.completed ? "true" : undefined}
+            className={clsx(
+              "ll-calendar-task-text ll-task-text-wrap ll-flex ll-min-h-12 ll-rounded-md ll-text-start ll-font-medium ll-leading-6",
+              task.task.completed
+                ? "ll-muted-text"
+                : "ll-text-gray-900 ll-dark-text-gray-50",
+            )}
+          >
+            <span className="ll-min-w-0">
+              <span className="ll-task-strike">{task.task.text}</span>
+            </span>
           </div>
         )}
         <button
@@ -7953,6 +8121,9 @@ function CalendarScreen({
   );
   const [optimisticDatedTaskOverrides, setOptimisticDatedTaskOverrides] =
     useState<Record<string, OptimisticDatedTaskOverride>>({});
+  const [exitingCalendarTaskIds, setExitingCalendarTaskIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const [updateError, setUpdateError] = useState<string | null>(null);
   const taskScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const calendarAsideRef = useRef<HTMLDivElement | null>(null);
@@ -7980,26 +8151,50 @@ function CalendarScreen({
   };
 
   const completeTask = (task: DatedTask) => {
+    if (task.task.completed) return;
     const taskId = getDatedTaskId(task);
     const revision = nextOptimisticDatedTaskRevision();
     logAppEvent("task_update", { fields: "completed" });
     setUpdateError(null);
     setOptimisticDatedTaskOverrides((current) => ({
       ...current,
-      [taskId]: { revision, task: null },
+      [taskId]: {
+        revision,
+        task: { ...task, task: { ...task.task, completed: true } },
+      },
     }));
-    void updateTask(
-      task.taskListId,
-      task.task.id,
-      { completed: true },
-      taskSettings,
-    )
-      .catch((error) =>
-        setUpdateError(resolveErrorMessage(error, t, "common.error")),
-      )
-      .finally(() => {
-        clearOptimisticDatedTaskOverrides([taskId], revision);
+    const hideCompletedTask = async () => {
+      await new Promise((resolve) => setTimeout(resolve, COMPLETION_SETTLE_MS));
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setExitingCalendarTaskIds((current) => new Set(current).add(taskId));
+        await new Promise((resolve) => setTimeout(resolve, TASK_EXIT_MS));
+      }
+      setOptimisticDatedTaskOverrides((current) =>
+        current[taskId]?.revision === revision
+          ? { ...current, [taskId]: { revision, task: null } }
+          : current,
+      );
+      setExitingCalendarTaskIds((current) => {
+        const next = new Set(current);
+        next.delete(taskId);
+        return next;
       });
+    };
+    void Promise.all([
+      updateTask(
+        task.taskListId,
+        task.task.id,
+        { completed: true },
+        taskSettings,
+      )
+        .then(() => waitForTaskListMutations([task.taskListId]))
+        .catch((error) =>
+          setUpdateError(resolveErrorMessage(error, t, "common.error")),
+        ),
+      hideCompletedTask(),
+    ]).then(() => {
+      clearOptimisticDatedTaskOverrides([taskId], revision);
+    });
   };
 
   const handleTaskSheetSubmit = (values: TaskSheetSubmitValues) => {
@@ -8191,22 +8386,6 @@ function CalendarScreen({
           task,
           dateValue: parsedDate ?? null,
           dateKey: parsedDate ? formatDate(parsedDate) : "",
-    };
-    void Promise.all([
-      updateTask(
-        task.taskListId,
-        task.task.id,
-        { completed: true },
-        taskSettings,
-      )
-        .then(() => waitForTaskListMutations([task.taskListId]))
-        .catch((error) =>
-          setUpdateError(resolveErrorMessage(error, t, "common.error")),
-        ),
-      hideCompletedTask(),
-    ]).then(() => {
-      clearOptimisticDatedTaskOverrides([taskId], revision);
-    });
           taskListIndex,
           taskIndex,
         });
@@ -8456,6 +8635,7 @@ function CalendarScreen({
                           setTaskSheetError(null);
                         }}
                         isHighlighted={selectedCalendarDateKey === task.dateKey}
+                        isExiting={exitingCalendarTaskIds.has(taskId)}
                         itemRef={(element) => {
                           datedTaskRefs.current[taskId] = element;
                         }}

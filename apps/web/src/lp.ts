@@ -1,6 +1,5 @@
 import "@/styles/base.css";
 import "@/styles/lp-styles.css";
-import lpLocales from "./lp-locales.json";
 
 type Language =
   | "ja"
@@ -30,8 +29,6 @@ const SUPPORTED_LANGUAGES = [
   "pt-BR",
   "id",
 ] as const satisfies readonly Language[];
-
-const RTL_LANGUAGES = ["ar"] as const;
 
 const SUPPORTED_LANGUAGE_SET = new Set<Language>(SUPPORTED_LANGUAGES);
 
@@ -65,119 +62,46 @@ function normalizeLanguage(value: string | null | undefined): Language {
   return DEFAULT_LANGUAGE;
 }
 
-function getLanguageDirection(value: string | null | undefined): "ltr" | "rtl" {
-  const language = normalizeLanguage(value);
-  return RTL_LANGUAGES.includes(language as (typeof RTL_LANGUAGES)[number])
-    ? "rtl"
-    : "ltr";
+const LANGUAGE_PATHS: Record<Language, string> = {
+  ja: "/",
+  en: "/en/",
+  es: "/es/",
+  de: "/de/",
+  fr: "/fr/",
+  ko: "/ko/",
+  "zh-CN": "/zh-cn/",
+  hi: "/hi/",
+  ar: "/ar/",
+  "pt-BR": "/pt-br/",
+  id: "/id/",
+};
+
+const pageLanguage = normalizeLanguage(document.documentElement.lang);
+const queryLanguage = new URLSearchParams(window.location.search).get("lang");
+const storedLanguage = window.localStorage.getItem("i18nextLng");
+const preferredLanguage = queryLanguage
+  ? normalizeLanguage(queryLanguage)
+  : pageLanguage === DEFAULT_LANGUAGE && storedLanguage
+    ? normalizeLanguage(storedLanguage)
+    : pageLanguage;
+
+if (preferredLanguage !== pageLanguage) {
+  window.location.replace(LANGUAGE_PATHS[preferredLanguage]);
+} else if (queryLanguage) {
+  window.history.replaceState(
+    window.history.state,
+    "",
+    LANGUAGE_PATHS[pageLanguage],
+  );
 }
-
-const OG_LOCALE_BY_LANGUAGE: Record<Language, string> = {
-  ja: "ja_JP",
-  en: "en_US",
-  es: "es_ES",
-  de: "de_DE",
-  fr: "fr_FR",
-  ko: "ko_KR",
-  "zh-CN": "zh_CN",
-  hi: "hi_IN",
-  ar: "ar_AR",
-  "pt-BR": "pt_BR",
-  id: "id_ID",
-};
-
-const setHeadValue = (
-  selector: string,
-  attribute: "content" | "href",
-  value: string,
-) => {
-  const element = document.querySelector(selector);
-  if (
-    element instanceof HTMLMetaElement ||
-    element instanceof HTMLLinkElement
-  ) {
-    element.setAttribute(attribute, value);
-  }
-};
-
-const translations = lpLocales as Record<Language, Record<string, string>>;
-
-const t = (language: Language, key: string): string =>
-  translations[language]?.[key] ?? translations[DEFAULT_LANGUAGE][key] ?? key;
-
-const detectLanguage = (): Language => {
-  const queryLang = new URLSearchParams(window.location.search).get("lang");
-  if (queryLang) return normalizeLanguage(queryLang);
-  const storedLang = window.localStorage.getItem("i18nextLng");
-  if (storedLang) return normalizeLanguage(storedLang);
-  return normalizeLanguage(navigator.languages?.[0] ?? navigator.language);
-};
-
-const applyTranslations = (language: Language) => {
-  document.documentElement.lang = language;
-  document.documentElement.dir = getLanguageDirection(language);
-
-  document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((element) => {
-    const key = element.dataset.i18n;
-    if (key) element.textContent = t(language, key);
-  });
-  document
-    .querySelectorAll<HTMLImageElement>("[data-i18n-alt]")
-    .forEach((element) => {
-      const key = element.dataset.i18nAlt;
-      if (key) element.alt = t(language, key);
-    });
-
-  const origin = window.location.origin;
-  const pageUrl =
-    language === "ja" ? `${origin}/` : `${origin}/?lang=${language}`;
-  const pageTitle = t(language, "pages.index.seo.title");
-  const pageDescription = t(language, "pages.index.seo.description");
-
-  document.title = pageTitle;
-  setHeadValue('meta[name="description"]', "content", pageDescription);
-  setHeadValue(
-    'meta[name="keywords"]',
-    "content",
-    t(language, "pages.index.seo.keywords"),
-  );
-  setHeadValue('link[rel="canonical"]', "href", pageUrl);
-  setHeadValue('meta[property="og:title"]', "content", pageTitle);
-  setHeadValue('meta[property="og:description"]', "content", pageDescription);
-  setHeadValue('meta[property="og:url"]', "content", pageUrl);
-  setHeadValue(
-    'meta[property="og:locale"]',
-    "content",
-    OG_LOCALE_BY_LANGUAGE[language],
-  );
-  setHeadValue(
-    'meta[property="og:image:alt"]',
-    "content",
-    t(language, "pages.index.preview.desktopAlt"),
-  );
-  setHeadValue('meta[name="twitter:title"]', "content", pageTitle);
-  setHeadValue('meta[name="twitter:description"]', "content", pageDescription);
-};
-
-const language = detectLanguage();
-window.localStorage.setItem("i18nextLng", language);
-applyTranslations(language);
 
 const languageSelect = document.getElementById("lp-language");
 if (languageSelect instanceof HTMLSelectElement) {
-  languageSelect.value = language;
+  languageSelect.value = pageLanguage;
   languageSelect.addEventListener("change", () => {
     const nextLanguage = normalizeLanguage(languageSelect.value);
     window.localStorage.setItem("i18nextLng", nextLanguage);
-    const url = new URL(window.location.href);
-    if (nextLanguage === "ja") {
-      url.searchParams.delete("lang");
-    } else {
-      url.searchParams.set("lang", nextLanguage);
-    }
-    window.history.replaceState(window.history.state, "", url.toString());
-    languageSelect.value = nextLanguage;
-    applyTranslations(nextLanguage);
+    window.location.assign(LANGUAGE_PATHS[nextLanguage]);
   });
 }
 

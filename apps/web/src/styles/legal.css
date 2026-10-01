@@ -1,0 +1,91 @@
+@import "./base.css";
+@import "./lp-styles.css";
+
+@layer ll-styles {
+  .ll-legal {
+    color: #5d5d5d;
+    font-size: 0.9375rem;
+    line-height: 1.8;
+    overflow-wrap: break-word;
+  }
+  .ll-legal h1 {
+    hyphens: auto;
+    color: #121212;
+    font-size: var(--text-3xl);
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 1.25;
+  }
+  .ll-legal h2 {
+    margin-top: calc(var(--spacing) * 10);
+    color: #1c1c1c;
+    font-size: var(--text-lg);
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .ll-legal p,
+  .ll-legal ul,
+  .ll-legal ol {
+    margin-top: calc(var(--spacing) * 3);
+  }
+  .ll-legal ul,
+  .ll-legal ol {
+    padding-inline-start: 1.25em;
+  }
+  .ll-legal ul {
+    list-style: disc;
+  }
+  .ll-legal ol {
+    list-style: decimal;
+  }
+  .ll-legal li + li {
+    margin-top: calc(var(--spacing) * 1.5);
+  }
+  .ll-legal .ll-legal-updated {
+    margin-top: calc(var(--spacing) * 3);
+    color: #666;
+    font-size: var(--text-sm);
+  }
+  .ll-legal .ll-legal-intro {
+    margin-top: calc(var(--spacing) * 8);
+  }
+  .ll-legal a,
+  .ll-legal-nav a {
+    color: #1c1c1c;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .ll-legal-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: calc(var(--spacing) * 2) calc(var(--spacing) * 6);
+    font-size: var(--text-sm);
+    line-height: 1.7;
+  }
+  .ll-legal-nav a {
+    color: #4d4d4d;
+    text-decoration: none;
+  }
+  .ll-legal-nav a[aria-current="page"] {
+    color: #121212;
+    font-weight: 600;
+  }
+  .ll-legal a:focus-visible,
+  .ll-legal-nav a:focus-visible {
+    outline: 2px solid #171717;
+    outline-offset: 2px;
+  }
+  @media (hover: hover) {
+    .ll-legal-nav a:hover {
+      color: #121212;
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+    }
+  }
+  @media (width>=40rem) {
+    .ll-legal h1 {
+      font-size: var(--text-4xl);
+    }
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "updated": "Última actualización: 1 de octubre de 2026",
+  "privacy": {
+    "title": "Política de privacidad",
+    "description": "Qué información recopila Lightlist, cómo se usa, qué servicios externos la reciben y cuánto tiempo se conserva.",
+    "intro": [
+      "Lightlist (el «Servicio») trata tu información como se describe a continuación."
+    ],
+    "sections": [
+      {
+        "heading": "Información que recopilamos",
+        "list": [
+          "Información de la cuenta: tu dirección de correo electrónico. Tu contraseña la gestiona el proveedor de autenticación (Firebase Authentication) y el operador no puede verla.",
+          "Contenido que guardas: listas de tareas, tareas y ajustes como el idioma y el tema.",
+          "Datos de uso: eventos de uso de funciones, categorías de errores e información técnica como el tipo de dispositivo y de navegador. No incluyen el contenido de las tareas, direcciones de correo ni códigos para compartir.",
+          "Datos de fallos (apps de iPhone y Android): información de diagnóstico registrada cuando la app se cierra de forma inesperada, vinculada al ID interno de tu cuenta."
+        ]
+      },
+      {
+        "heading": "Para qué la usamos",
+        "list": [
+          "Prestar el Servicio y sincronizar tus datos entre dispositivos",
+          "Verificar tu identidad, restablecer tu contraseña y cambiar tu correo electrónico",
+          "Resolver problemas y mejorar la calidad",
+          "Responder a tus consultas"
+        ]
+      },
+      {
+        "heading": "Compartir listas",
+        "body": [
+          "Cuando creas un código para compartir una lista de tareas, cualquier persona que conozca su URL puede ver la lista sin iniciar sesión. Al eliminar el código, ese acceso termina.",
+          "Los usuarios que se unen a una lista pueden editar su contenido."
+        ]
+      },
+      {
+        "heading": "Servicios externos",
+        "body": [
+          "El operador no vende tu información, no muestra anuncios y no te rastrea con fines publicitarios.",
+          "El Servicio utiliza los servicios externos indicados abajo, y tu información se procesa en sus servidores, que pueden estar fuera de tu país. No facilitamos tu información a ningún otro tercero, salvo que la ley lo exija."
+        ],
+        "list": [
+          "Google (Firebase Authentication, Cloud Firestore, Google Analytics for Firebase, Firebase Crashlytics)",
+          "Cloudflare (entrega del sitio web; al acceder se procesan direcciones IP y datos similares)"
+        ]
+      },
+      {
+        "heading": "Almacenamiento en tu dispositivo",
+        "body": [
+          "Para funcionar sin conexión, el Servicio guarda tus listas de tareas y ajustes en tu dispositivo o navegador. El almacenamiento del dispositivo también se usa para mantener la sesión iniciada y recordar los ajustes de visualización."
+        ]
+      },
+      {
+        "heading": "Conservación y eliminación",
+        "body": [
+          "Tu información se conserva hasta que elimines tu cuenta. Al eliminarla se borran la información de la cuenta, los ajustes y las listas de tareas a las que solo perteneces tú. Las listas compartidas a las que pertenecen otros usuarios siguen disponibles para ellos.",
+          "Los datos de uso y de fallos se eliminan cuando termina el periodo de conservación establecido por Google.",
+          "Consulta los pasos en la página «Eliminar tu cuenta y tus datos»."
+        ]
+      },
+      {
+        "heading": "Acceso, rectificación y eliminación",
+        "body": [
+          "Puedes ver y cambiar tu correo electrónico y el contenido guardado en la app en cualquier momento. Para otras solicitudes de acceso, rectificación o eliminación, escríbenos a la dirección indicada abajo."
+        ]
+      },
+      {
+        "heading": "Cambios en esta política",
+        "body": ["Si cambiamos esta política, lo anunciaremos en esta página."]
+      },
+      {
+        "heading": "Contacto",
+        "body": ["Operador: khirayama", "Correo: support@lightlist.app"]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Términos del servicio",
+    "description": "Las condiciones, las conductas prohibidas y las exenciones de responsabilidad que se aplican al uso de Lightlist.",
+    "intro": [
+      "Estos Términos del servicio (los «Términos») establecen las condiciones de uso de Lightlist (el «Servicio»). Al usar el Servicio, aceptas estos Términos."
+    ],
+    "sections": [
+      {
+        "heading": "Cuenta",
+        "body": [
+          "Para usar el Servicio debes registrarte con una dirección de correo electrónico. Eres responsable de gestionar tu cuenta."
+        ]
+      },
+      {
+        "heading": "Tu contenido",
+        "body": [
+          "Conservas los derechos sobre las tareas y demás contenido que guardas. El operador almacena y procesa ese contenido solo en la medida necesaria para prestar el Servicio.",
+          "Cualquier persona que conozca la URL de una lista con código para compartir puede verla. Eres responsable de decidir qué compartes y con quién."
+        ]
+      },
+      {
+        "heading": "Conductas prohibidas",
+        "list": [
+          "Infringir las leyes o el orden público",
+          "Vulnerar los derechos de otras personas",
+          "El acceso no autorizado o cualquier otra acción que interfiera en el funcionamiento del Servicio",
+          "Usar la cuenta de otra persona sin permiso"
+        ]
+      },
+      {
+        "heading": "Precio",
+        "body": ["Actualmente el Servicio se ofrece de forma gratuita."]
+      },
+      {
+        "heading": "Cambios, suspensión y finalización",
+        "body": [
+          "El operador puede modificar el Servicio, suspenderlo o darlo por terminado sin previo aviso.",
+          "Si incumples estos Términos, el operador puede suspender o eliminar tu cuenta."
+        ]
+      },
+      {
+        "heading": "Exención de responsabilidad",
+        "body": [
+          "El Servicio se ofrece tal cual. El operador no garantiza que sea completo, exacto ni que esté disponible de forma continua.",
+          "El operador no es responsable de los daños derivados del uso del Servicio, salvo en caso de dolo o negligencia grave."
+        ]
+      },
+      {
+        "heading": "Cambios en estos Términos",
+        "body": [
+          "Si cambiamos estos Términos, lo anunciaremos en esta página. Si usas el Servicio después de un cambio, aceptas los Términos modificados."
+        ]
+      },
+      {
+        "heading": "Ley aplicable y jurisdicción",
+        "body": [
+          "Estos Términos se rigen por las leyes de Japón. Cualquier controversia relacionada con el Servicio se somete, en primera instancia, a la jurisdicción exclusiva del tribunal competente en el lugar donde se encuentra el operador."
+        ]
+      },
+      {
+        "heading": "Contacto",
+        "body": ["Correo: support@lightlist.app"]
+      }
+    ]
+  },
+  "support": {
+    "title": "Soporte",
+    "description": "Cómo contactar con Lightlist, restablecer tu contraseña y eliminar tu cuenta.",
+    "intro": [
+      "Escríbenos si tienes preguntas sobre el uso de Lightlist o quieres informar de un problema."
+    ],
+    "sections": [
+      {
+        "heading": "Contacto",
+        "body": [
+          "Correo: support@lightlist.app",
+          "Al informar de un problema, indica tu dispositivo, sistema operativo y navegador, y describe lo que ocurrió."
+        ]
+      },
+      {
+        "heading": "Si olvidaste tu contraseña",
+        "body": [
+          "Puedes enviar un correo para restablecer la contraseña desde la pantalla de inicio de sesión."
+        ]
+      },
+      {
+        "heading": "Eliminar tu cuenta",
+        "body": [
+          "Puedes eliminar tu cuenta desde la pantalla de configuración de la app. Consulta los pasos en la página «Eliminar tu cuenta y tus datos»."
+        ]
+      },
+      {
+        "heading": "Preguntas frecuentes",
+        "body": [
+          "Sobre el precio, el uso compartido y los dispositivos compatibles, consulta «Preguntas frecuentes» en la página de inicio."
+        ]
+      }
+    ]
+  },
+  "accountDeletion": {
+    "title": "Eliminar tu cuenta y tus datos",
+    "description": "Cómo eliminar tu cuenta de Lightlist y sus datos, y qué datos se eliminan.",
+    "intro": [
+      "Esta página explica cómo eliminar tu cuenta de Lightlist y los datos vinculados a ella. La eliminación no se puede deshacer."
+    ],
+    "sections": [
+      {
+        "heading": "Eliminar desde la app",
+        "body": [
+          "Los pasos son los mismos en la web (https://lightlist.app/), en la app de iPhone y en la app de Android."
+        ],
+        "steps": [
+          "Inicia sesión en Lightlist.",
+          "Abre «Configuración».",
+          "Selecciona «Eliminar cuenta».",
+          "Introduce tu contraseña en la pantalla de confirmación y elimina la cuenta."
+        ]
+      },
+      {
+        "heading": "Si no puedes iniciar sesión",
+        "body": [
+          "Escribe a support@lightlist.app desde tu dirección de correo registrada e indícanos que quieres eliminar tu cuenta. La eliminaremos después de confirmar que la solicitud es tuya."
+        ]
+      },
+      {
+        "heading": "Datos que se eliminan",
+        "list": [
+          "Información de la cuenta (correo electrónico y credenciales)",
+          "Ajustes",
+          "Las listas de tareas a las que solo perteneces tú, con sus tareas y códigos para compartir"
+        ]
+      },
+      {
+        "heading": "Datos que no se eliminan",
+        "list": [
+          "Las listas compartidas a las que pertenecen otros usuarios. Siguen disponibles para ellos y tú dejas de ser miembro de la lista.",
+          "Los datos de uso y de fallos. Se eliminan cuando termina el periodo de conservación establecido por Google."
+        ]
+      }
+    ]
+  }
+}

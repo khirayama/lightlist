@@ -1,0 +1,215 @@
+{
+  "updated": "Last updated: October 1, 2026",
+  "privacy": {
+    "title": "Privacy Policy",
+    "description": "What information Lightlist collects, how it is used, which external services receive it, and how long it is kept.",
+    "intro": [
+      "Lightlist (the \"Service\") handles your information as described below."
+    ],
+    "sections": [
+      {
+        "heading": "Information we collect",
+        "list": [
+          "Account information: your email address. Your password is managed by the authentication provider (Firebase Authentication), and the operator cannot see it.",
+          "Content you save: task lists, tasks, and settings such as language and theme.",
+          "Usage data: feature usage events, error categories, and technical information such as device and browser type. This does not include task content, email addresses, or share codes.",
+          "Crash data (iPhone and Android apps): diagnostic information recorded when the app crashes, linked to your internal account ID."
+        ]
+      },
+      {
+        "heading": "How we use it",
+        "list": [
+          "To provide the Service and sync your data across devices",
+          "To verify your identity, reset your password, and change your email address",
+          "To fix problems and improve quality",
+          "To respond to your inquiries"
+        ]
+      },
+      {
+        "heading": "Sharing",
+        "body": [
+          "When you create a share code for a task list, anyone who knows its URL can view the list without logging in. Removing the share code ends that access.",
+          "Users who join a list can edit its content."
+        ]
+      },
+      {
+        "heading": "External services",
+        "body": [
+          "The operator does not sell your information, show ads, or track you for advertising.",
+          "The Service uses the external services below, and your information is processed on their servers, which may be located outside your country. We do not provide your information to any other third party unless required by law."
+        ],
+        "list": [
+          "Google (Firebase Authentication, Cloud Firestore, Google Analytics for Firebase, Firebase Crashlytics)",
+          "Cloudflare (website delivery; IP addresses and similar data are processed when you access the site)"
+        ]
+      },
+      {
+        "heading": "Storage on your device",
+        "body": [
+          "To work offline, the Service stores your task lists and settings on your device or in your browser. Device storage is also used to keep you logged in and to remember display settings."
+        ]
+      },
+      {
+        "heading": "Retention and deletion",
+        "body": [
+          "Your information is kept until you delete your account. Deleting your account removes your account information, your settings, and the task lists that only you belong to. Shared lists that other users belong to remain available to them.",
+          "Usage data and crash data are deleted after the retention period set by Google.",
+          "See the \"Delete your account and data\" page for the steps."
+        ]
+      },
+      {
+        "heading": "Access, correction, and deletion",
+        "body": [
+          "You can view and change your email address and saved content in the app at any time. For other requests to access, correct, or delete your information, contact us at the address below."
+        ]
+      },
+      {
+        "heading": "Changes to this policy",
+        "body": ["If we change this policy, we will announce it on this page."]
+      },
+      {
+        "heading": "Contact",
+        "body": ["Operator: khirayama", "Email: support@lightlist.app"]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "description": "The terms, prohibited conduct, and disclaimers that apply to using Lightlist.",
+    "intro": [
+      "These Terms of Service (the \"Terms\") set out the conditions for using Lightlist (the \"Service\"). By using the Service, you agree to these Terms."
+    ],
+    "sections": [
+      {
+        "heading": "Account",
+        "body": [
+          "You need to sign up with an email address to use the Service. You are responsible for managing your account."
+        ]
+      },
+      {
+        "heading": "Your content",
+        "body": [
+          "You keep the rights to the tasks and other content you save. The operator stores and processes that content only as needed to provide the Service.",
+          "A list with a share code can be viewed by anyone who knows its URL. You are responsible for deciding what to share and with whom."
+        ]
+      },
+      {
+        "heading": "Prohibited conduct",
+        "list": [
+          "Violating laws or public order",
+          "Infringing the rights of others",
+          "Unauthorized access or anything else that interferes with the operation of the Service",
+          "Using another person's account without permission"
+        ]
+      },
+      {
+        "heading": "Fees",
+        "body": ["The Service is currently provided free of charge."]
+      },
+      {
+        "heading": "Changes, suspension, and termination",
+        "body": [
+          "The operator may change the Service, or suspend or end it, without prior notice.",
+          "If you violate these Terms, the operator may suspend or delete your account."
+        ]
+      },
+      {
+        "heading": "Disclaimer",
+        "body": [
+          "The Service is provided as is. The operator does not guarantee that it is complete, accurate, or continuously available.",
+          "The operator is not liable for damages arising from use of the Service, except in cases of intent or gross negligence."
+        ]
+      },
+      {
+        "heading": "Changes to these Terms",
+        "body": [
+          "If we change these Terms, we will announce it on this page. By using the Service after a change, you agree to the changed Terms."
+        ]
+      },
+      {
+        "heading": "Governing law and jurisdiction",
+        "body": [
+          "These Terms are governed by the laws of Japan. Any dispute relating to the Service is subject to the exclusive jurisdiction, in the first instance, of the court with jurisdiction over the operator's location."
+        ]
+      },
+      {
+        "heading": "Contact",
+        "body": ["Email: support@lightlist.app"]
+      }
+    ]
+  },
+  "support": {
+    "title": "Support",
+    "description": "How to contact Lightlist, reset your password, and delete your account.",
+    "intro": [
+      "Contact us with questions about using Lightlist or to report a problem."
+    ],
+    "sections": [
+      {
+        "heading": "Contact",
+        "body": [
+          "Email: support@lightlist.app",
+          "When reporting a problem, please include your device, OS, and browser, and describe what happened."
+        ]
+      },
+      {
+        "heading": "If you forgot your password",
+        "body": ["You can send a password reset email from the login screen."]
+      },
+      {
+        "heading": "Deleting your account",
+        "body": [
+          "You can delete your account from the settings screen in the app. See the \"Delete your account and data\" page for the steps."
+        ]
+      },
+      {
+        "heading": "Frequently asked questions",
+        "body": [
+          "For pricing, sharing, and supported devices, see \"Frequently asked questions\" on the home page."
+        ]
+      }
+    ]
+  },
+  "accountDeletion": {
+    "title": "Delete your account and data",
+    "description": "How to delete your Lightlist account and its data, and which data is deleted.",
+    "intro": [
+      "This page explains how to delete your Lightlist account and the data linked to it. Deletion cannot be undone."
+    ],
+    "sections": [
+      {
+        "heading": "Delete from the app",
+        "body": [
+          "The steps are the same on the web (https://lightlist.app/), the iPhone app, and the Android app."
+        ],
+        "steps": [
+          "Log in to Lightlist.",
+          "Open \"Settings\".",
+          "Select \"Delete Account\".",
+          "Enter your password on the confirmation screen and delete the account."
+        ]
+      },
+      {
+        "heading": "If you cannot log in",
+        "body": [
+          "Email support@lightlist.app from your registered email address and tell us you want to delete your account. We will delete it after confirming that the request comes from you."
+        ]
+      },
+      {
+        "heading": "Data that is deleted",
+        "list": [
+          "Account information (email address and credentials)",
+          "Settings",
+          "Task lists that only you belong to, along with their tasks and share codes"
+        ]
+      },
+      {
+        "heading": "Data that is not deleted",
+        "list": [
+          "Shared lists that other users belong to. They remain available to those users, and you are removed from the list's members.",
+          "Usage data and crash data. They are deleted after the retention period set by Google."
+        ]
+      }
+    ]
+  }
+}

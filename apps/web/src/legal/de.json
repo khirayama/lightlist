@@ -1,0 +1,219 @@
+{
+  "updated": "Zuletzt aktualisiert: 1. Oktober 2026",
+  "privacy": {
+    "title": "Datenschutzerklärung",
+    "description": "Welche Informationen Lightlist erhebt, wie sie verwendet werden, welche externen Dienste sie erhalten und wie lange sie gespeichert werden.",
+    "intro": [
+      "Lightlist (der „Dienst“) geht mit deinen Informationen wie folgt um."
+    ],
+    "sections": [
+      {
+        "heading": "Welche Informationen wir erheben",
+        "list": [
+          "Kontoinformationen: deine E-Mail-Adresse. Dein Passwort wird vom Authentifizierungsanbieter (Firebase Authentication) verwaltet; der Betreiber kann es nicht einsehen.",
+          "Inhalte, die du speicherst: Aufgabenlisten, Aufgaben und Einstellungen wie Sprache und Design.",
+          "Nutzungsdaten: Ereignisse zur Nutzung von Funktionen, Fehlerkategorien und technische Informationen wie Geräte- und Browsertyp. Aufgabeninhalte, E-Mail-Adressen und Freigabecodes sind darin nicht enthalten.",
+          "Absturzdaten (iPhone- und Android-App): Diagnoseinformationen, die bei einem Absturz der App aufgezeichnet und mit deiner internen Konto-ID verknüpft werden."
+        ]
+      },
+      {
+        "heading": "Wofür wir sie verwenden",
+        "list": [
+          "Um den Dienst bereitzustellen und deine Daten zwischen Geräten zu synchronisieren",
+          "Um deine Identität zu prüfen, dein Passwort zurückzusetzen und deine E-Mail-Adresse zu ändern",
+          "Um Probleme zu beheben und die Qualität zu verbessern",
+          "Um deine Anfragen zu beantworten"
+        ]
+      },
+      {
+        "heading": "Listen teilen",
+        "body": [
+          "Wenn du für eine Aufgabenliste einen Freigabecode erstellst, kann jede Person, die die URL kennt, die Liste ohne Anmeldung ansehen. Wenn du den Freigabecode entfernst, endet dieser Zugriff.",
+          "Nutzer, die einer Liste beitreten, können deren Inhalte bearbeiten."
+        ]
+      },
+      {
+        "heading": "Externe Dienste",
+        "body": [
+          "Der Betreiber verkauft deine Informationen nicht, zeigt keine Werbung und verfolgt dich nicht zu Werbezwecken.",
+          "Der Dienst nutzt die unten genannten externen Dienste. Deine Informationen werden auf deren Servern verarbeitet, die sich auch außerhalb deines Landes befinden können. An andere Dritte geben wir deine Informationen nicht weiter, es sei denn, das Gesetz verlangt es."
+        ],
+        "list": [
+          "Google (Firebase Authentication, Cloud Firestore, Google Analytics for Firebase, Firebase Crashlytics)",
+          "Cloudflare (Auslieferung der Website; beim Zugriff werden IP-Adressen und ähnliche Daten verarbeitet)"
+        ]
+      },
+      {
+        "heading": "Speicherung auf deinem Gerät",
+        "body": [
+          "Damit der Dienst offline funktioniert, speichert er deine Aufgabenlisten und Einstellungen auf deinem Gerät oder in deinem Browser. Der Gerätespeicher wird auch genutzt, damit du angemeldet bleibst und Anzeigeeinstellungen erhalten bleiben."
+        ]
+      },
+      {
+        "heading": "Speicherdauer und Löschung",
+        "body": [
+          "Deine Informationen werden gespeichert, bis du dein Konto löschst. Beim Löschen des Kontos werden deine Kontoinformationen, deine Einstellungen und die Aufgabenlisten entfernt, denen nur du angehörst. Geteilte Listen, denen andere Nutzer angehören, bleiben für diese verfügbar.",
+          "Nutzungs- und Absturzdaten werden nach Ablauf der von Google festgelegten Aufbewahrungsfrist gelöscht.",
+          "Die Schritte findest du auf der Seite „Konto und Daten löschen“."
+        ]
+      },
+      {
+        "heading": "Auskunft, Berichtigung und Löschung",
+        "body": [
+          "Deine E-Mail-Adresse und deine gespeicherten Inhalte kannst du jederzeit in der App ansehen und ändern. Für weitere Anfragen zu Auskunft, Berichtigung oder Löschung wende dich an die unten genannte Adresse."
+        ]
+      },
+      {
+        "heading": "Änderungen dieser Erklärung",
+        "body": [
+          "Wenn wir diese Erklärung ändern, geben wir das auf dieser Seite bekannt."
+        ]
+      },
+      {
+        "heading": "Kontakt",
+        "body": ["Betreiber: khirayama", "E-Mail: support@lightlist.app"]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Nutzungsbedingungen",
+    "description": "Die Bedingungen, verbotenen Handlungen und Haftungsausschlüsse für die Nutzung von Lightlist.",
+    "intro": [
+      "Diese Nutzungsbedingungen (die „Bedingungen“) regeln die Nutzung von Lightlist (der „Dienst“). Mit der Nutzung des Dienstes stimmst du diesen Bedingungen zu."
+    ],
+    "sections": [
+      {
+        "heading": "Konto",
+        "body": [
+          "Für die Nutzung des Dienstes musst du dich mit einer E-Mail-Adresse registrieren. Du bist für die Verwaltung deines Kontos verantwortlich."
+        ]
+      },
+      {
+        "heading": "Deine Inhalte",
+        "body": [
+          "Die Rechte an den Aufgaben und anderen Inhalten, die du speicherst, bleiben bei dir. Der Betreiber speichert und verarbeitet diese Inhalte nur, soweit es für die Bereitstellung des Dienstes nötig ist.",
+          "Eine Liste mit Freigabecode kann von jeder Person angesehen werden, die die URL kennt. Du entscheidest in eigener Verantwortung, was du mit wem teilst."
+        ]
+      },
+      {
+        "heading": "Verbotene Handlungen",
+        "list": [
+          "Verstöße gegen Gesetze oder die öffentliche Ordnung",
+          "Verletzung der Rechte anderer",
+          "Unbefugter Zugriff oder andere Handlungen, die den Betrieb des Dienstes stören",
+          "Nutzung des Kontos einer anderen Person ohne Erlaubnis"
+        ]
+      },
+      {
+        "heading": "Kosten",
+        "body": ["Der Dienst wird derzeit kostenlos angeboten."]
+      },
+      {
+        "heading": "Änderung, Unterbrechung und Einstellung",
+        "body": [
+          "Der Betreiber kann den Dienst ohne vorherige Ankündigung ändern, unterbrechen oder einstellen.",
+          "Wenn du gegen diese Bedingungen verstößt, kann der Betreiber dein Konto sperren oder löschen."
+        ]
+      },
+      {
+        "heading": "Haftungsausschluss",
+        "body": [
+          "Der Dienst wird so bereitgestellt, wie er ist. Der Betreiber garantiert nicht, dass er vollständig, fehlerfrei oder ununterbrochen verfügbar ist.",
+          "Der Betreiber haftet nicht für Schäden, die aus der Nutzung des Dienstes entstehen, außer bei Vorsatz oder grober Fahrlässigkeit."
+        ]
+      },
+      {
+        "heading": "Änderungen dieser Bedingungen",
+        "body": [
+          "Wenn wir diese Bedingungen ändern, geben wir das auf dieser Seite bekannt. Wenn du den Dienst nach einer Änderung weiter nutzt, stimmst du den geänderten Bedingungen zu."
+        ]
+      },
+      {
+        "heading": "Anwendbares Recht und Gerichtsstand",
+        "body": [
+          "Diese Bedingungen unterliegen japanischem Recht. Für Streitigkeiten im Zusammenhang mit dem Dienst ist in erster Instanz ausschließlich das Gericht zuständig, in dessen Bezirk der Betreiber seinen Sitz hat."
+        ]
+      },
+      {
+        "heading": "Kontakt",
+        "body": ["E-Mail: support@lightlist.app"]
+      }
+    ]
+  },
+  "support": {
+    "title": "Support",
+    "description": "So erreichst du Lightlist, setzt dein Passwort zurück und löschst dein Konto.",
+    "intro": [
+      "Schreib uns, wenn du Fragen zur Nutzung von Lightlist hast oder ein Problem melden möchtest."
+    ],
+    "sections": [
+      {
+        "heading": "Kontakt",
+        "body": [
+          "E-Mail: support@lightlist.app",
+          "Wenn du ein Problem meldest, nenne bitte Gerät, Betriebssystem und Browser und beschreibe, was passiert ist."
+        ]
+      },
+      {
+        "heading": "Passwort vergessen",
+        "body": [
+          "Auf dem Anmeldebildschirm kannst du eine E-Mail zum Zurücksetzen des Passworts senden."
+        ]
+      },
+      {
+        "heading": "Konto löschen",
+        "body": [
+          "Du kannst dein Konto in den Einstellungen der App löschen. Die Schritte findest du auf der Seite „Konto und Daten löschen“."
+        ]
+      },
+      {
+        "heading": "Häufige Fragen",
+        "body": [
+          "Informationen zu Kosten, zum Teilen und zu unterstützten Geräten findest du unter „Häufige Fragen“ auf der Startseite."
+        ]
+      }
+    ]
+  },
+  "accountDeletion": {
+    "title": "Konto und Daten löschen",
+    "description": "So löschst du dein Lightlist-Konto und die zugehörigen Daten, und welche Daten gelöscht werden.",
+    "intro": [
+      "Diese Seite erklärt, wie du dein Lightlist-Konto und die damit verknüpften Daten löschst. Die Löschung kann nicht rückgängig gemacht werden."
+    ],
+    "sections": [
+      {
+        "heading": "In der App löschen",
+        "body": [
+          "Die Schritte sind im Web (https://lightlist.app/), in der iPhone-App und in der Android-App gleich."
+        ],
+        "steps": [
+          "Melde dich bei Lightlist an.",
+          "Öffne „Einstellungen“.",
+          "Wähle „Konto löschen“.",
+          "Gib auf dem Bestätigungsbildschirm dein Passwort ein und lösche das Konto."
+        ]
+      },
+      {
+        "heading": "Wenn du dich nicht anmelden kannst",
+        "body": [
+          "Schreib von deiner registrierten E-Mail-Adresse an support@lightlist.app und teile uns mit, dass du dein Konto löschen möchtest. Wir löschen es, nachdem wir bestätigt haben, dass die Anfrage von dir stammt."
+        ]
+      },
+      {
+        "heading": "Daten, die gelöscht werden",
+        "list": [
+          "Kontoinformationen (E-Mail-Adresse und Anmeldedaten)",
+          "Einstellungen",
+          "Aufgabenlisten, denen nur du angehörst, mit ihren Aufgaben und Freigabecodes"
+        ]
+      },
+      {
+        "heading": "Daten, die nicht gelöscht werden",
+        "list": [
+          "Geteilte Listen, denen andere Nutzer angehören. Sie bleiben für diese Nutzer verfügbar, und du wirst aus den Mitgliedern der Liste entfernt.",
+          "Nutzungs- und Absturzdaten. Sie werden nach Ablauf der von Google festgelegten Aufbewahrungsfrist gelöscht."
+        ]
+      }
+    ]
+  }
+}

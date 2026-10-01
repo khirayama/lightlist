@@ -1,0 +1,219 @@
+{
+  "updated": "Dernière mise à jour : 1er octobre 2026",
+  "privacy": {
+    "title": "Politique de confidentialité",
+    "description": "Quelles informations Lightlist collecte, comment elles sont utilisées, quels services externes les reçoivent et combien de temps elles sont conservées.",
+    "intro": [
+      "Lightlist (le « Service ») traite vos informations comme décrit ci-dessous."
+    ],
+    "sections": [
+      {
+        "heading": "Informations collectées",
+        "list": [
+          "Informations de compte : votre adresse e-mail. Votre mot de passe est géré par le fournisseur d'authentification (Firebase Authentication) et l'exploitant ne peut pas le consulter.",
+          "Contenu que vous enregistrez : listes de tâches, tâches et paramètres tels que la langue et le thème.",
+          "Données d'utilisation : événements d'utilisation des fonctionnalités, catégories d'erreurs et informations techniques telles que le type d'appareil et de navigateur. Elles ne contiennent ni le contenu des tâches, ni les adresses e-mail, ni les codes de partage.",
+          "Données de plantage (applications iPhone et Android) : informations de diagnostic enregistrées lorsque l'application se ferme de façon inattendue, associées à l'identifiant interne de votre compte."
+        ]
+      },
+      {
+        "heading": "Utilisation des informations",
+        "list": [
+          "Fournir le Service et synchroniser vos données entre vos appareils",
+          "Vérifier votre identité, réinitialiser votre mot de passe et modifier votre adresse e-mail",
+          "Corriger les problèmes et améliorer la qualité",
+          "Répondre à vos demandes"
+        ]
+      },
+      {
+        "heading": "Partage de listes",
+        "body": [
+          "Lorsque vous créez un code de partage pour une liste de tâches, toute personne qui connaît son URL peut consulter la liste sans se connecter. La suppression du code de partage met fin à cet accès.",
+          "Les utilisateurs qui rejoignent une liste peuvent modifier son contenu."
+        ]
+      },
+      {
+        "heading": "Services externes",
+        "body": [
+          "L'exploitant ne vend pas vos informations, n'affiche pas de publicité et ne vous suit pas à des fins publicitaires.",
+          "Le Service utilise les services externes ci-dessous, et vos informations sont traitées sur leurs serveurs, qui peuvent se trouver hors de votre pays. Nous ne communiquons vos informations à aucun autre tiers, sauf si la loi l'exige."
+        ],
+        "list": [
+          "Google (Firebase Authentication, Cloud Firestore, Google Analytics for Firebase, Firebase Crashlytics)",
+          "Cloudflare (diffusion du site web ; les adresses IP et des données similaires sont traitées lors de l'accès)"
+        ]
+      },
+      {
+        "heading": "Stockage sur votre appareil",
+        "body": [
+          "Pour fonctionner hors ligne, le Service enregistre vos listes de tâches et vos paramètres sur votre appareil ou dans votre navigateur. Le stockage de l'appareil sert aussi à vous garder connecté et à mémoriser les paramètres d'affichage."
+        ]
+      },
+      {
+        "heading": "Conservation et suppression",
+        "body": [
+          "Vos informations sont conservées jusqu'à la suppression de votre compte. La suppression du compte efface vos informations de compte, vos paramètres et les listes de tâches dont vous êtes le seul membre. Les listes partagées auxquelles d'autres utilisateurs appartiennent restent disponibles pour eux.",
+          "Les données d'utilisation et de plantage sont supprimées à l'issue de la durée de conservation fixée par Google.",
+          "Consultez la page « Supprimer votre compte et vos données » pour connaître les étapes."
+        ]
+      },
+      {
+        "heading": "Accès, rectification et suppression",
+        "body": [
+          "Vous pouvez consulter et modifier votre adresse e-mail et votre contenu enregistré dans l'application à tout moment. Pour toute autre demande d'accès, de rectification ou de suppression, contactez-nous à l'adresse ci-dessous."
+        ]
+      },
+      {
+        "heading": "Modifications de cette politique",
+        "body": [
+          "Si nous modifions cette politique, nous l'annoncerons sur cette page."
+        ]
+      },
+      {
+        "heading": "Contact",
+        "body": ["Exploitant : khirayama", "E-mail : support@lightlist.app"]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Conditions d'utilisation",
+    "description": "Les conditions, les comportements interdits et les exclusions de responsabilité applicables à l'utilisation de Lightlist.",
+    "intro": [
+      "Les présentes Conditions d'utilisation (les « Conditions ») définissent les conditions d'utilisation de Lightlist (le « Service »). En utilisant le Service, vous acceptez ces Conditions."
+    ],
+    "sections": [
+      {
+        "heading": "Compte",
+        "body": [
+          "Pour utiliser le Service, vous devez vous inscrire avec une adresse e-mail. Vous êtes responsable de la gestion de votre compte."
+        ]
+      },
+      {
+        "heading": "Votre contenu",
+        "body": [
+          "Vous conservez les droits sur les tâches et les autres contenus que vous enregistrez. L'exploitant ne stocke et ne traite ce contenu que dans la mesure nécessaire à la fourniture du Service.",
+          "Une liste dotée d'un code de partage peut être consultée par toute personne qui connaît son URL. Vous êtes responsable de ce que vous partagez et avec qui."
+        ]
+      },
+      {
+        "heading": "Comportements interdits",
+        "list": [
+          "Enfreindre la loi ou l'ordre public",
+          "Porter atteinte aux droits d'autrui",
+          "L'accès non autorisé ou tout autre acte perturbant le fonctionnement du Service",
+          "Utiliser le compte d'une autre personne sans autorisation"
+        ]
+      },
+      {
+        "heading": "Tarif",
+        "body": ["Le Service est actuellement fourni gratuitement."]
+      },
+      {
+        "heading": "Modification, suspension et arrêt",
+        "body": [
+          "L'exploitant peut modifier le Service, le suspendre ou y mettre fin sans préavis.",
+          "Si vous enfreignez ces Conditions, l'exploitant peut suspendre ou supprimer votre compte."
+        ]
+      },
+      {
+        "heading": "Exclusion de responsabilité",
+        "body": [
+          "Le Service est fourni en l'état. L'exploitant ne garantit pas qu'il soit complet, exact ou disponible en continu.",
+          "L'exploitant n'est pas responsable des dommages résultant de l'utilisation du Service, sauf en cas de faute intentionnelle ou de négligence grave."
+        ]
+      },
+      {
+        "heading": "Modifications de ces Conditions",
+        "body": [
+          "Si nous modifions ces Conditions, nous l'annoncerons sur cette page. En utilisant le Service après une modification, vous acceptez les Conditions modifiées."
+        ]
+      },
+      {
+        "heading": "Droit applicable et juridiction",
+        "body": [
+          "Ces Conditions sont régies par le droit japonais. Tout litige relatif au Service relève, en première instance, de la compétence exclusive du tribunal du lieu où se trouve l'exploitant."
+        ]
+      },
+      {
+        "heading": "Contact",
+        "body": ["E-mail : support@lightlist.app"]
+      }
+    ]
+  },
+  "support": {
+    "title": "Assistance",
+    "description": "Comment contacter Lightlist, réinitialiser votre mot de passe et supprimer votre compte.",
+    "intro": [
+      "Contactez-nous pour toute question sur l'utilisation de Lightlist ou pour signaler un problème."
+    ],
+    "sections": [
+      {
+        "heading": "Contact",
+        "body": [
+          "E-mail : support@lightlist.app",
+          "Lorsque vous signalez un problème, indiquez votre appareil, votre système d'exploitation et votre navigateur, et décrivez ce qui s'est passé."
+        ]
+      },
+      {
+        "heading": "Mot de passe oublié",
+        "body": [
+          "Vous pouvez envoyer un e-mail de réinitialisation du mot de passe depuis l'écran de connexion."
+        ]
+      },
+      {
+        "heading": "Supprimer votre compte",
+        "body": [
+          "Vous pouvez supprimer votre compte depuis l'écran des paramètres de l'application. Consultez la page « Supprimer votre compte et vos données » pour connaître les étapes."
+        ]
+      },
+      {
+        "heading": "Questions fréquentes",
+        "body": [
+          "Pour le tarif, le partage et les appareils pris en charge, consultez « Questions fréquentes » sur la page d'accueil."
+        ]
+      }
+    ]
+  },
+  "accountDeletion": {
+    "title": "Supprimer votre compte et vos données",
+    "description": "Comment supprimer votre compte Lightlist et ses données, et quelles données sont supprimées.",
+    "intro": [
+      "Cette page explique comment supprimer votre compte Lightlist et les données qui y sont associées. La suppression est définitive."
+    ],
+    "sections": [
+      {
+        "heading": "Supprimer depuis l'application",
+        "body": [
+          "Les étapes sont les mêmes sur le web (https://lightlist.app/), dans l'application iPhone et dans l'application Android."
+        ],
+        "steps": [
+          "Connectez-vous à Lightlist.",
+          "Ouvrez « Paramètres ».",
+          "Sélectionnez « Supprimer le compte ».",
+          "Saisissez votre mot de passe sur l'écran de confirmation, puis supprimez le compte."
+        ]
+      },
+      {
+        "heading": "Si vous ne pouvez pas vous connecter",
+        "body": [
+          "Écrivez à support@lightlist.app depuis votre adresse e-mail enregistrée en indiquant que vous souhaitez supprimer votre compte. Nous le supprimerons après avoir vérifié que la demande vient bien de vous."
+        ]
+      },
+      {
+        "heading": "Données supprimées",
+        "list": [
+          "Informations de compte (adresse e-mail et identifiants)",
+          "Paramètres",
+          "Les listes de tâches dont vous êtes le seul membre, avec leurs tâches et leurs codes de partage"
+        ]
+      },
+      {
+        "heading": "Données non supprimées",
+        "list": [
+          "Les listes partagées auxquelles d'autres utilisateurs appartiennent. Elles restent disponibles pour eux et vous êtes retiré des membres de la liste.",
+          "Les données d'utilisation et de plantage. Elles sont supprimées à l'issue de la durée de conservation fixée par Google."
+        ]
+      }
+    ]
+  }
+}

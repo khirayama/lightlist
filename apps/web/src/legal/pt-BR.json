@@ -1,0 +1,217 @@
+{
+  "updated": "Última atualização: 1º de outubro de 2026",
+  "privacy": {
+    "title": "Política de Privacidade",
+    "description": "Quais informações o Lightlist coleta, como são usadas, quais serviços externos as recebem e por quanto tempo são mantidas.",
+    "intro": [
+      "O Lightlist (o “Serviço”) trata suas informações conforme descrito abaixo."
+    ],
+    "sections": [
+      {
+        "heading": "Informações que coletamos",
+        "list": [
+          "Informações da conta: seu endereço de e-mail. Sua senha é gerenciada pelo provedor de autenticação (Firebase Authentication), e o operador não tem acesso a ela.",
+          "Conteúdo que você salva: listas de tarefas, tarefas e configurações como idioma e tema.",
+          "Dados de uso: eventos de uso de recursos, categorias de erros e informações técnicas como tipo de dispositivo e de navegador. Não incluem o conteúdo das tarefas, endereços de e-mail nem códigos de compartilhamento.",
+          "Dados de falhas (apps para iPhone e Android): informações de diagnóstico registradas quando o app fecha inesperadamente, vinculadas ao ID interno da sua conta."
+        ]
+      },
+      {
+        "heading": "Como usamos",
+        "list": [
+          "Para fornecer o Serviço e sincronizar seus dados entre dispositivos",
+          "Para verificar sua identidade, redefinir sua senha e alterar seu e-mail",
+          "Para corrigir problemas e melhorar a qualidade",
+          "Para responder às suas solicitações"
+        ]
+      },
+      {
+        "heading": "Compartilhamento de listas",
+        "body": [
+          "Quando você cria um código de compartilhamento para uma lista de tarefas, qualquer pessoa que conheça a URL pode ver a lista sem fazer login. Ao remover o código, esse acesso é encerrado.",
+          "Os usuários que entram em uma lista podem editar o conteúdo dela."
+        ]
+      },
+      {
+        "heading": "Serviços externos",
+        "body": [
+          "O operador não vende suas informações, não exibe anúncios e não rastreia você para fins de publicidade.",
+          "O Serviço usa os serviços externos abaixo, e suas informações são processadas nos servidores deles, que podem estar fora do seu país. Não fornecemos suas informações a nenhum outro terceiro, exceto quando exigido por lei."
+        ],
+        "list": [
+          "Google (Firebase Authentication, Cloud Firestore, Google Analytics for Firebase, Firebase Crashlytics)",
+          "Cloudflare (entrega do site; endereços IP e dados semelhantes são processados no acesso)"
+        ]
+      },
+      {
+        "heading": "Armazenamento no seu dispositivo",
+        "body": [
+          "Para funcionar offline, o Serviço armazena suas listas de tarefas e configurações no seu dispositivo ou navegador. O armazenamento do dispositivo também é usado para manter você conectado e lembrar as configurações de exibição."
+        ]
+      },
+      {
+        "heading": "Retenção e exclusão",
+        "body": [
+          "Suas informações são mantidas até que você exclua sua conta. A exclusão da conta remove as informações da conta, as configurações e as listas de tarefas das quais só você participa. As listas compartilhadas das quais outros usuários participam continuam disponíveis para eles.",
+          "Os dados de uso e de falhas são excluídos após o período de retenção definido pelo Google.",
+          "Veja os passos na página “Excluir sua conta e seus dados”."
+        ]
+      },
+      {
+        "heading": "Acesso, correção e exclusão",
+        "body": [
+          "Você pode ver e alterar seu e-mail e o conteúdo salvo no app a qualquer momento. Para outras solicitações de acesso, correção ou exclusão, entre em contato pelo endereço abaixo."
+        ]
+      },
+      {
+        "heading": "Alterações nesta política",
+        "body": ["Se alterarmos esta política, avisaremos nesta página."]
+      },
+      {
+        "heading": "Contato",
+        "body": ["Operador: khirayama", "E-mail: support@lightlist.app"]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Termos de Uso",
+    "description": "As condições, as condutas proibidas e as isenções de responsabilidade aplicáveis ao uso do Lightlist.",
+    "intro": [
+      "Estes Termos de Uso (os “Termos”) definem as condições de uso do Lightlist (o “Serviço”). Ao usar o Serviço, você concorda com estes Termos."
+    ],
+    "sections": [
+      {
+        "heading": "Conta",
+        "body": [
+          "Para usar o Serviço, é preciso se cadastrar com um endereço de e-mail. Você é responsável por gerenciar sua conta."
+        ]
+      },
+      {
+        "heading": "Seu conteúdo",
+        "body": [
+          "Os direitos sobre as tarefas e outros conteúdos que você salva são seus. O operador armazena e processa esse conteúdo apenas na medida necessária para fornecer o Serviço.",
+          "Uma lista com código de compartilhamento pode ser vista por qualquer pessoa que conheça a URL. Você é responsável por decidir o que compartilhar e com quem."
+        ]
+      },
+      {
+        "heading": "Condutas proibidas",
+        "list": [
+          "Violar leis ou a ordem pública",
+          "Violar direitos de terceiros",
+          "Acesso não autorizado ou qualquer outra ação que prejudique o funcionamento do Serviço",
+          "Usar a conta de outra pessoa sem permissão"
+        ]
+      },
+      {
+        "heading": "Preço",
+        "body": ["Atualmente, o Serviço é oferecido gratuitamente."]
+      },
+      {
+        "heading": "Alterações, suspensão e encerramento",
+        "body": [
+          "O operador pode alterar o Serviço, suspendê-lo ou encerrá-lo sem aviso prévio.",
+          "Se você violar estes Termos, o operador poderá suspender ou excluir sua conta."
+        ]
+      },
+      {
+        "heading": "Isenção de responsabilidade",
+        "body": [
+          "O Serviço é fornecido no estado em que se encontra. O operador não garante que ele seja completo, preciso ou que esteja disponível continuamente.",
+          "O operador não se responsabiliza por danos decorrentes do uso do Serviço, exceto em caso de dolo ou culpa grave."
+        ]
+      },
+      {
+        "heading": "Alterações nestes Termos",
+        "body": [
+          "Se alterarmos estes Termos, avisaremos nesta página. Ao usar o Serviço após uma alteração, você concorda com os Termos alterados."
+        ]
+      },
+      {
+        "heading": "Lei aplicável e foro",
+        "body": [
+          "Estes Termos são regidos pelas leis do Japão. Qualquer disputa relacionada ao Serviço fica sujeita, em primeira instância, à jurisdição exclusiva do tribunal competente no local onde o operador está situado."
+        ]
+      },
+      {
+        "heading": "Contato",
+        "body": ["E-mail: support@lightlist.app"]
+      }
+    ]
+  },
+  "support": {
+    "title": "Suporte",
+    "description": "Como entrar em contato com o Lightlist, redefinir sua senha e excluir sua conta.",
+    "intro": [
+      "Fale conosco se tiver dúvidas sobre o uso do Lightlist ou quiser relatar um problema."
+    ],
+    "sections": [
+      {
+        "heading": "Contato",
+        "body": [
+          "E-mail: support@lightlist.app",
+          "Ao relatar um problema, informe seu dispositivo, sistema operacional e navegador e descreva o que aconteceu."
+        ]
+      },
+      {
+        "heading": "Se você esqueceu a senha",
+        "body": [
+          "Você pode enviar um e-mail de redefinição de senha pela tela de login."
+        ]
+      },
+      {
+        "heading": "Excluir sua conta",
+        "body": [
+          "Você pode excluir sua conta na tela de configurações do app. Veja os passos na página “Excluir sua conta e seus dados”."
+        ]
+      },
+      {
+        "heading": "Perguntas frequentes",
+        "body": [
+          "Sobre preço, compartilhamento e dispositivos compatíveis, consulte “Perguntas frequentes” na página inicial."
+        ]
+      }
+    ]
+  },
+  "accountDeletion": {
+    "title": "Excluir sua conta e seus dados",
+    "description": "Como excluir sua conta do Lightlist e os dados dela, e quais dados são excluídos.",
+    "intro": [
+      "Esta página explica como excluir sua conta do Lightlist e os dados vinculados a ela. A exclusão não pode ser desfeita."
+    ],
+    "sections": [
+      {
+        "heading": "Excluir pelo app",
+        "body": [
+          "Os passos são os mesmos na web (https://lightlist.app/), no app para iPhone e no app para Android."
+        ],
+        "steps": [
+          "Faça login no Lightlist.",
+          "Abra “Configurações”.",
+          "Selecione “Excluir conta”.",
+          "Digite sua senha na tela de confirmação e exclua a conta."
+        ]
+      },
+      {
+        "heading": "Se você não consegue fazer login",
+        "body": [
+          "Envie um e-mail para support@lightlist.app a partir do seu endereço cadastrado dizendo que deseja excluir sua conta. Vamos excluí-la depois de confirmar que a solicitação é sua."
+        ]
+      },
+      {
+        "heading": "Dados que são excluídos",
+        "list": [
+          "Informações da conta (endereço de e-mail e credenciais)",
+          "Configurações",
+          "As listas de tarefas das quais só você participa, com suas tarefas e códigos de compartilhamento"
+        ]
+      },
+      {
+        "heading": "Dados que não são excluídos",
+        "list": [
+          "As listas compartilhadas das quais outros usuários participam. Elas continuam disponíveis para eles, e você é removido dos membros da lista.",
+          "Os dados de uso e de falhas. Eles são excluídos após o período de retenção definido pelo Google."
+        ]
+      }
+    ]
+  }
+}

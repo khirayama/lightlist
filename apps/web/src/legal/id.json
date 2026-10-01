@@ -1,0 +1,219 @@
+{
+  "updated": "Terakhir diperbarui: 1 Oktober 2026",
+  "privacy": {
+    "title": "Kebijakan Privasi",
+    "description": "Informasi apa yang dikumpulkan Lightlist, cara penggunaannya, layanan eksternal yang menerimanya, dan berapa lama informasi disimpan.",
+    "intro": [
+      "Lightlist (“Layanan”) menangani informasi Anda sebagaimana dijelaskan di bawah ini."
+    ],
+    "sections": [
+      {
+        "heading": "Informasi yang kami kumpulkan",
+        "list": [
+          "Informasi akun: alamat email Anda. Kata sandi Anda dikelola oleh penyedia autentikasi (Firebase Authentication) dan pengelola tidak dapat melihatnya.",
+          "Konten yang Anda simpan: daftar tugas, tugas, dan pengaturan seperti bahasa dan tema.",
+          "Data penggunaan: peristiwa penggunaan fitur, kategori kesalahan, dan informasi teknis seperti jenis perangkat dan browser. Data ini tidak mencakup isi tugas, alamat email, atau kode berbagi.",
+          "Data kerusakan (aplikasi iPhone dan Android): informasi diagnostik yang dicatat saat aplikasi berhenti secara tidak terduga, dikaitkan dengan ID internal akun Anda."
+        ]
+      },
+      {
+        "heading": "Tujuan penggunaan",
+        "list": [
+          "Menyediakan Layanan dan menyinkronkan data Anda antarperangkat",
+          "Memverifikasi identitas Anda, mengatur ulang kata sandi, dan mengubah alamat email",
+          "Memperbaiki masalah dan meningkatkan kualitas",
+          "Menanggapi pertanyaan Anda"
+        ]
+      },
+      {
+        "heading": "Berbagi daftar",
+        "body": [
+          "Saat Anda membuat kode berbagi untuk sebuah daftar tugas, siapa pun yang mengetahui URL-nya dapat melihat daftar itu tanpa login. Menghapus kode berbagi akan mengakhiri akses tersebut.",
+          "Pengguna yang bergabung ke sebuah daftar dapat mengedit isinya."
+        ]
+      },
+      {
+        "heading": "Layanan eksternal",
+        "body": [
+          "Pengelola tidak menjual informasi Anda, tidak menampilkan iklan, dan tidak melacak Anda untuk tujuan periklanan.",
+          "Layanan menggunakan layanan eksternal di bawah ini, dan informasi Anda diproses di server mereka, yang mungkin berada di luar negara Anda. Kami tidak memberikan informasi Anda kepada pihak ketiga lain, kecuali diwajibkan oleh hukum."
+        ],
+        "list": [
+          "Google (Firebase Authentication, Cloud Firestore, Google Analytics for Firebase, Firebase Crashlytics)",
+          "Cloudflare (penyajian situs web; alamat IP dan data serupa diproses saat Anda mengakses situs)"
+        ]
+      },
+      {
+        "heading": "Penyimpanan di perangkat Anda",
+        "body": [
+          "Agar dapat digunakan secara offline, Layanan menyimpan daftar tugas dan pengaturan Anda di perangkat atau browser Anda. Penyimpanan perangkat juga digunakan untuk menjaga Anda tetap login dan mengingat pengaturan tampilan."
+        ]
+      },
+      {
+        "heading": "Penyimpanan dan penghapusan",
+        "body": [
+          "Informasi Anda disimpan sampai Anda menghapus akun. Menghapus akun akan menghapus informasi akun, pengaturan, dan daftar tugas yang hanya beranggotakan Anda. Daftar bersama yang juga diikuti pengguna lain tetap tersedia bagi mereka.",
+          "Data penggunaan dan data kerusakan dihapus setelah masa penyimpanan yang ditetapkan Google berakhir.",
+          "Lihat halaman “Menghapus akun dan data Anda” untuk langkah-langkahnya."
+        ]
+      },
+      {
+        "heading": "Akses, perbaikan, dan penghapusan",
+        "body": [
+          "Anda dapat melihat dan mengubah alamat email serta konten yang tersimpan di aplikasi kapan saja. Untuk permintaan lain terkait akses, perbaikan, atau penghapusan, hubungi kami di alamat di bawah ini."
+        ]
+      },
+      {
+        "heading": "Perubahan kebijakan ini",
+        "body": [
+          "Jika kami mengubah kebijakan ini, kami akan mengumumkannya di halaman ini."
+        ]
+      },
+      {
+        "heading": "Kontak",
+        "body": ["Pengelola: khirayama", "Email: support@lightlist.app"]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Ketentuan Layanan",
+    "description": "Ketentuan, tindakan yang dilarang, dan penafian yang berlaku untuk penggunaan Lightlist.",
+    "intro": [
+      "Ketentuan Layanan ini (“Ketentuan”) mengatur syarat penggunaan Lightlist (“Layanan”). Dengan menggunakan Layanan, Anda menyetujui Ketentuan ini."
+    ],
+    "sections": [
+      {
+        "heading": "Akun",
+        "body": [
+          "Untuk menggunakan Layanan, Anda perlu mendaftar dengan alamat email. Anda bertanggung jawab atas pengelolaan akun Anda."
+        ]
+      },
+      {
+        "heading": "Konten Anda",
+        "body": [
+          "Hak atas tugas dan konten lain yang Anda simpan tetap menjadi milik Anda. Pengelola menyimpan dan memproses konten tersebut hanya sejauh yang diperlukan untuk menyediakan Layanan.",
+          "Daftar yang memiliki kode berbagi dapat dilihat oleh siapa pun yang mengetahui URL-nya. Anda bertanggung jawab menentukan apa yang dibagikan dan kepada siapa."
+        ]
+      },
+      {
+        "heading": "Tindakan yang dilarang",
+        "list": [
+          "Melanggar hukum atau ketertiban umum",
+          "Melanggar hak orang lain",
+          "Akses tanpa izin atau tindakan lain yang mengganggu pengoperasian Layanan",
+          "Menggunakan akun orang lain tanpa izin"
+        ]
+      },
+      {
+        "heading": "Biaya",
+        "body": ["Saat ini Layanan disediakan secara gratis."]
+      },
+      {
+        "heading": "Perubahan, penangguhan, dan penghentian",
+        "body": [
+          "Pengelola dapat mengubah, menangguhkan, atau menghentikan Layanan tanpa pemberitahuan sebelumnya.",
+          "Jika Anda melanggar Ketentuan ini, pengelola dapat menangguhkan atau menghapus akun Anda."
+        ]
+      },
+      {
+        "heading": "Penafian",
+        "body": [
+          "Layanan disediakan sebagaimana adanya. Pengelola tidak menjamin bahwa Layanan lengkap, akurat, atau selalu tersedia.",
+          "Pengelola tidak bertanggung jawab atas kerugian yang timbul dari penggunaan Layanan, kecuali dalam hal kesengajaan atau kelalaian berat."
+        ]
+      },
+      {
+        "heading": "Perubahan Ketentuan ini",
+        "body": [
+          "Jika kami mengubah Ketentuan ini, kami akan mengumumkannya di halaman ini. Dengan menggunakan Layanan setelah perubahan, Anda menyetujui Ketentuan yang telah diubah."
+        ]
+      },
+      {
+        "heading": "Hukum yang berlaku dan yurisdiksi",
+        "body": [
+          "Ketentuan ini diatur oleh hukum Jepang. Setiap sengketa terkait Layanan tunduk, pada tingkat pertama, pada yurisdiksi eksklusif pengadilan yang berwenang di lokasi pengelola."
+        ]
+      },
+      {
+        "heading": "Kontak",
+        "body": ["Email: support@lightlist.app"]
+      }
+    ]
+  },
+  "support": {
+    "title": "Dukungan",
+    "description": "Cara menghubungi Lightlist, mengatur ulang kata sandi, dan menghapus akun Anda.",
+    "intro": [
+      "Hubungi kami jika ada pertanyaan tentang penggunaan Lightlist atau untuk melaporkan masalah."
+    ],
+    "sections": [
+      {
+        "heading": "Kontak",
+        "body": [
+          "Email: support@lightlist.app",
+          "Saat melaporkan masalah, sertakan perangkat, sistem operasi, dan browser Anda, serta jelaskan apa yang terjadi."
+        ]
+      },
+      {
+        "heading": "Jika Anda lupa kata sandi",
+        "body": [
+          "Anda dapat mengirim email pengaturan ulang kata sandi dari layar login."
+        ]
+      },
+      {
+        "heading": "Menghapus akun",
+        "body": [
+          "Anda dapat menghapus akun dari layar pengaturan di aplikasi. Lihat halaman “Menghapus akun dan data Anda” untuk langkah-langkahnya."
+        ]
+      },
+      {
+        "heading": "Pertanyaan umum",
+        "body": [
+          "Untuk biaya, berbagi, dan perangkat yang didukung, lihat “Pertanyaan umum” di halaman utama."
+        ]
+      }
+    ]
+  },
+  "accountDeletion": {
+    "title": "Menghapus akun dan data Anda",
+    "description": "Cara menghapus akun Lightlist beserta datanya, dan data apa saja yang dihapus.",
+    "intro": [
+      "Halaman ini menjelaskan cara menghapus akun Lightlist Anda dan data yang terkait dengannya. Penghapusan tidak dapat dibatalkan."
+    ],
+    "sections": [
+      {
+        "heading": "Menghapus dari aplikasi",
+        "body": [
+          "Langkahnya sama di web (https://lightlist.app/), aplikasi iPhone, dan aplikasi Android."
+        ],
+        "steps": [
+          "Login ke Lightlist.",
+          "Buka “Pengaturan”.",
+          "Pilih “Hapus akun”.",
+          "Masukkan kata sandi di layar konfirmasi, lalu hapus akun."
+        ]
+      },
+      {
+        "heading": "Jika Anda tidak dapat login",
+        "body": [
+          "Kirim email ke support@lightlist.app dari alamat email terdaftar Anda dan sampaikan bahwa Anda ingin menghapus akun. Kami akan menghapusnya setelah memastikan bahwa permintaan itu berasal dari Anda."
+        ]
+      },
+      {
+        "heading": "Data yang dihapus",
+        "list": [
+          "Informasi akun (alamat email dan kredensial)",
+          "Pengaturan",
+          "Daftar tugas yang hanya beranggotakan Anda, beserta tugas dan kode berbaginya"
+        ]
+      },
+      {
+        "heading": "Data yang tidak dihapus",
+        "list": [
+          "Daftar bersama yang juga diikuti pengguna lain. Daftar itu tetap tersedia bagi mereka, dan Anda dikeluarkan dari anggota daftar.",
+          "Data penggunaan dan data kerusakan. Data ini dihapus setelah masa penyimpanan yang ditetapkan Google berakhir."
+        ]
+      }
+    ]
+  }
+}

@@ -26,7 +26,7 @@
 - `deleteTaskList()`: 事前 read 後の batch write で次を行う。transaction は使わない。
   - 自分の `taskListOrder` から対象を外す。
   - 自分の `taskLists/{taskListId}/members/{uid}` を削除する。
-  - `memberCount` を 1 減らす。
+  - `memberCount` を 1 減らし、`memberKeys` から自分の key を除く。
   - `memberCount` が 1 以下のときだけ `taskLists` 実体を削除する。
   - `shareCode` があれば対応する `shareCodes/{code}` も同じ batch で削除する。
   - `taskListOrder` ドキュメント自体は空になっても削除せず、対象 field だけ削除する。

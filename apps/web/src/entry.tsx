@@ -5531,7 +5531,7 @@ function Carousel({
       aria-label={ariaLabel}
       className={clsx(
         "ll-relative ll-w-full",
-        !fitContent && "ll-overflow-hidden",
+        fitContent ? "ll-flex ll-flex-col" : "ll-overflow-hidden",
         className,
       )}
       style={
@@ -5596,7 +5596,7 @@ function Carousel({
         onScroll={scrollEnabled ? handleScroll : undefined}
         className={clsx(
           "ll-relative ll-flex ll-w-full ll-snap-x ll-snap-mandatory no-scrollbar ll-scroll-smooth",
-          !fitContent && "ll-h-full",
+          fitContent ? "ll-flex-1" : "ll-h-full",
           scrollEnabled
             ? "ll-overflow-x-auto ll-overflow-y-hidden"
             : "ll-overflow-hidden",
@@ -9501,7 +9501,7 @@ function AppShellPage() {
     <div
       className={clsx(
         "ll-min-h-full",
-        !isWideLayout && "ll-h-full ll-overflow-hidden",
+        isWideLayout ? "ll-flex ll-flex-col" : "ll-h-full ll-overflow-hidden",
       )}
     >
       {isSessionPending ? (
@@ -9514,7 +9514,7 @@ function AppShellPage() {
         renderDetailSkeleton(3)
       ) : hasTaskLists ? (
         <Carousel
-          className={isWideLayout ? "ll-min-h-full" : "ll-h-full"}
+          className={isWideLayout ? "ll-min-h-full ll-flex-1" : "ll-h-full"}
           fitContent={isWideLayout}
           indicatorOnColoredBackground={Boolean(
             taskLists[selectedTaskListIndex]?.background,

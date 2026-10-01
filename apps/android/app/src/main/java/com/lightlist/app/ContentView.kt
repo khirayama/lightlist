@@ -150,11 +150,11 @@ import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.MetadataChanges
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.PersistentCacheSettings
 import com.google.firebase.firestore.FirebaseFirestoreSettings
@@ -190,7 +190,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
@@ -223,6 +222,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import java.util.Calendar
 import java.util.GregorianCalendar
 import java.text.SimpleDateFormat
+import java.security.MessageDigest
 import java.util.Locale
 import java.util.Date
 import java.util.TimeZone
@@ -258,7 +258,6 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 import java.text.DateFormatSymbols
 
 import org.json.JSONObject
-import org.json.JSONArray
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -302,7 +301,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-private const val STARTUP_CACHE_PREFERENCES = "lightlist.startup"
 private val autoSortOverrides = mutableStateMapOf<String, Boolean>()
 private val TaskListBackgroundOptions = listOf<String?>(
     null,
@@ -321,29 +319,13 @@ private fun normalizedShareCode(rawValue: String?): String? {
     return shareCode.takeIf(shareCodePattern::matches)
 }
 
-private fun taskListOrderCacheKey(userId: String): String = "lightlist.taskListOrder.$userId"
+private fun memberKey(userId: String): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest("lightlist-member:$userId".toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
-private fun readCachedTaskListOrderIds(userId: String): List<String> {
-    val preferences = FirebaseApp.getInstance().applicationContext.getSharedPreferences(
-        STARTUP_CACHE_PREFERENCES,
-        Context.MODE_PRIVATE
-    )
-    val rawValue = preferences.getString(taskListOrderCacheKey(userId), null) ?: return emptyList()
-    return runCatching {
-        val values = JSONArray(rawValue)
-        List(values.length()) { index -> values.getString(index) }
-    }.getOrDefault(emptyList())
-}
-
-private fun writeCachedTaskListOrderIds(userId: String, taskListIds: List<String>) {
-    val preferences = FirebaseApp.getInstance().applicationContext.getSharedPreferences(
-        STARTUP_CACHE_PREFERENCES,
-        Context.MODE_PRIVATE
-    )
-    preferences.edit()
-        .putString(taskListOrderCacheKey(userId), JSONArray(taskListIds).toString())
-        .apply()
-}
+private fun memberTaskListsQuery(db: FirebaseFirestore, userId: String): Query =
+    db.collection("taskLists").whereArrayContains("memberKeys", memberKey(userId))
 
 private fun passwordResetCode(rawValue: String?): String? {
     val code = rawValue?.trim() ?: return null
@@ -769,21 +751,9 @@ private fun warmUpStartupData(context: Context) {
         Translations.preload(context)
         val uid = Firebase.auth.currentUser?.uid ?: return@Thread
         val db = Firebase.firestore
-        val cachedTaskListIds = readCachedTaskListOrderIds(uid)
         db.collection("settings").document(uid).get(Source.CACHE)
         db.collection("taskListOrder").document(uid).get(Source.CACHE)
-            .addOnSuccessListener { snapshot ->
-                val orderedTaskListIds = parseOrderedTaskListIds(snapshot.data ?: emptyMap())
-                writeCachedTaskListOrderIds(uid, orderedTaskListIds)
-            }
-        val cachedMemberTaskListIds = runBlocking {
-            resolveMemberTaskListIds(db, cachedTaskListIds, uid, Source.CACHE)
-        }
-        cachedMemberTaskListIds.chunked(10).forEach { chunk ->
-            db.collection("taskLists")
-                .whereIn(FieldPath.documentId(), chunk)
-                .get(Source.CACHE)
-        }
+        memberTaskListsQuery(db, uid).get(Source.CACHE)
     }.start()
 }
 
@@ -2285,6 +2255,7 @@ private suspend fun createInitialUserDataIfMissing(
                 "shareCode" to null,
                 "background" to null,
                 "memberCount" to 1,
+                "memberKeys" to listOf(memberKey(uid)),
                 "createdAt" to now,
                 "updatedAt" to now
             )
@@ -2428,104 +2399,53 @@ private fun <T> subscribeToOrderedTaskLists(
     onError: (() -> Unit)? = null
 ): () -> Unit {
     val db = Firebase.firestore
-    var orderedTaskListIds = readCachedTaskListOrderIds(userId)
-    var taskListIdsKey: String? = null
+    var orderedTaskListIds = emptyList<String>()
     var taskListsById = emptyMap<String, T>()
-    var chunkDisposers = emptyList<() -> Unit>()
+    var orderLoaded = false
+    var taskListsLoaded = false
     var orderListener: ListenerRegistration? = null
+    var taskListsListener: ListenerRegistration? = null
     var disposed = false
-    var chunkGeneration = 0
-    var accessibleTaskListIds = emptyList<String>()
-    var membershipTask: Job? = null
     val failedScopes = mutableSetOf<String>()
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    lateinit var membershipRetry: SyncListenerRetryController
 
     fun publish() {
-        onPublish(orderedTaskListIds.mapNotNull { taskListsById[it] })
+        if (orderLoaded && taskListsLoaded) {
+            onPublish(orderedTaskListIds.mapNotNull { taskListsById[it] })
+        }
         if (failedScopes.isNotEmpty()) onError?.invoke()
     }
 
-    fun subscribeToTaskLists(ids: List<String>, forceMembershipRefresh: Boolean = false) {
-        val key = ids.sorted().joinToString("|")
-        if (!forceMembershipRefresh && taskListIdsKey == key) { publish(); return }
-        taskListIdsKey = key
-        chunkGeneration += 1
-        val generation = chunkGeneration
-        membershipTask?.cancel()
-        membershipTask = null
-        chunkDisposers.forEach { it() }
-        failedScopes.removeAll { it != "order" }
-        accessibleTaskListIds = emptyList()
-        taskListsById = emptyMap()
-        chunkDisposers = emptyList()
-        if (ids.isEmpty()) {
-            publish()
-            return
-        }
-        fun installTaskListChunks(taskListIds: List<String>) {
-            accessibleTaskListIds = taskListIds
-            chunkDisposers = taskListIds.chunked(10).map { chunk ->
-                    val chunkKey = chunk.joinToString("|")
-                    var listener: ListenerRegistration? = null
-                    lateinit var retry: SyncListenerRetryController
-                    fun install() {
-                        if (disposed || generation != chunkGeneration) return
-                        listener?.remove()
-                        listener = db.collection("taskLists")
-                            .whereIn(FieldPath.documentId(), chunk)
-                            .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
-                                if (disposed || generation != chunkGeneration) return@addSnapshotListener
-                                if (error != null) {
-                                    listener?.remove()
-                                    listener = null
-                                    failedScopes.add(chunkKey)
-                                    retry.fail("task_lists", error)
-                                    onError?.invoke()
-                                    return@addSnapshotListener
-                                }
-                                val next = taskListsById.filterKeys { it !in chunk }.toMutableMap()
-                                snapshot?.documents?.forEach { document ->
-                                    scheduleMalformedTaskCleanup(
-                                        document.id, document.data ?: emptyMap(),
-                                        document.metadata.isFromCache, document.metadata.hasPendingWrites()
-                                    )
-                                    next[document.id] = parseDocument(document.id, decodeTaskListRecord(document))
-                                }
-                                taskListsById = next
-                                val fromCache = snapshot?.metadata?.isFromCache ?: true
-                                if (!fromCache) failedScopes.remove(chunkKey)
-                                retry.markHealthy(fromCache)
-                                publish()
-                            }
-                    }
-                    retry = SyncListenerRetryController(scope, ::install, ::recordSyncListenerError)
-                    install()
-                    val dispose: () -> Unit = { retry.dispose(); listener?.remove() }
-                    dispose
-            }
-        }
-
-        membershipTask = scope.launch {
-            try {
-                val memberIds = resolveMemberTaskListIds(db, ids, userId)
-                if (disposed || generation != chunkGeneration) return@launch
-                failedScopes.remove("membership")
-                installTaskListChunks(memberIds)
-                publish()
-            } catch (error: Exception) {
-                if (disposed || generation != chunkGeneration) return@launch
-                if ((error as? FirebaseFirestoreException)?.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
-                    failedScopes.remove("membership")
-                    installTaskListChunks(ids)
-                    publish()
-                    return@launch
+    lateinit var taskListsRetry: SyncListenerRetryController
+    fun installTaskListsListener() {
+        if (disposed) return
+        taskListsListener?.remove()
+        taskListsListener = memberTaskListsQuery(db, userId)
+            .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
+                if (disposed) return@addSnapshotListener
+                if (error != null) {
+                    taskListsListener?.remove()
+                    taskListsListener = null
+                    failedScopes.add("taskLists")
+                    taskListsRetry.fail("task_lists", error)
+                    onError?.invoke()
+                    return@addSnapshotListener
                 }
-                failedScopes.add("membership")
-                membershipRetry.fail("task_list_membership", error)
-                onError?.invoke()
+                val next = mutableMapOf<String, T>()
+                snapshot?.documents?.forEach { document ->
+                    scheduleMalformedTaskCleanup(
+                        document.id, document.data ?: emptyMap(),
+                        document.metadata.isFromCache, document.metadata.hasPendingWrites()
+                    )
+                    next[document.id] = parseDocument(document.id, decodeTaskListRecord(document))
+                }
+                taskListsById = next
+                taskListsLoaded = true
+                val fromCache = snapshot?.metadata?.isFromCache ?: true
+                if (!fromCache) failedScopes.remove("taskLists")
+                taskListsRetry.markHealthy(fromCache)
+                publish()
             }
-        }
     }
 
     lateinit var orderRetry: SyncListenerRetryController
@@ -2544,28 +2464,23 @@ private fun <T> subscribeToOrderedTaskLists(
                     return@addSnapshotListener
                 }
                 orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap())
-                writeCachedTaskListOrderIds(userId, orderedTaskListIds)
+                orderLoaded = true
                 val fromCache = snapshot?.metadata?.isFromCache ?: true
                 if (!fromCache) failedScopes.remove("order")
                 orderRetry.markHealthy(fromCache)
-                subscribeToTaskLists(orderedTaskListIds, forceMembershipRefresh = true)
+                publish()
             }
     }
+    taskListsRetry = SyncListenerRetryController(scope, ::installTaskListsListener, ::recordSyncListenerError)
     orderRetry = SyncListenerRetryController(scope, ::installOrderListener, ::recordSyncListenerError)
-    membershipRetry = SyncListenerRetryController(
-        scope,
-        { subscribeToTaskLists(orderedTaskListIds, forceMembershipRefresh = true) },
-        ::recordSyncListenerError
-    )
-    subscribeToTaskLists(orderedTaskListIds)
+    installTaskListsListener()
     installOrderListener()
     return {
         disposed = true
+        taskListsRetry.dispose()
         orderRetry.dispose()
-        membershipRetry.dispose()
-        membershipTask?.cancel()
         orderListener?.remove()
-        chunkDisposers.forEach { it() }
+        taskListsListener?.remove()
         scope.cancel()
     }
 }
@@ -3167,30 +3082,6 @@ private fun parseOrderedTaskListIds(data: Map<String, Any>): List<String> {
         .map { it.first }
 }
 
-private suspend fun resolveMemberTaskListIds(
-    db: FirebaseFirestore,
-    taskListIds: List<String>,
-    userId: String,
-    source: Source = Source.DEFAULT
-): List<String> = coroutineScope {
-    taskListIds.map { taskListId ->
-        async {
-            val membershipRef = db.collection("taskLists")
-                .document(taskListId)
-                .collection("members")
-                .document(userId)
-            val membershipSnapshot = if (source == Source.CACHE) {
-                runCatching { membershipRef.get(source).await() }.getOrNull()
-            } else {
-                membershipRef.get(source).await()
-            }
-            taskListId to (membershipSnapshot?.exists() == true)
-        }
-    }.awaitAll()
-        .filter { it.second }
-        .map { it.first }
-}
-
 private fun parseTaskListSummary(taskListId: String, data: FirestoreTaskListRecord): TaskListSummary {
     val memberCount = data.memberCount?.toInt() ?: 1
     val name = data.name ?: ""
@@ -3556,6 +3447,7 @@ private suspend fun addSharedTaskListToOrder(taskListId: String, joinCode: Strin
             )
             update(taskListRef, mapOf(
                 "memberCount" to FieldValue.increment(1),
+                "memberKeys" to FieldValue.arrayUnion(memberKey(uid)),
                 "updatedAt" to nowMillis()
             ))
         }
@@ -3590,6 +3482,7 @@ private fun makeTaskListMembershipRemovalBatch(
                 taskListRef,
                 mapOf(
                     "memberCount" to FieldValue.increment(-1),
+                    "memberKeys" to FieldValue.arrayRemove(memberKey(uid)),
                     "updatedAt" to nowMillis()
                 )
             )
@@ -6206,6 +6099,7 @@ private fun TaskListsScreen(
                 "shareCode" to null,
                 "background" to createBackground,
                 "memberCount" to 1,
+                "memberKeys" to listOf(memberKey(uid)),
                 "createdAt" to now,
                 "updatedAt" to now
             )

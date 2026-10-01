@@ -1,3 +1,4 @@
+import CryptoKit
 import FirebaseAnalytics
 @preconcurrency import FirebaseAuth
 import FirebaseCore
@@ -871,6 +872,7 @@ private enum InitialUserData {
                     "shareCode": NSNull(),
                     "background": NSNull(),
                     "memberCount": 1,
+                    "memberKeys": [memberKey(uid: uid)],
                     "createdAt": now,
                     "updatedAt": now,
                 ], forDocument: taskListRef)
@@ -1454,6 +1456,7 @@ private func makeTaskListMembershipRemovalBatch(
         batch.updateData(
             [
                 "memberCount": FieldValue.increment(Int64(-1)),
+                "memberKeys": FieldValue.arrayRemove([memberKey(uid: uid)]),
                 "updatedAt": nowMillis(),
             ], forDocument: taskListRef)
     }
@@ -1547,10 +1550,6 @@ private final class AutoSortOverrideStore: ObservableObject {
     }
 }
 
-private func taskListOrderCacheKey(uid: String) -> String {
-    "lightlist.taskListOrder.\(uid)"
-}
-
 private enum LoadStatus {
     case idle
     case loading
@@ -1589,29 +1588,12 @@ private func orderedTaskListIds(from data: [String: Any]?) -> [String] {
         .map { $0.taskListId }
 }
 
-private func taskListIdChunks(_ taskListIds: [String]) -> [[String]] {
-    stride(from: 0, to: taskListIds.count, by: 10).map { startIndex in
-        Array(taskListIds[startIndex..<min(startIndex + 10, taskListIds.count)])
-    }
+nonisolated private func memberKey(uid: String) -> String {
+    SHA256.hash(data: Data("lightlist-member:\(uid)".utf8)).map { String(format: "%02x", $0) }.joined()
 }
 
-private func resolveMemberTaskListIds(
-    db: Firestore,
-    taskListIds: [String],
-    uid: String
-) async throws -> [String] {
-    var memberTaskListIds: [String] = []
-    for taskListId in taskListIds {
-        let snapshot = try await db.collection("taskLists")
-            .document(taskListId)
-            .collection("members")
-            .document(uid)
-            .getDocument()
-        if snapshot.exists {
-            memberTaskListIds.append(taskListId)
-        }
-    }
-    return memberTaskListIds
+private func memberTaskListsQuery(db: Firestore, uid: String) -> Query {
+    db.collection("taskLists").whereField("memberKeys", arrayContains: memberKey(uid: uid))
 }
 
 private func isCompleteTaskData(taskId: String, value: Any) -> Bool {
@@ -1703,19 +1685,17 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
     private let db = Firestore.firestore()
     private let mapper: (String, FirestoreTaskListRecord) -> Item
     private var taskListOrderListener: ListenerRegistration?
-    private var chunkListeners: [String: ListenerRegistration] = [:]
-    private var membershipTask: Task<Void, Never>?
+    private var taskListsListener: ListenerRegistration?
     private var retryTasks: [String: Task<Void, Never>] = [:]
     private var retryDelays: [String: UInt64] = [:]
     private var failedScopes: Set<String> = []
     private var currentUid: String?
     private var orderedIds: [String] = []
-    private var accessibleIds: [String] = []
     private var taskListsById: [String: Item] = [:]
-    private var taskListIdsKey: String?
     private var listenerGeneration = 0
-    private var chunkGeneration = 0
-    private var loadedChunks: Set<String> = []
+    private var orderLoaded = false
+    private var taskListsLoaded = false
+    private var taskListsServerLoaded = false
 
     init(mapper: @escaping (String, FirestoreTaskListRecord) -> Item) {
         self.mapper = mapper
@@ -1727,37 +1707,32 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
         currentUid = uid
         guard let uid else { return }
         status = .loading
-        orderedIds = UserDefaults.standard.stringArray(forKey: taskListOrderCacheKey(uid: uid)) ?? []
-        subscribeToTaskLists(taskListIds: orderedIds)
+        installTaskListsListener(uid: uid)
         installOrderListener(uid: uid)
     }
 
     deinit {
-        membershipTask?.cancel()
         for task in retryTasks.values { task.cancel() }
         taskListOrderListener?.remove()
-        for listener in chunkListeners.values { listener.remove() }
+        taskListsListener?.remove()
     }
 
     func reset() {
-        membershipTask?.cancel()
-        membershipTask = nil
         for task in retryTasks.values { task.cancel() }
         retryTasks = [:]
         retryDelays = [:]
         failedScopes = []
         listenerGeneration += 1
-        chunkGeneration += 1
-        loadedChunks = []
         taskListOrderListener?.remove()
         taskListOrderListener = nil
-        for listener in chunkListeners.values { listener.remove() }
-        chunkListeners = [:]
+        taskListsListener?.remove()
+        taskListsListener = nil
         currentUid = nil
         orderedIds = []
-        accessibleIds = []
         taskListsById = [:]
-        taskListIdsKey = nil
+        orderLoaded = false
+        taskListsLoaded = false
+        taskListsServerLoaded = false
         taskLists = []
         status = .idle
     }
@@ -1797,92 +1772,28 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
                 return
             }
             self.orderedIds = orderedTaskListIds(from: snapshot?.data())
-            UserDefaults.standard.set(self.orderedIds, forKey: taskListOrderCacheKey(uid: uid))
+            self.orderLoaded = true
             self.markHealthy(key: "order", isFromCache: snapshot?.metadata.isFromCache ?? true)
-            self.subscribeToTaskLists(taskListIds: self.orderedIds, forceMembershipRefresh: true)
+            self.publishTaskLists()
         }
     }
 
-    private func subscribeToTaskLists(
-        taskListIds: [String],
-        forceMembershipRefresh: Bool = false
-    ) {
-        let key = taskListIds.sorted().joined(separator: "|")
-        guard forceMembershipRefresh || taskListIdsKey != key else { return }
-        taskListIdsKey = key
-        chunkGeneration += 1
-        let generation = chunkGeneration
-        membershipTask?.cancel()
-        membershipTask = nil
-        for listener in chunkListeners.values { listener.remove() }
-        chunkListeners = [:]
-        for retryKey in Array(retryTasks.keys) where retryKey != "order" {
-            retryTasks.removeValue(forKey: retryKey)?.cancel()
-        }
-        retryDelays = retryDelays.filter { $0.key == "order" }
-        failedScopes = failedScopes.filter { $0 == "order" }
-        accessibleIds = []
-        loadedChunks = []
-        taskListsById = [:]
-        guard !taskListIds.isEmpty, let uid = currentUid else {
-            status = .ready
-            publishTaskLists()
-            return
-        }
-        status = .loading
-        func installTaskListChunks(_ ids: [String]) {
-            accessibleIds = ids
-            for chunk in taskListIdChunks(ids) {
-                self.installChunk(chunk, generation: generation)
-            }
-        }
-
-        membershipTask = Task { [weak self] in
-            guard let self else { return }
-            do {
-                let memberTaskListIds = try await resolveMemberTaskListIds(
-                    db: self.db,
-                    taskListIds: taskListIds,
-                    uid: uid
-                )
-                guard !Task.isCancelled, generation == self.chunkGeneration else { return }
-                self.failedScopes.remove("membership")
-                installTaskListChunks(memberTaskListIds)
-                self.publishTaskLists()
-            } catch {
-                guard !Task.isCancelled, generation == self.chunkGeneration else { return }
-                let nsError = error as NSError
-                if nsError.code == 7 {
-                    self.failedScopes.remove("membership")
-                    installTaskListChunks(taskListIds)
-                    self.publishTaskLists()
-                    return
-                }
-                self.scheduleRetry(key: "membership", source: "task_list_membership", error: error) { [weak self] in
-                    self?.subscribeToTaskLists(taskListIds: taskListIds, forceMembershipRefresh: true)
-                }
-                self.publishTaskLists()
-            }
-        }
-    }
-
-    private func installChunk(_ chunk: [String], generation: Int) {
-        guard generation == chunkGeneration else { return }
-        let key = chunk.joined(separator: "|")
-        chunkListeners[key]?.remove()
-        chunkListeners[key] = db.collection("taskLists")
-            .whereField(FieldPath.documentID(), in: chunk)
+    private func installTaskListsListener(uid: String) {
+        taskListsListener?.remove()
+        let generation = listenerGeneration
+        taskListsListener = memberTaskListsQuery(db: db, uid: uid)
             .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
-                guard let self, generation == self.chunkGeneration else { return }
+                guard let self, generation == self.listenerGeneration else { return }
                 if let error {
-                    self.chunkListeners.removeValue(forKey: key)?.remove()
-                    self.scheduleRetry(key: key, source: "task_lists", error: error) { [weak self] in
-                        self?.installChunk(chunk, generation: generation)
+                    self.taskListsListener?.remove()
+                    self.taskListsListener = nil
+                    self.scheduleRetry(key: "taskLists", source: "task_lists", error: error) { [weak self] in
+                        self?.installTaskListsListener(uid: uid)
                     }
                     self.publishTaskLists()
                     return
                 }
-                for taskListId in chunk { self.taskListsById.removeValue(forKey: taskListId) }
+                var nextTaskListsById: [String: Item] = [:]
                 for document in snapshot?.documents ?? [] {
                     scheduleMalformedTaskCleanup(
                         taskListId: document.documentID,
@@ -1891,26 +1802,25 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
                         hasPendingWrites: document.metadata.hasPendingWrites
                     )
                     if let record = decodeTaskListRecord(from: document) {
-                        self.taskListsById[document.documentID] = self.mapper(document.documentID, record)
+                        nextTaskListsById[document.documentID] = self.mapper(document.documentID, record)
                     }
                 }
-                self.loadedChunks.insert(key)
-                self.markHealthy(key: key, isFromCache: snapshot?.metadata.isFromCache ?? true)
+                self.taskListsById = nextTaskListsById
+                self.taskListsLoaded = true
+                if snapshot?.metadata.isFromCache == false { self.taskListsServerLoaded = true }
+                self.markHealthy(key: "taskLists", isFromCache: snapshot?.metadata.isFromCache ?? true)
                 self.publishTaskLists()
             }
     }
 
     private func publishTaskLists() {
         taskLists = orderedIds.compactMap { taskListsById[$0] }
-        let chunkCount = taskListIdChunks(accessibleIds).count
         let orderFailed = failedScopes.contains("order")
-        let membershipFailed = failedScopes.contains("membership")
-        let chunkFailed = failedScopes.contains(where: { $0 != "order" })
-        let chunksFailedBeforeFirstSnapshot = chunkFailed && loadedChunks.isEmpty && !accessibleIds.isEmpty
-        let noTaskListLoaded = !accessibleIds.isEmpty && loadedChunks.count == chunkCount && taskLists.isEmpty
-        if orderFailed || membershipFailed || chunksFailedBeforeFirstSnapshot || noTaskListLoaded {
+        let taskListsFailedBeforeFirstSnapshot = failedScopes.contains("taskLists") && !taskListsLoaded
+        let noTaskListLoaded = orderLoaded && taskListsServerLoaded && !orderedIds.isEmpty && taskLists.isEmpty
+        if orderFailed || taskListsFailedBeforeFirstSnapshot || noTaskListLoaded {
             status = .error
-        } else if accessibleIds.isEmpty || !taskLists.isEmpty || loadedChunks.count == chunkCount {
+        } else if (orderLoaded && taskListsLoaded) || !taskLists.isEmpty {
             status = .ready
         }
     }
@@ -4654,6 +4564,7 @@ private struct TaskListsView: View {
             "history": [Any](),
             "shareCode": NSNull(),
             "memberCount": 1,
+            "memberKeys": [memberKey(uid: uid)],
             "createdAt": nowMillis(),
             "updatedAt": nowMillis(),
         ]
@@ -6263,7 +6174,11 @@ private func addSharedTaskListToOrder(taskListId: String, joinCode: String) asyn
                 "joinCode": joinCode,
             ], forDocument: membershipRef)
         batch.updateData(
-            ["memberCount": FieldValue.increment(Int64(1)), "updatedAt": nowMillis()],
+            [
+                "memberCount": FieldValue.increment(Int64(1)),
+                "memberKeys": FieldValue.arrayUnion([memberKey(uid: uid)]),
+                "updatedAt": nowMillis(),
+            ],
             forDocument: taskListRef)
     }
     try await batch.commit()
@@ -8462,7 +8377,6 @@ private func warmUpStartupData(db: Firestore) {
     guard let uid = Auth.auth().currentUser?.uid else {
         return
     }
-    let cachedIds = UserDefaults.standard.stringArray(forKey: taskListOrderCacheKey(uid: uid)) ?? []
     Task(priority: .userInitiated) {
         await withTaskGroup(of: Void.self) { group in
             group.addTask {
@@ -8472,24 +8386,7 @@ private func warmUpStartupData(db: Firestore) {
                 _ = try? await db.collection("taskListOrder").document(uid).getDocument(source: .cache)
             }
             group.addTask {
-                var cachedMemberIds: [String] = []
-                for taskListId in cachedIds {
-                    if let snapshot = try? await db.collection("taskLists")
-                        .document(taskListId)
-                        .collection("members")
-                        .document(uid)
-                        .getDocument(source: .cache),
-                        snapshot.exists
-                    {
-                        cachedMemberIds.append(taskListId)
-                    }
-                }
-                for startIndex in stride(from: 0, to: cachedMemberIds.count, by: 10) {
-                    let chunk = Array(cachedMemberIds[startIndex..<min(startIndex + 10, cachedMemberIds.count)])
-                    _ = try? await db.collection("taskLists")
-                        .whereField(FieldPath.documentID(), in: chunk)
-                        .getDocuments(source: .cache)
-                }
+                _ = try? await memberTaskListsQuery(db: db, uid: uid).getDocuments(source: .cache)
             }
         }
     }

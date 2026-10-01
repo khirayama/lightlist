@@ -43,7 +43,25 @@ service cloud.firestore {
     // タスクリスト
     match /taskLists/{taskListId} {
       function allowedTaskListKeys() {
-        return ['id', 'name', 'tasks', 'history', 'shareCode', 'background', 'memberCount', 'createdAt', 'updatedAt'];
+        return ['id', 'name', 'tasks', 'history', 'shareCode', 'background', 'memberCount', 'memberKeys', 'createdAt', 'updatedAt'];
+      }
+
+      // uid を公開せずに membership を表す key。共有コードのプレビュー読み取りにも露出するため生の uid は置かない
+      function memberKey() {
+        return hashing.sha256('lightlist-member:' + request.auth.uid).toHexString().lower();
+      }
+
+      function memberKeysBefore() {
+        return resource.data.get('memberKeys', []);
+      }
+
+      function memberKeysAfter() {
+        return request.resource.data.get('memberKeys', []);
+      }
+
+      // memberKeys は membership document と同一 commit で整合させるため、判定に追加の読み取りを要しない
+      function hasMemberKeyBefore() {
+        return request.auth != null && memberKey() in memberKeysBefore();
       }
 
       // membership document が存在するかを確認
@@ -58,7 +76,22 @@ service cloud.firestore {
       }
 
       function isMemberBeforeOrAfter() {
-        return isMemberBefore() || isMemberAfter();
+        return hasMemberKeyBefore() || isMemberBefore() || isMemberAfter();
+      }
+
+      function hasUniqueMemberKeys() {
+        return memberKeysAfter().size() == memberKeysAfter().toSet().size();
+      }
+
+      function isMemberKeyJoin() {
+        return !(memberKey() in memberKeysBefore())
+          && memberKeysAfter().toSet() == memberKeysBefore().toSet().union([memberKey()].toSet())
+          && hasUniqueMemberKeys();
+      }
+
+      function isMemberKeyLeave() {
+        return memberKeysAfter().toSet() == memberKeysBefore().toSet().difference([memberKey()].toSet())
+          && hasUniqueMemberKeys();
       }
 
       // ヘルパー関数: 有効な共有コード紐付けがあるか確認
@@ -72,16 +105,21 @@ service cloud.firestore {
           && resource.data.memberCount is int
           && request.resource.data.memberCount >= 1
           && (
-            request.resource.data.memberCount == resource.data.memberCount
+            (
+              request.resource.data.memberCount == resource.data.memberCount
+              && memberKeysAfter() == memberKeysBefore()
+            )
             || (
               request.auth != null
               && request.resource.data.memberCount == resource.data.memberCount + 1
+              && isMemberKeyJoin()
               && !isMemberBefore()
               && isMemberAfter()
             )
             || (
               request.auth != null
               && request.resource.data.memberCount == resource.data.memberCount - 1
+              && isMemberKeyLeave()
               && isMemberBefore()
               && !isMemberAfter()
             )
@@ -98,6 +136,7 @@ service cloud.firestore {
           && request.resource.data.memberCount is int
           && request.resource.data.createdAt is int
           && request.resource.data.updatedAt is int
+          && request.resource.data.get('memberKeys', []) is list
           && (
             background == null
             || (background is string && background.matches('^#[0-9A-Fa-f]{6}$'))
@@ -179,7 +218,7 @@ service cloud.firestore {
           );
       }
 
-      // 読み取り権限: membership documentに含まれている、または有効な共有コードが存在する
+      // 読み取り権限: memberKeys / membership documentに含まれている、または有効な共有コードが存在する
       allow read: if isMemberBeforeOrAfter() || isValidShareCode();
 
       allow create: if request.auth != null
@@ -188,6 +227,7 @@ service cloud.firestore {
         && request.resource.data.id == taskListId
         && request.resource.data.memberCount == 1
         && request.resource.data.get('shareCode', null) == null
+        && request.resource.data.get('memberKeys', null) == [memberKey()]
         && existsAfter(/databases/$(database)/documents/taskLists/$(taskListId)/members/$(request.auth.uid));
 
       allow update: if isMemberBeforeOrAfter()

@@ -70,6 +70,8 @@ import type {
   User as FirebaseAuthUser,
 } from "firebase/auth";
 import {
+  arrayRemove,
+  arrayUnion,
   CACHE_SIZE_UNLIMITED,
   collection,
   deleteField,
@@ -238,6 +240,7 @@ type TaskListStore = {
   shareCode: string | null;
   background: string | null;
   memberCount: number;
+  memberKeys?: string[];
   createdAt: number | TimestampLike;
   updatedAt: number | TimestampLike;
 };
@@ -899,34 +902,28 @@ const writeLastUid = (uid: string | null): void => {
   }
 };
 
-const TASK_LIST_ORDER_IDS_STORAGE_KEY_PREFIX = "lightlist.taskListOrder.";
+const MEMBER_KEY_PREFIX = "lightlist-member:";
+const memberKeyRequests = new Map<string, Promise<string>>();
 
-const readCachedTaskListOrderIds = (uid: string): string[] => {
-  try {
-    const raw = window.localStorage.getItem(
-      `${TASK_LIST_ORDER_IDS_STORAGE_KEY_PREFIX}${uid}`,
+const getMemberKey = (uid: string): Promise<string> => {
+  const pendingRequest = memberKeyRequests.get(uid);
+  if (pendingRequest) return pendingRequest;
+  const request = crypto.subtle
+    .digest("SHA-256", new TextEncoder().encode(`${MEMBER_KEY_PREFIX}${uid}`))
+    .then((digest) =>
+      Array.from(new Uint8Array(digest), (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join(""),
     );
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter((id): id is string => typeof id === "string")
-      : [];
-  } catch {
-    return [];
-  }
+  memberKeyRequests.set(uid, request);
+  return request;
 };
 
-const writeCachedTaskListOrderIds = (
-  uid: string,
-  taskListOrder: TaskListOrderStore | null,
-): void => {
-  try {
-    window.localStorage.setItem(
-      `${TASK_LIST_ORDER_IDS_STORAGE_KEY_PREFIX}${uid}`,
-      JSON.stringify(getOrderedTaskListIds(taskListOrder)),
-    );
-  } catch {}
-};
+const getMemberTaskListsQuery = (db: Firestore, memberKey: string) =>
+  query(
+    collection(db, "taskLists"),
+    where("memberKeys", "array-contains", memberKey),
+  );
 
 const applyTheme = (theme: Theme) => {
   if (typeof document === "undefined" || typeof window === "undefined") return;
@@ -1444,35 +1441,6 @@ const getOrderedTaskListIds = (
     .sort((a, b) => a[1].order - b[1].order || compareStringIds(a[0], b[0]))
     .map(([taskListId]) => taskListId);
 
-const getTaskListIdChunks = (taskListIds: string[]): string[][] =>
-  Array.from({ length: Math.ceil(taskListIds.length / 10) }, (_, index) =>
-    taskListIds.slice(index * 10, index * 10 + 10),
-  );
-
-const resolveMemberTaskListIds = async (
-  taskListIds: string[],
-  uid: string,
-  source: "cache" | "server" = "server",
-): Promise<string[]> => {
-  const membershipSnapshots = await Promise.all(
-    taskListIds.map((taskListId) => {
-      const membershipRef = doc(
-        getDbInstance(),
-        "taskLists",
-        taskListId,
-        "members",
-        uid,
-      );
-      return source === "cache"
-        ? getDocFromCache(membershipRef).catch(() => null)
-        : getDoc(membershipRef);
-    }),
-  );
-  return taskListIds.filter(
-    (_taskListId, index) => membershipSnapshots[index]?.exists() === true,
-  );
-};
-
 type TaskListsAction =
   | {
       type: "reset";
@@ -1518,10 +1486,6 @@ const taskListsReducer = (
         ...state,
         taskListOrder: action.taskListOrder,
         taskListOrderStatus: action.taskListOrderStatus,
-        taskListDocsStatus:
-          getTaskListOrderEntries(action.taskListOrder).length > 0
-            ? "loading"
-            : "ready",
       };
     case "setTaskListChunk": {
       const nextTaskListsById = { ...state.taskListsById };
@@ -1677,7 +1641,6 @@ function AppStateProvider({
   const activeUid =
     session.user?.uid ??
     (session.authStatus === "loading" ? storedLastUid : null);
-  const authStateReady = session.authStatus !== "loading";
 
   const setOptimisticAutoSort = useCallback((autoSort: boolean) => {
     optimisticAutoSortRef.current = autoSort;
@@ -1874,7 +1837,6 @@ function AppStateProvider({
             const taskListOrder = snapshot.exists()
               ? assertTaskListOrderStore(snapshot.data(), activeUid)
               : null;
-            writeCachedTaskListOrderIds(activeUid, taskListOrder);
             dispatchTaskLists({
               type: "setTaskListOrder",
               taskListOrder,
@@ -1910,101 +1872,12 @@ function AppStateProvider({
     () => getOrderedTaskListIds(taskListsState.taskListOrder),
     [taskListsState.taskListOrder],
   );
-  const orderedTaskListIdsKey = useMemo(() => {
-    const updatedAt = taskListsState.taskListOrder?.updatedAt;
-    return `${orderedTaskListIds.length > 0 ? [...orderedTaskListIds].sort().join("|") : ""}:${String(updatedAt ?? "")}`;
-  }, [orderedTaskListIds, taskListsState.taskListOrder?.updatedAt]);
-  const orderedTaskListIdsRef = useRef(orderedTaskListIds);
-  orderedTaskListIdsRef.current = orderedTaskListIds;
-  const [memberTaskListIds, setMemberTaskListIds] = useState<string[] | null>(
-    null,
-  );
-  const membershipUidRef = useRef<string | null>(null);
-
   useEffect(() => {
-    if (!activeUid) {
-      membershipUidRef.current = null;
-      setMemberTaskListIds([]);
-      return;
-    }
-
-    if (membershipUidRef.current !== activeUid) {
-      setMemberTaskListIds(null);
-    }
-    const applyMemberTaskListIds = (nextIds: string[]) => {
-      membershipUidRef.current = activeUid;
-      setMemberTaskListIds((currentIds) => {
-        if (!currentIds || currentIds.length !== nextIds.length) {
-          return nextIds;
-        }
-        const nextIdSet = new Set(nextIds);
-        return currentIds.every((id) => nextIdSet.has(id))
-          ? currentIds
-          : nextIds;
-      });
-    };
-    let disposed = false;
-    let retryTimer: number | null = null;
-    let retryDelayMs = 1000;
-    const resolveMembership = async () => {
-      try {
-        const accessibleIds = await resolveMemberTaskListIds(
-          orderedTaskListIdsRef.current,
-          activeUid,
-          authStateReady ? "server" : "cache",
-        );
-        if (disposed) return;
-        if (
-          !authStateReady &&
-          orderedTaskListIdsRef.current.length > 0 &&
-          accessibleIds.length === 0
-        ) {
-          return;
-        }
-        applyMemberTaskListIds(accessibleIds);
-        retryDelayMs = 1000;
-      } catch (error) {
-        if (disposed) return;
-        logException("task_list_membership_decode", error);
-        if (getErrorCategory(error) === "permission-denied") {
-          applyMemberTaskListIds(orderedTaskListIdsRef.current);
-          return;
-        }
-        const delayMs = retryDelayMs;
-        retryDelayMs = Math.min(delayMs * 2, 30000);
-        retryTimer = window.setTimeout(() => {
-          retryTimer = null;
-          void resolveMembership();
-        }, delayMs);
-      }
-    };
-    void resolveMembership();
-
-    return () => {
-      disposed = true;
-      if (retryTimer !== null) window.clearTimeout(retryTimer);
-    };
-  }, [activeUid, authStateReady, orderedTaskListIdsKey]);
-
-  useEffect(() => {
-    const accessibleTaskListIds = memberTaskListIds ?? [];
-    dispatchTaskLists({
-      type: "pruneTaskListsById",
-      taskListIds: accessibleTaskListIds,
-    });
-
-    if (!activeUid || memberTaskListIds === null) {
+    if (!loadAppData || !activeUid) {
+      dispatchTaskLists({ type: "pruneTaskListsById", taskListIds: [] });
       dispatchTaskLists({
         type: "setTaskListDocsStatus",
         taskListDocsStatus: "loading",
-      });
-      return;
-    }
-
-    if (accessibleTaskListIds.length === 0) {
-      dispatchTaskLists({
-        type: "setTaskListDocsStatus",
-        taskListDocsStatus: "ready",
       });
       return;
     }
@@ -2014,19 +1887,16 @@ function AppStateProvider({
       taskListDocsStatus: "loading",
     });
 
-    const taskListQueryChunks = getTaskListIdChunks(accessibleTaskListIds).map(
-      (chunk) => ({
-        taskListIds: chunk,
-        taskListQuery: query(
-          collection(getDbInstance(), "taskLists"),
-          where("__name__", "in", chunk),
-        ),
-      }),
-    );
-    const applyTaskListSnapshot = (
-      taskListIds: string[],
-      snapshot: QuerySnapshot<DocumentData>,
-    ) => {
+    let disposed = false;
+    let retryTimer: number | null = null;
+    let retryDelayMs = 1000;
+    let failed = false;
+    let unsubscribe: (() => void) | null = null;
+    const clearListener = () => {
+      unsubscribe?.();
+      unsubscribe = null;
+    };
+    const applyTaskListSnapshot = (snapshot: QuerySnapshot<DocumentData>) => {
       const taskListsById: Record<string, TaskListStore> = {};
       snapshot.docs.forEach((documentSnapshot) => {
         const rawTaskListData = documentSnapshot.data({
@@ -2047,56 +1917,43 @@ function AppStateProvider({
           logException("task_list_decode", error);
         }
       });
+      const taskListIds = snapshot.docs.map(
+        (documentSnapshot) => documentSnapshot.id,
+      );
+      dispatchTaskLists({ type: "pruneTaskListsById", taskListIds });
       dispatchTaskLists({
         type: "setTaskListChunk",
         taskListIds,
         taskListsById,
       });
     };
-
-    let disposed = false;
-    const chunks = taskListQueryChunks.map((chunk) => ({
-      ...chunk,
-      unsubscribe: null as (() => void) | null,
-      retryTimer: null as number | null,
-      retryDelayMs: 1000,
-      failed: false,
-      loaded: false,
-    }));
-    const publishStatus = () => {
-      dispatchTaskLists({
-        type: "setTaskListDocsStatus",
-        taskListDocsStatus: chunks.some((chunk) => chunk.failed)
-          ? "error"
-          : chunks.every((chunk) => chunk.loaded)
-            ? "ready"
-            : "loading",
-      });
-    };
-    const installListener = (chunk: (typeof chunks)[number]) => {
+    const installListener = (memberKey: string) => {
       if (disposed) return;
-      chunk.unsubscribe?.();
-      chunk.unsubscribe = onSnapshot(
-        chunk.taskListQuery,
+      clearListener();
+      unsubscribe = onSnapshot(
+        getMemberTaskListsQuery(getDbInstance(), memberKey),
         { includeMetadataChanges: true },
         (snapshot) => {
           if (disposed) return;
-          applyTaskListSnapshot(chunk.taskListIds, snapshot);
-          chunk.loaded = true;
+          applyTaskListSnapshot(snapshot);
           if (!snapshot.metadata.fromCache) {
-            chunk.retryDelayMs = 1000;
-            chunk.failed = false;
+            retryDelayMs = 1000;
+            failed = false;
           }
-          publishStatus();
+          dispatchTaskLists({
+            type: "setTaskListDocsStatus",
+            taskListDocsStatus: failed ? "error" : "ready",
+          });
         },
         (error: FirestoreError) => {
-          if (disposed || chunk.retryTimer !== null) return;
-          if (!chunk.failed)
-            void logSyncListenerError("task_lists", error.code);
-          chunk.failed = true;
-          publishStatus();
-          chunk.unsubscribe?.();
-          chunk.unsubscribe = null;
+          if (disposed || retryTimer !== null) return;
+          if (!failed) void logSyncListenerError("task_lists", error.code);
+          failed = true;
+          dispatchTaskLists({
+            type: "setTaskListDocsStatus",
+            taskListDocsStatus: "error",
+          });
+          clearListener();
           if (
             !isRetryableFirestoreListenerError(
               error,
@@ -2105,24 +1962,22 @@ function AppStateProvider({
           ) {
             return;
           }
-          const delayMs = chunk.retryDelayMs;
-          chunk.retryDelayMs = Math.min(delayMs * 2, 30000);
-          chunk.retryTimer = window.setTimeout(() => {
-            chunk.retryTimer = null;
-            installListener(chunk);
+          const delayMs = retryDelayMs;
+          retryDelayMs = Math.min(delayMs * 2, 30000);
+          retryTimer = window.setTimeout(() => {
+            retryTimer = null;
+            installListener(memberKey);
           }, delayMs);
         },
       );
     };
-    chunks.forEach(installListener);
+    void getMemberKey(activeUid).then(installListener);
     return () => {
       disposed = true;
-      chunks.forEach((chunk) => {
-        chunk.unsubscribe?.();
-        if (chunk.retryTimer !== null) window.clearTimeout(chunk.retryTimer);
-      });
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+      clearListener();
     };
-  }, [activeUid, memberTaskListIds]);
+  }, [activeUid, loadAppData]);
 
   const registerSharedTaskList = useCallback((taskListId: string) => {
     const nextCount =
@@ -2450,10 +2305,12 @@ const ensureInitialUserData = (
     const db = getDbInstance();
     const settingsRef = doc(db, "settings", uid);
     const taskListOrderRef = doc(db, "taskListOrder", uid);
-    const [settingsSnapshot, taskListOrderSnapshot] = await Promise.all([
-      getDocFromServer(settingsRef),
-      getDocFromServer(taskListOrderRef),
-    ]);
+    const [settingsSnapshot, taskListOrderSnapshot, memberKey] =
+      await Promise.all([
+        getDocFromServer(settingsRef),
+        getDocFromServer(taskListOrderRef),
+        getMemberKey(uid),
+      ]);
     if (settingsSnapshot.exists()) return;
     const now = Date.now();
     const normalizedLanguage = normalizeLanguage(language);
@@ -2478,6 +2335,7 @@ const ensureInitialUserData = (
         shareCode: null,
         background: null,
         memberCount: 1,
+        memberKeys: [memberKey],
         createdAt: now,
         updatedAt: now,
       };
@@ -2914,6 +2772,9 @@ function assertTaskListStore(data: unknown, id: string): TaskListStore {
     typeof data.memberCount !== "number" ||
     !Number.isInteger(data.memberCount) ||
     data.memberCount < 1 ||
+    (data.memberKeys !== undefined &&
+      (!Array.isArray(data.memberKeys) ||
+        !data.memberKeys.every((value) => typeof value === "string"))) ||
     (typeof data.createdAt !== "number" && !hasToMillis(data.createdAt)) ||
     (typeof data.updatedAt !== "number" && !hasToMillis(data.updatedAt))
   ) {
@@ -3254,9 +3115,10 @@ async function createTaskList(name: string, background?: string | null) {
       const nextTaskListId = doc(collection(db, "taskLists")).id;
       const now = Date.now();
       const taskListOrderRef = doc(db, "taskListOrder", uid);
-      const taskListOrderSnapshot = await getDocFromCache(
-        taskListOrderRef,
-      ).catch(() => getDoc(taskListOrderRef));
+      const [taskListOrderSnapshot, memberKey] = await Promise.all([
+        getDocFromCache(taskListOrderRef).catch(() => getDoc(taskListOrderRef)),
+        getMemberKey(uid),
+      ]);
       const taskListOrder = assertTaskListOrderStore(
         taskListOrderSnapshot.data(),
         uid,
@@ -3273,6 +3135,7 @@ async function createTaskList(name: string, background?: string | null) {
         shareCode: null,
         background: background ?? null,
         memberCount: 1,
+        memberKeys: [memberKey],
         createdAt: now,
         updatedAt: now,
       });
@@ -3319,13 +3182,17 @@ async function deleteTaskList(
       const taskListRef = doc(db, "taskLists", taskListId);
       const taskListOrderRef = doc(db, "taskListOrder", uid);
       const membershipRef = doc(db, "taskLists", taskListId, "members", uid);
-      const [taskListSnapshot, taskListOrderSnapshot] = await Promise.all(
-        [taskListRef, taskListOrderRef].map((ref) =>
-          serverConfirmed
-            ? getDocFromServer(ref)
-            : getDocFromCache(ref).catch(() => getDoc(ref)),
-        ),
-      );
+      const [[taskListSnapshot, taskListOrderSnapshot], memberKey] =
+        await Promise.all([
+          Promise.all(
+            [taskListRef, taskListOrderRef].map((ref) =>
+              serverConfirmed
+                ? getDocFromServer(ref)
+                : getDocFromCache(ref).catch(() => getDoc(ref)),
+            ),
+          ),
+          getMemberKey(uid),
+        ]);
       const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
       if (!taskListOrderSnapshot.exists()) {
         return;
@@ -3359,6 +3226,7 @@ async function deleteTaskList(
       } else {
         batch.update(taskListRef, {
           memberCount: increment(-1),
+          memberKeys: arrayRemove(memberKey),
           updatedAt: now,
         });
       }
@@ -3735,12 +3603,17 @@ async function addSharedTaskListToOrder(taskListId: string, shareCode: string) {
       const taskListRef = doc(db, "taskLists", taskListId);
       const taskListOrderRef = doc(db, "taskListOrder", uid);
       const membershipRef = doc(db, "taskLists", taskListId, "members", uid);
-      const [taskListSnapshot, taskListOrderSnapshot, membershipSnapshot] =
-        await Promise.all([
-          getDocFromServer(taskListRef),
-          getDocFromServer(taskListOrderRef),
-          getDocFromServer(membershipRef),
-        ]);
+      const [
+        taskListSnapshot,
+        taskListOrderSnapshot,
+        membershipSnapshot,
+        memberKey,
+      ] = await Promise.all([
+        getDocFromServer(taskListRef),
+        getDocFromServer(taskListOrderRef),
+        getDocFromServer(membershipRef),
+        getMemberKey(uid),
+      ]);
       const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
       if (taskList.shareCode !== normalizedCode) {
         throw new Error("Invalid share code");
@@ -3779,6 +3652,7 @@ async function addSharedTaskListToOrder(taskListId: string, shareCode: string) {
         });
         batch.update(taskListRef, {
           memberCount: increment(1),
+          memberKeys: arrayUnion(memberKey),
           updatedAt: now,
         });
       }
@@ -10733,24 +10607,11 @@ const warmUpStartupData = (): void => {
   const db = getDbInstance();
   void getDocFromCache(doc(db, "settings", uid)).catch(() => {});
   void getDocFromCache(doc(db, "taskListOrder", uid)).catch(() => {});
-  const cachedTaskListIds = readCachedTaskListOrderIds(uid);
-  void Promise.all(
-    cachedTaskListIds.map((taskListId) =>
-      getDocFromCache(doc(db, "taskLists", taskListId, "members", uid))
-        .then((snapshot) => (snapshot.exists() ? taskListId : null))
-        .catch(() => null),
-    ),
-  ).then((memberTaskListIds) => {
-    getTaskListIdChunks(
-      memberTaskListIds.filter(
-        (taskListId): taskListId is string => taskListId !== null,
-      ),
-    ).forEach((chunk) => {
-      void getDocsFromCache(
-        query(collection(db, "taskLists"), where("__name__", "in", chunk)),
-      ).catch(() => {});
-    });
-  });
+  void getMemberKey(uid)
+    .then((memberKey) =>
+      getDocsFromCache(getMemberTaskListsQuery(db, memberKey)),
+    )
+    .catch(() => {});
 };
 
 const loadAppData = pageKey === "app" || pageKey === "sharecodes";

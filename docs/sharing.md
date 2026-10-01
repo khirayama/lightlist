@@ -20,7 +20,7 @@
 - `addSharedTaskListToOrder()`: 事前 read 後の batch write で次を行う。
   - 自分の `taskListOrder` に末尾追加する。
   - `taskLists/{taskListId}/members/{uid}` に共有コード加入の証明を作る。
-  - `memberCount` を `+1` する。
+  - `memberCount` を `+1` し、`memberKeys` に自分の key を追加する。
   - `taskListOrder/{uid}` が欠損していても merge 書き込みで自動作成する。
   - 既に追加済みなら no-op とし、`memberCount` を重複加算しない。
 

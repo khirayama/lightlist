@@ -26,6 +26,7 @@ Cloud Firestore に 4 つのトップレベルコレクションを持つ。ル�
 - `shareCode`: `string | null`
 - `background`: `string | null`
 - `memberCount`: そのリストを保持しているユーザー数
+- `memberKeys`: 保持ユーザーごとの membership key（`sha256("lightlist-member:" + uid)` の小文字 hex）の配列。`members` サブコレクションと同一 commit で整合させる派生値で、購読クエリと Rules の保持判定に使う。共有コードのプレビュー読み取りにも露出するため、生の uid は置かない
 - `createdAt` / `updatedAt`
 
 ### taskLists/{taskListId}/members/{uid}
@@ -73,18 +74,18 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 - 表示順は `taskListOrder/{uid}` が正。保持権限は `taskLists/{taskListId}/members/{uid}` が正。
 - リスト実体は `taskLists/{taskListId}` が正。
 - 共有コードは `shareCodes/{shareCode}` から `taskListId` を引く。
-- `taskListOrder` と `taskLists` は別管理する。一方だけで順序と実体を兼ねない。加入・離脱時は order と membership、`memberCount` を同一 batch で更新する。
+- `taskListOrder` と `taskLists` は別管理する。一方だけで順序と実体を兼ねない。加入・離脱時は order と membership、`memberCount`、`memberKeys`（自分の key だけを `arrayUnion` / `arrayRemove`）を同一 batch で更新する。
 
 ## 同期モデル
 
-- 対象 `taskLists` は 10 件ずつ chunk に分けて購読する。
-- `taskListOrder/{uid}` の ID は `taskLists/{taskListId}/members/{uid}` の存在を確認してから chunk 購読へ渡す。order にだけ残る ID は保持権限を持たないため購読対象から除外し、無権限 document を含む `whereIn` クエリ全体の拒否を防ぐ。
+- 保持している `taskLists` は `where("memberKeys", "array-contains", <自分の key>)` の単一クエリで購読する。membership document の事前読み取り、ID の chunk 分割、`taskListOrder` の変化による再購読は行わない。表示は `taskListOrder` の順に、クエリ結果にある ID だけを並べる。
+- 3 プラットフォームとも、taskListOrder と taskLists の購読は uid ごとに 1 組とし、並び替え・作成・名前変更で張り直さない。
 - Firestore のローカルキャッシュに実データがある場合は、placeholder / skeleton より cache hydrate 済み実データ表示を優先する。
 - 起動時は永続 Firestore cache を有効にし、settings / taskListOrder / taskLists の cache 読み取りを初回 UI 構築と並行して開始する。iOS は cache 読み取りを並列実行し、Android は翻訳 JSON の preload と同じ background thread から開始する。
-- taskListOrder の順序付き ID は uid ごとに Web の localStorage、iOS の UserDefaults、Android の SharedPreferences へ保持する。次回起動では Firestore の taskListOrder snapshot を待たずに、その ID から taskLists の chunk 先読み・購読を開始し、後続 snapshot で ID と表示を更新する。
+- taskLists の購読は taskListOrder に依存しないため、起動時は taskListOrder と taskLists のクエリを同時に開始する。
 - Web の通常購読は listener が返す初回 cache snapshot をそのまま hydrate に使い、同じ参照への明示的な cache get を重ねない。起動前 warm-up の cache get は IndexedDB と Firestore client の初期化だけを目的とする。
 - settings listener は metadata change を受け取り、cache snapshot で即時表示を更新する。server 確定かつ pending write なしの snapshot だけを同期復旧・通常のキャッシュ更新の確定点とする。iOS の `startupView` だけは設定選択時に起動用 UserDefaults も即時更新し、書き込み失敗時は直前値へ戻す。設定変更はサーバー応答を待たずに次の変更を受け付け、書き込み失敗は後述の同期失敗通知で知らせる。
-- `taskLists` chunk は cache / live snapshot とも snapshot 全体を chunk 単位で反映する（差分適用しない）。
+- `taskLists` クエリは cache / live snapshot とも snapshot 全体で置き換える（差分適用しない）。
 - Firestore listener がエラーを返した場合は、現在の購読を解除して同じ参照を再登録する。再試行は 1 秒から始め、2 倍ずつ最大 30 秒まで待ち、画面・ユーザーの購読スコープが終了するまで継続する。cache snapshot は復旧扱いにせず、server snapshot の受信で待ち時間を初期化する。
 - UI 更新系は listener 反映より先に画面上の編集結果を捨てない。保存後も Firestore が同じ内容へ追いつくまで local pending 表示を優先する。詳細は [task-lists.md](./task-lists.md)。
 - 書き込み前の読み取り（task mutation の基準・リスト作成時の順序・リスト削除時の `memberCount`）は、listener が最新に保っている cache を優先し、cache にない場合だけ SDK の既定取得を使う。共有コードの生成・解除・解決、共有参加、退会、サインアップ初期データはサーバー値を読む。
@@ -110,7 +111,8 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 
 - `settings/{uid}` と `taskListOrder/{uid}` は本人のみ読み書き可能。
 - `shareCodes/{shareCode}` は `get` のみ誰でも可能で、`list` は不可。作成は認証済みかつ対象リストを保持しているユーザーに限り、さらに同一 commit で `taskLists/{taskListId}.shareCode == shareCode` になることを要求する。更新は不可。
-- `taskLists/{taskListId}` は、自分の membership document が存在するか、有効な `shareCode` がある場合に読み書きできる。
+- `taskLists/{taskListId}` は、`memberKeys` に自分の key があるか、自分の membership document が存在するか、有効な `shareCode` がある場合に読み書きできる。`memberKeys` の判定を先に評価し、通常の読み書きで membership document の `exists()`（課金対象の読み取り）を発生させない。
+- `memberKeys` は作成時は自分の key 1 件だけ、参加時（`memberCount` +1・membership 作成）は自分の key の追加だけ、離脱時（`memberCount` -1・membership 削除）は自分の key の除去だけを許可し、それ以外の更新では変更を禁止する。重複した key は許可しない。
 - `taskLists/{taskListId}` は共有コードを知っているだけでは更新できない。共有コードは未参加ユーザーのプレビュー読み取りに限り、更新には membership document が必要。
 - `taskLists.shareCode` は `null` か `^[A-Z0-9]{8}$` のみ許可し、新しい値は同一 commit で作成される `shareCodes` doc と一致していなければならない。新規作成時は `null` 固定。
 - `taskListOrder/{uid}` は表示順だけを保持し、本人の書き込み内容が `taskLists/{taskListId}` のアクセス権を付与することはない。新規作成・共有コード加入時は membership document の作成を同一 batch に含める。
@@ -122,3 +124,12 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 membership document 導入前に作成された既存リストには、信頼できる管理用 Admin SDK から `taskListOrder/{uid}` と `taskLists/{taskListId}.memberCount` を照合して、保持ユーザーごとの `taskLists/{taskListId}/members/{uid}` を backfill する。`taskListOrder` に残る実体不明の ID は membership を作成せず、実体の `memberCount` は backfill した membership 数へ補正する。
 
 移行完了と件数照合を確認してから Firestore Rules をデプロイする。クライアント SDK には既存リストを安全に認定する権限がないため、Rules デプロイを先行すると既存ユーザーのリストが読めなくなる。
+
+## memberKeys 移行
+
+`memberKeys` は `members` サブコレクションを正として Admin 権限で backfill する（dry-run で差分と `memberCount` 不一致を確認してから適用し、書き込みは `updateTime` 前提条件付き）。旧 Rules は `memberKeys` を許可しないため、次の順で行う。
+
+1. 移行用 Rules（Phase 1）をデプロイする。`memberKeys` を持たない旧クライアントの作成・参加も許可し、離脱だけは key の除去を必須にして離脱後の読み取り権を残さない。
+2. backfill を適用し、再実行で差分 0 を確認する。
+3. `memberKeys` クエリを使うクライアントを配布する。
+4. backfill を再実行して移行期間中の旧クライアント書き込みを補正し、差分 0 を確認してから、旧クライアント向け分岐を削除した Rules（Phase 2）をデプロイする。

@@ -15,7 +15,7 @@
 - モノレポは `apps/web`（Vite multi-page app + React + TypeScript）、`apps/ios`（SwiftUI、iOS 17+）、`apps/android`（Kotlin + Gradle）で構成する。
 - ルートに Node manifest は置かず、Web の manifest と lockfile は `apps/web` に集約する。Web は TypeScript 7 系を `strict` + `skipLibCheck=false` で使い、`apps/web/.npmrc` の `legacy-peer-deps=true` を維持する。
 - Web の Vite root / HTML entry は `apps/web/html`、静的 asset は `apps/web/public`、環境変数は `apps/web/.env*` とする。runtime TS/TSX は `apps/web/src/entry.tsx` に集約し、LP だけ `apps/web/src/lp.ts` を使う。
-- Web の app page（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `entry.tsx` を共通 bootstrap とし、各 HTML の `body[data-page]` で切り替える。LP は React / Firebase / i18next から分離する。
+- Web の app page（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `entry.tsx` を共通 bootstrap とし、各 HTML の `body[data-page]` で切り替える。LP は React / Firebase / i18next から分離し、build 時に言語別の静的ページ（`/`=ja、`/en/` など）へ書き出す。
 - Web UI から `firebase/*` を直接 import せず、Firebase 初期化・Auth / Firestore 状態購読・i18n 初期化は `entry.tsx` を正とする。独立 SDK パッケージは持たない。Auth は popup / redirect resolver を含まない `initializeAuth` で初期化する。
 - Web の Firestore 読み取りは購読・単発取得ともに共通境界検証へ通し、型 assertion だけでドメイン型へ変換しない。
 - iOS は `project.yml` から XcodeGen でプロジェクトを生成する。生成された `Lightlist.xcodeproj` と `xcuserdata` / `xcuserstate` / `build` / `DerivedData` は commit しない（SwiftPM 固定用の `Package.resolved` だけは例外として commit する）。

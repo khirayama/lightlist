@@ -13,7 +13,13 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 
 ## HTML entry
 
-- LP は `apps/web/html/index.html` と `apps/web/src/lp.ts` で構成する。React / Firebase / i18next には依存せず、静的 HTML の翻訳差し替え、SEO meta 更新、言語選択、service worker 登録だけを担う。
+- LP は `apps/web/html/index.html` と `apps/web/src/lp.ts` で構成する。React / Firebase / i18next には依存せず、言語別ページへの遷移（言語選択・保存済み言語・旧 `?lang=` URL）と service worker 登録だけを担う。翻訳の差し替えは実行時に行わない。
+- LP は言語ごとに静的 HTML を持つ。URL は `ja` が `/`、他言語が `/en/` `/es/` `/de/` `/fr/` `/ko/` `/zh-cn/` `/hi/` `/ar/` `/pt-br/` `/id/`。`vite.config.ts` の `landingPages` plugin が build 後に `dist/index.html` を `src/lp-locales.json` で言語別に書き出し、title / description / OGP / canonical / `hreflang`（`x-default` は `/en/`）/ JSON-LD（`WebApplication` + `FAQPage`）と `dist/sitemap.xml` を生成する。dev server でも同じ変換を同じ URL で適用する。対応言語を増減するときは plugin の `LP_LANGUAGES` と `lp.ts` の `LANGUAGE_PATHS` を合わせて更新する。
+- 法的ページ（プライバシーポリシー `privacy` / 利用規約 `terms` / サポート `support` / アカウントとデータの削除 `account-deletion`）は LP と同じ言語 prefix の静的ページとする（`ja` は `/privacy/`、他言語は `/en/privacy/` など）。テンプレートは `apps/web/html/legal/index.html`、本文は `apps/web/src/legal/<lang>.json`（Web 専用。`shared/locales/locales.json` には入れない）、スタイルは `apps/web/src/styles/legal.css` で、`landingPages` plugin が build 後に全言語・全ページを書き出し、`dist/legal/` のテンプレート自体は削除して `sitemap.xml` に追加する。JavaScript は読み込まない。運営者名は Google Play の developer 名と同じ `khirayama`、連絡先は `support@lightlist.app`（plugin の `LEGAL_CONTACT` が本文中のアドレスを `mailto:` リンクにする）。本文は実装と一致させ、取得する情報・外部サービス・削除範囲が変わったら 11 言語すべてと `updated` の日付を更新する。LP のフッターから各ページへリンクする。
+- LP はブラウザ言語で自動転送しない（クローラーが各言語ページをそのまま取得できるようにするため）。転送は、旧 URL の `?lang=<lang>` と、`/` を開いたときに `localStorage.i18nextLng` が `ja` 以外の場合だけ行う。`ja` 以外のページの「はじめる / ログイン」リンクは `/login/?lang=<lang>` としてアプリへ言語を引き継ぐ。
+- OGP 画像は `apps/web/public/og-image.png`（1200x630）を `https://lightlist.app/` からの絶対 URL で指定する。LP のヒーロー画像は `public/screenshot_ja_desktop.png`（1440x900）と `screenshot_ja_mobile.png`（780x1688）、機能紹介のカレンダー画像は `public/screenshot_ja_calendar.png`（1440x810。`apps/web/screenshots/web_06_calendar.png` を縮小したもの）で、差し替え時は `index.html` の `width` / `height` と OGP 画像も更新する。
+- LP の本文は「ヒーロー → 3 つの特徴 → 機能詳細 → 利用シーン → よくある質問 → CTA」の順とし、文言は `pages.index.*` を正とする。訴求内容は実装済みの機能に限り、iPhone / Android アプリはストア公開まで実際の状況（現在は「申請準備中」）を記載する（公開後は対応端末の記述・JSON-LD の `operatingSystem`・ストアへのリンクを更新する）。共有は「URL を知っていればログインなしで閲覧でき、編集にはログインと参加が必要」と記載する。日付入力の例は全言語共通で解釈できる相対表現か `mm/dd` 形式だけを使う。
+- `robots.txt` は `/app/`・`/sharecodes/`・`/password_reset/` のクロールを拒否する。
 - アプリ側 entry は `apps/web/src/entry.tsx` 1 本。`body[data-page]` で `login` / `app` / `sharecodes` / `password_reset` / `404` / `500` を切り替える。
 - `login` / `app` / `sharecodes` / `password_reset` は `../../src/entry.tsx`、`404` / `500` は `../src/entry.tsx` を module script として読む。
 - `index` / `404` / `500` / `password_reset` では認証済みアプリの状態購読を前提にしない。`sharecodes` は未認証プレビューを許可しつつ、ログイン済み状態も見て参加導線を出す。

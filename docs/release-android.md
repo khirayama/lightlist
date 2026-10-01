@@ -84,7 +84,7 @@ zipalign -c -P 16 -v 4 app/build/outputs/apk/release/app-release.apk
 ### 6. Store listing
 
 - アプリ名、短い説明、詳細説明、アプリアイコン、Feature Graphic、phone screenshots を用意する。
-- カテゴリを選ぶ。サポート連絡先メールと Privacy Policy URL を設定する。
+- カテゴリを選ぶ。サポート連絡先メール（`support@lightlist.app`）と Privacy Policy URL（`https://lightlist.app/privacy/`）を設定する。
 
 ### 7. App content
 
@@ -92,7 +92,7 @@ zipalign -c -P 16 -v 4 app/build/outputs/apk/release/app-release.apk
 - Privacy Policy を公開 URL で提供する（PDF 不可、地域制限やログイン必須にしない）。store listing の developer / company / app name と整合する主体名を記載する。
 - App access、Ads（現状なし）、Content rating questionnaire、Target audience を入力する。
 - News / Government / Financial features など該当有無を確認する。
-- Account deletion / data deletion を入力する。アプリ内の削除導線に加えて、アプリ外からアカウント削除をリクエストできる Web URL を用意し、Data safety form に入力する。URL はアプリ名または developer 名に紐づくページとし、削除依頼導線を明確に表示する。
+- Account deletion / data deletion を入力する。アプリ内の削除導線に加えて、アプリ外からアカウント削除をリクエストできる Web URL を用意し、Data safety form に入力する。URL はアプリ名または developer 名に紐づくページとし、削除依頼導線を明確に表示する。このページは `https://lightlist.app/account-deletion/`（英語は `/en/account-deletion/`）。
 - 将来サブスクリプションを導入し、削除前に解約が必要なら、その手順を削除 Web ページと Privacy Policy に明記する。
 
 ### 8. Release build

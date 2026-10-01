@@ -76,7 +76,7 @@ just upload
 - App 名・サブタイトル・説明文・キーワードを用意する。
 - iPhone 6.9 インチスクリーンショットは `apps/ios/screenshots/app-store/iphone-6.9`（生成は `just screenshots ios`）。
 - iPad 13 インチスクリーンショットは iPad 実画面の元画像を追加してから生成する（未整備）。
-- サポート URL と Privacy Policy URL を設定する。
+- サポート URL は `https://lightlist.app/support/`、Privacy Policy URL は `https://lightlist.app/privacy/` を設定する（ローカライズごとに `/en/support/` など言語別 URL を使える）。利用規約は `https://lightlist.app/terms/`。
 - カテゴリ（Productivity 想定）と年齢区分質問票を完了する。
 
 ### 7. App Review 対応

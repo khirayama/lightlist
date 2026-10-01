@@ -3354,7 +3354,7 @@
         "noTasks": "タスクがありません",
         "allCompleted": "すべて完了しました",
         "dragHint": "ドラッグして並び替え",
-        "sort": "並び替え",
+        "sort": "並べ直す",
         "deleteCompleted": "完了タスクを削除",
         "deleteCompletedConfirm": "{{count}}件の完了タスクを削除しますか？",
         "clearDate": "日付をクリア",

@@ -3,10 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lightlist | シンプルな共有タスクリスト・ToDoアプリ</title>
+    <title>
+      Lightlist | 無料で使えるシンプルな共有タスクリスト・ToDoアプリ
+    </title>
     <meta
       name="description"
-      content="Lightlist は個人・家族・小さなチーム向けのシンプルな共有タスクリスト / ToDo アプリ。買い物リストややることをブラウザ・iPhone・Androidで同期して使えます。"
+      content="Lightlist は、買い物リストや家族のやることを共有できる、無料でシンプルなタスクリスト / ToDo アプリ。日付入力・カレンダー・オフラインに対応し、パソコンでもスマートフォンでもブラウザで同期して使えます。"
     />
     <meta
       name="keywords"
@@ -18,15 +20,17 @@
     <meta property="og:site_name" content="Lightlist" />
     <meta
       property="og:title"
-      content="Lightlist | シンプルな共有タスクリスト・ToDoアプリ"
+      content="Lightlist | 無料で使えるシンプルな共有タスクリスト・ToDoアプリ"
     />
     <meta
       property="og:description"
-      content="Lightlist は個人・家族・小さなチーム向けのシンプルな共有タスクリスト / ToDo アプリ。買い物リストややることをブラウザ・iPhone・Androidで同期して使えます。"
+      content="Lightlist は、買い物リストや家族のやることを共有できる、無料でシンプルなタスクリスト / ToDo アプリ。日付入力・カレンダー・オフラインに対応し、パソコンでもスマートフォンでもブラウザで同期して使えます。"
     />
     <meta property="og:url" content="https://lightlist.app/" />
     <meta property="og:locale" content="ja_JP" />
-    <meta property="og:image" content="/screenshot_ja_desktop.png" />
+    <meta property="og:image" content="https://lightlist.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
       content="デスクトップ画面のスクリーンショット"
@@ -34,13 +38,13 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
-      content="Lightlist | シンプルな共有タスクリスト・ToDoアプリ"
+      content="Lightlist | 無料で使えるシンプルな共有タスクリスト・ToDoアプリ"
     />
     <meta
       name="twitter:description"
-      content="Lightlist は個人・家族・小さなチーム向けのシンプルな共有タスクリスト / ToDo アプリ。買い物リストややることをブラウザ・iPhone・Androidで同期して使えます。"
+      content="Lightlist は、買い物リストや家族のやることを共有できる、無料でシンプルなタスクリスト / ToDo アプリ。日付入力・カレンダー・オフラインに対応し、パソコンでもスマートフォンでもブラウザで同期して使えます。"
     />
-    <meta name="twitter:image" content="/screenshot_ja_desktop.png" />
+    <meta name="twitter:image" content="https://lightlist.app/og-image.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/brand/logo.svg" sizes="any" type="image/svg+xml" />
     <link
@@ -120,31 +124,31 @@
             class="ll-sticky ll-top-0 ll-lp-z-40 ll-border-b ll-lp-border-black-10 ll-lp-bg-white-92 ll-lp-backdrop-blur ll-lp-dark-border-white-10 ll-lp-dark-bg-black-92"
           >
             <div
-              class="ll-mx-auto ll-flex ll-lp-max-w-6xl ll-flex-col ll-gap-2 ll-px-4 ll-py-3 ll-lp-sm-flex-row ll-sm-items-center ll-lp-sm-justify-between ll-sm-px-6 ll-lp-sm-py-3x5"
+              class="ll-mx-auto ll-flex ll-lp-max-w-6xl ll-items-center ll-justify-between ll-gap-3 ll-lp-px-6 ll-py-3"
             >
-              <div class="ll-flex ll-items-center ll-gap-3 ll-lp-sm-gap-4">
+              <div
+                class="ll-flex ll-shrink-0b ll-items-center ll-lp-gap-2x5 ll-lp-sm-gap-3"
+              >
                 <img
                   src="/brand/logo.svg"
                   alt=""
                   aria-hidden="true"
-                  class="ll-block ll-h-9 ll-w-auto ll-lp-sm-h-12"
+                  class="ll-block ll-h-8 ll-w-auto ll-lp-sm-h-9"
                 />
                 <p
-                  class="ll-lp-text-base ll-font-semibold ll-lp-tracking-extra-wide ll-lp-text-neutral-850 ll-lp-dark-text-neutral-50 ll-lp-sm-text-lg ll-lp-sm-tracking-wider"
+                  class="ll-lp-hidden ll-lp-text-base ll-font-semibold ll-lp-tracking-extra-wide ll-lp-text-neutral-850 ll-lp-dark-text-neutral-50 ll-lp-xs-block ll-lp-sm-text-lg"
                 >
                   Lightlist
                 </p>
               </div>
               <div
-                class="ll-flex ll-items-center ll-justify-between ll-gap-3 ll-lp-sm-justify-end"
+                class="ll-flex ll-min-w-0 ll-items-center ll-gap-2 ll-lp-sm-gap-3"
               >
-                <label
-                  class="ll-inline-flex ll-items-center ll-gap-2 ll-text-sm"
-                >
+                <label class="ll-flex ll-min-w-0 ll-items-center ll-text-sm">
                   <span class="ll-sr-only">Language</span>
                   <select
                     id="lp-language"
-                    class="ll-lp-max-w-lang ll-rounded-full ll-border ll-lp-border-black-10 ll-lp-bg-white ll-px-3 ll-py-1x5 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-lp-focus-border-neutral-500 ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900 ll-dark-text-gray-50 ll-lp-dark-focus-border-white-30 ll-lp-sm-max-w-none ll-lp-sm-px-4 ll-lp-sm-py-2"
+                    class="ll-lp-w-lang ll-min-w-0 ll-rounded-full ll-border ll-lp-border-black-10 ll-lp-bg-white ll-px-3 ll-py-1x5 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-lp-focus-border-neutral-500 ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900 ll-dark-text-gray-50 ll-lp-dark-focus-border-white-30 ll-lp-sm-w-auto ll-lp-sm-px-4 ll-lp-sm-py-2"
                   >
                     <option value="ja">日本語</option>
                     <option value="en">English</option>
@@ -162,8 +166,9 @@
                 <a
                   href="/login/"
                   class="ll-inline-flex ll-shrink-0b ll-items-center ll-justify-center ll-rounded-full ll-lp-bg-neutral-900 ll-px-4 ll-py-1x5 ll-text-sm ll-font-semibold ll-text-white ll-transition ll-lp-hover-bg-neutral-800 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-lp-focus-visible-outline-neutral-900 ll-lp-dark-bg-neutral-50 ll-lp-dark-text-neutral-950 ll-lp-dark-hover-bg-neutral-150 ll-lp-dark-focus-visible-outline-neutral-50 ll-lp-sm-px-5 ll-lp-sm-py-2"
+                  data-i18n="pages.index.login"
                 >
-                  Login
+                  ログイン
                 </a>
               </div>
             </div>
@@ -172,16 +177,16 @@
           <main id="main-content" tabindex="-1">
             <section
               aria-labelledby="landing-hero-title"
-              class="ll-lp-px-6 ll-lp-pb-20 ll-pt-6 ll-lp-sm-pb-24 ll-lp-sm-pt-10"
+              class="ll-lp-px-6 ll-lp-pb-16 ll-lp-pt-12 ll-lp-sm-pb-24 ll-lp-sm-pt-20"
             >
               <div class="ll-mx-auto ll-lp-max-w-6xl">
                 <div class="ll-mx-auto ll-max-w-3xl ll-text-center">
                   <!-- prettier-ignore -->
-                  <h1 id="landing-hero-title" class="ll-font-display ll-lp-whitespace-pre-line ll-lp-text-hero ll-font-semibold ll-lp-tracking-tighter ll-lp-text-neutral-925 ll-lp-dark-text-neutral-25 ll-lp-sm-text-6xl ll-lp-lg-text-7xl" data-i18n="pages.index.headline">タスクリストは、&#10;シンプルでいい。</h1>
+                  <h1 id="landing-hero-title" class="ll-font-display ll-lp-whitespace-pre-line ll-lp-phrase ll-lp-text-hero ll-font-semibold ll-lp-tracking-tighter ll-lp-text-neutral-925 ll-lp-dark-text-neutral-25 ll-lp-sm-text-6xl ll-lp-lg-text-7xl" data-i18n="pages.index.headline">タスクリストは、&#10;シンプルでいい。</h1>
                   <!-- prettier-ignore -->
-                  <p class="ll-mx-auto ll-mt-6 ll-lp-max-w-2xl ll-lp-whitespace-pre-line ll-text-lg ll-lp-leading-8 ll-lp-text-neutral-550 ll-lp-dark-text-neutral-250 ll-lp-sm-text-xl" data-i18n="pages.index.subheadline">タスク管理アプリに疲れたあなたへ。&#10;余計な機能はない。誰でも、すぐに使いはじめられる。&#10;それでいて、必要なときは共有もできる。</p>
+                  <p class="ll-mx-auto ll-mt-6 ll-lp-max-w-2xl ll-lp-whitespace-pre-line ll-lp-phrase ll-lp-balance ll-lp-text-lead ll-lp-text-neutral-550 ll-lp-dark-text-neutral-250 ll-lp-sm-mt-8" data-i18n="pages.index.subheadline">タスク管理アプリに疲れたあなたへ。&#10;余計な機能はない。誰でも、すぐに使いはじめられる。&#10;それでいて、必要なときは共有もできる。</p>
                   <div
-                    class="ll-lp-mt-10 ll-flex ll-flex-col ll-items-center ll-gap-4"
+                    class="ll-lp-mt-8 ll-flex ll-flex-col ll-items-center ll-gap-4 ll-lp-sm-mt-10"
                   >
                     <a
                       href="/login/"
@@ -190,15 +195,22 @@
                     >
                       無料ではじめる
                     </a>
+                    <p
+                      class="ll-lp-max-w-note ll-lp-phrase ll-lp-balance ll-lp-text-note ll-lp-text-neutral-500 ll-lp-dark-text-neutral-375"
+                      data-i18n="pages.index.heroNote"
+                    >
+                      無料で使えます。メールアドレスで登録して、ブラウザですぐに使えます。iPhone
+                      / Android アプリは申請準備中です。
+                    </p>
                   </div>
                 </div>
 
-                <div class="ll-mx-auto ll-lp-mt-16 ll-lp-max-w-5xl">
-                  <div
-                    class="ll-relative ll-mx-auto ll-lp-max-w-920px ll-lp-pt-8 ll-lp-sm-pt-4"
-                  >
+                <div
+                  class="ll-mx-auto ll-lp-mt-12 ll-lp-max-w-5xl ll-lp-sm-mt-16"
+                >
+                  <div class="ll-relative ll-lp-sm-pt-4">
                     <div
-                      class="ll-mx-auto ll-lp-w-88pct ll-overflow-hidden ll-lp-rounded-30px ll-border ll-lp-border-black-10 ll-lp-bg-white ll-p-3 ll-lp-shadow-hero ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900 ll-lp-dark-shadow-hero ll-lp-sm-w-78pct ll-lp-sm-p-4"
+                      class="ll-lp-hidden ll-mx-auto ll-overflow-hidden ll-lp-rounded-30px ll-border ll-lp-border-black-10 ll-lp-bg-white ll-p-3 ll-lp-shadow-hero ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900 ll-lp-dark-shadow-hero ll-lp-sm-block ll-lp-sm-w-82pct ll-lp-sm-p-4"
                     >
                       <div
                         class="ll-overflow-hidden ll-rounded-24px ll-border ll-lp-border-black-10 ll-lp-bg-neutral-50 ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-930"
@@ -206,8 +218,9 @@
                         <img
                           src="/screenshot_ja_desktop.png"
                           alt="デスクトップ画面のスクリーンショット"
-                          width="1280"
-                          height="800"
+                          width="1440"
+                          height="900"
+                          decoding="async"
                           class="ll-w-full"
                           data-i18n-alt="pages.index.preview.desktopAlt"
                         />
@@ -215,7 +228,7 @@
                     </div>
 
                     <div
-                      class="ll-absolute ll-right-0 ll-top-0 ll-z-20 ll-lp-w-34pct ll-lp-min-w-150px ll-lp-max-w-220px ll-lp-sm-right-8pct ll-lp-sm-top-8pct ll-lp-sm-w-24pct"
+                      class="ll-relative ll-z-20 ll-mx-auto ll-lp-w-64pct ll-lp-max-w-240px ll-lp-sm-absolute ll-lp-sm-right-2pct ll-lp-sm-top-8pct ll-lp-sm-w-22pct"
                     >
                       <div
                         class="ll-overflow-hidden ll-rounded-24px ll-border ll-lp-border-black-10 ll-lp-bg-white ll-lp-p-2x5 ll-lp-shadow-card ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900 ll-lp-dark-shadow-card ll-sm-rounded-28px ll-lp-sm-p-3"
@@ -226,8 +239,10 @@
                           <img
                             src="/screenshot_ja_mobile.png"
                             alt="モバイル画面のスクリーンショット"
-                            width="720"
-                            height="1560"
+                            width="780"
+                            height="1688"
+                            fetchpriority="high"
+                            decoding="async"
                             class="ll-w-full"
                             data-i18n-alt="pages.index.preview.mobileAlt"
                           />
@@ -241,7 +256,7 @@
 
             <section
               aria-labelledby="landing-features-title"
-              class="ll-border-t ll-lp-border-black-10 ll-lp-px-6 ll-lp-py-20 ll-lp-dark-border-white-10 ll-lp-sm-py-24"
+              class="ll-lp-bg-neutral-100 ll-lp-px-6 ll-lp-py-16 ll-lp-dark-bg-neutral-900 ll-lp-sm-py-24"
             >
               <div class="ll-mx-auto ll-lp-max-w-6xl">
                 <div class="ll-mx-auto ll-lp-max-w-2xl ll-text-center">
@@ -252,16 +267,12 @@
                   >
                     Lightlistの3つのこと
                   </h2>
-                  <p
-                    class="ll-mt-4 ll-lp-text-base ll-leading-7 ll-lp-text-neutral-500 ll-lp-dark-text-neutral-375"
-                    data-i18n="pages.index.preview.title"
-                  >
-                    こんな感じで使います
-                  </p>
                 </div>
-                <div class="ll-lp-mt-10 ll-grid ll-gap-4 ll-lp-lg-grid-cols-3">
+                <div
+                  class="ll-lp-mt-10 ll-grid ll-gap-4 ll-lp-sm-mt-12 ll-lp-lg-grid-cols-3"
+                >
                   <div
-                    class="ll-lp-rounded-28px ll-border ll-lp-border-black-10 ll-lp-bg-white ll-lp-p-7 ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900"
+                    class="ll-lp-rounded-28px ll-lp-bg-white ll-lp-p-7 ll-lp-dark-bg-neutral-850"
                   >
                     <div
                       class="ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-2xl ll-lp-bg-neutral-100 ll-lp-dark-bg-white-5"
@@ -289,14 +300,14 @@
                       これだけでいい
                     </h3>
                     <p
-                      class="ll-mt-3 ll-text-sm ll-leading-7 ll-lp-text-neutral-500 ll-lp-dark-text-neutral-350"
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
                       data-i18n="pages.index.features.simple.description"
                     >
                       タスクを追加して、完了する。それだけ。説明書もチュートリアルも必要ありません。はじめてでも迷わない、ちょうどいいシンプルさです。
                     </p>
                   </div>
                   <div
-                    class="ll-lp-rounded-28px ll-border ll-lp-border-black-10 ll-lp-bg-white ll-lp-p-7 ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900"
+                    class="ll-lp-rounded-28px ll-lp-bg-white ll-lp-p-7 ll-lp-dark-bg-neutral-850"
                   >
                     <div
                       class="ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-2xl ll-lp-bg-neutral-100 ll-lp-dark-bg-white-5"
@@ -324,14 +335,15 @@
                       どこからでも、そのまま使える
                     </h3>
                     <p
-                      class="ll-mt-3 ll-text-sm ll-leading-7 ll-lp-text-neutral-500 ll-lp-dark-text-neutral-350"
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
                       data-i18n="pages.index.features.multidevice.description"
                     >
-                      ブラウザはもちろん、iOSやAndroidアプリからもアクセス可能。どのデバイスからでも同じリストをリアルタイムに確認・編集できます。
+                      パソコンでもスマートフォンでも、ブラウザからそのまま使えます。どのデバイスからでも同じリストをリアルタイムに確認・編集できます。iPhone
+                      / Android アプリは現在、申請準備中です。
                     </p>
                   </div>
                   <div
-                    class="ll-lp-rounded-28px ll-border ll-lp-border-black-10 ll-lp-bg-white ll-lp-p-7 ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900"
+                    class="ll-lp-rounded-28px ll-lp-bg-white ll-lp-p-7 ll-lp-dark-bg-neutral-850"
                   >
                     <div
                       class="ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-2xl ll-lp-bg-neutral-100 ll-lp-dark-bg-white-5"
@@ -359,7 +371,7 @@
                       必要なとき、共有できる
                     </h3>
                     <p
-                      class="ll-mt-3 ll-text-sm ll-leading-7 ll-lp-text-neutral-500 ll-lp-dark-text-neutral-350"
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
                       data-i18n="pages.index.features.share.description"
                     >
                       共有コードを発行するだけで、家族・友人・チームとリアルタイム共有。一人で使うだけでも、もちろん十分です。
@@ -370,15 +382,337 @@
             </section>
 
             <section
+              aria-labelledby="landing-details-title"
+              class="ll-lp-px-6 ll-lp-py-16 ll-lp-sm-py-24"
+            >
+              <div class="ll-mx-auto ll-lp-max-w-6xl">
+                <div class="ll-mx-auto ll-lp-max-w-2xl ll-text-center">
+                  <h2
+                    id="landing-details-title"
+                    class="ll-font-display ll-lp-text-3xl ll-font-semibold ll-lp-tracking-tight ll-lp-text-neutral-900 ll-lp-dark-text-neutral-50 ll-lp-sm-text-4xl"
+                    data-i18n="pages.index.details.title"
+                  >
+                    そのほかの機能
+                  </h2>
+                  <p
+                    class="ll-mt-4 ll-lp-phrase ll-lp-text-base ll-leading-7 ll-lp-text-neutral-550 ll-lp-dark-text-neutral-375"
+                    data-i18n="pages.index.details.lead"
+                  >
+                    毎日使うのに必要な機能をそろえています。
+                  </p>
+                </div>
+                <div
+                  class="ll-mx-auto ll-lp-mt-10 ll-lp-max-w-5xl ll-lp-sm-mt-12"
+                >
+                  <div
+                    class="ll-mx-auto ll-overflow-hidden ll-lp-rounded-30px ll-border ll-lp-border-black-10 ll-lp-bg-white ll-p-3 ll-lp-shadow-card ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900 ll-lp-dark-shadow-card ll-lp-sm-p-4"
+                  >
+                    <div
+                      class="ll-overflow-hidden ll-rounded-24px ll-border ll-lp-border-black-10 ll-lp-bg-neutral-50 ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-930"
+                    >
+                      <img
+                        src="/screenshot_ja_calendar.png"
+                        alt="カレンダー画面のスクリーンショット"
+                        width="1440"
+                        height="810"
+                        loading="lazy"
+                        decoding="async"
+                        class="ll-lp-crop-wide ll-w-full ll-lp-sm-aspect-auto"
+                        data-i18n-alt="pages.index.preview.calendarAlt"
+                      />
+                    </div>
+                  </div>
+                  <div
+                    class="ll-mx-auto ll-lp-mt-8 ll-lp-max-w-2xl ll-text-center"
+                  >
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.details.calendar.title"
+                    >
+                      カレンダー
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-phrase ll-lp-balance ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.details.calendar.description"
+                    >
+                      すべてのリストのタスクを、月カレンダーでまとめて確認できます。日付を選んでタスクを追加することもできます。
+                    </p>
+                  </div>
+                </div>
+                <div
+                  class="ll-mx-auto ll-lp-mt-12 ll-grid ll-lp-max-w-5xl ll-lp-gap-10 ll-lp-sm-mt-16 ll-lp-sm-grid-cols-2 ll-lp-lg-grid-cols-3"
+                >
+                  <div>
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.details.date.title"
+                    >
+                      日付の入力
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.details.date.description"
+                    >
+                      「明日 牛乳を買う」「12/24
+                      プレゼント」のように入力すると、日付つきのタスクになります。
+                    </p>
+                  </div>
+                  <div>
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.details.pin.title"
+                    >
+                      ピン留めと並び替え
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.details.pin.description"
+                    >
+                      ピン留めしたタスクは先頭に表示されます。日付順の自動並び替えと、ドラッグでの並び替えができます。
+                    </p>
+                  </div>
+                  <div>
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.details.history.title"
+                    >
+                      入力候補
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.details.history.description"
+                    >
+                      一度入力したタスクは候補として表示されるので、よく使うタスクをすばやく追加できます。
+                    </p>
+                  </div>
+                  <div>
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.details.offline.title"
+                    >
+                      オフライン対応
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.details.offline.description"
+                    >
+                      オフラインでもタスクの追加・完了・編集ができます。変更はオンラインに戻ると自動で同期されます。
+                    </p>
+                  </div>
+                  <div>
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.details.appearance.title"
+                    >
+                      色とテーマ
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.details.appearance.description"
+                    >
+                      リストごとに背景色を選べます。ライト /
+                      ダークテーマに対応しています。
+                    </p>
+                  </div>
+                  <div>
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.details.language.title"
+                    >
+                      多言語対応
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.details.language.description"
+                    >
+                      画面の表示を 11
+                      の言語から選べます（日本語、英語、スペイン語、ドイツ語、フランス語、韓国語、中国語（簡体字）、ヒンディー語、アラビア語、ポルトガル語、インドネシア語）。日付の入力も各言語の表現に対応しています。
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              aria-labelledby="landing-use-cases-title"
+              class="ll-lp-bg-neutral-100 ll-lp-px-6 ll-lp-py-16 ll-lp-dark-bg-neutral-900 ll-lp-sm-py-24"
+            >
+              <div class="ll-mx-auto ll-lp-max-w-6xl">
+                <div class="ll-mx-auto ll-lp-max-w-2xl ll-text-center">
+                  <h2
+                    id="landing-use-cases-title"
+                    class="ll-font-display ll-lp-text-3xl ll-font-semibold ll-lp-tracking-tight ll-lp-text-neutral-900 ll-lp-dark-text-neutral-50 ll-lp-sm-text-4xl"
+                    data-i18n="pages.index.useCases.title"
+                  >
+                    使い方の例
+                  </h2>
+                </div>
+                <div
+                  class="ll-lp-mt-10 ll-grid ll-gap-4 ll-lp-sm-mt-12 ll-lp-sm-grid-cols-2 ll-lp-lg-grid-cols-4"
+                >
+                  <div
+                    class="ll-lp-rounded-28px ll-lp-bg-white ll-lp-p-7 ll-lp-dark-bg-neutral-850"
+                  >
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.useCases.shopping.title"
+                    >
+                      買い物リスト
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.useCases.shopping.description"
+                    >
+                      家族で共有して、買ったものにチェックを付けられます。追加した内容はすぐに全員に反映されます。
+                    </p>
+                  </div>
+                  <div
+                    class="ll-lp-rounded-28px ll-lp-bg-white ll-lp-p-7 ll-lp-dark-bg-neutral-850"
+                  >
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.useCases.family.title"
+                    >
+                      家族のやること
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.useCases.family.description"
+                    >
+                      ゴミ出しや支払いなどに日付を付けておくと、カレンダーで予定を確認できます。
+                    </p>
+                  </div>
+                  <div
+                    class="ll-lp-rounded-28px ll-lp-bg-white ll-lp-p-7 ll-lp-dark-bg-neutral-850"
+                  >
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.useCases.travel.title"
+                    >
+                      旅行の準備
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.useCases.travel.description"
+                    >
+                      持ち物や予約のリストを、一緒に行く人と共有できます。
+                    </p>
+                  </div>
+                  <div
+                    class="ll-lp-rounded-28px ll-lp-bg-white ll-lp-p-7 ll-lp-dark-bg-neutral-850"
+                  >
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.useCases.team.title"
+                    >
+                      小さなチームのタスク
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.useCases.team.description"
+                    >
+                      共有コードを送るだけで使いはじめられます。少人数でのタスク共有に向いています。
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              aria-labelledby="landing-faq-title"
+              class="ll-lp-px-6 ll-lp-py-16 ll-lp-sm-py-24"
+            >
+              <div class="ll-mx-auto ll-max-w-3xl">
+                <h2
+                  id="landing-faq-title"
+                  class="ll-font-display ll-lp-text-3xl ll-font-semibold ll-lp-tracking-tight ll-lp-text-neutral-900 ll-lp-dark-text-neutral-50 ll-lp-sm-text-4xl ll-text-center"
+                  data-i18n="pages.index.faq.title"
+                >
+                  よくある質問
+                </h2>
+                <div
+                  class="ll-lp-mt-10 ll-border-b ll-lp-border-black-10 ll-lp-dark-border-white-10 ll-lp-sm-mt-12"
+                >
+                  <div
+                    class="ll-border-t ll-lp-border-black-10 ll-lp-py-7 ll-lp-dark-border-white-10"
+                  >
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.faq.free.question"
+                    >
+                      無料で使えますか？
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.faq.free.answer"
+                    >
+                      はい、無料です。メールアドレスとパスワードで登録するだけで、すべての機能を使えます。
+                    </p>
+                  </div>
+                  <div
+                    class="ll-border-t ll-lp-border-black-10 ll-lp-py-7 ll-lp-dark-border-white-10"
+                  >
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.faq.share.question"
+                    >
+                      リストを共有するには？
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.faq.share.answer"
+                    >
+                      リストの共有ボタンから共有コードを発行し、URL
+                      を相手に送ります。相手はログインなしで内容を確認でき、ログインしてリストに参加すれば一緒に編集できます。
+                    </p>
+                  </div>
+                  <div
+                    class="ll-border-t ll-lp-border-black-10 ll-lp-py-7 ll-lp-dark-border-white-10"
+                  >
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.faq.devices.question"
+                    >
+                      どの端末で使えますか？
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.faq.devices.answer"
+                    >
+                      パソコンやスマートフォンのブラウザで使えます。同じアカウントでログインすれば、リストは自動で同期されます。iPhone
+                      / Android アプリは現在、ストアへの申請準備中です。
+                    </p>
+                  </div>
+                  <div
+                    class="ll-border-t ll-lp-border-black-10 ll-lp-py-7 ll-lp-dark-border-white-10"
+                  >
+                    <h3
+                      class="ll-font-display ll-text-lg ll-font-semibold ll-lp-text-neutral-875 ll-lp-dark-text-neutral-50"
+                      data-i18n="pages.index.faq.account.question"
+                    >
+                      アカウントやデータは削除できますか？
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
+                      data-i18n="pages.index.faq.account.answer"
+                    >
+                      設定画面からいつでもアカウントを削除できます。削除すると、タスクリストなどのデータもあわせて削除されます。
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
               aria-labelledby="landing-cta-title"
-              class="ll-border-t ll-lp-border-black-10 ll-lp-px-6 ll-lp-py-20 ll-lp-dark-border-white-10 ll-lp-sm-py-24"
+              class="ll-lp-bg-neutral-100 ll-lp-px-6 ll-lp-py-16 ll-lp-dark-bg-neutral-900 ll-lp-sm-py-24"
             >
               <div class="ll-mx-auto ll-max-w-4xl ll-text-center">
                 <img
                   src="/brand/logo.svg"
                   alt=""
                   aria-hidden="true"
-                  class="ll-mx-auto ll-lp-h-20 ll-w-auto ll-lp-sm-h-24"
+                  class="ll-mx-auto ll-lp-h-16 ll-w-auto ll-lp-sm-h-20"
                 />
                 <h2
                   id="landing-cta-title"
@@ -388,12 +722,12 @@
                   これでいい、ちょうどいい。
                 </h2>
                 <p
-                  class="ll-mx-auto ll-lp-mt-5 ll-lp-max-w-2xl ll-lp-text-base ll-lp-leading-8 ll-lp-text-neutral-500 ll-lp-dark-text-neutral-375 ll-lp-sm-text-lg"
+                  class="ll-mx-auto ll-lp-mt-5 ll-lp-max-w-2xl ll-lp-phrase ll-lp-text-base ll-lp-leading-8 ll-lp-text-neutral-550 ll-lp-dark-text-neutral-375 ll-lp-sm-text-lg"
                   data-i18n="pages.index.cta.description"
                 >
                   タスク管理をもっとシンプルに。まず一つ、リストをつくってみてください。
                 </p>
-                <div class="ll-lp-mt-10">
+                <div class="ll-lp-mt-8 ll-lp-sm-mt-10">
                   <a
                     href="/login/"
                     class="ll-inline-flex ll-items-center ll-justify-center ll-rounded-full ll-lp-bg-neutral-900 ll-lp-px-8 ll-lp-py-4 ll-lp-text-base ll-font-semibold ll-text-white ll-transition ll-lp-hover-bg-neutral-800 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-lp-focus-visible-outline-neutral-900 ll-lp-dark-bg-neutral-50 ll-lp-dark-text-neutral-950 ll-lp-dark-hover-bg-neutral-150 ll-lp-dark-focus-visible-outline-neutral-50"
@@ -407,13 +741,39 @@
           </main>
 
           <footer
-            class="ll-border-t ll-lp-border-black-10 ll-lp-px-6 ll-py-10 ll-text-center ll-lp-dark-border-white-10"
+            class="ll-border-t ll-lp-border-black-10 ll-lp-bg-neutral-100 ll-lp-px-6 ll-py-10 ll-text-center ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900"
           >
+            <nav class="ll-lp-footer-nav">
+              <a
+                href="/privacy/"
+                class="ll-lp-footer-link ll-lp-text-neutral-650 ll-lp-dark-text-neutral-350"
+                data-i18n="legal.privacy.title"
+                >プライバシーポリシー</a
+              >
+              <a
+                href="/terms/"
+                class="ll-lp-footer-link ll-lp-text-neutral-650 ll-lp-dark-text-neutral-350"
+                data-i18n="legal.terms.title"
+                >利用規約</a
+              >
+              <a
+                href="/support/"
+                class="ll-lp-footer-link ll-lp-text-neutral-650 ll-lp-dark-text-neutral-350"
+                data-i18n="legal.support.title"
+                >サポート</a
+              >
+              <a
+                href="/account-deletion/"
+                class="ll-lp-footer-link ll-lp-text-neutral-650 ll-lp-dark-text-neutral-350"
+                data-i18n="legal.accountDeletion.title"
+                >アカウントとデータの削除</a
+              >
+            </nav>
             <p
-              class="ll-text-sm ll-text-gray-600 ll-dark-text-gray-300"
+              class="ll-mt-6 ll-text-sm ll-text-gray-600 ll-dark-text-gray-300"
               data-i18n="copyright"
             >
-              © 2025 Lightlist. All rights reserved.
+              © Lightlist
             </p>
           </footer>
         </div>

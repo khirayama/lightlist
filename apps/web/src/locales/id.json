@@ -264,8 +264,8 @@
       "headline": "Cukup sederhana.\nItulah intinya.",
       "subheadline": "Untuk siapa pun yang lelah dengan aplikasi tugas yang rumit.\nCukup sederhana untuk semua orang sejak awal.\nBagikan dengan orang lain saat Anda membutuhkannya.",
       "seo": {
-        "title": "Lightlist | Aplikasi daftar tugas bersama & ToDo yang sederhana",
-        "description": "Lightlist adalah aplikasi daftar tugas bersama / ToDo yang sederhana untuk individu, keluarga, dan tim kecil. Kelola daftar belanja dan tugas harian di web, iPhone, dan Android.",
+        "title": "Lightlist | Aplikasi daftar tugas bersama yang gratis & sederhana",
+        "description": "Lightlist adalah aplikasi daftar tugas / ToDo yang gratis dan sederhana untuk berbagi daftar belanja dan tugas keluarga. Tanggal cukup diketik, ada kalender, bisa offline, dan tersinkron di browser apa pun di komputer maupun ponsel.",
         "keywords": "daftar tugas,aplikasi todo,daftar tugas bersama,daftar belanja,tugas keluarga,tugas tim,Lightlist"
       },
       "features": {
@@ -276,22 +276,95 @@
         },
         "multidevice": {
           "title": "Perangkat apa pun, kapan saja",
-          "description": "Akses dari browser apa pun, atau gunakan aplikasi iOS dan Android. Daftar Anda tetap sinkron di semua perangkat secara real-time."
+          "description": "Gunakan di browser apa pun, di komputer maupun ponsel. Daftar Anda tetap sinkron di semua perangkat secara real-time. Aplikasi iPhone dan Android saat ini sedang disiapkan untuk diajukan ke toko aplikasi."
         },
         "share": {
           "title": "Bagikan saat Anda mau",
-          "description": "Buat kode berbagi dan undang siapa saja ke daftar Anda dalam hitungan detik. Tidak perlu akun untuk bergabung. Tetap tidak mengganggu saat tidak dibutuhkan."
+          "description": "Buat kode berbagi dan undang siapa saja ke daftar Anda dalam hitungan detik. Siapa pun yang punya tautannya bisa melihat daftar tanpa akun. Tetap tidak mengganggu saat tidak dibutuhkan."
         }
       },
       "preview": {
         "title": "Lihat cara kerjanya",
         "desktopAlt": "Tangkapan layar desktop",
-        "mobileAlt": "Tangkapan layar ponsel"
+        "mobileAlt": "Tangkapan layar ponsel",
+        "calendarAlt": "Tangkapan layar kalender"
       },
       "cta": {
         "title": "Cukup sederhana. Itulah intinya.",
         "description": "Jika pengelolaan tugas terasa terlalu rumit, Lightlist cocok untuk Anda. Mulai dengan satu daftar.",
         "button": "Mulai gratis"
+      },
+      "login": "Masuk",
+      "heroNote": "Gratis. Daftar dengan alamat email dan langsung mulai di browser. Aplikasi iPhone dan Android sedang disiapkan.",
+      "details": {
+        "title": "Fitur lainnya",
+        "lead": "Semua yang diperlukan untuk penggunaan sehari-hari.",
+        "date": {
+          "title": "Input tanggal",
+          "description": "Ketik “besok beli susu” dan tugas disimpan dengan tanggal tersebut."
+        },
+        "calendar": {
+          "title": "Kalender",
+          "description": "Lihat tugas dari semua daftar dalam satu kalender bulanan. Anda juga bisa memilih hari dan menambahkan tugas."
+        },
+        "pin": {
+          "title": "Sematkan dan urutkan",
+          "description": "Tugas yang disematkan ditampilkan di atas. Tugas dapat diurutkan otomatis berdasarkan tanggal atau diseret."
+        },
+        "history": {
+          "title": "Saran",
+          "description": "Tugas yang pernah diketik muncul sebagai saran, sehingga tugas yang sering dipakai bisa ditambahkan dengan cepat."
+        },
+        "offline": {
+          "title": "Dukungan offline",
+          "description": "Anda bisa menambah, menyelesaikan, dan mengedit tugas saat offline. Perubahan tersinkron otomatis saat kembali online."
+        },
+        "appearance": {
+          "title": "Warna dan tema",
+          "description": "Pilih warna latar untuk tiap daftar. Tersedia tema terang dan gelap."
+        },
+        "language": {
+          "title": "11 bahasa",
+          "description": "Antarmuka tersedia dalam 11 bahasa: Jepang, Inggris, Spanyol, Jerman, Prancis, Korea, Mandarin Sederhana, Hindi, Arab, Portugis, dan Indonesia. Tanggal juga bisa diketik dalam tiap bahasa."
+        }
+      },
+      "useCases": {
+        "title": "Contoh penggunaan",
+        "shopping": {
+          "title": "Daftar belanja",
+          "description": "Bagikan daftar dengan keluarga dan centang barang yang sudah dibeli. Yang ditambahkan langsung muncul untuk semua orang."
+        },
+        "family": {
+          "title": "Tugas keluarga",
+          "description": "Beri tanggal pada pekerjaan rumah dan tagihan, lalu lihat yang akan datang di kalender."
+        },
+        "travel": {
+          "title": "Barang bawaan & persiapan perjalanan",
+          "description": "Bagikan daftar bawaan dan pemesanan dengan teman seperjalanan."
+        },
+        "team": {
+          "title": "Tugas tim kecil",
+          "description": "Kirim kode berbagi untuk memulai. Cocok untuk berbagi tugas dalam kelompok kecil."
+        }
+      },
+      "faq": {
+        "title": "Pertanyaan umum",
+        "free": {
+          "question": "Apakah Lightlist gratis?",
+          "answer": "Ya. Daftar dengan email dan kata sandi, lalu gunakan semua fitur secara gratis."
+        },
+        "share": {
+          "question": "Bagaimana cara membagikan daftar?",
+          "answer": "Buat kode berbagi dari tombol bagikan pada daftar dan kirim tautannya. Siapa pun yang punya tautan bisa melihat daftar tanpa masuk, dan bisa mengedit bersama setelah masuk dan bergabung."
+        },
+        "devices": {
+          "question": "Di perangkat apa saja bisa dipakai?",
+          "answer": "Bisa dipakai di browser apa pun di komputer atau ponsel. Masuk dengan akun yang sama dan daftar Anda tetap tersinkron. Aplikasi iPhone dan Android saat ini sedang disiapkan untuk diajukan ke toko aplikasi."
+        },
+        "account": {
+          "question": "Bisakah saya menghapus akun dan data saya?",
+          "answer": "Ya. Anda bisa menghapus akun dari Pengaturan kapan saja, dan daftar serta data lainnya ikut terhapus."
+        }
       }
     },
     "sharecode": {

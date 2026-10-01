@@ -267,34 +267,107 @@
       "headline": "足够简单。\n这正是重点。",
       "subheadline": "给那些厌倦复杂任务应用的人。\n从一开始就足够简单，任何人都能上手。\n需要时再与他人共享。",
       "seo": {
-        "title": "Lightlist | 简洁的共享任务清单与 ToDo 应用",
-        "description": "Lightlist 是一款面向个人、家庭和小团队的简洁共享任务清单 / ToDo 应用。可在网页、iPhone 和 Android 上同步管理购物清单和日常任务。",
+        "title": "Lightlist | 免费、简洁的共享任务清单与 ToDo 应用",
+        "description": "Lightlist 是一款免费、简洁的任务清单 / ToDo 应用，可共享购物清单和家庭待办。支持输入即识别日期、日历视图和离线使用，可在电脑和手机的浏览器中同步使用。",
         "keywords": "任务清单,todo应用,共享任务清单,购物清单,家庭任务,团队任务,Lightlist"
       },
       "features": {
-        "title": "Lightlist 的三件事",
+        "title": "Lightlist 能做的三件事",
         "simple": {
           "title": "只做你需要的",
           "description": "添加任务，勾选完成，就这么简单。无需教程或说明书。无论技术经验如何，任何人都能立刻开始。"
         },
         "multidevice": {
           "title": "任意设备，随时可用",
-          "description": "可在任何浏览器访问，也可使用 iOS 和 Android 应用。你的列表会在所有设备间实时同步。"
+          "description": "无论电脑还是手机，都可以直接在浏览器中使用。你的列表会在所有设备间实时同步。iPhone 和 Android 应用目前正在准备提交商店审核。"
         },
         "share": {
           "title": "想共享时再共享",
-          "description": "生成共享码，几秒内即可邀请他人加入列表。加入无需账号。不需要时也不会打扰你。"
+          "description": "生成共享码，几秒内即可邀请他人加入列表。拿到链接的人无需账号即可查看。不需要时也不会打扰你。"
         }
       },
       "preview": {
         "title": "查看实际效果",
         "desktopAlt": "桌面端截图",
-        "mobileAlt": "移动端截图"
+        "mobileAlt": "移动端截图",
+        "calendarAlt": "日历界面截图"
       },
       "cta": {
         "title": "足够简单，这才是重点。",
         "description": "如果任务管理让你觉得负担太大，Lightlist 就是为你准备的。先从一个列表开始。",
         "button": "免费开始"
+      },
+      "login": "登录",
+      "heroNote": "免费使用。用邮箱注册，即可在浏览器中开始使用。iPhone 和 Android 应用正在准备上架。",
+      "details": {
+        "title": "其他功能",
+        "lead": "日常使用所需的功能都已具备。",
+        "date": {
+          "title": "日期输入",
+          "description": "输入“明天 买牛奶”或“12/24 礼物”，任务会带上相应日期保存。"
+        },
+        "calendar": {
+          "title": "日历",
+          "description": "可以在月历中查看所有列表的任务，也可以选择日期添加任务。"
+        },
+        "pin": {
+          "title": "置顶与排序",
+          "description": "置顶的任务显示在最上方。支持按日期自动排序和拖动排序。"
+        },
+        "history": {
+          "title": "输入建议",
+          "description": "输入过的任务会作为建议显示，方便快速添加常用任务。"
+        },
+        "offline": {
+          "title": "离线使用",
+          "description": "离线时也可以添加、完成和编辑任务。恢复联网后会自动同步。"
+        },
+        "appearance": {
+          "title": "颜色和主题",
+          "description": "可以为每个列表选择背景色，支持浅色 / 深色主题。"
+        },
+        "language": {
+          "title": "11 种语言",
+          "description": "界面支持 11 种语言：日语、英语、西班牙语、德语、法语、韩语、简体中文、印地语、阿拉伯语、葡萄牙语和印度尼西亚语。日期输入也支持各语言的表达方式。"
+        }
+      },
+      "useCases": {
+        "title": "使用示例",
+        "shopping": {
+          "title": "购物清单",
+          "description": "与家人共享，买到后勾选即可。新添加的内容会立刻同步给所有人。"
+        },
+        "family": {
+          "title": "家庭待办",
+          "description": "给家务和缴费加上日期，就可以在日历中查看安排。"
+        },
+        "travel": {
+          "title": "旅行物品与准备",
+          "description": "可以与同行的人共享行李和预订清单。"
+        },
+        "team": {
+          "title": "小团队的任务",
+          "description": "发送共享码即可开始使用，适合小团队共享任务。"
+        }
+      },
+      "faq": {
+        "title": "常见问题",
+        "free": {
+          "question": "可以免费使用吗？",
+          "answer": "可以。使用邮箱和密码注册后，即可免费使用全部功能。"
+        },
+        "share": {
+          "question": "如何共享列表？",
+          "answer": "通过列表的共享按钮生成共享码，并把链接发给对方。对方无需登录即可查看内容，登录并加入列表后可以一起编辑。"
+        },
+        "devices": {
+          "question": "支持哪些设备？",
+          "answer": "可在电脑和手机的浏览器中使用。使用同一账号登录，列表会自动同步。iPhone 和 Android 应用目前正在准备提交商店审核。"
+        },
+        "account": {
+          "question": "可以删除账号和数据吗？",
+          "answer": "可以随时在设置中删除账号，任务列表等数据也会一并删除。"
+        }
       }
     },
     "sharecode": {

@@ -276,11 +276,11 @@
   "pages": {
     "index": {
       "getStarted": "Comece grátis",
-      "headline": "Simples o suficiente.\nEsse é o ponto.",
+      "headline": "Simples o suficiente.\nEssa é a ideia.",
       "subheadline": "Para quem está cansado de apps de tarefas complexos.\nSimples o suficiente para qualquer pessoa, desde o início.\nCompartilhe com outras pessoas quando precisar.",
       "seo": {
-        "title": "Lightlist | App simples de lista de tarefas compartilhada e ToDo",
-        "description": "Lightlist é um app simples de lista de tarefas compartilhada / ToDo para pessoas, famílias e pequenas equipes. Gerencie listas de compras e tarefas diárias na web, iPhone e Android.",
+        "title": "Lightlist | App gratuito e simples de listas de tarefas compartilhadas",
+        "description": "Lightlist é um app gratuito e simples de lista de tarefas / ToDo para compartilhar a lista de compras e as tarefas da família. Datas ao digitar, calendário, uso offline e sincronização em qualquer navegador, no computador ou no celular.",
         "keywords": "lista de tarefas,app todo,lista de tarefas compartilhada,lista de compras,tarefas da família,tarefas da equipe,Lightlist"
       },
       "features": {
@@ -291,22 +291,95 @@
         },
         "multidevice": {
           "title": "Qualquer dispositivo, a qualquer hora",
-          "description": "Acesse por qualquer navegador ou use os apps para iOS e Android. Suas listas ficam sincronizadas em tempo real em todos os dispositivos."
+          "description": "Use em qualquer navegador, no computador ou no celular. Suas listas ficam sincronizadas em tempo real em todos os dispositivos. Os apps para iPhone e Android estão sendo preparados para envio às lojas."
         },
         "share": {
           "title": "Compartilhe quando quiser",
-          "description": "Gere um código de compartilhamento e convide qualquer pessoa para sua lista em segundos. Não é necessário conta para entrar. Fica discreto quando você não precisa."
+          "description": "Gere um código de compartilhamento e convide qualquer pessoa para sua lista em segundos. Qualquer pessoa com o link pode ver a lista sem conta. Fica discreto quando você não precisa."
         }
       },
       "preview": {
         "title": "Veja em ação",
         "desktopAlt": "Captura de tela no desktop",
-        "mobileAlt": "Captura de tela no celular"
+        "mobileAlt": "Captura de tela no celular",
+        "calendarAlt": "Captura de tela do calendário"
       },
       "cta": {
-        "title": "Simples o suficiente. Esse é o ponto.",
+        "title": "Simples o suficiente. Essa é a ideia.",
         "description": "Se gerenciar tarefas parece demais, o Lightlist é para você. Comece com uma lista.",
         "button": "Comece grátis"
+      },
+      "login": "Entrar",
+      "heroNote": "Grátis. Cadastre-se com seu e-mail e comece direto no navegador. Os apps para iPhone e Android estão em preparação.",
+      "details": {
+        "title": "Outros recursos",
+        "lead": "Tudo o que você precisa para o uso diário.",
+        "date": {
+          "title": "Datas ao digitar",
+          "description": "Digite “amanhã comprar leite” e a tarefa é salva com essa data."
+        },
+        "calendar": {
+          "title": "Calendário",
+          "description": "Veja as tarefas de todas as listas em um calendário mensal. Você também pode escolher um dia e adicionar uma tarefa."
+        },
+        "pin": {
+          "title": "Fixar e ordenar",
+          "description": "Tarefas fixadas aparecem no topo. As tarefas podem ser ordenadas automaticamente por data ou arrastadas."
+        },
+        "history": {
+          "title": "Sugestões",
+          "description": "Tarefas que você já digitou aparecem como sugestões, para adicionar rapidamente as mais frequentes."
+        },
+        "offline": {
+          "title": "Uso offline",
+          "description": "Você pode adicionar, concluir e editar tarefas offline. As alterações são sincronizadas automaticamente quando você volta a ficar online."
+        },
+        "appearance": {
+          "title": "Cores e temas",
+          "description": "Escolha uma cor de fundo para cada lista. Há temas claro e escuro."
+        },
+        "language": {
+          "title": "11 idiomas",
+          "description": "A interface está disponível em 11 idiomas: japonês, inglês, espanhol, alemão, francês, coreano, chinês simplificado, hindi, árabe, português e indonésio. As datas também podem ser digitadas em cada idioma."
+        }
+      },
+      "useCases": {
+        "title": "Exemplos de uso",
+        "shopping": {
+          "title": "Lista de compras",
+          "description": "Compartilhe a lista com a família e marque o que for comprando. O que é adicionado aparece na hora para todos."
+        },
+        "family": {
+          "title": "Tarefas da família",
+          "description": "Coloque datas nas tarefas de casa e nas contas e veja no calendário o que vem pela frente."
+        },
+        "travel": {
+          "title": "Mala e preparativos de viagem",
+          "description": "Compartilhe as listas de bagagem e reservas com quem viaja com você."
+        },
+        "team": {
+          "title": "Tarefas de equipes pequenas",
+          "description": "Envie um código para começar. Adequado para compartilhar tarefas em um grupo pequeno."
+        }
+      },
+      "faq": {
+        "title": "Perguntas frequentes",
+        "free": {
+          "question": "O Lightlist é gratuito?",
+          "answer": "Sim. Cadastre-se com e-mail e senha e use todos os recursos gratuitamente."
+        },
+        "share": {
+          "question": "Como compartilho uma lista?",
+          "answer": "Crie um código pelo botão de compartilhar da lista e envie o link. Qualquer pessoa com o link pode ver a lista sem entrar, e editar junto depois de entrar e participar."
+        },
+        "devices": {
+          "question": "Em quais dispositivos funciona?",
+          "answer": "Funciona em qualquer navegador no computador ou no celular. Entre com a mesma conta e suas listas ficam sincronizadas. Os apps para iPhone e Android estão sendo preparados para envio às lojas."
+        },
+        "account": {
+          "question": "Posso excluir minha conta e meus dados?",
+          "answer": "Sim. Você pode excluir sua conta nas Configurações a qualquer momento, e suas listas e demais dados são excluídos junto."
+        }
       }
     },
     "sharecode": {

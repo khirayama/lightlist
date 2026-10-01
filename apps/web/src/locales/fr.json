@@ -268,11 +268,11 @@
   "pages": {
     "index": {
       "getStarted": "Commencer gratuitement",
-      "headline": "Assez simple.\nC'est tout l'objectif.",
+      "headline": "Assez simple.\nC'est tout l'intérêt.",
       "subheadline": "Pour celles et ceux qui en ont assez des applications de tâches complexes.\nAssez simple pour tout le monde, dès le départ.\nPartagez avec d'autres quand vous en avez besoin.",
       "seo": {
-        "title": "Lightlist | Application simple de liste de tâches partagée et ToDo",
-        "description": "Lightlist est une application simple de liste de tâches partagée / ToDo pour les particuliers, les familles et les petites équipes. Gérez vos listes de courses et tâches quotidiennes sur le web, iPhone et Android.",
+        "title": "Lightlist | Liste de tâches partagée, simple et gratuite",
+        "description": "Lightlist est une application gratuite et simple de liste de tâches / ToDo pour partager la liste de courses et les tâches de la famille. Dates saisies au clavier, calendrier, mode hors ligne et synchronisation dans tout navigateur, sur ordinateur ou mobile.",
         "keywords": "liste de tâches,application todo,liste partagée,liste de courses,tâches famille,tâches équipe,Lightlist"
       },
       "features": {
@@ -283,22 +283,95 @@
         },
         "multidevice": {
           "title": "N'importe quel appareil, à tout moment",
-          "description": "Accédez-y depuis n'importe quel navigateur, ou utilisez les applications iOS et Android. Vos listes restent synchronisées en temps réel sur tous vos appareils."
+          "description": "Utilisez-la dans n'importe quel navigateur, sur ordinateur ou mobile. Vos listes restent synchronisées en temps réel sur tous vos appareils. Les applications iPhone et Android sont en cours de préparation avant leur soumission aux stores."
         },
         "share": {
           "title": "Partagez quand vous voulez",
-          "description": "Générez un code de partage et invitez n'importe qui en quelques secondes. Aucun compte requis pour rejoindre. Discret quand vous n'en avez pas besoin."
+          "description": "Générez un code de partage et invitez n'importe qui en quelques secondes. Toute personne ayant le lien peut la consulter sans compte. Discret quand vous n'en avez pas besoin."
         }
       },
       "preview": {
         "title": "Voir en action",
         "desktopAlt": "Capture d'écran sur ordinateur",
-        "mobileAlt": "Capture d'écran mobile"
+        "mobileAlt": "Capture d'écran mobile",
+        "calendarAlt": "Capture d'écran du calendrier"
       },
       "cta": {
-        "title": "Assez simple. C'est tout l'objectif.",
+        "title": "Assez simple. C'est tout l'intérêt.",
         "description": "Si la gestion des tâches vous semble trop compliquée, Lightlist est pour vous. Commencez avec une seule liste.",
         "button": "Commencer gratuitement"
+      },
+      "login": "Se connecter",
+      "heroNote": "Gratuit. Inscrivez-vous avec une adresse e-mail et commencez dans votre navigateur. Les applications iPhone et Android sont en préparation.",
+      "details": {
+        "title": "Autres fonctionnalités",
+        "lead": "Tout ce qu'il faut pour un usage quotidien.",
+        "date": {
+          "title": "Saisie des dates",
+          "description": "Saisissez « demain acheter du lait » et la tâche est enregistrée avec cette date."
+        },
+        "calendar": {
+          "title": "Calendrier",
+          "description": "Consultez les tâches de toutes vos listes dans un calendrier mensuel. Vous pouvez aussi choisir un jour et ajouter une tâche."
+        },
+        "pin": {
+          "title": "Épingler et trier",
+          "description": "Les tâches épinglées s'affichent en haut. Les tâches peuvent être triées automatiquement par date ou réordonnées par glisser-déposer."
+        },
+        "history": {
+          "title": "Suggestions",
+          "description": "Les tâches déjà saisies apparaissent en suggestions, ce qui permet d'ajouter rapidement les plus fréquentes."
+        },
+        "offline": {
+          "title": "Hors ligne",
+          "description": "Vous pouvez ajouter, terminer et modifier des tâches hors ligne. Les changements se synchronisent automatiquement au retour en ligne."
+        },
+        "appearance": {
+          "title": "Couleurs et thèmes",
+          "description": "Choisissez une couleur de fond pour chaque liste. Thèmes clair et sombre disponibles."
+        },
+        "language": {
+          "title": "11 langues",
+          "description": "L'interface est disponible en 11 langues : japonais, anglais, espagnol, allemand, français, coréen, chinois simplifié, hindi, arabe, portugais et indonésien. La saisie des dates fonctionne aussi dans chaque langue."
+        }
+      },
+      "useCases": {
+        "title": "Exemples d'utilisation",
+        "shopping": {
+          "title": "Liste de courses",
+          "description": "Partagez la liste en famille et cochez les articles au fil des achats. Les ajouts apparaissent aussitôt chez tout le monde."
+        },
+        "family": {
+          "title": "Tâches de la famille",
+          "description": "Ajoutez des dates aux tâches ménagères et aux factures, et consultez la suite dans le calendrier."
+        },
+        "travel": {
+          "title": "Bagages et préparatifs de voyage",
+          "description": "Partagez les listes de bagages et de réservations avec vos compagnons de voyage."
+        },
+        "team": {
+          "title": "Tâches des petites équipes",
+          "description": "Envoyez un code de partage pour commencer. Adapté au partage de tâches dans un petit groupe."
+        }
+      },
+      "faq": {
+        "title": "Questions fréquentes",
+        "free": {
+          "question": "Lightlist est-il gratuit ?",
+          "answer": "Oui. Inscrivez-vous avec un e-mail et un mot de passe et utilisez toutes les fonctionnalités gratuitement."
+        },
+        "share": {
+          "question": "Comment partager une liste ?",
+          "answer": "Créez un code de partage depuis le bouton de partage de la liste et envoyez le lien. Toute personne ayant le lien peut consulter la liste sans se connecter, et la modifier après s'être connectée et l'avoir rejointe."
+        },
+        "devices": {
+          "question": "Sur quels appareils fonctionne-t-il ?",
+          "answer": "Elle fonctionne dans tout navigateur sur ordinateur ou mobile. Connectez-vous avec le même compte et vos listes restent synchronisées. Les applications iPhone et Android sont en cours de préparation avant leur soumission aux stores."
+        },
+        "account": {
+          "question": "Puis-je supprimer mon compte et mes données ?",
+          "answer": "Oui. Vous pouvez supprimer votre compte à tout moment depuis les paramètres ; vos listes et autres données sont supprimées avec lui."
+        }
       }
     },
     "sharecode": {

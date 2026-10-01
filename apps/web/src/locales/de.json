@@ -267,11 +267,11 @@
   "pages": {
     "index": {
       "getStarted": "Kostenlos starten",
-      "headline": "Einfach genug.\nGenau das ist der Punkt.",
+      "headline": "Einfach genug.\nGenau darum geht es.",
       "subheadline": "Für alle, die komplexe Aufgaben-Apps satt haben.\nEinfach genug für jeden, von Anfang an.\nTeile es mit anderen, wenn du möchtest.",
       "seo": {
-        "title": "Lightlist | Einfache geteilte Aufgabenliste & ToDo-App",
-        "description": "Lightlist ist eine einfache geteilte Aufgabenliste / ToDo-App für Einzelpersonen, Familien und kleine Teams. Verwalte Einkaufslisten und tägliche Aufgaben auf Web, iPhone und Android.",
+        "title": "Lightlist | Kostenlose, einfache geteilte Aufgabenliste & To-do-App",
+        "description": "Lightlist ist eine kostenlose, einfache Aufgabenlisten- / To-do-App zum Teilen von Einkaufslisten und Familienaufgaben. Datum beim Tippen, Kalender, Offline-Nutzung und Synchronisierung in jedem Browser auf Computer und Smartphone.",
         "keywords": "aufgabenliste,todo app,geteilte aufgabenliste,einkaufsliste,familienaufgaben,teamaufgaben,Lightlist"
       },
       "features": {
@@ -282,22 +282,95 @@
         },
         "multidevice": {
           "title": "Jedes Gerät, jederzeit",
-          "description": "Greife über jeden Browser zu oder nutze die iOS- und Android-Apps. Deine Listen bleiben auf allen Geräten in Echtzeit synchron."
+          "description": "Nutze es in jedem Browser, auf Computer oder Smartphone. Deine Listen bleiben auf allen Geräten in Echtzeit synchron. Die Apps für iPhone und Android werden derzeit für die Einreichung in den Stores vorbereitet."
         },
         "share": {
           "title": "Teile, wenn du willst",
-          "description": "Erstelle einen Freigabecode und lade in Sekunden andere ein. Für den Beitritt ist kein Konto nötig. Unauffällig, wenn du es nicht brauchst."
+          "description": "Erstelle einen Freigabecode und lade in Sekunden andere ein. Mit dem Link kann jeder die Liste ohne Konto ansehen. Unauffällig, wenn du es nicht brauchst."
         }
       },
       "preview": {
         "title": "So sieht es aus",
         "desktopAlt": "Desktop-Screenshot",
-        "mobileAlt": "Mobiler Screenshot"
+        "mobileAlt": "Screenshot der mobilen Ansicht",
+        "calendarAlt": "Screenshot des Kalenders"
       },
       "cta": {
-        "title": "Einfach genug. Genau das ist der Punkt.",
-        "description": "Wenn Aufgabenverwaltung zu viel ist, ist Lightlist für dich. Starte mit nur einer Liste.",
+        "title": "Einfach genug. Genau darum geht es.",
+        "description": "Wenn dir Aufgabenverwaltung zu viel wird, ist Lightlist das Richtige für dich. Starte mit nur einer Liste.",
         "button": "Kostenlos starten"
+      },
+      "login": "Anmelden",
+      "heroNote": "Kostenlos. Mit E-Mail-Adresse registrieren und direkt im Browser loslegen. Die Apps für iPhone und Android sind in Vorbereitung.",
+      "details": {
+        "title": "Weitere Funktionen",
+        "lead": "Alles, was du für den Alltag brauchst.",
+        "date": {
+          "title": "Datum beim Tippen",
+          "description": "Tippe „morgen Milch kaufen“ und die Aufgabe wird mit diesem Datum gespeichert."
+        },
+        "calendar": {
+          "title": "Kalender",
+          "description": "Sieh die Aufgaben aller Listen in einem Monatskalender. Du kannst auch einen Tag auswählen und eine Aufgabe hinzufügen."
+        },
+        "pin": {
+          "title": "Anheften und Sortieren",
+          "description": "Angeheftete Aufgaben stehen oben. Aufgaben lassen sich automatisch nach Datum sortieren oder per Drag-and-drop ordnen."
+        },
+        "history": {
+          "title": "Vorschläge",
+          "description": "Bereits eingegebene Aufgaben erscheinen als Vorschläge, sodass du häufige Aufgaben schnell hinzufügen kannst."
+        },
+        "offline": {
+          "title": "Offline nutzbar",
+          "description": "Du kannst Aufgaben offline hinzufügen, abhaken und bearbeiten. Änderungen werden automatisch synchronisiert, sobald du wieder online bist."
+        },
+        "appearance": {
+          "title": "Farben und Designs",
+          "description": "Wähle für jede Liste eine Hintergrundfarbe. Helles und dunkles Design werden unterstützt."
+        },
+        "language": {
+          "title": "11 Sprachen",
+          "description": "Die Oberfläche ist in 11 Sprachen verfügbar: Japanisch, Englisch, Spanisch, Deutsch, Französisch, Koreanisch, vereinfachtes Chinesisch, Hindi, Arabisch, Portugiesisch und Indonesisch. Auch die Datumseingabe versteht jede dieser Sprachen."
+        }
+      },
+      "useCases": {
+        "title": "Beispiele",
+        "shopping": {
+          "title": "Einkaufslisten",
+          "description": "Teile die Liste mit der Familie und hake beim Einkaufen ab. Neue Einträge erscheinen sofort bei allen."
+        },
+        "family": {
+          "title": "Aufgaben in der Familie",
+          "description": "Gib Hausarbeiten und Rechnungen ein Datum und sieh im Kalender, was ansteht."
+        },
+        "travel": {
+          "title": "Packliste & Reiseplanung",
+          "description": "Teile Pack- und Buchungslisten mit deinen Mitreisenden."
+        },
+        "team": {
+          "title": "Aufgaben kleiner Teams",
+          "description": "Sende einen Freigabecode, um loszulegen. Gut geeignet, um Aufgaben in einer kleinen Gruppe zu teilen."
+        }
+      },
+      "faq": {
+        "title": "Häufige Fragen",
+        "free": {
+          "question": "Ist Lightlist kostenlos?",
+          "answer": "Ja. Mit E-Mail und Passwort registrieren und alle Funktionen kostenlos nutzen."
+        },
+        "share": {
+          "question": "Wie teile ich eine Liste?",
+          "answer": "Erstelle über die Teilen-Schaltfläche der Liste einen Freigabecode und sende den Link. Jeder mit dem Link kann die Liste ohne Anmeldung ansehen und nach Anmeldung und Beitritt mitbearbeiten."
+        },
+        "devices": {
+          "question": "Auf welchen Geräten läuft es?",
+          "answer": "Es läuft in jedem Browser auf Computer oder Smartphone. Mit demselben Konto anmelden, und deine Listen bleiben synchron. Die Apps für iPhone und Android werden derzeit für die Einreichung in den Stores vorbereitet."
+        },
+        "account": {
+          "question": "Kann ich mein Konto und meine Daten löschen?",
+          "answer": "Ja. Du kannst dein Konto jederzeit in den Einstellungen löschen; deine Listen und weiteren Daten werden dabei mitgelöscht."
+        }
       }
     },
     "sharecode": {

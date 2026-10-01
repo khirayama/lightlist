@@ -269,8 +269,8 @@
       "headline": "Simple enough.\nThat's the point.",
       "subheadline": "For anyone tired of complex task apps.\nSimple enough for everyone, right from the start.\nShare with others when you need to.",
       "seo": {
-        "title": "Lightlist | Simple Shared Task List & ToDo App",
-        "description": "Lightlist is a simple shared task list / ToDo app for individuals, families, and small teams. Manage shopping lists and daily tasks across web, iPhone, and Android.",
+        "title": "Lightlist | Free, Simple Shared Task List & To-Do App",
+        "description": "Lightlist is a free, simple task list / to-do app for sharing shopping lists and family chores. Type dates naturally, see everything in a calendar, work offline, and stay in sync in any browser on desktop or mobile.",
         "keywords": "task list,todo app,shared task list,shopping list,family tasks,team tasks,Lightlist"
       },
       "features": {
@@ -281,22 +281,95 @@
         },
         "multidevice": {
           "title": "Any device, anytime",
-          "description": "Access from any browser, or use the iOS and Android apps. Your lists stay in sync across all devices in real time."
+          "description": "Use it in any browser, on desktop or mobile. Your lists stay in sync across all devices in real time. iPhone and Android apps are currently being prepared for store submission."
         },
         "share": {
           "title": "Share when you want to",
-          "description": "Generate a share code and invite anyone to your list in seconds. No account required to join. Out of the way when you don't need it."
+          "description": "Generate a share code and invite anyone to your list in seconds. Anyone with the link can view it without an account. Out of the way when you don't need it."
         }
       },
       "preview": {
         "title": "See it in action",
         "desktopAlt": "Desktop screenshot",
-        "mobileAlt": "Mobile screenshot"
+        "mobileAlt": "Mobile screenshot",
+        "calendarAlt": "Calendar screenshot"
       },
       "cta": {
         "title": "Simple enough. That's the point.",
         "description": "If task management feels like too much, Lightlist is for you. Start with one list.",
         "button": "Get started for free"
+      },
+      "login": "Log in",
+      "heroNote": "Free to use. Sign up with an email address and start right in your browser. iPhone and Android apps are being prepared for release.",
+      "details": {
+        "title": "Other features",
+        "lead": "Everything you need for everyday use.",
+        "date": {
+          "title": "Date input",
+          "description": "Type “tomorrow buy milk” or “12/24 gift” and the task is saved with that date."
+        },
+        "calendar": {
+          "title": "Calendar",
+          "description": "See tasks from all your lists in one monthly calendar. You can also pick a day and add a task."
+        },
+        "pin": {
+          "title": "Pinning and sorting",
+          "description": "Pinned tasks are shown at the top. Tasks can be sorted automatically by date or reordered by dragging."
+        },
+        "history": {
+          "title": "Suggestions",
+          "description": "Tasks you have entered before appear as suggestions, so you can add frequent ones quickly."
+        },
+        "offline": {
+          "title": "Offline support",
+          "description": "You can add, complete, and edit tasks offline. Changes sync automatically when you are back online."
+        },
+        "appearance": {
+          "title": "Colors and themes",
+          "description": "Choose a background color for each list. Light and dark themes are supported."
+        },
+        "language": {
+          "title": "11 languages",
+          "description": "The interface is available in 11 languages: Japanese, English, Spanish, German, French, Korean, Simplified Chinese, Hindi, Arabic, Portuguese, and Indonesian. Date input also understands each language."
+        }
+      },
+      "useCases": {
+        "title": "Examples",
+        "shopping": {
+          "title": "Shopping lists",
+          "description": "Share a list with your family and check items off as you buy them. New items appear for everyone right away."
+        },
+        "family": {
+          "title": "Family to-dos",
+          "description": "Add dates to chores and bills, and check what is coming up in the calendar."
+        },
+        "travel": {
+          "title": "Trip packing & planning",
+          "description": "Share packing and booking lists with the people you are traveling with."
+        },
+        "team": {
+          "title": "Small team tasks",
+          "description": "Send a share code to get started. A good fit for sharing tasks in a small group."
+        }
+      },
+      "faq": {
+        "title": "Frequently asked questions",
+        "free": {
+          "question": "Is Lightlist free?",
+          "answer": "Yes. Sign up with an email and password and you can use every feature for free."
+        },
+        "share": {
+          "question": "How do I share a list?",
+          "answer": "Create a share code from the list's share button and send the link. Anyone with the link can view the list without logging in, and can edit together after logging in and joining."
+        },
+        "devices": {
+          "question": "Which devices are supported?",
+          "answer": "It works in any browser on desktop or mobile. Log in with the same account and your lists stay in sync. iPhone and Android apps are currently being prepared for store submission."
+        },
+        "account": {
+          "question": "Can I delete my account and data?",
+          "answer": "Yes. You can delete your account from Settings at any time, and your task lists and other data are deleted with it."
+        }
       }
     },
     "sharecode": {

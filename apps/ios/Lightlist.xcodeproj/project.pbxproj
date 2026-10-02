@@ -602,7 +602,7 @@
 			repositoryURL = "https://github.com/mono0926/LicensePlist";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 3.28.0;
+				minimumVersion = 3.28.3;
 			};
 		};
 		E79E81D55D81F04657117F44 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {

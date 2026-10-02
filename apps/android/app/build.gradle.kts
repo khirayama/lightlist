@@ -99,8 +99,6 @@ android {
             "\"$debugPasswordResetLinkDomain\""
         )
         manifestPlaceholders["passwordResetLinkHost"] = debugPasswordResetLinkDomain
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -181,11 +179,5 @@ dependencies {
     implementation(libs.firebase.crashlytics)
     implementation(libs.google.play.services.oss.licenses)
     implementation(libs.kotlinx.coroutines.play.services)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

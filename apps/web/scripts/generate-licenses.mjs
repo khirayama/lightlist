@@ -1,13 +1,10 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { init } from "license-checker-rseidelsohn";
 
-const execFileAsync = promisify(execFile);
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const webRoot = path.resolve(__dirname, "..");
+const readLicenses = promisify(init);
+const webRoot = path.resolve(import.meta.dirname, "..");
 const outputDir = path.join(webRoot, "public", "licenses");
 const outputPath = path.join(outputDir, "licenses.json");
 const manualLicensesPath = path.resolve(
@@ -19,8 +16,6 @@ const manualLicensesPath = path.resolve(
   "manual-licenses.json",
 );
 
-const customFormatPath = path.join(__dirname, ".license-checker-format.json");
-
 const customFormat = {
   name: "",
   version: "",
@@ -29,9 +24,8 @@ const customFormat = {
   licenseText: "",
 };
 
-const parseLicenses = (raw) => {
-  const parsed = JSON.parse(raw);
-  return Object.values(parsed)
+const parseLicenses = (packages) => {
+  return Object.values(packages)
     .map((entry) => {
       if (!entry || typeof entry !== "object") {
         return null;
@@ -69,22 +63,14 @@ const parseLicenses = (raw) => {
 };
 
 await mkdir(outputDir, { recursive: true });
-await writeFile(customFormatPath, `${JSON.stringify(customFormat, null, 2)}\n`);
+const packages = await readLicenses({
+  start: webRoot,
+  production: true,
+  json: true,
+  customFormat,
+});
 
-const { stdout } = await execFileAsync(
-  "npx",
-  [
-    "--yes",
-    "license-checker-rseidelsohn",
-    "--production",
-    "--json",
-    "--customPath",
-    customFormatPath,
-  ],
-  { cwd: webRoot, maxBuffer: 16 * 1024 * 1024 },
-);
-
-const openSourceLicenses = parseLicenses(stdout);
+const openSourceLicenses = parseLicenses(packages);
 const manualLicenses = JSON.parse(await readFile(manualLicensesPath, "utf8"));
 
 await writeFile(
@@ -98,5 +84,3 @@ await writeFile(
     2,
   )}\n`,
 );
-
-await rm(customFormatPath, { force: true });

@@ -9,7 +9,7 @@ packages:
     from: "12.19.2"
   LicensePlist:
     url: https://github.com/mono0926/LicensePlist
-    from: "3.28.0"
+    from: "3.28.3"
 settings:
   base:
     CURRENT_PROJECT_VERSION: 1

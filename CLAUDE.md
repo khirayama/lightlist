@@ -13,11 +13,12 @@
 ## リポジトリ構成
 
 - モノレポは `apps/web`（Vite multi-page app + React + TypeScript）、`apps/ios`（SwiftUI、iOS 17+）、`apps/android`（Kotlin + Gradle）で構成する。
-- ルートに Node manifest は置かず、Web の manifest と lockfile は `apps/web` に集約する。Web は TypeScript 7 系を `strict` + `skipLibCheck=false` で使い、`apps/web/.npmrc` の `legacy-peer-deps=true` を維持する。
+- ルートに Node manifest は置かず、Web の manifest と lockfile は `apps/web` に集約する。Web は TypeScript 7 系を `strict` + `skipLibCheck=false` で使う。npm の標準 peer dependency 検証を有効にし、`legacy-peer-deps` / `--force` で回避しない。
 - Web の Vite root / HTML entry は `apps/web/html`、静的 asset は `apps/web/public`、環境変数は `apps/web/.env*` とする。runtime TS/TSX は `apps/web/src/entry.tsx` に集約し、LP だけ `apps/web/src/lp.ts` を使う。
 - Web の app page（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `entry.tsx` を共通 bootstrap とし、各 HTML の `body[data-page]` で切り替える。LP は React / Firebase / i18next から分離し、build 時に言語別の静的ページ（`/`=ja、`/en/` など）へ書き出す。
 - Web UI から `firebase/*` を直接 import せず、Firebase 初期化・Auth / Firestore 状態購読・i18n 初期化は `entry.tsx` を正とする。独立 SDK パッケージは持たない。Auth は popup / redirect resolver を含まない `initializeAuth` で初期化する。
 - Web の Firestore 読み取りは購読・単発取得ともに共通境界検証へ通し、型 assertion だけでドメイン型へ変換しない。
+- `taskListOrder` は有効な `order` map だけを採用し、余分なスカラー field で一覧全体をエラーにしない。ドット記法を set + merge で保存した残存 field は表示順として扱わない。
 - iOS は `project.yml` から XcodeGen でプロジェクトを生成する。生成された `Lightlist.xcodeproj` と `xcuserdata` / `xcuserstate` / `build` / `DerivedData` は commit しない（SwiftPM 固定用の `Package.resolved` だけは例外として commit する）。
 
 ## Firebase・配信
@@ -26,19 +27,21 @@
 - Rules が要求する書き込み形をクライアントへ入れる変更は、本番 Rules のデプロイ（必要なら Admin backfill 先行）をアプリ配布より先に行い、本番 ruleset がリポジトリと一致することを確認する。サインアップ初期データは冪等な `ensureInitialUserData` で作成し、settings の不在をサーバー確定 snapshot で検知したら自己修復する。
 - Firebase のデプロイ設定（`firestore.rules`、`firebase.json`、`.firebaserc`、`firestore.indexes.json`）はリポジトリルートに置く。
 - Web の本番配信は Cloudflare Pages とする。Root directory は `apps/web`、output directory は `dist`、Node.js は `apps/web/.node-version` の `24.19.0`、package manager は `apps/web/package.json` の `npm@12.0.2` に固定する。
-- npm 12 の依存 install script は `apps/web/package.json` の完全バージョン付き `allowScripts` で明示承認し、依存更新時は `npm install-scripts ls` で未承認がないことを確認する。
+- npm 12 の依存 install script は `apps/web/package.json` の完全バージョン付き `allowScripts` で明示承認し、依存更新時は `npm approve-scripts --allow-scripts-pending` で未承認がないことを確認する。
 - 本番ドメインは `https://lightlist.app/`。native の共有 URL・パスワードリセット URL・Universal Links / App Links もこのドメインに揃え、`lightlist.com` は使わない。
 - Cloudflare Pages の build では `LIGHTLIST_IOS_TEAM_ID` と `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` を使って AASA / Digital Asset Links を `dist/.well-known/` に生成する。`cf:preview` / `cf:deploy` は両環境変数を必須とし、Git integration は両方を設定するまで `npm run build`、設定後は `npm ci && npm run cf:build` を build command にする。
 - Web の production response headers はアプリ内でなく配信基盤側で管理する。PII（特にメールアドレス）を `console.error` や Analytics parameter に含めない。
 
 ## 共通仕様
 
-- locale の正本は `shared/locales/locales.json`。Web は sync script で言語別の `src/locales/<lang>.json` と LP 用 `src/lp-locales.json` を生成し（アプリは `ja` だけ静的同梱、他言語は dynamic import）、iOS は `apps/ios/Lightlist/Resources/locales.json` を手動同期、Android は build 時に asset 化する。対応言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`、fallback は `ja`。
+- locale の正本は `shared/locales/locales.json`。Web は sync script で言語別の `src/locales/<lang>.json` と LP 用 `src/lp-locales.json` を生成し（UI 翻訳は `ja` だけ静的同梱、他言語は dynamic import）、英語相対日付の解析用 `src/english-date-patterns.json` も生成して静的同梱する。iOS は `apps/ios/Lightlist/Resources/locales.json` を手動同期、Android は build 時に asset 化する。対応言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`、fallback は `ja`。
 - UI は 3 プラットフォーム共通のモノクロ palette と system/light/dark theme を使う。アクセント色を追加せず、iOS は `AccentColor.colorset` と `AppPalette`（named color + `dynamicColor`）、Android は明示的な Material palette、Web は通常 CSS を正とする。iOS の見た目・情報設計は Web を正本とし、ボタン / 入力欄 / ダイアログ / ヘッダー / 月カレンダーは `ContentView.swift` の共通部品（`AppButtonStyle` / `.appField()` / `AppDialog` / `AppNavigationHeader` / `MonthCalendarView`）だけで組む。Android も見た目・情報設計は Web を正本とし、`ContentView.kt` の共通部品（`AppButton` / `AppIconButton` / `AppTextField` / `AppDialog` / `AppSheet` / `AppMonthCalendar` / `AppSwitch`）だけで組み、Material の `AlertDialog` / `OutlinedTextField` / `DatePicker` などは使わない。タスクリスト一覧は Web のサイドバーパネル、tablet の右ペインは Web のワイド表示（page title・最大幅・2 カラムのカレンダー）に揃える。詳細な色・寸法・motion は `AGENTS.md` を参照する。
+- 空状態・全完了・初回読み込みは3プラットフォームで区別する。空状態はアイコン + 見出し + 次の操作への案内、全完了は完了済み行の末尾にチェック + 見出し + ねぎらい文言。0件を全完了として扱わず、空リストでは並び替え・完了済み削除の操作列を隠す。編集不可のプレビューでは入力への案内を表示しない。読み込み中は骨組み + ローカライズ済みの読み込み文言とし、未取得を空状態として表示しない。カレンダーへ外部のリストを渡す場合も loading / error 状態を一緒に渡す。Web の skeleton pulse は Reduce Motion 時に停止する。
 - 設定画面のセクション順は「アカウント → 表示と動作 → 法的情報 → アカウント操作」。カレンダーは日グリッドとタスク一覧を同じ横幅で直置きし、月カレンダーと「タスクを追加」は固定して一覧だけをスクロールさせ、タスク一覧全体に囲い・角丸・面の背景色・行間 divider を付けない。タスク行は offset なしの 2 段構成（上段: 日付 + ピン / リスト名、下段: 完了操作 / 本文 / 編集操作）とし、下段の要素を上寄せして行末に 4 相当の余白を置く。操作領域は iOS 44pt / Android 48dp 以上を維持し、完了操作と編集操作は Web と同じ 48 の列に置く。カレンダーの「タスクを追加」は常時表示する。
 - `yyyy-MM-dd` は実在する暦日だけを厳密に受け入れ、不正値は日付なしへ正規化する。端末ローカルの暦日として扱い、Web の `new Date("yyyy-mm-dd")` や UTC formatter を使わない。UTC 変換の例外は持たず、iOS / Android の `yyyy-MM-dd` 生成は gregorian の年月日成分から整形して formatter を都度生成しない。
+- 月カレンダーの週開始は `es` / `de` / `fr` / `zh-CN` / `id` が月曜、`ar` が土曜、それ以外は日曜に固定する。内部の日付計算は端末既定暦に依存させない。英語相対日付の解析は英語 UI 翻訳の読み込み状態に依存させない。
 - 入力 parser は Web の `entry.tsx` を正本とし、日付・相対表現・pin prefix・数字正規化を iOS / Android でも揃える。`taskInsertPosition` の既定は `top`、履歴は小文字比較で重複除去して最大 300 件とする。
-- タスクの表示順は `order` を根拠に配列化する。`autoSort` 有効時は pinned 未完了 → unpinned 未完了 → 完了の各グループ内を日付順にし、無効時は状態にかかわらず全 task を任意順で扱う。同順位は `id` で決定的にする。`pinOrder` は持たない。手動並び替えは `autoSort` 有効時だけ同じ表示グループ・日付内に制限し、無効時は全 task 間で許可する。操作終了時の全 task ID 順を保存する。
+- タスクの表示順は `order` を根拠に配列化する。`autoSort` 有効時は pinned 未完了 → unpinned 未完了 → 完了の各グループ内を日付順にし、無効時は状態にかかわらず全 task を任意順で扱う。同順位は `id` で決定的にする。`pinOrder` は持たない。手動並び替えは `autoSort` 有効時だけ同じ表示グループ・日付内に制限し、無効時は全 task 間で許可する。drag handle と本文の長押し（タッチのみ、iOS は 18 以降）のどちらからでも開始できる。操作終了時の全 task ID 順を保存する。
 - task は本文・日付・ピンのいずれかが有効なら保存する。日付あり・ピン留めなら空本文を許可し、3 項目すべてが空相当になった task は削除する。
 - 共有taskの他端末競合で必須field不足の部分mapが再生成される場合があるため、全task fieldを厳格decodeし、server確定snapshotでだけ部分mapを自動削除する。
 - Firestore の UI 更新は transaction を使わず、表示中の task 群を正規化して pending overlay に反映する。SDK への投入順とサーバー応答待ちを分離し、オフライン中も後続操作を SDK の永続キャッシュへ渡す。表示優先順は drag overlay → pending → listener。書き込み中の内容一致だけで pending を解放せず、同一リストの応答追跡が完了した時に解放する。
@@ -60,7 +63,7 @@
 ## プラットフォーム固有の制約
 
 - iOS の Firebase plist は `Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` にローカル配置し、build configuration に応じて app bundle には標準名を 1 つだけコピーする。entitlements は `Lightlist/Lightlist.entitlements`、App Store 提出物は `just archive`（署名検証込み）→ `just upload` とし、Team ID と任意の App Store Connect API key 識別子は gitignore 対象の `apps/ios/.env.local`（雛形は `apps/ios/.env.sample`）に置く。証明書・profile は automatic signing に任せ、リポジトリに置かない。詳細は `docs/release-ios.md`。
-- Android の bundle identifier / Gradle namespace / Kotlin package は `com.lightlist.app`。Firebase 設定は debug / release variant ごとに分け、Firebase BoM v34 以降では main module を使う。release の R8 keep rule（Firebase component registrar と `FirestoreSettingsRecord` のリフレクション変換対象）、`isMinifyEnabled = true`、`allowBackup = false`、`androidx.profileinstaller` を維持する。Crashlytics Gradle plugin は build ID 注入のため全 variant に適用し、mapping upload は `bundleRelease` のときだけ有効にする。upload key は `just keystore-create` でリポジトリ外に作成し、keystore パスと alias は `apps/android/.env.local`（雛形は `apps/android/.env.sample`）、パスワードは login Keychain に置く。版数は `apps/android/gradle.properties` の `LIGHTLIST_VERSION_CODE` / `LIGHTLIST_VERSION_NAME` を正とする。
+- Android の bundle identifier / Gradle namespace / Kotlin package は `com.lightlist.app`。Firebase 設定は debug / release variant ごとに分け、Firebase BoM v34 以降では main module を使う。release の R8 keep rule（Firebase component registrar と `FirestoreSettingsRecord` / `FirestoreTaskListRecord` / `FirestoreTaskRecord` のリフレクション変換対象）、`isMinifyEnabled = true`、`allowBackup = false`、`androidx.profileinstaller` を維持する。Crashlytics Gradle plugin は build ID 注入のため全 variant に適用し、mapping upload は `bundleRelease` のときだけ有効にする。upload key は `just keystore-create` でリポジトリ外に作成し、keystore パスと alias は `apps/android/.env.local`（雛形は `apps/android/.env.sample`）、パスワードは login Keychain に置く。版数は `apps/android/gradle.properties` の `LIGHTLIST_VERSION_CODE` / `LIGHTLIST_VERSION_NAME` を正とする。
 - Android の Google OSS Licenses runtime は従来版 Activity を含む `play-services-oss-licenses:17.2.2` に固定し、アプリ本体の Compose BOM と競合する Compose ベースの v2 Activity は使わない。従来版 Activity 用に AppCompat `1.7.1` を直接依存に含める。
 - Android の `just run` は通常上書きインストール、データを消す再インストールは `just run-clean`。Play 提出物は署名設定と versionCode を確認した `just bundle-play` の AAB とする。詳細は `docs/release-android.md`。
 - CI 品質ゲートは設定せず、変更した app のローカル検証を正とする。

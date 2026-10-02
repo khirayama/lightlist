@@ -24,6 +24,7 @@
 - iOS の compact 幅タスクリスト詳細は `TaskListDetailPagerView` 自体を full screen コンテナとして描画し、最外層背景は選択中タスクリストの `background` を `ignoresSafeArea()` で全面へ敷く。本体は画面いっぱいの `VStack` を同じ背景で満たす。ページャーのインジケータだけを固定表示し（ドット 8・ピッチ 26・選択は scale 1.1、regular 幅では表示しない）、タスクリスト名、タスク追加欄、並び替え・完了済み削除操作、タスク行は同じ `ScrollView` に載せて edge-to-edge にスクロールさせる。見出し・入力欄・操作列は間隔 16（操作列は上 -4 / 下 -8 で Web の `ll-task-toolbar` と同じ詰め）、タスク行同士は間隔 0 で別の `VStack` に置く。
 - iOS のアプリ内アイコンは `ContentView.swift` の metrics を正とし、標準アクションとナビゲーション `22pt`、テキスト横の補助アクション `18pt`、詳細画面の小型アクション `20pt` を基準に目視サイズを揃える。AppIcon 資産とは分けて扱う。
 - iOS の SwiftUI 並び替えドラッグは、移動中の行の local 座標系ではなく親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で収集した行高さだけを使う。`frame(in:)` の位置監視を drag state に戻さない。
+- iOS のタスク本文の長押し並び替えは `UILongPressGestureRecognizer` を `UIGestureRecognizerRepresentable`（iOS 18 以降）で本文に付ける。SwiftUI の `LongPressGesture.sequenced(before: DragGesture)` は `simultaneousGesture` だと本文上からの縦スクロールとページ切替を止め、`gesture` だと発火せず、`highPriorityGesture` だとタップ編集を壊すため使わない。`Button` に付けた representable も発火しないため、iOS 18 以降の本文は `onTapGesture` + button trait の非 `Button` とし、iOS 17 は従来の `Button`（drag handle のみ）を維持する。
 - iOS の全画面ルートと sheet / dialog は `frame(maxWidth: .infinity, maxHeight: .infinity)` を維持しつつ、背景ビュー側だけで safe area を無視する。標準ナビゲーションバーを使わない iPhone ヘッダーは `SafeAreaNavigationHeader` と `safeAreaInset(edge: .top)` を使う。`LightlistApp` は hidden `UIViewRepresentable` の `WindowSceneConfigurator` で attach 済み `UIWindow` を初期化し、window 背景色と root view controller の safe area / layout margins も全画面前提に揃える。`ScrollView` ベースの全画面フォームはカードラッパーを持たず、外側 `maxWidth` 制約や `RoundedRectangle` でカード化しない。
 - iOS の custom header 付き画面と sheet / dialog は、header を `safeAreaInset(edge: .top)` に載せ、本文 root も `frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)` で画面高または detent 高いっぱいまで広げる。header inset と重複する大きな `padding(.top)` は本文側で足さず、追加の視覚余白は最小限に留める。
 - iOS の Firebase Analytics は `FirebaseApp.configure()` で自動有効化し、Crashlytics も `ContentView.swift` 内の `LightlistApp` で初期化する。
@@ -35,6 +36,8 @@
 - iOS のタスクリスト詳細のタスク行は `ScrollView` 内の `LazyVStack` で描画する。並び替えの swap 判定は隣接行の `taskItemHeights` だけを使い、未計測の行は現在行の高さで代用する前提を維持する。
 - iOS のオンライン判定は `NetworkStatus.shared`（`NWPathMonitor`）を `@ObservedObject` で参照し、オンライン必須操作には `ConnectionRequiredNote` を併記する。同期失敗は `SyncFailureCenter.shared.report()` に集約し、queue 外の batch（リスト作成・削除）は `commitReportingFailure(_:)` で commit する。completion に渡す関数は `nonisolated` にする（file 内の private 関数は MainActor と推論され、Firestore の `@Sendable` completion へ渡すと Swift 6 でエラーになる）。async 文脈から completion 版 API を直接呼ぶと「asynchronous alternative」警告が出るため、同期 helper 経由で呼ぶ。
 - iOS の lint / format は Xcode 同梱の swift-format を使い、設定は `apps/ios/.swift-format`（4 スペース indent・行長 140・`respectsExistingLineBreaks`・`NoAccessLevelOnExtensionDeclaration` 無効で `private extension` を許可）を正とする。`just format` で整形し、`just lint`（`--strict`）が警告 0 になる状態を保つ。`.forEach {}` は for-in、定数・変数は lowerCamelCase で書く。
+
+- 月カレンダーの `firstWeekday` は表示言語の共通仕様で明示する。Foundation の locale 既定値は `zh-CN` / `id` で Web と異なるため、そのまま使わない。
 
 ## 主要コマンド
 

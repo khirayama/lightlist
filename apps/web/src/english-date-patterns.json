@@ -1,0 +1,43 @@
+{
+  "relative": [
+    {
+      "pattern": "^today(?:[\\s　]|$)",
+      "offset": 0,
+      "options": "i"
+    },
+    {
+      "pattern": "^tomorrow(?:[\\s　]|$)",
+      "offset": 1,
+      "options": "i"
+    },
+    {
+      "pattern": "^day after tomorrow(?:[\\s　]|$)",
+      "offset": 2,
+      "options": "i"
+    },
+    {
+      "pattern": "^in\\s+(\\d+)\\s+days?(?:[\\s　]|$)",
+      "offsetGroup": 1,
+      "options": "i"
+    },
+    {
+      "pattern": "^(\\d+)\\s+days?\\s+later(?:[\\s　]|$)",
+      "offsetGroup": 1,
+      "options": "i"
+    },
+    {
+      "pattern": "^(mon|tue|wed|thu|fri|sat|sun)(?:day)?(?:[\\s　]|$)",
+      "weekdayGroup": 1,
+      "options": "i"
+    }
+  ],
+  "weekdays": {
+    "sun": 0,
+    "mon": 1,
+    "tue": 2,
+    "wed": 3,
+    "thu": 4,
+    "fri": 5,
+    "sat": 6
+  }
+}

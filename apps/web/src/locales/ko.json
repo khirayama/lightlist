@@ -12,7 +12,6 @@
     "copy": "복사",
     "copied": "복사됨",
     "error": "오류가 발생했습니다",
-    "done": "완료",
     "selected": "선택됨",
     "offline": "오프라인 상태입니다. 다시 연결되면 변경 사항이 동기화됩니다",
     "syncFailed": "일부 변경 사항을 동기화하지 못했습니다. 최신 내용을 표시합니다",
@@ -104,7 +103,6 @@
     "error": "오류가 발생했습니다",
     "dragHint": "드래그해서 순서 변경",
     "drawerTitle": "작업 목록",
-    "drawerNoEmail": "사용 가능한 이메일 없음",
     "taskListLocator": {
       "label": "작업 목록 위치",
       "goTo": "{{total}}개 중 {{index}}번째 목록으로 이동"
@@ -115,13 +113,13 @@
     "shareCodePlaceholder": "공유 코드 입력",
     "join": "참가",
     "joining": "참가 중...",
-    "calendarCheckButton": "캘린더에서 보기",
     "calendarNoDatedTasks": "날짜가 지정된 작업이 없습니다",
-    "calendarNoTasksOnSelectedDate": "선택한 날짜에 작업이 없습니다",
     "loadError": "할 일 목록을 불러오지 못했습니다.",
     "calendar": "캘린더",
     "calendarPreviousMonth": "이전 달",
-    "calendarNextMonth": "다음 달"
+    "calendarNextMonth": "다음 달",
+    "emptyStateHint": "새 목록을 만들거나 공유 목록에 참여해 보세요.",
+    "calendarEmptyHint": "날짜를 선택하여 작업을 추가할 수 있어요."
   },
   "datePatterns": {
     "relative": [
@@ -167,15 +165,11 @@
     "고정"
   ],
   "taskList": {
-    "taskCount": "작업 {{count}}개",
-    "taskCount_one": "작업 {{count}}개",
-    "taskCount_other": "작업 {{count}}개",
     "remainingCount": "남은 작업 {{count}}개",
     "remainingCount_one": "남은 작업 {{count}}개",
     "remainingCount_other": "남은 작업 {{count}}개",
     "editDetails": "목록 편집",
     "selectColor": "색상 선택",
-    "backgroundNone": "없음 (테마 색상 사용)",
     "backgroundNoneShort": "없음",
     "deleteList": "내 목록에서 제거",
     "deleteListConfirm": {
@@ -237,7 +231,6 @@
     "actions": {
       "title": "계정 작업"
     },
-    "deleteAccount": "계정 삭제",
     "signingOut": "로그아웃 중...",
     "deletingAccount": "계정 삭제 중...",
     "emailChange": {
@@ -246,8 +239,7 @@
       "newEmailPlaceholder": "new@예시.com",
       "submitButton": "인증 메일 보내기",
       "submitting": "전송 중...",
-      "successMessage": "인증 메일을 보냈습니다. 새 이메일의 링크를 클릭하면 변경이 완료됩니다.",
-      "changeButton": "변경"
+      "successMessage": "인증 메일을 보냈습니다. 새 이메일의 링크를 클릭하면 변경이 완료됩니다."
     },
     "legal": {
       "title": "법적 정보"
@@ -389,7 +381,9 @@
       "noDate": "날짜 없음",
       "pinTask": "작업 고정",
       "unpinTask": "작업 고정 해제",
-      "deleteCompletedConfirmTitle": "완료된 할 일을 삭제하시겠습니까?"
+      "deleteCompletedConfirmTitle": "완료된 할 일을 삭제하시겠습니까?",
+      "noTasksHint": "위 입력란에서 첫 작업을 추가해 보세요.",
+      "allCompletedHint": "수고하셨어요. 잠시 쉬어 가세요."
     },
     "notFound": {
       "title": "페이지를 찾을 수 없습니다",

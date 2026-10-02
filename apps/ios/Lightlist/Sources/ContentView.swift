@@ -317,21 +317,85 @@ private struct StrikethroughText: View {
     }
 }
 
-private struct AllTasksCompletedNotice: View {
+private struct TaskStateNotice: View {
     @EnvironmentObject var translations: Translations
+    let icon: String
+    let titleKey: String
+    var hintKey: String? = nil
+    var color: Color = AppPalette.mutedText
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .regular))
+                .frame(width: 48, height: 48)
+                .background(color.opacity(0.08), in: Circle())
+                .padding(.bottom, 4)
+                .accessibilityHidden(true)
+            Text(translations.t(titleKey))
+                .font(AppTypography.subheadlineSemibold())
+            if let hintKey {
+                Text(translations.t(hintKey))
+                    .font(AppTypography.subheadline())
+                    .frame(maxWidth: 320)
+            }
+        }
+        .foregroundStyle(color)
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 32)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct AllTasksCompletedNotice: View {
     let color: Color
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 14, weight: .semibold))
-            Text(translations.t("pages.tasklist.allCompleted"))
-                .font(AppTypography.subheadlineMedium())
+        TaskStateNotice(
+            icon: "checkmark",
+            titleKey: "pages.tasklist.allCompleted",
+            hintKey: "pages.tasklist.allCompletedHint",
+            color: color
+        )
+    }
+}
+
+private struct TaskLoadingPlaceholder: View {
+    @EnvironmentObject var translations: Translations
+    var detail = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
+                if detail {
+                    RoundedRectangle(cornerRadius: 4).frame(width: 160, height: 24)
+                    RoundedRectangle(cornerRadius: 14).frame(height: 44)
+                    Color.clear.frame(height: 28)
+                }
+                ForEach(0..<3) { index in
+                    HStack(spacing: 12) {
+                        Circle().frame(width: 20, height: 20)
+                        RoundedRectangle(cornerRadius: 4).frame(width: index == 2 ? 128 : 160, height: 16)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(height: 44)
+                }
+            }
+            .foregroundStyle(AppPalette.border.opacity(0.55))
+            .accessibilityHidden(true)
+            Text(translations.t("common.loading"))
+                .font(AppTypography.subheadline())
+                .foregroundStyle(AppPalette.mutedText)
+                .frame(maxWidth: .infinity)
         }
-        .foregroundStyle(color)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .accessibilityElement(children: .combine)
+        .padding(.horizontal, detail ? 16 : 12)
+        .padding(.top, detail ? 40 : 8)
+        .frame(maxWidth: AppMetrics.taskColumnMaxWidth)
+        .frame(maxWidth: .infinity, maxHeight: detail ? .infinity : nil, alignment: .top)
+        .background(detail ? AppPalette.pageBackground : Color.clear)
     }
 }
 
@@ -1574,7 +1638,10 @@ private func orderedTaskListIds(from data: [String: Any]?) -> [String] {
         guard let value = value as? [String: Any] else {
             return nil
         }
-        guard let order = value["order"] as? NSNumber else {
+        guard let order = value["order"] as? NSNumber,
+            CFGetTypeID(order) != CFBooleanGetTypeID(),
+            order.doubleValue.isFinite
+        else {
             return nil
         }
         return (taskListId: key, order: order.doubleValue)
@@ -1750,8 +1817,8 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
         }
     }
 
-    private func markHealthy(key: String, isFromCache: Bool) {
-        if !isFromCache {
+    private func markHealthy(key: String, isServerConfirmed: Bool) {
+        if isServerConfirmed {
             retryDelays.removeValue(forKey: key)
             failedScopes.remove(key)
         }
@@ -1760,7 +1827,8 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
     private func installOrderListener(uid: String) {
         taskListOrderListener?.remove()
         let generation = listenerGeneration
-        taskListOrderListener = db.collection("taskListOrder").document(uid).addSnapshotListener { [weak self] snapshot, error in
+        taskListOrderListener = db.collection("taskListOrder").document(uid).addSnapshotListener(includeMetadataChanges: true) {
+            [weak self] snapshot, error in
             guard let self, generation == self.listenerGeneration else { return }
             if let error {
                 self.taskListOrderListener?.remove()
@@ -1773,7 +1841,8 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
             }
             self.orderedIds = orderedTaskListIds(from: snapshot?.data())
             self.orderLoaded = true
-            self.markHealthy(key: "order", isFromCache: snapshot?.metadata.isFromCache ?? true)
+            let serverConfirmed = snapshot.map { !$0.metadata.isFromCache && !$0.metadata.hasPendingWrites } ?? false
+            self.markHealthy(key: "order", isServerConfirmed: serverConfirmed)
             self.publishTaskLists()
         }
     }
@@ -1807,8 +1876,9 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
                 }
                 self.taskListsById = nextTaskListsById
                 self.taskListsLoaded = true
-                if snapshot?.metadata.isFromCache == false { self.taskListsServerLoaded = true }
-                self.markHealthy(key: "taskLists", isFromCache: snapshot?.metadata.isFromCache ?? true)
+                let serverConfirmed = snapshot.map { !$0.metadata.isFromCache && !$0.metadata.hasPendingWrites } ?? false
+                if serverConfirmed { self.taskListsServerLoaded = true }
+                self.markHealthy(key: "taskLists", isServerConfirmed: serverConfirmed)
                 self.publishTaskLists()
             }
     }
@@ -1816,9 +1886,9 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
     private func publishTaskLists() {
         taskLists = orderedIds.compactMap { taskListsById[$0] }
         let orderFailed = failedScopes.contains("order")
-        let taskListsFailedBeforeFirstSnapshot = failedScopes.contains("taskLists") && !taskListsLoaded
+        let taskListsFailedWithoutData = failedScopes.contains("taskLists") && taskLists.isEmpty
         let noTaskListLoaded = orderLoaded && taskListsServerLoaded && !orderedIds.isEmpty && taskLists.isEmpty
-        if orderFailed || taskListsFailedBeforeFirstSnapshot || noTaskListLoaded {
+        if orderFailed || taskListsFailedWithoutData || noTaskListLoaded {
             status = .error
         } else if (orderLoaded && taskListsLoaded) || !taskLists.isEmpty {
             status = .ready
@@ -2215,7 +2285,7 @@ private func resolvePasswordResetErrorMessage(translations: Translations, error:
     case .invalidActionCode:
         return translations.t("auth.passwordReset.invalidCode")
     default:
-        return error.localizedDescription
+        return resolveAuthErrorMessage(translations: translations, error: error)
     }
 }
 
@@ -2434,7 +2504,7 @@ private func parsePinPrefix(_ text: String, translations: Translations) -> (text
         guard source.count >= token.count else { continue }
         let endIndex = source.index(source.startIndex, offsetBy: token.count)
         let candidate = String(source[..<endIndex])
-        guard candidate.compare(token, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame else { continue }
+        guard candidate.compare(token, options: [.caseInsensitive]) == .orderedSame else { continue }
         if endIndex < source.endIndex, !source[endIndex].isWhitespace {
             continue
         }
@@ -2576,7 +2646,7 @@ private func resolveAuthErrorMessage(translations: Translations, error: Error) -
     case .requiresRecentLogin:
         return translations.t("auth.error.requiresRecentLogin")
     default:
-        return error.localizedDescription
+        return translations.t("auth.error.general")
     }
 }
 
@@ -4191,16 +4261,11 @@ private struct TaskListsView: View {
                         .accessibilityAddTraits(.isHeader)
 
                     if viewModel.status == .loading {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, minHeight: 96)
+                        TaskLoadingPlaceholder()
                     } else if viewModel.status == .error {
                         AppAlert(message: translations.t("app.loadError"))
                     } else if viewModel.taskLists.isEmpty {
-                        Text(translations.t("app.emptyState"))
-                            .font(AppTypography.subheadline())
-                            .foregroundStyle(AppPalette.subtleText)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                        TaskStateNotice(icon: "list.bullet", titleKey: "app.emptyState", hintKey: "app.emptyStateHint")
                     } else {
                         VStack(spacing: 0) {
                             ScrollViewAccessor(scrollView: $scrollViewRef)
@@ -4507,7 +4572,7 @@ private struct TaskListsView: View {
                 showJoinSheet = false
                 openTaskList(taskListId)
             } catch {
-                joinListError = error.localizedDescription
+                joinListError = translations.t("pages.sharecode.addToOrderError")
             }
             joiningList = false
         }
@@ -4632,7 +4697,7 @@ private struct TaskListsView: View {
                 openTaskList(taskListId)
             } catch {
                 joinListInput = normalized
-                joinListError = error.localizedDescription
+                joinListError = translations.t("pages.sharecode.addToOrderError")
                 showJoinSheet = true
             }
         }
@@ -4757,11 +4822,7 @@ private struct TaskListDetailPagerView: View {
     var body: some View {
         Group {
             if viewModel.status == .loading {
-                VStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
+                TaskLoadingPlaceholder(detail: true)
             } else if viewModel.status == .error {
                 VStack {
                     Spacer()
@@ -4770,12 +4831,8 @@ private struct TaskListDetailPagerView: View {
                     Spacer()
                 }
             } else if viewModel.taskLists.isEmpty {
-                VStack {
-                    Spacer()
-                    Text(translations.t("pages.tasklist.noTasks"))
-                        .foregroundStyle(AppPalette.mutedText)
-                    Spacer()
-                }
+                TaskStateNotice(icon: "list.bullet", titleKey: "app.emptyState", hintKey: "app.emptyStateHint")
+                    .frame(maxHeight: .infinity)
             } else {
                 DetailPagerContent(
                     selectedTaskListId: $selectedTaskListId,
@@ -4793,6 +4850,12 @@ private struct TaskListDetailPagerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar(.hidden, for: .navigationBar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if viewModel.status != .ready || viewModel.taskLists.isEmpty {
+                AppNavigationHeader(title: "", onBack: { dismiss() })
+                    .background(AppPalette.pageBackground)
+            }
+        }
         .onAppear {
             viewModel.bind(uid: currentUserId)
             settingsViewModel.bind(uid: currentUserId)
@@ -4807,7 +4870,7 @@ private struct TaskListDetailPagerView: View {
         }
         .onChange(of: viewModel.taskLists) { _, taskLists in
             guard !taskLists.isEmpty else {
-                dismiss()
+                if viewModel.status == .ready { dismiss() }
                 return
             }
 
@@ -4816,6 +4879,9 @@ private struct TaskListDetailPagerView: View {
             }
 
             selectedTaskListId = taskLists.first(where: { $0.id == initialTaskListId })?.id ?? taskLists[0].id
+        }
+        .onChange(of: viewModel.status) { _, status in
+            if status == .ready && viewModel.taskLists.isEmpty { dismiss() }
         }
     }
 }
@@ -4831,11 +4897,7 @@ private struct RegularTaskListDetailPagerView: View {
     var body: some View {
         Group {
             if viewModel.status == .loading {
-                VStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
+                TaskLoadingPlaceholder(detail: true)
             } else if viewModel.status == .error {
                 VStack {
                     Spacer()
@@ -4844,12 +4906,8 @@ private struct RegularTaskListDetailPagerView: View {
                     Spacer()
                 }
             } else if viewModel.taskLists.isEmpty {
-                VStack {
-                    Spacer()
-                    Text(translations.t("app.emptyState"))
-                        .foregroundStyle(AppPalette.mutedText)
-                    Spacer()
-                }
+                TaskStateNotice(icon: "list.bullet", titleKey: "app.emptyState", hintKey: "app.emptyStateHint")
+                    .frame(maxHeight: .infinity)
             } else {
                 DetailPagerContent(
                     selectedTaskListId: Binding(
@@ -4926,6 +4984,21 @@ private struct ScrollViewAccessor: UIViewRepresentable {
                 }
             }
         }
+    }
+}
+
+@available(iOS 18.0, *)
+private struct TaskLongPressDragGesture: UIGestureRecognizerRepresentable {
+    let action: (UIGestureRecognizer.State, CGFloat) -> Void
+
+    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
+        let recognizer = UILongPressGestureRecognizer()
+        recognizer.minimumPressDuration = 0.4
+        return recognizer
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UILongPressGestureRecognizer, context: Context) {
+        action(recognizer.state, context.converter.location(in: .named("taskList")).y)
     }
 }
 
@@ -5123,8 +5196,37 @@ private struct TaskListDetailPage: View {
         updateTaskAutoScroll(fingerY: fingerY)
     }
 
+    private func handleTaskDragEnded() {
+        stopTaskAutoScroll()
+        if let ordered = dragOrderedTasks,
+            ordered.map(\.id) != dragStartTaskIds
+        {
+            persistTaskOrder(ordered.map(\.id))
+        }
+        dragOrderedTasks = nil
+        dragStartTaskIds = []
+        withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.15)) {
+            taskDragOffset = 0
+        }
+        taskDragStartLocationY = nil
+        draggingTaskId = nil
+    }
+
     private func stopTaskAutoScroll() {
         taskAutoScroller.stop()
+    }
+
+    private func taskText(_ task: TaskSummary) -> some View {
+        StrikethroughText(
+            text: task.text,
+            font: task.pinned && !task.completed ? AppTypography.bodyBold() : AppTypography.bodyMedium(),
+            foreground: task.completed ? mutedTextColor : Color.primary,
+            strikeColor: mutedTextColor,
+            isStruck: task.completed
+        )
+        .multilineTextAlignment(.leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @MainActor private static var dateDisplayFormatters: [String: DateFormatter] = [:]
@@ -5288,7 +5390,7 @@ private struct TaskListDetailPage: View {
     @State private var removingList = false
     @State private var removeListError: String? = nil
     @State private var showDeleteListAlert = false
-    @State private var shareCopySuccess = false
+    @State private var shareCopyRevision = 0
     @State private var shareError: String? = nil
     @State private var isHistoryPopoverPresented = false
 
@@ -5355,19 +5457,7 @@ private struct TaskListDetailPage: View {
                             handleTaskDragChanged(task: task, displayTasks: displayTasks, fingerY: value.location.y)
                         }
                         .onEnded { _ in
-                            stopTaskAutoScroll()
-                            if let ordered = dragOrderedTasks,
-                                ordered.map(\.id) != dragStartTaskIds
-                            {
-                                persistTaskOrder(ordered.map(\.id))
-                            }
-                            dragOrderedTasks = nil
-                            dragStartTaskIds = []
-                            withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.15)) {
-                                taskDragOffset = 0
-                            }
-                            taskDragStartLocationY = nil
-                            draggingTaskId = nil
+                            handleTaskDragEnded()
                         }
                 )
 
@@ -5387,20 +5477,30 @@ private struct TaskListDetailPage: View {
                             .focused($isTextFieldFocused)
                             .onSubmit { commitEdit(task) }
                             .font(AppTypography.bodyMedium())
+                    } else if #available(iOS 18.0, *), allowsTaskEditing {
+                        taskText(task)
+                            .frame(minHeight: TaskListDetailMetrics.taskContentHeight)
+                            .contentShape(Rectangle())
+                            .onTapGesture { startEdit(task) }
+                            .gesture(
+                                TaskLongPressDragGesture { state, fingerY in
+                                    switch state {
+                                    case .began, .changed:
+                                        handleTaskDragChanged(task: task, displayTasks: displayTasks, fingerY: fingerY)
+                                    case .ended, .cancelled, .failed:
+                                        handleTaskDragEnded()
+                                    default:
+                                        break
+                                    }
+                                }
+                            )
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityLabel("\(translations.t("a11y.editTask")): \(task.text)")
                     } else {
                         Button {
                             startEdit(task)
                         } label: {
-                            StrikethroughText(
-                                text: task.text,
-                                font: task.pinned && !task.completed ? AppTypography.bodyBold() : AppTypography.bodyMedium(),
-                                foreground: task.completed ? mutedTextColor : Color.primary,
-                                strikeColor: mutedTextColor,
-                                isStruck: task.completed
-                            )
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            taskText(task)
                         }
                         .buttonStyle(.plain)
                         .disabled(!allowsTaskEditing)
@@ -5502,7 +5602,7 @@ private struct TaskListDetailPage: View {
                             if allowsShareCodeManagement {
                                 Button {
                                     currentShareCode = taskList.shareCode.flatMap(normalizedShareCode)
-                                    shareCopySuccess = false
+                                    shareCopyRevision = 0
                                     shareError = nil
                                     showShareSheet = true
                                 } label: {
@@ -5526,22 +5626,27 @@ private struct TaskListDetailPage: View {
                     if allowsTaskEditing {
                         newTaskInput
 
-                        taskToolbar
-                            .padding(.top, TaskListDetailMetrics.toolbarTopOverlap)
-                            .padding(.bottom, TaskListDetailMetrics.toolbarBottomOverlap)
-                            .simultaneousGesture(
-                                TapGesture().onEnded {
-                                    dismissNewTaskInputFocus()
-                                }
-                            )
+                        if !displayTasks.isEmpty {
+                            taskToolbar
+                                .padding(.top, TaskListDetailMetrics.toolbarTopOverlap)
+                                .padding(.bottom, TaskListDetailMetrics.toolbarBottomOverlap)
+                                .simultaneousGesture(
+                                    TapGesture().onEnded {
+                                        dismissNewTaskInputFocus()
+                                    }
+                                )
+                        }
                     }
                 }
                 .padding(.bottom, TaskListDetailMetrics.sectionSpacing)
 
                 if displayTasks.isEmpty {
-                    Text(translations.t("pages.tasklist.noTasks"))
-                        .font(AppTypography.body())
-                        .foregroundStyle(mutedTextColor)
+                    TaskStateNotice(
+                        icon: "plus",
+                        titleKey: "pages.tasklist.noTasks",
+                        hintKey: allowsTaskEditing ? "pages.tasklist.noTasksHint" : nil,
+                        color: mutedTextColor
+                    )
                 } else {
                     LazyVStack(spacing: TaskListDetailMetrics.taskRowGap) {
                         ForEach(visibleTasks) { task in
@@ -5584,6 +5689,13 @@ private struct TaskListDetailPage: View {
         .alert(translations.t("pages.tasklist.deleteCompletedConfirmTitle"), isPresented: $showDeleteCompletedAlert) {
             Button(translations.t("auth.button.delete"), role: .destructive) { confirmDeleteCompleted() }
             Button(translations.t("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(
+                translations.t(
+                    "pages.tasklist.deleteCompletedConfirm",
+                    ["count": "\(displayTasks.filter { $0.completed }.count)"]
+                )
+            )
         }
         .sheet(isPresented: $showEditSheet) {
             editSheet
@@ -5834,12 +5946,9 @@ private struct TaskListDetailPage: View {
                                 Text(code)
                                     .textSelection(.enabled)
                                     .appField(monospaced: true)
-                                Button(shareCopySuccess ? translations.t("common.copied") : translations.t("common.copy")) {
+                                Button(shareCopyRevision > 0 ? translations.t("common.copied") : translations.t("common.copy")) {
                                     UIPasteboard.general.string = shareCodeURLString(code)
-                                    shareCopySuccess = true
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                        shareCopySuccess = false
-                                    }
+                                    shareCopyRevision += 1
                                 }
                                 .buttonStyle(AppButtonStyle(variant: .secondary))
                             }
@@ -5888,6 +5997,17 @@ private struct TaskListDetailPage: View {
                 .disabled(generatingShareCode || !networkStatus.isOnline)
             }
         }
+        .task(id: shareCopyRevision) {
+            guard shareCopyRevision > 0 else { return }
+            do {
+                try await Task.sleep(for: .seconds(2))
+            } catch {
+                return
+            }
+            shareCopyRevision = 0
+        }
+        .onChange(of: currentShareCode) { _, _ in shareCopyRevision = 0 }
+        .onDisappear { shareCopyRevision = 0 }
     }
 
     private func toggleCompletion(_ task: TaskSummary) {
@@ -6457,11 +6577,7 @@ private struct SharedTaskListPreviewView: View {
     var body: some View {
         VStack(spacing: 0) {
             if viewModel.isLoading {
-                VStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
+                TaskLoadingPlaceholder(detail: true)
             } else if let taskList = viewModel.taskList {
                 TaskListDetailPage(
                     taskList: taskList,
@@ -7038,7 +7154,7 @@ private struct SettingsView: View {
                 viewModel.reset()
             }
         }
-        .alert(translations.t("auth.button.signOut"), isPresented: $showSignOutAlert) {
+        .alert(translations.t("auth.signOutConfirm.title"), isPresented: $showSignOutAlert) {
             Button(translations.t("common.cancel"), role: .cancel) {}
             Button(translations.t("auth.button.signOut"), role: .destructive) {
                 isSigningOut = true
@@ -7160,7 +7276,7 @@ private struct SettingsView: View {
         viewModel.sendEmailChangeVerification(newEmail: trimmedEmail) { error in
             isChangingEmail = false
             if let error {
-                emailChangeError = error.localizedDescription
+                emailChangeError = resolveAuthErrorMessage(translations: translations, error: error)
             } else {
                 logEmailChangeRequested()
                 emailChangeSuccess = true
@@ -7528,7 +7644,16 @@ private struct MonthCalendarView: View {
     }
 
     private var calendar: Calendar {
-        currentGregorianCalendar(locale: locale)
+        var calendar = currentGregorianCalendar(locale: locale)
+        switch translations.language {
+        case "es", "de", "fr", "zh-CN", "id":
+            calendar.firstWeekday = 2
+        case "ar":
+            calendar.firstWeekday = 7
+        default:
+            calendar.firstWeekday = 1
+        }
+        return calendar
     }
 
     private var monthTitle: String {
@@ -8310,11 +8435,16 @@ private struct CalendarScreenView: View {
                 AppAlert(message: calendarError)
                     .padding(.bottom, 8)
             }
-            if monthlyTasks.isEmpty {
-                Text(translations.t("app.calendarNoDatedTasks"))
-                    .font(AppTypography.subheadline())
-                    .foregroundStyle(AppPalette.subtleText)
-                    .padding(.vertical, 16)
+            if viewModel.status == .loading && viewModel.taskLists.isEmpty {
+                TaskLoadingPlaceholder()
+            } else if viewModel.status == .error && viewModel.taskLists.isEmpty {
+                AppAlert(message: translations.t("app.loadError"))
+            } else if monthlyTasks.isEmpty {
+                TaskStateNotice(
+                    icon: "calendar",
+                    titleKey: viewModel.taskLists.isEmpty ? "app.emptyState" : "app.calendarNoDatedTasks",
+                    hintKey: viewModel.taskLists.isEmpty ? "app.emptyStateHint" : "app.calendarEmptyHint"
+                )
             } else {
                 ForEach(Array(monthlyTasks.enumerated()), id: \.element.id) { index, task in
                     if task.dateValue == nil && (index == 0 || monthlyTasks[index - 1].dateValue != nil) {
@@ -8362,7 +8492,7 @@ private struct CalendarScreenView: View {
 
 @MainActor private func colorLabel(_ hex: String?, translations: Translations) -> String {
     switch hex {
-    case nil: return translations.t("taskList.backgroundNone")
+    case nil: return translations.t("taskList.backgroundNoneShort")
     case "#F87171": return translations.t("taskList.colorRed")
     case "#FBBF24": return translations.t("taskList.colorYellow")
     case "#34D399": return translations.t("taskList.colorGreen")

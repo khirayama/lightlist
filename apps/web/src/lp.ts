@@ -46,12 +46,7 @@ function normalizeLanguage(value: string | null | undefined): Language {
   if (lower.startsWith("de")) return "de";
   if (lower.startsWith("fr")) return "fr";
   if (lower.startsWith("ko")) return "ko";
-  if (
-    lower === "zh" ||
-    lower.startsWith("zh-cn") ||
-    lower.startsWith("zh-hans") ||
-    lower.startsWith("zh-sg")
-  ) {
+  if (lower === "zh" || lower.startsWith("zh-")) {
     return "zh-CN";
   }
   if (lower.startsWith("hi")) return "hi";

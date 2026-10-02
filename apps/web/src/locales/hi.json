@@ -12,7 +12,6 @@
     "copy": "कॉपी करें",
     "copied": "कॉपी हो गया",
     "error": "एक त्रुटि हुई",
-    "done": "हो गया",
     "selected": "चयनित",
     "offline": "आप ऑफ़लाइन हैं। दोबारा कनेक्ट होने पर बदलाव सिंक हो जाएंगे",
     "syncFailed": "कुछ बदलाव सिंक नहीं हो सके। नवीनतम सामग्री दिखाई जा रही है",
@@ -104,7 +103,6 @@
     "error": "एक त्रुटि हुई",
     "dragHint": "क्रम बदलने के लिए खींचें",
     "drawerTitle": "टास्क सूचियाँ",
-    "drawerNoEmail": "कोई ईमेल उपलब्ध नहीं",
     "taskListLocator": {
       "label": "टास्क सूची की स्थिति",
       "goTo": "{{total}} में से {{index}}वीं सूची पर जाएँ"
@@ -115,13 +113,13 @@
     "shareCodePlaceholder": "शेयर कोड दर्ज करें",
     "join": "शामिल हों",
     "joining": "शामिल हो रहे हैं...",
-    "calendarCheckButton": "कैलेंडर में देखें",
     "calendarNoDatedTasks": "किसी भी टास्क में तिथि सेट नहीं है",
-    "calendarNoTasksOnSelectedDate": "चयनित तिथि पर कोई टास्क नहीं",
     "loadError": "कार्य सूचियाँ लोड नहीं हो सकीं।",
     "calendar": "कैलेंडर",
     "calendarPreviousMonth": "पिछला महीना",
-    "calendarNextMonth": "अगला महीना"
+    "calendarNextMonth": "अगला महीना",
+    "emptyStateHint": "शुरू करने के लिए सूची बनाएँ या साझा सूची में शामिल हों।",
+    "calendarEmptyHint": "टास्क जोड़ने के लिए तारीख चुनें।"
   },
   "datePatterns": {
     "relative": [
@@ -160,15 +158,11 @@
     "पिन"
   ],
   "taskList": {
-    "taskCount": "{{count}} टास्क",
-    "taskCount_one": "{{count}} टास्क",
-    "taskCount_other": "{{count}} टास्क",
     "remainingCount": "{{count}} बाकी",
     "remainingCount_one": "{{count}} बाकी",
     "remainingCount_other": "{{count}} बाकी",
     "editDetails": "सूची संपादित करें",
     "selectColor": "रंग चुनें",
-    "backgroundNone": "कोई नहीं (थीम रंग का उपयोग)",
     "backgroundNoneShort": "कोई नहीं",
     "deleteList": "मेरी सूचियों से हटाएँ",
     "deleteListConfirm": {
@@ -230,7 +224,6 @@
     "actions": {
       "title": "खाता क्रियाएँ"
     },
-    "deleteAccount": "खाता हटाएँ",
     "signingOut": "साइन आउट हो रहा है...",
     "deletingAccount": "खाता हटाया जा रहा है...",
     "emailChange": {
@@ -239,8 +232,7 @@
       "newEmailPlaceholder": "naya@udaharan.com",
       "submitButton": "सत्यापन ईमेल भेजें",
       "submitting": "भेजा जा रहा है...",
-      "successMessage": "सत्यापन ईमेल भेज दिया गया है। परिवर्तन पूरा करने के लिए नए ईमेल पते में लिंक पर क्लिक करें।",
-      "changeButton": "बदलें"
+      "successMessage": "सत्यापन ईमेल भेज दिया गया है। परिवर्तन पूरा करने के लिए नए ईमेल पते में लिंक पर क्लिक करें।"
     },
     "legal": {
       "title": "कानूनी जानकारी"
@@ -382,7 +374,9 @@
       "noDate": "कोई तिथि नहीं",
       "pinTask": "टास्क पिन करें",
       "unpinTask": "टास्क अनपिन करें",
-      "deleteCompletedConfirmTitle": "पूर्ण किए गए कार्य हटाएं?"
+      "deleteCompletedConfirmTitle": "पूर्ण किए गए कार्य हटाएं?",
+      "noTasksHint": "ऊपर दिए गए फ़ील्ड से अपना पहला टास्क जोड़ें।",
+      "allCompletedHint": "बहुत अच्छा। थोड़ा आराम करें।"
     },
     "notFound": {
       "title": "पेज नहीं मिला",

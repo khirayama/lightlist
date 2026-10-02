@@ -24,7 +24,7 @@
     const prefixes = ["ja", "en", "es", "de", "fr", "ko", "hi", "ar"];
     const language =
       prefixes.find((prefix) => value.startsWith(prefix)) ||
-      (value === "zh" || /^zh-(cn|hans|sg)/.test(value) ? "zh-CN" : "") ||
+      (value === "zh" || value.startsWith("zh-") ? "zh-CN" : "") ||
       (value === "pt" || value.startsWith("pt-") ? "pt-BR" : "") ||
       (value === "id" || value === "in" || value.startsWith("id-")
         ? "id"

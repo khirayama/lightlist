@@ -12,7 +12,6 @@
     "copy": "Copiar",
     "copied": "Copiado",
     "error": "Ocorreu um erro",
-    "done": "Concluído",
     "selected": "Selecionado",
     "offline": "Você está offline. As alterações serão sincronizadas ao reconectar",
     "syncFailed": "Não foi possível sincronizar algumas alterações. Mostrando o conteúdo mais recente",
@@ -104,7 +103,6 @@
     "error": "Ocorreu um erro",
     "dragHint": "Arraste para reordenar",
     "drawerTitle": "Listas de tarefas",
-    "drawerNoEmail": "Nenhum e-mail disponível",
     "taskListLocator": {
       "label": "Posição da lista de tarefas",
       "goTo": "Ir para a lista {{index}} de {{total}}"
@@ -115,13 +113,13 @@
     "shareCodePlaceholder": "Digite o código de compartilhamento",
     "join": "Entrar",
     "joining": "Entrando...",
-    "calendarCheckButton": "Ver no calendário",
     "calendarNoDatedTasks": "Nenhuma tarefa com data",
-    "calendarNoTasksOnSelectedDate": "Nenhuma tarefa na data selecionada",
     "loadError": "Falha ao carregar as listas de tarefas.",
     "calendar": "Calendário",
     "calendarPreviousMonth": "Mês anterior",
-    "calendarNextMonth": "Próximo mês"
+    "calendarNextMonth": "Próximo mês",
+    "emptyStateHint": "Crie uma lista ou participe de uma lista compartilhada para começar.",
+    "calendarEmptyHint": "Escolha uma data para adicionar uma tarefa."
   },
   "datePatterns": {
     "relative": [
@@ -181,15 +179,11 @@
     "fixar"
   ],
   "taskList": {
-    "taskCount": "{{count}} tarefas",
-    "taskCount_one": "{{count}} tarefa",
-    "taskCount_other": "{{count}} tarefas",
     "remainingCount": "{{count}} pendentes",
     "remainingCount_one": "{{count}} pendente",
     "remainingCount_other": "{{count}} pendentes",
     "editDetails": "Editar lista",
     "selectColor": "Selecionar cor",
-    "backgroundNone": "Nenhum (usa a cor do tema)",
     "backgroundNoneShort": "Nenhum",
     "deleteList": "Remover das minhas listas",
     "deleteListConfirm": {
@@ -251,7 +245,6 @@
     "actions": {
       "title": "Ações da conta"
     },
-    "deleteAccount": "Excluir conta",
     "signingOut": "Saindo...",
     "deletingAccount": "Excluindo conta...",
     "emailChange": {
@@ -260,8 +253,7 @@
       "newEmailPlaceholder": "novo@exemplo.com",
       "submitButton": "Enviar e-mail de verificação",
       "submitting": "Enviando...",
-      "successMessage": "E-mail de verificação enviado. Clique no link no novo endereço de e-mail para concluir a alteração.",
-      "changeButton": "Alterar"
+      "successMessage": "E-mail de verificação enviado. Clique no link no novo endereço de e-mail para concluir a alteração."
     },
     "legal": {
       "title": "Informações legais"
@@ -403,7 +395,9 @@
       "noDate": "Sem data",
       "pinTask": "Fixar tarefa",
       "unpinTask": "Desafixar tarefa",
-      "deleteCompletedConfirmTitle": "Excluir tarefas concluídas?"
+      "deleteCompletedConfirmTitle": "Excluir tarefas concluídas?",
+      "noTasksHint": "Adicione sua primeira tarefa no campo acima.",
+      "allCompletedHint": "Bom trabalho. Tire um momento para descansar."
     },
     "notFound": {
       "title": "Página não encontrada",

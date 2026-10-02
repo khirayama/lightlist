@@ -15,8 +15,18 @@ const sourcePath = path.join(
 );
 const localesDir = path.join(webRoot, "src", "locales");
 const lpTargetPath = path.join(webRoot, "src", "lp-locales.json");
+const englishDatePatternsPath = path.join(
+  webRoot,
+  "src",
+  "english-date-patterns.json",
+);
 
 const locales = JSON.parse(readFileSync(sourcePath, "utf8"));
+
+writeFileSync(
+  englishDatePatternsPath,
+  `${JSON.stringify(locales.en.datePatterns, null, 2)}\n`,
+);
 
 rmSync(localesDir, { recursive: true, force: true });
 mkdirSync(localesDir, { recursive: true });

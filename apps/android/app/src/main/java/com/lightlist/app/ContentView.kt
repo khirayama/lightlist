@@ -228,6 +228,7 @@ import java.util.Date
 import java.util.TimeZone
 import java.security.SecureRandom
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -235,6 +236,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.view.WindowCompat
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
@@ -421,7 +423,6 @@ private val GenInterfaceJPBodyFontFamily = FontFamily(
 
 private val GenInterfaceJPDisplayFontFamily = FontFamily(
     Font(R.font.gen_interface_jp_display_bold, FontWeight.Bold),
-    Font(R.font.gen_interface_jp_display_extrabold, FontWeight.ExtraBold),
 )
 
 private data class ManualLicense(
@@ -599,7 +600,7 @@ class Translations {
 
         private fun resolveWeekdayDate(key: String, weekdays: JSONObject): Date? {
             val target = if (weekdays.has(key)) weekdays.getInt(key) else findWeekday(key, weekdays)
-            val current = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1
+            val current = currentGregorianCalendar().get(Calendar.DAY_OF_WEEK) - 1
             return target?.let { makeTaskOffsetDate(nextTaskWeekdayOffset(it, current)) }
         }
 
@@ -669,6 +670,7 @@ private fun logDeleteAccount() = log("app_delete_account")
 private fun logPasswordResetEmailSent() = log("app_password_reset_email_sent")
 private fun logEmailChangeRequested() = log("app_email_change_requested")
 private fun logTaskListCreate() = log("app_task_list_create")
+private fun logTaskListDelete() = log("app_task_list_delete")
 private fun logTaskListReorder() = log("app_task_list_reorder")
 private fun logTaskAdd(hasDate: Boolean) = log("app_task_add") { putBoolean("has_date", hasDate) }
 private fun logTaskUpdate(fields: String) = log("app_task_update") { putString("fields", fields) }
@@ -1022,7 +1024,7 @@ private object TaskListMutationQueues {
 private object SyncFailureState {
     var hasFailure by mutableStateOf(false)
         private set
-    var failureRevision by mutableStateOf(0)
+    var failureRevision by mutableIntStateOf(0)
         private set
 
     fun report() {
@@ -1837,13 +1839,13 @@ private data class CalendarMonth(val year: Int, val month: Int) {
 
     companion object {
         fun current(): CalendarMonth {
-            val calendar = Calendar.getInstance()
+            val calendar = currentGregorianCalendar()
             return CalendarMonth(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1)
         }
 
         fun fromDateKey(dateKey: String?): CalendarMonth? {
             val date = dateKey?.takeIf { it.isNotBlank() }?.let(::parseTaskInputDate) ?: return null
-            val calendar = Calendar.getInstance().apply { time = date }
+            val calendar = currentGregorianCalendar().apply { time = date }
             return CalendarMonth(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1)
         }
     }
@@ -1857,7 +1859,7 @@ private fun calendarWeekStart(languageTag: String): Int = when (languageTag) {
 
 private fun calendarMonthDateKeys(month: CalendarMonth, weekStart: Int): List<String> {
     val first = taskInputDateFrom(month.year, month.month, 1) ?: return emptyList()
-    val calendar = Calendar.getInstance().apply { time = first }
+    val calendar = currentGregorianCalendar().apply { time = first }
     val leadingDays = (calendar.get(Calendar.DAY_OF_WEEK) - weekStart + 7) % 7
     val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
     val totalDays = (leadingDays + daysInMonth + 6) / 7 * 7
@@ -2132,6 +2134,10 @@ private fun resolveAuthErrorMessage(
         return translations.t("auth.error.invalidCredential")
     }
 
+    if (errorCode != null) {
+        return translations.t(fallbackKey)
+    }
+
     return message ?: translations.t(fallbackKey)
 }
 
@@ -2378,8 +2384,8 @@ private class SyncListenerRetryController(
         }
     }
 
-    fun markHealthy(isFromCache: Boolean) {
-        if (!isFromCache) {
+    fun markHealthy(isServerConfirmed: Boolean) {
+        if (isServerConfirmed) {
             retryDelayMs = 1000L
             reportedError = false
         }
@@ -2410,10 +2416,13 @@ private fun <T> subscribeToOrderedTaskLists(
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     fun publish() {
+        val visibleTaskLists = orderedTaskListIds.mapNotNull { taskListsById[it] }
         if (orderLoaded && taskListsLoaded) {
-            onPublish(orderedTaskListIds.mapNotNull { taskListsById[it] })
+            onPublish(visibleTaskLists)
         }
-        if (failedScopes.isNotEmpty()) onError?.invoke()
+        if ("order" in failedScopes || ("taskLists" in failedScopes && visibleTaskLists.isEmpty())) {
+            onError?.invoke()
+        }
     }
 
     lateinit var taskListsRetry: SyncListenerRetryController
@@ -2428,7 +2437,7 @@ private fun <T> subscribeToOrderedTaskLists(
                     taskListsListener = null
                     failedScopes.add("taskLists")
                     taskListsRetry.fail("task_lists", error)
-                    onError?.invoke()
+                    publish()
                     return@addSnapshotListener
                 }
                 val next = mutableMapOf<String, T>()
@@ -2441,9 +2450,10 @@ private fun <T> subscribeToOrderedTaskLists(
                 }
                 taskListsById = next
                 taskListsLoaded = true
-                val fromCache = snapshot?.metadata?.isFromCache ?: true
-                if (!fromCache) failedScopes.remove("taskLists")
-                taskListsRetry.markHealthy(fromCache)
+                val serverConfirmed = snapshot != null &&
+                    !snapshot.metadata.isFromCache && !snapshot.metadata.hasPendingWrites()
+                if (serverConfirmed) failedScopes.remove("taskLists")
+                taskListsRetry.markHealthy(serverConfirmed)
                 publish()
             }
     }
@@ -2453,7 +2463,7 @@ private fun <T> subscribeToOrderedTaskLists(
         if (disposed) return
         orderListener?.remove()
         orderListener = db.collection("taskListOrder").document(userId)
-            .addSnapshotListener { snapshot, error ->
+            .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
                 if (disposed) return@addSnapshotListener
                 if (error != null) {
                     orderListener?.remove()
@@ -2465,9 +2475,10 @@ private fun <T> subscribeToOrderedTaskLists(
                 }
                 orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap())
                 orderLoaded = true
-                val fromCache = snapshot?.metadata?.isFromCache ?: true
-                if (!fromCache) failedScopes.remove("order")
-                orderRetry.markHealthy(fromCache)
+                val serverConfirmed = snapshot != null &&
+                    !snapshot.metadata.isFromCache && !snapshot.metadata.hasPendingWrites()
+                if (serverConfirmed) failedScopes.remove("order")
+                orderRetry.markHealthy(serverConfirmed)
                 publish()
             }
     }
@@ -2962,11 +2973,6 @@ private fun <T> rememberOrderedTaskListsState(
     return uiState
 }
 
-@Composable
-private fun <T> rememberOrderedTaskLists(userId: String?, parseDocument: (String, FirestoreTaskListRecord) -> T): List<T> {
-    return rememberOrderedTaskListsState(userId, parseDocument).taskLists
-}
-
 private data class OrderedTaskListsUiState<T>(
     val taskLists: List<T> = emptyList(),
     val isLoading: Boolean = false,
@@ -3071,12 +3077,15 @@ private fun rememberSettingsState(userId: String?): SettingsState {
 private fun parseOrderedTaskListIds(data: Map<String, Any>): List<String> {
     return data.entries
         .mapNotNull { entry ->
-            if (entry.key == "createdAt" || entry.key == "updatedAt") {
+            if (entry.key == "createdAt" || entry.key == "updatedAt" ||
+                entry.key.isEmpty() || '/' in entry.key
+            ) {
                 return@mapNotNull null
             }
             val value = entry.value as? Map<*, *> ?: return@mapNotNull null
-            val order = value["order"] as? Number ?: return@mapNotNull null
-            entry.key to order.toDouble()
+            val order = (value["order"] as? Number)?.toDouble()
+                ?.takeIf { it.isFinite() } ?: return@mapNotNull null
+            entry.key to order
         }
         .sortedWith(compareBy<Pair<String, Double>> { it.second }.thenBy { it.first })
         .map { it.first }
@@ -3650,26 +3659,91 @@ private fun RollingCountText(
 }
 
 @Composable
-private fun AllTasksCompletedNotice(color: Color, modifier: Modifier = Modifier) {
+private fun TaskStateNotice(
+    icon: ImageVector,
+    titleKey: String,
+    hintKey: String? = null,
+    color: Color = mutedTextColor(),
+    modifier: Modifier = Modifier
+) {
     val t = LocalTranslations.current
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 16.dp)
-            .semantics(mergeDescendants = true) {},
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 32.dp)
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(Icons.Filled.Check, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+        Box(
+            modifier = Modifier.size(48.dp).background(color.copy(alpha = 0.08f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.height(4.dp))
         Text(
-            t.t("pages.tasklist.allCompleted"),
-            style = TextStyle(
-                fontFamily = GenInterfaceJPBodyFontFamily,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                lineHeight = 20.sp
-            ),
-            color = color
+            t.t(titleKey),
+            style = AppRowTextStyle.copy(fontWeight = FontWeight.SemiBold),
+            color = color,
+            textAlign = TextAlign.Center
+        )
+        if (hintKey != null) {
+            Text(
+                t.t(hintKey),
+                style = AppRowTextStyle,
+                color = color,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = 320.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AllTasksCompletedNotice(color: Color, modifier: Modifier = Modifier) {
+    TaskStateNotice(
+        icon = Icons.Filled.Check,
+        titleKey = "pages.tasklist.allCompleted",
+        hintKey = "pages.tasklist.allCompletedHint",
+        color = color,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun TaskLoadingPlaceholder(detail: Boolean = false, modifier: Modifier = Modifier) {
+    val t = LocalTranslations.current
+    val placeholderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(top = if (detail) 40.dp else 8.dp)
+            .semantics(mergeDescendants = true) {},
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        if (detail) {
+            Box(Modifier.size(160.dp, 24.dp).background(placeholderColor, RoundedCornerShape(4.dp)))
+            Box(Modifier.fillMaxWidth().height(44.dp).background(placeholderColor, RoundedCornerShape(14.dp)))
+            Spacer(Modifier.height(28.dp))
+        }
+        repeat(3) { index ->
+            Row(
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.size(20.dp).background(placeholderColor, CircleShape))
+                Box(Modifier.size(if (index == 2) 128.dp else 160.dp, 16.dp).background(placeholderColor, RoundedCornerShape(4.dp)))
+            }
+        }
+        Text(
+            t.t("common.loading"),
+            style = AppRowTextStyle,
+            color = mutedTextColor(),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
@@ -3696,7 +3770,7 @@ private fun localizeJoinListError(t: Translations, error: Exception): String = w
     TASK_LIST_NOT_FOUND_ERROR -> t.t("pages.sharecode.notFound")
     TASK_LIST_ORDER_NOT_FOUND_ERROR,
     TASK_LIST_ALREADY_ADDED_ERROR -> t.t("pages.sharecode.addToOrderError")
-    else -> error.message ?: t.t("common.error")
+    else -> t.t("pages.sharecode.addToOrderError")
 }
 
 private fun parseHexColor(hex: String): Color {
@@ -3769,11 +3843,13 @@ private fun normalizeTaskDateDigits(value: String): String =
 
 private val TASK_INPUT_DATE_PATTERN = Regex("""\d{4}-\d{2}-\d{2}""")
 
-private fun formatTaskInputDate(date: Date): String {
-    val calendar = GregorianCalendar(TimeZone.getDefault(), Locale.ROOT).apply {
+private fun currentGregorianCalendar(): GregorianCalendar =
+    GregorianCalendar(TimeZone.getDefault(), Locale.ROOT).apply {
         gregorianChange = Date(Long.MIN_VALUE)
-        time = date
     }
+
+private fun formatTaskInputDate(date: Date): String {
+    val calendar = currentGregorianCalendar().apply { time = date }
     return String.format(
         Locale.ROOT,
         "%04d-%02d-%02d",
@@ -3785,9 +3861,8 @@ private fun formatTaskInputDate(date: Date): String {
 
 private fun taskInputDateFrom(year: Int, month: Int, day: Int): Date? {
     if (year < 1) return null
-    val calendar = GregorianCalendar(TimeZone.getDefault(), Locale.ROOT).apply {
+    val calendar = currentGregorianCalendar().apply {
         isLenient = false
-        gregorianChange = Date(Long.MIN_VALUE)
         clear()
         set(year, month - 1, day, 12, 0, 0)
         set(Calendar.MILLISECOND, 0)
@@ -3814,7 +3889,7 @@ private fun nextTaskWeekdayOffset(targetDay: Int, currentDay: Int): Int {
 }
 
 private fun makeTaskOffsetDate(offset: Int): Date {
-    return Calendar.getInstance().apply {
+    return currentGregorianCalendar().apply {
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
         set(Calendar.SECOND, 0)
@@ -3847,16 +3922,16 @@ private fun parseDateFromTaskInput(text: String, t: Translations): Pair<String, 
             val month = match.groupValues[2].toInt()
             val day = match.groupValues[3].toInt()
             val date = taskInputDateFrom(year, month, day) ?: return@TaskDatePattern null
-            val calendar = Calendar.getInstance().apply { time = date }
+            val calendar = currentGregorianCalendar().apply { time = date }
             if (calendar.get(Calendar.YEAR) == year && calendar.get(Calendar.MONTH) == month - 1 && calendar.get(Calendar.DAY_OF_MONTH) == day) date else null
         },
         TaskDatePattern(Regex("""^(\d{1,2})[-/.](\d{1,2})$TASK_DATE_SPACE_OR_END""")) { match ->
             val month = match.groupValues[1].toInt()
             val day = match.groupValues[2].toInt()
-            val now = Calendar.getInstance()
+            val now = currentGregorianCalendar()
             val currentYear = now.get(Calendar.YEAR)
             val date = taskInputDateFrom(currentYear, month, day) ?: return@TaskDatePattern null
-            val today = Calendar.getInstance().apply {
+            val today = currentGregorianCalendar().apply {
                 set(Calendar.HOUR_OF_DAY, 0)
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
@@ -4703,7 +4778,7 @@ private fun CalendarScreen(
     selectedTaskListIdState: MutableState<String?>? = null,
     onOpenTaskList: (() -> Unit)? = null,
     showTopBar: Boolean = true,
-    externalTaskLists: List<TaskListDetail>? = null,
+    externalTaskListsState: OrderedTaskListsUiState<TaskListDetail>? = null,
     externalSettingsState: SettingsState? = null
 ) {
     val t = LocalTranslations.current
@@ -4713,29 +4788,17 @@ private fun CalendarScreen(
         userId,
         externalSettingsState ?: rememberSettingsState(userId)
     )
-    val calendarUiState = if (externalTaskLists == null) {
-        rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
-    } else {
-        null
-    }
-    val calendarTaskLists = externalTaskLists ?: calendarUiState?.taskLists.orEmpty()
-    val hasLoadError = calendarUiState?.hasError == true
-    val loadedCalendarTasks = remember(calendarTaskLists) {
-        flattenCalendarTasks(calendarTaskLists)
-    }
-    var optimisticCalendarTasks by remember { mutableStateOf(emptyList<CalendarTask>()) }
-    var pendingCalendarTasks by remember { mutableStateOf<Map<String, CalendarTask?>>(emptyMap()) }
-    var calendarMutationRevisions by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
-    var calendarMutationSequence by remember { mutableIntStateOf(0) }
-    val calendarTasks = remember(loadedCalendarTasks, optimisticCalendarTasks, pendingCalendarTasks) {
-        val loadedIds = loadedCalendarTasks.mapTo(mutableSetOf()) { it.id }
-        val pendingIds = pendingCalendarTasks.keys
-        (
-            loadedCalendarTasks.filter { it.id !in pendingIds } +
-                pendingCalendarTasks.values.filterNotNull() +
-                optimisticCalendarTasks.filter { it.id !in loadedIds && it.id !in pendingIds }
-            )
-            .sortedWith(calendarTaskComparator)
+    val calendarUiState = externalTaskListsState ?: rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
+    val calendarTaskLists = calendarUiState.taskLists
+    val hasLoadError = calendarUiState.hasError
+    var pendingCalendarTaskLists by remember(userId) { mutableStateOf<Map<String, List<TaskSummary>>>(emptyMap()) }
+    var pendingCalendarHistories by remember(userId) { mutableStateOf<Map<String, List<String>>>(emptyMap()) }
+    var calendarMutationRevisions by remember(userId) { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var calendarMutationSequence by remember(userId) { mutableIntStateOf(0) }
+    val calendarTasks = remember(calendarTaskLists, pendingCalendarTaskLists) {
+        flattenCalendarTasks(calendarTaskLists.map { taskList ->
+            taskList.copy(tasks = pendingCalendarTaskLists[taskList.id] ?: taskList.tasks)
+        })
     }
     var settlingCalendarTasks by remember { mutableStateOf<Map<String, CalendarTask>>(emptyMap()) }
     val visibleCalendarTasks = remember(calendarTasks, settlingCalendarTasks) {
@@ -4754,58 +4817,32 @@ private fun CalendarScreen(
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    fun setPendingCalendarTasks(values: Map<String, CalendarTask?>): Int {
+    fun setPendingCalendarTasks(
+        values: Map<String, List<TaskSummary>>,
+        histories: Map<String, List<String>> = emptyMap()
+    ): Int {
         val revision = calendarMutationSequence + 1
         calendarMutationSequence = revision
         calendarMutationRevisions = calendarMutationRevisions + values.keys.associateWith { revision }
-        pendingCalendarTasks = pendingCalendarTasks + values
+        pendingCalendarTaskLists = pendingCalendarTaskLists + values
+        pendingCalendarHistories = pendingCalendarHistories + histories
         return revision
     }
 
-    fun clearPendingCalendarTasks(values: Map<String, CalendarTask?>, revision: Int) {
-        val ids = values.keys.filter { calendarMutationRevisions[it] == revision }
+    fun clearPendingCalendarTasks(taskListIds: Set<String>, revision: Int) {
+        val ids = taskListIds.filter { calendarMutationRevisions[it] == revision }.toSet()
         if (ids.isEmpty()) return
-        pendingCalendarTasks = pendingCalendarTasks.filterKeys { it !in ids }
+        pendingCalendarTaskLists = pendingCalendarTaskLists.filterKeys { it !in ids }
+        pendingCalendarHistories = pendingCalendarHistories.filterKeys { it !in ids }
         calendarMutationRevisions = calendarMutationRevisions.filterKeys { it !in ids }
     }
 
-    fun displayedTasks(taskList: TaskListDetail): List<TaskSummary> {
-        val displayedById = calendarTasks
-            .filter { it.taskListId == taskList.id }
-            .associateBy { it.taskId }
-        val displayedTasks = taskList.tasks.map { currentTask ->
-            displayedById[currentTask.id]?.let { displayedTask ->
-                currentTask.copy(
-                    text = displayedTask.text,
-                    completed = displayedTask.completed,
-                    date = displayedTask.dateKey,
-                    pinned = displayedTask.pinned
-                )
-            } ?: currentTask
-        }
-        val existingTaskIds = taskList.tasks.mapTo(mutableSetOf()) { it.id }
-        val pendingOnlyTasks = displayedById.values
-            .filter { it.taskId !in existingTaskIds }
-            .map { pendingTask ->
-                TaskSummary(
-                    id = pendingTask.taskId,
-                    text = pendingTask.text,
-                    completed = pendingTask.completed,
-                    date = pendingTask.dateKey,
-                    order = pendingTask.order,
-                    pinned = pendingTask.pinned
-                )
-            }
-        return (displayedTasks + pendingOnlyTasks)
+    fun displayedTasks(taskList: TaskListDetail): List<TaskSummary> =
+        (pendingCalendarTaskLists[taskList.id] ?: taskList.tasks)
             .sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
-    }
 
-    LaunchedEffect(calendarTaskLists) {
-        val loadedIds = calendarTaskLists.flatMap { taskList ->
-            taskList.tasks.map { task -> "${taskList.id}:${task.id}" }
-        }.toSet()
-        optimisticCalendarTasks = optimisticCalendarTasks.filter { it.id !in loadedIds }
-    }
+    fun displayedHistory(taskList: TaskListDetail): List<String> =
+        pendingCalendarHistories[taskList.id] ?: taskList.history
 
     val monthKey = displayedMonth.key
     val tasksInMonth = remember(visibleCalendarTasks, monthKey) {
@@ -4866,7 +4903,7 @@ private fun CalendarScreen(
         val parsed = resolveTaskInput(trimmed, t)
         if (!hasTaskContent(parsed.text, dateKey, pinned)) return
         val taskId = java.util.UUID.randomUUID().toString()
-        val orderedTasks = taskList.tasks.sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
+        val orderedTasks = displayedTasks(taskList)
         val nextOrder = if (settingsState.taskInsertPosition == "bottom") {
             (orderedTasks.lastOrNull()?.order ?: 0.0) + 1.0
         } else {
@@ -4886,35 +4923,22 @@ private fun CalendarScreen(
             listOf(insertedTask) + orderedTasks
         }
         val nextTasks = normalizeTasks(insertedTasks, settingsState.autoSort)
-        val insertedIndex = nextTasks.indexOfFirst { it.id == taskId }
-        val dateValue = dateKey.takeIf { it.isNotBlank() }?.let(::parseTaskInputDate)
-
-        optimisticCalendarTasks = optimisticCalendarTasks + CalendarTask(
-            id = "${taskList.id}:$taskId",
-            taskListId = taskList.id,
-            taskListName = taskList.name,
-            taskListBackground = taskList.background,
-            taskId = taskId,
-            text = parsed.text,
-            completed = false,
-            dateKey = if (dateValue != null) dateKey else "",
-            dateValue = dateValue,
-            pinned = pinned,
-            order = nextOrder,
-            taskListIndex = taskListIndex,
-            taskIndex = insertedIndex
-        )
-        val updates = buildTaskUpdateData(orderedTasks, nextTasks) +
-            mapOf("history" to buildHistory(parsed.text, taskList.history))
+        val nextHistory = buildHistory(parsed.text, displayedHistory(taskList))
+        val updates = buildTaskUpdateData(orderedTasks, nextTasks) + mapOf("history" to nextHistory)
+        val pendingValues = mapOf(taskList.id to nextTasks)
+        val mutationRevision = setPendingCalendarTasks(pendingValues, mapOf(taskList.id to nextHistory))
         addTaskError = null
         showAddTaskSheet = false
         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
         logTaskAdd(hasDate = dateKey.isNotEmpty())
 
-        TaskListMutationQueues.queueFor(taskList.id).enqueue(onError = { error ->
-            recordNonFatalException("calendar_task_add", error)
-            optimisticCalendarTasks = optimisticCalendarTasks.filter { it.taskId != taskId }
-        }) {
+        TaskListMutationQueues.queueFor(taskList.id).enqueue(
+            onIdle = { clearPendingCalendarTasks(pendingValues.keys, mutationRevision) },
+            onError = { error ->
+                clearPendingCalendarTasks(pendingValues.keys, mutationRevision)
+                recordNonFatalException("calendar_task_add", error)
+            }
+        ) {
             Firebase.firestore.collection("taskLists").document(taskList.id).update(updates)
         }
     }
@@ -4922,7 +4946,7 @@ private fun CalendarScreen(
     fun updateCalendarTask(
         task: CalendarTask,
         logFields: String,
-        additionalUpdatesBuilder: ((TaskListDetail, TaskSummary) -> Map<String, Any>)? = null,
+        historyBuilder: ((TaskListDetail, TaskSummary) -> List<String>)? = null,
         transform: (TaskSummary) -> TaskSummary
     ) {
         val taskList = calendarTaskLists.firstOrNull { it.id == task.taskListId } ?: return
@@ -4932,29 +4956,20 @@ private fun CalendarScreen(
             orderedTasks.map { if (it.id == task.taskId) transform(it) else it },
             settingsState.autoSort
         )
+        val nextHistory = historyBuilder?.invoke(taskList, currentTask)
         val updates = buildTaskUpdateData(orderedTasks, nextTasks) +
-            (additionalUpdatesBuilder?.invoke(taskList, currentTask) ?: emptyMap())
-        val nextTask = nextTasks.firstOrNull { it.id == task.taskId }
-        val pendingValue = nextTask?.let {
-            if (it.completed) {
-                null
-            } else {
-                makeCalendarTask(
-                    taskList,
-                    it,
-                    calendarTaskLists.indexOfFirst { list -> list.id == taskList.id },
-                    nextTasks.indexOf(it)
-                )
-            }
-        }
-        val pendingValues = mapOf(task.id to pendingValue)
-        val mutationRevision = setPendingCalendarTasks(pendingValues)
+            (nextHistory?.let { mapOf("history" to it) } ?: emptyMap())
+        val pendingValues = mapOf(taskList.id to nextTasks)
+        val mutationRevision = setPendingCalendarTasks(
+            pendingValues,
+            nextHistory?.let { mapOf(taskList.id to it) } ?: emptyMap()
+        )
         logTaskUpdate(fields = logFields)
         addTaskError = null
         TaskListMutationQueues.queueFor(taskList.id).enqueue(
-            onIdle = { clearPendingCalendarTasks(pendingValues, mutationRevision) },
+            onIdle = { clearPendingCalendarTasks(pendingValues.keys, mutationRevision) },
             onError = { error ->
-                clearPendingCalendarTasks(pendingValues, mutationRevision)
+                clearPendingCalendarTasks(pendingValues.keys, mutationRevision)
                 recordNonFatalException("calendar_task_update", error)
             }
         ) {
@@ -4983,8 +4998,8 @@ private fun CalendarScreen(
             updateCalendarTask(
                 task,
                 "text,date,pinned",
-                additionalUpdatesBuilder = if (nextText != currentTask.text) {
-                    { taskList, old -> mapOf("history" to buildHistory(nextText, taskList.history, old.text)) }
+                historyBuilder = if (nextText != currentTask.text) {
+                    { taskList, old -> buildHistory(nextText, displayedHistory(taskList), old.text) }
                 } else {
                     null
                 }
@@ -5016,29 +5031,28 @@ private fun CalendarScreen(
             listOf(movedTask) + orderedTargetTasks
         }
         val nextTargetTasks = normalizeTasks(insertedTasks, settingsState.autoSort)
+        val nextTargetHistory = buildHistory(nextText, displayedHistory(targetTaskList))
         val targetUpdates = buildTaskUpdateData(orderedTargetTasks, nextTargetTasks) +
-            mapOf("history" to buildHistory(nextText, targetTaskList.history))
+            mapOf("history" to nextTargetHistory)
         val sourceUpdates = mapOf(
             "tasks.${task.taskId}" to FieldValue.delete(),
             "updatedAt" to nowMillis()
         )
         logTaskUpdate(fields = "text,date,pinned,taskList")
         val pendingValues = mapOf(
-            task.id to null,
-            "${targetTaskList.id}:${task.taskId}" to makeCalendarTask(
-                targetTaskList,
-                movedTask,
-                calendarTaskLists.indexOfFirst { it.id == targetTaskList.id },
-                nextTargetTasks.indexOfFirst { it.id == task.taskId }
-            )
+            sourceTaskList.id to displayedTasks(sourceTaskList).filterNot { it.id == task.taskId },
+            targetTaskList.id to nextTargetTasks
         )
-        val mutationRevision = setPendingCalendarTasks(pendingValues)
+        val mutationRevision = setPendingCalendarTasks(
+            pendingValues,
+            mapOf(targetTaskList.id to nextTargetHistory)
+        )
         addTaskError = null
         TaskListMutationQueues.enqueueFor(
             listOf(task.taskListId, taskListId),
-            onIdle = { clearPendingCalendarTasks(pendingValues, mutationRevision) },
+            onIdle = { clearPendingCalendarTasks(pendingValues.keys, mutationRevision) },
             onError = { error ->
-                clearPendingCalendarTasks(pendingValues, mutationRevision)
+                clearPendingCalendarTasks(pendingValues.keys, mutationRevision)
                 recordNonFatalException("calendar_task_move", error)
             }
         ) {
@@ -5104,14 +5118,17 @@ private fun CalendarScreen(
     fun LazyListScope.calendarTaskItems() {
         if (tasksInMonth.isEmpty()) {
             item(key = "calendarEmpty") {
-                Text(
-                    if (hasLoadError) t.t("app.loadError") else t.t("app.calendarNoDatedTasks"),
-                    style = AppBodySmallTextStyle,
-                    color = if (hasLoadError) MaterialTheme.colorScheme.error else mutedTextColor(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp)
-                )
+                if (calendarUiState.isLoading && calendarTaskLists.isEmpty()) {
+                    TaskLoadingPlaceholder()
+                } else if (hasLoadError) {
+                    Text(t.t("app.loadError"), style = AppBodySmallTextStyle, color = MaterialTheme.colorScheme.error)
+                } else {
+                    TaskStateNotice(
+                        icon = Icons.Filled.CalendarToday,
+                        titleKey = if (calendarTaskLists.isEmpty()) "app.emptyState" else "app.calendarNoDatedTasks",
+                        hintKey = if (calendarTaskLists.isEmpty()) "app.emptyStateHint" else "app.calendarEmptyHint"
+                    )
+                }
             }
             return
         }
@@ -5871,19 +5888,21 @@ private fun TaskListsScreen(
             when {
                 uiState.isLoading -> {
                     item(key = 3, contentType = "loading") {
-                        Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = mutedText, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
-                        }
+                        TaskLoadingPlaceholder()
                     }
                 }
                 displayTaskLists.isEmpty() -> {
                     item(key = 3, contentType = "empty") {
-                        Text(
-                            if (uiState.hasError) t.t("app.loadError") else t.t("app.emptyState"),
-                            style = AppBodySmallTextStyle,
-                            color = if (uiState.hasError) MaterialTheme.colorScheme.error else mutedText,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        )
+                        if (uiState.hasError) {
+                            Text(t.t("app.loadError"), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp))
+                        } else {
+                            TaskStateNotice(
+                                icon = Icons.Filled.Menu,
+                                titleKey = "app.emptyState",
+                                hintKey = "app.emptyStateHint",
+                                color = mutedText
+                            )
+                        }
                     }
                 }
                 else -> {
@@ -6272,7 +6291,7 @@ private fun TabletRootScreen(
     var selectedPane by rememberSaveable { mutableStateOf(TabletPane.TaskList) }
     var hasAppliedStartupPane by rememberSaveable { mutableStateOf(false) }
     val settingsState = resolvedSettingsState(userId, rememberSettingsState(userId))
-    val sharedTaskLists = rememberOrderedTaskLists(userId, ::parseTaskListDetail)
+    val sharedTaskListsState = rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
 
     LaunchedEffect(settingsState.isLoading) {
         if (hasAppliedStartupPane || settingsState.isLoading) return@LaunchedEffect
@@ -6336,7 +6355,7 @@ private fun TabletRootScreen(
                         selectedPane = TabletPane.TaskList
                     },
                     showTopBar = false,
-                    externalTaskLists = sharedTaskLists,
+                    externalTaskListsState = sharedTaskListsState,
                     externalSettingsState = settingsState
                 )
             } else {
@@ -6398,7 +6417,7 @@ private fun TaskListDetailPagerScreen(
             return@LaunchedEffect
         }
         if (uiState.taskLists.isEmpty()) {
-            onEmpty?.invoke()
+            if (!uiState.hasError) onEmpty?.invoke()
             return@LaunchedEffect
         }
         val resolvedTaskListId = resolveSelectedTaskListId(uiState.taskLists)
@@ -6476,12 +6495,7 @@ private fun TaskListDetailPagerScreen(
             ) {
                 when {
                     uiState.isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(t.t("common.loading"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        TaskLoadingPlaceholder(detail = true)
                     }
                     currentTaskList == null && uiState.hasError -> {
                         Box(
@@ -6496,7 +6510,7 @@ private fun TaskListDetailPagerScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(t.t("app.emptyState"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TaskStateNotice(icon = Icons.Filled.Menu, titleKey = "app.emptyState", hintKey = "app.emptyStateHint")
                         }
                     }
                     else -> {
@@ -6727,8 +6741,8 @@ private fun TaskListRow(
                     .pointerInput(task.id) {
                         detectDragGestures(
                             onDragStart = { currentOnDragStart(it) },
-                            onDragEnd = currentOnDragEnd,
-                            onDragCancel = currentOnDragCancel,
+                            onDragEnd = { currentOnDragEnd() },
+                            onDragCancel = { currentOnDragCancel() },
                             onDrag = { change, dragAmount -> currentOnDrag(change, dragAmount) }
                         )
                     }
@@ -6819,10 +6833,25 @@ private fun TaskListRow(
                         if (isEditing) {
                             Modifier
                         } else {
-                            Modifier.clickable(
-                                enabled = allowTaskEditing,
-                                onClickLabel = t.t("a11y.editTask")
-                            ) { onTaskClick() }
+                            Modifier
+                                .clickable(
+                                    enabled = allowTaskEditing,
+                                    onClickLabel = t.t("a11y.editTask")
+                                ) { onTaskClick() }
+                                .then(
+                                    if (allowTaskEditing) {
+                                        Modifier.pointerInput(task.id) {
+                                            detectDragGesturesAfterLongPress(
+                                                onDragStart = { currentOnDragStart(it) },
+                                                onDragEnd = { currentOnDragEnd() },
+                                                onDragCancel = { currentOnDragCancel() },
+                                                onDrag = { change, dragAmount -> currentOnDrag(change, dragAmount) }
+                                            )
+                                        }
+                                    } else {
+                                        Modifier
+                                    }
+                                )
                         }
                     ),
                 contentAlignment = Alignment.CenterStart
@@ -7079,6 +7108,7 @@ private fun TaskListDetailContent(
     var dragOrderedTasks by remember { mutableStateOf<List<TaskSummary>?>(null) }
     var dragStartTaskIds by remember(taskList.id) { mutableStateOf<List<String>>(emptyList()) }
     var pendingDisplayedTasks by remember { mutableStateOf<List<TaskSummary>?>(null) }
+    var pendingHistory by remember(taskList.id) { mutableStateOf<List<String>?>(null) }
     var taskMutationRevision by remember(taskList.id) { mutableIntStateOf(0) }
     var exitingTaskIds by remember(taskList.id) { mutableStateOf<Set<String>>(emptySet()) }
     var heldTaskIndexes by remember(taskList.id) { mutableStateOf<Map<String, Int>>(emptyMap()) }
@@ -7099,7 +7129,6 @@ private fun TaskListDetailContent(
     var removingShareCode by remember { mutableStateOf(false) }
     var removingList by remember { mutableStateOf(false) }
     var removeListError by remember { mutableStateOf<String?>(null) }
-    var shareCopySuccess by remember { mutableStateOf(false) }
     var shareError by remember { mutableStateOf<String?>(null) }
     val newTaskFocusRequester = remember { FocusRequester() }
 
@@ -7110,6 +7139,7 @@ private fun TaskListDetailContent(
             getOrderOrderedTasks(taskList.tasks)
         }
     }
+    val displayHistory = pendingHistory ?: taskList.history
     val visibleTasks = remember(displayTasks, heldTaskIndexes) {
         holdTaskPositions(displayTasks, heldTaskIndexes)
     }
@@ -7194,7 +7224,6 @@ private fun TaskListDetailContent(
         currentShareCode = normalizedShareCode(taskList.shareCode)
         editName = ""
         editBackground = null
-        shareCopySuccess = false
         shareError = null
         removeListError = null
     }
@@ -7212,6 +7241,7 @@ private fun TaskListDetailContent(
             onIdle = {
                 if (taskMutationRevision == mutationRevision) {
                     pendingDisplayedTasks = null
+                    pendingHistory = null
                 }
             },
             onError = { error ->
@@ -7219,6 +7249,7 @@ private fun TaskListDetailContent(
                 recordNonFatalException("task_update", error)
                 if (taskMutationRevision == mutationRevision) {
                     pendingDisplayedTasks = null
+                    pendingHistory = null
                 }
             }
         ) {
@@ -7229,15 +7260,19 @@ private fun TaskListDetailContent(
 
     fun performTaskMutation(
         buildNextTasks: (List<TaskSummary>) -> List<TaskSummary>,
-        additionalUpdates: Map<String, Any> = emptyMap()
+        history: List<String>? = null
     ) {
         val previousTasks = displayTasks
         val nextTasks = normalizeTasks(buildNextTasks(previousTasks), autoSort)
         setPendingTasks(nextTasks)
-        persistTaskListUpdate(buildTaskUpdateData(previousTasks, nextTasks) + additionalUpdates)
+        if (history != null) pendingHistory = history
+        persistTaskListUpdate(
+            buildTaskUpdateData(previousTasks, nextTasks) +
+                (history?.let { mapOf("history" to it) } ?: emptyMap())
+        )
     }
 
-    val historyOptions = remember(newTaskText, taskList.history) {
+    val historyOptions = remember(newTaskText, displayHistory) {
         val input = newTaskText.trim()
         if (input.length < 2) {
             emptyList()
@@ -7245,7 +7280,7 @@ private fun TaskListDetailContent(
             val inputLower = input.lowercase()
             val seen = mutableSetOf<String>()
             buildList {
-                for (candidate in taskList.history) {
+                for (candidate in displayHistory) {
                     val option = candidate.trim()
                     if (option.isEmpty()) continue
                     val optionLower = option.lowercase()
@@ -7380,9 +7415,9 @@ private fun TaskListDetailContent(
                         } else current
                     }
                 },
-                additionalUpdates = if (textChanged) {
-                    mapOf("history" to buildHistory(resolved.text, taskList.history, task.text))
-                } else emptyMap()
+                history = if (textChanged) {
+                    buildHistory(resolved.text, displayHistory, task.text)
+                } else null
             )
         }
     }
@@ -7514,6 +7549,7 @@ private fun TaskListDetailContent(
                 commitReportingFailure(
                     makeTaskListMembershipRemovalBatch(db, taskListOrderRef, taskListId, taskListSnapshot)
                 )
+                logTaskListDelete()
                 showRemoveListConfirm = false
                 showEditDialog = false
             } catch (_: Exception) {
@@ -7556,7 +7592,7 @@ private fun TaskListDetailContent(
                     currentTasks + insertedTask
                 }
             },
-            additionalUpdates = mapOf("history" to buildHistory(parsed.text, taskList.history))
+            history = buildHistory(parsed.text, displayHistory)
         )
     }
     LaunchedEffect(draggingTaskId) {
@@ -7655,7 +7691,6 @@ private fun TaskListDetailContent(
                             contentDescription = t.t("taskList.share"),
                             onClick = {
                                 currentShareCode = normalizedShareCode(taskList.shareCode)
-                                shareCopySuccess = false
                                 shareError = null
                                 showShareDialog = true
                             },
@@ -7791,7 +7826,7 @@ private fun TaskListDetailContent(
             }
             }
         }
-        if (allowTaskEditing) {
+        if (allowTaskEditing && displayTasks.isNotEmpty()) {
             item(key = "taskListActions", contentType = "actions") {
                 val toolbarColor = mutedTextColor()
                 Row(
@@ -7855,13 +7890,10 @@ private fun TaskListDetailContent(
         }
         if (displayTasks.isEmpty()) {
             item(key = "emptyState", contentType = "emptyState") {
-                Text(
-                    t.t("pages.tasklist.noTasks"),
-                    style = AppFieldTextStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
+                TaskStateNotice(
+                    icon = Icons.Filled.Add,
+                    titleKey = "pages.tasklist.noTasks",
+                    hintKey = if (allowTaskEditing) "pages.tasklist.noTasksHint" else null
                 )
             }
         } else {
@@ -7929,11 +7961,13 @@ private fun TaskListDetailContent(
                         taskDragOffset = 0f
                     },
                     onDragCancel = {
-                        taskAutoScrollSpeed = 0f
-                        draggingTaskId = null
-                        dragOrderedTasks = null
-                        dragStartTaskIds = emptyList()
-                        taskDragOffset = 0f
+                        if (draggingTaskId == task.id) {
+                            taskAutoScrollSpeed = 0f
+                            draggingTaskId = null
+                            dragOrderedTasks = null
+                            dragStartTaskIds = emptyList()
+                            taskDragOffset = 0f
+                        }
                     },
                     onMoveUp = if (
                         index > 0 && canReorderTasks(task, displayTasks[index - 1], autoSort)
@@ -7988,12 +8022,6 @@ private fun TaskListDetailContent(
                 }
             }
         }
-    }
-
-    LaunchedEffect(shareCopySuccess) {
-        if (!shareCopySuccess) return@LaunchedEffect
-        delay(2_000)
-        shareCopySuccess = false
     }
 
     if (showEditDialog) {
@@ -8085,7 +8113,10 @@ private fun TaskListDetailContent(
     if (showDeleteCompletedConfirm) {
         AppConfirmDialog(
             title = t.t("pages.tasklist.deleteCompletedConfirmTitle"),
-            message = null,
+            message = t.t(
+                "pages.tasklist.deleteCompletedConfirm",
+                mapOf("count" to displayTasks.count { it.completed }.toString())
+            ),
             confirmLabel = t.t("auth.button.delete"),
             cancelLabel = t.t("common.cancel"),
             destructive = true,
@@ -8099,7 +8130,14 @@ private fun TaskListDetailContent(
 
     if (showShareDialog) {
         val clipboard = LocalClipboard.current
+        val copyScope = rememberCoroutineScope()
         val code = currentShareCode
+        var shareCopyRevision by remember(code) { mutableIntStateOf(0) }
+        LaunchedEffect(shareCopyRevision, code) {
+            if (shareCopyRevision == 0) return@LaunchedEffect
+            delay(2_000)
+            shareCopyRevision = 0
+        }
         AppDialog(
             onDismissRequest = { showShareDialog = false },
             title = t.t("taskList.shareTitle"),
@@ -8186,13 +8224,13 @@ private fun TaskListDetailContent(
                             modifier = Modifier.weight(1f)
                         )
                         AppButton(
-                            if (shareCopySuccess) t.t("common.copied") else t.t("common.copy"),
+                            if (shareCopyRevision > 0) t.t("common.copied") else t.t("common.copy"),
                             onClick = {
-                                scope.launch {
+                                copyScope.launch {
                                     clipboard.setClipEntry(
                                         ClipEntry(ClipData.newPlainText("share_code", shareCodeUrl(code)))
                                     )
-                                    shareCopySuccess = true
+                                    if (currentShareCode == code) shareCopyRevision += 1
                                 }
                             },
                             style = AppButtonStyle.Secondary

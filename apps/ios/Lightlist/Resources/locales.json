@@ -13,7 +13,6 @@
       "copy": "نسخ",
       "copied": "تم النسخ",
       "error": "حدث خطأ",
-      "done": "تم",
       "selected": "محدد",
       "offline": "أنت غير متصل. ستتم مزامنة التغييرات عند إعادة الاتصال",
       "syncFailed": "تعذّرت مزامنة بعض التغييرات. يتم عرض أحدث محتوى",
@@ -105,7 +104,6 @@
       "error": "حدث خطأ",
       "dragHint": "اسحب لإعادة الترتيب",
       "drawerTitle": "قوائم المهام",
-      "drawerNoEmail": "لا يوجد بريد إلكتروني متاح",
       "taskListLocator": {
         "label": "موضع قائمة المهام",
         "goTo": "الانتقال إلى قائمة المهام {{index}} من {{total}}"
@@ -116,13 +114,13 @@
       "shareCodePlaceholder": "أدخل رمز المشاركة",
       "join": "انضمام",
       "joining": "جارٍ الانضمام...",
-      "calendarCheckButton": "عرض في التقويم",
       "calendarNoDatedTasks": "لا توجد مهام بتاريخ",
-      "calendarNoTasksOnSelectedDate": "لا توجد مهام في التاريخ المحدد",
       "loadError": "تعذر تحميل قوائم المهام.",
       "calendar": "التقويم",
       "calendarPreviousMonth": "الشهر السابق",
-      "calendarNextMonth": "الشهر التالي"
+      "calendarNextMonth": "الشهر التالي",
+      "emptyStateHint": "أنشئ قائمة أو انضم إلى قائمة مشتركة للبدء.",
+      "calendarEmptyHint": "اختر تاريخًا لإضافة مهمة."
     },
     "datePatterns": {
       "relative": [
@@ -162,15 +160,11 @@
       "تثبيت"
     ],
     "taskList": {
-      "taskCount": "{{count}} مهمة",
-      "taskCount_one": "{{count}} مهمة",
-      "taskCount_other": "{{count}} مهام",
       "remainingCount": "{{count}} متبقية",
       "remainingCount_one": "{{count}} متبقية",
       "remainingCount_other": "{{count}} متبقية",
       "editDetails": "تعديل القائمة",
       "selectColor": "اختر اللون",
-      "backgroundNone": "بدون (يستخدم لون السمة)",
       "backgroundNoneShort": "بدون",
       "deleteList": "إزالة من قوائمي",
       "deleteListConfirm": {
@@ -232,7 +226,6 @@
       "actions": {
         "title": "إجراءات الحساب"
       },
-      "deleteAccount": "حذف الحساب",
       "signingOut": "جارٍ تسجيل الخروج...",
       "deletingAccount": "جارٍ حذف الحساب...",
       "emailChange": {
@@ -241,8 +234,7 @@
         "newEmailPlaceholder": "جديد@بريد.كوم",
         "submitButton": "إرسال رسالة التحقق",
         "submitting": "جارٍ الإرسال...",
-        "successMessage": "تم إرسال رسالة التحقق. انقر على الرابط في عنوان البريد الإلكتروني الجديد لإكمال التغيير.",
-        "changeButton": "تغيير"
+        "successMessage": "تم إرسال رسالة التحقق. انقر على الرابط في عنوان البريد الإلكتروني الجديد لإكمال التغيير."
       },
       "legal": {
         "title": "القانونية"
@@ -384,7 +376,9 @@
         "noDate": "بدون تاريخ",
         "pinTask": "تثبيت المهمة",
         "unpinTask": "إلغاء تثبيت المهمة",
-        "deleteCompletedConfirmTitle": "حذف المهام المكتملة؟"
+        "deleteCompletedConfirmTitle": "حذف المهام المكتملة؟",
+        "noTasksHint": "أضف مهمتك الأولى من حقل الإدخال أعلاه.",
+        "allCompletedHint": "أحسنت. خذ استراحة قصيرة."
       },
       "notFound": {
         "title": "الصفحة غير موجودة",
@@ -431,7 +425,6 @@
       "copy": "Kopieren",
       "copied": "Kopiert",
       "error": "Ein Fehler ist aufgetreten",
-      "done": "Fertig",
       "selected": "Ausgewählt",
       "offline": "Offline. Änderungen werden nach der erneuten Verbindung synchronisiert",
       "syncFailed": "Einige Änderungen konnten nicht synchronisiert werden. Der aktuelle Stand wird angezeigt",
@@ -523,7 +516,6 @@
       "error": "Ein Fehler ist aufgetreten",
       "dragHint": "Zum Neuordnen ziehen",
       "drawerTitle": "Aufgabenlisten",
-      "drawerNoEmail": "Keine E-Mail verfügbar",
       "taskListLocator": {
         "label": "Position der Aufgabenliste",
         "goTo": "Zur Liste {{index}} von {{total}} wechseln"
@@ -534,13 +526,13 @@
       "shareCodePlaceholder": "Freigabecode eingeben",
       "join": "Beitreten",
       "joining": "Wird beigetreten...",
-      "calendarCheckButton": "Im Kalender anzeigen",
       "calendarNoDatedTasks": "Keine Aufgaben mit Datum",
-      "calendarNoTasksOnSelectedDate": "Keine Aufgaben am ausgewählten Datum",
       "loadError": "Aufgabenlisten konnten nicht geladen werden.",
       "calendar": "Kalender",
       "calendarPreviousMonth": "Vorheriger Monat",
-      "calendarNextMonth": "Nächster Monat"
+      "calendarNextMonth": "Nächster Monat",
+      "emptyStateHint": "Erstelle eine Liste oder tritt einer geteilten Liste bei.",
+      "calendarEmptyHint": "Wähle ein Datum, um eine Aufgabe hinzuzufügen."
     },
     "datePatterns": {
       "relative": [
@@ -591,15 +583,11 @@
       "anheften"
     ],
     "taskList": {
-      "taskCount": "{{count}} Aufgaben",
-      "taskCount_one": "{{count}} Aufgabe",
-      "taskCount_other": "{{count}} Aufgaben",
       "remainingCount": "{{count}} offen",
       "remainingCount_one": "{{count}} offen",
       "remainingCount_other": "{{count}} offen",
       "editDetails": "Liste bearbeiten",
       "selectColor": "Farbe wählen",
-      "backgroundNone": "Keine (verwendet Themenfarbe)",
       "backgroundNoneShort": "Keine",
       "deleteList": "Aus meinen Listen entfernen",
       "deleteListConfirm": {
@@ -661,7 +649,6 @@
       "actions": {
         "title": "Kontoaktionen"
       },
-      "deleteAccount": "Konto löschen",
       "signingOut": "Wird abgemeldet...",
       "deletingAccount": "Konto wird gelöscht...",
       "emailChange": {
@@ -670,8 +657,7 @@
         "newEmailPlaceholder": "neu@beispiel.de",
         "submitButton": "Bestätigungs-E-Mail senden",
         "submitting": "Wird gesendet...",
-        "successMessage": "Bestätigungs-E-Mail gesendet. Klicke den Link in der neuen E-Mail-Adresse, um die Änderung abzuschließen.",
-        "changeButton": "Ändern"
+        "successMessage": "Bestätigungs-E-Mail gesendet. Klicke den Link in der neuen E-Mail-Adresse, um die Änderung abzuschließen."
       },
       "legal": {
         "title": "Rechtliches"
@@ -813,7 +799,9 @@
         "noDate": "Kein Datum",
         "pinTask": "Aufgabe anheften",
         "unpinTask": "Aufgabe lösen",
-        "deleteCompletedConfirmTitle": "Erledigte Aufgaben löschen?"
+        "deleteCompletedConfirmTitle": "Erledigte Aufgaben löschen?",
+        "noTasksHint": "Füge deine erste Aufgabe im Eingabefeld oben hinzu.",
+        "allCompletedHint": "Gut gemacht. Gönn dir eine kurze Pause."
       },
       "notFound": {
         "title": "Seite nicht gefunden",
@@ -860,7 +848,6 @@
       "copy": "Copy",
       "copied": "Copied",
       "error": "An error occurred",
-      "done": "Done",
       "selected": "Selected",
       "offline": "You're offline. Changes will sync when you reconnect",
       "syncFailed": "Some changes couldn't be synced. Showing the latest content",
@@ -952,7 +939,6 @@
       "error": "An error occurred",
       "dragHint": "Drag to reorder",
       "drawerTitle": "Task Lists",
-      "drawerNoEmail": "No email available",
       "taskListLocator": {
         "label": "Task list position",
         "goTo": "Go to task list {{index}} of {{total}}"
@@ -963,13 +949,13 @@
       "shareCodePlaceholder": "Enter share code",
       "join": "Join",
       "joining": "Joining...",
-      "calendarCheckButton": "View in Calendar",
       "calendarNoDatedTasks": "No tasks have a date",
-      "calendarNoTasksOnSelectedDate": "No tasks on the selected date",
       "loadError": "Failed to load task lists.",
       "calendar": "Calendar",
       "calendarPreviousMonth": "Previous month",
-      "calendarNextMonth": "Next month"
+      "calendarNextMonth": "Next month",
+      "emptyStateHint": "Create a list or join a shared list to get started.",
+      "calendarEmptyHint": "Choose a date to add a task."
     },
     "datePatterns": {
       "relative": [
@@ -1019,15 +1005,11 @@
       "pinned"
     ],
     "taskList": {
-      "taskCount": "{{count}} tasks",
-      "taskCount_one": "{{count}} task",
-      "taskCount_other": "{{count}} tasks",
       "remainingCount": "{{count}} remaining",
       "remainingCount_one": "{{count}} remaining",
       "remainingCount_other": "{{count}} remaining",
       "editDetails": "Edit List",
       "selectColor": "Select Color",
-      "backgroundNone": "None (uses theme color)",
       "backgroundNoneShort": "None",
       "deleteList": "Remove From My Lists",
       "deleteListConfirm": {
@@ -1089,7 +1071,6 @@
       "actions": {
         "title": "Account actions"
       },
-      "deleteAccount": "Delete account",
       "signingOut": "Signing out...",
       "deletingAccount": "Deleting account...",
       "emailChange": {
@@ -1098,8 +1079,7 @@
         "newEmailPlaceholder": "new@example.com",
         "submitButton": "Send Verification Email",
         "submitting": "Sending...",
-        "successMessage": "Verification email sent. Click the link in the new email address to complete the change.",
-        "changeButton": "Change"
+        "successMessage": "Verification email sent. Click the link in the new email address to complete the change."
       },
       "legal": {
         "title": "Legal"
@@ -1241,7 +1221,9 @@
         "noDate": "No date",
         "pinTask": "Pin task",
         "unpinTask": "Unpin task",
-        "deleteCompletedConfirmTitle": "Delete completed tasks?"
+        "deleteCompletedConfirmTitle": "Delete completed tasks?",
+        "noTasksHint": "Add your first task using the field above.",
+        "allCompletedHint": "Nice work. Take a moment to relax."
       },
       "notFound": {
         "title": "Page Not Found",
@@ -1288,7 +1270,6 @@
       "copy": "Copiar",
       "copied": "Copiado",
       "error": "Ocurrió un error",
-      "done": "Listo",
       "selected": "Seleccionado",
       "offline": "Sin conexión. Los cambios se sincronizarán al reconectarte",
       "syncFailed": "No se pudieron sincronizar algunos cambios. Se muestra el contenido más reciente",
@@ -1380,7 +1361,6 @@
       "error": "Ocurrió un error",
       "dragHint": "Arrastra para reordenar",
       "drawerTitle": "Listas de tareas",
-      "drawerNoEmail": "No hay correo disponible",
       "taskListLocator": {
         "label": "Posición de la lista",
         "goTo": "Ir a la lista {{index}} de {{total}}"
@@ -1391,13 +1371,13 @@
       "shareCodePlaceholder": "Ingresa el código",
       "join": "Unirse",
       "joining": "Uniéndose...",
-      "calendarCheckButton": "Ver en calendario",
       "calendarNoDatedTasks": "No hay tareas con fecha",
-      "calendarNoTasksOnSelectedDate": "No hay tareas en la fecha seleccionada",
       "loadError": "Error al cargar las listas de tareas.",
       "calendar": "Calendario",
       "calendarPreviousMonth": "Mes anterior",
-      "calendarNextMonth": "Mes siguiente"
+      "calendarNextMonth": "Mes siguiente",
+      "emptyStateHint": "Crea una lista o únete a una lista compartida para empezar.",
+      "calendarEmptyHint": "Elige una fecha para añadir una tarea."
     },
     "datePatterns": {
       "relative": [
@@ -1452,15 +1432,11 @@
       "fijar"
     ],
     "taskList": {
-      "taskCount": "{{count}} tareas",
-      "taskCount_one": "{{count}} tarea",
-      "taskCount_other": "{{count}} tareas",
       "remainingCount": "{{count}} pendientes",
       "remainingCount_one": "{{count}} pendiente",
       "remainingCount_other": "{{count}} pendientes",
       "editDetails": "Editar lista",
       "selectColor": "Seleccionar color",
-      "backgroundNone": "Ninguno (usa el color del tema)",
       "backgroundNoneShort": "Ninguno",
       "deleteList": "Quitar de mis listas",
       "deleteListConfirm": {
@@ -1522,7 +1498,6 @@
       "actions": {
         "title": "Acciones de cuenta"
       },
-      "deleteAccount": "Eliminar cuenta",
       "signingOut": "Cerrando sesión...",
       "deletingAccount": "Eliminando cuenta...",
       "emailChange": {
@@ -1531,8 +1506,7 @@
         "newEmailPlaceholder": "nuevo@ejemplo.com",
         "submitButton": "Enviar correo de verificación",
         "submitting": "Enviando...",
-        "successMessage": "Correo de verificación enviado. Haz clic en el enlace del nuevo correo para completar el cambio.",
-        "changeButton": "Cambiar"
+        "successMessage": "Correo de verificación enviado. Haz clic en el enlace del nuevo correo para completar el cambio."
       },
       "legal": {
         "title": "Información legal"
@@ -1674,7 +1648,9 @@
         "noDate": "Sin fecha",
         "pinTask": "Fijar tarea",
         "unpinTask": "Desfijar tarea",
-        "deleteCompletedConfirmTitle": "¿Eliminar tareas completadas?"
+        "deleteCompletedConfirmTitle": "¿Eliminar tareas completadas?",
+        "noTasksHint": "Añade tu primera tarea en el campo de arriba.",
+        "allCompletedHint": "Buen trabajo. Tómate un momento para descansar."
       },
       "notFound": {
         "title": "Página no encontrada",
@@ -1721,7 +1697,6 @@
       "copy": "Copier",
       "copied": "Copié",
       "error": "Une erreur est survenue",
-      "done": "Terminé",
       "selected": "Sélectionné",
       "offline": "Hors ligne. Les modifications seront synchronisées à la reconnexion",
       "syncFailed": "Certaines modifications n'ont pas pu être synchronisées. Le contenu le plus récent est affiché",
@@ -1813,7 +1788,6 @@
       "error": "Une erreur est survenue",
       "dragHint": "Glissez pour réorganiser",
       "drawerTitle": "Listes de tâches",
-      "drawerNoEmail": "Aucun e-mail disponible",
       "taskListLocator": {
         "label": "Position de la liste",
         "goTo": "Aller à la liste {{index}} sur {{total}}"
@@ -1824,13 +1798,13 @@
       "shareCodePlaceholder": "Saisissez le code de partage",
       "join": "Rejoindre",
       "joining": "Connexion en cours...",
-      "calendarCheckButton": "Voir dans le calendrier",
       "calendarNoDatedTasks": "Aucune tâche avec une date",
-      "calendarNoTasksOnSelectedDate": "Aucune tâche à la date sélectionnée",
       "loadError": "Impossible de charger les listes de tâches.",
       "calendar": "Calendrier",
       "calendarPreviousMonth": "Mois précédent",
-      "calendarNextMonth": "Mois suivant"
+      "calendarNextMonth": "Mois suivant",
+      "emptyStateHint": "Créez une liste ou rejoignez une liste partagée pour commencer.",
+      "calendarEmptyHint": "Choisissez une date pour ajouter une tâche."
     },
     "datePatterns": {
       "relative": [
@@ -1882,15 +1856,11 @@
       "épingler"
     ],
     "taskList": {
-      "taskCount": "{{count}} tâches",
-      "taskCount_one": "{{count}} tâche",
-      "taskCount_other": "{{count}} tâches",
       "remainingCount": "{{count}} restantes",
       "remainingCount_one": "{{count}} restante",
       "remainingCount_other": "{{count}} restantes",
       "editDetails": "Modifier la liste",
       "selectColor": "Choisir une couleur",
-      "backgroundNone": "Aucune (utilise la couleur du thème)",
       "backgroundNoneShort": "Aucune",
       "deleteList": "Retirer de mes listes",
       "deleteListConfirm": {
@@ -1952,7 +1922,6 @@
       "actions": {
         "title": "Actions du compte"
       },
-      "deleteAccount": "Supprimer le compte",
       "signingOut": "Déconnexion...",
       "deletingAccount": "Suppression du compte...",
       "emailChange": {
@@ -1961,8 +1930,7 @@
         "newEmailPlaceholder": "nouveau@exemple.com",
         "submitButton": "Envoyer l'e-mail de vérification",
         "submitting": "Envoi...",
-        "successMessage": "E-mail de vérification envoyé. Cliquez sur le lien dans la nouvelle adresse e-mail pour terminer la modification.",
-        "changeButton": "Modifier"
+        "successMessage": "E-mail de vérification envoyé. Cliquez sur le lien dans la nouvelle adresse e-mail pour terminer la modification."
       },
       "legal": {
         "title": "Mentions légales"
@@ -2104,7 +2072,9 @@
         "noDate": "Sans date",
         "pinTask": "Épingler la tâche",
         "unpinTask": "Désépingler la tâche",
-        "deleteCompletedConfirmTitle": "Supprimer les tâches terminées ?"
+        "deleteCompletedConfirmTitle": "Supprimer les tâches terminées ?",
+        "noTasksHint": "Ajoutez votre première tâche dans le champ ci-dessus.",
+        "allCompletedHint": "Bravo. Prenez un moment pour souffler."
       },
       "notFound": {
         "title": "Page introuvable",
@@ -2151,7 +2121,6 @@
       "copy": "कॉपी करें",
       "copied": "कॉपी हो गया",
       "error": "एक त्रुटि हुई",
-      "done": "हो गया",
       "selected": "चयनित",
       "offline": "आप ऑफ़लाइन हैं। दोबारा कनेक्ट होने पर बदलाव सिंक हो जाएंगे",
       "syncFailed": "कुछ बदलाव सिंक नहीं हो सके। नवीनतम सामग्री दिखाई जा रही है",
@@ -2243,7 +2212,6 @@
       "error": "एक त्रुटि हुई",
       "dragHint": "क्रम बदलने के लिए खींचें",
       "drawerTitle": "टास्क सूचियाँ",
-      "drawerNoEmail": "कोई ईमेल उपलब्ध नहीं",
       "taskListLocator": {
         "label": "टास्क सूची की स्थिति",
         "goTo": "{{total}} में से {{index}}वीं सूची पर जाएँ"
@@ -2254,13 +2222,13 @@
       "shareCodePlaceholder": "शेयर कोड दर्ज करें",
       "join": "शामिल हों",
       "joining": "शामिल हो रहे हैं...",
-      "calendarCheckButton": "कैलेंडर में देखें",
       "calendarNoDatedTasks": "किसी भी टास्क में तिथि सेट नहीं है",
-      "calendarNoTasksOnSelectedDate": "चयनित तिथि पर कोई टास्क नहीं",
       "loadError": "कार्य सूचियाँ लोड नहीं हो सकीं।",
       "calendar": "कैलेंडर",
       "calendarPreviousMonth": "पिछला महीना",
-      "calendarNextMonth": "अगला महीना"
+      "calendarNextMonth": "अगला महीना",
+      "emptyStateHint": "शुरू करने के लिए सूची बनाएँ या साझा सूची में शामिल हों।",
+      "calendarEmptyHint": "टास्क जोड़ने के लिए तारीख चुनें।"
     },
     "datePatterns": {
       "relative": [
@@ -2299,15 +2267,11 @@
       "पिन"
     ],
     "taskList": {
-      "taskCount": "{{count}} टास्क",
-      "taskCount_one": "{{count}} टास्क",
-      "taskCount_other": "{{count}} टास्क",
       "remainingCount": "{{count}} बाकी",
       "remainingCount_one": "{{count}} बाकी",
       "remainingCount_other": "{{count}} बाकी",
       "editDetails": "सूची संपादित करें",
       "selectColor": "रंग चुनें",
-      "backgroundNone": "कोई नहीं (थीम रंग का उपयोग)",
       "backgroundNoneShort": "कोई नहीं",
       "deleteList": "मेरी सूचियों से हटाएँ",
       "deleteListConfirm": {
@@ -2369,7 +2333,6 @@
       "actions": {
         "title": "खाता क्रियाएँ"
       },
-      "deleteAccount": "खाता हटाएँ",
       "signingOut": "साइन आउट हो रहा है...",
       "deletingAccount": "खाता हटाया जा रहा है...",
       "emailChange": {
@@ -2378,8 +2341,7 @@
         "newEmailPlaceholder": "naya@udaharan.com",
         "submitButton": "सत्यापन ईमेल भेजें",
         "submitting": "भेजा जा रहा है...",
-        "successMessage": "सत्यापन ईमेल भेज दिया गया है। परिवर्तन पूरा करने के लिए नए ईमेल पते में लिंक पर क्लिक करें।",
-        "changeButton": "बदलें"
+        "successMessage": "सत्यापन ईमेल भेज दिया गया है। परिवर्तन पूरा करने के लिए नए ईमेल पते में लिंक पर क्लिक करें।"
       },
       "legal": {
         "title": "कानूनी जानकारी"
@@ -2521,7 +2483,9 @@
         "noDate": "कोई तिथि नहीं",
         "pinTask": "टास्क पिन करें",
         "unpinTask": "टास्क अनपिन करें",
-        "deleteCompletedConfirmTitle": "पूर्ण किए गए कार्य हटाएं?"
+        "deleteCompletedConfirmTitle": "पूर्ण किए गए कार्य हटाएं?",
+        "noTasksHint": "ऊपर दिए गए फ़ील्ड से अपना पहला टास्क जोड़ें।",
+        "allCompletedHint": "बहुत अच्छा। थोड़ा आराम करें।"
       },
       "notFound": {
         "title": "पेज नहीं मिला",
@@ -2568,7 +2532,6 @@
       "copy": "Salin",
       "copied": "Tersalin",
       "error": "Terjadi kesalahan",
-      "done": "Selesai",
       "selected": "Dipilih",
       "offline": "Anda sedang offline. Perubahan akan disinkronkan saat terhubung kembali",
       "syncFailed": "Beberapa perubahan tidak dapat disinkronkan. Menampilkan konten terbaru",
@@ -2660,7 +2623,6 @@
       "error": "Terjadi kesalahan",
       "dragHint": "Seret untuk mengurutkan ulang",
       "drawerTitle": "Daftar tugas",
-      "drawerNoEmail": "Email tidak tersedia",
       "taskListLocator": {
         "label": "Posisi daftar tugas",
         "goTo": "Pergi ke daftar tugas {{index}} dari {{total}}"
@@ -2671,13 +2633,13 @@
       "shareCodePlaceholder": "Masukkan kode berbagi",
       "join": "Gabung",
       "joining": "Sedang bergabung...",
-      "calendarCheckButton": "Lihat di kalender",
       "calendarNoDatedTasks": "Tidak ada tugas bertanggal",
-      "calendarNoTasksOnSelectedDate": "Tidak ada tugas pada tanggal yang dipilih",
       "loadError": "Gagal memuat daftar tugas.",
       "calendar": "Kalender",
       "calendarPreviousMonth": "Bulan sebelumnya",
-      "calendarNextMonth": "Bulan berikutnya"
+      "calendarNextMonth": "Bulan berikutnya",
+      "emptyStateHint": "Buat daftar atau bergabung dengan daftar bersama untuk memulai.",
+      "calendarEmptyHint": "Pilih tanggal untuk menambahkan tugas."
     },
     "datePatterns": {
       "relative": [
@@ -2722,15 +2684,11 @@
       "sematkan"
     ],
     "taskList": {
-      "taskCount": "{{count}} tugas",
-      "taskCount_one": "{{count}} tugas",
-      "taskCount_other": "{{count}} tugas",
       "remainingCount": "{{count}} tersisa",
       "remainingCount_one": "{{count}} tersisa",
       "remainingCount_other": "{{count}} tersisa",
       "editDetails": "Edit daftar",
       "selectColor": "Pilih warna",
-      "backgroundNone": "Tidak ada (menggunakan warna tema)",
       "backgroundNoneShort": "Tidak ada",
       "deleteList": "Hapus dari daftar saya",
       "deleteListConfirm": {
@@ -2792,7 +2750,6 @@
       "actions": {
         "title": "Tindakan akun"
       },
-      "deleteAccount": "Hapus akun",
       "signingOut": "Sedang keluar...",
       "deletingAccount": "Menghapus akun...",
       "emailChange": {
@@ -2801,8 +2758,7 @@
         "newEmailPlaceholder": "baru@contoh.com",
         "submitButton": "Kirim email verifikasi",
         "submitting": "Mengirim...",
-        "successMessage": "Email verifikasi telah dikirim. Klik tautan pada alamat email baru untuk menyelesaikan perubahan.",
-        "changeButton": "Ubah"
+        "successMessage": "Email verifikasi telah dikirim. Klik tautan pada alamat email baru untuk menyelesaikan perubahan."
       },
       "legal": {
         "title": "Hukum"
@@ -2944,7 +2900,9 @@
         "noDate": "Tanpa tanggal",
         "pinTask": "Sematkan tugas",
         "unpinTask": "Lepas sematan tugas",
-        "deleteCompletedConfirmTitle": "Hapus tugas yang selesai?"
+        "deleteCompletedConfirmTitle": "Hapus tugas yang selesai?",
+        "noTasksHint": "Tambahkan tugas pertama melalui kolom di atas.",
+        "allCompletedHint": "Kerja bagus. Saatnya beristirahat sejenak."
       },
       "notFound": {
         "title": "Halaman tidak ditemukan",
@@ -2991,7 +2949,6 @@
       "copy": "コピー",
       "copied": "コピーしました",
       "error": "エラーが発生しました",
-      "done": "完了",
       "selected": "選択中",
       "offline": "オフラインです。変更は再接続時に同期されます",
       "syncFailed": "一部の変更を同期できませんでした。最新の内容を表示しています",
@@ -3083,7 +3040,6 @@
       "error": "エラーが発生しました",
       "dragHint": "ドラッグして並び替え",
       "drawerTitle": "タスクリスト",
-      "drawerNoEmail": "メールアドレス未設定",
       "taskListLocator": {
         "label": "タスクリストの位置",
         "goTo": "タスクリスト{{index}}（全{{total}}）へ移動"
@@ -3094,13 +3050,13 @@
       "shareCodePlaceholder": "共有コードを入力",
       "join": "参加",
       "joining": "参加中...",
-      "calendarCheckButton": "カレンダーで確認",
       "calendarNoDatedTasks": "日付が設定されたタスクはありません",
-      "calendarNoTasksOnSelectedDate": "選択した日付のタスクはありません",
       "loadError": "タスクリストの読み込みに失敗しました",
       "calendar": "カレンダー",
       "calendarPreviousMonth": "前の月",
-      "calendarNextMonth": "次の月"
+      "calendarNextMonth": "次の月",
+      "emptyStateHint": "新しいリストを作成するか、共有リストに参加しましょう。",
+      "calendarEmptyHint": "日付を選んで、タスクを追加できます。"
     },
     "datePatterns": {
       "relative": [
@@ -3139,15 +3095,11 @@
       "ピン"
     ],
     "taskList": {
-      "taskCount": "{{count}}個のタスク",
-      "taskCount_one": "{{count}}個のタスク",
-      "taskCount_other": "{{count}}個のタスク",
       "remainingCount": "未完了 {{count}}件",
       "remainingCount_one": "未完了 {{count}}件",
       "remainingCount_other": "未完了 {{count}}件",
       "editDetails": "更新",
       "selectColor": "色を選択",
-      "backgroundNone": "なし（実際はテーマカラーの色）",
       "backgroundNoneShort": "なし",
       "deleteList": "リストを一覧から外す",
       "deleteListConfirm": {
@@ -3209,7 +3161,6 @@
       "actions": {
         "title": "アカウント操作"
       },
-      "deleteAccount": "アカウントを削除",
       "signingOut": "ログアウト中...",
       "deletingAccount": "削除中...",
       "emailChange": {
@@ -3218,8 +3169,7 @@
         "newEmailPlaceholder": "new@example.jp",
         "submitButton": "確認メールを送信",
         "submitting": "送信中...",
-        "successMessage": "確認メールを送信しました。新しいメールアドレスのリンクをクリックすると変更が完了します。",
-        "changeButton": "変更"
+        "successMessage": "確認メールを送信しました。新しいメールアドレスのリンクをクリックすると変更が完了します。"
       },
       "legal": {
         "title": "法的情報"
@@ -3361,7 +3311,9 @@
         "noDate": "日付なし",
         "pinTask": "タスクをピン留め",
         "unpinTask": "タスクのピン留めを解除",
-        "deleteCompletedConfirmTitle": "完了タスクを削除しますか？"
+        "deleteCompletedConfirmTitle": "完了タスクを削除しますか？",
+        "noTasksHint": "上の入力欄から、最初のタスクを追加しましょう。",
+        "allCompletedHint": "おつかれさまでした。ひと息つきましょう。"
       },
       "notFound": {
         "title": "ページが見つかりません",
@@ -3408,7 +3360,6 @@
       "copy": "복사",
       "copied": "복사됨",
       "error": "오류가 발생했습니다",
-      "done": "완료",
       "selected": "선택됨",
       "offline": "오프라인 상태입니다. 다시 연결되면 변경 사항이 동기화됩니다",
       "syncFailed": "일부 변경 사항을 동기화하지 못했습니다. 최신 내용을 표시합니다",
@@ -3500,7 +3451,6 @@
       "error": "오류가 발생했습니다",
       "dragHint": "드래그해서 순서 변경",
       "drawerTitle": "작업 목록",
-      "drawerNoEmail": "사용 가능한 이메일 없음",
       "taskListLocator": {
         "label": "작업 목록 위치",
         "goTo": "{{total}}개 중 {{index}}번째 목록으로 이동"
@@ -3511,13 +3461,13 @@
       "shareCodePlaceholder": "공유 코드 입력",
       "join": "참가",
       "joining": "참가 중...",
-      "calendarCheckButton": "캘린더에서 보기",
       "calendarNoDatedTasks": "날짜가 지정된 작업이 없습니다",
-      "calendarNoTasksOnSelectedDate": "선택한 날짜에 작업이 없습니다",
       "loadError": "할 일 목록을 불러오지 못했습니다.",
       "calendar": "캘린더",
       "calendarPreviousMonth": "이전 달",
-      "calendarNextMonth": "다음 달"
+      "calendarNextMonth": "다음 달",
+      "emptyStateHint": "새 목록을 만들거나 공유 목록에 참여해 보세요.",
+      "calendarEmptyHint": "날짜를 선택하여 작업을 추가할 수 있어요."
     },
     "datePatterns": {
       "relative": [
@@ -3563,15 +3513,11 @@
       "고정"
     ],
     "taskList": {
-      "taskCount": "작업 {{count}}개",
-      "taskCount_one": "작업 {{count}}개",
-      "taskCount_other": "작업 {{count}}개",
       "remainingCount": "남은 작업 {{count}}개",
       "remainingCount_one": "남은 작업 {{count}}개",
       "remainingCount_other": "남은 작업 {{count}}개",
       "editDetails": "목록 편집",
       "selectColor": "색상 선택",
-      "backgroundNone": "없음 (테마 색상 사용)",
       "backgroundNoneShort": "없음",
       "deleteList": "내 목록에서 제거",
       "deleteListConfirm": {
@@ -3633,7 +3579,6 @@
       "actions": {
         "title": "계정 작업"
       },
-      "deleteAccount": "계정 삭제",
       "signingOut": "로그아웃 중...",
       "deletingAccount": "계정 삭제 중...",
       "emailChange": {
@@ -3642,8 +3587,7 @@
         "newEmailPlaceholder": "new@예시.com",
         "submitButton": "인증 메일 보내기",
         "submitting": "전송 중...",
-        "successMessage": "인증 메일을 보냈습니다. 새 이메일의 링크를 클릭하면 변경이 완료됩니다.",
-        "changeButton": "변경"
+        "successMessage": "인증 메일을 보냈습니다. 새 이메일의 링크를 클릭하면 변경이 완료됩니다."
       },
       "legal": {
         "title": "법적 정보"
@@ -3785,7 +3729,9 @@
         "noDate": "날짜 없음",
         "pinTask": "작업 고정",
         "unpinTask": "작업 고정 해제",
-        "deleteCompletedConfirmTitle": "완료된 할 일을 삭제하시겠습니까?"
+        "deleteCompletedConfirmTitle": "완료된 할 일을 삭제하시겠습니까?",
+        "noTasksHint": "위 입력란에서 첫 작업을 추가해 보세요.",
+        "allCompletedHint": "수고하셨어요. 잠시 쉬어 가세요."
       },
       "notFound": {
         "title": "페이지를 찾을 수 없습니다",
@@ -3832,7 +3778,6 @@
       "copy": "Copiar",
       "copied": "Copiado",
       "error": "Ocorreu um erro",
-      "done": "Concluído",
       "selected": "Selecionado",
       "offline": "Você está offline. As alterações serão sincronizadas ao reconectar",
       "syncFailed": "Não foi possível sincronizar algumas alterações. Mostrando o conteúdo mais recente",
@@ -3924,7 +3869,6 @@
       "error": "Ocorreu um erro",
       "dragHint": "Arraste para reordenar",
       "drawerTitle": "Listas de tarefas",
-      "drawerNoEmail": "Nenhum e-mail disponível",
       "taskListLocator": {
         "label": "Posição da lista de tarefas",
         "goTo": "Ir para a lista {{index}} de {{total}}"
@@ -3935,13 +3879,13 @@
       "shareCodePlaceholder": "Digite o código de compartilhamento",
       "join": "Entrar",
       "joining": "Entrando...",
-      "calendarCheckButton": "Ver no calendário",
       "calendarNoDatedTasks": "Nenhuma tarefa com data",
-      "calendarNoTasksOnSelectedDate": "Nenhuma tarefa na data selecionada",
       "loadError": "Falha ao carregar as listas de tarefas.",
       "calendar": "Calendário",
       "calendarPreviousMonth": "Mês anterior",
-      "calendarNextMonth": "Próximo mês"
+      "calendarNextMonth": "Próximo mês",
+      "emptyStateHint": "Crie uma lista ou participe de uma lista compartilhada para começar.",
+      "calendarEmptyHint": "Escolha uma data para adicionar uma tarefa."
     },
     "datePatterns": {
       "relative": [
@@ -4001,15 +3945,11 @@
       "fixar"
     ],
     "taskList": {
-      "taskCount": "{{count}} tarefas",
-      "taskCount_one": "{{count}} tarefa",
-      "taskCount_other": "{{count}} tarefas",
       "remainingCount": "{{count}} pendentes",
       "remainingCount_one": "{{count}} pendente",
       "remainingCount_other": "{{count}} pendentes",
       "editDetails": "Editar lista",
       "selectColor": "Selecionar cor",
-      "backgroundNone": "Nenhum (usa a cor do tema)",
       "backgroundNoneShort": "Nenhum",
       "deleteList": "Remover das minhas listas",
       "deleteListConfirm": {
@@ -4071,7 +4011,6 @@
       "actions": {
         "title": "Ações da conta"
       },
-      "deleteAccount": "Excluir conta",
       "signingOut": "Saindo...",
       "deletingAccount": "Excluindo conta...",
       "emailChange": {
@@ -4080,8 +4019,7 @@
         "newEmailPlaceholder": "novo@exemplo.com",
         "submitButton": "Enviar e-mail de verificação",
         "submitting": "Enviando...",
-        "successMessage": "E-mail de verificação enviado. Clique no link no novo endereço de e-mail para concluir a alteração.",
-        "changeButton": "Alterar"
+        "successMessage": "E-mail de verificação enviado. Clique no link no novo endereço de e-mail para concluir a alteração."
       },
       "legal": {
         "title": "Informações legais"
@@ -4223,7 +4161,9 @@
         "noDate": "Sem data",
         "pinTask": "Fixar tarefa",
         "unpinTask": "Desafixar tarefa",
-        "deleteCompletedConfirmTitle": "Excluir tarefas concluídas?"
+        "deleteCompletedConfirmTitle": "Excluir tarefas concluídas?",
+        "noTasksHint": "Adicione sua primeira tarefa no campo acima.",
+        "allCompletedHint": "Bom trabalho. Tire um momento para descansar."
       },
       "notFound": {
         "title": "Página não encontrada",
@@ -4270,7 +4210,6 @@
       "copy": "复制",
       "copied": "已复制",
       "error": "发生错误",
-      "done": "完成",
       "selected": "已选择",
       "offline": "当前处于离线状态。重新连接后将同步更改",
       "syncFailed": "部分更改未能同步。正在显示最新内容",
@@ -4362,7 +4301,6 @@
       "error": "发生错误",
       "dragHint": "拖动以重新排序",
       "drawerTitle": "任务列表",
-      "drawerNoEmail": "无可用邮箱",
       "taskListLocator": {
         "label": "任务列表位置",
         "goTo": "跳转到第 {{index}} / {{total}} 个列表"
@@ -4373,13 +4311,13 @@
       "shareCodePlaceholder": "输入共享码",
       "join": "加入",
       "joining": "加入中...",
-      "calendarCheckButton": "在日历中查看",
       "calendarNoDatedTasks": "没有设置日期的任务",
-      "calendarNoTasksOnSelectedDate": "所选日期没有任务",
       "loadError": "无法加载任务列表。",
       "calendar": "日历",
       "calendarPreviousMonth": "上个月",
-      "calendarNextMonth": "下个月"
+      "calendarNextMonth": "下个月",
+      "emptyStateHint": "创建新列表或加入共享列表，开始使用。",
+      "calendarEmptyHint": "选择日期即可添加任务。"
     },
     "datePatterns": {
       "relative": [
@@ -4427,15 +4365,11 @@
       "置顶"
     ],
     "taskList": {
-      "taskCount": "{{count}} 个任务",
-      "taskCount_one": "{{count}} 个任务",
-      "taskCount_other": "{{count}} 个任务",
       "remainingCount": "{{count}} 个未完成",
       "remainingCount_one": "{{count}} 个未完成",
       "remainingCount_other": "{{count}} 个未完成",
       "editDetails": "编辑列表",
       "selectColor": "选择颜色",
-      "backgroundNone": "无（使用主题色）",
       "backgroundNoneShort": "无",
       "deleteList": "从我的列表中移除",
       "deleteListConfirm": {
@@ -4497,7 +4431,6 @@
       "actions": {
         "title": "账户操作"
       },
-      "deleteAccount": "删除账户",
       "signingOut": "正在退出...",
       "deletingAccount": "正在删除账户...",
       "emailChange": {
@@ -4506,8 +4439,7 @@
         "newEmailPlaceholder": "new@示例.com",
         "submitButton": "发送验证邮件",
         "submitting": "发送中...",
-        "successMessage": "验证邮件已发送。请点击新邮箱中的链接完成修改。",
-        "changeButton": "修改"
+        "successMessage": "验证邮件已发送。请点击新邮箱中的链接完成修改。"
       },
       "legal": {
         "title": "法律信息"
@@ -4649,7 +4581,9 @@
         "noDate": "无日期",
         "pinTask": "置顶任务",
         "unpinTask": "取消置顶任务",
-        "deleteCompletedConfirmTitle": "删除已完成的任务？"
+        "deleteCompletedConfirmTitle": "删除已完成的任务？",
+        "noTasksHint": "在上方输入框中添加第一个任务。",
+        "allCompletedHint": "辛苦了。休息一下吧。"
       },
       "notFound": {
         "title": "页面未找到",

@@ -581,9 +581,6 @@
   .ll-h-8 {
     height: calc(var(--spacing) * 8);
   }
-  .ll-h-9 {
-    height: calc(var(--spacing) * 9);
-  }
   .ll-h-10 {
     height: calc(var(--spacing) * 10);
   }
@@ -993,9 +990,6 @@
   }
   .ll-pt-3 {
     padding-top: calc(var(--spacing) * 3);
-  }
-  .ll-pt-6 {
-    padding-top: calc(var(--spacing) * 6);
   }
   .ll-pt-24 {
     padding-top: calc(var(--spacing) * 24);

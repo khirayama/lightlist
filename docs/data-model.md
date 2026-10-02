@@ -49,7 +49,7 @@ Task は「trim 後に 1 文字以上の `text`」「空でない `date`」「`p
 
 Task の decode では `id` / `text` / `completed` / `date` / `order` / `pinned` の全fieldと型を検証する。他端末で削除された task ID へ古い端末がドット記法のfield更新を送ると、Firestore上で一部fieldだけのmapが再生成されることがある。この部分mapは task として表示せず、cache由来でもpending write由来でもないserver確定snapshotで検出した場合に `tasks.<id>` を削除する。
 
-Web は `settings` / `taskListOrder` / `taskLists` / `shareCodes` の購読・単発取得を共通の境界検証へ通し、トップレベルfieldと動的mapの全要素を検証してからドメインモデルへ渡す。不正な `settings` / `taskListOrder` は読み込みエラーとし、不正な `taskLists` document は当該documentだけを表示対象から外す。task map 内の不正要素はリスト全体を無効にせず除外し、server確定snapshotで自動削除する。
+Web は `settings` / `taskListOrder` / `taskLists` / `shareCodes` の購読・単発取得を共通の境界検証へ通し、トップレベルfieldと動的mapの全要素を検証してからドメインモデルへ渡す。不正な `settings` と `taskListOrder` の必須時刻 field は読み込みエラーとし、不正な `taskLists` document は当該documentだけを表示対象から外す。3 プラットフォームの `taskListOrder` の動的要素は、有効な document ID（空文字・`/` を含む ID は除外）と有限の数値 `order` を持つ map だけを採用し、不正な要素やドットを含む余分な数値 field は無視する。bool は数値として扱わない。task map 内の不正要素はリスト全体を無効にせず除外し、server確定snapshotで自動削除する。
 
 iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestoreドキュメントへ変換してからドメインモデルへ渡す。トップレベルの `taskLists` ドキュメントが型不正の場合は当該リストを表示対象から外し、空レコードへ劣化させない。動的なキーを持つ `taskListOrder`、部分mapの検証・削除、ドット記法の差分更新だけはFirestore APIの境界で動的データを使う。`theme` / `language` / `taskInsertPosition` / `autoSort` が不正な型・値の場合は設定画面を読み込みエラーとして扱い、`startupView` の不正値だけは `taskList` に正規化する。
 
@@ -74,6 +74,7 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 - 表示順は `taskListOrder/{uid}` が正。保持権限は `taskLists/{taskListId}/members/{uid}` が正。
 - リスト実体は `taskLists/{taskListId}` が正。
 - 共有コードは `shareCodes/{shareCode}` から `taskListId` を引く。
+- 実体が存在しない ID の順序エントリーは管理者による整合性確認後に除去できる。旧クライアントの document ID 指定クエリでは、アクセスできない ID を含むと全体が拒否されるため、残存参照を維持しない。補正はバックアップと `updateTime` 前提条件を付け、正常なリストの順序・本文・保持権限を変更しない。
 - `taskListOrder` と `taskLists` は別管理する。一方だけで順序と実体を兼ねない。加入・離脱時は order と membership、`memberCount`、`memberKeys`（自分の key だけを `arrayUnion` / `arrayRemove`）を同一 batch で更新する。
 
 ## 同期モデル
@@ -86,7 +87,7 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 - Web の通常購読は listener が返す初回 cache snapshot をそのまま hydrate に使い、同じ参照への明示的な cache get を重ねない。起動前 warm-up の cache get は IndexedDB と Firestore client の初期化だけを目的とする。
 - settings listener は metadata change を受け取り、cache snapshot で即時表示を更新する。server 確定かつ pending write なしの snapshot だけを同期復旧・通常のキャッシュ更新の確定点とする。iOS の `startupView` だけは設定選択時に起動用 UserDefaults も即時更新し、書き込み失敗時は直前値へ戻す。設定変更はサーバー応答を待たずに次の変更を受け付け、書き込み失敗は後述の同期失敗通知で知らせる。
 - `taskLists` クエリは cache / live snapshot とも snapshot 全体で置き換える（差分適用しない）。
-- Firestore listener がエラーを返した場合は、現在の購読を解除して同じ参照を再登録する。再試行は 1 秒から始め、2 倍ずつ最大 30 秒まで待ち、画面・ユーザーの購読スコープが終了するまで継続する。cache snapshot は復旧扱いにせず、server snapshot の受信で待ち時間を初期化する。
+- Firestore listener がエラーを返した場合は、現在の購読を解除して同じ参照を再登録する。再試行は 1 秒から始め、2 倍ずつ最大 30 秒まで待ち、画面・ユーザーの購読スコープが終了するまで継続する。cache snapshot と pending write を含む snapshot は復旧扱いにせず、server 確定かつ pending write なしの snapshot の受信で、その参照だけの失敗状態と待ち時間を初期化する。順序とリストの listener は metadata change も受け取る。
 - UI 更新系は listener 反映より先に画面上の編集結果を捨てない。保存後も Firestore が同じ内容へ追いつくまで local pending 表示を優先する。詳細は [task-lists.md](./task-lists.md)。
 - 書き込み前の読み取り（task mutation の基準・リスト作成時の順序・リスト削除時の `memberCount`）は、listener が最新に保っている cache を優先し、cache にない場合だけ SDK の既定取得を使う。共有コードの生成・解除・解決、共有参加、退会、サインアップ初期データはサーバー値を読む。
 - taskLists listener はmetadata changeを受け取り、部分mapの自動除去は `isFromCache/fromCache == false` かつ `hasPendingWrites == false` のsnapshotだけで行う。cacheの古い状態を根拠にserverデータを削除しない。

@@ -12,7 +12,6 @@
     "copy": "コピー",
     "copied": "コピーしました",
     "error": "エラーが発生しました",
-    "done": "完了",
     "selected": "選択中",
     "offline": "オフラインです。変更は再接続時に同期されます",
     "syncFailed": "一部の変更を同期できませんでした。最新の内容を表示しています",
@@ -104,7 +103,6 @@
     "error": "エラーが発生しました",
     "dragHint": "ドラッグして並び替え",
     "drawerTitle": "タスクリスト",
-    "drawerNoEmail": "メールアドレス未設定",
     "taskListLocator": {
       "label": "タスクリストの位置",
       "goTo": "タスクリスト{{index}}（全{{total}}）へ移動"
@@ -115,13 +113,13 @@
     "shareCodePlaceholder": "共有コードを入力",
     "join": "参加",
     "joining": "参加中...",
-    "calendarCheckButton": "カレンダーで確認",
     "calendarNoDatedTasks": "日付が設定されたタスクはありません",
-    "calendarNoTasksOnSelectedDate": "選択した日付のタスクはありません",
     "loadError": "タスクリストの読み込みに失敗しました",
     "calendar": "カレンダー",
     "calendarPreviousMonth": "前の月",
-    "calendarNextMonth": "次の月"
+    "calendarNextMonth": "次の月",
+    "emptyStateHint": "新しいリストを作成するか、共有リストに参加しましょう。",
+    "calendarEmptyHint": "日付を選んで、タスクを追加できます。"
   },
   "datePatterns": {
     "relative": [
@@ -160,15 +158,11 @@
     "ピン"
   ],
   "taskList": {
-    "taskCount": "{{count}}個のタスク",
-    "taskCount_one": "{{count}}個のタスク",
-    "taskCount_other": "{{count}}個のタスク",
     "remainingCount": "未完了 {{count}}件",
     "remainingCount_one": "未完了 {{count}}件",
     "remainingCount_other": "未完了 {{count}}件",
     "editDetails": "更新",
     "selectColor": "色を選択",
-    "backgroundNone": "なし（実際はテーマカラーの色）",
     "backgroundNoneShort": "なし",
     "deleteList": "リストを一覧から外す",
     "deleteListConfirm": {
@@ -230,7 +224,6 @@
     "actions": {
       "title": "アカウント操作"
     },
-    "deleteAccount": "アカウントを削除",
     "signingOut": "ログアウト中...",
     "deletingAccount": "削除中...",
     "emailChange": {
@@ -239,8 +232,7 @@
       "newEmailPlaceholder": "new@example.jp",
       "submitButton": "確認メールを送信",
       "submitting": "送信中...",
-      "successMessage": "確認メールを送信しました。新しいメールアドレスのリンクをクリックすると変更が完了します。",
-      "changeButton": "変更"
+      "successMessage": "確認メールを送信しました。新しいメールアドレスのリンクをクリックすると変更が完了します。"
     },
     "legal": {
       "title": "法的情報"
@@ -382,7 +374,9 @@
       "noDate": "日付なし",
       "pinTask": "タスクをピン留め",
       "unpinTask": "タスクのピン留めを解除",
-      "deleteCompletedConfirmTitle": "完了タスクを削除しますか？"
+      "deleteCompletedConfirmTitle": "完了タスクを削除しますか？",
+      "noTasksHint": "上の入力欄から、最初のタスクを追加しましょう。",
+      "allCompletedHint": "おつかれさまでした。ひと息つきましょう。"
     },
     "notFound": {
       "title": "ページが見つかりません",

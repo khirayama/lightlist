@@ -12,7 +12,6 @@
     "copy": "复制",
     "copied": "已复制",
     "error": "发生错误",
-    "done": "完成",
     "selected": "已选择",
     "offline": "当前处于离线状态。重新连接后将同步更改",
     "syncFailed": "部分更改未能同步。正在显示最新内容",
@@ -104,7 +103,6 @@
     "error": "发生错误",
     "dragHint": "拖动以重新排序",
     "drawerTitle": "任务列表",
-    "drawerNoEmail": "无可用邮箱",
     "taskListLocator": {
       "label": "任务列表位置",
       "goTo": "跳转到第 {{index}} / {{total}} 个列表"
@@ -115,13 +113,13 @@
     "shareCodePlaceholder": "输入共享码",
     "join": "加入",
     "joining": "加入中...",
-    "calendarCheckButton": "在日历中查看",
     "calendarNoDatedTasks": "没有设置日期的任务",
-    "calendarNoTasksOnSelectedDate": "所选日期没有任务",
     "loadError": "无法加载任务列表。",
     "calendar": "日历",
     "calendarPreviousMonth": "上个月",
-    "calendarNextMonth": "下个月"
+    "calendarNextMonth": "下个月",
+    "emptyStateHint": "创建新列表或加入共享列表，开始使用。",
+    "calendarEmptyHint": "选择日期即可添加任务。"
   },
   "datePatterns": {
     "relative": [
@@ -169,15 +167,11 @@
     "置顶"
   ],
   "taskList": {
-    "taskCount": "{{count}} 个任务",
-    "taskCount_one": "{{count}} 个任务",
-    "taskCount_other": "{{count}} 个任务",
     "remainingCount": "{{count}} 个未完成",
     "remainingCount_one": "{{count}} 个未完成",
     "remainingCount_other": "{{count}} 个未完成",
     "editDetails": "编辑列表",
     "selectColor": "选择颜色",
-    "backgroundNone": "无（使用主题色）",
     "backgroundNoneShort": "无",
     "deleteList": "从我的列表中移除",
     "deleteListConfirm": {
@@ -239,7 +233,6 @@
     "actions": {
       "title": "账户操作"
     },
-    "deleteAccount": "删除账户",
     "signingOut": "正在退出...",
     "deletingAccount": "正在删除账户...",
     "emailChange": {
@@ -248,8 +241,7 @@
       "newEmailPlaceholder": "new@示例.com",
       "submitButton": "发送验证邮件",
       "submitting": "发送中...",
-      "successMessage": "验证邮件已发送。请点击新邮箱中的链接完成修改。",
-      "changeButton": "修改"
+      "successMessage": "验证邮件已发送。请点击新邮箱中的链接完成修改。"
     },
     "legal": {
       "title": "法律信息"
@@ -391,7 +383,9 @@
       "noDate": "无日期",
       "pinTask": "置顶任务",
       "unpinTask": "取消置顶任务",
-      "deleteCompletedConfirmTitle": "删除已完成的任务？"
+      "deleteCompletedConfirmTitle": "删除已完成的任务？",
+      "noTasksHint": "在上方输入框中添加第一个任务。",
+      "allCompletedHint": "辛苦了。休息一下吧。"
     },
     "notFound": {
       "title": "页面未找到",

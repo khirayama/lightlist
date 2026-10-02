@@ -8,6 +8,7 @@
 - Web の `signin` / `signup` タブは選択中のタブだけを Tab 順に含め、左右矢印で切替、Home / End で先頭 / 末尾へ移動する。パスワードリセットはタブではない独立導線として扱い、表示中はタブリストを隠す。
 - Web / iOS / Android の認証画面は、淡いページ背景上の角丸 24 + 1px 枠線のカードにアプリ名（`title`）、終了側の言語選択、`signin` / `signup` の 2 タブ（パスワードリセットはタブに含めない）、ラベル付き入力欄（プレースホルダーは `auth.placeholder.*`）、横幅いっぱいの主ボタン / 副ボタンを置き、カードの下に `copyright` を表示する。入力エラーは各入力欄の直下、送信エラーはエラー表示面で示す。
 - メール / パスワードログインは Firebase Auth の応答待ちを 10 秒で打ち切り、loading state を戻して汎用認証エラーを表示する。
+- 認証エラーは Firebase Auth の error code を `auth.error.*` / `auth.passwordReset.*` へ対応付けて表示し、対応のない code は `auth.error.general` を表示する。SDK の英語メッセージをそのまま表示しない。メールアドレス変更の失敗も同じ対応付けを使う。
 - 認証完了直後に必要な初期ドキュメントは `settings` / `taskLists` / `taskLists/{taskListId}/members/{uid}` / `taskListOrder`。これらは同一 batch で作成する。
 - 設定画面は 3 プラットフォームとも淡いページ背景の上に、ボーダーレスの面カードを配置する。各セクション見出しはカード内の先頭に置き、設定行の操作領域は 44pt / 48dp 以上を維持する。
 
@@ -79,3 +80,4 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
 
 - `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`
 - `fallbackLng` は `ja`
+- 未認証時の端末言語は、Web / iOS / Android 共通で `zh-*` を `zh-CN`、`pt-*` を `pt-BR` に丸める。その他の対応言語は地域指定を除いた言語を使い、未対応言語は `ja` にする。

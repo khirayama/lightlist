@@ -12,7 +12,6 @@
     "copy": "Salin",
     "copied": "Tersalin",
     "error": "Terjadi kesalahan",
-    "done": "Selesai",
     "selected": "Dipilih",
     "offline": "Anda sedang offline. Perubahan akan disinkronkan saat terhubung kembali",
     "syncFailed": "Beberapa perubahan tidak dapat disinkronkan. Menampilkan konten terbaru",
@@ -104,7 +103,6 @@
     "error": "Terjadi kesalahan",
     "dragHint": "Seret untuk mengurutkan ulang",
     "drawerTitle": "Daftar tugas",
-    "drawerNoEmail": "Email tidak tersedia",
     "taskListLocator": {
       "label": "Posisi daftar tugas",
       "goTo": "Pergi ke daftar tugas {{index}} dari {{total}}"
@@ -115,13 +113,13 @@
     "shareCodePlaceholder": "Masukkan kode berbagi",
     "join": "Gabung",
     "joining": "Sedang bergabung...",
-    "calendarCheckButton": "Lihat di kalender",
     "calendarNoDatedTasks": "Tidak ada tugas bertanggal",
-    "calendarNoTasksOnSelectedDate": "Tidak ada tugas pada tanggal yang dipilih",
     "loadError": "Gagal memuat daftar tugas.",
     "calendar": "Kalender",
     "calendarPreviousMonth": "Bulan sebelumnya",
-    "calendarNextMonth": "Bulan berikutnya"
+    "calendarNextMonth": "Bulan berikutnya",
+    "emptyStateHint": "Buat daftar atau bergabung dengan daftar bersama untuk memulai.",
+    "calendarEmptyHint": "Pilih tanggal untuk menambahkan tugas."
   },
   "datePatterns": {
     "relative": [
@@ -166,15 +164,11 @@
     "sematkan"
   ],
   "taskList": {
-    "taskCount": "{{count}} tugas",
-    "taskCount_one": "{{count}} tugas",
-    "taskCount_other": "{{count}} tugas",
     "remainingCount": "{{count}} tersisa",
     "remainingCount_one": "{{count}} tersisa",
     "remainingCount_other": "{{count}} tersisa",
     "editDetails": "Edit daftar",
     "selectColor": "Pilih warna",
-    "backgroundNone": "Tidak ada (menggunakan warna tema)",
     "backgroundNoneShort": "Tidak ada",
     "deleteList": "Hapus dari daftar saya",
     "deleteListConfirm": {
@@ -236,7 +230,6 @@
     "actions": {
       "title": "Tindakan akun"
     },
-    "deleteAccount": "Hapus akun",
     "signingOut": "Sedang keluar...",
     "deletingAccount": "Menghapus akun...",
     "emailChange": {
@@ -245,8 +238,7 @@
       "newEmailPlaceholder": "baru@contoh.com",
       "submitButton": "Kirim email verifikasi",
       "submitting": "Mengirim...",
-      "successMessage": "Email verifikasi telah dikirim. Klik tautan pada alamat email baru untuk menyelesaikan perubahan.",
-      "changeButton": "Ubah"
+      "successMessage": "Email verifikasi telah dikirim. Klik tautan pada alamat email baru untuk menyelesaikan perubahan."
     },
     "legal": {
       "title": "Hukum"
@@ -388,7 +380,9 @@
       "noDate": "Tanpa tanggal",
       "pinTask": "Sematkan tugas",
       "unpinTask": "Lepas sematan tugas",
-      "deleteCompletedConfirmTitle": "Hapus tugas yang selesai?"
+      "deleteCompletedConfirmTitle": "Hapus tugas yang selesai?",
+      "noTasksHint": "Tambahkan tugas pertama melalui kolom di atas.",
+      "allCompletedHint": "Kerja bagus. Saatnya beristirahat sejenak."
     },
     "notFound": {
       "title": "Halaman tidak ditemukan",

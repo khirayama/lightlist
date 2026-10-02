@@ -12,7 +12,6 @@
     "copy": "نسخ",
     "copied": "تم النسخ",
     "error": "حدث خطأ",
-    "done": "تم",
     "selected": "محدد",
     "offline": "أنت غير متصل. ستتم مزامنة التغييرات عند إعادة الاتصال",
     "syncFailed": "تعذّرت مزامنة بعض التغييرات. يتم عرض أحدث محتوى",
@@ -104,7 +103,6 @@
     "error": "حدث خطأ",
     "dragHint": "اسحب لإعادة الترتيب",
     "drawerTitle": "قوائم المهام",
-    "drawerNoEmail": "لا يوجد بريد إلكتروني متاح",
     "taskListLocator": {
       "label": "موضع قائمة المهام",
       "goTo": "الانتقال إلى قائمة المهام {{index}} من {{total}}"
@@ -115,13 +113,13 @@
     "shareCodePlaceholder": "أدخل رمز المشاركة",
     "join": "انضمام",
     "joining": "جارٍ الانضمام...",
-    "calendarCheckButton": "عرض في التقويم",
     "calendarNoDatedTasks": "لا توجد مهام بتاريخ",
-    "calendarNoTasksOnSelectedDate": "لا توجد مهام في التاريخ المحدد",
     "loadError": "تعذر تحميل قوائم المهام.",
     "calendar": "التقويم",
     "calendarPreviousMonth": "الشهر السابق",
-    "calendarNextMonth": "الشهر التالي"
+    "calendarNextMonth": "الشهر التالي",
+    "emptyStateHint": "أنشئ قائمة أو انضم إلى قائمة مشتركة للبدء.",
+    "calendarEmptyHint": "اختر تاريخًا لإضافة مهمة."
   },
   "datePatterns": {
     "relative": [
@@ -161,15 +159,11 @@
     "تثبيت"
   ],
   "taskList": {
-    "taskCount": "{{count}} مهمة",
-    "taskCount_one": "{{count}} مهمة",
-    "taskCount_other": "{{count}} مهام",
     "remainingCount": "{{count}} متبقية",
     "remainingCount_one": "{{count}} متبقية",
     "remainingCount_other": "{{count}} متبقية",
     "editDetails": "تعديل القائمة",
     "selectColor": "اختر اللون",
-    "backgroundNone": "بدون (يستخدم لون السمة)",
     "backgroundNoneShort": "بدون",
     "deleteList": "إزالة من قوائمي",
     "deleteListConfirm": {
@@ -231,7 +225,6 @@
     "actions": {
       "title": "إجراءات الحساب"
     },
-    "deleteAccount": "حذف الحساب",
     "signingOut": "جارٍ تسجيل الخروج...",
     "deletingAccount": "جارٍ حذف الحساب...",
     "emailChange": {
@@ -240,8 +233,7 @@
       "newEmailPlaceholder": "جديد@بريد.كوم",
       "submitButton": "إرسال رسالة التحقق",
       "submitting": "جارٍ الإرسال...",
-      "successMessage": "تم إرسال رسالة التحقق. انقر على الرابط في عنوان البريد الإلكتروني الجديد لإكمال التغيير.",
-      "changeButton": "تغيير"
+      "successMessage": "تم إرسال رسالة التحقق. انقر على الرابط في عنوان البريد الإلكتروني الجديد لإكمال التغيير."
     },
     "legal": {
       "title": "القانونية"
@@ -383,7 +375,9 @@
       "noDate": "بدون تاريخ",
       "pinTask": "تثبيت المهمة",
       "unpinTask": "إلغاء تثبيت المهمة",
-      "deleteCompletedConfirmTitle": "حذف المهام المكتملة؟"
+      "deleteCompletedConfirmTitle": "حذف المهام المكتملة؟",
+      "noTasksHint": "أضف مهمتك الأولى من حقل الإدخال أعلاه.",
+      "allCompletedHint": "أحسنت. خذ استراحة قصيرة."
     },
     "notFound": {
       "title": "الصفحة غير موجودة",

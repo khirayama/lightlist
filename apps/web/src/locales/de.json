@@ -12,7 +12,6 @@
     "copy": "Kopieren",
     "copied": "Kopiert",
     "error": "Ein Fehler ist aufgetreten",
-    "done": "Fertig",
     "selected": "Ausgewählt",
     "offline": "Offline. Änderungen werden nach der erneuten Verbindung synchronisiert",
     "syncFailed": "Einige Änderungen konnten nicht synchronisiert werden. Der aktuelle Stand wird angezeigt",
@@ -104,7 +103,6 @@
     "error": "Ein Fehler ist aufgetreten",
     "dragHint": "Zum Neuordnen ziehen",
     "drawerTitle": "Aufgabenlisten",
-    "drawerNoEmail": "Keine E-Mail verfügbar",
     "taskListLocator": {
       "label": "Position der Aufgabenliste",
       "goTo": "Zur Liste {{index}} von {{total}} wechseln"
@@ -115,13 +113,13 @@
     "shareCodePlaceholder": "Freigabecode eingeben",
     "join": "Beitreten",
     "joining": "Wird beigetreten...",
-    "calendarCheckButton": "Im Kalender anzeigen",
     "calendarNoDatedTasks": "Keine Aufgaben mit Datum",
-    "calendarNoTasksOnSelectedDate": "Keine Aufgaben am ausgewählten Datum",
     "loadError": "Aufgabenlisten konnten nicht geladen werden.",
     "calendar": "Kalender",
     "calendarPreviousMonth": "Vorheriger Monat",
-    "calendarNextMonth": "Nächster Monat"
+    "calendarNextMonth": "Nächster Monat",
+    "emptyStateHint": "Erstelle eine Liste oder tritt einer geteilten Liste bei.",
+    "calendarEmptyHint": "Wähle ein Datum, um eine Aufgabe hinzuzufügen."
   },
   "datePatterns": {
     "relative": [
@@ -172,15 +170,11 @@
     "anheften"
   ],
   "taskList": {
-    "taskCount": "{{count}} Aufgaben",
-    "taskCount_one": "{{count}} Aufgabe",
-    "taskCount_other": "{{count}} Aufgaben",
     "remainingCount": "{{count}} offen",
     "remainingCount_one": "{{count}} offen",
     "remainingCount_other": "{{count}} offen",
     "editDetails": "Liste bearbeiten",
     "selectColor": "Farbe wählen",
-    "backgroundNone": "Keine (verwendet Themenfarbe)",
     "backgroundNoneShort": "Keine",
     "deleteList": "Aus meinen Listen entfernen",
     "deleteListConfirm": {
@@ -242,7 +236,6 @@
     "actions": {
       "title": "Kontoaktionen"
     },
-    "deleteAccount": "Konto löschen",
     "signingOut": "Wird abgemeldet...",
     "deletingAccount": "Konto wird gelöscht...",
     "emailChange": {
@@ -251,8 +244,7 @@
       "newEmailPlaceholder": "neu@beispiel.de",
       "submitButton": "Bestätigungs-E-Mail senden",
       "submitting": "Wird gesendet...",
-      "successMessage": "Bestätigungs-E-Mail gesendet. Klicke den Link in der neuen E-Mail-Adresse, um die Änderung abzuschließen.",
-      "changeButton": "Ändern"
+      "successMessage": "Bestätigungs-E-Mail gesendet. Klicke den Link in der neuen E-Mail-Adresse, um die Änderung abzuschließen."
     },
     "legal": {
       "title": "Rechtliches"
@@ -394,7 +386,9 @@
       "noDate": "Kein Datum",
       "pinTask": "Aufgabe anheften",
       "unpinTask": "Aufgabe lösen",
-      "deleteCompletedConfirmTitle": "Erledigte Aufgaben löschen?"
+      "deleteCompletedConfirmTitle": "Erledigte Aufgaben löschen?",
+      "noTasksHint": "Füge deine erste Aufgabe im Eingabefeld oben hinzu.",
+      "allCompletedHint": "Gut gemacht. Gönn dir eine kurze Pause."
     },
     "notFound": {
       "title": "Seite nicht gefunden",

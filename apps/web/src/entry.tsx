@@ -35,6 +35,7 @@ import "@/styles/globals.css";
 import i18next from "i18next";
 import type { Resource, TFunction } from "i18next";
 import jaLocale from "./locales/ja.json";
+import englishDatePatterns from "./english-date-patterns.json";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import clsx from "clsx";
 import LanguageDetector from "i18next-browser-languagedetector";
@@ -123,6 +124,44 @@ const SORTABLE_SENSORS = [
     activationConstraints: [
       new PointerActivationConstraints.Distance({ value: 8 }),
     ],
+  }),
+  KeyboardSensor,
+];
+
+const TASK_LONG_PRESS_MS = 400;
+
+function isDragHandleEvent(
+  event: PointerEvent,
+  source: { handle?: Element },
+): boolean {
+  const { target } = event;
+  return (
+    target instanceof Element &&
+    source.handle !== undefined &&
+    source.handle.contains(target)
+  );
+}
+
+const TASK_SORTABLE_SENSORS = [
+  PointerSensor.configure({
+    activatorElements: (source) => [source.handle, source.element],
+    activationConstraints: (event, source) =>
+      isDragHandleEvent(event, source)
+        ? [new PointerActivationConstraints.Distance({ value: 8 })]
+        : [
+            new PointerActivationConstraints.Delay({
+              value: TASK_LONG_PRESS_MS,
+              tolerance: 5,
+            }),
+          ],
+    preventActivation: (event, source) => {
+      if (isDragHandleEvent(event, source)) return false;
+      if (event.pointerType !== "touch") return true;
+      const { target } = event;
+      return !(
+        target instanceof Element && target.closest("[data-task-text]") !== null
+      );
+    },
   }),
   KeyboardSensor,
 ];
@@ -588,12 +627,7 @@ function normalizeLanguage(value: string | null | undefined): Language {
   if (lower.startsWith("de")) return "de";
   if (lower.startsWith("fr")) return "fr";
   if (lower.startsWith("ko")) return "ko";
-  if (
-    lower === "zh" ||
-    lower.startsWith("zh-cn") ||
-    lower.startsWith("zh-hans") ||
-    lower.startsWith("zh-sg")
-  ) {
+  if (lower === "zh" || lower.startsWith("zh-")) {
     return "zh-CN";
   }
   if (lower.startsWith("hi")) return "hi";
@@ -1832,6 +1866,7 @@ function AppStateProvider({
       clearListener();
       unsubscribe = onSnapshot(
         taskListOrderRef,
+        { includeMetadataChanges: true },
         (snapshot) => {
           try {
             const taskListOrder = snapshot.exists()
@@ -1842,7 +1877,10 @@ function AppStateProvider({
               taskListOrder,
               taskListOrderStatus: "ready",
             });
-            if (!snapshot.metadata.fromCache) {
+            if (
+              !snapshot.metadata.fromCache &&
+              !snapshot.metadata.hasPendingWrites
+            ) {
               retryDelayMs = 1000;
               reportedError = false;
             }
@@ -1936,7 +1974,10 @@ function AppStateProvider({
         (snapshot) => {
           if (disposed) return;
           applyTaskListSnapshot(snapshot);
-          if (!snapshot.metadata.fromCache) {
+          if (
+            !snapshot.metadata.fromCache &&
+            !snapshot.metadata.hasPendingWrites
+          ) {
             retryDelayMs = 1000;
             failed = false;
           }
@@ -2515,7 +2556,7 @@ const normalizeDigits = (value: string): string =>
   value.replace(/[٠-٩۰-۹०-९]/g, (char) => DIGIT_MAP[char] ?? char);
 
 const formatDate = (date: Date): string => {
-  const y = date.getFullYear();
+  const y = String(date.getFullYear()).padStart(4, "0");
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
@@ -2534,37 +2575,23 @@ const NUMERIC_PATTERNS: DatePattern[] = [
     regex: new RegExp(
       String.raw`^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})${SPACE_OR_END}`,
     ),
-    getDate: (match) => {
-      const y = Number.parseInt(match[1], 10);
-      const m = Number.parseInt(match[2], 10) - 1;
-      const d = Number.parseInt(match[3], 10);
-      const date = new Date(y, m, d);
-      if (
-        date.getFullYear() !== y ||
-        date.getMonth() !== m ||
-        date.getDate() !== d
-      ) {
-        return null;
-      }
-      return date;
-    },
+    getDate: (match) =>
+      parseTaskDateValue(
+        `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`,
+      ) ?? null,
   },
   {
     regex: new RegExp(String.raw`^(\d{1,2})[-/.](\d{1,2})${SPACE_OR_END}`),
     getDate: (match) => {
-      const m = Number.parseInt(match[1], 10) - 1;
-      const d = Number.parseInt(match[2], 10);
       const now = new Date();
       const currentYear = now.getFullYear();
-      const date = new Date(currentYear, m, d);
-      if (date.getMonth() !== m || date.getDate() !== d) {
-        return null;
-      }
+      const monthDay = `${match[1].padStart(2, "0")}-${match[2].padStart(2, "0")}`;
+      const date = parseTaskDateValue(`${currentYear}-${monthDay}`);
+      if (!date) return null;
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      if (date < today) {
-        return new Date(currentYear + 1, m, d);
-      }
-      return date;
+      return date < today
+        ? (parseTaskDateValue(`${currentYear + 1}-${monthDay}`) ?? null)
+        : date;
     },
   },
 ];
@@ -2573,9 +2600,13 @@ const relativePatternsCache = new Map<Language, DatePattern[]>();
 const getRelativePatterns = (language: Language): DatePattern[] => {
   const cached = relativePatternsCache.get(language);
   if (cached) return cached;
-  const bundle = getTranslationBundle(language);
-  const patterns = bundle.datePatterns?.relative ?? [];
-  const weekdays = bundle.datePatterns?.weekdays ?? {};
+  const datePatterns =
+    language === "en"
+      ? englishDatePatterns
+      : getTranslationBundle(language).datePatterns;
+  const patterns: RelativeDatePatternConfig[] = datePatterns?.relative ?? [];
+  const weekdays: Record<string, number | undefined> =
+    datePatterns?.weekdays ?? {};
 
   const result = patterns.map((p) => ({
     regex: new RegExp(p.pattern, p.options || ""),
@@ -2601,7 +2632,7 @@ const getRelativePatterns = (language: Language): DatePattern[] => {
       return null;
     },
   }));
-  if (i18next.hasResourceBundle(language, "translation")) {
+  if (language === "en" || i18next.hasResourceBundle(language, "translation")) {
     relativePatternsCache.set(language, result);
   }
   return result;
@@ -2817,13 +2848,19 @@ function assertTaskListOrderStore(
     updatedAt: data.updatedAt,
   };
   for (const [taskListId, value] of Object.entries(data)) {
-    if (TASK_LIST_ORDER_METADATA_KEYS.has(taskListId)) continue;
+    if (
+      TASK_LIST_ORDER_METADATA_KEYS.has(taskListId) ||
+      taskListId.length === 0 ||
+      taskListId.includes("/")
+    ) {
+      continue;
+    }
     if (
       !isRecord(value) ||
       typeof value.order !== "number" ||
       !Number.isFinite(value.order)
     ) {
-      throw new Error(`TaskListOrder data is malformed: ${uid}`);
+      continue;
     }
     result[taskListId] = { order: value.order };
   }
@@ -3924,6 +3961,7 @@ function Spinner({
   className?: string;
   fullPage?: boolean;
 }) {
+  const { t } = useTranslation();
   const content = (
     <div
       role="status"
@@ -3939,7 +3977,7 @@ function Spinner({
           className="ll-block ll-h-14 ll-w-auto"
         />
       </div>
-      <span className="ll-sr-only">読み込み中</span>
+      <span className="ll-sr-only">{t("common.loading")}</span>
     </div>
   );
 
@@ -5202,7 +5240,7 @@ const createDateFromKey = (dateKey: string): Date | null =>
   parseTaskDateValue(dateKey) ?? null;
 
 const formatMonthKey = (date: Date): string =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  `${String(date.getFullYear()).padStart(4, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
@@ -6041,6 +6079,7 @@ function TaskItemComponent({
             id={taskTextId}
             type="button"
             data-completed={task.completed ? "true" : undefined}
+            data-task-text=""
             onClick={canEdit ? () => onEditStart(task) : undefined}
             className={
               task.completed
@@ -6086,20 +6125,45 @@ function TaskItemComponent({
 
 const TaskItem = memo(TaskItemComponent);
 
-function AllTasksCompletedNotice({ animate }: { animate: boolean }) {
+function TaskStateNotice({
+  icon,
+  titleKey,
+  hintKey,
+}: {
+  icon: AppIconName;
+  titleKey:
+    | "pages.tasklist.noTasks"
+    | "pages.tasklist.allCompleted"
+    | "app.emptyState"
+    | "app.calendarNoDatedTasks";
+  hintKey?:
+    | "pages.tasklist.noTasksHint"
+    | "pages.tasklist.allCompletedHint"
+    | "app.emptyStateHint"
+    | "app.calendarEmptyHint";
+}) {
   const { t } = useTranslation();
+  return (
+    <div className="ll-task-state ll-muted-text" role="status">
+      <span className="ll-task-state-icon" aria-hidden="true">
+        <AppIcon name={icon} size={24} focusable="false" />
+      </span>
+      <p className="ll-task-state-title">{t(titleKey)}</p>
+      {hintKey ? <p className="ll-task-state-hint">{t(hintKey)}</p> : null}
+    </div>
+  );
+}
+
+function AllTasksCompletedNotice({ animate }: { animate: boolean }) {
   const animateRef = useRef(animate);
   return (
-    <p
-      role="status"
-      className={clsx(
-        "ll-all-tasks-completed ll-muted-text",
-        animateRef.current && "ll-anim-pop",
-      )}
-    >
-      <AppIcon name="check" size={18} aria-hidden="true" focusable="false" />
-      {t("pages.tasklist.allCompleted")}
-    </p>
+    <div className={animateRef.current ? "ll-anim-pop" : undefined}>
+      <TaskStateNotice
+        icon="check"
+        titleKey="pages.tasklist.allCompleted"
+        hintKey="pages.tasklist.allCompletedHint"
+      />
+    </div>
   );
 }
 
@@ -6133,6 +6197,7 @@ function EditTaskListDialog({
     setError(null);
     void deleteTaskList(taskList.id)
       .then(() => {
+        logAppEvent("task_list_delete");
         setOpen(false);
         onDeleted?.();
       })
@@ -6266,7 +6331,9 @@ function ShareTaskListDialog({
   const [shareCode, setShareCode] = useState<string | null>(
     taskList.shareCode ? normalizeShareCode(taskList.shareCode) : null,
   );
-  const [copySuccess, setCopySuccess] = useState(false);
+  const [copiedRequest, setCopiedRequest] = useState(0);
+  const copyRequestRef = useRef(0);
+  const copySuccess = copiedRequest > 0;
   const [generating, setGenerating] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -6279,6 +6346,19 @@ function ShareTaskListDialog({
     );
   }, [taskList.shareCode, open]);
 
+  useEffect(() => {
+    setCopiedRequest(0);
+    return () => {
+      copyRequestRef.current += 1;
+    };
+  }, [isActive, open, shareCode]);
+
+  useEffect(() => {
+    if (copiedRequest === 0) return;
+    const timeout = window.setTimeout(() => setCopiedRequest(0), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [copiedRequest]);
+
   return (
     <Dialog
       open={isActive && open}
@@ -6289,7 +6369,7 @@ function ShareTaskListDialog({
           setShareCode(
             taskList.shareCode ? normalizeShareCode(taskList.shareCode) : null,
           );
-          setCopySuccess(false);
+          setCopiedRequest(0);
           setError(null);
         }
       }}
@@ -6333,14 +6413,18 @@ function ShareTaskListDialog({
               <button
                 type="button"
                 onClick={async () => {
+                  const request = ++copyRequestRef.current;
                   try {
                     await navigator.clipboard.writeText(
                       `${window.location.origin}/sharecodes/?code=${shareCode}`,
                     );
-                    setCopySuccess(true);
-                    setTimeout(() => setCopySuccess(false), 2000);
+                    if (request === copyRequestRef.current) {
+                      setCopiedRequest(request);
+                    }
                   } catch {
-                    setError(t("common.error"));
+                    if (request === copyRequestRef.current) {
+                      setError(t("common.error"));
+                    }
                   }
                 }}
                 className={BUTTON_SECONDARY_CLASS}
@@ -7021,76 +7105,78 @@ function TaskListCard({
                 {addTaskError ? (
                   <Alert variant="error">{addTaskError}</Alert>
                 ) : null}
-                <div className="ll-task-toolbar ll-flex ll-items-center ll-justify-between ll-gap-2">
-                  <button
-                    type="button"
-                    disabled={tasks.length < 2}
-                    onClick={() => {
-                      void runTaskMutation({
-                        buildNextTasks: (currentTasks) => {
-                          if (autoSort) return currentTasks;
-                          const asStore = currentTasks.map((task, index) => ({
-                            ...task,
-                            order: (index + 1) * 1.0,
-                          }));
-                          const sorted = getAutoSortedTasks(asStore);
-                          return sorted.map(
-                            ({ id, text, completed, date, pinned }) => ({
-                              id,
-                              text,
-                              completed,
-                              date,
-                              pinned,
-                            }),
-                          );
-                        },
-                        commit: () => sortTasks(taskList.id),
-                        onSuccess: () => logAppEvent("task_sort"),
-                        onError: (error) => {
-                          setTaskError(
-                            resolveErrorMessage(error, t, "common.error"),
-                          );
-                        },
-                      });
-                    }}
-                    className="ll-pressable ll-task-toolbar-button"
-                  >
-                    <span className="ll-task-toolbar-icon">
-                      <AppIcon
-                        name="sort"
-                        size={20}
-                        aria-hidden="true"
-                        focusable="false"
-                      />
-                    </span>
-                    {t("pages.tasklist.sort")}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={
-                      deleteCompletedPending || completedTaskCount === 0
-                    }
-                    onClick={() => setShowDeleteCompletedConfirm(true)}
-                    className="ll-pressable ll-task-toolbar-button"
-                  >
-                    {deleteCompletedPending
-                      ? t("common.deleting")
-                      : t("pages.tasklist.deleteCompleted")}
-                    <span className="ll-task-toolbar-icon">
-                      <AppIcon
-                        name="delete"
-                        size={20}
-                        aria-hidden="true"
-                        focusable="false"
-                      />
-                    </span>
-                  </button>
-                </div>
+                {tasks.length > 0 ? (
+                  <div className="ll-task-toolbar ll-flex ll-items-center ll-justify-between ll-gap-2">
+                    <button
+                      type="button"
+                      disabled={tasks.length < 2}
+                      onClick={() => {
+                        void runTaskMutation({
+                          buildNextTasks: (currentTasks) => {
+                            if (autoSort) return currentTasks;
+                            const asStore = currentTasks.map((task, index) => ({
+                              ...task,
+                              order: (index + 1) * 1.0,
+                            }));
+                            const sorted = getAutoSortedTasks(asStore);
+                            return sorted.map(
+                              ({ id, text, completed, date, pinned }) => ({
+                                id,
+                                text,
+                                completed,
+                                date,
+                                pinned,
+                              }),
+                            );
+                          },
+                          commit: () => sortTasks(taskList.id),
+                          onSuccess: () => logAppEvent("task_sort"),
+                          onError: (error) => {
+                            setTaskError(
+                              resolveErrorMessage(error, t, "common.error"),
+                            );
+                          },
+                        });
+                      }}
+                      className="ll-pressable ll-task-toolbar-button"
+                    >
+                      <span className="ll-task-toolbar-icon">
+                        <AppIcon
+                          name="sort"
+                          size={20}
+                          aria-hidden="true"
+                          focusable="false"
+                        />
+                      </span>
+                      {t("pages.tasklist.sort")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        deleteCompletedPending || completedTaskCount === 0
+                      }
+                      onClick={() => setShowDeleteCompletedConfirm(true)}
+                      className="ll-pressable ll-task-toolbar-button"
+                    >
+                      {deleteCompletedPending
+                        ? t("common.deleting")
+                        : t("pages.tasklist.deleteCompleted")}
+                      <span className="ll-task-toolbar-icon">
+                        <AppIcon
+                          name="delete"
+                          size={20}
+                          aria-hidden="true"
+                          focusable="false"
+                        />
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
               </>
             ) : null}
           </div>
           <DragDropProvider
-            sensors={SORTABLE_SENSORS}
+            sensors={TASK_SORTABLE_SENSORS}
             modifiers={SORTABLE_MODIFIERS}
             plugins={(defaults) => [...defaults, taskDndAccessibility]}
             onBeforeDragStart={releaseHeldTasks}
@@ -7131,9 +7217,13 @@ function TaskListCard({
             }}
           >
             {tasks.length === 0 ? (
-              <p className="ll-text-gray-600 ll-dark-text-gray-300">
-                {t("pages.tasklist.noTasks")}
-              </p>
+              <TaskStateNotice
+                icon="add"
+                titleKey="pages.tasklist.noTasks"
+                hintKey={
+                  canEditTasks ? "pages.tasklist.noTasksHint" : undefined
+                }
+              />
             ) : (
               <div className="ll-flex ll-flex-col">
                 {tasks.map((task, index) => (
@@ -7803,6 +7893,8 @@ const CALENDAR_DOT_COMPONENTS = { DayButton: CalendarDotDayButton };
 
 type CalendarScreenProps = {
   showCompactHeaderOffset?: boolean;
+  isLoading: boolean;
+  hasLoadError: boolean;
   taskLists: TaskList[];
   taskSettings: ResolvedTaskSettings;
   defaultTaskListId: string | null;
@@ -7915,55 +8007,59 @@ function TaskSheetContent({
         }}
       >
         <TaskSheetHeader title={title} closeDisabled={submitting} />
-        {error ? <Alert variant="error">{error}</Alert> : null}
-        <label className="ll-select-wrap">
-          <span className="ll-sr-only">{t("app.drawerTitle")}</span>
-          <select
-            value={taskListId}
-            onChange={(event) => setTaskListId(event.target.value)}
-            className="ll-field"
-          >
-            {taskLists.map((taskList) => (
-              <option key={taskList.id} value={taskList.id}>
-                {taskList.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="ll-flex ll-flex-col">
-          <span className="ll-sr-only">
-            {t("pages.tasklist.addTaskPlaceholder")}
-          </span>
-          <input
-            autoFocus={mode === "add"}
-            type="text"
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            placeholder={t("pages.tasklist.addTaskPlaceholder")}
-            className="ll-field"
-          />
-        </label>
-        <div className="ll-flex ll-items-center ll-justify-between ll-gap-2">
-          <button
-            type="button"
-            disabled={!date || submitting}
-            onClick={() => setDate(null)}
-            className={clsx(BUTTON_GHOST_CLASS, "ll-sheet-start-action")}
-          >
-            {t("pages.tasklist.clearDate")}
-          </button>
-          <PinToggleButton
-            pinned={pinned}
-            disabled={submitting}
-            onToggle={() => setPinned((current) => !current)}
-          />
-        </div>
-        <div className="ll-sheet-calendar">
-          <Calendar
-            mode="single"
-            selected={date ?? undefined}
-            onSelect={(next) => setDate(next ?? null)}
-          />
+        <div className="ll-min-h-0 ll-overflow-y-auto">
+          <div className="ll-flex ll-flex-col ll-gap-3">
+            {error ? <Alert variant="error">{error}</Alert> : null}
+            <label className="ll-select-wrap">
+              <span className="ll-sr-only">{t("app.drawerTitle")}</span>
+              <select
+                value={taskListId}
+                onChange={(event) => setTaskListId(event.target.value)}
+                className="ll-field"
+              >
+                {taskLists.map((taskList) => (
+                  <option key={taskList.id} value={taskList.id}>
+                    {taskList.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="ll-flex ll-flex-col">
+              <span className="ll-sr-only">
+                {t("pages.tasklist.addTaskPlaceholder")}
+              </span>
+              <input
+                autoFocus={mode === "add"}
+                type="text"
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                placeholder={t("pages.tasklist.addTaskPlaceholder")}
+                className="ll-field"
+              />
+            </label>
+            <div className="ll-flex ll-items-center ll-justify-between ll-gap-2">
+              <button
+                type="button"
+                disabled={!date || submitting}
+                onClick={() => setDate(null)}
+                className={clsx(BUTTON_GHOST_CLASS, "ll-sheet-start-action")}
+              >
+                {t("pages.tasklist.clearDate")}
+              </button>
+              <PinToggleButton
+                pinned={pinned}
+                disabled={submitting}
+                onToggle={() => setPinned((current) => !current)}
+              />
+            </div>
+            <div className="ll-sheet-calendar">
+              <Calendar
+                mode="single"
+                selected={date ?? undefined}
+                onSelect={(next) => setDate(next ?? null)}
+              />
+            </div>
+          </div>
         </div>
         <button
           type="submit"
@@ -7972,7 +8068,7 @@ function TaskSheetContent({
             !taskListId ||
             submitting
           }
-          className={clsx(BUTTON_PRIMARY_CLASS, "ll-w-full")}
+          className={clsx(BUTTON_PRIMARY_CLASS, "ll-w-full ll-shrink-0")}
         >
           {submitting
             ? t("common.loading")
@@ -7987,6 +8083,8 @@ function TaskSheetContent({
 
 function CalendarScreen({
   showCompactHeaderOffset = false,
+  isLoading,
+  hasLoadError,
   taskLists,
   taskSettings,
   defaultTaskListId,
@@ -8528,10 +8626,44 @@ function CalendarScreen({
                     </Fragment>
                   );
                 })
+              ) : isLoading ? (
+                <div
+                  className="ll-task-state ll-muted-text"
+                  role="status"
+                  aria-busy="true"
+                >
+                  <div
+                    className="ll-w-full ll-flex ll-flex-col ll-gap-2"
+                    aria-hidden="true"
+                  >
+                    {[0, 1, 2].map((index) => (
+                      <div
+                        key={index}
+                        className="ll-flex ll-h-10 ll-items-center ll-gap-3"
+                      >
+                        <div className="ll-h-5 ll-w-5 ll-animate-pulse ll-rounded-full ll-bg-gray-300 ll-dark-bg-gray-700" />
+                        <div className="ll-loading-task-text ll-w-40 ll-animate-pulse ll-rounded ll-bg-gray-300 ll-dark-bg-gray-700" />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="ll-loading-label">{t("common.loading")}</p>
+                </div>
+              ) : hasLoadError ? (
+                <Alert variant="error">{t("app.loadError")}</Alert>
               ) : (
-                <p className="ll-muted-text ll-m-0 ll-py-4 ll-text-sm">
-                  {t("app.calendarNoDatedTasks")}
-                </p>
+                <TaskStateNotice
+                  icon="calendar-today"
+                  titleKey={
+                    taskLists.length
+                      ? "app.calendarNoDatedTasks"
+                      : "app.emptyState"
+                  }
+                  hintKey={
+                    taskLists.length
+                      ? "app.calendarEmptyHint"
+                      : "app.emptyStateHint"
+                  }
+                />
               )}
             </div>
           </div>
@@ -8690,7 +8822,7 @@ function TaskListSidebarPanel({
       setShowJoinListDialog(false);
     } catch (err) {
       setJoinListError(
-        err instanceof Error ? err.message : t("pages.sharecode.error"),
+        resolveErrorMessage(err, t, "pages.sharecode.addToOrderError"),
       );
     } finally {
       setJoiningList(false);
@@ -8772,9 +8904,11 @@ function TaskListSidebarPanel({
             })}
           </DragDropProvider>
         ) : (
-          <p className="ll-muted-text ll-m-0 ll-px-3 ll-py-2 ll-text-sm">
-            {t("app.emptyState")}
-          </p>
+          <TaskStateNotice
+            icon="menu"
+            titleKey="app.emptyState"
+            hintKey="app.emptyStateHint"
+          />
         )}
 
         <div className="ll-mt-3 ll-grid ll-grid-cols-2 ll-gap-2">
@@ -9124,8 +9258,16 @@ function AppShellPage() {
   );
   const isRtl = carouselDirection === "rtl";
   const taskListsPanelSkeleton = (
-    <div className="ll-flex ll-flex-col ll-gap-3 ll-p-2">
-      <div className="ll-h-8 ll-w-32 ll-animate-pulse ll-rounded-lg ll-bg-gray-300 ll-dark-bg-gray-700" />
+    <div
+      className="ll-flex ll-flex-col ll-gap-3 ll-p-2"
+      role="status"
+      aria-label={t("common.loading")}
+      aria-busy="true"
+    >
+      <div
+        aria-hidden="true"
+        className="ll-h-8 ll-w-32 ll-animate-pulse ll-rounded-lg ll-bg-gray-300 ll-dark-bg-gray-700"
+      />
       <div className="ll-h-10 ll-w-full ll-animate-pulse ll-rounded-xl ll-bg-gray-300 ll-dark-bg-gray-700" />
       <div className="ll-h-10 ll-w-full ll-animate-pulse ll-rounded-xl ll-bg-gray-300 ll-dark-bg-gray-700" />
       <div className="ll-h-10 ll-w-full ll-animate-pulse ll-rounded-xl ll-bg-gray-300 ll-dark-bg-gray-700" />
@@ -9454,26 +9596,50 @@ function AppShellPage() {
   };
   const renderDetailSkeleton = (taskRowCount: number) => (
     <div
-      className="ll-flex ll-h-full ll-flex-col ll-gap-4 ll-p-4 ll-pt-24"
+      className="ll-loading-state ll-h-full ll-p-4"
+      role="status"
+      aria-label={t("common.loading")}
+      aria-busy="true"
       style={
         startupTaskListSnapshot
           ? { backgroundColor: startupTaskListSnapshot.background }
           : undefined
       }
     >
-      <div className="ll-h-6 ll-w-40 ll-animate-pulse ll-rounded ll-bg-gray-300 ll-dark-bg-gray-700" />
-      <div className="ll-flex ll-flex-col ll-gap-2">
-        {Array.from({ length: taskRowCount }, (_, index) => (
-          <div
-            key={index}
-            className={clsx(
-              "ll-h-10 ll-animate-pulse ll-rounded-lg ll-bg-gray-300 ll-dark-bg-gray-700",
-              index === taskRowCount - 1 && taskRowCount > 3
-                ? "ll-w-3q4"
-                : "ll-w-full",
-            )}
-          />
-        ))}
+      <div
+        className={clsx(
+          "ll-task-column ll-mx-auto ll-w-full ll-flex ll-flex-col ll-gap-4",
+          isWideLayout ? "ll-loading-detail-wide" : "ll-pt-24",
+        )}
+      >
+        <div
+          aria-hidden="true"
+          className="ll-h-6 ll-w-40 ll-animate-pulse ll-rounded ll-bg-gray-300 ll-dark-bg-gray-700"
+        />
+        <div
+          aria-hidden="true"
+          className="ll-h-10 ll-w-full ll-animate-pulse ll-rounded-xl ll-bg-gray-300 ll-dark-bg-gray-700"
+        />
+        <div aria-hidden="true" className="ll-h-10 ll-w-full" />
+        <div aria-hidden="true" className="ll-flex ll-flex-col ll-gap-2">
+          {Array.from({ length: taskRowCount }, (_, index) => (
+            <div
+              key={index}
+              className="ll-flex ll-h-10 ll-items-center ll-gap-3"
+            >
+              <div className="ll-h-5 ll-w-5 ll-animate-pulse ll-rounded-full ll-bg-gray-300 ll-dark-bg-gray-700" />
+              <div
+                className={clsx(
+                  "ll-loading-task-text ll-animate-pulse ll-rounded ll-bg-gray-300 ll-dark-bg-gray-700",
+                  index === taskRowCount - 1 ? "ll-w-32" : "ll-w-40",
+                )}
+              />
+            </div>
+          ))}
+        </div>
+        <p className="ll-loading-label ll-muted-text" aria-hidden="true">
+          {t("common.loading")}
+        </p>
       </div>
     </div>
   );
@@ -9623,9 +9789,11 @@ function AppShellPage() {
         </Carousel>
       ) : (
         <div className="ll-flex ll-h-full ll-items-center ll-justify-center ll-p-4">
-          <p className="ll-text-gray-600 ll-dark-text-gray-300">
-            {t("app.emptyState")}
-          </p>
+          <TaskStateNotice
+            icon="menu"
+            titleKey="app.emptyState"
+            hintKey="app.emptyStateHint"
+          />
         </div>
       )}
     </div>
@@ -9634,6 +9802,8 @@ function AppShellPage() {
   const calendarContent = (
     <CalendarScreen
       showCompactHeaderOffset={!isWideLayout}
+      isLoading={isSessionPending || isTaskListsHydrating}
+      hasLoadError={hasStartupError}
       taskLists={taskLists}
       taskSettings={{
         autoSort: settings?.autoSort ?? true,

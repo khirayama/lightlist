@@ -2319,8 +2319,82 @@ private data class SettingsState(
     val startupView: String = "taskList",
     val userEmail: String = "",
     val isLoading: Boolean = true,
-    val hasError: Boolean = false
-)
+    val hasError: Boolean = false,
+    val isStartupCached: Boolean = false
+) {
+    val isStartupPending: Boolean get() = isLoading && !isStartupCached
+}
+
+private object StartupSettingsCache {
+    private const val PREFS_NAME = "lightlist.startup"
+    private const val KEY_UID = "uid"
+    private const val KEY_THEME = "theme"
+    private const val KEY_LANGUAGE = "language"
+    private const val KEY_STARTUP_VIEW = "startupView"
+    private const val KEY_TASK_INSERT_POSITION = "taskInsertPosition"
+    private const val KEY_AUTO_SORT = "autoSort"
+
+    private fun prefs(context: Context) =
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private fun read(context: Context, userId: String): SettingsState? {
+        val prefs = prefs(context)
+        val theme = prefs.getString(KEY_THEME, null)
+        val language = prefs.getString(KEY_LANGUAGE, null)
+        val taskInsertPosition = prefs.getString(KEY_TASK_INSERT_POSITION, null)
+        if (
+            prefs.getString(KEY_UID, null) != userId ||
+            (theme != "system" && theme != "light" && theme != "dark") ||
+            language == null ||
+            !Translations.isSupported(language) ||
+            (taskInsertPosition != "top" && taskInsertPosition != "bottom") ||
+            !prefs.contains(KEY_AUTO_SORT)
+        ) {
+            return null
+        }
+        return SettingsState(
+            theme = theme,
+            language = language,
+            taskInsertPosition = taskInsertPosition,
+            autoSort = prefs.getBoolean(KEY_AUTO_SORT, true),
+            startupView = normalizeStartupView(prefs.getString(KEY_STARTUP_VIEW, null)),
+            isStartupCached = true
+        )
+    }
+
+    fun initialState(context: Context, userId: String?): SettingsState {
+        if (userId == null) return SettingsState(isLoading = false)
+        return read(context, userId) ?: SettingsState()
+    }
+
+    fun write(context: Context, userId: String, settings: SettingsState) {
+        val cached = read(context, userId)
+        if (
+            cached != null &&
+            cached.theme == settings.theme &&
+            cached.language == settings.language &&
+            cached.taskInsertPosition == settings.taskInsertPosition &&
+            cached.autoSort == settings.autoSort &&
+            cached.startupView == settings.startupView
+        ) {
+            return
+        }
+        prefs(context).edit()
+            .putString(KEY_UID, userId)
+            .putString(KEY_THEME, settings.theme)
+            .putString(KEY_LANGUAGE, settings.language)
+            .putString(KEY_TASK_INSERT_POSITION, settings.taskInsertPosition)
+            .putBoolean(KEY_AUTO_SORT, settings.autoSort)
+            .putString(KEY_STARTUP_VIEW, settings.startupView)
+            .apply()
+    }
+
+    fun clear(context: Context) {
+        val prefs = prefs(context)
+        if (prefs.all.isEmpty()) return
+        prefs.edit().clear().apply()
+    }
+}
 
 private fun resolveSettingsState(
     record: FirestoreSettingsRecord,
@@ -2516,6 +2590,9 @@ fun RootScreen(
             isLoggedIn = auth.currentUser != null
             currentUserId = auth.currentUser?.uid
             authStateResolved = true
+            if (auth.currentUser == null) {
+                StartupSettingsCache.clear(auth.app.applicationContext)
+            }
         }
         Firebase.auth.addAuthStateListener(listener)
         onDispose { Firebase.auth.removeAuthStateListener(listener) }
@@ -2655,12 +2732,12 @@ fun RootScreen(
                         }
                     }
 
-                    LaunchedEffect(currentUserId, isLoggedIn, settingsState.isLoading) {
+                    LaunchedEffect(currentUserId, isLoggedIn, settingsState.isStartupPending) {
                         if (!isLoggedIn || currentUserId == null) {
                             startupNavigationUserId = null
                             return@LaunchedEffect
                         }
-                        if (settingsState.isLoading || startupNavigationUserId == currentUserId) {
+                        if (settingsState.isStartupPending || startupNavigationUserId == currentUserId) {
                             return@LaunchedEffect
                         }
 
@@ -2982,7 +3059,7 @@ private data class OrderedTaskListsUiState<T>(
 @Composable
 private fun rememberSettingsState(userId: String?): SettingsState {
     val context = LocalContext.current.applicationContext
-    var uiState by remember(userId) { mutableStateOf(SettingsState(isLoading = userId != null)) }
+    var uiState by remember(userId) { mutableStateOf(StartupSettingsCache.initialState(context, userId)) }
     DisposableEffect(userId) {
         if (userId == null) {
             autoSortOverrides.clear()
@@ -3043,6 +3120,9 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                             uiState = nextSettings.copy(
                                 autoSort = autoSortOverrides[userId] ?: nextSettings.autoSort
                             )
+                            if (snapshot?.exists() == true) {
+                                StartupSettingsCache.write(context, userId, nextSettings)
+                            }
                         } else {
                             uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
                         }
@@ -6293,8 +6373,8 @@ private fun TabletRootScreen(
     val settingsState = resolvedSettingsState(userId, rememberSettingsState(userId))
     val sharedTaskListsState = rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
 
-    LaunchedEffect(settingsState.isLoading) {
-        if (hasAppliedStartupPane || settingsState.isLoading) return@LaunchedEffect
+    LaunchedEffect(settingsState.isStartupPending) {
+        if (hasAppliedStartupPane || settingsState.isStartupPending) return@LaunchedEffect
         hasAppliedStartupPane = true
         if (settingsState.startupView == "calendar") {
             selectedPane = TabletPane.Calendar

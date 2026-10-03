@@ -147,7 +147,7 @@ Web の parser を正本とし、iOS / Android も対応言語・数字正規化
 
 - 設定 `startupView` で、画面指定のない通常起動時の初期画面を切り替える。`taskList`（既定。選択中または先頭タスクリストの詳細）/ `calendar` / `taskLists`（タスクリスト一覧）。
 - どの選択肢でも戻る階層の root はタスクリスト一覧とする（Web は history stack、iOS は NavigationStack path、Android は back stack）。`taskLists` は root に留まり自動遷移しない。
-- 起動判定は cache-first とする。Web は settings の読込完了（cache 含む）後に初期遷移を確定し、iOS は UserDefaults cache（`lightlist.startupView`。settings listener で更新、ログアウトで削除）から同期的に初期 path / ペインを決める。Android は settings listener の初回 snapshot 後に自動遷移し、起動時の自動遷移は画面切替アニメーションを付けない。
+- 起動判定は cache-first とする。Web は settings の読込完了（cache 含む）後に初期遷移を確定し、iOS は UserDefaults cache（`lightlist.startupView`。settings listener で更新、ログアウトで削除）から同期的に初期 path / ペインを決める。Android は端末に保存した設定値（SharedPreferences。存在する settings snapshot で更新、ログアウトで削除、uid 不一致は無視）があれば初回フレームから起動画面を確定し、なければ settings listener の初回 snapshot 後に自動遷移する。起動時の自動遷移は画面切替アニメーションを付けない。
 - Android は Firebase Auth の初回 state 通知を認証復元完了として扱い、通知前は認証画面を表示しない。UID が変わった場合は既存の back stack をタスクリスト一覧 root へ戻してから、そのユーザーの起動画面を判定する。
 - deep link（共有コード / パスワードリセット / Web の URL ハッシュ指定）は `startupView` より優先する。
 - タブレット / wide layout では `calendar` のときだけ初期表示ペインをカレンダーにする。`taskList` / `taskLists` は通常のタスクリスト詳細ペインとする。

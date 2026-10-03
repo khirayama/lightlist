@@ -1,1 +1,1 @@
-- Android配信開始
+Android配信開始

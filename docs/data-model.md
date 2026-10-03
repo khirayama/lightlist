@@ -85,7 +85,8 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 - 起動時は永続 Firestore cache を有効にし、settings / taskListOrder / taskLists の cache 読み取りを初回 UI 構築と並行して開始する。iOS は cache 読み取りを並列実行し、Android は翻訳 JSON の preload と同じ background thread から開始する。
 - taskLists の購読は taskListOrder に依存しないため、起動時は taskListOrder と taskLists のクエリを同時に開始する。
 - Web の通常購読は listener が返す初回 cache snapshot をそのまま hydrate に使い、同じ参照への明示的な cache get を重ねない。起動前 warm-up の cache get は IndexedDB と Firestore client の初期化だけを目的とする。
-- settings listener は metadata change を受け取り、cache snapshot で即時表示を更新する。server 確定かつ pending write なしの snapshot だけを同期復旧・通常のキャッシュ更新の確定点とする。iOS の `startupView` だけは設定選択時に起動用 UserDefaults も即時更新し、書き込み失敗時は直前値へ戻す。設定変更はサーバー応答を待たずに次の変更を受け付け、書き込み失敗は後述の同期失敗通知で知らせる。
+- Web の認証後シェルは、直近の settings / taskListOrder / taskLists を端末の localStorage に起動スナップショットとして保存し、次回起動の初回描画に使う（Firestore の cache 読み取りが認証の再検証を待つ間も内容を表示するため）。スナップショットは表示専用とし、表示中は操作を受け付けず、Firestore の購読が初回の内容またはエラーを返した時点で通常の表示へ切り替える。保存は認証済みかつ全購読が読み込み済みのときだけ行い、ログアウト・別ユーザー・不正な内容・保存失敗では破棄する。
+- settings listener は metadata change を受け取り、cache snapshot で即時表示を更新する。server 確定かつ pending write なしの snapshot だけを同期復旧・通常のキャッシュ更新の確定点とする。iOS の `startupView` だけは設定選択時に起動用 UserDefaults も即時更新し、書き込み失敗時は直前値へ戻す。Android は起動用にテーマ・言語・追加位置・autoSort・起動画面を端末へ保存し、初回フレームの表示と起動画面の判定に使う。保存値は cache / pending を含む存在する settings snapshot に追従させ、書き込みがサーバーに拒否された場合も後続 snapshot で元へ戻る。設定変更はサーバー応答を待たずに次の変更を受け付け、書き込み失敗は後述の同期失敗通知で知らせる。
 - `taskLists` クエリは cache / live snapshot とも snapshot 全体で置き換える（差分適用しない）。
 - Firestore listener がエラーを返した場合は、現在の購読を解除して同じ参照を再登録する。再試行は 1 秒から始め、2 倍ずつ最大 30 秒まで待ち、画面・ユーザーの購読スコープが終了するまで継続する。cache snapshot と pending write を含む snapshot は復旧扱いにせず、server 確定かつ pending write なしの snapshot の受信で、その参照だけの失敗状態と待ち時間を初期化する。順序とリストの listener は metadata change も受け取る。
 - UI 更新系は listener 反映より先に画面上の編集結果を捨てない。保存後も Firestore が同じ内容へ追いつくまで local pending 表示を優先する。詳細は [task-lists.md](./task-lists.md)。

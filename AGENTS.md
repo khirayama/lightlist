@@ -130,7 +130,7 @@
 - 書き込み前の読み取りは cache 優先（Web `getDocFromCache` → `getDoc`、iOS `cacheFirstDocument`、Android `cacheFirstDocument`）にし、`getDocFromServer` / `source: .server` / `Source.SERVER` はサーバー判定が必要な操作だけに使う。オフラインで server read を挟むと操作全体が失敗する。
 - 新規作成したタスクリストは一覧 listener に現れてから詳細を開く（Web `awaitingTaskListId`、iOS `awaitingTaskList`、Android `awaitingTaskListId`）。現れる前に開くとページャーの選択解決が先頭リストへ戻す。同期失敗を受けたら待機を解除する。
 - ログアウトは `waitForPendingWrites` を 1 秒だけ待って未送信の有無を判定し、未送信があれば `auth.signOutConfirm.unsyncedMessage` で確認する。Firestore の mutation queue は uid ごとに端末へ永続化され、同じユーザーの再ログインで再送されるため、ログアウト時に cache を削除（`clearIndexedDbPersistence` / `clearPersistence`）しない。
-- Web の Firestore は Firebase Auth の初回トークン通知まで内部キュー（cache 読み取り・listener・書き込み）を止め、Web Auth は保存済みユーザーの起動時再検証（`getAccountInfo`、オンライン判定時は最大 30 秒）を初回通知より先に行う。完全なオフラインは即座に進むが、通信が極端に不安定な環境では cache-first 表示も遅れる。Firestore の設定では回避できない。
+- Web の Firestore は Firebase Auth の初回トークン通知まで内部キュー（cache 読み取り・listener・書き込み）を止め、Web Auth は保存済みユーザーの起動時再検証（`getAccountInfo`、オンライン判定時は最大 30 秒）を初回通知より先に行う。完全なオフラインは即座に進むが、通信が極端に不安定な環境では cache-first 表示も遅れる。Firestore の設定では回避できないため、Web は表示専用の起動スナップショット（localStorage `lightlist.startupSnapshot`）で初回描画だけを先行させる。スナップショット表示中は app shell を `inert` にし、settings / taskListOrder / taskLists の各 listener が初回 snapshot かエラーを返すまで操作を受け付けない（古い内容を基準にした書き込みを作らない）。
 
 ## 主要コマンド
 

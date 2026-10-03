@@ -1281,7 +1281,11 @@ declare module "i18next" {
 }
 
 type SessionState = Pick<AppState, "authStatus" | "user">;
-type SessionContextValue = SessionState & { activeUid: string | null };
+type SessionContextValue = SessionState & {
+  activeUid: string | null;
+  isStartupSnapshotActive: boolean;
+};
+type StartupLiveSource = "settings" | "taskListOrder" | "taskLists";
 type SettingsState = Pick<AppState, "settings" | "settingsStatus">;
 type SettingsContextValue = SettingsState & {
   setOptimisticAutoSort: (autoSort: boolean) => void;
@@ -1475,10 +1479,99 @@ const getOrderedTaskListIds = (
     .sort((a, b) => a[1].order - b[1].order || compareStringIds(a[0], b[0]))
     .map(([taskListId]) => taskListId);
 
+const STARTUP_SNAPSHOT_STORAGE_KEY = "lightlist.startupSnapshot";
+
+type StartupSnapshot = {
+  uid: string;
+  settings: Settings;
+  taskListOrder: TaskListOrderStore | null;
+  taskListsById: Record<string, TaskListStore>;
+};
+
+const clearStartupSnapshot = (): void => {
+  try {
+    window.localStorage.removeItem(STARTUP_SNAPSHOT_STORAGE_KEY);
+  } catch {
+    return;
+  }
+};
+
+const readStartupSnapshot = (uid: string | null): StartupSnapshot | null => {
+  if (!uid || typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(STARTUP_SNAPSHOT_STORAGE_KEY);
+    if (!raw) return null;
+    const data: unknown = JSON.parse(raw);
+    if (!isRecord(data) || data.uid !== uid || !Array.isArray(data.taskLists)) {
+      return null;
+    }
+    const settings = mapSettingsStore(assertSettingsStore(data.settings, uid));
+    if (!settings) return null;
+    const taskListsById: Record<string, TaskListStore> = {};
+    data.taskLists.forEach((taskListData: unknown) => {
+      if (!isRecord(taskListData) || typeof taskListData.id !== "string") {
+        throw new Error("Startup snapshot is malformed");
+      }
+      taskListsById[taskListData.id] = normalizeTaskListStore(
+        assertTaskListStore(taskListData, taskListData.id),
+      );
+    });
+    return {
+      uid,
+      settings,
+      taskListOrder:
+        data.taskListOrder == null
+          ? null
+          : assertTaskListOrderStore(data.taskListOrder, uid),
+      taskListsById,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const writeStartupSnapshot = (snapshot: StartupSnapshot): void => {
+  try {
+    window.localStorage.setItem(
+      STARTUP_SNAPSHOT_STORAGE_KEY,
+      JSON.stringify({
+        uid: snapshot.uid,
+        settings: snapshot.settings,
+        taskListOrder: snapshot.taskListOrder,
+        taskLists: Object.values(snapshot.taskListsById).map((taskList) => ({
+          ...taskList,
+          createdAt: toMillisValue(taskList.createdAt),
+          updatedAt: toMillisValue(taskList.updatedAt),
+        })),
+      }),
+    );
+  } catch {
+    clearStartupSnapshot();
+  }
+};
+
+const hydrateTaskListsState = (
+  snapshot: StartupSnapshot | null,
+): TaskListsState =>
+  snapshot
+    ? {
+        ...initialTaskListsState("ready"),
+        taskListOrder: snapshot.taskListOrder,
+        taskListDocsStatus: "loading",
+        taskListsById: snapshot.taskListsById,
+      }
+    : initialTaskListsState();
+
 type TaskListsAction =
   | {
       type: "reset";
       taskListOrderStatus?: AppState["taskListOrderStatus"];
+    }
+  | {
+      type: "hydrate";
+      snapshot: StartupSnapshot;
     }
   | {
       type: "setTaskListOrder";
@@ -1515,6 +1608,8 @@ const taskListsReducer = (
   switch (action.type) {
     case "reset":
       return initialTaskListsState(action.taskListOrderStatus ?? "idle");
+    case "hydrate":
+      return hydrateTaskListsState(action.snapshot);
     case "setTaskListOrder":
       return {
         ...state,
@@ -1640,12 +1735,38 @@ function AppStateProvider({
   const [session, setSession] = useState<SessionState>(serverSessionState);
   const sessionRef = useRef(session);
   sessionRef.current = session;
-  const [settingsState, setSettingsState] =
-    useState<SettingsState>(serverSettingsState);
+  const [storedLastUid] = useState(readLastUid);
+  const [startupSnapshot] = useState(() =>
+    loadAppData && document.body.dataset.page === "app"
+      ? readStartupSnapshot(storedLastUid)
+      : null,
+  );
+  const startupLiveRef = useRef<Record<StartupLiveSource, boolean>>({
+    settings: false,
+    taskListOrder: false,
+    taskLists: false,
+  });
+  const [isStartupSnapshotPending, setIsStartupSnapshotPending] = useState(
+    startupSnapshot !== null,
+  );
+  const markStartupLive = useCallback((source: StartupLiveSource) => {
+    const live = startupLiveRef.current;
+    if (live[source]) return;
+    live[source] = true;
+    if (live.settings && live.taskListOrder && live.taskLists) {
+      setIsStartupSnapshotPending(false);
+    }
+  }, []);
+  const [settingsState, setSettingsState] = useState<SettingsState>(() =>
+    startupSnapshot
+      ? { settings: startupSnapshot.settings, settingsStatus: "ready" }
+      : serverSettingsState,
+  );
   const optimisticAutoSortRef = useRef<boolean | null>(null);
   const [taskListsState, dispatchTaskLists] = useReducer(
     taskListsReducer,
-    initialTaskListsState(),
+    startupSnapshot,
+    hydrateTaskListsState,
   );
   const taskListOrderStateRef = useRef(taskListsState.taskListOrder);
   taskListOrderStateRef.current = taskListsState.taskListOrder;
@@ -1653,7 +1774,6 @@ function AppStateProvider({
   sharedTaskListsByIdRef.current = taskListsState.sharedTaskListsById;
   const sharedTaskListRefCounts = useRef(new Map<string, number>());
   const sharedTaskListUnsubscribers = useRef(new Map<string, () => void>());
-  const [storedLastUid] = useState(readLastUid);
 
   useEffect(() => {
     if (isAuthFreePage()) {
@@ -1662,6 +1782,7 @@ function AppStateProvider({
     }
     const unsubscribe = onAuthStateChanged(getAuthInstance(), (user) => {
       writeLastUid(user?.uid ?? null);
+      if (!user) clearStartupSnapshot();
       setSession({
         authStatus: user ? "authenticated" : "unauthenticated",
         user: toUser(user),
@@ -1675,6 +1796,8 @@ function AppStateProvider({
   const activeUid =
     session.user?.uid ??
     (session.authStatus === "loading" ? storedLastUid : null);
+  const isStartupSnapshotActive =
+    isStartupSnapshotPending && startupSnapshot?.uid === activeUid;
 
   const setOptimisticAutoSort = useCallback((autoSort: boolean) => {
     optimisticAutoSortRef.current = autoSort;
@@ -1701,10 +1824,15 @@ function AppStateProvider({
 
     const settingsRef = doc(getDbInstance(), "settings", activeUid);
 
-    setSettingsState((current) => ({
-      settings: current.settings,
-      settingsStatus: "loading",
-    }));
+    const startupSettings =
+      startupSnapshot?.uid === activeUid && !startupLiveRef.current.settings
+        ? startupSnapshot.settings
+        : null;
+    setSettingsState((current) =>
+      startupSettings
+        ? { settings: startupSettings, settingsStatus: "ready" }
+        : { settings: current.settings, settingsStatus: "loading" },
+    );
 
     let disposed = false;
     let retryTimer: number | null = null;
@@ -1717,6 +1845,7 @@ function AppStateProvider({
     };
     const scheduleRetry = (error: FirestoreError) => {
       if (disposed || retryTimer !== null) return;
+      markStartupLive("settings");
       if (!reportedError) {
         void logSyncListenerError("settings", error.code);
         reportedError = true;
@@ -1748,6 +1877,7 @@ function AppStateProvider({
         settingsRef,
         { includeMetadataChanges: true },
         (snapshot) => {
+          markStartupLive("settings");
           try {
             const settingsStore = assertSettingsStore(
               snapshot.exists() ? snapshot.data() : {},
@@ -1809,7 +1939,7 @@ function AppStateProvider({
       if (retryTimer !== null) window.clearTimeout(retryTimer);
       clearListener();
     };
-  }, [activeUid, loadAppData]);
+  }, [activeUid, loadAppData, markStartupLive, startupSnapshot]);
 
   useEffect(() => {
     if (!loadAppData) {
@@ -1823,7 +1953,15 @@ function AppStateProvider({
 
     const taskListOrderRef = doc(getDbInstance(), "taskListOrder", activeUid);
 
-    dispatchTaskLists({ type: "reset", taskListOrderStatus: "loading" });
+    if (
+      startupSnapshot?.uid === activeUid &&
+      !startupLiveRef.current.taskListOrder &&
+      !startupLiveRef.current.taskLists
+    ) {
+      dispatchTaskLists({ type: "hydrate", snapshot: startupSnapshot });
+    } else {
+      dispatchTaskLists({ type: "reset", taskListOrderStatus: "loading" });
+    }
 
     let disposed = false;
     let retryTimer: number | null = null;
@@ -1836,6 +1974,7 @@ function AppStateProvider({
     };
     const scheduleRetry = (error: FirestoreError) => {
       if (disposed || retryTimer !== null) return;
+      markStartupLive("taskListOrder");
       if (!reportedError) {
         void logSyncListenerError("task_list_order", error.code);
         reportedError = true;
@@ -1868,6 +2007,7 @@ function AppStateProvider({
         taskListOrderRef,
         { includeMetadataChanges: true },
         (snapshot) => {
+          markStartupLive("taskListOrder");
           try {
             const taskListOrder = snapshot.exists()
               ? assertTaskListOrderStore(snapshot.data(), activeUid)
@@ -1904,7 +2044,7 @@ function AppStateProvider({
       if (retryTimer !== null) window.clearTimeout(retryTimer);
       clearListener();
     };
-  }, [activeUid, loadAppData]);
+  }, [activeUid, loadAppData, markStartupLive, startupSnapshot]);
 
   const orderedTaskListIds = useMemo(
     () => getOrderedTaskListIds(taskListsState.taskListOrder),
@@ -1973,6 +2113,7 @@ function AppStateProvider({
         { includeMetadataChanges: true },
         (snapshot) => {
           if (disposed) return;
+          markStartupLive("taskLists");
           applyTaskListSnapshot(snapshot);
           if (
             !snapshot.metadata.fromCache &&
@@ -1988,6 +2129,7 @@ function AppStateProvider({
         },
         (error: FirestoreError) => {
           if (disposed || retryTimer !== null) return;
+          markStartupLive("taskLists");
           if (!failed) void logSyncListenerError("task_lists", error.code);
           failed = true;
           dispatchTaskLists({
@@ -2018,7 +2160,7 @@ function AppStateProvider({
       if (retryTimer !== null) window.clearTimeout(retryTimer);
       clearListener();
     };
-  }, [activeUid, loadAppData]);
+  }, [activeUid, loadAppData, markStartupLive]);
 
   const registerSharedTaskList = useCallback((taskListId: string) => {
     const nextCount =
@@ -2193,9 +2335,48 @@ function AppStateProvider({
     ],
   );
 
+  const persistUid =
+    session.authStatus === "authenticated" ? (session.user?.uid ?? null) : null;
+  useEffect(() => {
+    if (
+      !loadAppData ||
+      !persistUid ||
+      isStartupSnapshotActive ||
+      !settingsState.settings ||
+      settingsState.settingsStatus !== "ready" ||
+      taskListsState.taskListOrderStatus !== "ready" ||
+      taskListsState.taskListDocsStatus !== "ready"
+    ) {
+      return;
+    }
+    const snapshot: StartupSnapshot = {
+      uid: persistUid,
+      settings: settingsState.settings,
+      taskListOrder: taskListsState.taskListOrder,
+      taskListsById: taskListsState.taskListsById,
+    };
+    const write = () => writeStartupSnapshot(snapshot);
+    const timer = window.setTimeout(write, 1000);
+    window.addEventListener("pagehide", write);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pagehide", write);
+    };
+  }, [
+    isStartupSnapshotActive,
+    loadAppData,
+    persistUid,
+    settingsState.settings,
+    settingsState.settingsStatus,
+    taskListsState.taskListDocsStatus,
+    taskListsState.taskListOrder,
+    taskListsState.taskListOrderStatus,
+    taskListsState.taskListsById,
+  ]);
+
   const sessionContextValue = useMemo<SessionContextValue>(
-    () => ({ ...session, activeUid }),
-    [session, activeUid],
+    () => ({ ...session, activeUid, isStartupSnapshotActive }),
+    [session, activeUid, isStartupSnapshotActive],
   );
 
   const settingsContextValue = useMemo<SettingsContextValue>(
@@ -9064,7 +9245,7 @@ function TaskListSidebarPanel({
 
 function AppShellPage() {
   const { t, i18n } = useTranslation();
-  const { authStatus, activeUid } = useSessionState();
+  const { authStatus, activeUid, isStartupSnapshotActive } = useSessionState();
   const isSessionActive =
     authStatus === "authenticated" ||
     (authStatus === "loading" && activeUid !== null);
@@ -9762,6 +9943,7 @@ function AppShellPage() {
                   onSortingChange={setIsTaskSorting}
                   onDragInteractionChange={setIsTaskDragInteracting}
                   activeTaskActionTaskId={
+                    !isStartupSnapshotActive &&
                     activeTaskAction?.taskListId === taskList.id
                       ? activeTaskAction.taskId
                       : null
@@ -9831,7 +10013,10 @@ function AppShellPage() {
   }
 
   return (
-    <div className="ll-h-full ll-min-h-full ll-w-full ll-overflow-hidden ll-text-gray-900 ll-dark-text-gray-50">
+    <div
+      inert={isStartupSnapshotActive}
+      className="ll-h-full ll-min-h-full ll-w-full ll-overflow-hidden ll-text-gray-900 ll-dark-text-gray-50"
+    >
       <div
         className={clsx(
           "ll-flex ll-h-full",

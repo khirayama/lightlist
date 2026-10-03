@@ -2698,6 +2698,12 @@ fun RootScreen(
                         },
                         popExitTransition = {
                             slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(300))
+                        },
+                        predictivePopEnterTransition = { _ ->
+                            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(300))
+                        },
+                        predictivePopExitTransition = { _ ->
+                            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(300))
                         }
                     ) {
                         composable(AppRoute.TaskLists.route) { TaskListsScreen(navController, currentUserId) }

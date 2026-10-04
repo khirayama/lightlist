@@ -69,7 +69,20 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -262,7 +275,6 @@ import java.text.DateFormatSymbols
 import org.json.JSONObject
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.RowScope
@@ -270,7 +282,6 @@ import androidx.core.net.toUri
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -1332,51 +1343,72 @@ private fun AppButton(
     iconSize: Dp = 18.dp
 ) {
     val colors = MaterialTheme.colorScheme
-    val containerColor = when (style) {
-        AppButtonStyle.Primary -> colors.primary
-        AppButtonStyle.Secondary -> colors.surfaceContainer
-        AppButtonStyle.Tonal -> rowActiveColor()
-        AppButtonStyle.Ghost, AppButtonStyle.Danger -> Color.Transparent
-        AppButtonStyle.Destructive -> AppRed.destructive
-    }
-    val contentColor = when (style) {
-        AppButtonStyle.Primary -> colors.onPrimary
-        AppButtonStyle.Secondary, AppButtonStyle.Tonal -> colors.onSurface
-        AppButtonStyle.Ghost -> colors.onSurfaceVariant
-        AppButtonStyle.Danger -> colors.error
-        AppButtonStyle.Destructive -> Color.White
-    }
-    val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource)
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        shape = RoundedCornerShape(12.dp),
-        color = containerColor,
-        contentColor = contentColor,
-        border = if (style == AppButtonStyle.Secondary) BorderStroke(1.dp, colors.outlineVariant) else null,
-        interactionSource = interactionSource,
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .alpha(if (enabled) 1f else 0.45f)
-    ) {
-        Row(
-            modifier = Modifier
-                .heightIn(min = 44.dp)
-                .padding(
-                    horizontal = if (style == AppButtonStyle.Ghost || style == AppButtonStyle.Danger) 12.dp else 16.dp
-                ),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (icon != null) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize))
-            }
-            Text(text, style = AppButtonTextStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    val shape = RoundedCornerShape(12.dp)
+    val sizedModifier = modifier.heightIn(min = 44.dp)
+    val contentPadding = PaddingValues(
+        horizontal = if (style == AppButtonStyle.Ghost || style == AppButtonStyle.Danger) 12.dp else 16.dp
+    )
+    val content: @Composable RowScope.() -> Unit = {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize))
+            Spacer(Modifier.width(8.dp))
         }
+        Text(text, style = AppButtonTextStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    when (style) {
+        AppButtonStyle.Primary -> Button(
+            onClick = onClick,
+            modifier = sizedModifier,
+            enabled = enabled,
+            shape = shape,
+            contentPadding = contentPadding,
+            content = content
+        )
+        AppButtonStyle.Destructive -> Button(
+            onClick = onClick,
+            modifier = sizedModifier,
+            enabled = enabled,
+            shape = shape,
+            colors = ButtonDefaults.buttonColors(containerColor = AppRed.destructive, contentColor = Color.White),
+            contentPadding = contentPadding,
+            content = content
+        )
+        AppButtonStyle.Secondary -> OutlinedButton(
+            onClick = onClick,
+            modifier = sizedModifier,
+            enabled = enabled,
+            shape = shape,
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = colors.surfaceContainer,
+                contentColor = colors.onSurface
+            ),
+            border = BorderStroke(1.dp, colors.outlineVariant),
+            contentPadding = contentPadding,
+            content = content
+        )
+        AppButtonStyle.Tonal -> FilledTonalButton(
+            onClick = onClick,
+            modifier = sizedModifier,
+            enabled = enabled,
+            shape = shape,
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = rowActiveColor(),
+                contentColor = colors.onSurface
+            ),
+            contentPadding = contentPadding,
+            content = content
+        )
+        AppButtonStyle.Ghost, AppButtonStyle.Danger -> TextButton(
+            onClick = onClick,
+            modifier = sizedModifier,
+            enabled = enabled,
+            shape = shape,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = if (style == AppButtonStyle.Danger) colors.error else colors.onSurfaceVariant
+            ),
+            contentPadding = contentPadding,
+            content = content
+        )
     }
 }
 
@@ -1391,38 +1423,13 @@ private fun AppIconButton(
     enabled: Boolean = true,
     size: Dp = 48.dp
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource, pressedScale = 0.94f)
-    Box(
-        modifier = modifier
-            .size(size)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(),
-                enabled = enabled,
-                role = Role.Button,
-                onClick = onClick
-            )
-            .then(
-                if (contentDescription != null) {
-                    Modifier.semantics { this.contentDescription = contentDescription }
-                } else {
-                    Modifier
-                }
-            ),
-        contentAlignment = Alignment.Center
+    IconButton(
+        onClick = onClick,
+        modifier = modifier.size(size),
+        enabled = enabled,
+        colors = IconButtonDefaults.iconButtonColors(contentColor = tint)
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = if (enabled) tint else tint.copy(alpha = tint.alpha * 0.45f),
-            modifier = Modifier.size(iconSize)
-        )
+        Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(iconSize))
     }
 }
 
@@ -1449,64 +1456,34 @@ private fun AppTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val focused by interactionSource.collectIsFocusedAsState()
-    val dark = isAppDarkTheme()
     val colors = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(12.dp)
-    val ringColor = if (dark) AppGray.g700.copy(alpha = 0.7f) else AppGray.g300.copy(alpha = 0.7f)
     val textStyle = AppFieldTextStyle.copy(
         color = colors.onSurface,
         fontFamily = if (monospace) FontFamily.Monospace else GenInterfaceJPBodyFontFamily
     )
-    BasicTextField(
+    OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
+        modifier = modifier.fillMaxWidth(),
         enabled = enabled,
         readOnly = readOnly,
-        singleLine = true,
         textStyle = textStyle,
+        placeholder = placeholder?.let {
+            { Text(it, style = textStyle.copy(color = mutedTextColor()), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        },
+        singleLine = true,
         keyboardOptions = if (password) keyboardOptions.copy(keyboardType = KeyboardType.Password) else keyboardOptions,
         keyboardActions = keyboardActions,
         visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
-        interactionSource = interactionSource,
-        cursorBrush = SolidColor(colors.onSurface),
-        modifier = modifier
-            .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.6f)
-            .drawBehind {
-                if (focused && !readOnly) {
-                    val ring = 3.dp.toPx()
-                    drawRoundRect(
-                        color = ringColor,
-                        topLeft = Offset(-ring, -ring),
-                        size = Size(size.width + ring * 2, size.height + ring * 2),
-                        cornerRadius = CornerRadius(12.dp.toPx() + ring)
-                    )
-                }
-            }
-            .background(colors.background, shape)
-            .border(1.dp, if (focused && !readOnly) colors.onSurfaceVariant else colors.outlineVariant, shape)
-            .heightIn(min = 44.dp)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        decorationBox = { innerTextField ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 28.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                if (value.isEmpty() && placeholder != null) {
-                    Text(
-                        placeholder,
-                        style = textStyle.copy(color = mutedTextColor()),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                innerTextField()
-            }
-        }
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = colors.background,
+            unfocusedContainerColor = colors.background,
+            disabledContainerColor = colors.background,
+            focusedBorderColor = colors.onSurfaceVariant,
+            unfocusedBorderColor = colors.outlineVariant,
+            cursorColor = colors.onSurface
+        )
     )
 }
 
@@ -1516,9 +1493,7 @@ private fun AppDialogFooter(
     content: @Composable () -> Unit
 ) {
     FlowRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 24.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -1544,31 +1519,28 @@ private fun AppDialog(
     footer: @Composable () -> Unit,
     content: (@Composable ColumnScope.() -> Unit)? = null
 ) {
-    Dialog(
+    AlertDialog(
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        CompositionLocalProvider(LocalOnColoredBackground provides false) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .padding(16.dp)
-                    .widthIn(max = 416.dp)
-                    .fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                        .padding(24.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            title,
-                            style = AppDialogTitleTextStyle,
-                            modifier = Modifier.semantics { heading() }
-                        )
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .widthIn(max = 416.dp),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        confirmButton = {
+            CompositionLocalProvider(LocalOnColoredBackground provides false) {
+                AppDialogFooter(start = footerStart, content = footer)
+            }
+        },
+        title = {
+            Text(
+                title,
+                style = AppDialogTitleTextStyle,
+                modifier = Modifier.semantics { heading() }
+            )
+        },
+        text = if (description != null || content != null) {
+            {
+                CompositionLocalProvider(LocalOnColoredBackground provides false) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                         if (description != null) {
                             Text(
                                 description,
@@ -1576,13 +1548,19 @@ private fun AppDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        content?.invoke(this)
                     }
-                    content?.invoke(this)
-                    AppDialogFooter(start = footerStart, content = footer)
                 }
             }
-        }
-    }
+        } else {
+            null
+        },
+        shape = RoundedCornerShape(16.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 0.dp
+    )
 }
 
 @Composable
@@ -1687,32 +1665,7 @@ private fun AppListDot(background: String?, modifier: Modifier = Modifier, size:
 
 @Composable
 private fun AppSwitch(checked: Boolean, modifier: Modifier = Modifier) {
-    val reduceMotion = LocalReduceMotion.current
-    val dark = isAppDarkTheme()
-    val colors = MaterialTheme.colorScheme
-    val thumbOffset by animateDpAsState(
-        targetValue = if (checked) 24.dp else 4.dp,
-        animationSpec = if (reduceMotion) snap() else AppMotion.releaseSpring(),
-        label = "switchThumb"
-    )
-    val trackColor = if (checked) colors.primary else if (dark) colors.surfaceContainer else AppGray.g300
-    val borderColor = if (checked) colors.primary else if (dark) AppGray.g700 else AppGray.g300
-    Box(
-        modifier = modifier
-            .size(width = 48.dp, height = 28.dp)
-            .background(trackColor, CircleShape)
-            .border(1.dp, borderColor, CircleShape)
-            .padding(1.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Box(
-            modifier = Modifier
-                .offset { IntOffset(thumbOffset.roundToPx(), 0) }
-                .size(20.dp)
-                .shadow(1.dp, CircleShape)
-                .background(if (dark) colors.background else Color.White, CircleShape)
-        )
-    }
+    Switch(checked = checked, onCheckedChange = null, modifier = modifier)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1764,7 +1717,6 @@ private fun AppSheet(
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             containerColor = containerColor,
             contentColor = MaterialTheme.colorScheme.onSurface,
-            dragHandle = null,
             contentWindowInsets = { WindowInsets(0) },
             modifier = Modifier.semantics { this.paneTitle = paneTitle }
         ) {
@@ -1774,7 +1726,7 @@ private fun AppSheet(
                     .heightIn(max = maxSheetHeight)
                     .navigationBarsPadding()
                     .imePadding()
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 content = neutralContent
             )
@@ -4158,39 +4110,35 @@ private fun DetailScreenScaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = if (showTopBar) {
             {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(
-                            WindowInsets.safeDrawing.only(
-                                WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = title,
+                            style = AppHeaderTitleTextStyle,
+                            overflow = TextOverflow.Ellipsis,
+                            maxLines = 1
+                        )
+                    },
+                    navigationIcon = {
+                        if (onBack != null) {
+                            AppIconButton(
+                                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = t.t("common.back"),
+                                onClick = onBack
                             )
-                        )
-                        .height(topBarHeight)
-                ) {
-                    if (onBack != null) {
-                        AppIconButton(
-                            icon = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = t.t("common.back"),
-                            onClick = onBack,
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(start = 4.dp)
-                        )
-                    }
-                    Text(
-                        text = title,
-                        style = AppHeaderTitleTextStyle,
-                        overflow = TextOverflow.Ellipsis,
-                        maxLines = 1,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .semantics { heading() }
-                            .fillMaxWidth()
-                            .padding(horizontal = 56.dp)
+                        }
+                    },
+                    expandedHeight = topBarHeight,
+                    windowInsets = WindowInsets.safeDrawing.only(
+                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                    ),
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground
                     )
-                }
+                )
             }
         } else {
             {}
@@ -7002,7 +6950,6 @@ private fun TaskListRow(
                             hasCommitted = true
                             completeInlineEdit()
                         }),
-                        singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusRequester(focusRequester)

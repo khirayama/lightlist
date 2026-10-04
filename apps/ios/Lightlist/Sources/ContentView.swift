@@ -146,10 +146,7 @@ private enum AppPalette {
 private enum AppMetrics {
     static let controlHeight: CGFloat = 44
     static let controlCornerRadius: CGFloat = 12
-    static let cardCornerRadius: CGFloat = 12
     static let sheetCalendarCornerRadius: CGFloat = 16
-    static let headerHeight: CGFloat = 56
-    static let headerHorizontalPadding: CGFloat = 6
     static let pageHorizontalPadding: CGFloat = 16
     static let regularPageHorizontalPadding: CGFloat = 24
     static let regularPageTopPadding: CGFloat = 40
@@ -157,6 +154,7 @@ private enum AppMetrics {
     static let taskColumnMaxWidth: CGFloat = 672
     static let authCardMaxWidth: CGFloat = 576
     static let listDotSize: CGFloat = 10
+    static let dialogBarHeight: CGFloat = 72
 }
 
 private enum AppTypography {
@@ -214,10 +212,6 @@ private enum AppTypography {
 
     static func bodySemibold() -> Font {
         .custom("GenInterfaceJP-SemiBold", size: 17, relativeTo: .body)
-    }
-
-    static func dialogTitle() -> Font {
-        .custom("GenInterfaceJP-SemiBold", size: 18, relativeTo: .headline)
     }
 
     static func pageTitle() -> Font {
@@ -547,40 +541,62 @@ private struct AppAlert: View {
     }
 }
 
-private struct AppDialog<Content: View, Leading: View, Trailing: View>: View {
+private struct AppDialogAction {
+    let title: String
+    var disabled = false
+    let action: () -> Void
+}
+
+private struct AppDialog<Content: View>: View {
     let title: String
     var description: String? = nil
+    let cancel: AppDialogAction
+    var confirm: AppDialogAction? = nil
     @ViewBuilder let content: () -> Content
-    @ViewBuilder let footerLeading: () -> Leading
-    @ViewBuilder let footerTrailing: () -> Trailing
+    @State private var contentHeight: CGFloat = 240
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(title)
-                    .font(AppTypography.dialogTitle())
-                    .foregroundStyle(.primary)
-                    .accessibilityAddTraits(.isHeader)
-                if let description {
-                    Text(description)
-                        .font(AppTypography.subheadline())
-                        .foregroundStyle(AppPalette.mutedText)
-                        .fixedSize(horizontal: false, vertical: true)
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if let description {
+                        Text(description)
+                            .font(AppTypography.subheadline())
+                            .foregroundStyle(AppPalette.mutedText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    content()
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.height
+                } action: { height in
+                    contentHeight = height
                 }
             }
-            content()
-                .padding(.top, 20)
-            HStack(spacing: 8) {
-                footerLeading()
-                    .padding(.leading, -12)
-                Spacer(minLength: 8)
-                footerTrailing()
+            .scrollBounceBehavior(.basedOnSize)
+            .background(AppPalette.cardSurface.ignoresSafeArea())
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(cancel.title, action: cancel.action)
+                        .disabled(cancel.disabled)
+                }
+                if let confirm {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(confirm.title, action: confirm.action)
+                            .disabled(confirm.disabled)
+                    }
+                }
             }
-            .padding(.top, 24)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .modifier(FittedSheetModifier())
+        .presentationDetents([.height(contentHeight + AppMetrics.dialogBarHeight)])
+        .presentationBackground(AppPalette.cardSurface)
+        .presentationCornerRadius(28)
     }
 }
 
@@ -656,37 +672,6 @@ private struct AppActionSheetHeader: View {
     }
 }
 
-private struct AppNavigationHeader: View {
-    @EnvironmentObject var translations: Translations
-    var title: String? = nil
-    let onBack: () -> Void
-
-    var body: some View {
-        ZStack {
-            if let title {
-                Text(title)
-                    .font(AppTypography.bodySemibold())
-                    .lineLimit(1)
-                    .padding(.horizontal, 56)
-                    .accessibilityAddTraits(.isHeader)
-            }
-            HStack(spacing: 0) {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: AppIconMetrics.navigationIconSize, weight: .semibold))
-                        .flipsForRightToLeftLayoutDirection(true)
-                        .foregroundStyle(.primary)
-                }
-                .buttonStyle(AppIconButtonStyle())
-                .accessibilityLabel(translations.t("common.back"))
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, AppMetrics.headerHorizontalPadding)
-        }
-        .frame(maxWidth: .infinity, minHeight: AppMetrics.headerHeight)
-    }
-}
-
 private struct AppPageTitle: View {
     let title: String
 
@@ -696,6 +681,14 @@ private struct AppPageTitle: View {
             .foregroundStyle(.primary)
             .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
             .accessibilityAddTraits(.isHeader)
+    }
+}
+
+private extension View {
+    func plainListRow(top: CGFloat = 0, bottom: CGFloat = 0, horizontal: CGFloat = 16) -> some View {
+        listRowInsets(EdgeInsets(top: top, leading: horizontal, bottom: bottom, trailing: horizontal))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 }
 
@@ -2775,6 +2768,7 @@ struct RootView: View {
         normalizedStartupView(UserDefaults.standard.string(forKey: cachedStartupViewKey)) == "calendar"
         ? .calendar
         : .taskList
+    @State private var splitViewVisibility: NavigationSplitViewVisibility = .all
     @State private var pendingPasswordResetCode: String?
     @State private var pendingSharePreviewCode: String?
     @State private var pendingShareCode: String?
@@ -2964,7 +2958,7 @@ struct RootView: View {
     }
 
     private var regularRoot: some View {
-        HStack(spacing: 0) {
+        NavigationSplitView(columnVisibility: $splitViewVisibility) {
             TaskListsView(
                 path: $path,
                 pendingShareCode: $pendingShareCode,
@@ -2984,8 +2978,8 @@ struct RootView: View {
                     selectedRegularPane = .calendar
                 }
             )
-            .frame(width: 360)
-
+            .navigationSplitViewColumnWidth(360)
+        } detail: {
             ZStack {
                 AppPalette.pageBackground
                     .ignoresSafeArea()
@@ -3011,8 +3005,9 @@ struct RootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .toolbar(.hidden, for: .navigationBar)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationSplitViewStyle(.balanced)
     }
 
     private func startListening() {
@@ -3134,14 +3129,12 @@ struct RootView: View {
 }
 
 private enum TaskListTopChromeMetrics {
-    static let compactBackRowHeight: CGFloat = 48
     static let indicatorRowHeight: CGFloat = 32
     static let indicatorHitHeight: CGFloat = 44
     static let indicatorPitch: CGFloat = 26
     static let indicatorDotSize: CGFloat = 8
     static let compactBottomSpacing: CGFloat = 8
     static let regularTopSpacing: CGFloat = 40
-    static let horizontalPadding: CGFloat = 6
 }
 
 private extension VerticalAlignment {
@@ -3353,33 +3346,15 @@ private struct TaskListIndicatorRow: View {
 }
 
 private struct TaskListTopChrome: View {
-    @EnvironmentObject var translations: Translations
-    let showBackButton: Bool
+    let showsIndicator: Bool
     let taskLists: [TaskListDetail]
     let selectedIndex: Int
     let progress: TaskListPagerProgress
     let onSelect: (String) -> Void
-    let onBack: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
-            if showBackButton {
-                HStack(spacing: 0) {
-                    if let onBack {
-                        Button(action: onBack) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: AppIconMetrics.navigationIconSize, weight: .semibold))
-                                .flipsForRightToLeftLayoutDirection(true)
-                                .foregroundStyle(.primary)
-                        }
-                        .buttonStyle(AppIconButtonStyle())
-                        .accessibilityLabel(translations.t("common.back"))
-                    }
-                    Spacer(minLength: 0)
-                }
-                .frame(height: TaskListTopChromeMetrics.compactBackRowHeight)
-                .padding(.horizontal, TaskListTopChromeMetrics.horizontalPadding)
-
+            if showsIndicator {
                 TaskListIndicatorRow(
                     taskLists: taskLists,
                     selectedIndex: selectedIndex,
@@ -4065,16 +4040,8 @@ private struct TaskListsView: View {
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var viewModel = OrderedTaskListViewModel<TaskListSummary>(mapper: mapTaskListSummary)
-    @State private var draggingTaskListId: String? = nil
-    @State private var dragOffset: CGFloat = 0
-    @State private var dragStartLocationY: CGFloat? = nil
-    @State private var dragOrderedTaskLists: [TaskListSummary]? = nil
-    @State private var dragStartTaskListIds: [String] = []
     @State private var pendingTaskListOrder: [TaskListSummary]? = nil
     @State private var taskListOrderMutationRevision = 0
-    @State private var taskListItemHeights: [String: CGFloat] = [:]
-    @State private var autoScroller = DragAutoScroller()
-    @State private var scrollViewRef: UIScrollView? = nil
     @State private var showCreateSheet = false
     @State private var awaitingTaskList: (id: String, failureRevision: Int)?
     @ObservedObject private var networkStatus = NetworkStatus.shared
@@ -4111,66 +4078,7 @@ private struct TaskListsView: View {
     }
 
     private var displayTaskLists: [TaskListSummary] {
-        dragOrderedTaskLists ?? pendingTaskListOrder ?? viewModel.taskLists
-    }
-
-    private func checkTaskListSwap() -> CGFloat {
-        guard var ordered = dragOrderedTaskLists,
-            let draggingId = draggingTaskListId,
-            let currentIdx = ordered.firstIndex(where: { $0.id == draggingId }),
-            let currentHeight = taskListItemHeights[draggingId]
-        else { return 0 }
-
-        let spacing: CGFloat = 0
-
-        if currentIdx + 1 < ordered.count {
-            let nextId = ordered[currentIdx + 1].id
-            let nextHeight = taskListItemHeights[nextId] ?? currentHeight
-            let threshold = currentHeight / 2 + spacing + nextHeight / 2
-            if dragOffset > threshold {
-                ordered.swapAt(currentIdx, currentIdx + 1)
-                dragOrderedTaskLists = ordered
-                let correction = -(nextHeight + spacing)
-                dragOffset += correction
-                return correction
-            }
-        }
-
-        if currentIdx > 0 {
-            let prevId = ordered[currentIdx - 1].id
-            let prevHeight = taskListItemHeights[prevId] ?? currentHeight
-            let threshold = prevHeight / 2 + spacing + currentHeight / 2
-            if dragOffset < -threshold {
-                ordered.swapAt(currentIdx - 1, currentIdx)
-                dragOrderedTaskLists = ordered
-                let correction = prevHeight + spacing
-                dragOffset += correction
-                return correction
-            }
-        }
-
-        return 0
-    }
-
-    private func updateAutoScroll(fingerY: CGFloat) {
-        autoScroller.update(
-            fingerY: fingerY,
-            scrollView: scrollViewRef,
-            isActive: { self.draggingTaskListId != nil },
-            onScroll: { scrolledBy in
-                self.dragOffset += scrolledBy
-                self.dragStartLocationY = (self.dragStartLocationY ?? 0) - scrolledBy
-                let correction = self.checkTaskListSwap()
-                if correction != 0 {
-                    triggerSelectionFeedback()
-                    self.dragStartLocationY = (self.dragStartLocationY ?? 0) - correction
-                }
-            }
-        )
-    }
-
-    private func stopAutoScroll() {
-        autoScroller.stop()
+        pendingTaskListOrder ?? viewModel.taskLists
     }
 
     private func openTaskList(_ taskListId: String) {
@@ -4189,135 +4097,135 @@ private struct TaskListsView: View {
         }
     }
 
+    private func openSettings() {
+        if let onOpenSettings {
+            onOpenSettings()
+        } else {
+            path.append(AppRoute.settings)
+        }
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    HStack(spacing: 10) {
-                        BrandLogo(size: 24)
-                        Text(translations.t("title"))
-                            .font(AppTypography.brand())
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                    }
-                    .padding(.leading, 12)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityAddTraits(.isHeader)
-
-                    Spacer(minLength: 0)
-
-                    Group {
-                        if let onOpenSettings {
-                            Button(action: onOpenSettings) {
-                                settingsIcon
-                            }
-                        } else {
-                            NavigationLink(value: AppRoute.settings) {
-                                settingsIcon
-                            }
-                        }
-                    }
-                    .buttonStyle(AppIconButtonStyle(size: 48))
-                    .background(
-                        isSettingsActive ? AppPalette.rowActive : Color.clear,
-                        in: RoundedRectangle(cornerRadius: AppMetrics.controlCornerRadius, style: .continuous)
-                    )
-                    .accessibilityLabel(translations.t("settings.title"))
-                    .accessibilityAddTraits(isSettingsActive ? [.isSelected] : [])
+        List {
+            HStack(spacing: 8) {
+                HStack(spacing: 10) {
+                    BrandLogo(size: 24)
+                    Text(translations.t("title"))
+                        .font(AppTypography.brand())
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
                 }
-                .frame(minHeight: 48)
+                .padding(.leading, 12)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
+
+                Spacer(minLength: 0)
+
+                Button(action: openSettings) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: AppIconMetrics.standardActionIconSize, weight: .medium))
+                        .foregroundStyle(isSettingsActive ? Color.primary : AppPalette.mutedText)
+                }
+                .buttonStyle(AppIconButtonStyle(size: 48))
+                .background(
+                    isSettingsActive ? AppPalette.rowActive : Color.clear,
+                    in: RoundedRectangle(cornerRadius: AppMetrics.controlCornerRadius, style: .continuous)
+                )
+                .accessibilityLabel(translations.t("settings.title"))
+                .accessibilityAddTraits(isSettingsActive ? [.isSelected] : [])
+            }
+            .frame(minHeight: 48)
+            .plainListRow(top: 16, bottom: 12)
+
+            Button {
+                openCalendar()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "calendar")
+                        .accessibilityHidden(true)
+                        .font(.system(size: 17, weight: .medium))
+                        .frame(width: 20)
+                    Text(translations.t("app.calendar"))
+                        .font(isCalendarActive ? AppTypography.subheadlineSemibold() : AppTypography.subheadlineMedium())
+                        .lineLimit(1)
+                }
+                .foregroundStyle(isCalendarActive ? Color.primary : AppPalette.fieldLabel)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, minHeight: AppMetrics.controlHeight, alignment: .leading)
+                .background(
+                    isCalendarActive ? AppPalette.rowActive : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isCalendarActive ? [.isSelected] : [])
+            .plainListRow(bottom: 12)
+
+            Text(translations.t("app.drawerTitle"))
+                .font(AppTypography.captionSemibold())
+                .foregroundStyle(AppPalette.subtleText)
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+                .accessibilityAddTraits(.isHeader)
+                .plainListRow()
+
+            if viewModel.status == .loading {
+                TaskLoadingPlaceholder()
+                    .plainListRow()
+            } else if viewModel.status == .error {
+                AppAlert(message: translations.t("app.loadError"))
+                    .plainListRow()
+            } else if viewModel.taskLists.isEmpty {
+                TaskStateNotice(icon: "list.bullet", titleKey: "app.emptyState", hintKey: "app.emptyStateHint")
+                    .plainListRow()
+            } else {
+                ForEach(displayTaskLists) { taskList in
+                    taskListRow(taskList)
+                        .plainListRow()
+                }
+                .onMove(perform: moveTaskLists)
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    createName = ""
+                    createBackground = nil
+                    showCreateSheet = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus")
+                            .accessibilityHidden(true)
+                            .font(.system(size: 15, weight: .semibold))
+                        Text(translations.t("app.createNew"))
+                    }
+                }
+                .buttonStyle(AppButtonStyle(variant: .tonal, fullWidth: true))
 
                 Button {
-                    openCalendar()
+                    joinListInput = ""
+                    joinListError = nil
+                    showJoinSheet = true
                 } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "calendar")
-                            .accessibilityHidden(true)
-                            .font(.system(size: 17, weight: .medium))
-                            .frame(width: 20)
-                        Text(translations.t("app.calendar"))
-                            .font(isCalendarActive ? AppTypography.subheadlineSemibold() : AppTypography.subheadlineMedium())
-                            .lineLimit(1)
-                    }
-                    .foregroundStyle(isCalendarActive ? Color.primary : AppPalette.fieldLabel)
-                    .padding(.horizontal, 12)
-                    .frame(maxWidth: .infinity, minHeight: AppMetrics.controlHeight, alignment: .leading)
-                    .background(
-                        isCalendarActive ? AppPalette.rowActive : Color.clear,
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    )
-                    .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isCalendarActive ? [.isSelected] : [])
-
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(translations.t("app.drawerTitle"))
-                        .font(AppTypography.captionSemibold())
-                        .foregroundStyle(AppPalette.subtleText)
-                        .padding(.horizontal, 12)
-                        .padding(.top, 8)
-                        .padding(.bottom, 4)
-                        .accessibilityAddTraits(.isHeader)
-
-                    if viewModel.status == .loading {
-                        TaskLoadingPlaceholder()
-                    } else if viewModel.status == .error {
-                        AppAlert(message: translations.t("app.loadError"))
-                    } else if viewModel.taskLists.isEmpty {
-                        TaskStateNotice(icon: "list.bullet", titleKey: "app.emptyState", hintKey: "app.emptyStateHint")
-                    } else {
-                        VStack(spacing: 0) {
-                            ScrollViewAccessor(scrollView: $scrollViewRef)
-                                .frame(width: 0, height: 0)
-                            ForEach(displayTaskLists) { taskList in
-                                taskListRow(taskList)
-                            }
-                        }
-                        .coordinateSpace(name: "taskListList")
-                        .onPreferenceChange(TaskListRowFrameKey.self) { heights in
-                            if taskListItemHeights != heights {
-                                taskListItemHeights = heights
-                            }
-                        }
-                    }
-
                     HStack(spacing: 8) {
-                        Button {
-                            createName = ""
-                            createBackground = nil
-                            showCreateSheet = true
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "plus")
-                                    .accessibilityHidden(true)
-                                    .font(.system(size: 15, weight: .semibold))
-                                Text(translations.t("app.createNew"))
-                            }
-                        }
-                        .buttonStyle(AppButtonStyle(variant: .tonal, fullWidth: true))
-
-                        Button {
-                            joinListInput = ""
-                            joinListError = nil
-                            showJoinSheet = true
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "link")
-                                    .accessibilityHidden(true)
-                                    .font(.system(size: 15, weight: .semibold))
-                                Text(translations.t("app.joinList"))
-                            }
-                        }
-                        .buttonStyle(AppButtonStyle(variant: .tonal, fullWidth: true))
+                        Image(systemName: "link")
+                            .accessibilityHidden(true)
+                            .font(.system(size: 15, weight: .semibold))
+                        Text(translations.t("app.joinList"))
                     }
-                    .padding(.top, 12)
                 }
+                .buttonStyle(AppButtonStyle(variant: .tonal, fullWidth: true))
             }
-            .padding(16)
+            .plainListRow(top: 12, bottom: 16)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .environment(\.defaultMinListRowHeight, 0)
+        .environment(\.editMode, .constant(.active))
         .scrollBounceBehavior(.basedOnSize)
         .background(AppPalette.cardSurface.ignoresSafeArea())
+        .navigationTitle(translations.t("title"))
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             viewModel.bind(uid: currentUserId)
@@ -4353,7 +4261,14 @@ private struct TaskListsView: View {
             }
         }
         .sheet(isPresented: $showCreateSheet) {
-            AppDialog(title: translations.t("app.createTaskList")) {
+            AppDialog(
+                title: translations.t("app.createTaskList"),
+                cancel: AppDialogAction(title: translations.t("app.cancel")) { showCreateSheet = false },
+                confirm: AppDialogAction(
+                    title: translations.t("app.create"),
+                    disabled: createName.trimmingCharacters(in: .whitespaces).isEmpty
+                ) { submitCreateTaskList() }
+            ) {
                 VStack(alignment: .leading, spacing: 20) {
                     AppFormField(label: translations.t("app.taskListName")) {
                         TextField(
@@ -4369,14 +4284,6 @@ private struct TaskListsView: View {
                         TaskListColorPicker(selected: createBackground) { createBackground = $0 }
                     }
                 }
-            } footerLeading: {
-                EmptyView()
-            } footerTrailing: {
-                Button(translations.t("app.cancel")) { showCreateSheet = false }
-                    .buttonStyle(AppButtonStyle(variant: .secondary))
-                Button(translations.t("app.create")) { submitCreateTaskList() }
-                    .buttonStyle(AppButtonStyle(variant: .primary))
-                    .disabled(createName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .onChange(of: viewModel.taskLists) { _, _ in openAwaitingTaskList() }
@@ -4384,7 +4291,12 @@ private struct TaskListsView: View {
         .sheet(isPresented: $showJoinSheet) {
             AppDialog(
                 title: translations.t("app.joinListTitle"),
-                description: translations.t("app.joinListDescription")
+                description: translations.t("app.joinListDescription"),
+                cancel: AppDialogAction(title: translations.t("app.cancel"), disabled: joiningList) { showJoinSheet = false },
+                confirm: AppDialogAction(
+                    title: joiningList ? translations.t("app.joining") : translations.t("app.join"),
+                    disabled: joinListInput.trimmingCharacters(in: .whitespaces).isEmpty || joiningList || !networkStatus.isOnline
+                ) { submitJoinList() }
             ) {
                 VStack(alignment: .leading, spacing: 20) {
                     if let error = joinListError {
@@ -4406,137 +4318,58 @@ private struct TaskListsView: View {
                         ConnectionRequiredNote()
                     }
                 }
-            } footerLeading: {
-                EmptyView()
-            } footerTrailing: {
-                Button(translations.t("app.cancel")) { showJoinSheet = false }
-                    .buttonStyle(AppButtonStyle(variant: .secondary))
-                    .disabled(joiningList)
-                Button(joiningList ? translations.t("app.joining") : translations.t("app.join")) { submitJoinList() }
-                    .buttonStyle(AppButtonStyle(variant: .primary))
-                    .disabled(
-                        joinListInput.trimmingCharacters(in: .whitespaces).isEmpty || joiningList || !networkStatus.isOnline
-                    )
             }
         }
-    }
-
-    private var settingsIcon: some View {
-        Image(systemName: "gearshape")
-            .font(.system(size: AppIconMetrics.standardActionIconSize, weight: .medium))
-            .foregroundStyle(isSettingsActive ? Color.primary : AppPalette.mutedText)
     }
 
     private func taskListRow(_ taskList: TaskListSummary) -> some View {
         let isSelected = selectedTaskListId == taskList.id
         let countLabel = translations.t("taskList.remainingCount", ["count": "\(taskList.remainingTaskCount)"])
-        return HStack(spacing: 0) {
-            Button {
-                if draggingTaskListId == nil {
-                    openTaskList(taskList.id)
+        return Button {
+            openTaskList(taskList.id)
+        } label: {
+            HStack(spacing: 12) {
+                ListColorDot(background: taskList.background)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(taskList.name)
+                        .font(isSelected ? AppTypography.subheadlineSemibold() : AppTypography.subheadlineMedium())
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(countLabel)
+                        .font(AppTypography.caption())
+                        .foregroundStyle(AppPalette.subtleText)
+                        .lineLimit(1)
+                        .contentTransition(reduceMotion ? .identity : .numericText(value: Double(taskList.remainingTaskCount)))
+                        .animation(reduceMotion ? nil : .snappy(duration: 0.32), value: taskList.remainingTaskCount)
                 }
-            } label: {
-                HStack(spacing: 12) {
-                    ListColorDot(background: taskList.background)
-                        .frame(width: 20)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(taskList.name)
-                            .font(isSelected ? AppTypography.subheadlineSemibold() : AppTypography.subheadlineMedium())
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        Text(countLabel)
-                            .font(AppTypography.caption())
-                            .foregroundStyle(AppPalette.subtleText)
-                            .lineLimit(1)
-                            .contentTransition(reduceMotion ? .identity : .numericText(value: Double(taskList.remainingTaskCount)))
-                            .animation(reduceMotion ? nil : .snappy(duration: 0.32), value: taskList.remainingTaskCount)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(.leading, 12)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
-                .contentShape(Rectangle())
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("\(taskList.name), \(countLabel)")
-            .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-
-            DragHandleIcon()
-                .foregroundStyle(AppPalette.subtleIcon)
-                .frame(width: 40, height: 44)
-                .contentShape(Rectangle())
-                .accessibilityLabel(translations.t("app.dragHint"))
-                .accessibilityActions {
-                    if displayTaskLists.first?.id != taskList.id {
-                        Button(translations.t("a11y.moveUp")) { moveTaskList(taskList, by: -1) }
-                    }
-                    if displayTaskLists.last?.id != taskList.id {
-                        Button(translations.t("a11y.moveDown")) { moveTaskList(taskList, by: 1) }
-                    }
-                }
-                .focusable()
-                .onKeyPress(keys: [.upArrow, .downArrow]) { press in
-                    guard press.modifiers.contains(.option) else { return .ignored }
-                    moveTaskList(taskList, by: press.key == .upArrow ? -1 : 1)
-                    return .handled
-                }
-                .gesture(
-                    DragGesture(minimumDistance: 2, coordinateSpace: .named("taskListList"))
-                        .onChanged { value in
-                            if draggingTaskListId == nil {
-                                triggerMediumImpact()
-                                draggingTaskListId = taskList.id
-                                let currentTaskLists = displayTaskLists
-                                dragStartTaskListIds = currentTaskLists.map(\.id)
-                                dragOrderedTaskLists = currentTaskLists
-                                dragStartLocationY = value.location.y
-                            }
-                            guard let startY = dragStartLocationY else { return }
-                            dragOffset = value.location.y - startY
-                            let correction = checkTaskListSwap()
-                            if correction != 0 {
-                                triggerSelectionFeedback()
-                                dragStartLocationY = startY - correction
-                            }
-                            updateAutoScroll(fingerY: value.location.y)
-                        }
-                        .onEnded { _ in
-                            stopAutoScroll()
-                            if let ordered = dragOrderedTaskLists,
-                                ordered.map(\.id) != dragStartTaskListIds
-                            {
-                                persistTaskListOrder(ordered.map(\.id))
-                            }
-                            dragOrderedTaskLists = nil
-                            dragStartTaskListIds = []
-                            withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.15)) {
-                                dragOffset = 0
-                            }
-                            dragStartLocationY = nil
-                            draggingTaskListId = nil
-                        }
-                )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .background(
             isSelected ? AppPalette.rowActive : Color.clear,
             in: RoundedRectangle(cornerRadius: 10, style: .continuous)
         )
-        .offset(y: draggingTaskListId == taskList.id ? dragOffset : 0)
-        .zIndex(draggingTaskListId == taskList.id ? 1 : 0)
-        .opacity(draggingTaskListId == taskList.id ? 0.8 : 1.0)
-        .scaleEffect(draggingTaskListId == taskList.id ? 1.03 : 1.0)
-        .animation(
-            draggingTaskListId == taskList.id || reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.86),
-            value: displayTaskLists.map(\.id)
-        )
-        .background(
-            GeometryReader { geo in
-                Color.clear.preference(
-                    key: TaskListRowFrameKey.self,
-                    value: [taskList.id: geo.size.height]
-                )
-            })
+        .accessibilityLabel("\(taskList.name), \(countLabel)")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityActions {
+            if displayTaskLists.first?.id != taskList.id {
+                Button(translations.t("a11y.moveUp")) { moveTaskList(taskList, by: -1) }
+            }
+            if displayTaskLists.last?.id != taskList.id {
+                Button(translations.t("a11y.moveDown")) { moveTaskList(taskList, by: 1) }
+            }
+        }
+        .onKeyPress(keys: [.upArrow, .downArrow]) { press in
+            guard press.modifiers.contains(.option) else { return .ignored }
+            moveTaskList(taskList, by: press.key == .upArrow ? -1 : 1)
+            return .handled
+        }
     }
 
     private func submitCreateTaskList() {
@@ -4584,9 +4417,17 @@ private struct TaskListsView: View {
         let target = index + delta
         guard target >= 0 && target < ordered.count else { return }
         ordered.swapAt(index, target)
-        dragOrderedTaskLists = ordered
+        pendingTaskListOrder = ordered
         persistTaskListOrder(ordered.map(\.id))
-        dragOrderedTaskLists = nil
+    }
+
+    private func moveTaskLists(from source: IndexSet, to destination: Int) {
+        var ordered = displayTaskLists
+        ordered.move(fromOffsets: source, toOffset: destination)
+        guard ordered.map(\.id) != displayTaskLists.map(\.id) else { return }
+        triggerSelectionFeedback()
+        pendingTaskListOrder = ordered
+        persistTaskListOrder(ordered.map(\.id))
     }
 
     private func persistTaskListOrder(_ ids: [String]) {
@@ -4704,6 +4545,68 @@ private struct TaskListsView: View {
     }
 }
 
+private final class PagerBackSwipeGestureRecognizer: UIPanGestureRecognizer, UIGestureRecognizerDelegate {
+    weak var navigationController: UINavigationController?
+
+    override init(target: Any?, action: Selector?) {
+        super.init(target: target, action: action)
+        addTarget(self, action: #selector(handlePan))
+        delegate = self
+    }
+
+    @objc private func handlePan() {
+        guard state == .began else { return }
+        navigationController?.popViewController(animated: true)
+    }
+
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard let scrollView = view as? UIScrollView,
+            (navigationController?.viewControllers.count ?? 0) > 1,
+            scrollView.effectiveUserInterfaceLayoutDirection == .leftToRight,
+            scrollView.contentOffset.x <= 0.5,
+            !scrollView.isDecelerating
+        else { return false }
+        let velocity = velocity(in: scrollView)
+        return velocity.x > 0 && velocity.x > abs(velocity.y)
+    }
+}
+
+private struct PagerBackSwipeEnabler: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            var responder: UIResponder? = uiView
+            var navigationController: UINavigationController?
+            while let current = responder, navigationController == nil {
+                navigationController = (current as? UIViewController)?.navigationController
+                responder = current.next
+            }
+            guard let navigationController, let popGesture = navigationController.interactivePopGestureRecognizer else { return }
+            var ancestor = uiView.superview
+            while let view = ancestor {
+                if let scrollView = view as? UIScrollView, scrollView.isPagingEnabled {
+                    let recognizers = scrollView.gestureRecognizers ?? []
+                    guard !recognizers.contains(where: { $0 is PagerBackSwipeGestureRecognizer }) else { return }
+                    let backSwipe = PagerBackSwipeGestureRecognizer(target: nil, action: nil)
+                    backSwipe.navigationController = navigationController
+                    scrollView.addGestureRecognizer(backSwipe)
+                    for recognizer in recognizers where recognizer is UIPanGestureRecognizer || recognizer is UISwipeGestureRecognizer {
+                        recognizer.require(toFail: popGesture)
+                        recognizer.require(toFail: backSwipe)
+                    }
+                    return
+                }
+                ancestor = view.superview
+            }
+        }
+    }
+}
+
 private struct DetailPagerContent: View {
     @Binding var selectedTaskListId: String
     @FocusState private var focusedNewTaskListId: String?
@@ -4712,8 +4615,7 @@ private struct DetailPagerContent: View {
     let taskLists: [TaskListDetail]
     let taskInsertPosition: String
     let autoSort: Bool
-    let showBackButton: Bool
-    let onBack: (() -> Void)?
+    let showsIndicator: Bool
     let ignoresSafeAreaBackground: Bool
 
     var body: some View {
@@ -4726,6 +4628,7 @@ private struct DetailPagerContent: View {
                         autoSort: autoSort,
                         focusedNewTaskListId: $focusedNewTaskListId
                     )
+                    .background(PagerBackSwipeEnabler())
                     .background(
                         GeometryReader { proxy in
                             Color.clear.preference(
@@ -4765,12 +4668,11 @@ private struct DetailPagerContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .top, spacing: 0) {
             TaskListTopChrome(
-                showBackButton: showBackButton,
+                showsIndicator: showsIndicator,
                 taskLists: taskLists,
                 selectedIndex: selectedTaskListIndex,
                 progress: pagerProgress,
-                onSelect: { selectedTaskListId = $0 },
-                onBack: onBack
+                onSelect: { selectedTaskListId = $0 }
             )
         }
         .background(backgroundView)
@@ -4842,20 +4744,14 @@ private struct TaskListDetailPagerView: View {
                         for: currentUserId,
                         fallback: settingsViewModel.settings?.autoSort ?? true
                     ),
-                    showBackButton: true,
-                    onBack: { dismiss() },
+                    showsIndicator: true,
                     ignoresSafeAreaBackground: true
                 )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if viewModel.status != .ready || viewModel.taskLists.isEmpty {
-                AppNavigationHeader(title: "", onBack: { dismiss() })
-                    .background(AppPalette.pageBackground)
-            }
-        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
             viewModel.bind(uid: currentUserId)
             settingsViewModel.bind(uid: currentUserId)
@@ -4920,8 +4816,7 @@ private struct RegularTaskListDetailPagerView: View {
                         for: currentUserId,
                         fallback: settingsViewModel.settings?.autoSort ?? true
                     ),
-                    showBackButton: false,
-                    onBack: nil,
+                    showsIndicator: false,
                     ignoresSafeAreaBackground: false
                 )
             }
@@ -5003,13 +4898,6 @@ private struct TaskLongPressDragGesture: UIGestureRecognizerRepresentable {
 }
 
 private struct RowFrameKey: PreferenceKey {
-    static let defaultValue: [String: CGFloat] = [:]
-    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
-        value.merge(nextValue()) { $1 }
-    }
-}
-
-private struct TaskListRowFrameKey: PreferenceKey {
     static let defaultValue: [String: CGFloat] = [:]
     static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
         value.merge(nextValue()) { $1 }
@@ -5473,10 +5361,15 @@ private struct TaskListDetailPage: View {
 
                 Group {
                     if editingTaskId == task.id {
-                        TextField("", text: $editingText)
+                        TextField("", text: $editingText, axis: .vertical)
                             .focused($isTextFieldFocused)
-                            .onSubmit { commitEdit(task) }
-                            .font(AppTypography.bodyMedium())
+                            .submitLabel(.done)
+                            .onChange(of: editingText) { _, text in
+                                guard text.contains("\n") else { return }
+                                editingText = text.replacingOccurrences(of: "\n", with: "")
+                                commitEdit(task)
+                            }
+                            .font(task.pinned && !task.completed ? AppTypography.bodyBold() : AppTypography.bodyMedium())
                     } else if #available(iOS 18.0, *), allowsTaskEditing {
                         taskText(task)
                             .frame(minHeight: TaskListDetailMetrics.taskContentHeight)
@@ -5847,7 +5740,14 @@ private struct TaskListDetailPage: View {
     }
 
     private var editSheet: some View {
-        AppDialog(title: translations.t("taskList.editTitle")) {
+        AppDialog(
+            title: translations.t("taskList.editTitle"),
+            cancel: AppDialogAction(title: translations.t("common.cancel")) { showEditSheet = false },
+            confirm: AppDialogAction(
+                title: translations.t("taskList.save"),
+                disabled: editName.trimmingCharacters(in: .whitespaces).isEmpty || removingList
+            ) { saveTaskListDetails() }
+        ) {
             VStack(alignment: .leading, spacing: 20) {
                 if let removeListError {
                     AppAlert(message: removeListError)
@@ -5865,21 +5765,15 @@ private struct TaskListDetailPage: View {
                 AppFormField(label: translations.t("taskList.selectColor")) {
                     TaskListColorPicker(selected: editBackground) { editBackground = $0 }
                 }
-            }
-        } footerLeading: {
-            if allowsTaskListDeletion {
-                Button(removingList ? translations.t("common.deleting") : translations.t("taskList.deleteList")) {
-                    showDeleteListAlert = true
+                if allowsTaskListDeletion {
+                    Button(removingList ? translations.t("common.deleting") : translations.t("taskList.deleteList")) {
+                        showDeleteListAlert = true
+                    }
+                    .buttonStyle(AppButtonStyle(variant: .danger))
+                    .disabled(removingList)
+                    .padding(.leading, -12)
                 }
-                .buttonStyle(AppButtonStyle(variant: .danger))
-                .disabled(removingList)
             }
-        } footerTrailing: {
-            Button(translations.t("common.cancel")) { showEditSheet = false }
-                .buttonStyle(AppButtonStyle(variant: .secondary))
-            Button(translations.t("taskList.save")) { saveTaskListDetails() }
-                .buttonStyle(AppButtonStyle(variant: .primary))
-                .disabled(editName.trimmingCharacters(in: .whitespaces).isEmpty || removingList)
         }
         .alert(translations.t("taskList.deleteListConfirm.title"), isPresented: $showDeleteListAlert) {
             Button(removingList ? translations.t("common.deleting") : translations.t("auth.button.delete"), role: .destructive) {
@@ -5930,71 +5824,66 @@ private struct TaskListDetailPage: View {
     private var shareSheet: some View {
         AppDialog(
             title: translations.t("taskList.shareTitle"),
-            description: translations.t("taskList.shareDescription")
+            description: translations.t("taskList.shareDescription"),
+            cancel: AppDialogAction(title: translations.t("common.close")) { showShareSheet = false }
         ) {
-            if shareError != nil || currentShareCode != nil || !networkStatus.isOnline {
-                VStack(alignment: .leading, spacing: 20) {
-                    if let shareError {
-                        AppAlert(message: shareError)
-                    }
-                    if !networkStatus.isOnline {
-                        ConnectionRequiredNote()
-                    }
-                    if let code = currentShareCode {
-                        AppFormField(label: translations.t("taskList.shareCode")) {
-                            HStack(spacing: 8) {
-                                Text(code)
-                                    .textSelection(.enabled)
-                                    .appField(monospaced: true)
-                                Button(shareCopyRevision > 0 ? translations.t("common.copied") : translations.t("common.copy")) {
-                                    UIPasteboard.general.string = shareCodeURLString(code)
-                                    shareCopyRevision += 1
-                                }
-                                .buttonStyle(AppButtonStyle(variant: .secondary))
+            VStack(alignment: .leading, spacing: 20) {
+                if let shareError {
+                    AppAlert(message: shareError)
+                }
+                if !networkStatus.isOnline {
+                    ConnectionRequiredNote()
+                }
+                if let code = currentShareCode {
+                    AppFormField(label: translations.t("taskList.shareCode")) {
+                        HStack(spacing: 8) {
+                            Text(code)
+                                .textSelection(.enabled)
+                                .appField(monospaced: true)
+                            Button(shareCopyRevision > 0 ? translations.t("common.copied") : translations.t("common.copy")) {
+                                UIPasteboard.general.string = shareCodeURLString(code)
+                                shareCopyRevision += 1
                             }
+                            .buttonStyle(AppButtonStyle(variant: .secondary))
                         }
                     }
                 }
-            }
-        } footerLeading: {
-            if currentShareCode != nil {
-                Button(removingShareCode ? translations.t("common.deleting") : translations.t("taskList.removeShare")) {
-                    Task {
-                        removingShareCode = true
-                        shareError = nil
-                        do {
-                            try await removeShareCode(taskListId: taskList.id)
-                            logShareCodeRemove()
-                            currentShareCode = nil
-                        } catch {
-                            shareError = translations.t("common.error")
+                if currentShareCode == nil {
+                    Button(generatingShareCode ? translations.t("common.loading") : translations.t("taskList.generateShare")) {
+                        Task {
+                            generatingShareCode = true
+                            shareError = nil
+                            do {
+                                let code = try await generateShareCode(taskListId: taskList.id)
+                                logShareCodeGenerate()
+                                currentShareCode = code
+                            } catch {
+                                shareError = translations.t("common.error")
+                            }
+                            generatingShareCode = false
                         }
-                        removingShareCode = false
                     }
-                }
-                .buttonStyle(AppButtonStyle(variant: .danger))
-                .disabled(removingShareCode || !networkStatus.isOnline)
-            }
-        } footerTrailing: {
-            Button(translations.t("common.close")) { showShareSheet = false }
-                .buttonStyle(AppButtonStyle(variant: .secondary))
-            if currentShareCode == nil {
-                Button(generatingShareCode ? translations.t("common.loading") : translations.t("taskList.generateShare")) {
-                    Task {
-                        generatingShareCode = true
-                        shareError = nil
-                        do {
-                            let code = try await generateShareCode(taskListId: taskList.id)
-                            logShareCodeGenerate()
-                            currentShareCode = code
-                        } catch {
-                            shareError = translations.t("common.error")
+                    .buttonStyle(AppButtonStyle(variant: .primary, fullWidth: true))
+                    .disabled(generatingShareCode || !networkStatus.isOnline)
+                } else {
+                    Button(removingShareCode ? translations.t("common.deleting") : translations.t("taskList.removeShare")) {
+                        Task {
+                            removingShareCode = true
+                            shareError = nil
+                            do {
+                                try await removeShareCode(taskListId: taskList.id)
+                                logShareCodeRemove()
+                                currentShareCode = nil
+                            } catch {
+                                shareError = translations.t("common.error")
+                            }
+                            removingShareCode = false
                         }
-                        generatingShareCode = false
                     }
+                    .buttonStyle(AppButtonStyle(variant: .danger))
+                    .disabled(removingShareCode || !networkStatus.isOnline)
+                    .padding(.leading, -12)
                 }
-                .buttonStyle(AppButtonStyle(variant: .primary))
-                .disabled(generatingShareCode || !networkStatus.isOnline)
             }
         }
         .task(id: shareCopyRevision) {
@@ -6606,45 +6495,30 @@ private struct SharedTaskListPreviewView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(resolveTaskListBackgroundColor(viewModel.taskList?.background).ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    Button(action: onDismiss) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: AppIconMetrics.navigationIconSize, weight: .semibold))
-                            .flipsForRightToLeftLayoutDirection(true)
-                            .foregroundStyle(.primary)
-                    }
-                    .buttonStyle(AppIconButtonStyle())
-                    .accessibilityLabel(translations.t("common.back"))
-
-                    Spacer()
-
-                    if currentUserId != nil, !viewModel.isAdded, viewModel.taskList != nil {
-                        Button(viewModel.isJoining ? translations.t("common.loading") : translations.t("pages.sharecode.addToOrder")) {
-                            Task {
-                                do {
-                                    addToOrderError = nil
-                                    let taskListId = try await viewModel.joinCurrentTaskList()
-                                    onAdded(taskListId)
-                                } catch {
-                                    addToOrderError = translations.t("pages.sharecode.addToOrderError")
-                                }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(translations.t("common.close"), action: onDismiss)
+            }
+            if currentUserId != nil, !viewModel.isAdded, viewModel.taskList != nil {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(viewModel.isJoining ? translations.t("common.loading") : translations.t("pages.sharecode.addToOrder")) {
+                        Task {
+                            do {
+                                addToOrderError = nil
+                                let taskListId = try await viewModel.joinCurrentTaskList()
+                                onAdded(taskListId)
+                            } catch {
+                                addToOrderError = translations.t("pages.sharecode.addToOrderError")
                             }
                         }
-                        .buttonStyle(AppButtonStyle(variant: .primary))
-                        .disabled(viewModel.isJoining || !networkStatus.isOnline)
                     }
+                    .disabled(viewModel.isJoining || !networkStatus.isOnline)
                 }
-                .padding(.leading, AppMetrics.headerHorizontalPadding)
-                .padding(.trailing, 16)
-                .frame(minHeight: AppMetrics.headerHeight)
-                .background(AppPalette.cardSurface)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(AppPalette.border).frame(height: 1)
-                }
-
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            VStack(spacing: 0) {
                 if let addToOrderError {
                     AppAlert(message: addToOrderError)
                         .padding(.horizontal, 16)
@@ -6909,63 +6783,51 @@ private let supportedLanguages: [(code: String, name: String)] = [
     ("pt-BR", "Português (Brasil)"), ("id", "Bahasa Indonesia"),
 ]
 
-private struct SettingsCard<Content: View>: View {
+private struct SettingsSection<Content: View>: View {
     let title: String
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        Section {
+            content()
+        } header: {
             Text(title)
                 .font(AppTypography.footnoteSemibold())
                 .foregroundStyle(AppPalette.mutedText)
-                .padding(.bottom, 4)
-                .accessibilityAddTraits(.isHeader)
-            content()
+                .textCase(nil)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppPalette.cardSurface, in: RoundedRectangle(cornerRadius: AppMetrics.cardCornerRadius, style: .continuous))
-    }
-}
-
-private struct SettingsDivider: View {
-    var body: some View {
-        Rectangle()
-            .fill(AppPalette.border)
-            .frame(height: 1)
+        .listRowBackground(AppPalette.cardSurface)
+        .listRowSeparatorTint(AppPalette.border)
     }
 }
 
 private struct SettingsPage<Content: View>: View {
-    @Environment(\.dismiss) private var dismiss
     let title: String
     let showsBackButton: Bool
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                if !showsBackButton {
-                    AppPageTitle(title: title)
-                }
-                content()
+        Form {
+            if !showsBackButton {
+                AppPageTitle(title: title)
+                    .settingsPlainRow()
             }
-            .frame(maxWidth: AppMetrics.settingsMaxWidth)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, showsBackButton ? AppMetrics.pageHorizontalPadding : AppMetrics.regularPageHorizontalPadding)
-            .padding(.top, showsBackButton ? 8 : AppMetrics.regularPageTopPadding)
-            .padding(.bottom, 40)
+            content()
         }
+        .scrollContentBackground(.hidden)
+        .frame(maxWidth: AppMetrics.settingsMaxWidth)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppPalette.pageBackground.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if showsBackButton {
-                AppNavigationHeader(title: title) { dismiss() }
-                    .background(AppPalette.pageBackground)
-            }
-        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(showsBackButton ? .visible : .hidden, for: .navigationBar)
+    }
+}
+
+private extension View {
+    func settingsPlainRow() -> some View {
+        listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
     }
 }
 
@@ -6999,21 +6861,20 @@ private struct SettingsView: View {
         SettingsPage(title: translations.t("settings.title"), showsBackButton: showsBackButton) {
             if let errorMessage {
                 AppAlert(message: errorMessage)
+                    .settingsPlainRow()
             }
             if viewModel.isLoading && viewModel.settings == nil {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 120)
+                    .settingsPlainRow()
             } else if let settings = viewModel.settings {
                 if viewModel.hasError {
                     AppAlert(message: translations.t("app.loadError"))
+                        .settingsPlainRow()
                 }
-                SettingsCard(title: translations.t("settings.userInfo.title")) {
+                SettingsSection(title: translations.t("settings.userInfo.title")) {
                     Text(viewModel.userEmail)
-                        .font(AppTypography.subheadlineMedium())
-                        .foregroundStyle(.primary)
                         .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                    SettingsDivider()
                     if showEmailChangeForm {
                         emailChangeForm
                     } else {
@@ -7025,11 +6886,10 @@ private struct SettingsView: View {
                         }
                         if !networkStatus.isOnline {
                             ConnectionRequiredNote()
-                                .padding(.bottom, 12)
                         }
                     }
                 }
-                SettingsCard(title: translations.t("settings.preferences.title")) {
+                SettingsSection(title: translations.t("settings.preferences.title")) {
                     selectRow(
                         label: translations.t("settings.language.title"),
                         value: settings.language,
@@ -7038,7 +6898,6 @@ private struct SettingsView: View {
                         logSettingsLanguageChange(language: language)
                         viewModel.updateSettings(["language": language])
                     }
-                    SettingsDivider()
                     selectRow(
                         label: translations.t("settings.theme.title"),
                         value: settings.theme,
@@ -7051,7 +6910,6 @@ private struct SettingsView: View {
                         logSettingsThemeChange(theme: theme)
                         viewModel.updateSettings(["theme": theme])
                     }
-                    SettingsDivider()
                     selectRow(
                         label: translations.t("settings.startupView.title"),
                         value: normalizedStartupView(settings.startupView),
@@ -7064,7 +6922,6 @@ private struct SettingsView: View {
                         logSettingsStartupViewChange(view: startupView)
                         updateStartupView(startupView)
                     }
-                    SettingsDivider()
                     selectRow(
                         label: translations.t("settings.taskInsertPosition.title"),
                         value: settings.taskInsertPosition == "bottom" ? "bottom" : "top",
@@ -7076,7 +6933,6 @@ private struct SettingsView: View {
                         logSettingsTaskInsertPositionChange(position: position)
                         viewModel.updateSettings(["taskInsertPosition": position])
                     }
-                    SettingsDivider()
                     Toggle(
                         isOn: Binding(
                             get: { autoSortOverrides.value(for: currentUserId, fallback: settings.autoSort) },
@@ -7095,33 +6951,28 @@ private struct SettingsView: View {
                     ) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(translations.t("settings.autoSort.title"))
-                                .font(AppTypography.subheadlineMedium())
-                                .foregroundStyle(.primary)
                             Text(translations.t("settings.autoSort.enable"))
                                 .font(AppTypography.caption())
                                 .foregroundStyle(AppPalette.mutedText)
                         }
                     }
                     .tint(AppPalette.primary)
-                    .padding(.vertical, 12)
                 }
-                SettingsCard(title: translations.t("settings.legal.title")) {
+                SettingsSection(title: translations.t("settings.legal.title")) {
                     navigationRow(label: translations.t("settings.licenses.openSource")) {
                         showLicenses = true
                     }
-                    SettingsDivider()
                     navigationRow(label: translations.t("settings.licenses.bundledAssets")) {
                         showLicenses = true
                     }
                 }
-                SettingsCard(title: translations.t("settings.actions.title")) {
+                SettingsSection(title: translations.t("settings.actions.title")) {
                     actionRow(
                         label: isSigningOut ? translations.t("settings.signingOut") : translations.t("settings.danger.signOut"),
                         disabled: actionsDisabled
                     ) {
                         requestSignOut()
                     }
-                    SettingsDivider()
                     actionRow(
                         label: isDeletingAccount
                             ? translations.t("settings.deletingAccount") : translations.t("settings.danger.deleteAccount"),
@@ -7132,11 +6983,11 @@ private struct SettingsView: View {
                     }
                     if !networkStatus.isOnline {
                         ConnectionRequiredNote()
-                            .padding(.bottom, 12)
                     }
                 }
             } else {
                 AppAlert(message: translations.t("app.loadError"))
+                    .settingsPlainRow()
             }
         }
         .navigationDestination(isPresented: $showLicenses) {
@@ -7242,8 +7093,7 @@ private struct SettingsView: View {
                 }
             }
         }
-        .padding(.top, 4)
-        .padding(.bottom, 12)
+        .padding(.vertical, 4)
     }
 
     private func requestSignOut() {
@@ -7305,38 +7155,18 @@ private struct SettingsView: View {
         options: [(String, String)],
         onChange: @escaping (String) -> Void
     ) -> some View {
-        Menu {
-            Picker(
-                label,
-                selection: Binding(
-                    get: { value },
-                    set: { next in
-                        if next != value { onChange(next) }
-                    }
-                )
-            ) {
-                ForEach(options, id: \.0) { option in
-                    Text(option.1).tag(option.0)
+        Picker(
+            label,
+            selection: Binding(
+                get: { value },
+                set: { next in
+                    if next != value { onChange(next) }
                 }
+            )
+        ) {
+            ForEach(options, id: \.0) { option in
+                Text(option.1).tag(option.0)
             }
-        } label: {
-            HStack(spacing: 16) {
-                Text(label)
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                HStack(spacing: 8) {
-                    Text(options.first(where: { $0.0 == value })?.1 ?? value)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Image(systemName: "chevron.down")
-                        .accessibilityHidden(true)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(AppPalette.subtleIcon)
-                }
-            }
-            .font(AppTypography.subheadlineMedium())
-            .frame(minHeight: 48)
-            .contentShape(Rectangle())
         }
     }
 
@@ -7348,21 +7178,16 @@ private struct SettingsView: View {
         Button(action: action) {
             HStack(spacing: 16) {
                 Text(label)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right")
                     .accessibilityHidden(true)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .flipsForRightToLeftLayoutDirection(true)
                     .foregroundStyle(AppPalette.subtleIcon)
             }
-            .font(AppTypography.subheadlineMedium())
-            .frame(minHeight: 48)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
         .disabled(disabled)
-        .opacity(disabled ? 0.6 : 1)
     }
 
     private func actionRow(
@@ -7373,75 +7198,42 @@ private struct SettingsView: View {
     ) -> some View {
         Button(action: action) {
             Text(label)
-                .font(AppTypography.subheadlineMedium())
                 .foregroundStyle(color)
-                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
         .disabled(disabled)
-        .opacity(disabled ? 0.6 : 1)
     }
 }
 
-private struct LicenseCardRow: View {
+private struct LicenseRow: View {
     let title: String
     let subtitle: String?
     let source: String?
     let text: String
-    @State private var isExpanded = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Button {
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(title)
-                            .font(AppTypography.subheadlineSemibold())
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.leading)
-                        if let subtitle, !subtitle.isEmpty {
-                            Text(subtitle)
-                                .font(AppTypography.caption())
-                                .foregroundStyle(AppPalette.mutedText)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    Image(systemName: "chevron.right")
-                        .accessibilityHidden(true)
-                        .font(.system(size: 15, weight: .semibold))
-                        .flipsForRightToLeftLayoutDirection(true)
-                        .foregroundStyle(AppPalette.subtleIcon)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .padding(.top, 2)
-                }
-                .contentShape(Rectangle())
+        DisclosureGroup {
+            if let source, let url = URL(string: source) {
+                Link(source, destination: url)
+                    .font(AppTypography.caption())
+                    .foregroundStyle(AppPalette.mutedText)
+                    .underline()
             }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(isExpanded ? [.isSelected] : [])
-
-            if isExpanded {
-                if let source, let url = URL(string: source) {
-                    Link(source, destination: url)
+            Text(text)
+                .font(.system(.caption, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(AppTypography.subheadlineSemibold())
+                    .multilineTextAlignment(.leading)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
                         .font(AppTypography.caption())
                         .foregroundStyle(AppPalette.mutedText)
-                        .underline()
                 }
-                Text(text)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-                    .background(AppPalette.pageBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
         }
-        .padding(.vertical, 12)
     }
 }
 
@@ -7455,22 +7247,17 @@ private struct LicensesView: View {
         SettingsPage(title: translations.t("settings.licenses.title"), showsBackButton: showsBackButton) {
             if Self.cachedGeneratedLicenses.isEmpty {
                 AppAlert(message: translations.t("settings.licenses.loadError"))
+                    .settingsPlainRow()
             } else {
-                SettingsCard(title: translations.t("settings.licenses.openSource")) {
-                    ForEach(Array(Self.cachedGeneratedLicenses.enumerated()), id: \.element.id) { index, license in
-                        if index > 0 {
-                            SettingsDivider()
-                        }
-                        LicenseCardRow(title: license.title, subtitle: nil, source: nil, text: license.text)
+                SettingsSection(title: translations.t("settings.licenses.openSource")) {
+                    ForEach(Self.cachedGeneratedLicenses) { license in
+                        LicenseRow(title: license.title, subtitle: nil, source: nil, text: license.text)
                     }
                 }
             }
-            SettingsCard(title: translations.t("settings.licenses.bundledAssets")) {
-                ForEach(Array(Self.cachedManualLicenses.enumerated()), id: \.element.id) { index, license in
-                    if index > 0 {
-                        SettingsDivider()
-                    }
-                    LicenseCardRow(title: license.name, subtitle: license.license, source: license.source, text: license.text)
+            SettingsSection(title: translations.t("settings.licenses.bundledAssets")) {
+                ForEach(Self.cachedManualLicenses) { license in
+                    LicenseRow(title: license.name, subtitle: license.license, source: license.source, text: license.text)
                 }
             }
         }
@@ -8197,7 +7984,6 @@ private struct CalendarAddSheetRequest: Identifiable {
 private struct CalendarScreenView: View {
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.dismiss) private var dismiss
     let currentUserId: String?
     var showsBackButton = true
     var defaultTaskListId: String? = nil
@@ -8399,13 +8185,9 @@ private struct CalendarScreenView: View {
             contentWidth = width
         }
         .background(AppPalette.pageBackground.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if showsBackButton {
-                AppNavigationHeader(title: translations.t("app.calendar")) { dismiss() }
-                    .background(AppPalette.pageBackground)
-            }
-        }
+        .navigationTitle(translations.t("app.calendar"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(showsBackButton ? .visible : .hidden, for: .navigationBar)
     }
 
     private func calendarAside(colorsByDate: [String: [String?]], monthlyTasks: [CalendarTask]) -> some View {
@@ -8544,6 +8326,11 @@ struct LightlistApp: App {
         firestoreSettings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: FirestoreCacheSizeUnlimited))
         firestore.settings = firestoreSettings
         warmUpStartupData(db: firestore)
+        if let titleFont = UIFont(name: "GenInterfaceJP-SemiBold", size: 17) {
+            UINavigationBar.appearance().titleTextAttributes = [
+                .font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: titleFont)
+            ]
+        }
         _ = Auth.auth().addStateDidChangeListener { _, user in
             Crashlytics.crashlytics().setUserID(user?.uid ?? "")
         }

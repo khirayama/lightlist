@@ -17,6 +17,7 @@
 - TypeScript で厳密に型付けし、`any` / `unknown` は極力使わない。
 - UI は i18next 前提・テーマ（system/light/dark）前提で実装する。
 - Web/iOS/Android で自然な操作感を優先し、アクセシビリティ（色覚、キーボード、読み上げ）に配慮する。
+- UI は各プラットフォームの標準部品と標準の操作を優先し、配色・角丸・書体・余白だけをアプリのスタイルへ寄せる。標準部品を自前実装へ置き換えるのは、標準では今の見た目・仕様を保てない場合（月カレンダーなど）に限り、その場合も標準の操作（戻る・並び替え・シートのドラッグ）は残す。行の横スワイプ操作はタスクリスト詳細の横ページャーと競合するため導入しない。タスク行の個別操作は行末のシートに集約し、長押しメニューと 1 件削除の専用操作は持たない。並び替えハンドルは 3 プラットフォームとも常時表示し、タスク行は行頭、タスクリスト行は行末に置く。
 
 ## Agentドキュメント運用
 
@@ -90,6 +91,7 @@
 - iOS / Android の compact 幅タスクリスト詳細は、戻るボタン行とページャーインジケータ行を分離し、入力欄の追加ボタンは入力文字がある時だけ表示する。未完了トグルは薄い枠線円、完了トグルは薄いグレー塗り円で描画し、参考画面に近い密度へ寄せる。
 - タスクリスト詳細の共通視覚定数は 3 プラットフォームで揃える: タスク追加入力欄は角丸 14 / padding 14×10 / 最小高 44 / 背景は不透明度 0.92（リスト背景色をわずかに透かす）/ 枠線は gray-300 相当を減光なしで使う（iOS は `AppPalette.border`、Android は `outlineVariant`）。完了 task は行の不透明度を下げず、本文を muted text 色 + 取り消し線、完了トグル円を塗り（light gray-300 / dark gray-700）で表す。未完了トグル円は塗りなし（透明）で 20pt/dp/px、ページャーインジケータのドットは 8 で非選択は muted icon 色。認証・共有プレビューのカードは角丸 24 + 1px 枠線（Web `ll-rounded-24px` + gray-300、iOS `cornerRadius 24` + `AppPalette.border`、Android `RoundedCornerShape(24.dp)` + `outlineVariant`、カード面は light 白 / dark gray-900 = Android `surfaceContainer`）。
 - iOS / Android の task row は drag handle・完了トグル・本文の縦方向中心を揃える。Android は Web と同じく日付なしの行を中央揃え、日付ありの行を本文領域（最小高 48）の下揃えにする。日付ラベルは本文や編集欄の縦位置を押し下げず、同じ本文領域内の直上へ近接表示する。iOS は日付ラベル下の余白を負方向に少し詰め、本文領域の中心線を基準に揃える。
+- Web / iOS / Android の task 本文インライン編集は複数行で表示し（Web は高さを内容に合わせる `textarea`、iOS は `axis: .vertical` の `TextField`、Android は `singleLine` なしの `BasicTextField`）、改行は確定として扱う。
 - Web / iOS / Android の task 本文インライン編集は、編集開始時にキャレットを本文末尾へ置く（全選択にしない）。iOS / Android は `TextRange(length)` 相当、Web は `setSelectionRange(end, end)` で揃える。
 - task 本文の編集中に別 task へ移る場合は、旧 task の編集値を確定してから新 task の本文で編集状態を初期化する。遅延した blur / focus loss の確定処理は現在の `editingTaskId` と対象 task ID が一致する場合だけ受理し、新 task の編集値を旧 task へ保存しない。
 - task 行一覧の密度はやや詰めた行間を正とする。タップ領域（iOS の completion / drag / trailing `48pt`、Android の各操作 `48dp`）は据え置き、行間メトリクス（iOS `taskRowVerticalPadding` = 2 で行ピッチ 52、行同士の gap は 0 とし並び替えの swap 判定も `taskRowGap` を使う、Android `TaskListDetailMetrics.rowVerticalPadding` = 2 で行ピッチ 52（行間 0、swap 判定の spacing も 0）、Web は task 行の `padding-block`）だけで密度を調整する。

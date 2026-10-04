@@ -6143,7 +6143,7 @@ function TaskItemComponent({
   const [isHandlePointerDown, setIsHandlePointerDown] = useState(false);
   const animateEnterRef = useRef(animateEnter);
   const actionButtonRef = useRef<HTMLButtonElement | null>(null);
-  const editInputRef = useRef<HTMLInputElement | null>(null);
+  const editInputRef = useRef<HTMLTextAreaElement | null>(null);
   const taskTextId = `task-item-text-${task.id}`;
   const selectedDate = parseTaskDateValue(task.date);
   const setDateLabel = t("pages.tasklist.setDate");
@@ -6186,6 +6186,14 @@ function TaskItemComponent({
     const end = input.value.length;
     input.setSelectionRange(end, end);
   }, [isEditing]);
+
+  useLayoutEffect(() => {
+    if (!isEditing) return;
+    const input = editInputRef.current;
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${input.scrollHeight}px`;
+  }, [isEditing, editingText]);
 
   return (
     <div
@@ -6245,21 +6253,27 @@ function TaskItemComponent({
           </div>
         ) : null}
         {isEditing && canEdit ? (
-          <input
+          <textarea
             ref={editInputRef}
             id={taskTextId}
-            type="text"
+            rows={1}
+            enterKeyHint="done"
             value={editingText}
-            onChange={(event) => onEditingTextChange(event.target.value)}
+            onChange={(event) =>
+              onEditingTextChange(event.target.value.replace(/\r?\n/g, " "))
+            }
             onBlur={() => onEditEnd(task)}
             onKeyDown={(event) => {
               if (event.nativeEvent.isComposing) return;
-              if (event.key === "Enter") onEditEnd(task);
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onEditEnd(task);
+              }
               if (event.key === "Escape") onEditEnd(task, task.text);
             }}
             autoFocus
             className={clsx(
-              "ll-h-12 ll-min-w-0 ll-w-full ll-bg-transparent ll-p-0 ll-leading-7 ll-focus-outline-none",
+              "ll-task-row-edit ll-task-text-wrap ll-min-w-0 ll-w-full ll-bg-transparent ll-leading-7 ll-focus-outline-none",
               task.completed
                 ? "ll-muted-text ll-font-medium ll-line-through"
                 : "ll-text-gray-900 ll-dark-text-gray-50",

@@ -1317,6 +1317,18 @@
   align-items: center;
 }
 
+.ll-task-row-edit {
+  display: block;
+  min-height: 3rem;
+  margin: 0;
+  padding: 0.625rem 0;
+  border: 0;
+  resize: none;
+  overflow: hidden;
+  font-family: inherit;
+  font-size: inherit;
+}
+
 .ll-calendar-page {
   width: 100%;
   max-width: 72rem;

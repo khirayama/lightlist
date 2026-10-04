@@ -7494,6 +7494,14 @@ private enum TaskListBackgroundTheme {
     nonisolated static let lightBase: UInt32 = 0xF9FAFB
     nonisolated static let darkBase: UInt32 = 0x030712
     nonisolated static let darkColorStrength: Double = 0.26
+    nonisolated static let darkColors: [UInt32: UInt32] = [
+        0xF87171: 0x7F1D1D,
+        0xFBBF24: 0x78350F,
+        0x34D399: 0x064E3B,
+        0x38BDF8: 0x0C4A6E,
+        0x818CF8: 0x312E81,
+        0xA78BFA: 0x4C1D95,
+    ]
 }
 
 nonisolated private func parseHexRGB(_ hex: String) -> UInt32? {
@@ -7546,6 +7554,9 @@ private func resolveTaskListBackgroundColor(_ background: String?) -> Color {
     return Color(
         UIColor { traits in
             if traits.userInterfaceStyle == .dark {
+                if let dark = TaskListBackgroundTheme.darkColors[hex] {
+                    return mixInOklab(dark, dark, strength: 1)
+                }
                 return mixInOklab(hex, TaskListBackgroundTheme.darkBase, strength: TaskListBackgroundTheme.darkColorStrength)
             }
             return mixInOklab(hex, hex, strength: 1)

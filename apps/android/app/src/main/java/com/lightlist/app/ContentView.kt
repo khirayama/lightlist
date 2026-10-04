@@ -313,6 +313,14 @@ private val TaskListBackgroundOptions = listOf<String?>(
     "#818CF8",
     "#A78BFA"
 )
+private val DarkTaskListBackgrounds = mapOf(
+    "#F87171" to Color(0xFF7F1D1D),
+    "#FBBF24" to Color(0xFF78350F),
+    "#34D399" to Color(0xFF064E3B),
+    "#38BDF8" to Color(0xFF0C4A6E),
+    "#818CF8" to Color(0xFF312E81),
+    "#A78BFA" to Color(0xFF4C1D95)
+)
 private val shareCodeRandom = SecureRandom()
 private val shareCodePattern = Regex("^[A-Z0-9]{8}$")
 
@@ -4113,8 +4121,10 @@ private fun settingsStartupViewLabel(t: Translations, startupView: String): Stri
 @Composable
 private fun resolveTaskListBackgroundColor(background: String?): Color {
     val themeBackground = MaterialTheme.colorScheme.surfaceDim
-    val color = background?.let(::parseHexColor) ?: return themeBackground
-    return if (isAppDarkTheme()) lerp(themeBackground, color, 0.26f) else color
+    if (background == null) return themeBackground
+    val color = parseHexColor(background)
+    if (!isAppDarkTheme()) return color
+    return DarkTaskListBackgrounds[background.uppercase(Locale.ROOT)] ?: lerp(themeBackground, color, 0.26f)
 }
 
 private fun dragAutoScrollSpeed(
@@ -4185,7 +4195,8 @@ private fun DetailScreenScaffold(
         } else {
             {}
         },
-        containerColor = resolvedBackgroundColor
+        containerColor = resolvedBackgroundColor,
+        contentColor = MaterialTheme.colorScheme.onBackground
     ) { innerPadding ->
         Box(
             Modifier

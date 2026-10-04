@@ -5357,10 +5357,22 @@ const COLOR_NAME_KEYS: Partial<Record<string, ColorNameKey>> = {
   "#A78BFA": "taskList.colorPurple",
 };
 
-const resolveTaskListBackground = (background: string | null): string =>
-  background
-    ? `color-mix(in oklab, ${background} var(--tasklist-color-strength), var(--tasklist-theme-bg))`
-    : "var(--tasklist-theme-bg)";
+const DARK_TASK_LIST_BACKGROUNDS: Partial<Record<string, string>> = {
+  "#F87171": "#7F1D1D",
+  "#FBBF24": "#78350F",
+  "#34D399": "#064E3B",
+  "#38BDF8": "#0C4A6E",
+  "#818CF8": "#312E81",
+  "#A78BFA": "#4C1D95",
+};
+
+const resolveTaskListBackground = (background: string | null): string => {
+  if (!background) return "var(--tasklist-theme-bg)";
+  const dark = DARK_TASK_LIST_BACKGROUNDS[background.toUpperCase()];
+  return dark
+    ? `color-mix(in oklab, ${dark} var(--tasklist-dark-strength), ${background})`
+    : `color-mix(in oklab, ${background} var(--tasklist-color-strength), var(--tasklist-theme-bg))`;
+};
 
 const LAST_TASK_LIST_STORAGE_KEY_PREFIX = "lightlist.lastTaskList.";
 

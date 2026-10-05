@@ -1,0 +1,12 @@
+{
+  "name": "@lightlist/billing-control",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": { "node": "22" },
+  "scripts": { "build": "tsc" },
+  "dependencies": {
+    "@google-cloud/billing": "6.1.1",
+    "firebase-functions": "7.0.3"
+  },
+  "devDependencies": { "typescript": "5.9.3" }
+}

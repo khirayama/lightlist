@@ -5,13 +5,14 @@ import FirebaseAnalytics
 import FirebaseCore
 import FirebaseCrashlytics
 @preconcurrency import FirebaseFirestore
+import FirebaseMessaging
 import Foundation
 import Network
 import Security
 import SwiftUI
-import os
 import UIKit
 import UserNotifications
+import os
 
 private let authSignInTimeoutSeconds: TimeInterval = 10
 private let shareCodeCharacters = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -25,7 +26,6 @@ private func normalizedShareCode(_ rawValue: String) -> String? {
     return shareCode
 }
 
-private func passwordResetCode(from rawValue: String?) -> String? {
 private func normalizedShareCodeInput(_ rawValue: String) -> String? {
     let input = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
     guard let components = URLComponents(string: input), let scheme = components.scheme?.lowercased() else {
@@ -44,6 +44,7 @@ private func normalizedShareCodeInput(_ rawValue: String) -> String? {
     return normalizedShareCode(components.queryItems?.first(where: { $0.name == "code" })?.value ?? "")
 }
 
+private func passwordResetCode(from rawValue: String?) -> String? {
     guard let rawValue else {
         return nil
     }
@@ -75,6 +76,7 @@ private func generateRandomShareCode() throws -> String {
 enum PendingDeepLink: Equatable {
     case passwordReset(code: String)
     case shareCode(String)
+    case taskList(String)
 }
 
 private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
@@ -99,6 +101,11 @@ private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
     }
 
     if scheme == "https", host == "lightlist.app", url.port == nil || url.port == 443 {
+        if let taskListId = queryItems?.first(where: { $0.name == "taskListId" })?.value,
+            !taskListId.isEmpty
+        {
+            return .taskList(taskListId)
+        }
         if pathComponents.count == 1,
             pathComponents[0].lowercased() == "sharecodes",
             let shareCode = normalizedShareCode(queryItems?.first(where: { $0.name == "code" })?.value ?? "")
@@ -661,13 +668,6 @@ private func shareCodeURLString(_ code: String) -> String {
     "https://lightlist.app/sharecodes/?code=\(code)"
 }
 
-private struct FittedPresentationSizing: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
-            content.presentationSizing(.form.fitted(horizontal: false, vertical: true))
-        } else {
-            content
-        }
 private func shareQRCodeImage(_ code: String) -> UIImage? {
     let filter = CIFilter.qrCodeGenerator()
     filter.message = Data(shareCodeURLString(code).utf8)
@@ -680,6 +680,13 @@ private func shareQRCodeImage(_ code: String) -> UIImage? {
     return UIImage(cgImage: cgImage)
 }
 
+private struct FittedPresentationSizing: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.presentationSizing(.form.fitted(horizontal: false, vertical: true))
+        } else {
+            content
+        }
     }
 }
 
@@ -947,6 +954,7 @@ private enum InitialUserData {
                 "language": normalizedLanguage,
                 "taskInsertPosition": "top",
                 "autoSort": true,
+                "notifySharedListUpdates": false,
                 "startupView": "taskList",
                 "createdAt": now,
                 "updatedAt": now,
@@ -1012,6 +1020,7 @@ func logSettingsThemeChange(theme: String) { log("app_settings_theme_change", ["
 func logSettingsLanguageChange(language: String) { log("app_settings_language_change", ["language": language]) }
 func logSettingsTaskInsertPositionChange(position: String) { log("app_settings_task_insert_position_change", ["position": position]) }
 func logSettingsAutoSortChange(enabled: Bool) { log("app_settings_auto_sort_change", ["enabled": enabled]) }
+func logSettingsSharedNotificationsChange(enabled: Bool) { log("app_settings_shared_notifications_change", ["enabled": enabled]) }
 func logSettingsStartupViewChange(view: String) { log("app_settings_startup_view_change", ["view": view]) }
 
 func logException(operation: String, errorCategory: String? = nil) {
@@ -1219,6 +1228,7 @@ private struct FirestoreSettingsRecord: Codable {
     let language: String?
     let taskInsertPosition: String?
     let autoSort: Bool?
+    let notifySharedListUpdates: Bool?
     let startupView: String?
 }
 
@@ -1259,6 +1269,7 @@ private func decodeSettingsRecord(from snapshot: DocumentSnapshot?) -> Firestore
             language: nil,
             taskInsertPosition: nil,
             autoSort: nil,
+            notifySharedListUpdates: nil,
             startupView: nil
         )
     }
@@ -2791,6 +2802,8 @@ struct RootView: View {
     @State private var theme: String = UserDefaults.standard.string(forKey: cachedThemeKey) ?? "system"
     @State private var isLoggedIn = Auth.auth().currentUser != nil
     @State private var currentUserId = Auth.auth().currentUser?.uid
+    @State private var notificationsEnabled = false
+    @State private var registeredNotificationToken: String?
     @State private var settingsListener: ListenerRegistration?
     @State private var settingsRetryTask: Task<Void, Never>?
     @State private var settingsRetryDelayNanoseconds: UInt64 = 1_000_000_000
@@ -2867,8 +2880,23 @@ struct RootView: View {
         .environment(\.locale, locale)
         .environment(\.calendar, calendar)
         .environment(\.layoutDirection, layoutDirection)
-        .onAppear { startListening() }
+        .onAppear {
+            startListening()
+            if let taskListId = SharedNotificationNavigation.pendingTaskListId {
+                SharedNotificationNavigation.pendingTaskListId = nil
+                openTaskListFromExternalFlow(taskListId)
+            }
+        }
         .onDisappear { stopListening() }
+        .task(id: "\(currentUserId ?? ""):\(notificationsEnabled):\(registeredNotificationToken ?? "")") {
+            guard let uid = currentUserId, notificationsEnabled else { return }
+            await SharedNotificationRegistration.refresh(uid: uid, registeredToken: registeredNotificationToken)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .lightlistOpenTaskList)) { notification in
+            guard let taskListId = notification.object as? String else { return }
+            SharedNotificationNavigation.pendingTaskListId = nil
+            openTaskListFromExternalFlow(taskListId)
+        }
         .onChange(of: pendingDeepLink, initial: true) { _, deepLink in
             handlePendingDeepLink(deepLink)
         }
@@ -3049,6 +3077,8 @@ struct RootView: View {
             Task { @MainActor in
                 isLoggedIn = user != nil
                 currentUserId = user?.uid
+                notificationsEnabled = false
+                registeredNotificationToken = nil
                 settingsRetryTask?.cancel()
                 settingsRetryTask = nil
                 settingsRetryDelayNanoseconds = 1_000_000_000
@@ -3103,6 +3133,8 @@ struct RootView: View {
                             await ensureInitialUserData(uid: uid, language: resolveDeviceLanguage())
                         }
                     }
+                    registeredNotificationToken = SharedNotificationRegistration.registeredToken(in: snapshot)
+                    notificationsEnabled = data.notifySharedListUpdates ?? false
                     let nextTheme = data.theme ?? "system"
                     let language = data.language ?? "ja"
                     let startupView = normalizedStartupView(data.startupView)
@@ -3155,6 +3187,8 @@ struct RootView: View {
             pendingPasswordResetCode = code
         case .shareCode(let shareCode):
             pendingSharePreviewCode = shareCode
+        case .taskList(let taskListId):
+            openTaskListFromExternalFlow(taskListId)
         }
 
         pendingDeepLink = nil
@@ -5868,6 +5902,23 @@ private struct TaskListDetailPage: View {
                     ConnectionRequiredNote()
                 }
                 if let code = currentShareCode {
+                    if let qrCode = shareQRCodeImage(code) {
+                        VStack(spacing: 8) {
+                            Text(translations.t("taskList.shareQrCode"))
+                                .font(AppTypography.subheadlineMedium())
+                                .foregroundStyle(AppPalette.mutedText)
+                            Image(uiImage: qrCode)
+                                .interpolation(.none)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 192, height: 192)
+                                .padding(12)
+                                .background(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .accessibilityLabel(translations.t("taskList.shareQrCode"))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
                     AppFormField(label: translations.t("taskList.shareCode")) {
                         HStack(spacing: 8) {
                             Text(code)
@@ -5902,23 +5953,6 @@ private struct TaskListDetailPage: View {
                     Button(removingShareCode ? translations.t("common.deleting") : translations.t("taskList.removeShare")) {
                         Task {
                             removingShareCode = true
-                    if let qrCode = shareQRCodeImage(code) {
-                        VStack(spacing: 8) {
-                            Text(translations.t("taskList.shareQrCode"))
-                                .font(AppTypography.subheadlineMedium())
-                                .foregroundStyle(AppPalette.mutedText)
-                            Image(uiImage: qrCode)
-                                .interpolation(.none)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 192, height: 192)
-                                .padding(12)
-                                .background(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .accessibilityLabel(translations.t("taskList.shareQrCode"))
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
                             shareError = nil
                             do {
                                 try await removeShareCode(taskListId: taskList.id)
@@ -6606,6 +6640,7 @@ private final class SettingsViewModel: ObservableObject {
         var language: String = "ja"
         var taskInsertPosition: String = "top"
         var autoSort: Bool = true
+        var notifySharedListUpdates: Bool = false
         var startupView: String = "taskList"
     }
 
@@ -6639,6 +6674,7 @@ private final class SettingsViewModel: ObservableObject {
             language: language,
             taskInsertPosition: taskInsertPosition,
             autoSort: record.autoSort ?? true,
+            notifySharedListUpdates: record.notifySharedListUpdates ?? false,
             startupView: normalizedStartupView(record.startupView)
         )
     }
@@ -6750,6 +6786,9 @@ private final class SettingsViewModel: ObservableObject {
         }
         if let autoSort = partial["autoSort"] as? Bool {
             optimisticSettings.autoSort = autoSort
+        }
+        if let notifySharedListUpdates = partial["notifySharedListUpdates"] as? Bool {
+            optimisticSettings.notifySharedListUpdates = notifySharedListUpdates
         }
         if let startupView = partial["startupView"] as? String {
             optimisticSettings.startupView = normalizedStartupView(startupView)
@@ -6899,6 +6938,7 @@ private struct SettingsView: View {
     @State private var errorMessage: String? = nil
     @State private var isDeletingAccount = false
     @State private var isSigningOut = false
+    @State private var isUpdatingNotifications = false
     @State private var isCheckingPendingWrites = false
     @State private var hasUnsyncedChanges = false
     @ObservedObject private var networkStatus = NetworkStatus.shared
@@ -7007,6 +7047,46 @@ private struct SettingsView: View {
                         }
                     }
                     .tint(AppPalette.primary)
+                    Toggle(
+                        isOn: Binding(
+                            get: { settings.notifySharedListUpdates || isUpdatingNotifications },
+                            set: { enabled in
+                                guard let uid = currentUserId, !isUpdatingNotifications else { return }
+                                if enabled {
+                                    isUpdatingNotifications = true
+                                    errorMessage = nil
+                                    Task { @MainActor in
+                                        defer { isUpdatingNotifications = false }
+                                        do {
+                                            let authorized = try await SharedNotificationRegistration.requestPermissionAndEnable(uid: uid)
+                                            guard authorized else {
+                                                errorMessage = translations.t("settings.notifications.permissionDenied")
+                                                return
+                                            }
+                                            logSettingsSharedNotificationsChange(enabled: true)
+                                        } catch {
+                                            errorMessage = translations.t("settings.notifications.unavailable")
+                                        }
+                                    }
+                                } else {
+                                    viewModel.updateSettings(
+                                        ["notifySharedListUpdates": false, "notificationDevices": [:]],
+                                        onFailure: { errorMessage = translations.t("auth.error.general") }
+                                    )
+                                    logSettingsSharedNotificationsChange(enabled: false)
+                                }
+                            }
+                        )
+                    ) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(translations.t("settings.notifications.title"))
+                            Text(translations.t("settings.notifications.enable"))
+                                .font(AppTypography.caption())
+                                .foregroundStyle(AppPalette.mutedText)
+                        }
+                    }
+                    .tint(AppPalette.primary)
+                    .disabled(actionsDisabled || isUpdatingNotifications || !networkStatus.isOnline)
                 }
                 SettingsSection(title: translations.t("settings.legal.title")) {
                     navigationRow(label: translations.t("settings.licenses.openSource")) {
@@ -7060,12 +7140,19 @@ private struct SettingsView: View {
             Button(translations.t("auth.button.signOut"), role: .destructive) {
                 isSigningOut = true
                 errorMessage = nil
-                do {
-                    try viewModel.signOut()
-                    logSignOut()
-                } catch {
-                    isSigningOut = false
-                    errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
+                let uid = currentUserId
+                let isOnline = networkStatus.isOnline
+                Task { @MainActor in
+                    if let uid {
+                        await SharedNotificationRegistration.removeCurrentDevice(uid: uid, isOnline: isOnline)
+                    }
+                    do {
+                        try viewModel.signOut()
+                        logSignOut()
+                    } catch {
+                        isSigningOut = false
+                        errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
+                    }
                 }
             }
         } message: {
@@ -8365,8 +8452,224 @@ private func warmUpStartupData(db: Firestore) {
     }
 }
 
+@MainActor
+private enum SharedNotificationRegistration {
+    private static let deviceIdKey = "lightlist.notificationDeviceId"
+    private static var apnsWaiters: [UUID: CheckedContinuation<Void, Error>] = [:]
+    private static var apnsTimeoutTask: Task<Void, Never>?
+
+    private static func waitForAPNsRegistration() async throws {
+        if Messaging.messaging().apnsToken != nil { return }
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            apnsWaiters[UUID()] = continuation
+            guard apnsWaiters.count == 1 else { return }
+            apnsTimeoutTask = Task {
+                do {
+                    try await Task.sleep(nanoseconds: 15_000_000_000)
+                } catch {
+                    return
+                }
+                completeAPNsRegistration(error: NSError(domain: "LightlistNotifications", code: 2))
+            }
+            UIApplication.shared.registerForRemoteNotifications()
+        }
+    }
+
+    static func completeAPNsRegistration(error: Error? = nil) {
+        apnsTimeoutTask?.cancel()
+        apnsTimeoutTask = nil
+        let waiters = apnsWaiters.values
+        apnsWaiters = [:]
+        for waiter in waiters {
+            if let error {
+                waiter.resume(throwing: error)
+            } else {
+                waiter.resume()
+            }
+        }
+    }
+
+    private static func registrationToken() async throws -> String {
+        try await waitForAPNsRegistration()
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+            Messaging.messaging().token { token, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else if let token {
+                    continuation.resume(returning: token)
+                } else {
+                    continuation.resume(throwing: NSError(domain: "LightlistNotifications", code: 1))
+                }
+            }
+        }
+    }
+
+    private static var deviceId: String {
+        if let value = UserDefaults.standard.string(forKey: deviceIdKey) {
+            return value
+        }
+        let value = UUID().uuidString.lowercased()
+        UserDefaults.standard.set(value, forKey: deviceIdKey)
+        return value
+    }
+
+    static func registeredToken(in snapshot: DocumentSnapshot?) -> String? {
+        guard let deviceId = UserDefaults.standard.string(forKey: deviceIdKey),
+            let devices = snapshot?.data()?["notificationDevices"] as? [String: Any],
+            let device = devices[deviceId] as? [String: Any]
+        else { return nil }
+        return device["token"] as? String
+    }
+
+    private static func isAuthorized() async -> Bool {
+        switch await UNUserNotificationCenter.current().notificationSettings().authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        default:
+            return false
+        }
+    }
+
+    static func requestPermissionAndEnable(uid: String) async throws -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let authorized: Bool
+        if await center.notificationSettings().authorizationStatus == .notDetermined {
+            authorized = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+        } else {
+            authorized = await isAuthorized()
+        }
+        guard authorized else { return false }
+        let token = try await registrationToken()
+        try await saveDevice(uid: uid, token: token, enablePreference: true)
+        return true
+    }
+
+    static func refresh(uid: String, registeredToken: String?) async {
+        do {
+            guard await isAuthorized() else { return }
+            let token = try await registrationToken()
+            guard token != registeredToken else { return }
+            try await saveDevice(uid: uid, token: token, enablePreference: false)
+        } catch {
+            return
+        }
+    }
+
+    static func refreshFromCache(uid: String) async {
+        guard
+            let settings = try? await Firestore.firestore().collection("settings").document(uid)
+                .getDocument(source: .cache),
+            settings.data()?["notifySharedListUpdates"] as? Bool == true
+        else { return }
+        await refresh(uid: uid, registeredToken: registeredToken(in: settings))
+    }
+
+    private static func saveDevice(uid: String, token: String, enablePreference: Bool) async throws {
+        guard Auth.auth().currentUser?.uid == uid else { throw CancellationError() }
+        try Task.checkCancellation()
+        var fields: [String: Any] = [
+            "notificationDevices.\(deviceId)": [
+                "token": token,
+                "platform": "ios",
+                "updatedAt": nowMillis(),
+            ]
+        ]
+        if enablePreference {
+            fields["notifySharedListUpdates"] = true
+            fields["updatedAt"] = nowMillis()
+        }
+        try await Firestore.firestore().collection("settings").document(uid).updateData(fields)
+    }
+
+    static func removeCurrentDevice(uid: String, isOnline: Bool) async {
+        guard let deviceId = UserDefaults.standard.string(forKey: deviceIdKey) else { return }
+        let reference = Firestore.firestore().collection("settings").document(uid)
+        let registered = registeredToken(in: try? await reference.getDocument(source: .cache)) != nil
+        let removal: [String: Any] = ["notificationDevices.\(deviceId)": FieldValue.delete()]
+        guard isOnline else {
+            if registered {
+                reference.updateData(removal) { _ in }
+            }
+            return
+        }
+        _ = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            let check = PendingWritesCheck(continuation)
+            Task { @MainActor in
+                if registered {
+                    try? await reference.updateData(removal)
+                }
+                try? await Messaging.messaging().deleteToken()
+                check.finish(false)
+            }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                check.finish(true)
+            }
+        }
+    }
+}
+
+@MainActor
+private final class LightlistAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        Messaging.messaging().delegate = self
+        return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        Messaging.messaging().apnsToken = deviceToken
+        SharedNotificationRegistration.completeAPNsRegistration()
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        SharedNotificationRegistration.completeAPNsRegistration(error: error)
+    }
+
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard fcmToken != nil, let uid = Auth.auth().currentUser?.uid else { return }
+        Task { await SharedNotificationRegistration.refreshFromCache(uid: uid) }
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound, .badge])
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if let taskListId = response.notification.request.content.userInfo["taskListId"] as? String {
+            SharedNotificationNavigation.pendingTaskListId = taskListId
+            NotificationCenter.default.post(name: .lightlistOpenTaskList, object: taskListId)
+        }
+        completionHandler()
+    }
+}
+
+private extension Notification.Name {
+    static let lightlistOpenTaskList = Notification.Name("lightlist.openTaskList")
+}
+
+@MainActor
+private enum SharedNotificationNavigation {
+    static var pendingTaskListId: String?
+}
+
 @main
 struct LightlistApp: App {
+    @UIApplicationDelegateAdaptor(LightlistAppDelegate.self) private var appDelegate
     @State private var pendingDeepLink: PendingDeepLink?
 
     init() {

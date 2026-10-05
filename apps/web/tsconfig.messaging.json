@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "WebWorker"],
+    "types": [],
+    "incremental": false
+  },
+  "include": ["src/firebase-messaging-sw.ts"],
+  "exclude": []
+}

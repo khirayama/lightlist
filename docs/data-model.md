@@ -1,6 +1,6 @@
 # データモデル
 
-Cloud Firestore に 4 つのトップレベルコレクションを持つ。ルール本体は `firestore.rules`（リポジトリルート）を正とする。
+Cloud Firestore に 5 つのトップレベルコレクションを持つ。ルール本体は `firestore.rules`（リポジトリルート）を正とする。
 
 ## コレクション
 
@@ -13,6 +13,8 @@ Cloud Firestore に 4 つのトップレベルコレクションを持つ。ル�
 - `taskInsertPosition`: `"top" | "bottom"`。欠損・`null` は `"top"` として扱う。
 - `autoSort`: `boolean`。新規作成時の既定値は `true`。欠損・`null` も `true` として扱い、明示された `false` はそのまま保持する。
 - `startupView`: `"taskList" | "calendar" | "taskLists"`。欠損・不正値は `"taskList"` として扱う。
+- `notifySharedListUpdates`: `boolean`。共有タスクリストの他メンバーによる変更通知。欠損・不正値は `false` として扱う。
+- `notificationDevices`: `{ [deviceId]: { token, platform, updatedAt } }`。本人の端末ごとの FCM 登録。端末ごとの UUID をキーとし、ログアウト時にその端末の登録だけを削除する。登録内容が変わらない限り書き直さない。
 - `createdAt` / `updatedAt`: 任意の Unix epoch milliseconds。設定の表示・同期に必須ではなく、欠損していても上記の既定値で設定を解決する。
 
 ### taskLists/{taskListId}
@@ -68,6 +70,12 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 
 - `taskListId`
 - `createdAt`
+
+### notificationThrottles/{taskListId}
+
+共有リスト更新通知の抑制記録。Admin SDK だけが読み書きし、Rules ではクライアントからのアクセスを許可しない。
+
+- `notifiedAt`: 最後に通知を配信した Unix epoch milliseconds。
 
 ## 参照関係
 

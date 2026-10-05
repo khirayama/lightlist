@@ -16,6 +16,7 @@
 
 - Firebase 初期化: `VITE_FIREBASE_API_KEY` / `VITE_FIREBASE_AUTH_DOMAIN` / `VITE_FIREBASE_PROJECT_ID` / `VITE_FIREBASE_STORAGE_BUCKET` / `VITE_FIREBASE_MESSAGING_SENDER_ID` / `VITE_FIREBASE_APP_ID`
 - パスワードリセット: `VITE_PASSWORD_RESET_URL`
+- Web Push: `VITE_FIREBASE_VAPID_KEY`（Firebase Console の Project settings > Cloud Messaging > Web Push certificates にある公開鍵）
 
 ## Firebase 設定ファイル
 

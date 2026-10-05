@@ -247,6 +247,8 @@ type SettingsStore = {
   language: Language;
   taskInsertPosition: TaskInsertPosition;
   autoSort: boolean;
+  notifySharedListUpdates: boolean;
+  notificationToken?: string;
   startupView?: StartupView;
   createdAt?: number;
   updatedAt?: number;
@@ -307,6 +309,8 @@ type Settings = {
   language: Language;
   taskInsertPosition: TaskInsertPosition;
   autoSort: boolean;
+  notifySharedListUpdates: boolean;
+  notificationToken?: string;
   startupView: StartupView;
 };
 
@@ -464,6 +468,143 @@ const getApp = (): FirebaseApp => {
       : getApps()[0];
   return app;
 };
+
+const WEB_NOTIFICATION_DEVICE_ID_KEY = "lightlist.notificationDeviceId";
+
+let webNotificationTokenIssued = false;
+
+function readWebNotificationDeviceId(): string | null {
+  try {
+    return window.localStorage.getItem(WEB_NOTIFICATION_DEVICE_ID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function getWebNotificationDeviceId(): string {
+  const storedId = readWebNotificationDeviceId();
+  if (storedId) return storedId;
+  const deviceId = crypto.randomUUID();
+  window.localStorage.setItem(WEB_NOTIFICATION_DEVICE_ID_KEY, deviceId);
+  return deviceId;
+}
+
+function resolveWebNotificationToken(
+  settingsData: Record<string, unknown>,
+): string | undefined {
+  const deviceId = readWebNotificationDeviceId();
+  const devices = settingsData.notificationDevices;
+  const device = deviceId && isRecord(devices) ? devices[deviceId] : undefined;
+  if (isRecord(device) && typeof device.token === "string") return device.token;
+  return typeof settingsData.notificationToken === "string"
+    ? settingsData.notificationToken
+    : undefined;
+}
+
+function waitForServiceWorkerActivation(
+  registration: ServiceWorkerRegistration,
+): Promise<void> {
+  if (registration.active) return Promise.resolve();
+  const worker = registration.installing ?? registration.waiting;
+  if (!worker) return Promise.reject(new Error("notification-unavailable"));
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("notification-unavailable")),
+      10000,
+    );
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "activated") {
+        clearTimeout(timer);
+        resolve();
+      } else if (worker.state === "redundant") {
+        clearTimeout(timer);
+        reject(new Error("notification-unavailable"));
+      }
+    });
+  });
+}
+
+async function registerWebNotificationDevice(
+  uid: string,
+  options: { requestPermission: boolean; registeredToken?: string },
+): Promise<ServiceWorkerRegistration> {
+  if (
+    typeof Notification === "undefined" ||
+    !("serviceWorker" in navigator) ||
+    !window.isSecureContext
+  ) {
+    throw new Error("notification-unavailable");
+  }
+  if (options.requestPermission && Notification.permission !== "granted") {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") throw new Error("notification-permission-denied");
+  }
+  if (Notification.permission !== "granted") {
+    throw new Error("notification-permission-denied");
+  }
+  const messagingSdk = await import("firebase/messaging");
+  if (!(await messagingSdk.isSupported())) {
+    throw new Error("notification-unavailable");
+  }
+  const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+  if (!vapidKey) throw new Error("notification-unavailable");
+  const registration = await navigator.serviceWorker.register(
+    "/notifications/firebase-messaging-sw.js",
+    { scope: "/notifications/" },
+  );
+  await waitForServiceWorkerActivation(registration);
+  const token = await messagingSdk.getToken(
+    messagingSdk.getMessaging(getApp()),
+    { vapidKey, serviceWorkerRegistration: registration },
+  );
+  if (!token) throw new Error("notification-unavailable");
+  webNotificationTokenIssued = true;
+  if (!options.requestPermission && token === options.registeredToken) {
+    return registration;
+  }
+  const deviceId = getWebNotificationDeviceId();
+  const deviceWrite = updateDoc(doc(getDbInstance(), "settings", uid), {
+    [`notificationDevices.${deviceId}`]: {
+      token,
+      platform: "web",
+      updatedAt: Date.now(),
+    },
+    ...(options.requestPermission
+      ? { notifySharedListUpdates: true, updatedAt: Date.now() }
+      : {}),
+  });
+  trackCommit(deviceWrite);
+  await deviceWrite;
+  return registration;
+}
+
+async function unregisterWebNotificationDevice(
+  uid: string,
+  registered: boolean,
+): Promise<void> {
+  const deviceId = readWebNotificationDeviceId();
+  const removals: Promise<unknown>[] = [];
+  if (registered && deviceId) {
+    removals.push(
+      updateDoc(doc(getDbInstance(), "settings", uid), {
+        [`notificationDevices.${deviceId}`]: deleteField(),
+      }).catch(() => {}),
+    );
+  }
+  if (webNotificationTokenIssued) {
+    webNotificationTokenIssued = false;
+    removals.push(
+      import("firebase/messaging")
+        .then((sdk) => sdk.deleteToken(sdk.getMessaging(getApp())))
+        .catch(() => {}),
+    );
+  }
+  if (removals.length === 0 || !navigator.onLine) return;
+  await Promise.race([
+    Promise.all(removals),
+    new Promise((resolve) => setTimeout(resolve, 3000)),
+  ]);
+}
 
 const getAuthInstance = (): Auth => {
   if (cachedAuth) {
@@ -1171,6 +1312,7 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
   const prevLanguageRef = useRef<string | null>(null);
   const settingsRef = useRef<ReturnType<typeof useSettings> | null>(null);
   const { t } = useTranslation();
+  const { activeUid } = useSessionState();
   const settings = useSettings();
   settingsRef.current = settings;
 
@@ -1231,6 +1373,42 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
       }
     }
   }, [settings]);
+
+  const notificationsEnabled = settings?.notifySharedListUpdates ?? false;
+  const registeredToken = settings?.notificationToken;
+  useEffect(() => {
+    if (!activeUid || !notificationsEnabled) return;
+    let active = true;
+    let unsubscribe = () => {};
+    void (async () => {
+      try {
+        const registration = await registerWebNotificationDevice(activeUid, {
+          requestPermission: false,
+          registeredToken,
+        });
+        if (!active) return;
+        const { getMessaging, onMessage } = await import("firebase/messaging");
+        const detach = onMessage(getMessaging(getApp()), (payload) => {
+          const title = payload.notification?.title ?? "Lightlist";
+          const body = payload.notification?.body ?? "";
+          const taskListId = payload.data?.taskListId;
+          void registration.showNotification(title, {
+            body,
+            tag: taskListId,
+            data: { taskListId },
+          });
+        });
+        if (active) unsubscribe = detach;
+        else detach();
+      } catch {
+        return;
+      }
+    })();
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [activeUid, notificationsEnabled, registeredToken]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -1346,6 +1524,8 @@ const mapSettingsStore = (
         language: settingsStore.language,
         taskInsertPosition: settingsStore.taskInsertPosition,
         autoSort: settingsStore.autoSort,
+        notifySharedListUpdates: settingsStore.notifySharedListUpdates,
+        notificationToken: settingsStore.notificationToken,
         startupView: normalizeStartupView(settingsStore.startupView),
       }
     : null;
@@ -2542,6 +2722,7 @@ const ensureInitialUserData = (
       language: normalizedLanguage,
       taskInsertPosition: "top",
       autoSort: true,
+      notifySharedListUpdates: false,
       startupView: "taskList",
       createdAt: now,
       updatedAt: now,
@@ -2616,8 +2797,13 @@ async function signIn(email: string, password: string) {
   }
 }
 
-async function signOut() {
-  await firebaseSignOut(getAuthInstance());
+async function signOut(notificationDeviceRegistered: boolean) {
+  const auth = getAuthInstance();
+  const uid = auth.currentUser?.uid;
+  if (uid) {
+    await unregisterWebNotificationDevice(uid, notificationDeviceRegistered);
+  }
+  await firebaseSignOut(auth);
 }
 
 async function sendPasswordResetEmail(email: string, language?: Language) {
@@ -3061,7 +3247,9 @@ function assertSettingsStore(data: unknown, uid: string): SettingsStore {
     typeof language !== "string" ||
     !SUPPORTED_LANGUAGE_SET.has(language as Language) ||
     (taskInsertPosition !== "top" && taskInsertPosition !== "bottom") ||
-    (data.autoSort != null && typeof data.autoSort !== "boolean")
+    (data.autoSort != null && typeof data.autoSort !== "boolean") ||
+    (data.notifySharedListUpdates != null &&
+      typeof data.notifySharedListUpdates !== "boolean")
   ) {
     throw new Error(`Settings data is malformed: ${uid}`);
   }
@@ -3070,6 +3258,8 @@ function assertSettingsStore(data: unknown, uid: string): SettingsStore {
     language: language as Language,
     taskInsertPosition: taskInsertPosition as TaskInsertPosition,
     autoSort: data.autoSort ?? true,
+    notifySharedListUpdates: data.notifySharedListUpdates ?? false,
+    notificationToken: resolveWebNotificationToken(data),
     startupView:
       startupView === undefined ? undefined : normalizeStartupView(startupView),
     createdAt: typeof data.createdAt === "number" ? data.createdAt : undefined,
@@ -4604,12 +4794,14 @@ function SettingsView({
   const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
   const [emailChangeSuccess, setEmailChangeSuccess] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
+  const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
 
   const updateSetting = (next: {
     theme?: Theme;
     language?: Language;
     taskInsertPosition?: TaskInsertPosition;
     autoSort?: boolean;
+    notifySharedListUpdates?: boolean;
     startupView?: StartupView;
   }): boolean => {
     setError(null);
@@ -4654,6 +4846,38 @@ function SettingsView({
     }
   };
 
+  const handleSharedNotificationsChange = async (enabled: boolean) => {
+    const uid = user?.uid;
+    if (!uid || isUpdatingNotifications) return;
+    setIsUpdatingNotifications(true);
+    setError(null);
+    try {
+      if (enabled) {
+        await registerWebNotificationDevice(uid, { requestPermission: true });
+      } else {
+        const write = updateDoc(doc(getDbInstance(), "settings", uid), {
+          notifySharedListUpdates: false,
+          notificationDevices: {},
+          updatedAt: Date.now(),
+        });
+        trackCommit(write);
+        await write;
+      }
+      logAppEvent("settings_shared_notifications_change", { enabled });
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setError(
+        code === "notification-permission-denied"
+          ? t("settings.notifications.permissionDenied")
+          : code === "notification-unavailable"
+            ? t("settings.notifications.unavailable")
+            : resolveErrorMessage(err, t, "auth.error.general"),
+      );
+    } finally {
+      setIsUpdatingNotifications(false);
+    }
+  };
+
   const handleStartupViewChange = (startupView: StartupView) => {
     if (updateSetting({ startupView })) {
       logAppEvent("settings_startup_view_change", { view: startupView });
@@ -4677,7 +4901,7 @@ function SettingsView({
     setError(null);
 
     try {
-      await signOut();
+      await signOut(settings?.notificationToken !== undefined);
       logAppEvent("sign_out");
       if (typeof window !== "undefined") {
         window.location.assign("/");
@@ -5015,6 +5239,47 @@ function SettingsView({
                   >
                     <span
                       data-checked={settings?.autoSort ? "true" : "false"}
+                      className="ll-settings-toggle-thumb ll-inline-block ll-h-5 ll-w-5 ll-rounded-full ll-bg-white-b ll-shadow-sm ll-dark-bg-gray-950"
+                    />
+                  </span>
+                </label>
+                <label
+                  className={`ll-flex ll-cursor-pointer ll-items-center ll-justify-between ll-gap-4 ll-border-t ll-border-gray-300 ll-py-3 ll-transition ll-dark-border-gray-700 ${
+                    settingsDisabled || !isOnline || isUpdatingNotifications
+                      ? "ll-opacity-50"
+                      : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    name="notifySharedListUpdates"
+                    role="switch"
+                    aria-checked={settings?.notifySharedListUpdates ?? false}
+                    checked={settings?.notifySharedListUpdates ?? false}
+                    onChange={(event) =>
+                      void handleSharedNotificationsChange(event.target.checked)
+                    }
+                    disabled={settingsDisabled || !isOnline || isUpdatingNotifications}
+                    className="ll-peer ll-sr-only"
+                  />
+                  <span className="ll-flex ll-flex-col ll-gap-0x5">
+                    <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
+                      {t("settings.notifications.title")}
+                    </span>
+                    <span className="ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
+                      {t("settings.notifications.enable")}
+                    </span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={`ll-settings-toggle ll-relative ll-inline-flex ll-h-7 ll-w-12 ll-items-center ll-rounded-full ll-border ${
+                      settings?.notifySharedListUpdates
+                        ? "ll-border-gray-900 ll-bg-gray-900 ll-dark-border-gray-50 ll-dark-bg-gray-50"
+                        : "ll-border-gray-300 ll-bg-gray-300 ll-dark-border-gray-700 ll-dark-bg-gray-900"
+                    }`}
+                  >
+                    <span
+                      data-checked={settings?.notifySharedListUpdates ? "true" : "false"}
                       className="ll-settings-toggle-thumb ll-inline-block ll-h-5 ll-w-5 ll-rounded-full ll-bg-white-b ll-shadow-sm ll-dark-bg-gray-950"
                     />
                   </span>
@@ -9362,6 +9627,7 @@ function AppShellPage() {
   const historyDepthRef = useRef(0);
   const [pendingInitialTaskListRoute, setPendingInitialTaskListRoute] =
     useState(false);
+  const notificationTaskListRouteHandledRef = useRef(false);
   const [activeTaskAction, setActiveTaskAction] = useState<{
     taskListId: string;
     taskId: string;
@@ -9583,6 +9849,47 @@ function AppShellPage() {
       ),
     [isWideLayout, setViewState],
   );
+  const [notificationTaskListRoute, setNotificationTaskListRoute] = useState<{
+    taskListId: string;
+    mode: "push" | "replace";
+  } | null>(() => {
+    const taskListId = new URLSearchParams(window.location.search).get("taskListId");
+    return taskListId ? { taskListId, mode: "replace" } : null;
+  });
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const handleMessage = (event: MessageEvent) => {
+      const data: unknown = event.data;
+      if (
+        isRecord(data) &&
+        data.type === "lightlist-open-task-list" &&
+        typeof data.taskListId === "string"
+      ) {
+        setNotificationTaskListRoute({ taskListId: data.taskListId, mode: "push" });
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+    return () =>
+      navigator.serviceWorker.removeEventListener("message", handleMessage);
+  }, []);
+  useEffect(() => {
+    if (!notificationTaskListRoute || !hasResolvedTaskLists) return;
+    const { taskListId, mode } = notificationTaskListRoute;
+    if (taskLists.some((taskList) => taskList.id === taskListId)) {
+      notificationTaskListRouteHandledRef.current = true;
+      setPendingInitialTaskListRoute(false);
+      openTaskList(taskListId, mode);
+    }
+    setNotificationTaskListRoute(null);
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("taskListId")) return;
+    url.searchParams.delete("taskListId");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, [hasResolvedTaskLists, notificationTaskListRoute, openTaskList, taskLists]);
   const openSettings = (mode: "push" | "replace" = "replace") =>
     setViewState({ view: "settings" }, isWideLayout ? "replace" : mode);
   const openLicenses = (mode: "push" | "replace" = "replace") =>
@@ -9656,6 +9963,7 @@ function AppShellPage() {
 
   useEffect(() => {
     if (!pendingInitialTaskListRoute) return;
+    if (notificationTaskListRouteHandledRef.current) return;
     if (settingsStatus === "idle" || settingsStatus === "loading") return;
 
     const startupView = settings?.startupView ?? "taskList";

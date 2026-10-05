@@ -47,6 +47,8 @@
 
 - タスク入力・月グリッドの内部計算は `currentGregorianCalendar()` を使い、`Calendar.getInstance()` の端末既定暦へ戻さない。カレンダーの pending は `taskListId` ごとの全タスク配列と履歴を保持し、連続操作の差分を listener の旧配列から計算しない。詳細画面の履歴もタスクと同じ操作世代で解放する。
 
+- 通知端末登録はルートの認証・設定の確定を起点に更新する。`onNewToken()` だけでは、token が変わらない再ログインを検知できない。
+
 ## 主要コマンド
 
 - `just lint`

@@ -1,5 +1,8 @@
 package com.lightlist.app
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -8,12 +11,14 @@ import android.net.Network
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.util.Log
-import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.Crossfade
@@ -133,14 +138,14 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.PlatformTextStyle
@@ -198,6 +203,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.rememberUpdatedState
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.async
@@ -273,15 +279,15 @@ import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.MultiFormatWriter
 import java.text.DateFormatSymbols
 
 import org.json.JSONObject
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.MultiFormatWriter
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.RowScope
 import androidx.core.net.toUri
@@ -346,12 +352,6 @@ private fun normalizedShareCode(rawValue: String?): String? {
     return shareCode.takeIf(shareCodePattern::matches)
 }
 
-private fun memberKey(userId: String): String =
-    MessageDigest.getInstance("SHA-256")
-        .digest("lightlist-member:$userId".toByteArray(Charsets.UTF_8))
-        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-
-private fun memberTaskListsQuery(db: FirebaseFirestore, userId: String): Query =
 private fun normalizedShareCodeInput(rawValue: String): String? {
     val input = rawValue.trim()
     val uri = input.toUri()
@@ -366,6 +366,12 @@ private fun normalizedShareCodeInput(rawValue: String): String? {
     return normalizedShareCode(path.getOrNull(1) ?: uri.getQueryParameter("code"))
 }
 
+private fun memberKey(userId: String): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest("lightlist-member:$userId".toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+private fun memberTaskListsQuery(db: FirebaseFirestore, userId: String): Query =
     db.collection("taskLists").whereArrayContains("memberKeys", memberKey(userId))
 
 private fun passwordResetCode(rawValue: String?): String? {
@@ -727,6 +733,7 @@ private fun logSettingsThemeChange(theme: String) = log("app_settings_theme_chan
 private fun logSettingsLanguageChange(language: String) = log("app_settings_language_change") { putString("language", language) }
 private fun logSettingsTaskInsertPositionChange(position: String) = log("app_settings_task_insert_position_change") { putString("position", position) }
 private fun logSettingsAutoSortChange(enabled: Boolean) = log("app_settings_auto_sort_change") { putBoolean("enabled", enabled) }
+private fun logSettingsSharedNotificationsChange(enabled: Boolean) = log("app_settings_shared_notifications_change") { putBoolean("enabled", enabled) }
 private fun logSettingsStartupViewChange(view: String) = log("app_settings_startup_view_change") { putString("view", view) }
 
 private fun recordNonFatalException(operation: String, error: Exception? = null) {
@@ -771,6 +778,7 @@ sealed class AppRoute(val route: String, val title: String) {
 sealed class PendingDeepLink {
     data class PasswordReset(val code: String) : PendingDeepLink()
     data class ShareCode(val shareCode: String) : PendingDeepLink()
+    data class TaskList(val taskListId: String) : PendingDeepLink()
 }
 
 private var isFirestoreConfigured = false
@@ -837,6 +845,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun parseDeepLink(intent: Intent?): PendingDeepLink? {
+        intent?.getStringExtra("taskListId")?.takeIf { it.isNotBlank() }?.let {
+            return PendingDeepLink.TaskList(it)
+        }
         val data = intent?.data ?: return null
         val scheme = data.scheme?.lowercase(Locale.ROOT)
         val host = data.host?.lowercase(Locale.ROOT)
@@ -930,6 +941,7 @@ private data class FirestoreSettingsRecord(
     val language: String? = null,
     val taskInsertPosition: String? = null,
     val autoSort: Boolean? = null,
+    val notifySharedListUpdates: Boolean? = null,
     val startupView: String? = null
 )
 
@@ -1350,18 +1362,6 @@ private fun shareCodeUrl(code: String): String {
     return "${baseUri.scheme}://${baseUri.authority}/sharecodes/?code=$code"
 }
 
-private enum class AppButtonStyle { Primary, Secondary, Tonal, Ghost, Danger, Destructive }
-
-@Composable
-private fun AppButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    style: AppButtonStyle = AppButtonStyle.Primary,
-    enabled: Boolean = true,
-    icon: ImageVector? = null,
-    iconSize: Dp = 18.dp
-) {
 private fun shareQRCodeBitmap(code: String): Bitmap? = runCatching {
     val size = 256
     val matrix = MultiFormatWriter().encode(
@@ -1379,6 +1379,18 @@ private fun shareQRCodeBitmap(code: String): Bitmap? = runCatching {
     Bitmap.createBitmap(pixels, size, size, Bitmap.Config.ARGB_8888)
 }.getOrNull()
 
+private enum class AppButtonStyle { Primary, Secondary, Tonal, Ghost, Danger, Destructive }
+
+@Composable
+private fun AppButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    style: AppButtonStyle = AppButtonStyle.Primary,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    iconSize: Dp = 18.dp
+) {
     val colors = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(12.dp)
     val sizedModifier = modifier.heightIn(min = 44.dp)
@@ -1701,8 +1713,12 @@ private fun AppListDot(background: String?, modifier: Modifier = Modifier, size:
 }
 
 @Composable
-private fun AppSwitch(checked: Boolean, modifier: Modifier = Modifier) {
-    Switch(checked = checked, onCheckedChange = null, modifier = modifier)
+private fun AppSwitch(
+    checked: Boolean,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Switch(checked = checked, onCheckedChange = null, modifier = modifier, enabled = enabled)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -2242,6 +2258,7 @@ private suspend fun createInitialUserDataIfMissing(
         "language" to normalizeLanguageCode(language),
         "taskInsertPosition" to "top",
         "autoSort" to true,
+        "notifySharedListUpdates" to false,
         "startupView" to "taskList",
         "createdAt" to now,
         "updatedAt" to now
@@ -2313,6 +2330,8 @@ private data class SettingsState(
     val language: String = "ja",
     val taskInsertPosition: String = "top",
     val autoSort: Boolean = true,
+    val notifySharedListUpdates: Boolean = false,
+    val notificationToken: String? = null,
     val startupView: String = "taskList",
     val userEmail: String = "",
     val isLoading: Boolean = true,
@@ -2330,6 +2349,7 @@ private object StartupSettingsCache {
     private const val KEY_STARTUP_VIEW = "startupView"
     private const val KEY_TASK_INSERT_POSITION = "taskInsertPosition"
     private const val KEY_AUTO_SORT = "autoSort"
+    private const val KEY_NOTIFY_SHARED_LIST_UPDATES = "notifySharedListUpdates"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -2354,6 +2374,7 @@ private object StartupSettingsCache {
             language = language,
             taskInsertPosition = taskInsertPosition,
             autoSort = prefs.getBoolean(KEY_AUTO_SORT, true),
+            notifySharedListUpdates = prefs.getBoolean(KEY_NOTIFY_SHARED_LIST_UPDATES, false),
             startupView = normalizeStartupView(prefs.getString(KEY_STARTUP_VIEW, null)),
             isStartupCached = true
         )
@@ -2372,6 +2393,7 @@ private object StartupSettingsCache {
             cached.language == settings.language &&
             cached.taskInsertPosition == settings.taskInsertPosition &&
             cached.autoSort == settings.autoSort &&
+            cached.notifySharedListUpdates == settings.notifySharedListUpdates &&
             cached.startupView == settings.startupView
         ) {
             return
@@ -2382,6 +2404,7 @@ private object StartupSettingsCache {
             .putString(KEY_LANGUAGE, settings.language)
             .putString(KEY_TASK_INSERT_POSITION, settings.taskInsertPosition)
             .putBoolean(KEY_AUTO_SORT, settings.autoSort)
+            .putBoolean(KEY_NOTIFY_SHARED_LIST_UPDATES, settings.notifySharedListUpdates)
             .putString(KEY_STARTUP_VIEW, settings.startupView)
             .apply()
     }
@@ -2412,6 +2435,7 @@ private fun resolveSettingsState(
         language = language,
         taskInsertPosition = taskInsertPosition,
         autoSort = record.autoSort ?: true,
+        notifySharedListUpdates = record.notifySharedListUpdates ?: false,
         startupView = normalizeStartupView(record.startupView),
         userEmail = userEmail,
         isLoading = false,
@@ -2597,11 +2621,35 @@ fun RootScreen(
 
     val settingsState = resolvedSettingsState(currentUserId, rememberSettingsState(currentUserId))
     val context = LocalContext.current
+    LaunchedEffect(
+        currentUserId,
+        settingsState.isLoading,
+        settingsState.notifySharedListUpdates,
+        settingsState.notificationToken
+    ) {
+        val uid = currentUserId ?: return@LaunchedEffect
+        if (settingsState.isLoading || !settingsState.notifySharedListUpdates) return@LaunchedEffect
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+        ) return@LaunchedEffect
+        runCatching {
+            val token = sharedListNotificationToken()
+            if (token != settingsState.notificationToken && Firebase.auth.currentUser?.uid == uid) {
+                saveSharedListNotificationToken(context, uid, token)
+            }
+        }
+    }
     val startupLanguage = remember(currentUserId, settingsState.language, context) {
         resolveStartupLanguage(context, currentUserId, settingsState.language)
     }
     val translations = remember(startupLanguage, context) {
         Translations.from(context, startupLanguage)
+    }
+    LaunchedEffect(translations, settingsState.notifySharedListUpdates) {
+        if (settingsState.notifySharedListUpdates) {
+            ensureSharedListNotificationChannel(context, translations.t("settings.notifications.title"))
+        }
     }
     val darkTheme = when (settingsState.theme) {
         "dark" -> true
@@ -2628,6 +2676,9 @@ fun RootScreen(
             }
             is PendingDeepLink.ShareCode -> {
                 pendingSharePreviewCode = pendingDeepLink.shareCode
+            }
+            is PendingDeepLink.TaskList -> {
+                requestedTaskListId = pendingDeepLink.taskListId
             }
             null -> Unit
         }
@@ -3121,7 +3172,10 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                                 autoSortOverrides.remove(userId)
                             }
                             uiState = nextSettings.copy(
-                                autoSort = autoSortOverrides[userId] ?: nextSettings.autoSort
+                                autoSort = autoSortOverrides[userId] ?: nextSettings.autoSort,
+                                notificationToken = snapshot?.let {
+                                    registeredSharedListNotificationToken(context, it)
+                                }
                             )
                             if (snapshot?.exists() == true) {
                                 StartupSettingsCache.write(context, userId, nextSettings)
@@ -8213,6 +8267,7 @@ private fun TaskListDetailContent(
         val clipboard = LocalClipboard.current
         val copyScope = rememberCoroutineScope()
         val code = currentShareCode
+        val qrCode = remember(code) { code?.let(::shareQRCodeBitmap) }
         var shareCopyRevision by remember(code) { mutableIntStateOf(0) }
         LaunchedEffect(shareCopyRevision, code) {
             if (shareCopyRevision == 0) return@LaunchedEffect
@@ -8267,7 +8322,6 @@ private fun TaskListDetailContent(
                                     logShareCodeGenerate()
                                     currentShareCode = generatedCode
                                 } catch (e: Exception) {
-        val qrCode = remember(code) { code?.let(::shareQRCodeBitmap) }
                                     shareError = t.t("common.error")
                                 } finally {
                                     generatingShareCode = false
@@ -8289,6 +8343,26 @@ private fun TaskListDetailContent(
             }
             if (!isOnline) ConnectionRequiredNote(Modifier.padding(top = 16.dp))
             if (code != null) {
+                qrCode?.let { bitmap ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AppFieldLabel(t.t("taskList.shareQrCode"))
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = t.t("taskList.shareQrCode"),
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier
+                                .size(216.dp)
+                                .background(Color.White, RoundedCornerShape(12.dp))
+                                .padding(12.dp)
+                        )
+                    }
+                }
                 Column(
                     modifier = Modifier.padding(top = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -8343,26 +8417,6 @@ private fun TaskListDetailContent(
                         onClose = { actionSheetState = null }
                     )
                     Row(
-                qrCode?.let { bitmap ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        AppFieldLabel(t.t("taskList.shareQrCode"))
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = t.t("taskList.shareQrCode"),
-                            contentScale = ContentScale.FillBounds,
-                            modifier = Modifier
-                                .size(216.dp)
-                                .background(Color.White, RoundedCornerShape(12.dp))
-                                .padding(12.dp)
-                        )
-                    }
-                }
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -8653,6 +8707,66 @@ private fun SettingsView(
         )
     }
 
+    var isUpdatingNotifications by remember { mutableStateOf(false) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val uid = userId
+        if (!granted) {
+            errorMessage = t.t("settings.notifications.permissionDenied")
+        } else if (uid != null) {
+            scope.launch {
+                isUpdatingNotifications = true
+                try {
+                    val token = sharedListNotificationToken()
+                    saveSharedListNotificationToken(context, uid, token, enablePreference = true)
+                    errorMessage = null
+                    logSettingsSharedNotificationsChange(true)
+                } catch (e: Exception) {
+                    SyncFailureState.report()
+                    errorMessage = t.t("auth.error.general")
+                } finally {
+                    isUpdatingNotifications = false
+                }
+            }
+        }
+    }
+
+    fun updateSharedNotifications(enabled: Boolean) {
+        val uid = userId ?: return
+        if (!enabled) {
+            updateSettings(
+                mapOf(
+                    "notifySharedListUpdates" to false,
+                    "notificationDevices" to emptyMap<String, Any>()
+                )
+            )
+            logSettingsSharedNotificationsChange(false)
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            return
+        }
+        scope.launch {
+            isUpdatingNotifications = true
+            try {
+                val token = sharedListNotificationToken()
+                saveSharedListNotificationToken(context, uid, token, enablePreference = true)
+                errorMessage = null
+                logSettingsSharedNotificationsChange(true)
+            } catch (e: Exception) {
+                SyncFailureState.report()
+                errorMessage = t.t("auth.error.general")
+            } finally {
+                isUpdatingNotifications = false
+            }
+        }
+    }
+
     fun closeEmailChange() {
         showEmailChangeDialog = false
         newEmail = ""
@@ -8863,6 +8977,44 @@ private fun SettingsView(
                         }
                         AppSwitch(checked = uiState.autoSort)
                     }
+                    SettingsDivider()
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = uiState.notifySharedListUpdates,
+                                role = Role.Switch,
+                                enabled = !isUpdatingNotifications && isOnline,
+                                onValueChange = ::updateSharedNotifications
+                            )
+                            .padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                t.t("settings.notifications.title"),
+                                style = AppRowTextStyle,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                t.t("settings.notifications.enable"),
+                                style = TextStyle(
+                                    fontFamily = GenInterfaceJPBodyFontFamily,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        AppSwitch(
+                            checked = uiState.notifySharedListUpdates,
+                            enabled = !isUpdatingNotifications && isOnline
+                        )
+                    }
                 }
                 SettingsSectionCard(title = t.t("settings.legal.title")) {
                     SettingsNavigationRow(label = t.t("settings.licenses.openSource")) {
@@ -8922,6 +9074,14 @@ private fun SettingsView(
                 errorMessage = null
                 scope.launch {
                     try {
+                        Firebase.auth.currentUser?.uid?.let { uid ->
+                            removeSharedListNotificationToken(
+                                context,
+                                uid,
+                                registered = uiState.notificationToken != null,
+                                isOnline = isOnline
+                            )
+                        }
                         Firebase.auth.signOut()
                         logSignOut()
                     } catch (e: Exception) {

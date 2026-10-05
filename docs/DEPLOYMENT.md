@@ -43,6 +43,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - manifest の screenshots は `apps/web/public/screenshots/store/wide/*.png`（`1920x1080`）と `apps/web/public/screenshots/store/narrow/*.png`（`750x1334`）を参照する。
 - icons は `/icons/icon-192.png` / `/icons/icon-512.png` / `/icons/maskable-512.png`。
 - service worker は `apps/web/public/sw.js`。同一オリジンの Vite assets / フォント / アイコン / manifest と、過去に表示した navigation response を cache し、オフライン時は最後に取得した navigation を返す。navigation は network-first だが、3 秒以内に応答がなく cache がある場合は cache を返し、network 応答は裏で cache を更新する。build 後に `scripts/version-service-worker.mjs` が `dist` の revision から cache version を生成し、deploy 単位で旧 cache を activate 時に削除する。
+- Firebase Messaging は別の `/notifications/firebase-messaging-sw.js` を `/notifications/` scope で登録する。通知 worker は dev 起動時に `public/notifications/`、production build 時に `dist/notifications/` へ生成し、offline shell worker と分離する。
 - LP とアプリ側 entry は、HTTPS / `localhost` / `127.0.0.1` でのみ `/sw.js` を登録し、登録後に `registration.update()` を呼ぶ。
 - Firestore のデータ同期は Firestore SDK の永続 cache に任せ、service worker は静的 shell だけを扱う。更新通知 UI は持たず、`skipWaiting()` と `clients.claim()` で更新を適用する。
 
@@ -68,6 +69,8 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 
 ## Firestore デプロイ
 
+費用の合計100円を条件とする課金停止の構成・復旧制約は [billing-control.md](./billing-control.md) を参照する。課金停止の配信は通常の通知Functionsとは別の `firebase.billing.json` を使用する。
+
 - リポジトリルートで実行する。
 - membership Rules を初回デプロイする前に、[data-model.md](./data-model.md) の membership 移行を完了し、既存リストの保持ユーザーと `memberCount` の照合結果を確認する。アプリの更新を先に配布すると、membership 読み取りが `permission-denied` になり、タスクリスト一覧を構築できない。
 - `memberKeys` クエリを使うクライアントは、[data-model.md](./data-model.md) の memberKeys 移行（Phase 1 Rules のデプロイと backfill）を完了してから配布する。先に配布すると一覧のクエリが拒否される。
@@ -77,3 +80,4 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - production: `just deploy-firestore-prod`
 - deploy 設定（`firestore.rules` / `firebase.json` / `.firebaserc` / `firestore.indexes.json`）はリポジトリルートに置く。
 - deploy recipe は PATH 上の global `firebase` CLI を前提とする。
+- 共有リスト更新通知を有効にする場合は、Firestore Rules とともに Cloud Functions for Firebase を `firebase deploy --only functions` でデプロイする。Functions は Firebase Blaze プランと Node.js 22 runtime を使い、具体的な FCM / APNs / Web Push 設定は [notifications.md](./notifications.md) を参照する。

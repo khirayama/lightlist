@@ -3,6 +3,7 @@ options:
   deploymentTarget:
     iOS: "17.0"
   developmentLanguage: ja
+  postGenCommand: ruby scripts/enable-push-capability.rb
 packages:
   FirebaseSDK:
     url: https://github.com/firebase/firebase-ios-sdk
@@ -22,11 +23,13 @@ settings:
   configs:
     Debug:
       DEBUG_INFORMATION_FORMAT: dwarf
+      APS_ENVIRONMENT: development
       ONLY_ACTIVE_ARCH: YES
       SWIFT_COMPILATION_MODE: incremental
       SWIFT_OPTIMIZATION_LEVEL: -Onone
     Release:
       DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+      APS_ENVIRONMENT: production
       ONLY_ACTIVE_ARCH: NO
       SWIFT_COMPILATION_MODE: wholemodule
       SWIFT_OPTIMIZATION_LEVEL: -O
@@ -34,6 +37,10 @@ targets:
   Lightlist:
     type: application
     platform: iOS
+    attributes:
+      SystemCapabilities:
+        com.apple.Push:
+          enabled: 1
     info:
       path: Lightlist/Info.plist
       properties:
@@ -78,6 +85,8 @@ targets:
         product: FirebaseAnalytics
       - package: FirebaseSDK
         product: FirebaseCrashlytics
+      - package: FirebaseSDK
+        product: FirebaseMessaging
     buildToolPlugins:
       - plugin: LicensePlistBuildTool
         package: LicensePlist

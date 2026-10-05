@@ -10,6 +10,7 @@
 - [task-lists.md](./task-lists.md) — タスク / タスクリストの挙動、並び替え、入力解析
 - [sharing.md](./sharing.md) — 共有コードと共有権限モデル
 - [authentication.md](./authentication.md) — 認証方式、必須環境変数、初期データ、パスワードリセット
+- [notifications.md](./notifications.md) — 共有リスト更新通知、端末登録、配信設定
 
 ## 設定・運用
 

@@ -45,6 +45,7 @@ import {
   withTranslation,
 } from "react-i18next";
 import type { WithTranslation } from "react-i18next";
+import { QRCodeSVG } from "qrcode.react";
 import { getApps, initializeApp } from "firebase/app";
 import type { FirebaseApp } from "firebase/app";
 import type { Analytics } from "firebase/analytics";
@@ -3097,6 +3098,32 @@ const shareCodePattern = /^[A-Z0-9]{8}$/;
 const normalizeShareCode = (shareCode: string): string | null => {
   const normalized = shareCode.trim().toUpperCase();
   return shareCodePattern.test(normalized) ? normalized : null;
+};
+
+const normalizeShareCodeInput = (input: string): string | null => {
+  const value = input.trim();
+  try {
+    const url = new URL(value);
+    const path = url.pathname.split("/").filter(Boolean);
+    if (
+      url.protocol === "lightlist:" &&
+      url.hostname.toLowerCase() === "sharecodes" &&
+      path.length === 1
+    ) {
+      return normalizeShareCode(path[0]);
+    }
+    if (
+      (url.protocol === "https:" || url.protocol === "http:") &&
+      path[0]?.toLowerCase() === "sharecodes"
+    ) {
+      return normalizeShareCode(
+        path.length > 1 ? path[1] : (url.searchParams.get("code") ?? ""),
+      );
+    }
+  } catch {
+    return normalizeShareCode(value);
+  }
+  return normalizeShareCode(value);
 };
 
 function compareStringIds(left: string, right: string): number {
@@ -6608,6 +6635,20 @@ function ShareTaskListDialog({
           </Alert>
         ) : null}
         {shareCode ? (
+          <div className="ll-mt-5 ll-flex ll-flex-col ll-items-center ll-gap-2">
+            <span className="ll-field-label">{t("taskList.shareQrCode")}</span>
+            <QRCodeSVG
+              value={`${window.location.origin}/sharecodes/?code=${shareCode}`}
+              size={192}
+              marginSize={4}
+              bgColor="#FFFFFF"
+              fgColor="#111827"
+              title={t("taskList.shareQrCode")}
+              className="ll-block ll-rounded-lg ll-bg-white ll-p-3"
+            />
+          </div>
+        ) : null}
+        {shareCode ? (
           <label className="ll-mt-5 ll-flex ll-flex-col ll-gap-2">
             <span className="ll-field-label">{t("taskList.shareCode")}</span>
             <div className="ll-flex ll-gap-2">
@@ -9018,7 +9059,7 @@ function TaskListSidebarPanel({
   };
 
   const handleJoinList = async () => {
-    const code = joinListInput.trim();
+    const code = normalizeShareCodeInput(joinListInput);
     if (!code || !navigator.onLine) return;
     setJoiningList(true);
     setJoinListError(null);

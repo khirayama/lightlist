@@ -12,6 +12,7 @@
 - 共有コードの解決ではコード文書と対象リストをサーバーから取得し、リストの現在のコードとの一致を確認する。Rules もリストから参照されない既存コード文書の取得を拒否する。古いコード文書が残っていても共有先を解決できず、共有コードを新たに開くには接続が必要になる。
 - 外部入力、deep link、既存の `taskLists.shareCode` から Firestore document path を作る前に、trim + uppercase 後の完全一致 `^[A-Z0-9]{8}$` を必ず検証する。不正な値は未検出として扱い、不正な document path を作らない。
 - 共有ダイアログのコピー操作は、コード文字列ではなく共有 URL（Web は `${origin}/sharecodes/?code=CODE`、native は `https://lightlist.app/sharecodes/?code=CODE`）をクリップボードへ入れる。コード自体は読み取り専用の等幅フィールドに表示する。コピー成功の表示は最後の成功から 2 秒間とし、共有画面を閉じるかコードが変わったら解除する。閉じた画面への遅延結果は反映しない。
+- Web / iOS / Android の共有ダイアログは、発行済み共有コードの参加 URL を QR コードでも表示する。QR を読み取れない場合に備え、共有 URL のコピーと共有コードの表示も維持する。native は Debug / Release とも HTTPS 正規形 `https://lightlist.app/sharecodes/?code=CODE` を使う。開発 Firebase project で生成したコードは本番サイトでは解決できない。
 - 1 リストにつき有効な `shareCodes` doc は最大 1 件。`shareCodes/{code}` の作成は、同一 commit で `taskLists/{taskListId}.shareCode == code` になることを rules が要求する。`taskLists` から辿れない共有コードは発行できないため、共有解除で必ず全コードが失効する。
 - `taskLists.shareCode` へ書けるのは `null` か `^[A-Z0-9]{8}$` のみ。新しいコードを設定する場合は同一 commit で対応する `shareCodes` doc を作る必要がある。
 
@@ -24,6 +25,7 @@
   - `taskListOrder/{uid}` が欠損していても merge 書き込みで自動作成する。
   - 既に追加済みなら no-op とし、`memberCount` を重複加算しない。
 - 「リストに参加」での失敗は、コードの形式不正・該当なしを `pages.sharecode.notFound`、それ以外を `pages.sharecode.addToOrderError` として同じ sheet / dialog 内に表示する。SDK のメッセージはそのまま表示しない。
+- 「リストに参加」の入力は共有コードのほか、共有 URL（`/sharecodes/?code=CODE` または `/sharecodes/CODE`）も受け付け、参加前にコードへ正規化する。native の `lightlist://sharecodes/CODE` deep link も受け付ける。
 
 ## 共有権限モデル
 

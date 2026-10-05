@@ -109,8 +109,8 @@
     },
     "joinList": "Join List",
     "joinListTitle": "Join Shared List",
-    "joinListDescription": "Enter the share code to join a shared task list.",
-    "shareCodePlaceholder": "Enter share code",
+    "joinListDescription": "Enter a share code or URL to join a shared task list.",
+    "shareCodePlaceholder": "Enter share code or URL",
     "join": "Join",
     "joining": "Joining...",
     "calendarNoDatedTasks": "No tasks have a date",
@@ -194,7 +194,8 @@
     "colorBlue": "Blue",
     "colorIndigo": "Indigo",
     "colorPurple": "Purple",
-    "colorCustom": "Custom color"
+    "colorCustom": "Custom color",
+    "shareQrCode": "Share QR code"
   },
   "settings": {
     "title": "Settings",
@@ -253,6 +254,12 @@
       "openSource": "Open source licenses",
       "bundledAssets": "Bundled assets",
       "loadError": "Failed to load license information"
+    },
+    "notifications": {
+      "title": "Shared list updates",
+      "enable": "Get notified when another member changes tasks",
+      "permissionDenied": "Notifications are blocked. Allow notifications in your device settings.",
+      "unavailable": "Push notifications are unavailable in this environment."
     }
   },
   "pages": {
@@ -418,5 +425,8 @@
     "dragEnd": "{{item}} moved to position {{position}}",
     "dragCancel": "Moving {{item}} was cancelled",
     "dragInstructions": "To reorder, press Space or Enter to pick up, use the arrow keys to move, and press the same key again to drop. Press Escape to cancel."
+  },
+  "pushNotifications": {
+    "sharedListUpdated": "A shared list was updated"
   }
 }

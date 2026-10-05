@@ -109,8 +109,8 @@
     },
     "joinList": "Gabung daftar",
     "joinListTitle": "Gabung daftar bersama",
-    "joinListDescription": "Masukkan kode berbagi untuk bergabung ke daftar tugas bersama.",
-    "shareCodePlaceholder": "Masukkan kode berbagi",
+    "joinListDescription": "Masukkan kode atau tautan untuk bergabung ke daftar tugas bersama.",
+    "shareCodePlaceholder": "Masukkan kode atau tautan berbagi",
     "join": "Gabung",
     "joining": "Sedang bergabung...",
     "calendarNoDatedTasks": "Tidak ada tugas bertanggal",
@@ -189,7 +189,8 @@
     "colorBlue": "Biru",
     "colorIndigo": "Indigo",
     "colorPurple": "Ungu",
-    "colorCustom": "Warna kustom"
+    "colorCustom": "Warna kustom",
+    "shareQrCode": "Kode QR untuk berbagi"
   },
   "settings": {
     "title": "Pengaturan",
@@ -248,6 +249,12 @@
       "openSource": "Lisensi open source",
       "bundledAssets": "Aset bawaan",
       "loadError": "Gagal memuat informasi lisensi"
+    },
+    "notifications": {
+      "title": "Pembaruan daftar bersama",
+      "enable": "Dapatkan pemberitahuan saat anggota lain mengubah tugas",
+      "permissionDenied": "Notifikasi diblokir. Izinkan notifikasi di pengaturan perangkat.",
+      "unavailable": "Notifikasi push tidak tersedia di lingkungan ini."
     }
   },
   "pages": {
@@ -413,5 +420,8 @@
     "dragEnd": "{{item}} dipindahkan ke posisi {{position}}",
     "dragCancel": "Pemindahan {{item}} dibatalkan",
     "dragInstructions": "Untuk mengubah urutan, tekan Spasi atau Enter untuk mengangkat, gunakan tombol panah untuk memindahkan, lalu tekan tombol yang sama lagi untuk meletakkan. Tekan Escape untuk membatalkan."
+  },
+  "pushNotifications": {
+    "sharedListUpdated": "Daftar bersama diperbarui"
   }
 }

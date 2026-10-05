@@ -109,8 +109,8 @@
     },
     "joinList": "Entrar na lista",
     "joinListTitle": "Entrar em lista compartilhada",
-    "joinListDescription": "Digite o código de compartilhamento para entrar em uma lista compartilhada.",
-    "shareCodePlaceholder": "Digite o código de compartilhamento",
+    "joinListDescription": "Digite o código ou link para entrar em uma lista compartilhada.",
+    "shareCodePlaceholder": "Digite o código ou link de compartilhamento",
     "join": "Entrar",
     "joining": "Entrando...",
     "calendarNoDatedTasks": "Nenhuma tarefa com data",
@@ -204,7 +204,8 @@
     "colorBlue": "Azul",
     "colorIndigo": "Índigo",
     "colorPurple": "Roxo",
-    "colorCustom": "Cor personalizada"
+    "colorCustom": "Cor personalizada",
+    "shareQrCode": "Código QR para compartilhar"
   },
   "settings": {
     "title": "Configurações",
@@ -263,6 +264,12 @@
       "openSource": "Licenças de código aberto",
       "bundledAssets": "Recursos incluídos",
       "loadError": "Falha ao carregar as informações de licença"
+    },
+    "notifications": {
+      "title": "Atualizações de listas compartilhadas",
+      "enable": "Receba avisos quando outra pessoa alterar tarefas",
+      "permissionDenied": "As notificações estão bloqueadas. Permita-as nas configurações do dispositivo.",
+      "unavailable": "As notificações push não estão disponíveis neste ambiente."
     }
   },
   "pages": {
@@ -428,5 +435,8 @@
     "dragEnd": "{{item}} movido para a posição {{position}}",
     "dragCancel": "Movimento de {{item}} cancelado",
     "dragInstructions": "Para reordenar, pressione Espaço ou Enter para levantar, use as setas para mover e pressione a mesma tecla novamente para soltar. Pressione Esc para cancelar."
+  },
+  "pushNotifications": {
+    "sharedListUpdated": "Uma lista compartilhada foi atualizada"
   }
 }

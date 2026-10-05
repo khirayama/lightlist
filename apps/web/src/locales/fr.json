@@ -109,8 +109,8 @@
     },
     "joinList": "Rejoindre une liste",
     "joinListTitle": "Rejoindre une liste partagée",
-    "joinListDescription": "Saisissez le code de partage pour rejoindre une liste partagée.",
-    "shareCodePlaceholder": "Saisissez le code de partage",
+    "joinListDescription": "Saisissez le code ou le lien de partage pour rejoindre une liste partagée.",
+    "shareCodePlaceholder": "Saisissez le code ou le lien de partage",
     "join": "Rejoindre",
     "joining": "Connexion en cours...",
     "calendarNoDatedTasks": "Aucune tâche avec une date",
@@ -196,7 +196,8 @@
     "colorBlue": "Bleu",
     "colorIndigo": "Indigo",
     "colorPurple": "Violet",
-    "colorCustom": "Couleur personnalisée"
+    "colorCustom": "Couleur personnalisée",
+    "shareQrCode": "Code QR de partage"
   },
   "settings": {
     "title": "Paramètres",
@@ -255,6 +256,12 @@
       "openSource": "Licences open source",
       "bundledAssets": "Ressources intégrées",
       "loadError": "Impossible de charger les informations de licence"
+    },
+    "notifications": {
+      "title": "Mises à jour des listes partagées",
+      "enable": "Recevez une notification lorsqu’un autre membre modifie des tâches",
+      "permissionDenied": "Les notifications sont bloquées. Autorisez-les dans les réglages de votre appareil.",
+      "unavailable": "Les notifications push ne sont pas disponibles dans cet environnement."
     }
   },
   "pages": {
@@ -420,5 +427,8 @@
     "dragEnd": "{{item}} déplacé à la position {{position}}",
     "dragCancel": "Déplacement de {{item}} annulé",
     "dragInstructions": "Pour réorganiser, appuyez sur Espace ou Entrée pour saisir, utilisez les flèches pour déplacer, puis appuyez de nouveau sur la même touche pour déposer. Appuyez sur Échap pour annuler."
+  },
+  "pushNotifications": {
+    "sharedListUpdated": "Une liste partagée a été mise à jour"
   }
 }

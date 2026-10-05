@@ -109,8 +109,8 @@
     },
     "joinList": "加入列表",
     "joinListTitle": "加入共享列表",
-    "joinListDescription": "输入共享码以加入共享任务列表。",
-    "shareCodePlaceholder": "输入共享码",
+    "joinListDescription": "输入共享码或链接以加入共享任务列表。",
+    "shareCodePlaceholder": "输入共享码或链接",
     "join": "加入",
     "joining": "加入中...",
     "calendarNoDatedTasks": "没有设置日期的任务",
@@ -192,7 +192,8 @@
     "colorBlue": "蓝色",
     "colorIndigo": "靛蓝色",
     "colorPurple": "紫色",
-    "colorCustom": "自定义颜色"
+    "colorCustom": "自定义颜色",
+    "shareQrCode": "分享二维码"
   },
   "settings": {
     "title": "设置",
@@ -251,6 +252,12 @@
       "openSource": "开源许可证",
       "bundledAssets": "内置资源",
       "loadError": "无法加载许可证信息"
+    },
+    "notifications": {
+      "title": "共享清单更新",
+      "enable": "其他成员更改任务时通知我",
+      "permissionDenied": "通知已被阻止。请在设备设置中允许通知。",
+      "unavailable": "此环境不支持推送通知。"
     }
   },
   "pages": {
@@ -416,5 +423,8 @@
     "dragEnd": "已将{{item}}移到第{{position}}位",
     "dragCancel": "已取消移动{{item}}",
     "dragInstructions": "要重新排序，请按空格键或回车键拿起，使用方向键移动，再按同一按键放下。按 Esc 键取消。"
+  },
+  "pushNotifications": {
+    "sharedListUpdated": "共享清单已更新"
   }
 }

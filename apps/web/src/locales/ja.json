@@ -109,8 +109,8 @@
     },
     "joinList": "リストに参加",
     "joinListTitle": "共有リストに参加",
-    "joinListDescription": "共有コードを入力してリストに参加します。",
-    "shareCodePlaceholder": "共有コードを入力",
+    "joinListDescription": "共有コードまたは URL を入力して、共有リストに参加します。",
+    "shareCodePlaceholder": "共有コードまたは URL を入力",
     "join": "参加",
     "joining": "参加中...",
     "calendarNoDatedTasks": "日付が設定されたタスクはありません",
@@ -183,7 +183,8 @@
     "colorBlue": "青",
     "colorIndigo": "インディゴ",
     "colorPurple": "紫",
-    "colorCustom": "カスタム色"
+    "colorCustom": "カスタム色",
+    "shareQrCode": "共有用 QR コード"
   },
   "settings": {
     "title": "設定",
@@ -242,6 +243,12 @@
       "openSource": "オープンソースライセンス",
       "bundledAssets": "同梱アセット",
       "loadError": "ライセンス情報の読み込みに失敗しました"
+    },
+    "notifications": {
+      "title": "共有リストの更新通知",
+      "enable": "他のメンバーがタスクを更新したときに通知します",
+      "permissionDenied": "通知が許可されていません。端末の設定で通知を許可してください。",
+      "unavailable": "この環境ではプッシュ通知を利用できません。"
     }
   },
   "pages": {
@@ -407,5 +414,8 @@
     "dragEnd": "{{item}}を{{position}}番目に移動しました",
     "dragCancel": "{{item}}の移動をキャンセルしました",
     "dragInstructions": "並び替えるには、スペースキーまたはEnterキーで持ち上げ、矢印キーで移動し、もう一度同じキーで確定します。Escキーでキャンセルします。"
+  },
+  "pushNotifications": {
+    "sharedListUpdated": "共有リストが更新されました"
   }
 }

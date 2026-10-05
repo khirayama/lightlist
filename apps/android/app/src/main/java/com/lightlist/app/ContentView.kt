@@ -11,6 +11,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.util.Log
+import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -137,7 +138,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.PlatformTextStyle
@@ -276,6 +279,9 @@ import org.json.JSONObject
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.MultiFormatWriter
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.RowScope
 import androidx.core.net.toUri
@@ -346,6 +352,20 @@ private fun memberKey(userId: String): String =
         .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
 private fun memberTaskListsQuery(db: FirebaseFirestore, userId: String): Query =
+private fun normalizedShareCodeInput(rawValue: String): String? {
+    val input = rawValue.trim()
+    val uri = input.toUri()
+    val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return normalizedShareCode(input)
+    val path = uri.pathSegments
+    if (scheme == "lightlist" && uri.host.equals("sharecodes", ignoreCase = true) && path.size == 1) {
+        return normalizedShareCode(path[0])
+    }
+    if (scheme != "https" && scheme != "http" || !path.firstOrNull().equals("sharecodes", ignoreCase = true)) {
+        return null
+    }
+    return normalizedShareCode(path.getOrNull(1) ?: uri.getQueryParameter("code"))
+}
+
     db.collection("taskLists").whereArrayContains("memberKeys", memberKey(userId))
 
 private fun passwordResetCode(rawValue: String?): String? {
@@ -1342,6 +1362,23 @@ private fun AppButton(
     icon: ImageVector? = null,
     iconSize: Dp = 18.dp
 ) {
+private fun shareQRCodeBitmap(code: String): Bitmap? = runCatching {
+    val size = 256
+    val matrix = MultiFormatWriter().encode(
+        shareCodeUrl(code),
+        BarcodeFormat.QR_CODE,
+        size,
+        size,
+        mapOf(EncodeHintType.MARGIN to 4)
+    )
+    val pixels = IntArray(size * size) { index ->
+        val x = index % size
+        val y = index / size
+        if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+    }
+    Bitmap.createBitmap(pixels, size, size, Bitmap.Config.ARGB_8888)
+}.getOrNull()
+
     val colors = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(12.dp)
     val sizedModifier = modifier.heightIn(min = 44.dp)
@@ -6214,7 +6251,7 @@ private fun TaskListsScreen(
     fun joinTaskList() {
         if (!isOnline) return
         scope.launch {
-            val code = normalizedShareCode(joinListInput)
+            val code = normalizedShareCodeInput(joinListInput)
             if (code == null) {
                 joinListError = t.t("pages.sharecode.notFound")
                 return@launch
@@ -8230,6 +8267,7 @@ private fun TaskListDetailContent(
                                     logShareCodeGenerate()
                                     currentShareCode = generatedCode
                                 } catch (e: Exception) {
+        val qrCode = remember(code) { code?.let(::shareQRCodeBitmap) }
                                     shareError = t.t("common.error")
                                 } finally {
                                     generatingShareCode = false
@@ -8305,6 +8343,26 @@ private fun TaskListDetailContent(
                         onClose = { actionSheetState = null }
                     )
                     Row(
+                qrCode?.let { bitmap ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AppFieldLabel(t.t("taskList.shareQrCode"))
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = t.t("taskList.shareQrCode"),
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier
+                                .size(216.dp)
+                                .background(Color.White, RoundedCornerShape(12.dp))
+                                .padding(12.dp)
+                        )
+                    }
+                }
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically

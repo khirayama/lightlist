@@ -109,8 +109,8 @@
     },
     "joinList": "الانضمام إلى قائمة",
     "joinListTitle": "الانضمام إلى قائمة مشتركة",
-    "joinListDescription": "أدخل رمز المشاركة للانضمام إلى قائمة مهام مشتركة.",
-    "shareCodePlaceholder": "أدخل رمز المشاركة",
+    "joinListDescription": "أدخل رمز المشاركة أو رابطها للانضمام إلى قائمة مهام مشتركة.",
+    "shareCodePlaceholder": "أدخل رمز المشاركة أو الرابط",
     "join": "انضمام",
     "joining": "جارٍ الانضمام...",
     "calendarNoDatedTasks": "لا توجد مهام بتاريخ",
@@ -184,7 +184,8 @@
     "colorBlue": "أزرق",
     "colorIndigo": "نيلي",
     "colorPurple": "أرجواني",
-    "colorCustom": "لون مخصص"
+    "colorCustom": "لون مخصص",
+    "shareQrCode": "رمز QR للمشاركة"
   },
   "settings": {
     "title": "الإعدادات",
@@ -243,6 +244,12 @@
       "openSource": "تراخيص البرامج مفتوحة المصدر",
       "bundledAssets": "الأصول المضمّنة",
       "loadError": "تعذر تحميل معلومات الترخيص"
+    },
+    "notifications": {
+      "title": "تحديثات القوائم المشتركة",
+      "enable": "تلقي إشعار عندما يغيّر عضو آخر المهام",
+      "permissionDenied": "الإشعارات محظورة. اسمح بها من إعدادات جهازك.",
+      "unavailable": "الإشعارات الفورية غير متاحة في هذه البيئة."
     }
   },
   "pages": {
@@ -408,5 +415,8 @@
     "dragEnd": "تم نقل {{item}} إلى الموضع {{position}}",
     "dragCancel": "تم إلغاء نقل {{item}}",
     "dragInstructions": "لإعادة الترتيب، اضغط على مفتاح المسافة أو Enter للالتقاط، واستخدم مفاتيح الأسهم للنقل، ثم اضغط على المفتاح نفسه للإفلات. اضغط على Escape للإلغاء."
+  },
+  "pushNotifications": {
+    "sharedListUpdated": "تم تحديث قائمة مشتركة"
   }
 }

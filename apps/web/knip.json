@@ -1,4 +1,4 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["public/sw.js", "html/**/*.html"]
+  "entry": ["public/sw.js", "html/**/*.html", "src/firebase-messaging-sw.ts", "vite.messaging.config.ts"]
 }

@@ -110,8 +110,8 @@
       },
       "joinList": "الانضمام إلى قائمة",
       "joinListTitle": "الانضمام إلى قائمة مشتركة",
-      "joinListDescription": "أدخل رمز المشاركة للانضمام إلى قائمة مهام مشتركة.",
-      "shareCodePlaceholder": "أدخل رمز المشاركة",
+      "joinListDescription": "أدخل رمز المشاركة أو رابطها للانضمام إلى قائمة مهام مشتركة.",
+      "shareCodePlaceholder": "أدخل رمز المشاركة أو الرابط",
       "join": "انضمام",
       "joining": "جارٍ الانضمام...",
       "calendarNoDatedTasks": "لا توجد مهام بتاريخ",
@@ -185,7 +185,8 @@
       "colorBlue": "أزرق",
       "colorIndigo": "نيلي",
       "colorPurple": "أرجواني",
-      "colorCustom": "لون مخصص"
+      "colorCustom": "لون مخصص",
+      "shareQrCode": "رمز QR للمشاركة"
     },
     "settings": {
       "title": "الإعدادات",
@@ -244,6 +245,12 @@
         "openSource": "تراخيص البرامج مفتوحة المصدر",
         "bundledAssets": "الأصول المضمّنة",
         "loadError": "تعذر تحميل معلومات الترخيص"
+      },
+      "notifications": {
+        "title": "تحديثات القوائم المشتركة",
+        "enable": "تلقي إشعار عندما يغيّر عضو آخر المهام",
+        "permissionDenied": "الإشعارات محظورة. اسمح بها من إعدادات جهازك.",
+        "unavailable": "الإشعارات الفورية غير متاحة في هذه البيئة."
       }
     },
     "pages": {
@@ -409,6 +416,9 @@
       "dragEnd": "تم نقل {{item}} إلى الموضع {{position}}",
       "dragCancel": "تم إلغاء نقل {{item}}",
       "dragInstructions": "لإعادة الترتيب، اضغط على مفتاح المسافة أو Enter للالتقاط، واستخدم مفاتيح الأسهم للنقل، ثم اضغط على المفتاح نفسه للإفلات. اضغط على Escape للإلغاء."
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "تم تحديث قائمة مشتركة"
     }
   },
   "de": {
@@ -522,8 +532,8 @@
       },
       "joinList": "Liste beitreten",
       "joinListTitle": "Geteilter Liste beitreten",
-      "joinListDescription": "Gib den Freigabecode ein, um einer geteilten Liste beizutreten.",
-      "shareCodePlaceholder": "Freigabecode eingeben",
+      "joinListDescription": "Gib den Freigabecode oder Link ein, um einer geteilten Liste beizutreten.",
+      "shareCodePlaceholder": "Freigabecode oder Link eingeben",
       "join": "Beitreten",
       "joining": "Wird beigetreten...",
       "calendarNoDatedTasks": "Keine Aufgaben mit Datum",
@@ -608,7 +618,8 @@
       "colorBlue": "Blau",
       "colorIndigo": "Indigo",
       "colorPurple": "Lila",
-      "colorCustom": "Benutzerdefinierte Farbe"
+      "colorCustom": "Benutzerdefinierte Farbe",
+      "shareQrCode": "QR-Code zum Teilen"
     },
     "settings": {
       "title": "Einstellungen",
@@ -667,6 +678,12 @@
         "openSource": "Open-Source-Lizenzen",
         "bundledAssets": "Mitgelieferte Assets",
         "loadError": "Lizenzinformationen konnten nicht geladen werden"
+      },
+      "notifications": {
+        "title": "Aktualisierungen geteilter Listen",
+        "enable": "Lass dich benachrichtigen, wenn andere Mitglieder Aufgaben ändern",
+        "permissionDenied": "Benachrichtigungen sind blockiert. Erlaube sie in den Geräteeinstellungen.",
+        "unavailable": "Push-Benachrichtigungen sind in dieser Umgebung nicht verfügbar."
       }
     },
     "pages": {
@@ -832,6 +849,9 @@
       "dragEnd": "{{item}} an Position {{position}} verschoben",
       "dragCancel": "Verschieben von {{item}} abgebrochen",
       "dragInstructions": "Zum Umsortieren mit der Leertaste oder Eingabetaste aufnehmen, mit den Pfeiltasten verschieben und mit derselben Taste wieder ablegen. Mit Escape abbrechen."
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "Eine geteilte Liste wurde aktualisiert"
     }
   },
   "en": {
@@ -945,8 +965,8 @@
       },
       "joinList": "Join List",
       "joinListTitle": "Join Shared List",
-      "joinListDescription": "Enter the share code to join a shared task list.",
-      "shareCodePlaceholder": "Enter share code",
+      "joinListDescription": "Enter a share code or URL to join a shared task list.",
+      "shareCodePlaceholder": "Enter share code or URL",
       "join": "Join",
       "joining": "Joining...",
       "calendarNoDatedTasks": "No tasks have a date",
@@ -1030,7 +1050,8 @@
       "colorBlue": "Blue",
       "colorIndigo": "Indigo",
       "colorPurple": "Purple",
-      "colorCustom": "Custom color"
+      "colorCustom": "Custom color",
+      "shareQrCode": "Share QR code"
     },
     "settings": {
       "title": "Settings",
@@ -1089,6 +1110,12 @@
         "openSource": "Open source licenses",
         "bundledAssets": "Bundled assets",
         "loadError": "Failed to load license information"
+      },
+      "notifications": {
+        "title": "Shared list updates",
+        "enable": "Get notified when another member changes tasks",
+        "permissionDenied": "Notifications are blocked. Allow notifications in your device settings.",
+        "unavailable": "Push notifications are unavailable in this environment."
       }
     },
     "pages": {
@@ -1254,6 +1281,9 @@
       "dragEnd": "{{item}} moved to position {{position}}",
       "dragCancel": "Moving {{item}} was cancelled",
       "dragInstructions": "To reorder, press Space or Enter to pick up, use the arrow keys to move, and press the same key again to drop. Press Escape to cancel."
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "A shared list was updated"
     }
   },
   "es": {
@@ -1367,8 +1397,8 @@
       },
       "joinList": "Unirse a una lista",
       "joinListTitle": "Unirse a lista compartida",
-      "joinListDescription": "Ingresa el código para unirte a una lista compartida.",
-      "shareCodePlaceholder": "Ingresa el código",
+      "joinListDescription": "Ingresa el código o enlace para unirte a una lista compartida.",
+      "shareCodePlaceholder": "Ingresa el código o enlace",
       "join": "Unirse",
       "joining": "Uniéndose...",
       "calendarNoDatedTasks": "No hay tareas con fecha",
@@ -1457,7 +1487,8 @@
       "colorBlue": "Azul",
       "colorIndigo": "Índigo",
       "colorPurple": "Morado",
-      "colorCustom": "Color personalizado"
+      "colorCustom": "Color personalizado",
+      "shareQrCode": "Código QR para compartir"
     },
     "settings": {
       "title": "Configuración",
@@ -1516,6 +1547,12 @@
         "openSource": "Licencias de código abierto",
         "bundledAssets": "Recursos incluidos",
         "loadError": "No se pudo cargar la información de licencias"
+      },
+      "notifications": {
+        "title": "Actualizaciones de listas compartidas",
+        "enable": "Recibe avisos cuando otro miembro cambie tareas",
+        "permissionDenied": "Las notificaciones están bloqueadas. Permítelas en los ajustes del dispositivo.",
+        "unavailable": "Las notificaciones push no están disponibles en este entorno."
       }
     },
     "pages": {
@@ -1681,6 +1718,9 @@
       "dragEnd": "{{item}} movido a la posición {{position}}",
       "dragCancel": "Se canceló el movimiento de {{item}}",
       "dragInstructions": "Para reordenar, pulsa Espacio o Intro para levantar, usa las teclas de flecha para mover y pulsa la misma tecla de nuevo para soltar. Pulsa Escape para cancelar."
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "Se actualizó una lista compartida"
     }
   },
   "fr": {
@@ -1794,8 +1834,8 @@
       },
       "joinList": "Rejoindre une liste",
       "joinListTitle": "Rejoindre une liste partagée",
-      "joinListDescription": "Saisissez le code de partage pour rejoindre une liste partagée.",
-      "shareCodePlaceholder": "Saisissez le code de partage",
+      "joinListDescription": "Saisissez le code ou le lien de partage pour rejoindre une liste partagée.",
+      "shareCodePlaceholder": "Saisissez le code ou le lien de partage",
       "join": "Rejoindre",
       "joining": "Connexion en cours...",
       "calendarNoDatedTasks": "Aucune tâche avec une date",
@@ -1881,7 +1921,8 @@
       "colorBlue": "Bleu",
       "colorIndigo": "Indigo",
       "colorPurple": "Violet",
-      "colorCustom": "Couleur personnalisée"
+      "colorCustom": "Couleur personnalisée",
+      "shareQrCode": "Code QR de partage"
     },
     "settings": {
       "title": "Paramètres",
@@ -1940,6 +1981,12 @@
         "openSource": "Licences open source",
         "bundledAssets": "Ressources intégrées",
         "loadError": "Impossible de charger les informations de licence"
+      },
+      "notifications": {
+        "title": "Mises à jour des listes partagées",
+        "enable": "Recevez une notification lorsqu’un autre membre modifie des tâches",
+        "permissionDenied": "Les notifications sont bloquées. Autorisez-les dans les réglages de votre appareil.",
+        "unavailable": "Les notifications push ne sont pas disponibles dans cet environnement."
       }
     },
     "pages": {
@@ -2105,6 +2152,9 @@
       "dragEnd": "{{item}} déplacé à la position {{position}}",
       "dragCancel": "Déplacement de {{item}} annulé",
       "dragInstructions": "Pour réorganiser, appuyez sur Espace ou Entrée pour saisir, utilisez les flèches pour déplacer, puis appuyez de nouveau sur la même touche pour déposer. Appuyez sur Échap pour annuler."
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "Une liste partagée a été mise à jour"
     }
   },
   "hi": {
@@ -2218,8 +2268,8 @@
       },
       "joinList": "सूची में शामिल हों",
       "joinListTitle": "साझा सूची में शामिल हों",
-      "joinListDescription": "साझा टास्क सूची में शामिल होने के लिए शेयर कोड दर्ज करें।",
-      "shareCodePlaceholder": "शेयर कोड दर्ज करें",
+      "joinListDescription": "साझा टास्क सूची में शामिल होने के लिए शेयर कोड या लिंक दर्ज करें।",
+      "shareCodePlaceholder": "शेयर कोड या लिंक दर्ज करें",
       "join": "शामिल हों",
       "joining": "शामिल हो रहे हैं...",
       "calendarNoDatedTasks": "किसी भी टास्क में तिथि सेट नहीं है",
@@ -2292,7 +2342,8 @@
       "colorBlue": "नीला",
       "colorIndigo": "इंडिगो",
       "colorPurple": "बैंगनी",
-      "colorCustom": "कस्टम रंग"
+      "colorCustom": "कस्टम रंग",
+      "shareQrCode": "साझा करने के लिए QR कोड"
     },
     "settings": {
       "title": "सेटिंग्स",
@@ -2351,6 +2402,12 @@
         "openSource": "ओपन सोर्स लाइसेंस",
         "bundledAssets": "शामिल एसेट",
         "loadError": "लाइसेंस जानकारी लोड नहीं हो सकी"
+      },
+      "notifications": {
+        "title": "साझा सूची अपडेट",
+        "enable": "जब कोई अन्य सदस्य कार्यों में बदलाव करे, तब सूचना पाएं",
+        "permissionDenied": "सूचनाएं अवरुद्ध हैं। डिवाइस सेटिंग में सूचनाओं की अनुमति दें।",
+        "unavailable": "इस परिवेश में पुश सूचनाएं उपलब्ध नहीं हैं।"
       }
     },
     "pages": {
@@ -2516,6 +2573,9 @@
       "dragEnd": "{{item}} को स्थान {{position}} पर ले जाया गया",
       "dragCancel": "{{item}} को ले जाना रद्द किया गया",
       "dragInstructions": "क्रम बदलने के लिए, उठाने हेतु Space या Enter दबाएँ, तीर कुंजियों से ले जाएँ और छोड़ने के लिए वही कुंजी फिर दबाएँ। रद्द करने के लिए Escape दबाएँ।"
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "साझा सूची अपडेट की गई"
     }
   },
   "id": {
@@ -2629,8 +2689,8 @@
       },
       "joinList": "Gabung daftar",
       "joinListTitle": "Gabung daftar bersama",
-      "joinListDescription": "Masukkan kode berbagi untuk bergabung ke daftar tugas bersama.",
-      "shareCodePlaceholder": "Masukkan kode berbagi",
+      "joinListDescription": "Masukkan kode atau tautan untuk bergabung ke daftar tugas bersama.",
+      "shareCodePlaceholder": "Masukkan kode atau tautan berbagi",
       "join": "Gabung",
       "joining": "Sedang bergabung...",
       "calendarNoDatedTasks": "Tidak ada tugas bertanggal",
@@ -2709,7 +2769,8 @@
       "colorBlue": "Biru",
       "colorIndigo": "Indigo",
       "colorPurple": "Ungu",
-      "colorCustom": "Warna kustom"
+      "colorCustom": "Warna kustom",
+      "shareQrCode": "Kode QR untuk berbagi"
     },
     "settings": {
       "title": "Pengaturan",
@@ -2768,6 +2829,12 @@
         "openSource": "Lisensi open source",
         "bundledAssets": "Aset bawaan",
         "loadError": "Gagal memuat informasi lisensi"
+      },
+      "notifications": {
+        "title": "Pembaruan daftar bersama",
+        "enable": "Dapatkan pemberitahuan saat anggota lain mengubah tugas",
+        "permissionDenied": "Notifikasi diblokir. Izinkan notifikasi di pengaturan perangkat.",
+        "unavailable": "Notifikasi push tidak tersedia di lingkungan ini."
       }
     },
     "pages": {
@@ -2933,6 +3000,9 @@
       "dragEnd": "{{item}} dipindahkan ke posisi {{position}}",
       "dragCancel": "Pemindahan {{item}} dibatalkan",
       "dragInstructions": "Untuk mengubah urutan, tekan Spasi atau Enter untuk mengangkat, gunakan tombol panah untuk memindahkan, lalu tekan tombol yang sama lagi untuk meletakkan. Tekan Escape untuk membatalkan."
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "Daftar bersama diperbarui"
     }
   },
   "ja": {
@@ -3046,8 +3116,8 @@
       },
       "joinList": "リストに参加",
       "joinListTitle": "共有リストに参加",
-      "joinListDescription": "共有コードを入力してリストに参加します。",
-      "shareCodePlaceholder": "共有コードを入力",
+      "joinListDescription": "共有コードまたは URL を入力して、共有リストに参加します。",
+      "shareCodePlaceholder": "共有コードまたは URL を入力",
       "join": "参加",
       "joining": "参加中...",
       "calendarNoDatedTasks": "日付が設定されたタスクはありません",
@@ -3120,7 +3190,8 @@
       "colorBlue": "青",
       "colorIndigo": "インディゴ",
       "colorPurple": "紫",
-      "colorCustom": "カスタム色"
+      "colorCustom": "カスタム色",
+      "shareQrCode": "共有用 QR コード"
     },
     "settings": {
       "title": "設定",
@@ -3179,6 +3250,12 @@
         "openSource": "オープンソースライセンス",
         "bundledAssets": "同梱アセット",
         "loadError": "ライセンス情報の読み込みに失敗しました"
+      },
+      "notifications": {
+        "title": "共有リストの更新通知",
+        "enable": "他のメンバーがタスクを更新したときに通知します",
+        "permissionDenied": "通知が許可されていません。端末の設定で通知を許可してください。",
+        "unavailable": "この環境ではプッシュ通知を利用できません。"
       }
     },
     "pages": {
@@ -3344,6 +3421,9 @@
       "dragEnd": "{{item}}を{{position}}番目に移動しました",
       "dragCancel": "{{item}}の移動をキャンセルしました",
       "dragInstructions": "並び替えるには、スペースキーまたはEnterキーで持ち上げ、矢印キーで移動し、もう一度同じキーで確定します。Escキーでキャンセルします。"
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "共有リストが更新されました"
     }
   },
   "ko": {
@@ -3457,8 +3537,8 @@
       },
       "joinList": "목록 참가",
       "joinListTitle": "공유 목록 참가",
-      "joinListDescription": "공유 작업 목록에 참가하려면 공유 코드를 입력하세요.",
-      "shareCodePlaceholder": "공유 코드 입력",
+      "joinListDescription": "공유 작업 목록에 참가하려면 공유 코드 또는 링크를 입력하세요.",
+      "shareCodePlaceholder": "공유 코드 또는 링크 입력",
       "join": "참가",
       "joining": "참가 중...",
       "calendarNoDatedTasks": "날짜가 지정된 작업이 없습니다",
@@ -3538,7 +3618,8 @@
       "colorBlue": "파랑",
       "colorIndigo": "인디고",
       "colorPurple": "보라",
-      "colorCustom": "사용자 지정 색상"
+      "colorCustom": "사용자 지정 색상",
+      "shareQrCode": "공유용 QR 코드"
     },
     "settings": {
       "title": "설정",
@@ -3597,6 +3678,12 @@
         "openSource": "오픈소스 라이선스",
         "bundledAssets": "포함된 자산",
         "loadError": "라이선스 정보를 불러오지 못했습니다"
+      },
+      "notifications": {
+        "title": "공유 목록 업데이트",
+        "enable": "다른 멤버가 작업을 변경하면 알림을 받습니다",
+        "permissionDenied": "알림이 차단되었습니다. 기기 설정에서 알림을 허용하세요.",
+        "unavailable": "이 환경에서는 푸시 알림을 사용할 수 없습니다."
       }
     },
     "pages": {
@@ -3762,6 +3849,9 @@
       "dragEnd": "{{item}}을(를) {{position}}번째로 이동했습니다",
       "dragCancel": "{{item}} 이동을 취소했습니다",
       "dragInstructions": "순서를 바꾸려면 스페이스 키 또는 Enter 키로 들어 올리고, 화살표 키로 이동한 뒤 같은 키를 다시 눌러 놓습니다. Esc 키로 취소합니다."
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "공유 목록이 업데이트되었습니다"
     }
   },
   "pt-BR": {
@@ -3875,8 +3965,8 @@
       },
       "joinList": "Entrar na lista",
       "joinListTitle": "Entrar em lista compartilhada",
-      "joinListDescription": "Digite o código de compartilhamento para entrar em uma lista compartilhada.",
-      "shareCodePlaceholder": "Digite o código de compartilhamento",
+      "joinListDescription": "Digite o código ou link para entrar em uma lista compartilhada.",
+      "shareCodePlaceholder": "Digite o código ou link de compartilhamento",
       "join": "Entrar",
       "joining": "Entrando...",
       "calendarNoDatedTasks": "Nenhuma tarefa com data",
@@ -3970,7 +4060,8 @@
       "colorBlue": "Azul",
       "colorIndigo": "Índigo",
       "colorPurple": "Roxo",
-      "colorCustom": "Cor personalizada"
+      "colorCustom": "Cor personalizada",
+      "shareQrCode": "Código QR para compartilhar"
     },
     "settings": {
       "title": "Configurações",
@@ -4029,6 +4120,12 @@
         "openSource": "Licenças de código aberto",
         "bundledAssets": "Recursos incluídos",
         "loadError": "Falha ao carregar as informações de licença"
+      },
+      "notifications": {
+        "title": "Atualizações de listas compartilhadas",
+        "enable": "Receba avisos quando outra pessoa alterar tarefas",
+        "permissionDenied": "As notificações estão bloqueadas. Permita-as nas configurações do dispositivo.",
+        "unavailable": "As notificações push não estão disponíveis neste ambiente."
       }
     },
     "pages": {
@@ -4194,6 +4291,9 @@
       "dragEnd": "{{item}} movido para a posição {{position}}",
       "dragCancel": "Movimento de {{item}} cancelado",
       "dragInstructions": "Para reordenar, pressione Espaço ou Enter para levantar, use as setas para mover e pressione a mesma tecla novamente para soltar. Pressione Esc para cancelar."
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "Uma lista compartilhada foi atualizada"
     }
   },
   "zh-CN": {
@@ -4307,8 +4407,8 @@
       },
       "joinList": "加入列表",
       "joinListTitle": "加入共享列表",
-      "joinListDescription": "输入共享码以加入共享任务列表。",
-      "shareCodePlaceholder": "输入共享码",
+      "joinListDescription": "输入共享码或链接以加入共享任务列表。",
+      "shareCodePlaceholder": "输入共享码或链接",
       "join": "加入",
       "joining": "加入中...",
       "calendarNoDatedTasks": "没有设置日期的任务",
@@ -4390,7 +4490,8 @@
       "colorBlue": "蓝色",
       "colorIndigo": "靛蓝色",
       "colorPurple": "紫色",
-      "colorCustom": "自定义颜色"
+      "colorCustom": "自定义颜色",
+      "shareQrCode": "分享二维码"
     },
     "settings": {
       "title": "设置",
@@ -4449,6 +4550,12 @@
         "openSource": "开源许可证",
         "bundledAssets": "内置资源",
         "loadError": "无法加载许可证信息"
+      },
+      "notifications": {
+        "title": "共享清单更新",
+        "enable": "其他成员更改任务时通知我",
+        "permissionDenied": "通知已被阻止。请在设备设置中允许通知。",
+        "unavailable": "此环境不支持推送通知。"
       }
     },
     "pages": {
@@ -4614,6 +4721,9 @@
       "dragEnd": "已将{{item}}移到第{{position}}位",
       "dragCancel": "已取消移动{{item}}",
       "dragInstructions": "要重新排序，请按空格键或回车键拿起，使用方向键移动，再按同一按键放下。按 Esc 键取消。"
+    },
+    "pushNotifications": {
+      "sharedListUpdated": "共享清单已更新"
     }
   }
 }

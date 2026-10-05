@@ -109,8 +109,8 @@
     },
     "joinList": "Liste beitreten",
     "joinListTitle": "Geteilter Liste beitreten",
-    "joinListDescription": "Gib den Freigabecode ein, um einer geteilten Liste beizutreten.",
-    "shareCodePlaceholder": "Freigabecode eingeben",
+    "joinListDescription": "Gib den Freigabecode oder Link ein, um einer geteilten Liste beizutreten.",
+    "shareCodePlaceholder": "Freigabecode oder Link eingeben",
     "join": "Beitreten",
     "joining": "Wird beigetreten...",
     "calendarNoDatedTasks": "Keine Aufgaben mit Datum",
@@ -195,7 +195,8 @@
     "colorBlue": "Blau",
     "colorIndigo": "Indigo",
     "colorPurple": "Lila",
-    "colorCustom": "Benutzerdefinierte Farbe"
+    "colorCustom": "Benutzerdefinierte Farbe",
+    "shareQrCode": "QR-Code zum Teilen"
   },
   "settings": {
     "title": "Einstellungen",
@@ -254,6 +255,12 @@
       "openSource": "Open-Source-Lizenzen",
       "bundledAssets": "Mitgelieferte Assets",
       "loadError": "Lizenzinformationen konnten nicht geladen werden"
+    },
+    "notifications": {
+      "title": "Aktualisierungen geteilter Listen",
+      "enable": "Lass dich benachrichtigen, wenn andere Mitglieder Aufgaben ändern",
+      "permissionDenied": "Benachrichtigungen sind blockiert. Erlaube sie in den Geräteeinstellungen.",
+      "unavailable": "Push-Benachrichtigungen sind in dieser Umgebung nicht verfügbar."
     }
   },
   "pages": {
@@ -419,5 +426,8 @@
     "dragEnd": "{{item}} an Position {{position}} verschoben",
     "dragCancel": "Verschieben von {{item}} abgebrochen",
     "dragInstructions": "Zum Umsortieren mit der Leertaste oder Eingabetaste aufnehmen, mit den Pfeiltasten verschieben und mit derselben Taste wieder ablegen. Mit Escape abbrechen."
+  },
+  "pushNotifications": {
+    "sharedListUpdated": "Eine geteilte Liste wurde aktualisiert"
   }
 }

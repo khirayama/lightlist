@@ -109,8 +109,8 @@
     },
     "joinList": "सूची में शामिल हों",
     "joinListTitle": "साझा सूची में शामिल हों",
-    "joinListDescription": "साझा टास्क सूची में शामिल होने के लिए शेयर कोड दर्ज करें।",
-    "shareCodePlaceholder": "शेयर कोड दर्ज करें",
+    "joinListDescription": "साझा टास्क सूची में शामिल होने के लिए शेयर कोड या लिंक दर्ज करें।",
+    "shareCodePlaceholder": "शेयर कोड या लिंक दर्ज करें",
     "join": "शामिल हों",
     "joining": "शामिल हो रहे हैं...",
     "calendarNoDatedTasks": "किसी भी टास्क में तिथि सेट नहीं है",
@@ -183,7 +183,8 @@
     "colorBlue": "नीला",
     "colorIndigo": "इंडिगो",
     "colorPurple": "बैंगनी",
-    "colorCustom": "कस्टम रंग"
+    "colorCustom": "कस्टम रंग",
+    "shareQrCode": "साझा करने के लिए QR कोड"
   },
   "settings": {
     "title": "सेटिंग्स",
@@ -242,6 +243,12 @@
       "openSource": "ओपन सोर्स लाइसेंस",
       "bundledAssets": "शामिल एसेट",
       "loadError": "लाइसेंस जानकारी लोड नहीं हो सकी"
+    },
+    "notifications": {
+      "title": "साझा सूची अपडेट",
+      "enable": "जब कोई अन्य सदस्य कार्यों में बदलाव करे, तब सूचना पाएं",
+      "permissionDenied": "सूचनाएं अवरुद्ध हैं। डिवाइस सेटिंग में सूचनाओं की अनुमति दें।",
+      "unavailable": "इस परिवेश में पुश सूचनाएं उपलब्ध नहीं हैं।"
     }
   },
   "pages": {
@@ -407,5 +414,8 @@
     "dragEnd": "{{item}} को स्थान {{position}} पर ले जाया गया",
     "dragCancel": "{{item}} को ले जाना रद्द किया गया",
     "dragInstructions": "क्रम बदलने के लिए, उठाने हेतु Space या Enter दबाएँ, तीर कुंजियों से ले जाएँ और छोड़ने के लिए वही कुंजी फिर दबाएँ। रद्द करने के लिए Escape दबाएँ।"
+  },
+  "pushNotifications": {
+    "sharedListUpdated": "साझा सूची अपडेट की गई"
   }
 }

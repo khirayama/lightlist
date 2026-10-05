@@ -109,8 +109,8 @@
     },
     "joinList": "목록 참가",
     "joinListTitle": "공유 목록 참가",
-    "joinListDescription": "공유 작업 목록에 참가하려면 공유 코드를 입력하세요.",
-    "shareCodePlaceholder": "공유 코드 입력",
+    "joinListDescription": "공유 작업 목록에 참가하려면 공유 코드 또는 링크를 입력하세요.",
+    "shareCodePlaceholder": "공유 코드 또는 링크 입력",
     "join": "참가",
     "joining": "참가 중...",
     "calendarNoDatedTasks": "날짜가 지정된 작업이 없습니다",
@@ -190,7 +190,8 @@
     "colorBlue": "파랑",
     "colorIndigo": "인디고",
     "colorPurple": "보라",
-    "colorCustom": "사용자 지정 색상"
+    "colorCustom": "사용자 지정 색상",
+    "shareQrCode": "공유용 QR 코드"
   },
   "settings": {
     "title": "설정",
@@ -249,6 +250,12 @@
       "openSource": "오픈소스 라이선스",
       "bundledAssets": "포함된 자산",
       "loadError": "라이선스 정보를 불러오지 못했습니다"
+    },
+    "notifications": {
+      "title": "공유 목록 업데이트",
+      "enable": "다른 멤버가 작업을 변경하면 알림을 받습니다",
+      "permissionDenied": "알림이 차단되었습니다. 기기 설정에서 알림을 허용하세요.",
+      "unavailable": "이 환경에서는 푸시 알림을 사용할 수 없습니다."
     }
   },
   "pages": {
@@ -414,5 +421,8 @@
     "dragEnd": "{{item}}을(를) {{position}}번째로 이동했습니다",
     "dragCancel": "{{item}} 이동을 취소했습니다",
     "dragInstructions": "순서를 바꾸려면 스페이스 키 또는 Enter 키로 들어 올리고, 화살표 키로 이동한 뒤 같은 키를 다시 눌러 놓습니다. Esc 키로 취소합니다."
+  },
+  "pushNotifications": {
+    "sharedListUpdated": "공유 목록이 업데이트되었습니다"
   }
 }

@@ -1,3 +1,4 @@
+import CoreImage.CIFilterBuiltins
 import CryptoKit
 import FirebaseAnalytics
 @preconcurrency import FirebaseAuth
@@ -9,6 +10,8 @@ import Network
 import Security
 import SwiftUI
 import os
+import UIKit
+import UserNotifications
 
 private let authSignInTimeoutSeconds: TimeInterval = 10
 private let shareCodeCharacters = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -23,6 +26,24 @@ private func normalizedShareCode(_ rawValue: String) -> String? {
 }
 
 private func passwordResetCode(from rawValue: String?) -> String? {
+private func normalizedShareCodeInput(_ rawValue: String) -> String? {
+    let input = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let components = URLComponents(string: input), let scheme = components.scheme?.lowercased() else {
+        return normalizedShareCode(input)
+    }
+    let path = components.path.split(separator: "/").map(String.init)
+    if scheme == "lightlist", components.host?.lowercased() == "sharecodes", path.count == 1 {
+        return normalizedShareCode(path[0])
+    }
+    guard scheme == "https" || scheme == "http", path.first?.lowercased() == "sharecodes" else {
+        return nil
+    }
+    if path.count > 1 {
+        return normalizedShareCode(path[1])
+    }
+    return normalizedShareCode(components.queryItems?.first(where: { $0.name == "code" })?.value ?? "")
+}
+
     guard let rawValue else {
         return nil
     }
@@ -647,6 +668,18 @@ private struct FittedPresentationSizing: ViewModifier {
         } else {
             content
         }
+private func shareQRCodeImage(_ code: String) -> UIImage? {
+    let filter = CIFilter.qrCodeGenerator()
+    filter.message = Data(shareCodeURLString(code).utf8)
+    filter.correctionLevel = "M"
+    guard let outputImage = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)),
+        let cgImage = CIContext().createCGImage(outputImage, from: outputImage.extent)
+    else {
+        return nil
+    }
+    return UIImage(cgImage: cgImage)
+}
+
     }
 }
 
@@ -4382,7 +4415,7 @@ private struct TaskListsView: View {
     private func submitJoinList() {
         guard !joiningList, networkStatus.isOnline, !joinListInput.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         Task {
-            guard let code = normalizedShareCode(joinListInput) else {
+            guard let code = normalizedShareCodeInput(joinListInput) else {
                 joinListError = translations.t("pages.sharecode.notFound")
                 return
             }
@@ -5869,6 +5902,23 @@ private struct TaskListDetailPage: View {
                     Button(removingShareCode ? translations.t("common.deleting") : translations.t("taskList.removeShare")) {
                         Task {
                             removingShareCode = true
+                    if let qrCode = shareQRCodeImage(code) {
+                        VStack(spacing: 8) {
+                            Text(translations.t("taskList.shareQrCode"))
+                                .font(AppTypography.subheadlineMedium())
+                                .foregroundStyle(AppPalette.mutedText)
+                            Image(uiImage: qrCode)
+                                .interpolation(.none)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 192, height: 192)
+                                .padding(12)
+                                .background(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .accessibilityLabel(translations.t("taskList.shareQrCode"))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
                             shareError = nil
                             do {
                                 try await removeShareCode(taskListId: taskList.id)

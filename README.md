@@ -56,11 +56,11 @@ cd apps/web && npm run format     # フォーマット
 cd apps/web && npm run knip       # 未使用コード検査
 ```
 
-## Firestore デプロイ
+## Firebase デプロイ
 
 ```bash
-just deploy-firestore        # staging
-just deploy-firestore-prod   # production
+just deploy-firebase         # dev (default): all resources in firebase.json
+just deploy-firebase prod    # prod: all resources in firebase.json
 ```
 
 `just` の deploy recipe は、PATH 上で解決できる global `firebase` CLI を前提にしています。

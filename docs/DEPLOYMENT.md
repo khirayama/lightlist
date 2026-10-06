@@ -67,7 +67,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - Firebase Auth / Firestore に必要な env は [authentication.md](./authentication.md) を参照する。
 - App Check は使用しない。[app-check.md](./app-check.md) を参照する。
 
-## Firestore デプロイ
+## Firebase デプロイ
 
 費用の合計100円を条件とする課金停止の構成・復旧制約は [billing-control.md](./billing-control.md) を参照する。課金停止の配信は通常の通知Functionsとは別の `firebase.billing.json` を使用する。
 
@@ -75,9 +75,10 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - membership Rules を初回デプロイする前に、[data-model.md](./data-model.md) の membership 移行を完了し、既存リストの保持ユーザーと `memberCount` の照合結果を確認する。アプリの更新を先に配布すると、membership 読み取りが `permission-denied` になり、タスクリスト一覧を構築できない。
 - `memberKeys` クエリを使うクライアントは、[data-model.md](./data-model.md) の memberKeys 移行（Phase 1 Rules のデプロイと backfill）を完了してから配布する。先に配布すると一覧のクエリが拒否される。
 - membership の backfill と Rules のデプロイが完了してからアプリを配布する。
-- クライアントが新しいコレクション・field を書き込む変更は、本番 Rules のデプロイ後に配布する。配布前に本番の Rules release（`firebaserules.googleapis.com/v1/projects/lightlist-prod-b0269/releases/cloud.firestore`）の ruleset がリポジトリの `firestore.rules` と一致することを確認する。Cloudflare Pages の Git integration は production branch への push で Web を本番配布するため、Rules 変更を含む commit は push 前に `just deploy-firestore-prod` を済ませる。
-- staging: `just deploy-firestore`
-- production: `just deploy-firestore-prod`
+- クライアントが新しいコレクション・field を書き込む変更は、本番 Rules のデプロイ後に配布する。配布前に本番の Rules release（`firebaserules.googleapis.com/v1/projects/lightlist-prod-b0269/releases/cloud.firestore`）の ruleset がリポジトリの `firestore.rules` と一致することを確認する。Cloudflare Pages の Git integration は production branch への push で Web を本番配布するため、Rules 変更を含む commit は push 前に `just deploy-firebase prod` を済ませる。
+- dev: `just deploy-firebase`（既定値。明示する場合は `just deploy-firebase dev`）
+- prod: `just deploy-firebase prod`
+- deploy は `firebase.json` に定義した Firestore Rules / indexes と通知 Functions を一括で反映する。環境ごとの project ID は recipe 内で固定しており、`.firebaserc` の既定 project に依存しない。不正な環境名は deploy せずエラーにする。
 - deploy 設定（`firestore.rules` / `firebase.json` / `.firebaserc` / `firestore.indexes.json`）はリポジトリルートに置く。
-- deploy recipe は PATH 上の global `firebase` CLI を前提とする。
-- 共有リスト更新通知を有効にする場合は、Firestore Rules とともに Cloud Functions for Firebase を `firebase deploy --only functions` でデプロイする。Functions は Firebase Blaze プランと Node.js 22 runtime を使い、具体的な FCM / APNs / Web Push 設定は [notifications.md](./notifications.md) を参照する。
+- deploy recipe は PATH 上の global `firebase` CLI を前提とする。`firebase.json` が参照する `functions` codebase のみを対象にし、課金停止 Functions は `firebase.billing.json` の専用手順で本番だけに配信する。
+- 通知 Functions は Firebase Blaze プランと Node.js 22 runtime を使う。具体的な FCM / APNs / Web Push 設定は [notifications.md](./notifications.md) を参照する。

@@ -30,11 +30,12 @@ run-all:
   just ios
   just web
 
-deploy-firestore:
-  firebase --config ./firebase.json deploy --only firestore:rules,firestore:indexes
-
-deploy-firestore-prod:
-  firebase --config ./firebase.json deploy --only firestore:rules,firestore:indexes --project prod
+deploy-firebase environment='dev':
+  case '{{environment}}' in \
+    dev) firebase --config ./firebase.json deploy --project lightlist-dev ;; \
+    prod) firebase --config ./firebase.json deploy --project lightlist-prod-b0269 ;; \
+    *) echo "環境は dev または prod を指定してください" >&2; exit 1 ;; \
+  esac
 
 loc:
   @echo "Web (TypeScript/TSX):"

@@ -16,7 +16,7 @@
 
 - [app-check.md](./app-check.md) — Firebase App Check を使用しない構成
 - [analytics.md](./analytics.md) — Analytics イベント設計
-- [deployment.md](./deployment.md) — Web 配信、PWA、Cloudflare Pages、Firestore デプロイ
+- [deployment.md](./deployment.md) — Web 配信、PWA、Cloudflare Pages、Firebase デプロイ
 - [legal.md](./legal.md) — ライセンス表記
 - [screenshots.md](./screenshots.md) — 配信用スクリーンショット生成
 

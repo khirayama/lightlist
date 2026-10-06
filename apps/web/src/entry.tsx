@@ -5694,22 +5694,8 @@ const COLOR_NAME_KEYS: Partial<Record<string, ColorNameKey>> = {
   "#A78BFA": "taskList.colorPurple",
 };
 
-const DARK_TASK_LIST_BACKGROUNDS: Partial<Record<string, string>> = {
-  "#F87171": "#7F1D1D",
-  "#FBBF24": "#78350F",
-  "#34D399": "#064E3B",
-  "#38BDF8": "#0C4A6E",
-  "#818CF8": "#312E81",
-  "#A78BFA": "#4C1D95",
-};
-
-const resolveTaskListBackground = (background: string | null): string => {
-  if (!background) return "var(--tasklist-theme-bg)";
-  const dark = DARK_TASK_LIST_BACKGROUNDS[background.toUpperCase()];
-  return dark
-    ? `color-mix(in oklab, ${dark} var(--tasklist-dark-strength), ${background})`
-    : `color-mix(in oklab, ${background} var(--tasklist-color-strength), var(--tasklist-theme-bg))`;
-};
+const resolveTaskListBackground = (background: string | null): string =>
+  background ?? "var(--tasklist-theme-bg)";
 
 const LAST_TASK_LIST_STORAGE_KEY_PREFIX = "lightlist.lastTaskList.";
 
@@ -10195,12 +10181,23 @@ function AppShellPage() {
       ? compactForwardTransform
       : compactBackTransform;
   };
+  const isSkeletonOnColoredBackground = Boolean(
+    startupTaskListSnapshot?.background.startsWith("#"),
+  );
+  const isDetailOnColoredBackground =
+    isSessionPending || (!hasStartupError && isTaskListsHydrating)
+      ? isSkeletonOnColoredBackground
+      : !hasStartupError &&
+        Boolean(taskLists[selectedTaskListIndex]?.background);
   const renderDetailSkeleton = (taskRowCount: number) => (
     <div
       className="ll-loading-state ll-h-full ll-p-4"
       role="status"
       aria-label={t("common.loading")}
       aria-busy="true"
+      data-colored-background={
+        isSkeletonOnColoredBackground ? "true" : undefined
+      }
       style={
         startupTaskListSnapshot
           ? { backgroundColor: startupTaskListSnapshot.background }
@@ -10283,9 +10280,7 @@ function AppShellPage() {
         <Carousel
           className={isWideLayout ? "ll-min-h-full ll-flex-1" : "ll-h-full"}
           fitContent={isWideLayout}
-          indicatorOnColoredBackground={Boolean(
-            taskLists[selectedTaskListIndex]?.background,
-          )}
+          indicatorOnColoredBackground={isDetailOnColoredBackground}
           indicatorBackground={
             isCarouselScrolling
               ? null
@@ -10332,6 +10327,7 @@ function AppShellPage() {
                 "ll-flex ll-w-full ll-flex-col",
                 isWideLayout ? "ll-min-h-full" : "ll-h-full",
               )}
+              data-colored-background={taskList.background ? "true" : undefined}
               style={{
                 backgroundColor: resolveTaskListBackground(taskList.background),
               }}
@@ -10493,7 +10489,12 @@ function AppShellPage() {
               {renderCompactPanel(
                 "detail",
                 <>
-                  <div className="ll-absolute ll-z-20 ll-w-full">
+                  <div
+                    className="ll-absolute ll-z-20 ll-w-full"
+                    data-colored-background={
+                      isDetailOnColoredBackground ? "true" : undefined
+                    }
+                  >
                     <AppHeader
                       backLabel={t("common.back")}
                       onBack={handleBackToTaskLists}

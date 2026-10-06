@@ -1413,14 +1413,14 @@
       line-height: var(--ll-leading, var(--text-3xl--line-height));
     }
   }
-  :where(.ll-dark-divide-gray-700:is(.dark *) > :not(:last-child)) {
+  :where(.ll-dark-divide-gray-700:is(.dark *):not([data-colored-background] *) > :not(:last-child)) {
     border-color: #374151;
   }
-  .ll-dark-border-amber-900-40:is(.dark *) {
+  .ll-dark-border-amber-900-40:is(.dark *):not([data-colored-background] *) {
     border-color: #7b330666;
   }
   @supports (color: color-mix(in lab, red, red)) {
-    .ll-dark-border-amber-900-40:is(.dark *) {
+    .ll-dark-border-amber-900-40:is(.dark *):not([data-colored-background] *) {
       border-color: color-mix(
         in oklab,
         var(--color-amber-900) 40%,
@@ -1428,17 +1428,17 @@
       );
     }
   }
-  .ll-dark-border-gray-700:is(.dark *) {
+  .ll-dark-border-gray-700:is(.dark *):not([data-colored-background] *) {
     border-color: #374151;
   }
-  .ll-dark-border-gray-500:is(.dark *) {
+  .ll-dark-border-gray-500:is(.dark *):not([data-colored-background] *) {
     border-color: #6b7280;
   }
-  .ll-dark-border-emerald-900-40:is(.dark *) {
+  .ll-dark-border-emerald-900-40:is(.dark *):not([data-colored-background] *) {
     border-color: #004e3b66;
   }
   @supports (color: color-mix(in lab, red, red)) {
-    .ll-dark-border-emerald-900-40:is(.dark *) {
+    .ll-dark-border-emerald-900-40:is(.dark *):not([data-colored-background] *) {
       border-color: color-mix(
         in oklab,
         var(--color-emerald-900) 40%,
@@ -1446,22 +1446,22 @@
       );
     }
   }
-  .ll-dark-border-gray-50:is(.dark *) {
+  .ll-dark-border-gray-50:is(.dark *):not([data-colored-background] *) {
     border-color: #f9fafb;
   }
-  .ll-dark-border-red-900-40:is(.dark *) {
+  .ll-dark-border-red-900-40:is(.dark *):not([data-colored-background] *) {
     border-color: #82181a66;
   }
   @supports (color: color-mix(in lab, red, red)) {
-    .ll-dark-border-red-900-40:is(.dark *) {
+    .ll-dark-border-red-900-40:is(.dark *):not([data-colored-background] *) {
       border-color: color-mix(in oklab, var(--color-red-900) 40%, transparent);
     }
   }
-  .ll-dark-bg-amber-900-20:is(.dark *) {
+  .ll-dark-bg-amber-900-20:is(.dark *):not([data-colored-background] *) {
     background-color: #7b330633;
   }
   @supports (color: color-mix(in lab, red, red)) {
-    .ll-dark-bg-amber-900-20:is(.dark *) {
+    .ll-dark-bg-amber-900-20:is(.dark *):not([data-colored-background] *) {
       background-color: color-mix(
         in oklab,
         var(--color-amber-900) 20%,
@@ -1469,17 +1469,17 @@
       );
     }
   }
-  .ll-dark-bg-gray-950:is(.dark *) {
+  .ll-dark-bg-gray-950:is(.dark *):not([data-colored-background] *) {
     background-color: #030712;
   }
-  .ll-dark-bg-gray-700:is(.dark *) {
+  .ll-dark-bg-gray-700:is(.dark *):not([data-colored-background] *) {
     background-color: #374151;
   }
-  .ll-dark-bg-emerald-900-20:is(.dark *) {
+  .ll-dark-bg-emerald-900-20:is(.dark *):not([data-colored-background] *) {
     background-color: #004e3b33;
   }
   @supports (color: color-mix(in lab, red, red)) {
-    .ll-dark-bg-emerald-900-20:is(.dark *) {
+    .ll-dark-bg-emerald-900-20:is(.dark *):not([data-colored-background] *) {
       background-color: color-mix(
         in oklab,
         var(--color-emerald-900) 20%,
@@ -1487,20 +1487,20 @@
       );
     }
   }
-  .ll-dark-bg-gray-800:is(.dark *) {
+  .ll-dark-bg-gray-800:is(.dark *):not([data-colored-background] *) {
     background-color: var(--color-gray-800);
   }
-  .ll-dark-bg-gray-900:is(.dark *) {
+  .ll-dark-bg-gray-900:is(.dark *):not([data-colored-background] *) {
     background-color: #111827;
   }
-  .ll-dark-bg-gray-50:is(.dark *) {
+  .ll-dark-bg-gray-50:is(.dark *):not([data-colored-background] *) {
     background-color: #f9fafb;
   }
-  .ll-dark-bg-red-900-20:is(.dark *) {
+  .ll-dark-bg-red-900-20:is(.dark *):not([data-colored-background] *) {
     background-color: #82181a33;
   }
   @supports (color: color-mix(in lab, red, red)) {
-    .ll-dark-bg-red-900-20:is(.dark *) {
+    .ll-dark-bg-red-900-20:is(.dark *):not([data-colored-background] *) {
       background-color: color-mix(
         in oklab,
         var(--color-red-900) 20%,
@@ -1508,77 +1508,77 @@
       );
     }
   }
-  .ll-dark-bg-gray-900b:is(.dark *) {
+  .ll-dark-bg-gray-900b:is(.dark *):not([data-colored-background] *) {
     background-color: #111827;
   }
-  .ll-dark-bg-gray-900-92:is(.dark *) {
+  .ll-dark-bg-gray-900-92:is(.dark *):not([data-colored-background] *) {
     background-color: rgb(17 24 39 / 0.92);
   }
-  .ll-dark-text-amber-100:is(.dark *) {
+  .ll-dark-text-amber-100:is(.dark *):not([data-colored-background] *) {
     color: var(--color-amber-100);
   }
-  .ll-dark-text-emerald-100:is(.dark *) {
+  .ll-dark-text-emerald-100:is(.dark *):not([data-colored-background] *) {
     color: var(--color-emerald-100);
   }
-  .ll-dark-text-red-400:is(.dark *) {
+  .ll-dark-text-red-400:is(.dark *):not([data-colored-background] *) {
     color: #ef4444;
   }
-  .ll-dark-text-gray-400:is(.dark *) {
+  .ll-dark-text-gray-400:is(.dark *):not([data-colored-background] *) {
     color: var(--color-gray-400);
   }
-  .ll-dark-text-gray-300:is(.dark *) {
+  .ll-dark-text-gray-300:is(.dark *):not([data-colored-background] *) {
     color: #d1d5db;
   }
-  .ll-dark-text-gray-900:is(.dark *) {
+  .ll-dark-text-gray-900:is(.dark *):not([data-colored-background] *) {
     color: #111827;
   }
-  .ll-dark-text-red-100:is(.dark *) {
+  .ll-dark-text-red-100:is(.dark *):not([data-colored-background] *) {
     color: var(--color-red-100);
   }
-  .ll-dark-text-red-400v:is(.dark *) {
+  .ll-dark-text-red-400v:is(.dark *):not([data-colored-background] *) {
     color: var(--color-red-400);
   }
-  .ll-dark-text-gray-50:is(.dark *) {
+  .ll-dark-text-gray-50:is(.dark *):not([data-colored-background] *) {
     color: #f9fafb;
   }
-  .ll-dark-peer-checked-bg-gray-700:is(.dark *):is(
+  .ll-dark-peer-checked-bg-gray-700:is(.dark *):not([data-colored-background] *):is(
       :where(.ll-peer):checked ~ *
     ) {
     background-color: #374151;
   }
-  .ll-dark-focus-within-outline-gray-700:is(.dark *):focus-within {
+  .ll-dark-focus-within-outline-gray-700:is(.dark *):not([data-colored-background] *):focus-within {
     outline-color: #374151;
   }
   @media (hover: hover) {
-    .ll-dark-hover-bg-gray-950:is(.dark *):hover {
+    .ll-dark-hover-bg-gray-950:is(.dark *):not([data-colored-background] *):hover {
       background-color: #030712;
     }
-    .ll-dark-hover-bg-gray-50-10:is(.dark *):hover {
+    .ll-dark-hover-bg-gray-50-10:is(.dark *):not([data-colored-background] *):hover {
       background-color: oklab(98.4625% -0.000643373 -0.00158/0.1);
     }
-    .ll-dark-hover-bg-gray-900:is(.dark *):hover {
+    .ll-dark-hover-bg-gray-900:is(.dark *):not([data-colored-background] *):hover {
       background-color: #111827;
     }
-    .ll-dark-hover-bg-gray-900-60:is(.dark *):hover {
+    .ll-dark-hover-bg-gray-900-60:is(.dark *):not([data-colored-background] *):hover {
       background-color: oklab(21.0084% -0.00295345 -0.031625/0.6);
     }
-    .ll-dark-hover-text-gray-50:is(.dark *):hover {
+    .ll-dark-hover-text-gray-50:is(.dark *):not([data-colored-background] *):hover {
       color: #f9fafb;
     }
-    .ll-dark-hover-opacity-90:is(.dark *):hover {
+    .ll-dark-hover-opacity-90:is(.dark *):not([data-colored-background] *):hover {
       opacity: 0.9;
     }
   }
-  .ll-dark-focus-border-gray-300:is(.dark *):focus {
+  .ll-dark-focus-border-gray-300:is(.dark *):not([data-colored-background] *):focus {
     border-color: #d1d5db;
   }
-  .ll-dark-focus-ring-gray-700:is(.dark *):focus {
+  .ll-dark-focus-ring-gray-700:is(.dark *):not([data-colored-background] *):focus {
     --ll-ring-color: #374151;
   }
-  .ll-dark-focus-outline-gray-300:is(.dark *):focus {
+  .ll-dark-focus-outline-gray-300:is(.dark *):not([data-colored-background] *):focus {
     outline-color: #d1d5db;
   }
-  .ll-dark-focus-visible-outline-gray-300:is(.dark *):focus-visible {
+  .ll-dark-focus-visible-outline-gray-300:is(.dark *):not([data-colored-background] *):focus-visible {
     outline-color: #d1d5db;
   }
   .ll-font-display {

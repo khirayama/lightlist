@@ -8,8 +8,6 @@
   --dialog-fg: #111827;
   --dialog-muted: #4b5563;
   --tasklist-theme-bg: #f9fafb;
-  --tasklist-color-strength: 100%;
-  --tasklist-dark-strength: 0%;
   --ll-muted-text: rgb(17 24 39 / 0.64);
   --ll-muted-icon: rgb(17 24 39 / 0.5);
   --ll-row-hover: rgb(17 24 39 / 0.05);
@@ -23,8 +21,6 @@
   --dialog-fg: #f9fafb;
   --dialog-muted: #d1d5db;
   --tasklist-theme-bg: #030712;
-  --tasklist-color-strength: 26%;
-  --tasklist-dark-strength: 100%;
   --ll-muted-text: rgb(249 250 251 / 0.68);
   --ll-muted-icon: rgb(249 250 251 / 0.45);
   --ll-row-hover: rgb(249 250 251 / 0.06);

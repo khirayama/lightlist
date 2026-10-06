@@ -4699,6 +4699,7 @@ private struct DetailPagerContent: View {
                         focusedNewTaskListId: $focusedNewTaskListId
                     )
                     .background(PagerBackSwipeEnabler())
+                    .background(resolveTaskListBackgroundColor(taskList.background))
                     .background(
                         GeometryReader { proxy in
                             Color.clear.preference(
@@ -4744,6 +4745,7 @@ private struct DetailPagerContent: View {
                 progress: pagerProgress,
                 onSelect: { selectedTaskListId = $0 }
             )
+            .taskListColorScheme(currentTaskList?.background)
         }
         .background(backgroundView)
     }
@@ -4821,7 +4823,12 @@ private struct TaskListDetailPagerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .taskListNavigationBar(
+            viewModel.status == .loading || viewModel.status == .error
+                ? nil
+                : (viewModel.taskLists.first(where: { $0.id == selectedTaskListId }) ?? viewModel.taskLists.first)?.background,
+            plainVisibility: .hidden
+        )
         .onAppear {
             viewModel.bind(uid: currentUserId)
             settingsViewModel.bind(uid: currentUserId)
@@ -4977,6 +4984,7 @@ private struct RowFrameKey: PreferenceKey {
 private struct TaskListDetailPage: View {
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.layoutDirection) private var layoutDirection
     let taskList: TaskListDetail
     let taskInsertPosition: String
@@ -5649,6 +5657,7 @@ private struct TaskListDetailPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .focusEffectDisabled()
+        .taskListColorScheme(taskList.background)
         .alert(translations.t("pages.tasklist.deleteCompletedConfirmTitle"), isPresented: $showDeleteCompletedAlert) {
             Button(translations.t("auth.button.delete"), role: .destructive) { confirmDeleteCompleted() }
             Button(translations.t("common.cancel"), role: .cancel) {}
@@ -5746,6 +5755,7 @@ private struct TaskListDetailPage: View {
             }
             .frame(minWidth: 280, maxWidth: 420, maxHeight: 220, alignment: .topLeading)
             .presentationCompactAdaptation(.popover)
+            .environment(\.colorScheme, colorScheme)
         }
     }
 
@@ -6583,6 +6593,7 @@ private struct SharedTaskListPreviewView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(resolveTaskListBackgroundColor(viewModel.taskList?.background).ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .taskListNavigationBar(viewModel.isLoading ? nil : viewModel.taskList?.background, plainVisibility: .automatic)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button(translations.t("common.close"), action: onDismiss)
@@ -7417,77 +7428,37 @@ private extension Color {
     }
 }
 
-private enum TaskListBackgroundTheme {
-    nonisolated static let lightBase: UInt32 = 0xF9FAFB
-    nonisolated static let darkBase: UInt32 = 0x030712
-    nonisolated static let darkColorStrength: Double = 0.26
-    nonisolated static let darkColors: [UInt32: UInt32] = [
-        0xF87171: 0x7F1D1D,
-        0xFBBF24: 0x78350F,
-        0x34D399: 0x064E3B,
-        0x38BDF8: 0x0C4A6E,
-        0x818CF8: 0x312E81,
-        0xA78BFA: 0x4C1D95,
-    ]
-}
-
-nonisolated private func parseHexRGB(_ hex: String) -> UInt32? {
-    let cleaned = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-    guard cleaned.count == 6, let value = UInt32(cleaned, radix: 16) else { return nil }
-    return value
-}
-
-nonisolated private func mixInOklab(_ color: UInt32, _ base: UInt32, strength: Double) -> UIColor {
-    func toLinear(_ channel: Double) -> Double {
-        channel <= 0.04045 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
-    }
-    func toSRGB(_ channel: Double) -> Double {
-        let clamped = min(max(channel, 0), 1)
-        return clamped <= 0.0031308 ? clamped * 12.92 : 1.055 * pow(clamped, 1 / 2.4) - 0.055
-    }
-    func oklab(_ hex: UInt32) -> (Double, Double, Double) {
-        let r = toLinear(Double((hex >> 16) & 0xFF) / 255)
-        let g = toLinear(Double((hex >> 8) & 0xFF) / 255)
-        let b = toLinear(Double(hex & 0xFF) / 255)
-        let l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
-        let m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
-        let s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
-        return (
-            0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
-            1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
-            0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
-        )
-    }
-    let c = oklab(color)
-    let d = oklab(base)
-    let mixL = c.0 * strength + d.0 * (1 - strength)
-    let mixA = c.1 * strength + d.1 * (1 - strength)
-    let mixB = c.2 * strength + d.2 * (1 - strength)
-    let l = pow(mixL + 0.3963377774 * mixA + 0.2158037573 * mixB, 3)
-    let m = pow(mixL - 0.1055613458 * mixA - 0.0638541728 * mixB, 3)
-    let s = pow(mixL - 0.0894841775 * mixA - 1.2914855480 * mixB, 3)
-    return UIColor(
-        red: toSRGB(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
-        green: toSRGB(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
-        blue: toSRGB(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s),
-        alpha: 1
-    )
+private func hasTaskListBackgroundColor(_ background: String?) -> Bool {
+    background.flatMap { Color(hex: $0) } != nil
 }
 
 private func resolveTaskListBackgroundColor(_ background: String?) -> Color {
-    guard let background, let hex = parseHexRGB(background) else {
-        return dynamicColor(TaskListBackgroundTheme.lightBase, TaskListBackgroundTheme.darkBase)
+    background.flatMap { Color(hex: $0) } ?? AppPalette.pageBackground
+}
+
+private struct TaskListColorSchemeModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    let background: String?
+
+    func body(content: Content) -> some View {
+        content.environment(\.colorScheme, hasTaskListBackgroundColor(background) ? .light : colorScheme)
     }
-    return Color(
-        UIColor { traits in
-            if traits.userInterfaceStyle == .dark {
-                if let dark = TaskListBackgroundTheme.darkColors[hex] {
-                    return mixInOklab(dark, dark, strength: 1)
-                }
-                return mixInOklab(hex, TaskListBackgroundTheme.darkBase, strength: TaskListBackgroundTheme.darkColorStrength)
-            }
-            return mixInOklab(hex, hex, strength: 1)
-        })
+}
+
+private extension View {
+    func taskListColorScheme(_ background: String?) -> some View {
+        modifier(TaskListColorSchemeModifier(background: background))
+    }
+
+    func taskListNavigationBar(_ background: String?, plainVisibility: Visibility) -> some View {
+        let isColored = hasTaskListBackgroundColor(background)
+        return toolbarBackground(
+            isColored ? AnyShapeStyle(resolveTaskListBackgroundColor(background)) : AnyShapeStyle(.bar),
+            for: .navigationBar
+        )
+        .toolbarBackground(isColored ? .visible : plainVisibility, for: .navigationBar)
+        .toolbarColorScheme(isColored ? .light : nil, for: .navigationBar)
+    }
 }
 
 private struct CalendarDayCell: View {

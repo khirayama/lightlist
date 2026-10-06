@@ -101,6 +101,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.runtime.LaunchedEffect
@@ -317,7 +318,6 @@ import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
@@ -335,14 +335,6 @@ private val TaskListBackgroundOptions = listOf<String?>(
     "#38BDF8",
     "#818CF8",
     "#A78BFA"
-)
-private val DarkTaskListBackgrounds = mapOf(
-    "#F87171" to Color(0xFF7F1D1D),
-    "#FBBF24" to Color(0xFF78350F),
-    "#34D399" to Color(0xFF064E3B),
-    "#38BDF8" to Color(0xFF0C4A6E),
-    "#818CF8" to Color(0xFF312E81),
-    "#A78BFA" to Color(0xFF4C1D95)
 )
 private val shareCodeRandom = SecureRandom()
 private val shareCodePattern = Regex("^[A-Z0-9]{8}$")
@@ -535,7 +527,11 @@ private fun LightlistTheme(
         colorScheme = colorScheme,
         typography = LightlistTypography,
     ) {
-        CompositionLocalProvider(LocalReduceMotion provides reduceMotion, content = content)
+        CompositionLocalProvider(
+            LocalReduceMotion provides reduceMotion,
+            LocalAppColorScheme provides colorScheme,
+            content = content
+        )
     }
 }
 
@@ -1187,6 +1183,47 @@ private val LocalReduceMotion = compositionLocalOf { false }
 
 private val LocalOnColoredBackground = compositionLocalOf { false }
 
+private val LocalAppColorScheme = staticCompositionLocalOf { LightColorScheme }
+
+private val LocalColoredSystemBars = staticCompositionLocalOf { mutableStateOf(false) }
+
+@Composable
+private fun AppThemeScope(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = LocalAppColorScheme.current,
+        typography = LightlistTypography,
+    ) {
+        CompositionLocalProvider(
+            LocalOnColoredBackground provides false,
+            LocalContentColor provides MaterialTheme.colorScheme.onSurface,
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun TaskListColorScope(background: String?, content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = if (background != null) LightColorScheme else LocalAppColorScheme.current,
+        typography = LightlistTypography,
+    ) {
+        CompositionLocalProvider(
+            LocalOnColoredBackground provides (background != null),
+            LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun ColoredSystemBarsEffect(colored: Boolean) {
+    val coloredSystemBars = LocalColoredSystemBars.current
+    DisposableEffect(colored) {
+        coloredSystemBars.value = colored
+        onDispose { coloredSystemBars.value = false }
+    }
+}
+
 @Composable
 @ReadOnlyComposable
 private fun isAppDarkTheme(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -1568,48 +1605,50 @@ private fun AppDialog(
     footer: @Composable () -> Unit,
     content: (@Composable ColumnScope.() -> Unit)? = null
 ) {
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        modifier = Modifier
-            .padding(horizontal = 16.dp)
-            .widthIn(max = 416.dp),
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-        confirmButton = {
-            CompositionLocalProvider(LocalOnColoredBackground provides false) {
-                AppDialogFooter(start = footerStart, content = footer)
-            }
-        },
-        title = {
-            Text(
-                title,
-                style = AppDialogTitleTextStyle,
-                modifier = Modifier.semantics { heading() }
-            )
-        },
-        text = if (description != null || content != null) {
-            {
+    AppThemeScope {
+        AlertDialog(
+            onDismissRequest = onDismissRequest,
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .widthIn(max = 416.dp),
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+            confirmButton = {
                 CompositionLocalProvider(LocalOnColoredBackground provides false) {
-                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                        if (description != null) {
-                            Text(
-                                description,
-                                style = AppBodySmallTextStyle,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    AppDialogFooter(start = footerStart, content = footer)
+                }
+            },
+            title = {
+                Text(
+                    title,
+                    style = AppDialogTitleTextStyle,
+                    modifier = Modifier.semantics { heading() }
+                )
+            },
+            text = if (description != null || content != null) {
+                {
+                    CompositionLocalProvider(LocalOnColoredBackground provides false) {
+                        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                            if (description != null) {
+                                Text(
+                                    description,
+                                    style = AppBodySmallTextStyle,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            content?.invoke(this)
                         }
-                        content?.invoke(this)
                     }
                 }
-            }
-        } else {
-            null
-        },
-        shape = RoundedCornerShape(16.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        textContentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 0.dp
-    )
+            } else {
+                null
+            },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 0.dp
+        )
+    }
 }
 
 @Composable
@@ -1728,61 +1767,60 @@ private fun AppSheet(
     paneTitle: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val neutralContent: @Composable ColumnScope.() -> Unit = {
-        CompositionLocalProvider(LocalOnColoredBackground provides false) { content() }
-    }
-    val containerColor = MaterialTheme.colorScheme.surfaceContainer
-    val windowInfo = LocalWindowInfo.current
-    val density = LocalDensity.current
-    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val maxSheetHeight = with(density) {
-        minOf(704.dp, windowInfo.containerSize.height.toDp() * 0.88f, windowInfo.containerSize.height.toDp() - statusBarTop - 8.dp)
-    }
-    if (windowWidthDp() >= 640.dp) {
-        Dialog(
-            onDismissRequest = onDismissRequest,
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = containerColor,
+    AppThemeScope {
+        val containerColor = MaterialTheme.colorScheme.surfaceContainer
+        val windowInfo = LocalWindowInfo.current
+        val density = LocalDensity.current
+        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val maxSheetHeight = with(density) {
+            minOf(704.dp, windowInfo.containerSize.height.toDp() * 0.88f, windowInfo.containerSize.height.toDp() - statusBarTop - 8.dp)
+        }
+        if (windowWidthDp() >= 640.dp) {
+            Dialog(
+                onDismissRequest = onDismissRequest,
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = containerColor,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .widthIn(max = 448.dp)
+                        .fillMaxWidth()
+                        .semantics { this.paneTitle = paneTitle }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = maxSheetHeight)
+                            .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        content = content
+                    )
+                }
+            }
+        } else {
+            ModalBottomSheet(
+                onDismissRequest = onDismissRequest,
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                sheetMaxWidth = Dp.Unspecified,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                containerColor = containerColor,
                 contentColor = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .padding(16.dp)
-                    .widthIn(max = 448.dp)
-                    .fillMaxWidth()
-                    .semantics { this.paneTitle = paneTitle }
+                contentWindowInsets = { WindowInsets(0) },
+                modifier = Modifier.semantics { this.paneTitle = paneTitle }
             ) {
                 Column(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .heightIn(max = maxSheetHeight)
-                        .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 24.dp),
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    content = neutralContent
+                    content = content
                 )
             }
-        }
-    } else {
-        ModalBottomSheet(
-            onDismissRequest = onDismissRequest,
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            sheetMaxWidth = Dp.Unspecified,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            containerColor = containerColor,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            contentWindowInsets = { WindowInsets(0) },
-            modifier = Modifier.semantics { this.paneTitle = paneTitle }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = maxSheetHeight)
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                content = neutralContent
-            )
         }
     }
 }
@@ -2660,6 +2698,8 @@ fun RootScreen(
         else -> isSystemInDarkTheme()
     }
     var startupNavigationUserId by rememberSaveable { mutableStateOf<String?>(null) }
+    val coloredSystemBars = remember { mutableStateOf(false) }
+    val lightSystemBars = !darkTheme || coloredSystemBars.value
 
     SideEffect {
         val activity = context as? ComponentActivity ?: return@SideEffect
@@ -2667,8 +2707,8 @@ fun RootScreen(
             activity.window,
             activity.window.decorView
         )
-        insetsController.isAppearanceLightStatusBars = !darkTheme
-        insetsController.isAppearanceLightNavigationBars = !darkTheme
+        insetsController.isAppearanceLightStatusBars = lightSystemBars
+        insetsController.isAppearanceLightNavigationBars = lightSystemBars
     }
 
     LaunchedEffect(pendingDeepLink) {
@@ -2694,6 +2734,7 @@ fun RootScreen(
     key(startupLanguage) {
     CompositionLocalProvider(
         LocalTranslations provides translations,
+        LocalColoredSystemBars provides coloredSystemBars,
         LocalLayoutDirection provides if (startupLanguage == "ar") {
             LayoutDirection.Rtl
         } else {
@@ -2972,95 +3013,98 @@ private fun SharedTaskListPreviewScreen(
     var isJoining by remember { mutableStateOf(false) }
     var addToOrderError by remember { mutableStateOf<String?>(null) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(resolveTaskListBackgroundColor(previewUiState.taskList?.background))
-    ) {
-        when {
-            previewUiState.isLoading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            previewUiState.taskList != null -> {
-                CompositionLocalProvider(LocalOnColoredBackground provides (previewUiState.taskList.background != null)) {
-                    TaskListDetailContent(
-                        taskList = previewUiState.taskList,
-                        taskInsertPosition = settingsState.taskInsertPosition,
-                        autoSort = settingsState.autoSort,
-                        topInset = 56.dp,
-                        allowTaskEditing = previewUiState.isAdded,
-                        allowTaskListDeletion = previewUiState.isAdded,
-                        allowShareCodeManagement = previewUiState.isAdded
-                    )
-                }
-            }
-            else -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        previewUiState.errorMessage ?: t.t("pages.sharecode.error"),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
-
-        Row(
+    ColoredSystemBarsEffect(previewUiState.taskList?.background != null)
+    TaskListColorScope(previewUiState.taskList?.background) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .background(resolveTaskListBackgroundColor(previewUiState.taskList?.background))
         ) {
-            AppIconButton(
-                icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = t.t("common.back"),
-                onClick = onDismiss,
-                modifier = Modifier.bleed(start = 12.dp)
-            )
+            when {
+                previewUiState.isLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                previewUiState.taskList != null -> {
+                    TaskListColorScope(previewUiState.taskList.background) {
+                        TaskListDetailContent(
+                            taskList = previewUiState.taskList,
+                            taskInsertPosition = settingsState.taskInsertPosition,
+                            autoSort = settingsState.autoSort,
+                            topInset = 56.dp,
+                            allowTaskEditing = previewUiState.isAdded,
+                            allowTaskListDeletion = previewUiState.isAdded,
+                            allowShareCodeManagement = previewUiState.isAdded
+                        )
+                    }
+                }
+                else -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            previewUiState.errorMessage ?: t.t("pages.sharecode.error"),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
 
-            if (userId != null && !previewUiState.isAdded && previewUiState.taskListId != null) {
-                AppButton(
-                    text = if (isJoining) t.t("common.loading") else t.t("pages.sharecode.addToOrder"),
-                    onClick = {
-                        scope.launch {
-                            isJoining = true
-                            addToOrderError = null
-                            try {
-                                addSharedTaskListToOrder(previewUiState.taskListId, shareCode)
-                                logShareCodeJoin()
-                                onAdded(previewUiState.taskListId)
-                            } catch (_: Exception) {
-                                addToOrderError = t.t("pages.sharecode.addToOrderError")
-                            } finally {
-                                isJoining = false
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AppIconButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = t.t("common.back"),
+                    onClick = onDismiss,
+                    modifier = Modifier.bleed(start = 12.dp)
+                )
+
+                if (userId != null && !previewUiState.isAdded && previewUiState.taskListId != null) {
+                    AppButton(
+                        text = if (isJoining) t.t("common.loading") else t.t("pages.sharecode.addToOrder"),
+                        onClick = {
+                            scope.launch {
+                                isJoining = true
+                                addToOrderError = null
+                                try {
+                                    addSharedTaskListToOrder(previewUiState.taskListId, shareCode)
+                                    logShareCodeJoin()
+                                    onAdded(previewUiState.taskListId)
+                                } catch (_: Exception) {
+                                    addToOrderError = t.t("pages.sharecode.addToOrderError")
+                                } finally {
+                                    isJoining = false
+                                }
                             }
-                        }
-                    },
-                    enabled = !isJoining && isOnline
+                        },
+                        enabled = !isJoining && isOnline
+                    )
+                }
+            }
+
+            if (userId != null && !previewUiState.isAdded && previewUiState.taskListId != null && !isOnline) {
+                ConnectionRequiredNote(Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            }
+            if (addToOrderError != null) {
+                Text(
+                    addToOrderError!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 72.dp, start = 16.dp, end = 16.dp)
                 )
             }
-        }
-
-        if (userId != null && !previewUiState.isAdded && previewUiState.taskListId != null && !isOnline) {
-            ConnectionRequiredNote(Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-        }
-        if (addToOrderError != null) {
-            Text(
-                addToOrderError!!,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 72.dp, start = 16.dp, end = 16.dp)
-            )
         }
     }
 }
@@ -4166,11 +4210,8 @@ private fun settingsStartupViewLabel(t: Translations, startupView: String): Stri
 
 @Composable
 private fun resolveTaskListBackgroundColor(background: String?): Color {
-    val themeBackground = MaterialTheme.colorScheme.surfaceDim
-    if (background == null) return themeBackground
-    val color = parseHexColor(background)
-    if (!isAppDarkTheme()) return color
-    return DarkTaskListBackgrounds[background.uppercase(Locale.ROOT)] ?: lerp(themeBackground, color, 0.26f)
+    if (background == null) return MaterialTheme.colorScheme.surfaceDim
+    return parseHexColor(background)
 }
 
 private fun dragAutoScrollSpeed(
@@ -6576,6 +6617,7 @@ private fun TaskListDetailPagerScreen(
     val currentTaskList =
         uiState.taskLists.getOrNull(pagerState.currentPage) ?: uiState.taskLists.firstOrNull()
     val taskListBackgroundColor = resolveTaskListBackgroundColor(currentTaskList?.background)
+    ColoredSystemBarsEffect(showTopBar && !uiState.isLoading && currentTaskList?.background != null)
     val showIndicator = showTopBar && uiState.taskLists.size > 1 && currentTaskList != null
     val taskPageTopInset = when {
         !showTopBar -> 40.dp
@@ -6619,80 +6661,88 @@ private fun TaskListDetailPagerScreen(
             .background(taskListBackgroundColor)
             .clipToBounds()
     ) {
-        DetailScreenScaffold(
-            title = "",
-            onBack = if (navController != null) ({ navController.navigateUp() }) else null,
-            showTopBar = showTopBar,
-            topBarHeight = TaskListDetailMetrics.topBarHeight,
-            backgroundColor = taskListBackgroundColor
-        ) {
-            Column(
-                modifier = Modifier
-                    .widthIn(max = TaskListDetailMetrics.contentMaxWidth + 32.dp)
-                    .fillMaxSize()
-                    .align(Alignment.CenterHorizontally)
+        TaskListColorScope(if (uiState.isLoading) null else currentTaskList?.background) {
+            DetailScreenScaffold(
+                title = "",
+                onBack = if (navController != null) ({ navController.navigateUp() }) else null,
+                showTopBar = showTopBar,
+                topBarHeight = TaskListDetailMetrics.topBarHeight,
+                backgroundColor = taskListBackgroundColor
             ) {
-                when {
-                    uiState.isLoading -> {
-                        TaskLoadingPlaceholder(detail = true)
-                    }
-                    currentTaskList == null && uiState.hasError -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(t.t("app.loadError"), color = MaterialTheme.colorScheme.error)
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = TaskListDetailMetrics.contentMaxWidth + 32.dp)
+                        .fillMaxSize()
+                        .align(Alignment.CenterHorizontally)
+                ) {
+                    when {
+                        uiState.isLoading -> {
+                            TaskLoadingPlaceholder(detail = true)
                         }
-                    }
-                    currentTaskList == null -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            TaskStateNotice(icon = Icons.Filled.Menu, titleKey = "app.emptyState", hintKey = "app.emptyStateHint")
+                        currentTaskList == null && uiState.hasError -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(t.t("app.loadError"), color = MaterialTheme.colorScheme.error)
+                            }
                         }
-                    }
-                    else -> {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            HorizontalPager(
-                                state = pagerState,
-                                modifier = Modifier.fillMaxSize()
-                            ) { page ->
-                                val taskList = uiState.taskLists[page]
-                                CompositionLocalProvider(LocalOnColoredBackground provides (taskList.background != null)) {
-                                    TaskListDetailContent(
-                                        taskList = taskList,
-                                        taskInsertPosition = settingsState.taskInsertPosition,
-                                        autoSort = settingsState.autoSort,
-                                        topInset = taskPageTopInset,
+                        currentTaskList == null -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                TaskStateNotice(icon = Icons.Filled.Menu, titleKey = "app.emptyState", hintKey = "app.emptyStateHint")
+                            }
+                        }
+                        else -> {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                HorizontalPager(
+                                    state = pagerState,
+                                    modifier = Modifier.fillMaxSize()
+                                ) { page ->
+                                    val taskList = uiState.taskLists[page]
+                                    TaskListColorScope(taskList.background) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(resolveTaskListBackgroundColor(taskList.background))
+                                        ) {
+                                            TaskListDetailContent(
+                                                taskList = taskList,
+                                                taskInsertPosition = settingsState.taskInsertPosition,
+                                                autoSort = settingsState.autoSort,
+                                                topInset = taskPageTopInset,
+                                            )
+                                        }
+                                    }
+                                }
+                                if (showIndicator) {
+                                    TaskListColorScope(currentTaskList.background) {
+                                        TaskListIndicator(
+                                            count = uiState.taskLists.size,
+                                            selectedIndex = selectedTaskListIndex,
+                                            progress = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
+                                            labels = uiState.taskLists.map { it.name },
+                                            backgroundColor = taskListBackgroundColor,
+                                            onSelect = { index ->
+                                                val nextTaskList = uiState.taskLists.getOrNull(index) ?: return@TaskListIndicator
+                                                updateSelectedTaskListId(nextTaskList.id)
+                                            },
+                                            modifier = Modifier.align(Alignment.TopCenter)
+                                        )
+                                    }
+                                }
+                                if (uiState.hasError) {
+                                    Text(
+                                        t.t("app.loadError"),
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier
+                                            .align(Alignment.TopCenter)
+                                            .padding(top = if (showIndicator) 32.dp else 8.dp)
                                     )
                                 }
-                            }
-                            if (showIndicator) {
-                                CompositionLocalProvider(LocalOnColoredBackground provides (currentTaskList.background != null)) {
-                                    TaskListIndicator(
-                                        count = uiState.taskLists.size,
-                                        selectedIndex = selectedTaskListIndex,
-                                        progress = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
-                                        labels = uiState.taskLists.map { it.name },
-                                        backgroundColor = taskListBackgroundColor,
-                                        onSelect = { index ->
-                                            val nextTaskList = uiState.taskLists.getOrNull(index) ?: return@TaskListIndicator
-                                            updateSelectedTaskListId(nextTaskList.id)
-                                        },
-                                        modifier = Modifier.align(Alignment.TopCenter)
-                                    )
-                                }
-                            }
-                            if (uiState.hasError) {
-                                Text(
-                                    t.t("app.loadError"),
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .padding(top = if (showIndicator) 32.dp else 8.dp)
-                                )
                             }
                         }
                     }
@@ -7932,33 +7982,35 @@ private fun TaskListDetailContent(
                         }
                         .alpha(addActionAlpha)
                 )
-                DropdownMenu(
-                    expanded = isNewTaskInputFocused && historyOptions.isNotEmpty(),
-                    onDismissRequest = { focusManager.clearFocus(force = true) },
-                    offset = DpOffset(0.dp, 4.dp),
-                    properties = PopupProperties(focusable = false, dismissOnClickOutside = false),
-                    shape = RoundedCornerShape(12.dp),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier
-                        .width(with(density) { newTaskInputWidthPx.toDp() })
-                        .heightIn(max = 220.dp)
-                ) {
-                    historyOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = option,
-                                    style = AppBodySmallTextStyle,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            },
-                            onClick = {
-                                newTaskText = option
-                                addTask()
-                                newTaskFocusRequester.requestFocus()
-                            }
-                        )
+                AppThemeScope {
+                    DropdownMenu(
+                        expanded = isNewTaskInputFocused && historyOptions.isNotEmpty(),
+                        onDismissRequest = { focusManager.clearFocus(force = true) },
+                        offset = DpOffset(0.dp, 4.dp),
+                        properties = PopupProperties(focusable = false, dismissOnClickOutside = false),
+                        shape = RoundedCornerShape(12.dp),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier
+                            .width(with(density) { newTaskInputWidthPx.toDp() })
+                            .heightIn(max = 220.dp)
+                    ) {
+                        historyOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = option,
+                                        style = AppBodySmallTextStyle,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
+                                onClick = {
+                                    newTaskText = option
+                                    addTask()
+                                    newTaskFocusRequester.requestFocus()
+                                }
+                            )
+                        }
                     }
                 }
             }

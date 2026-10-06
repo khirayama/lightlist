@@ -2892,6 +2892,9 @@ struct RootView: View {
             guard let uid = currentUserId, notificationsEnabled else { return }
             await SharedNotificationRegistration.refresh(uid: uid, registeredToken: registeredNotificationToken)
         }
+        .task(id: currentUserId ?? "") {
+            try? await SharedNotificationRegistration.releaseStaleToken()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .lightlistOpenTaskList)) { notification in
             guard let taskListId = notification.object as? String else { return }
             SharedNotificationNavigation.pendingTaskListId = nil
@@ -8457,6 +8460,25 @@ private enum SharedNotificationRegistration {
     private static let deviceIdKey = "lightlist.notificationDeviceId"
     private static var apnsWaiters: [UUID: CheckedContinuation<Void, Error>] = [:]
     private static var apnsTimeoutTask: Task<Void, Never>?
+    private static let tokenOwnerKey = "lightlist.notificationTokenOwnerUid"
+    private static var staleTokenReleaseTask: Task<Void, Error>?
+
+    static func releaseStaleToken() async throws {
+        if let staleTokenReleaseTask {
+            try await staleTokenReleaseTask.value
+            return
+        }
+        guard let ownerUid = UserDefaults.standard.string(forKey: tokenOwnerKey),
+            ownerUid != Auth.auth().currentUser?.uid
+        else { return }
+        let task = Task { @MainActor in
+            defer { staleTokenReleaseTask = nil }
+            try await Messaging.messaging().deleteToken()
+            UserDefaults.standard.removeObject(forKey: tokenOwnerKey)
+        }
+        staleTokenReleaseTask = task
+        try await task.value
+    }
 
     private static func waitForAPNsRegistration() async throws {
         if Messaging.messaging().apnsToken != nil { return }
@@ -8489,9 +8511,17 @@ private enum SharedNotificationRegistration {
         }
     }
 
-    private static func registrationToken() async throws -> String {
+    private static func registrationToken(uid: String) async throws -> String {
+        try await releaseStaleToken()
         try await waitForAPNsRegistration()
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+        let token = try await fetchRegistrationToken()
+        guard Auth.auth().currentUser?.uid == uid else { throw CancellationError() }
+        UserDefaults.standard.set(uid, forKey: tokenOwnerKey)
+        return token
+    }
+
+    private static func fetchRegistrationToken() async throws -> String {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
             Messaging.messaging().token { token, error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -8539,7 +8569,7 @@ private enum SharedNotificationRegistration {
             authorized = await isAuthorized()
         }
         guard authorized else { return false }
-        let token = try await registrationToken()
+        let token = try await registrationToken(uid: uid)
         try await saveDevice(uid: uid, token: token, enablePreference: true)
         return true
     }
@@ -8547,7 +8577,7 @@ private enum SharedNotificationRegistration {
     static func refresh(uid: String, registeredToken: String?) async {
         do {
             guard await isAuthorized() else { return }
-            let token = try await registrationToken()
+            let token = try await registrationToken(uid: uid)
             guard token != registeredToken else { return }
             try await saveDevice(uid: uid, token: token, enablePreference: false)
         } catch {
@@ -8598,7 +8628,9 @@ private enum SharedNotificationRegistration {
                 if registered {
                     try? await reference.updateData(removal)
                 }
-                try? await Messaging.messaging().deleteToken()
+                if (try? await Messaging.messaging().deleteToken()) != nil {
+                    UserDefaults.standard.removeObject(forKey: tokenOwnerKey)
+                }
                 check.finish(false)
             }
             Task { @MainActor in

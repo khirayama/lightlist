@@ -2621,6 +2621,9 @@ fun RootScreen(
 
     val settingsState = resolvedSettingsState(currentUserId, rememberSettingsState(currentUserId))
     val context = LocalContext.current
+    LaunchedEffect(currentUserId) {
+        runCatching { releaseStaleSharedListNotificationToken(context) }
+    }
     LaunchedEffect(
         currentUserId,
         settingsState.isLoading,
@@ -2634,7 +2637,7 @@ fun RootScreen(
                 PackageManager.PERMISSION_GRANTED
         ) return@LaunchedEffect
         runCatching {
-            val token = sharedListNotificationToken()
+            val token = sharedListNotificationToken(context, uid)
             if (token != settingsState.notificationToken && Firebase.auth.currentUser?.uid == uid) {
                 saveSharedListNotificationToken(context, uid, token)
             }
@@ -8718,7 +8721,7 @@ private fun SettingsView(
             scope.launch {
                 isUpdatingNotifications = true
                 try {
-                    val token = sharedListNotificationToken()
+                    val token = sharedListNotificationToken(context, uid)
                     saveSharedListNotificationToken(context, uid, token, enablePreference = true)
                     errorMessage = null
                     logSettingsSharedNotificationsChange(true)
@@ -8754,7 +8757,7 @@ private fun SettingsView(
         scope.launch {
             isUpdatingNotifications = true
             try {
-                val token = sharedListNotificationToken()
+                val token = sharedListNotificationToken(context, uid)
                 saveSharedListNotificationToken(context, uid, token, enablePreference = true)
                 errorMessage = null
                 logSettingsSharedNotificationsChange(true)

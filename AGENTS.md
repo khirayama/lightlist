@@ -49,7 +49,7 @@
 - 全タスク完了時は一覧末尾に `pages.tasklist.allCompleted` を表示し（Web `AllTasksCompletedNotice` は mount 時の遷移判定だけ `ll-anim-pop`、iOS は opacity + scale transition、Android は `animateItem` の fade）、iOS / Android は最後の完了操作だけ成功の触覚 feedback（iOS `.success` / Android `Confirm`）にする。未完了件数は数字部分だけを差し替える（Web `RollingCountLabel` + `ll-count-roll`、iOS `numericText`、Android `RollingCountText` の `AnimatedContent`）。ページャーのインジケータは選択丸をスクロール量に連動させた worm 形状（`start = base + max(0, 2f - 1)` / `end = base + min(1, 2f)`）で描き、Web は scroll handler から CSS 変数を直接更新、iOS は `@Observable` の `TaskListPagerProgress` をインジケータだけが読む、Android は `currentPage + currentPageOffsetFraction` を draw phase で読み、再コンポーズ・再レンダーを起こさない。
 - カレンダーの日付選択は 3 プラットフォーム共通で選択円を約 240ms の spring / scale、該当タスク行の背景色を約 180ms で切り替える。Web は `prefers-reduced-motion`、iOS は `accessibilityReduceMotion`、Android は `rememberReduceMotion()` に従い、reduce motion 時は即時反映する。iOS / Android の日付・タスク行からの選択は selection feedback（iOS `UISelectionFeedbackGenerator`、Android `SegmentFrequentTick`）を返すが、月移動に伴う選択解除では返さない。
 - Firebase デプロイ設定（`firestore.rules`, `firebase.json`, `.firebaserc`, `firestore.indexes.json`）はリポジトリルートに配置。
-- 通知 Functions は共有していないリスト（`memberCount` 1 以下）で Firestore を読まずに終了させ、重複抑止用の document を持たない。通知は最初の変更ですぐ配信して同じリストはその後 10 分間抑制し（待ってまとめて送らない）、instance 内の記録を先に見てから `notificationThrottles/{taskListId}` を読む。通知は `taskListId` を tag / collapse id にして上書きする。クライアントの端末登録は settings 購読結果の登録済み token と異なるときだけ書き込み、ログアウトは登録削除と端末側の FCM token 削除を待ってからサインアウトする（詳細は `docs/notifications.md`）。
+- 通知 Functions は共有していないリスト（`memberCount` 1 以下）で Firestore を読まずに終了させ、重複抑止用の document を持たない。通知は最初の変更ですぐ配信して同じリスト・同じ変更者の組はその後 10 分間抑制し（待ってまとめて送らない。リスト単位にすると相手の返信的な変更が届かない）、instance 内の記録を先に見てから `notificationThrottles/{taskListId}_{変更者 uid}` を読む。通知は `taskListId` を tag / collapse id にして上書きする。クライアントの端末登録は settings 購読結果の登録済み token と異なるときだけ書き込み、ログアウトは登録削除と端末側の FCM token 削除を待ってからサインアウトする。オフラインのログアウトでは token が残るため、端末に token の所有 uid を保存し、現在のユーザーと異なれば登録前に token を破棄して別ユーザーへ通知が届かないようにする（詳細は `docs/notifications.md`）。
 - 課金停止処理は `functions-billing` と `firebase.billing.json` の専用 codebase で本番プロジェクトだけに配信し、通知 Functions の通常配信へ混在させない。課金停止の権限・監視範囲・復旧制約は `docs/billing-control.md` を参照する。
 - `.gitignore` はルートで共通ローカル生成物（OS / editor / Node / Firebase 設定）を管理し、`apps/web/.gitignore` / `apps/ios/.gitignore` / `apps/android/.gitignore` は各アプリ固有の生成物だけを管理する。
 - `taskListOrder` の読み取りは有効な `order` map だけを採用し、余分なスカラー field で一覧全体をエラーにしない。ドット記法を set + merge で保存した残存 field は表示順として扱わない。
@@ -138,9 +138,7 @@
 
 ## 主要コマンド
 
-- ルート:
-  - `just deploy-firestore`
-  - `just deploy-firestore-prod`
+- ルート: `just deploy-firebase`（既定は dev）/ `just deploy-firebase prod` で `firebase.json` に定義した Firebase リソースを一括配信する。環境ごとの Firebase project ID は recipe 内で固定し、`.firebaserc` の既定値に依存しない。
 - app ごとのコマンドは各 `apps/<app>/AGENTS.md` を参照する。
 
 ## セキュリティ・品質ルール

@@ -471,7 +471,45 @@ const getApp = (): FirebaseApp => {
 
 const WEB_NOTIFICATION_DEVICE_ID_KEY = "lightlist.notificationDeviceId";
 
+const WEB_NOTIFICATION_TOKEN_OWNER_KEY = "lightlist.notificationTokenOwnerUid";
+
 let webNotificationTokenIssued = false;
+let webNotificationTokenRelease: Promise<void> | null = null;
+
+function writeWebNotificationTokenOwner(uid: string | null) {
+  try {
+    if (uid) window.localStorage.setItem(WEB_NOTIFICATION_TOKEN_OWNER_KEY, uid);
+    else window.localStorage.removeItem(WEB_NOTIFICATION_TOKEN_OWNER_KEY);
+  } catch {
+    return;
+  }
+}
+
+function releaseStaleWebNotificationToken(
+  currentUid: string | null,
+): Promise<void> {
+  webNotificationTokenRelease ??= (async () => {
+    let ownerUid: string | null = null;
+    try {
+      ownerUid = window.localStorage.getItem(WEB_NOTIFICATION_TOKEN_OWNER_KEY);
+    } catch {
+      return;
+    }
+    if (!ownerUid || ownerUid === currentUid) return;
+    if ("serviceWorker" in navigator) {
+      const registration =
+        await navigator.serviceWorker.getRegistration("/notifications/");
+      const subscription = await registration?.pushManager?.getSubscription();
+      if (subscription && !(await subscription.unsubscribe())) {
+        throw new Error("notification-unavailable");
+      }
+    }
+    writeWebNotificationTokenOwner(null);
+  })().finally(() => {
+    webNotificationTokenRelease = null;
+  });
+  return webNotificationTokenRelease;
+}
 
 function readWebNotificationDeviceId(): string | null {
   try {
@@ -548,6 +586,7 @@ async function registerWebNotificationDevice(
   }
   const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
   if (!vapidKey) throw new Error("notification-unavailable");
+  await releaseStaleWebNotificationToken(uid);
   const registration = await navigator.serviceWorker.register(
     "/notifications/firebase-messaging-sw.js",
     { scope: "/notifications/" },
@@ -559,6 +598,7 @@ async function registerWebNotificationDevice(
   );
   if (!token) throw new Error("notification-unavailable");
   webNotificationTokenIssued = true;
+  writeWebNotificationTokenOwner(uid);
   if (!options.requestPermission && token === options.registeredToken) {
     return registration;
   }
@@ -596,6 +636,7 @@ async function unregisterWebNotificationDevice(
     removals.push(
       import("firebase/messaging")
         .then((sdk) => sdk.deleteToken(sdk.getMessaging(getApp())))
+        .then(() => writeWebNotificationTokenOwner(null))
         .catch(() => {}),
     );
   }
@@ -1312,9 +1353,13 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
   const prevLanguageRef = useRef<string | null>(null);
   const settingsRef = useRef<ReturnType<typeof useSettings> | null>(null);
   const { t } = useTranslation();
-  const { activeUid } = useSessionState();
+  const { activeUid, authStatus } = useSessionState();
   const settings = useSettings();
   settingsRef.current = settings;
+  useEffect(() => {
+    if (authStatus === "loading") return;
+    void releaseStaleWebNotificationToken(activeUid).catch(() => {});
+  }, [activeUid, authStatus]);
 
   useEffect(() => {
     const isSecureOrLocalhost =

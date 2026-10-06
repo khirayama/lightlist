@@ -71,9 +71,9 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 - `taskListId`
 - `createdAt`
 
-### notificationThrottles/{taskListId}
+### notificationThrottles/{taskListId}_{actorUid}
 
-共有リスト更新通知の抑制記録。Admin SDK だけが読み書きし、Rules ではクライアントからのアクセスを許可しない。
+共有リスト更新通知の、タスクリストと変更者の組ごとの抑制記録。変更者を特定できない書き込みは `{taskListId}` を document ID にする。Admin SDK だけが読み書きし、Rules ではクライアントからのアクセスを許可しない。
 
 - `notifiedAt`: 最後に通知を配信した Unix epoch milliseconds。
 

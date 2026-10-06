@@ -22,6 +22,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
@@ -29,6 +31,9 @@ import java.util.UUID
 private const val SHARED_LIST_NOTIFICATION_CHANNEL_ID = "shared_list_updates"
 private const val SHARED_LIST_NOTIFICATION_DEVICE_ID_KEY = "deviceId"
 private const val SHARED_LIST_NOTIFICATION_CHANNEL_NAME_KEY = "channelName"
+private const val SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY = "tokenOwnerUid"
+
+private val sharedListNotificationTokenMutex = Mutex()
 
 private fun existingSharedListNotificationDeviceId(context: Context): String? =
     context.getSharedPreferences("lightlist.notifications", Context.MODE_PRIVATE)
@@ -48,9 +53,34 @@ internal fun sharedListNotificationDeviceId(context: Context): String {
     return deviceId
 }
 
+private suspend fun releaseStaleSharedListNotificationTokenLocked(context: Context) {
+    val preferences = context.getSharedPreferences("lightlist.notifications", Context.MODE_PRIVATE)
+    val ownerUid = preferences.getString(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY, null) ?: return
+    if (ownerUid == Firebase.auth.currentUser?.uid) return
+    FirebaseMessaging.getInstance().deleteToken().await()
+    preferences.edit().remove(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY).apply()
+}
+
+internal suspend fun releaseStaleSharedListNotificationToken(context: Context) {
+    sharedListNotificationTokenMutex.withLock { releaseStaleSharedListNotificationTokenLocked(context) }
+}
+
+private fun markSharedListNotificationTokenOwner(context: Context, uid: String) {
+    val preferences = context.getSharedPreferences("lightlist.notifications", Context.MODE_PRIVATE)
+    if (preferences.getString(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY, null) != uid) {
+        preferences.edit().putString(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY, uid).apply()
+    }
+}
+
 @Suppress("DEPRECATION")
-internal suspend fun sharedListNotificationToken(): String =
-    FirebaseMessaging.getInstance().token.await()
+internal suspend fun sharedListNotificationToken(context: Context, uid: String): String =
+    sharedListNotificationTokenMutex.withLock {
+        releaseStaleSharedListNotificationTokenLocked(context)
+        val token = FirebaseMessaging.getInstance().token.await()
+        if (Firebase.auth.currentUser?.uid != uid) throw IllegalStateException("signed out")
+        markSharedListNotificationTokenOwner(context, uid)
+        token
+    }
 
 internal suspend fun saveSharedListNotificationToken(
     context: Context,
@@ -98,6 +128,7 @@ internal suspend fun refreshSharedListNotificationToken(
 ) {
     val settings = Firebase.firestore.collection("settings").document(uid).get(Source.CACHE).await()
     if (settings.getBoolean("notifySharedListUpdates") != true || Firebase.auth.currentUser?.uid != uid) return
+    markSharedListNotificationTokenOwner(context, uid)
     if (registeredSharedListNotificationToken(context, settings) == token) return
     saveSharedListNotificationToken(context, uid, token)
 }
@@ -121,7 +152,12 @@ internal suspend fun removeSharedListNotificationToken(
     val tokenRemoval = FirebaseMessaging.getInstance().deleteToken()
     withTimeoutOrNull(3000L) {
         runCatching { removal?.await() }
-        runCatching { tokenRemoval.await() }
+        if (runCatching { tokenRemoval.await() }.isSuccess) {
+            context.getSharedPreferences("lightlist.notifications", Context.MODE_PRIVATE)
+                .edit()
+                .remove(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY)
+                .apply()
+        }
     }
 }
 

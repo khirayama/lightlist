@@ -90,19 +90,19 @@ const removeInvalidRegistrations = async (
 const isCoolingDown = (notifiedAt: unknown, now: number): boolean =>
   typeof notifiedAt === "number" && now - notifiedAt < NOTIFICATION_COOLDOWN_MS;
 
-const claimNotification = async (taskListId: string): Promise<boolean> => {
+const claimNotification = async (throttleKey: string): Promise<boolean> => {
   const now = Date.now();
-  if (isCoolingDown(recentNotifications.get(taskListId), now)) return false;
+  if (isCoolingDown(recentNotifications.get(throttleKey), now)) return false;
   for (const [key, notifiedAt] of recentNotifications) {
     if (!isCoolingDown(notifiedAt, now)) recentNotifications.delete(key);
   }
-  const throttleRef = getFirestore().collection("notificationThrottles").doc(taskListId);
+  const throttleRef = getFirestore().collection("notificationThrottles").doc(throttleKey);
   const storedAt: unknown = (await throttleRef.get()).data()?.notifiedAt;
   if (typeof storedAt === "number" && isCoolingDown(storedAt, now)) {
-    recentNotifications.set(taskListId, storedAt);
+    recentNotifications.set(throttleKey, storedAt);
     return false;
   }
-  recentNotifications.set(taskListId, now);
+  recentNotifications.set(throttleKey, now);
   await throttleRef.set({ notifiedAt: now });
   return true;
 };
@@ -121,8 +121,8 @@ export const notifySharedTaskListUpdates = onDocumentWrittenWithAuthContext(
 
     const db = getFirestore();
     const taskListId = event.params.taskListId;
-    if (!(await claimNotification(taskListId))) return;
     const actorUid = event.authId;
+    if (!(await claimNotification(actorUid ? `${taskListId}_${actorUid}` : taskListId))) return;
     const members = await event.data?.after.ref.collection("members").get();
     if (!members) return;
     await Promise.all(

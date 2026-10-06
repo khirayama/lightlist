@@ -56,7 +56,7 @@
 - Web の build は Vite 8 / Rolldown の `codeSplitting.groups` を使い、フォントは通常 400 / 500 / 600 / 700 と表示 700 だけを非同期配信する。
 - 削除系の確認は 3 プラットフォームともアプリの確認ダイアログで行い、Web で `window.confirm` を使わない。オフライン中は各 app のルートに置いた `OfflineNotice` で画面下部に `common.offline` を表示し、同じ場所にサーバーに拒否された書き込みの `common.syncFailed` も表示する。
 - オフライン対応は Firestore の永続 cache とローカル書き込みに任せ、UI は書き込みのサーバー応答を待たずに SDK 投入時点で閉じる・遷移する。サーバー応答は pending の解放と同期失敗通知だけに使う。書き込み前の読み取りは cache 優先とし、サーバー判定が必要な操作（認証・メール変更・退会・共有コード・共有参加）はオフライン中に無効化して `common.requiresConnection` を表示する。ログアウトは `waitForPendingWrites` で未送信を確認して警告し、cache は削除しない。詳細は `AGENTS.md`。
-- 3 プラットフォームは WCAG 2.2 AA のコントラスト（文字 4.5:1、アイコン・枠線・状態表示 3:1）を light / dark と背景色付きタスクリストを含めて満たす。補助色は前景色の透過で表し、背景色付きリスト上では濃くする。完了 task は行の opacity でなく muted 文字色 + 取り消し線で表し、完了トグルはタスク本文を名前にして状態を公開する。詳細値は `AGENTS.md` を参照する。
+- 3 プラットフォームは WCAG 2.2 AA のコントラスト（文字 4.5:1、アイコン・枠線・状態表示 3:1）を light / dark と背景色付きタスクリストを含めて満たす。補助色は前景色の透過で表し、背景色付きリスト上では濃くする。タスクリストの背景色は light / dark で同じ選択色をそのまま使い、その領域だけ dark でも light の配色で描く（そこから開く sheet / dialog はアプリのテーマに従う）。完了 task は行の opacity でなく muted 文字色 + 取り消し線で表し、完了トグルはタスク本文を名前にして状態を公開する。詳細値は `AGENTS.md` を参照する。
 - Web / iOS / Android の motion は Reduce Motion を尊重する。iOS / Android のタスク操作には共通方針の触覚 feedback を返す。autoSort の完了切替は行を約 200ms 元の位置に留めてから移動し、位置保持は描画用の配列だけに適用して保存・pending の基準配列に混ぜない。
 - Web の並び替えは現行 `@dnd-kit/react` / `@dnd-kit/dom` / `@dnd-kit/abstract` を使い、旧 dnd-kit package 群を混在させない。
 

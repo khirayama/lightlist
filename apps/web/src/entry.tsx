@@ -1490,7 +1490,7 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
 
   return (
     <ErrorBoundary>
-      <div className="ll-h-dvh ll-w-full ll-overflow-hidden ll-font-sans">
+      <div className="ll-safe-px ll-h-dvh ll-w-full ll-overflow-hidden ll-font-sans">
         <div className="ll-h-full ll-w-full ll-overflow-y-auto">
           <a
             href={`#${MAIN_CONTENT_ID}`}
@@ -4634,7 +4634,7 @@ function ActionSheetContent({
         aria-labelledby={generatedTitleId}
         aria-describedby={generatedDescriptionId}
         className={clsx(
-          "ll-anim-sheet ll-sheet-panel ll-fixed ll-inset-x-0 ll-bottom-0 ll-z-1300 ll-flex ll-max-h-sheet ll-w-full ll-translate-x-0 ll-translate-y-0 ll-flex-col ll-overflow-hidden ll-rounded-t-28px ll-bg-white-b ll-outline-none ll-px-4 ll-pb-6 ll-pt-3 ll-text-gray-900 ll-shadow-2xl ll-sm-left-half ll-sm-top-half ll-sm-translate-x-neg-half ll-sm-translate-y-neg-half ll-dark-bg-gray-900b ll-dark-text-gray-50",
+          "ll-anim-sheet ll-sheet-panel ll-fixed ll-inset-x-0 ll-bottom-0 ll-z-1300 ll-flex ll-max-h-sheet ll-w-full ll-translate-x-0 ll-translate-y-0 ll-flex-col ll-overflow-hidden ll-rounded-t-28px ll-bg-white-b ll-outline-none ll-px-4 ll-safe-pb-6 ll-pt-3 ll-text-gray-900 ll-shadow-2xl ll-sm-left-half ll-sm-top-half ll-sm-translate-x-neg-half ll-sm-translate-y-neg-half ll-dark-bg-gray-900b ll-dark-text-gray-50",
           className,
         )}
       >
@@ -9149,7 +9149,7 @@ function CalendarScreen({
           ref={taskScrollContainerRef}
           className={clsx(
             "ll-min-h-0 ll-flex-1 ll-overflow-y-auto",
-            showCompactHeaderOffset ? "ll-px-4 ll-pb-6" : "ll-calendar-page",
+            showCompactHeaderOffset ? "ll-px-4 ll-safe-pb-6" : "ll-calendar-page",
           )}
         >
           {showCompactHeaderOffset ? null : (
@@ -10421,9 +10421,9 @@ function AppShellPage() {
               <div className={isWideLayout ? "ll-h-10" : "ll-h-88px"} />
               <div
                 className={clsx(
-                  !isWideLayout && "ll-h-full ll-overflow-y-auto ll-pb-10",
+                  !isWideLayout && "ll-h-full ll-overflow-y-auto ll-safe-pb-10",
                   isWideLayout &&
-                    "ll-task-column ll-mx-auto ll-w-full ll-pb-12",
+                    "ll-task-column ll-mx-auto ll-w-full ll-safe-pb-12",
                 )}
               >
                 <TaskListCard
@@ -10502,7 +10502,7 @@ function AppShellPage() {
   );
 
   const taskListsRootContent = (
-    <div className="ll-h-full ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-dark-bg-gray-900b">
+    <div className="ll-h-full ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-safe-pb-4 ll-dark-bg-gray-900b">
       {error ? <Alert variant="error">{error}</Alert> : null}
       {isSessionPending || isTaskListsHydrating
         ? taskListsPanelSkeleton
@@ -10531,7 +10531,7 @@ function AppShellPage() {
       >
         {isWideLayout ? (
           <aside className="ll-sticky ll-top-0 ll-w-360px ll-max-w-420px ll-shrink-0b ll-self-stretch">
-            <div className="ll-flex ll-h-full ll-flex-col ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-dark-bg-gray-900b">
+            <div className="ll-flex ll-h-full ll-flex-col ll-overflow-y-auto ll-bg-white-b ll-p-4 ll-safe-pb-4 ll-dark-bg-gray-900b">
               {isSessionPending || isTaskListsHydrating
                 ? taskListsPanelSkeleton
                 : drawerPanel}
@@ -11410,7 +11410,7 @@ function ShareCodePreviewPage() {
       <main
         id={MAIN_CONTENT_ID}
         tabIndex={-1}
-        className="ll-flex-1 ll-overflow-y-auto"
+        className="ll-safe-pb ll-flex-1 ll-overflow-y-auto"
       >
         {addToOrderError && (
           <div className="ll-p-4 ll-pb-0">

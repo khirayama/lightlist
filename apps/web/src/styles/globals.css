@@ -1052,7 +1052,7 @@
   width: 100%;
   max-width: 40rem;
   margin-inline: auto;
-  padding: 1.5rem 1rem 2.5rem;
+  padding: 1.5rem 1rem calc(2.5rem + env(safe-area-inset-bottom));
 }
 
 .ll-page-container-compact {
@@ -1089,6 +1089,31 @@
   font-size: 1.5rem;
   font-weight: 600;
   line-height: 2rem;
+}
+
+.ll-safe-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.ll-safe-pb-4 {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+.ll-safe-pb-6 {
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+}
+
+.ll-safe-pb-10 {
+  padding-bottom: calc(2.5rem + env(safe-area-inset-bottom));
+}
+
+.ll-safe-pb-12 {
+  padding-bottom: calc(3rem + env(safe-area-inset-bottom));
+}
+
+.ll-safe-px {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 .ll-dialog-panel {
@@ -1357,7 +1382,7 @@
   width: 100%;
   max-width: 72rem;
   margin-inline: auto;
-  padding: 2.5rem 1.5rem 3rem;
+  padding: 2.5rem 1.5rem calc(3rem + env(safe-area-inset-bottom));
 }
 
 .ll-calendar-layout {

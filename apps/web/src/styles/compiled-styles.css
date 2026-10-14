@@ -1003,15 +1003,6 @@
   .ll-pb-3 {
     padding-bottom: calc(var(--spacing) * 3);
   }
-  .ll-pb-6 {
-    padding-bottom: calc(var(--spacing) * 6);
-  }
-  .ll-pb-10 {
-    padding-bottom: calc(var(--spacing) * 10);
-  }
-  .ll-pb-12 {
-    padding-bottom: calc(var(--spacing) * 12);
-  }
   .ll-text-center {
     text-align: center;
   }

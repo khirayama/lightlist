@@ -6,6 +6,9 @@ default:
 android:
   cd apps/android && just build && just run
 
+bundle:
+  cd apps/android && just bundle
+
 emulator target='Pixel_9_API_35':
   cd apps/android && just emulator "{{target}}"
 

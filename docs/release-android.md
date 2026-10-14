@@ -98,7 +98,7 @@ zipalign -c -P 16 -v 4 app/build/outputs/apk/release/app-release.apk
 ### 8. Release build
 
 - `apps/android/gradle.properties` の `LIGHTLIST_VERSION_CODE` を、Play Console にアップロード済みの値より大きくする。一時的な上書きは `-PLIGHTLIST_VERSION_CODE=<値>` を使う。
-- `LIGHTLIST_VERSION_NAME` をユーザー向け表記として必要に応じて更新する。
+- `LIGHTLIST_VERSION_NAME` をユーザー向け表記として必要に応じて更新する。同じ表示バージョンのテストビルドを再アップロードする場合も、`LIGHTLIST_VERSION_CODE` は増やす。
 - 確認コマンドを実行する。
 
 ```sh

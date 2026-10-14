@@ -5,6 +5,7 @@ import {
   type BatchResponse,
   type MulticastMessage,
 } from "firebase-admin/messaging";
+import * as logger from "firebase-functions/logger";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentWrittenWithAuthContext } from "firebase-functions/v2/firestore";
 import pushLocales from "./push-locales.json";
@@ -107,6 +108,11 @@ const claimNotification = async (throttleKey: string): Promise<boolean> => {
   return true;
 };
 
+const releaseNotification = async (throttleKey: string) => {
+  recentNotifications.delete(throttleKey);
+  await getFirestore().collection("notificationThrottles").doc(throttleKey).delete();
+};
+
 export const notifySharedTaskListUpdates = onDocumentWrittenWithAuthContext(
   { document: "taskLists/{taskListId}", memory: "256MiB", timeoutSeconds: 30 },
   async (event) => {
@@ -122,45 +128,62 @@ export const notifySharedTaskListUpdates = onDocumentWrittenWithAuthContext(
     const db = getFirestore();
     const taskListId = event.params.taskListId;
     const actorUid = event.authId;
-    if (!(await claimNotification(actorUid ? `${taskListId}_${actorUid}` : taskListId))) return;
-    const members = await event.data?.after.ref.collection("members").get();
-    if (!members) return;
-    await Promise.all(
-      members.docs
-        .map((member) => member.id)
-        .filter((uid) => uid !== actorUid)
-        .map(async (uid) => {
-          const settingsSnapshot = await db.collection("settings").doc(uid).get();
-          const settings = settingsSnapshot.data();
-          if (settings?.notifySharedListUpdates !== true) return;
-          const registrations = getRegistrations(settings.notificationDevices);
-          if (registrations.length === 0) return;
-          const body = notificationBody(settings.language);
-          for (let offset = 0; offset < registrations.length; offset += 500) {
-            const batchRegistrations = registrations.slice(offset, offset + 500);
-            const message: MulticastMessage = {
-              tokens: batchRegistrations.map(({ token }) => token),
-              notification: { title: taskListName, body },
-              data: { taskListId },
-              android: {
-                collapseKey: taskListId,
-                notification: { channelId: "shared_list_updates", tag: taskListId },
-              },
-              apns: {
-                headers: { "apns-collapse-id": taskListId },
-                payload: { aps: { sound: "default" } },
-              },
-              webpush: {
-                notification: { tag: taskListId },
-                fcmOptions: {
-                  link: `https://lightlist.app/app/?taskListId=${encodeURIComponent(taskListId)}`,
+    const throttleKey = actorUid ? `${taskListId}_${actorUid}` : taskListId;
+    if (!(await claimNotification(throttleKey))) return;
+    let delivered = 0;
+    const failureCodes: string[] = [];
+    const deliver = async () => {
+      const members = await event.data?.after.ref.collection("members").get();
+      await Promise.all(
+        (members?.docs ?? [])
+          .map((member) => member.id)
+          .filter((uid) => uid !== actorUid)
+          .map(async (uid) => {
+            const settingsSnapshot = await db.collection("settings").doc(uid).get();
+            const settings = settingsSnapshot.data();
+            if (settings?.notifySharedListUpdates !== true) return;
+            const registrations = getRegistrations(settings.notificationDevices);
+            if (registrations.length === 0) return;
+            const body = notificationBody(settings.language);
+            for (let offset = 0; offset < registrations.length; offset += 500) {
+              const batchRegistrations = registrations.slice(offset, offset + 500);
+              const message: MulticastMessage = {
+                tokens: batchRegistrations.map(({ token }) => token),
+                notification: { title: taskListName, body },
+                data: { taskListId },
+                android: {
+                  priority: "high",
+                  collapseKey: taskListId,
+                  notification: { channelId: "shared_list_updates", tag: taskListId },
                 },
-              },
-            };
-            const response = await getMessaging().sendEachForMulticast(message);
-            await removeInvalidRegistrations(uid, batchRegistrations, response);
-          }
-        }),
-    );
+                apns: {
+                  headers: { "apns-collapse-id": taskListId },
+                  payload: { aps: { sound: "default" } },
+                },
+                webpush: {
+                  notification: { tag: taskListId },
+                  fcmOptions: {
+                    link: `https://lightlist.app/app/?taskListId=${encodeURIComponent(taskListId)}`,
+                  },
+                },
+              };
+              const response = await getMessaging().sendEachForMulticast(message);
+              delivered += response.successCount;
+              for (const result of response.responses) {
+                if (!result.success) failureCodes.push(result.error?.code ?? "unknown");
+              }
+              await removeInvalidRegistrations(uid, batchRegistrations, response);
+            }
+          }),
+      );
+    };
+    try {
+      await deliver();
+    } catch (error) {
+      await releaseNotification(throttleKey);
+      throw error;
+    }
+    logger.info("shared list notification", { taskListId, delivered, failureCodes });
+    if (delivered === 0 && failureCodes.length > 0) await releaseNotification(throttleKey);
   },
 );

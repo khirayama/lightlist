@@ -6,6 +6,8 @@
 
 同じタスクリストの通知は 3 プラットフォームとも 1 件に上書きし、連続した変更で通知を積み上げない（Android `tag` / `collapseKey`、iOS `apns-collapse-id`、Web `tag` に `taskListId` を使う）。
 
+Android 宛ては `priority: "high"` で送り、Doze 中の端末でも待たせずに配信する。指定しない場合の既定は normal で、端末が Doze を抜けるまで配信が遅れる。
+
 ## Firestore 登録
 
 - `settings/{uid}.notifySharedListUpdates`: 通知のユーザー単位設定。
@@ -19,10 +21,11 @@
 ## 費用を抑えるための制約
 
 - Functions は `memberCount` が 1 以下のタスクリストでは Firestore を読まずに終了する。共有していないリストの編集で読み書きを発生させない。
-- 通知は最初の変更ですぐ配信し、同じタスクリストの同じ変更者による変更はその後 10 分間配信しない。抑制は変更者ごとに独立し、別のメンバーの変更は抑制中でも配信する。待ってまとめて送る処理は持たない。配信先が 0 件だった場合も同じ期間は再確認しない。抑制の判定は Functions instance 内の記録を先に見て、記録がなければ `notificationThrottles/{taskListId}_{変更者 uid}` を 1 回読む。変更者を特定できない書き込みは `notificationThrottles/{taskListId}` を使う。
+- 通知は最初の変更ですぐ配信し、同じタスクリストの同じ変更者による変更はその後 10 分間配信しない。抑制は変更者ごとに独立し、別のメンバーの変更は抑制中でも配信する。待ってまとめて送る処理は持たない。配信先が 0 件だった場合も同じ期間は再確認しない。配信を試みて 1 件も成功せず失敗があった場合と、配信処理が例外で中断した場合は、抑制の記録を削除して次の変更で再配信する。抑制の判定は Functions instance 内の記録を先に見て、記録がなければ `notificationThrottles/{taskListId}_{変更者 uid}` を 1 回読む。変更者を特定できない書き込みは `notificationThrottles/{taskListId}` を使う。
 - trigger の再配信に対する重複抑止用 document は持たない。重複して配信されても抑制の対象になるか、同じ `taskListId` の通知を上書きするだけになる。
 - 共有リストの通知対象の変更 1 回あたりの Firestore 操作は、抑制中なら読み取り 0〜1 回。配信するときは抑制 document の読み書き各 1 回に加えて、`members` の人数分と変更者以外の `settings` の人数分の読み取り。
 - Functions は `maxInstances: 3`、`256MiB`、timeout 30 秒とし、retry は有効にしない。
+- 抑制を通過した呼び出しは `shared list notification` として `taskListId`・成功件数・失敗した端末の error code を Cloud Logging に記録する。uid・token・リスト名は記録しない。抑制や共有なしで終了した呼び出しは記録しない。
 
 ## Firebase の必須設定
 

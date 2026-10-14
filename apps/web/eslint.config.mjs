@@ -34,6 +34,7 @@ export default [
       "**/dist/**",
       "**/build/**",
       "**/coverage/**",
+      "public/notifications/**",
     ],
   },
   {

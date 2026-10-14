@@ -4328,6 +4328,7 @@ private fun DetailScreenScaffold(
     showTopBar: Boolean = true,
     topBarHeight: androidx.compose.ui.unit.Dp = 64.dp,
     backgroundColor: Color? = null,
+    contentBehindTopBar: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val t = LocalTranslations.current
@@ -4379,17 +4380,24 @@ private fun DetailScreenScaffold(
         Box(
             Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(
-                        if (showTopBar) {
-                            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
-                        } else {
-                            WindowInsetsSides.Top + WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
-                        }
-                    )
+                .then(
+                    if (contentBehindTopBar) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .padding(innerPadding)
+                            .windowInsetsPadding(
+                                WindowInsets.safeDrawing.only(
+                                    if (showTopBar) {
+                                        WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                                    } else {
+                                        WindowInsetsSides.Top + WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                                    }
+                                )
+                            )
+                            .imePadding()
+                    }
                 )
-                .imePadding()
                 .background(resolvedBackgroundColor)
         ) {
             Column(
@@ -6759,87 +6767,115 @@ private fun TaskListDetailPagerScreen(
             .clipToBounds()
     ) {
         TaskListColorScope(if (uiState.isLoading) null else currentTaskList?.background) {
+            val showPager = !uiState.isLoading && currentTaskList != null
             DetailScreenScaffold(
                 title = "",
                 onBack = if (navController != null) ({ navController.navigateUp() }) else null,
                 titleContent = { TodayDateText() },
                 showTopBar = showTopBar,
                 topBarHeight = TaskListDetailMetrics.topBarHeight,
-                backgroundColor = taskListBackgroundColor
+                backgroundColor = if (showPager) Color.Transparent else taskListBackgroundColor,
+                contentBehindTopBar = showPager
             ) {
-                Column(
-                    modifier = Modifier
-                        .widthIn(max = TaskListDetailMetrics.contentMaxWidth + 32.dp)
-                        .fillMaxSize()
-                        .align(Alignment.CenterHorizontally)
-                ) {
-                    when {
-                        uiState.isLoading -> {
-                            TaskLoadingPlaceholder(detail = true)
-                        }
-                        currentTaskList == null && uiState.hasError -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(t.t("app.loadError"), color = MaterialTheme.colorScheme.error)
-                            }
-                        }
-                        currentTaskList == null -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                TaskStateNotice(icon = Icons.Filled.Menu, titleKey = "app.emptyState", hintKey = "app.emptyStateHint")
-                            }
-                        }
-                        else -> {
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                HorizontalPager(
-                                    state = pagerState,
-                                    modifier = Modifier.fillMaxSize()
-                                ) { page ->
-                                    val taskList = uiState.taskLists[page]
-                                    TaskListColorScope(taskList.background) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .background(resolveTaskListBackgroundColor(taskList.background))
-                                        ) {
-                                            TaskListDetailContent(
-                                                taskList = taskList,
-                                                taskInsertPosition = settingsState.taskInsertPosition,
-                                                autoSort = settingsState.autoSort,
-                                                topInset = taskPageTopInset,
+                if (showPager && currentTaskList != null) {
+                    val topBarInset = if (showTopBar) {
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues()
+                            .calculateTopPadding() + TaskListDetailMetrics.topBarHeight
+                    } else {
+                        0.dp
+                    }
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize()
+                        ) { page ->
+                            val taskList = uiState.taskLists[page]
+                            TaskListColorScope(taskList.background) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(resolveTaskListBackgroundColor(taskList.background))
+                                        .padding(top = topBarInset)
+                                        .windowInsetsPadding(
+                                            WindowInsets.safeDrawing.only(
+                                                if (showTopBar) {
+                                                    WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                                                } else {
+                                                    WindowInsetsSides.Top + WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                                                }
                                             )
-                                        }
-                                    }
-                                }
-                                if (showIndicator) {
-                                    TaskListColorScope(currentTaskList.background) {
-                                        TaskListIndicator(
-                                            count = uiState.taskLists.size,
-                                            selectedIndex = selectedTaskListIndex,
-                                            progress = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
-                                            labels = uiState.taskLists.map { it.name },
-                                            backgroundColor = taskListBackgroundColor,
-                                            onSelect = { index ->
-                                                val nextTaskList = uiState.taskLists.getOrNull(index) ?: return@TaskListIndicator
-                                                updateSelectedTaskListId(nextTaskList.id)
-                                            },
-                                            modifier = Modifier.align(Alignment.TopCenter)
+                                        )
+                                        .imePadding(),
+                                    contentAlignment = Alignment.TopCenter
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .widthIn(max = TaskListDetailMetrics.contentMaxWidth + 32.dp)
+                                            .fillMaxSize()
+                                    ) {
+                                        TaskListDetailContent(
+                                            taskList = taskList,
+                                            taskInsertPosition = settingsState.taskInsertPosition,
+                                            autoSort = settingsState.autoSort,
+                                            topInset = taskPageTopInset,
                                         )
                                     }
                                 }
-                                if (uiState.hasError) {
-                                    Text(
-                                        t.t("app.loadError"),
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier
-                                            .align(Alignment.TopCenter)
-                                            .padding(top = if (showIndicator) 32.dp else 8.dp)
-                                    )
+                            }
+                        }
+                        if (showIndicator) {
+                            TaskListColorScope(currentTaskList.background) {
+                                TaskListIndicator(
+                                    count = uiState.taskLists.size,
+                                    selectedIndex = selectedTaskListIndex,
+                                    progress = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
+                                    labels = uiState.taskLists.map { it.name },
+                                    onSelect = { index ->
+                                        val nextTaskList = uiState.taskLists.getOrNull(index) ?: return@TaskListIndicator
+                                        updateSelectedTaskListId(nextTaskList.id)
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .padding(top = topBarInset)
+                                )
+                            }
+                        }
+                        if (uiState.hasError) {
+                            Text(
+                                t.t("app.loadError"),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = topBarInset + if (showIndicator) 32.dp else 8.dp)
+                            )
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .widthIn(max = TaskListDetailMetrics.contentMaxWidth + 32.dp)
+                            .fillMaxSize()
+                            .align(Alignment.CenterHorizontally)
+                    ) {
+                        when {
+                            uiState.isLoading -> {
+                                TaskLoadingPlaceholder(detail = true)
+                            }
+                            uiState.hasError -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(t.t("app.loadError"), color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                            else -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    TaskStateNotice(icon = Icons.Filled.Menu, titleKey = "app.emptyState", hintKey = "app.emptyStateHint")
                                 }
                             }
                         }
@@ -6856,7 +6892,6 @@ private fun TaskListIndicator(
     selectedIndex: Int,
     progress: () -> Float,
     labels: List<String>,
-    backgroundColor: Color,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -6865,8 +6900,7 @@ private fun TaskListIndicator(
     val inactiveColor = mutedIconColor()
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .background(backgroundColor),
+            .fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         Row(

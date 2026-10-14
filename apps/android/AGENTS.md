@@ -31,7 +31,7 @@
 - Android の `TaskListDetailPagerScreen` は選択中タスクリストの `background` を詳細ペイン背景として使う。compact 幅は画面全体、regular 幅は右ペインだけに適用し、左ペイン（Web の sidebar と同じ `surfaceContainer`）との間に境界線を置かない。色は `resolveTaskListBackgroundColor` で解決し、light / dark とも選択色そのままを使う。背景色付きの詳細（`DetailScreenScaffold` の戻るボタン・各ページ・インジケータ）と共有プレビューは `TaskListColorScope` で `LightColorScheme` の `MaterialTheme` に包み、`AppDialog` / `AppSheet` / 履歴 `DropdownMenu` は `AppThemeScope` でアプリのテーマ（`LocalAppColorScheme`）に戻す。背景色付きの領域から新しい popup を開くときも `AppThemeScope` で包む。compact 幅では `ColoredSystemBarsEffect` でステータスバー・ナビゲーションバーのアイコンを暗色にする。`DetailScreenScaffold` は `containerColor` に配色外の色を渡すため `contentColor` を `onBackground` で明示する（省略すると既定の黒になり dark で文字・アイコンが読めない）。regular 幅ではページインジケータを表示せず、本文の上に 40dp の余白を取り、本文は最大幅 672dp で中央に置く（Web の `ll-task-column`）。`TaskListDetailPage` はページャーのインジケータだけを固定表示し、タスクリスト名、タスク追加欄、並び替え・完了済み削除操作、タスク一覧を同じ `LazyColumn` に含める。
 - Android の `TaskListDetailPagerScreen` のページインジケータは、固定ヘッダー直下に隙間なく接続する横幅いっぱいのフラットな背景帯として描画する。背景色は選択中タスクリストの `background` と同じ解決色をそのまま使い、角丸・枠線・影・透明度差は付けない。
 - Android の一覧ヘッダー、詳細ヘッダー、設定ヘッダー、カレンダー確認画面の上部クロームは `WindowInsets.safeDrawing` を反映し、ステータスバーと重ねない。詳細/設定/カレンダーの共通ヘッダーは safe area 分を外側コンテナで確保し、戻るボタンやタイトルの固定高さを inset と共有しない。
-- Android のタスクリスト詳細は `TaskListDetailMetrics` を正とし、Web の `ll-task-row` と同じ幾何で組む: 行は左右 12dp の `Modifier.bleed`、drag handle 48（終了側 20dp 重ね）、完了トグル 48（終了側 8dp 重ね）、本文は最小高 48・16sp Medium / 行高 28、日付は最小高 20 の行（font scale 拡大時は伸ばし、文字を切らない）に 12sp を 8dp 下げて置き、日付ありの行は下揃え・なしは中央揃え、右端 action 48（20dp アイコン）、行 padding 上下 2 で行ピッチ 52（日付あり 72）。見出し行は最小高 48（Display Bold 20）、入力欄の下に操作列（上 12 / 下 8、高さ 44、muted text 14 Medium + 24dp 枠の 20dp アイコン、並び替えは 2 件未満・完了削除は完了なしで alpha 0.5）を置く。個別の `offset` で位置を合わせない。
+- Android のタスクリスト詳細は `TaskListDetailMetrics` を正とし、Web の `ll-task-row` と同じ幾何で組む: 行は左右 12dp の `Modifier.bleed`、drag handle 48（終了側 20dp 重ね。当たり判定は完了トグルより前面に置いた開始側 38dp とし、handle と完了トグルの中心の中点で分ける）、完了トグル 48（終了側 8dp 重ね）、本文は最小高 48・16sp Medium / 行高 28、日付は最小高 20 の行（font scale 拡大時は伸ばし、文字を切らない）に 12sp を 8dp 下げて置き、日付ありの行は下揃え・なしは中央揃え、右端 action 48（20dp アイコン）、行 padding 上下 2 で行ピッチ 52（日付あり 72）。見出し行は最小高 48（Display Bold 20）、入力欄の下に操作列（上 12 / 下 8、高さ 44、muted text 14 Medium + 24dp 枠の 20dp アイコン、並び替えは 2 件未満・完了削除は完了なしで alpha 0.5）を置く。個別の `offset` で位置を合わせない。
 - Android の `TaskListDetailPage` の本文系テキスト（新規入力欄、task 本文、インライン編集欄、日付ラベル）は local `TextStyle` を共有し、`includeFontPadding = false` と固定 line height で言語や font fallback による高さ揺れを吸収する。新規入力欄は local metrics の最小高さを持たせる。
 - Android の task action は `AppSheet` + `AppMonthCalendar` を使い、TalkBack では `paneTitle` を設定して別ペインとして読ませる。カレンダー部分は縦スクロール可能にする。
 - Android のアプリ内アイコンは Web の `AppIcon`（Material の path）と同じ図形・サイズにする。`AppIconMetrics` の戻る 24dp、設定・リスト編集・共有 22dp、行 action・操作列・drag handle・送信・chevron 20dp、ボタン内アイコン 18dp、カレンダー行のピン 14dp を基準にし、編集・削除は `Icons.Outlined.*`、並び替えは `Icons.AutoMirrored.Filled.Sort` を使う。launcher icon 資産とは分けて扱う。
@@ -41,7 +41,7 @@
 - Android の launcher icon は `shared/assets/brand/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
 - Android の release build は `isMinifyEnabled = true` とし、`allowBackup = false` を維持する。
 - Android の `just build-release` は内部配布確認用 release APK（`apps/android/app/build/outputs/apk/release/app-release.apk`）を生成し、release 署名情報を渡さなければ debug keystore で署名する。
-- Android の `just bundle-play` は release upload key 署名なしでは失敗させ、Google Play 提出用 AAB を生成する。
+- Android の `just bundle`（互換用 `just bundle-play`）は release upload key 署名なしでは失敗させ、Google Play 提出用 AAB を生成し、upload key 署名を検証する。
 - Android の Firestore は `MainActivity.onCreate` の `configureFirestore()` で `PersistentCacheSettings`（`CACHE_SIZE_UNLIMITED`）を設定する。設定は Firestore の初回利用前に 1 回だけ（Activity 再生成で再設定すると例外）行う。オンライン判定は `rememberIsOnline()`、オンライン必須操作の説明は `ConnectionRequiredNote`、同期失敗は `SyncFailureState.report()`（queue 外の batch は `commitReportingFailure`）を使い、書き込みの `Task` を Composition の `scope` で `await` して UI を待たせない。
 - Android の Baseline Profile は未導入（library profile を `profileinstaller` で適用するのみ）。導入時は、AGP の instrumentation 実行がアプリをアンインストールするためログイン後画面のプロファイルに自動ログインが必要なこと、release 系 variant は release 用 Firebase 設定を使うことを前提に設計する。
 
@@ -54,7 +54,7 @@
 - `just lint`
 - `just build`
 - `just build-release`
-- `just bundle-play`
+- ルートの `just bundle` または `cd apps/android && just bundle`（互換用 `just bundle-play`）
 - `just keystore-create`（upload key を作成し、パスワードを Keychain へ保存）
 - `just signing-report`（debug / upload key の fingerprint 確認）
 - `just run`（通常は上書きインストールで Firebase Auth セッションを保持し、失敗時のみアンインストールして入れ直す）

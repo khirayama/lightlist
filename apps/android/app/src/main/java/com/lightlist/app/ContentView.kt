@@ -8,11 +8,14 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import android.net.ConnectivityManager
 import android.net.Network
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.os.SystemClock
 import android.text.format.DateFormat
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -791,6 +794,18 @@ private fun configureFirestore() {
         .build()
 }
 
+private const val FirestoreRestartBackgroundMillis = 30_000L
+
+private var firestoreBackgroundedAtMillis: Long? = null
+
+private fun restartFirestoreNetworkAfterBackground() {
+    val backgroundedAt = firestoreBackgroundedAtMillis ?: return
+    firestoreBackgroundedAtMillis = null
+    if (SystemClock.elapsedRealtime() - backgroundedAt < FirestoreRestartBackgroundMillis) return
+    val db = Firebase.firestore
+    db.disableNetwork().continueWithTask { db.enableNetwork() }
+}
+
 private fun warmUpStartupData(context: Context) {
     Thread {
         Translations.preload(context)
@@ -831,6 +846,18 @@ class MainActivity : ComponentActivity() {
                 pendingDeepLink = pendingDeepLink,
                 onPendingDeepLinkConsumed = { pendingDeepLink = null }
             )
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        restartFirestoreNetworkAfterBackground()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) {
+            firestoreBackgroundedAtMillis = SystemClock.elapsedRealtime()
         }
     }
 
@@ -1161,6 +1188,7 @@ private object TaskListDetailMetrics {
     val rowVerticalPadding = 2.dp
     val controlSize = 48.dp
     val handleOverlap = 20.dp
+    val handleHitOverlap = 10.dp
     val completionOverlap = 8.dp
     val completionDotSize = 20.dp
     val dateRowHeight = 20.dp
@@ -1289,6 +1317,14 @@ private val AppDialogTitleTextStyle = TextStyle(
     fontWeight = FontWeight.Bold,
     lineHeight = 28.sp,
     letterSpacing = 0.18.sp
+)
+
+private val AppTodayDateTextStyle = TextStyle(
+    fontFamily = GenInterfaceJPBodyFontFamily,
+    fontSize = 13.sp,
+    fontWeight = FontWeight.Medium,
+    lineHeight = 18.sp,
+    fontFeatureSettings = "tnum"
 )
 
 private val AppHeaderTitleTextStyle = TextStyle(
@@ -4043,6 +4079,60 @@ private fun formatTaskInputDate(date: Date): String {
     )
 }
 
+private fun millisUntilNextDay(): Long {
+    val now = currentGregorianCalendar()
+    val nextDay = currentGregorianCalendar().apply {
+        timeInMillis = now.timeInMillis
+        add(Calendar.DAY_OF_MONTH, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return nextDay.timeInMillis - now.timeInMillis
+}
+
+@Composable
+private fun rememberTodayDateKey(): String {
+    val context = LocalContext.current
+    var todayKey by remember { mutableStateOf(formatTaskInputDate(Date())) }
+
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                todayKey = formatTaskInputDate(Date())
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_DATE_CHANGED)
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        }
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        onDispose { context.unregisterReceiver(receiver) }
+    }
+
+    LaunchedEffect(todayKey) {
+        delay(millisUntilNextDay() + 1_000L)
+        todayKey = formatTaskInputDate(Date())
+    }
+
+    return todayKey
+}
+
+@Composable
+private fun TodayDateText(modifier: Modifier = Modifier) {
+    val t = LocalTranslations.current
+    val todayKey = rememberTodayDateKey()
+    Text(
+        text = formatDateForLocale(todayKey, t.languageTag(), "MMM d EEE"),
+        style = AppTodayDateTextStyle,
+        color = mutedTextColor(),
+        maxLines = 1,
+        modifier = modifier
+    )
+}
+
 private fun taskInputDateFrom(year: Int, month: Int, day: Int): Date? {
     if (year < 1) return null
     val calendar = currentGregorianCalendar().apply {
@@ -4234,6 +4324,7 @@ private fun dragAutoScrollSpeed(
 private fun DetailScreenScaffold(
     title: String,
     onBack: (() -> Unit)?,
+    titleContent: (@Composable () -> Unit)? = null,
     showTopBar: Boolean = true,
     topBarHeight: androidx.compose.ui.unit.Dp = 64.dp,
     backgroundColor: Color? = null,
@@ -4247,12 +4338,16 @@ private fun DetailScreenScaffold(
             {
                 CenterAlignedTopAppBar(
                     title = {
-                        Text(
-                            text = title,
-                            style = AppHeaderTitleTextStyle,
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1
-                        )
+                        if (titleContent != null) {
+                            titleContent()
+                        } else {
+                            Text(
+                                text = title,
+                                style = AppHeaderTitleTextStyle,
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1
+                            )
+                        }
                     },
                     navigationIcon = {
                         if (onBack != null) {
@@ -6035,8 +6130,10 @@ private fun TaskListsScreen(
                 ),
                 color = if (calendarActive) MaterialTheme.colorScheme.onSurface else navColor,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
+            TodayDateText()
         }
 
         LazyColumn(
@@ -6665,6 +6762,7 @@ private fun TaskListDetailPagerScreen(
             DetailScreenScaffold(
                 title = "",
                 onBack = if (navController != null) ({ navController.navigateUp() }) else null,
+                titleContent = { TodayDateText() },
                 showTopBar = showTopBar,
                 topBarHeight = TaskListDetailMetrics.topBarHeight,
                 backgroundColor = taskListBackgroundColor
@@ -6925,8 +7023,12 @@ private fun TaskListRow(
         if (allowTaskEditing) {
             Box(
                 modifier = Modifier
-                    .bleed(end = TaskListDetailMetrics.handleOverlap)
-                    .size(TaskListDetailMetrics.controlSize)
+                    .zIndex(1f)
+                    .bleed(end = TaskListDetailMetrics.handleHitOverlap)
+                    .size(
+                        width = TaskListDetailMetrics.controlSize - TaskListDetailMetrics.handleHitOverlap,
+                        height = TaskListDetailMetrics.controlSize
+                    )
                     .pointerInput(task.id) {
                         detectDragGestures(
                             onDragStart = { currentOnDragStart(it) },
@@ -6952,7 +7054,8 @@ private fun TaskListRow(
                             onMoveUp?.let { action -> add(CustomAccessibilityAction(t.t("a11y.moveUp")) { action() }) }
                             onMoveDown?.let { action -> add(CustomAccessibilityAction(t.t("a11y.moveDown")) { action() }) }
                         }
-                    },
+                    }
+                    .padding(start = TaskListDetailMetrics.handleOverlap - TaskListDetailMetrics.handleHitOverlap),
                 contentAlignment = Alignment.Center
             ) {
                 DragHandleIcon()

@@ -45,7 +45,7 @@
 - task は本文・日付・ピンのいずれかが有効なら保存する。日付あり・ピン留めなら空本文を許可し、3 項目すべてが空相当になった task は削除する。
 - 共有taskの他端末競合で必須field不足の部分mapが再生成される場合があるため、全task fieldを厳格decodeし、server確定snapshotでだけ部分mapを自動削除する。
 - Firestore の UI 更新は transaction を使わず、表示中の task 群を正規化して pending overlay に反映する。SDK への投入順とサーバー応答待ちを分離し、オフライン中も後続操作を SDK の永続キャッシュへ渡す。表示優先順は drag overlay → pending → listener。書き込み中の内容一致だけで pending を解放せず、同一リストの応答追跡が完了した時に解放する。
-- taskLists は `memberKeys`（`sha256("lightlist-member:" + uid)` の hex。生の uid は置かない）の `array-contains` 単一クエリで購読し、membership の事前読み取りや chunk 分割を持ち込まない。listener の再試行は settings / taskListOrder / taskLists ごとに独立させ、正常な購読を解除しない。他の購読の成功で失敗状態・再試行間隔をリセットしない。
+- taskLists は `memberKeys`（`sha256("lightlist-member:" + uid)` の hex。生の uid は置かない）の `array-contains` 単一クエリで購読し、membership の事前読み取りや chunk 分割を持ち込まない。listener の再試行は settings / taskListOrder / taskLists ごとに独立させ、正常な購読を解除しない。他の購読の成功で失敗状態・再試行間隔をリセットしない。Android と Web は 30 秒以上背景にいた後の前景復帰で `disableNetwork` → `enableNetwork` により Firestore の接続を張り直す（iOS は SDK が行うため追加しない）。
 - カレンダー編集は本文・日付・ピンがすべて空になっても保存でき、そのタスクを削除する。空タスクの新規追加は禁止する。
 - 共有コードの生成・解除はサーバーの現在値を読み、Rules で旧コード文書の同時削除を保証する。コードの解決時もリストの現在コードと照合する。共有コードは未認証プレビューの読み取りに限り、taskList の更新には membership document を要求する。リストから参照されないコード文書は Rules で取得を拒否する。
 - 退会は確認画面のパスワードで `EmailAuthProvider` 再認証に成功してから Firestore を削除し、Auth ユーザー削除を最後に行う。パスワードは永続化・ログ出力しない。

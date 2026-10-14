@@ -214,6 +214,10 @@ private enum AppTypography {
         .custom("GenInterfaceJP-Regular", size: 12, relativeTo: .caption)
     }
 
+    static func footnoteMedium() -> Font {
+        .custom("GenInterfaceJP-Medium", size: 13, relativeTo: .footnote)
+    }
+
     static func captionSemibold() -> Font {
         .custom("GenInterfaceJP-SemiBold", size: 12, relativeTo: .caption)
     }
@@ -4218,6 +4222,8 @@ private struct TaskListsView: View {
                     Text(translations.t("app.calendar"))
                         .font(isCalendarActive ? AppTypography.subheadlineSemibold() : AppTypography.subheadlineMedium())
                         .lineLimit(1)
+                    Spacer(minLength: 8)
+                    TodayDateText()
                 }
                 .foregroundStyle(isCalendarActive ? Color.primary : AppPalette.fieldLabel)
                 .padding(.horizontal, 12)
@@ -4787,6 +4793,12 @@ private struct TaskListDetailPagerView: View {
     @StateObject private var settingsViewModel = SettingsViewModel()
     @ObservedObject private var autoSortOverrides = AutoSortOverrideStore.shared
 
+    private var navigationBarBackground: String? {
+        viewModel.status == .loading || viewModel.status == .error
+            ? nil
+            : (viewModel.taskLists.first(where: { $0.id == selectedTaskListId }) ?? viewModel.taskLists.first)?.background
+    }
+
     init(initialTaskListId: String, currentUserId: String?) {
         self.initialTaskListId = initialTaskListId
         self.currentUserId = currentUserId
@@ -4823,10 +4835,9 @@ private struct TaskListDetailPagerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { TodayDateToolbarItem(isOnColoredBackground: hasTaskListBackgroundColor(navigationBarBackground)) }
         .taskListNavigationBar(
-            viewModel.status == .loading || viewModel.status == .error
-                ? nil
-                : (viewModel.taskLists.first(where: { $0.id == selectedTaskListId }) ?? viewModel.taskLists.first)?.background,
+            navigationBarBackground,
             plainVisibility: .hidden
         )
         .onAppear {
@@ -7757,6 +7768,49 @@ private enum CalendarTaskRowMetrics {
     formatter.setLocalizedDateFormatFromTemplate("MMMEd")
     calendarTaskDateFormatters[identifier] = formatter
     return formatter.string(from: date)
+}
+
+private struct TodayDateText: View {
+    @EnvironmentObject var translations: Translations
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var today = Date()
+    var isOnColoredBackground = false
+
+    var body: some View {
+        Text(calendarTaskDateLabel(today, language: translations.language))
+            .font(AppTypography.footnoteMedium())
+            .monospacedDigit()
+            .foregroundStyle(isOnColoredBackground ? AppPalette.subtleTextOnColor : AppPalette.subtleText)
+            .lineLimit(1)
+            .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged).receive(on: RunLoop.main)) { _ in
+                today = Date()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { today = Date() }
+            }
+    }
+}
+
+private struct TodayDateToolbarItem: ToolbarContent {
+    let isOnColoredBackground: Bool
+
+    var body: some ToolbarContent {
+        if #available(iOS 26.0, *) {
+            ToolbarItem(placement: .principal) {
+                todayDate
+            }
+            .sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .principal) {
+                todayDate
+            }
+        }
+    }
+
+    private var todayDate: some View {
+        TodayDateText(isOnColoredBackground: isOnColoredBackground)
+            .allowsHitTesting(false)
+    }
 }
 
 private struct CalendarTaskRow: View {

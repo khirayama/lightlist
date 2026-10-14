@@ -77,7 +77,9 @@ import {
   CACHE_SIZE_UNLIMITED,
   collection,
   deleteField,
+  disableNetwork,
   doc,
+  enableNetwork,
   getDoc,
   getDocFromCache,
   getDocFromServer,
@@ -575,7 +577,8 @@ async function registerWebNotificationDevice(
   }
   if (options.requestPermission && Notification.permission !== "granted") {
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") throw new Error("notification-permission-denied");
+    if (permission !== "granted")
+      throw new Error("notification-permission-denied");
   }
   if (Notification.permission !== "granted") {
     throw new Error("notification-permission-denied");
@@ -664,6 +667,26 @@ const getAuthInstance = (): Auth => {
   return cachedAuth;
 };
 
+const FIRESTORE_RESTART_HIDDEN_MS = 30_000;
+
+const restartNetworkAfterHidden = (db: Firestore) => {
+  let hiddenAt: number | null = null;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      hiddenAt = Date.now();
+      return;
+    }
+    const hiddenMs = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+    hiddenAt = null;
+    if (hiddenMs < FIRESTORE_RESTART_HIDDEN_MS) return;
+    void disableNetwork(db)
+      .then(() => enableNetwork(db))
+      .catch((error: unknown) => {
+        logException("firestore_network_restart", error);
+      });
+  });
+};
+
 const getDbInstance = (): Firestore => {
   if (cachedDb) {
     return cachedDb;
@@ -677,6 +700,7 @@ const getDbInstance = (): Firestore => {
         cacheSizeBytes: CACHE_SIZE_UNLIMITED,
       }),
     });
+    restartNetworkAfterHidden(cachedDb);
   } catch (error) {
     if (
       error instanceof Error &&
@@ -5304,7 +5328,9 @@ function SettingsView({
                     onChange={(event) =>
                       void handleSharedNotificationsChange(event.target.checked)
                     }
-                    disabled={settingsDisabled || !isOnline || isUpdatingNotifications}
+                    disabled={
+                      settingsDisabled || !isOnline || isUpdatingNotifications
+                    }
                     className="ll-peer ll-sr-only"
                   />
                   <span className="ll-flex ll-flex-col ll-gap-0x5">
@@ -5324,7 +5350,9 @@ function SettingsView({
                     }`}
                   >
                     <span
-                      data-checked={settings?.notifySharedListUpdates ? "true" : "false"}
+                      data-checked={
+                        settings?.notifySharedListUpdates ? "true" : "false"
+                      }
                       className="ll-settings-toggle-thumb ll-inline-block ll-h-5 ll-w-5 ll-rounded-full ll-bg-white-b ll-shadow-sm ll-dark-bg-gray-950"
                     />
                   </span>
@@ -5825,9 +5853,10 @@ type AppHeaderProps = {
   backLabel: string;
   onBack: () => void;
   title?: string;
+  center?: ReactNode;
 };
 
-function AppHeader({ backLabel, onBack, title }: AppHeaderProps) {
+function AppHeader({ backLabel, onBack, title, center }: AppHeaderProps) {
   return (
     <header className="ll-app-header">
       <button
@@ -5840,6 +5869,7 @@ function AppHeader({ backLabel, onBack, title }: AppHeaderProps) {
         <AppIcon name="arrow-back" aria-hidden="true" focusable="false" />
       </button>
       {title ? <h1 className="ll-app-header-title">{title}</h1> : null}
+      {center ? <div className="ll-app-header-center">{center}</div> : null}
     </header>
   );
 }
@@ -6417,6 +6447,49 @@ const getTaskDateFormatter = (language: string): Intl.DateTimeFormat => {
   taskDateFormatterCache.set(language, formatter);
   return formatter;
 };
+
+const getMillisecondsUntilNextDay = (now: Date): number => {
+  const nextDay = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  return nextDay.getTime() - now.getTime();
+};
+
+function useToday(): Date {
+  const [today, setToday] = useState(() => new Date());
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(
+      () => setToday(new Date()),
+      getMillisecondsUntilNextDay(today) + 1000,
+    );
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = new Date();
+      if (formatDate(now) !== formatDate(today)) setToday(now);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [today]);
+
+  return today;
+}
+
+function TodayDate() {
+  const { i18n } = useTranslation();
+  const today = useToday();
+
+  return (
+    <time dateTime={formatDate(today)} className="ll-today-date ll-muted-text">
+      {getTaskDateFormatter(i18n.language).format(today)}
+    </time>
+  );
+}
 
 function TaskItemComponent({
   task,
@@ -9275,7 +9348,10 @@ function CalendarEntryButton({ onOpen, isActive }: CalendarEntryButtonProps) {
           focusable="false"
         />
       </span>
-      <span className="ll-min-w-0 ll-truncate">{t("app.calendar")}</span>
+      <span className="ll-min-w-0 ll-flex-1 ll-truncate">
+        {t("app.calendar")}
+      </span>
+      <TodayDate />
     </button>
   );
 }
@@ -9884,7 +9960,9 @@ function AppShellPage() {
     taskListId: string;
     mode: "push" | "replace";
   } | null>(() => {
-    const taskListId = new URLSearchParams(window.location.search).get("taskListId");
+    const taskListId = new URLSearchParams(window.location.search).get(
+      "taskListId",
+    );
     return taskListId ? { taskListId, mode: "replace" } : null;
   });
   useEffect(() => {
@@ -9896,7 +9974,10 @@ function AppShellPage() {
         data.type === "lightlist-open-task-list" &&
         typeof data.taskListId === "string"
       ) {
-        setNotificationTaskListRoute({ taskListId: data.taskListId, mode: "push" });
+        setNotificationTaskListRoute({
+          taskListId: data.taskListId,
+          mode: "push",
+        });
       }
     };
     navigator.serviceWorker.addEventListener("message", handleMessage);
@@ -9920,7 +10001,12 @@ function AppShellPage() {
       "",
       `${url.pathname}${url.search}${url.hash}`,
     );
-  }, [hasResolvedTaskLists, notificationTaskListRoute, openTaskList, taskLists]);
+  }, [
+    hasResolvedTaskLists,
+    notificationTaskListRoute,
+    openTaskList,
+    taskLists,
+  ]);
   const openSettings = (mode: "push" | "replace" = "replace") =>
     setViewState({ view: "settings" }, isWideLayout ? "replace" : mode);
   const openLicenses = (mode: "push" | "replace" = "replace") =>
@@ -10498,6 +10584,7 @@ function AppShellPage() {
                     <AppHeader
                       backLabel={t("common.back")}
                       onBack={handleBackToTaskLists}
+                      center={<TodayDate />}
                     />
                   </div>
                   {detailContent}

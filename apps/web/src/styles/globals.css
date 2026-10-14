@@ -255,6 +255,13 @@
     color: #f9fafb;
   }
 
+  .ll-today-date {
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
   .ll-sidebar-item {
     display: flex;
     align-items: center;
@@ -1022,6 +1029,12 @@
   grid-template-columns: 3rem minmax(0, 1fr) 3rem;
   align-items: center;
   padding-inline: 0.25rem;
+}
+
+.ll-app-header-center {
+  grid-column: 2;
+  display: flex;
+  justify-content: center;
 }
 
 .ll-app-header-title {

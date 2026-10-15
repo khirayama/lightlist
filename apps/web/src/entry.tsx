@@ -10275,6 +10275,20 @@ function AppShellPage() {
       ? isSkeletonOnColoredBackground
       : !hasStartupError &&
         Boolean(taskLists[selectedTaskListIndex]?.background);
+  const systemBarBackground =
+    isWideLayout || currentView !== "detail" || !isDetailOnColoredBackground
+      ? null
+      : isSessionPending || (!hasStartupError && isTaskListsHydrating)
+        ? (startupTaskListSnapshot?.background ?? null)
+        : (taskLists[selectedTaskListIndex]?.background ?? null);
+  useEffect(() => {
+    if (!systemBarBackground) return;
+    const root = document.documentElement;
+    root.style.backgroundColor = systemBarBackground;
+    return () => {
+      root.style.removeProperty("background-color");
+    };
+  }, [systemBarBackground]);
   const renderDetailSkeleton = (taskRowCount: number) => (
     <div
       className="ll-loading-state ll-h-full ll-p-4"

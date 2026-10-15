@@ -36,7 +36,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - フォントは通常書体 400 / 500 / 600 / 700 と表示書体 700 だけを各 HTML entry から非同期で読み、JavaScript bundle には含めない。使用しない表示書体 800 は配信物に含めない。`/fonts/*` は `_headers` で 7 日の `max-age` と 30 日の `stale-while-revalidate` を付けて配信する。
 - LP は utility と共通 base（`apps/web/src/styles/base.css`）と LP 専用 CSS だけを読み、アプリの component / motion CSS（`globals.css`）を含めない。
 - アプリ側 HTML の `theme.js` は描画前に、保存済みテーマの `dark` class と `theme-color` meta、`?lang=` → `localStorage.i18nextLng` → ブラウザ言語から解決した `html[lang]` / `dir` を設定し、RTL やテーマの初回描画後の切り替わりを防ぐ。
-- アプリ側 HTML の viewport は `viewport-fit=cover` とし、Android Chrome / PWA のナビゲーションバー下や iOS のホームインジケータ下まで各画面の背景を描画する。スクロール末尾・ボトムシートの下端余白には `env(safe-area-inset-bottom)` を加え、左右は app ルートで `safe-area-inset-left/right` を確保する。`html` の背景はテーマ色（light `#ffffff` / dark `#030712`）にする。
+- アプリ側 HTML の viewport は `viewport-fit=cover` とし、Android Chrome / PWA のナビゲーションバー下や iOS のホームインジケータ下まで各画面の背景を描画する。スクロール末尾・ボトムシートの下端余白には `env(safe-area-inset-bottom)` を加え、左右は app ルートで `safe-area-inset-left/right` を確保する。`html` の背景はテーマ色（light `#ffffff` / dark `#030712`）にし、compact 幅のタスクリスト詳細を表示している間だけ表示中リストの背景色に置き換える。
 - `manifest.webmanifest` には `theme_color` を置かない。Android のインストール済み PWA はナビゲーションバー色を manifest の `theme_color` に固定するため、省略して端末の light / dark に従う OS 既定色にする。`background_color` は起動画面用に残す。
 
 ## PWA

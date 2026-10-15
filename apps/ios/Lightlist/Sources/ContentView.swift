@@ -4704,6 +4704,13 @@ private struct DetailPagerContent: View {
                         autoSort: autoSort,
                         focusedNewTaskListId: $focusedNewTaskListId
                     )
+                    .mask {
+                        if showsIndicator {
+                            Rectangle().ignoresSafeArea(edges: .bottom)
+                        } else {
+                            Rectangle().ignoresSafeArea()
+                        }
+                    }
                     .background(PagerBackSwipeEnabler())
                     .background(resolveTaskListBackgroundColor(taskList.background))
                     .background(

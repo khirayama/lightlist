@@ -6724,11 +6724,8 @@ private fun TaskListDetailPagerScreen(
     val taskListBackgroundColor = resolveTaskListBackgroundColor(currentTaskList?.background)
     ColoredSystemBarsEffect(showTopBar && !uiState.isLoading && currentTaskList?.background != null)
     val showIndicator = showTopBar && uiState.taskLists.size > 1 && currentTaskList != null
-    val taskPageTopInset = when {
-        !showTopBar -> 40.dp
-        showIndicator -> TaskListDetailMetrics.indicatorContentInset
-        else -> 0.dp
-    }
+    val taskPageTopInset = if (showTopBar) 0.dp else 40.dp
+    val indicatorInset = if (showIndicator) TaskListDetailMetrics.indicatorContentInset else 0.dp
 
     LaunchedEffect(uiState.taskLists.size, selectedTaskListIndex) {
         if (uiState.taskLists.isEmpty()) {
@@ -6795,7 +6792,7 @@ private fun TaskListDetailPagerScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .background(resolveTaskListBackgroundColor(taskList.background))
-                                        .padding(top = topBarInset)
+                                        .padding(top = topBarInset + indicatorInset)
                                         .windowInsetsPadding(
                                             WindowInsets.safeDrawing.only(
                                                 if (showTopBar) {

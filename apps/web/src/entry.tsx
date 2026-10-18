@@ -478,25 +478,33 @@ const WEB_NOTIFICATION_TOKEN_OWNER_KEY = "lightlist.notificationTokenOwnerUid";
 let webNotificationTokenIssued = false;
 let webNotificationTokenRelease: Promise<void> | null = null;
 
-function writeWebNotificationTokenOwner(uid: string | null) {
+function readStorageItem(key: string): string | null {
   try {
-    if (uid) window.localStorage.setItem(WEB_NOTIFICATION_TOKEN_OWNER_KEY, uid);
-    else window.localStorage.removeItem(WEB_NOTIFICATION_TOKEN_OWNER_KEY);
+    return window.localStorage.getItem(key);
   } catch {
-    return;
+    return null;
   }
+}
+
+function writeStorageItem(key: string, value: string | null): boolean {
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeWebNotificationTokenOwner(uid: string | null) {
+  writeStorageItem(WEB_NOTIFICATION_TOKEN_OWNER_KEY, uid);
 }
 
 function releaseStaleWebNotificationToken(
   currentUid: string | null,
 ): Promise<void> {
   webNotificationTokenRelease ??= (async () => {
-    let ownerUid: string | null = null;
-    try {
-      ownerUid = window.localStorage.getItem(WEB_NOTIFICATION_TOKEN_OWNER_KEY);
-    } catch {
-      return;
-    }
+    const ownerUid = readStorageItem(WEB_NOTIFICATION_TOKEN_OWNER_KEY);
     if (!ownerUid || ownerUid === currentUid) return;
     if ("serviceWorker" in navigator) {
       const registration =
@@ -513,16 +521,8 @@ function releaseStaleWebNotificationToken(
   return webNotificationTokenRelease;
 }
 
-function readWebNotificationDeviceId(): string | null {
-  try {
-    return window.localStorage.getItem(WEB_NOTIFICATION_DEVICE_ID_KEY);
-  } catch {
-    return null;
-  }
-}
-
 function getWebNotificationDeviceId(): string {
-  const storedId = readWebNotificationDeviceId();
+  const storedId = readStorageItem(WEB_NOTIFICATION_DEVICE_ID_KEY);
   if (storedId) return storedId;
   const deviceId = crypto.randomUUID();
   window.localStorage.setItem(WEB_NOTIFICATION_DEVICE_ID_KEY, deviceId);
@@ -532,7 +532,7 @@ function getWebNotificationDeviceId(): string {
 function resolveWebNotificationToken(
   settingsData: Record<string, unknown>,
 ): string | undefined {
-  const deviceId = readWebNotificationDeviceId();
+  const deviceId = readStorageItem(WEB_NOTIFICATION_DEVICE_ID_KEY);
   const devices = settingsData.notificationDevices;
   const device = deviceId && isRecord(devices) ? devices[deviceId] : undefined;
   if (isRecord(device) && typeof device.token === "string") return device.token;
@@ -625,7 +625,7 @@ async function unregisterWebNotificationDevice(
   uid: string,
   registered: boolean,
 ): Promise<void> {
-  const deviceId = readWebNotificationDeviceId();
+  const deviceId = readStorageItem(WEB_NOTIFICATION_DEVICE_ID_KEY);
   const removals: Promise<unknown>[] = [];
   if (registered && deviceId) {
     removals.push(
@@ -1117,30 +1117,10 @@ const isAuthFreePage = (): boolean =>
 
 const LAST_UID_STORAGE_KEY = "lightlist.lastUid";
 
-const readLastUid = (): string | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  try {
-    return window.localStorage.getItem(LAST_UID_STORAGE_KEY);
-  } catch {
-    return null;
-  }
-};
+const readLastUid = (): string | null => readStorageItem(LAST_UID_STORAGE_KEY);
 
 const writeLastUid = (uid: string | null): void => {
-  if (typeof window === "undefined") {
-    return;
-  }
-  try {
-    if (uid) {
-      window.localStorage.setItem(LAST_UID_STORAGE_KEY, uid);
-    } else {
-      window.localStorage.removeItem(LAST_UID_STORAGE_KEY);
-    }
-  } catch {
-    return;
-  }
+  writeStorageItem(LAST_UID_STORAGE_KEY, uid || null);
 };
 
 const MEMBER_KEY_PREFIX = "lightlist-member:";
@@ -1167,7 +1147,6 @@ const getMemberTaskListsQuery = (db: Firestore, memberKey: string) =>
   );
 
 const applyTheme = (theme: Theme) => {
-  if (typeof document === "undefined" || typeof window === "undefined") return;
   const isDark =
     theme === "dark" ||
     (theme === "system" &&
@@ -1180,9 +1159,7 @@ const applyTheme = (theme: Theme) => {
       const metaIsDark = theme === "system" ? media.includes("dark") : isDark;
       meta.content = metaIsDark ? "#030712" : "#ffffff";
     });
-  try {
-    localStorage.setItem("lightlist.theme", theme);
-  } catch {}
+  writeStorageItem("lightlist.theme", theme);
 };
 
 interface ErrorBoundaryProps extends WithTranslation {
@@ -1480,7 +1457,6 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
   }, [activeUid, notificationsEnabled, registeredToken]);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
     const language = normalizeLanguage(
       settings?.language ?? i18next.resolvedLanguage,
     );
@@ -1552,12 +1528,12 @@ type TaskListsState = {
   sharedTaskListsById: Record<string, TaskListStore>;
 };
 
-const serverSessionState: SessionState = {
+const initialSessionState: SessionState = {
   authStatus: "loading",
   user: null,
 };
 
-const serverSettingsState: SettingsState = {
+const initialSettingsState: SettingsState = {
   settings: null,
   settingsStatus: "idle",
 };
@@ -1739,20 +1715,14 @@ type StartupSnapshot = {
 };
 
 const clearStartupSnapshot = (): void => {
-  try {
-    window.localStorage.removeItem(STARTUP_SNAPSHOT_STORAGE_KEY);
-  } catch {
-    return;
-  }
+  writeStorageItem(STARTUP_SNAPSHOT_STORAGE_KEY, null);
 };
 
 const readStartupSnapshot = (uid: string | null): StartupSnapshot | null => {
-  if (!uid || typeof window === "undefined") {
-    return null;
-  }
+  if (!uid) return null;
+  const raw = readStorageItem(STARTUP_SNAPSHOT_STORAGE_KEY);
+  if (!raw) return null;
   try {
-    const raw = window.localStorage.getItem(STARTUP_SNAPSHOT_STORAGE_KEY);
-    if (!raw) return null;
     const data: unknown = JSON.parse(raw);
     if (!isRecord(data) || data.uid !== uid || !Array.isArray(data.taskLists)) {
       return null;
@@ -1783,23 +1753,20 @@ const readStartupSnapshot = (uid: string | null): StartupSnapshot | null => {
 };
 
 const writeStartupSnapshot = (snapshot: StartupSnapshot): void => {
-  try {
-    window.localStorage.setItem(
-      STARTUP_SNAPSHOT_STORAGE_KEY,
-      JSON.stringify({
-        uid: snapshot.uid,
-        settings: snapshot.settings,
-        taskListOrder: snapshot.taskListOrder,
-        taskLists: Object.values(snapshot.taskListsById).map((taskList) => ({
-          ...taskList,
-          createdAt: toMillisValue(taskList.createdAt),
-          updatedAt: toMillisValue(taskList.updatedAt),
-        })),
-      }),
-    );
-  } catch {
-    clearStartupSnapshot();
-  }
+  const saved = writeStorageItem(
+    STARTUP_SNAPSHOT_STORAGE_KEY,
+    JSON.stringify({
+      uid: snapshot.uid,
+      settings: snapshot.settings,
+      taskListOrder: snapshot.taskListOrder,
+      taskLists: Object.values(snapshot.taskListsById).map((taskList) => ({
+        ...taskList,
+        createdAt: toMillisValue(taskList.createdAt),
+        updatedAt: toMillisValue(taskList.updatedAt),
+      })),
+    }),
+  );
+  if (!saved) clearStartupSnapshot();
 };
 
 const hydrateTaskListsState = (
@@ -1982,7 +1949,7 @@ function AppStateProvider({
   children: ReactNode;
   loadAppData?: boolean;
 }) {
-  const [session, setSession] = useState<SessionState>(serverSessionState);
+  const [session, setSession] = useState<SessionState>(initialSessionState);
   const sessionRef = useRef(session);
   sessionRef.current = session;
   const [storedLastUid] = useState(readLastUid);
@@ -2010,7 +1977,7 @@ function AppStateProvider({
   const [settingsState, setSettingsState] = useState<SettingsState>(() =>
     startupSnapshot
       ? { settings: startupSnapshot.settings, settingsStatus: "ready" }
-      : serverSettingsState,
+      : initialSettingsState,
   );
   const optimisticAutoSortRef = useRef<boolean | null>(null);
   const [taskListsState, dispatchTaskLists] = useReducer(
@@ -2063,12 +2030,12 @@ function AppStateProvider({
 
   useEffect(() => {
     if (!loadAppData) {
-      setSettingsState(serverSettingsState);
+      setSettingsState(initialSettingsState);
       return;
     }
     optimisticAutoSortRef.current = null;
     if (!activeUid) {
-      setSettingsState(serverSettingsState);
+      setSettingsState(initialSettingsState);
       return;
     }
 
@@ -4391,9 +4358,7 @@ const AppIcon = ({
 }) => {
   const paths = ICON_PATHS[name];
   const isArray = Array.isArray(paths);
-  const isRtl =
-    typeof document !== "undefined" &&
-    document.documentElement.dir.toLowerCase() === "rtl";
+  const isRtl = document.documentElement.dir.toLowerCase() === "rtl";
   const shouldMirrorArrow =
     (name === "arrow-back" || name === "chevron-right") && isRtl;
   const style = props.style as SVGProps<SVGSVGElement>["style"];
@@ -4972,9 +4937,7 @@ function SettingsView({
     try {
       await signOut(settings?.notificationToken !== undefined);
       logAppEvent("sign_out");
-      if (typeof window !== "undefined") {
-        window.location.assign("/");
-      }
+      window.location.assign("/");
     } catch (err) {
       setError(resolveErrorMessage(err, t, "auth.error.general"));
       setPendingAction(null);
@@ -4995,9 +4958,7 @@ function SettingsView({
       setDeletePassword("");
       setShowDeleteConfirm(false);
       logAppEvent("delete_account");
-      if (typeof window !== "undefined") {
-        window.location.assign("/");
-      }
+      window.location.assign("/");
     } catch (err) {
       setDeleteError(resolveErrorMessage(err, t, "auth.error.general"));
       setPendingAction(null);
@@ -5735,17 +5696,10 @@ type LastTaskListSnapshot = {
 const readLastTaskListSnapshot = (
   uid: string | null,
 ): LastTaskListSnapshot | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
   if (!uid) return null;
+  const raw = readStorageItem(`${LAST_TASK_LIST_STORAGE_KEY_PREFIX}${uid}`);
+  if (!raw) return null;
   try {
-    const raw = window.localStorage.getItem(
-      `${LAST_TASK_LIST_STORAGE_KEY_PREFIX}${uid}`,
-    );
-    if (!raw) {
-      return null;
-    }
     const parsed = JSON.parse(raw) as Partial<LastTaskListSnapshot>;
     if (
       typeof parsed.id !== "string" ||
@@ -5763,28 +5717,14 @@ const writeLastTaskListSnapshot = (
   uid: string | null,
   snapshot: LastTaskListSnapshot,
 ): void => {
-  if (typeof window === "undefined") {
-    return;
-  }
   if (!uid) return;
-  try {
-    window.localStorage.setItem(
-      `${LAST_TASK_LIST_STORAGE_KEY_PREFIX}${uid}`,
-      JSON.stringify(snapshot),
-    );
-  } catch {
-    return;
-  }
+  writeStorageItem(
+    `${LAST_TASK_LIST_STORAGE_KEY_PREFIX}${uid}`,
+    JSON.stringify(snapshot),
+  );
 };
 
-const parseTaskDate = (dateStr: string | null | undefined): Date | null =>
-  parseTaskDateValue(dateStr ?? undefined) ?? null;
-
-const createDateFromKey = (dateKey: string): Date | null =>
-  parseTaskDateValue(dateKey) ?? null;
-
-const formatMonthKey = (date: Date): string =>
-  `${String(date.getFullYear()).padStart(4, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+const formatMonthKey = (date: Date): string => formatDate(date).slice(0, 7);
 
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
@@ -5846,9 +5786,6 @@ const parseAppHashRoute = (hash: string): AppHashRoute => {
   return { view: "unknown" };
 };
 
-const useIsomorphicLayoutEffect =
-  typeof window !== "undefined" ? useLayoutEffect : useEffect;
-
 type AppHeaderProps = {
   backLabel: string;
   onBack: () => void;
@@ -5893,10 +5830,6 @@ const clamp = (value: number, min: number, max: number): number =>
 
 const detectRtlScrollMode = (): RtlScrollMode => {
   if (rtlScrollModeCache) return rtlScrollModeCache;
-  if (typeof document === "undefined") {
-    rtlScrollModeCache = "positive-ascending";
-    return rtlScrollModeCache;
-  }
 
   const container = document.createElement("div");
   const child = document.createElement("div");
@@ -6017,7 +5950,7 @@ function Carousel({
     [count],
   );
 
-  useIsomorphicLayoutEffect(() => {
+  useLayoutEffect(() => {
     if (!isScrollingRef.current) setIndicatorProgress(currentIndex);
   }, [currentIndex, setIndicatorProgress]);
 
@@ -7420,10 +7353,6 @@ function TaskListCard({
       previousTaskActionTaskId !== null &&
       (activeTaskActionTaskId === null || activeTaskActionTaskId === undefined)
     ) {
-      if (typeof window === "undefined") {
-        taskActionTriggerRef.current = null;
-        return;
-      }
       window.requestAnimationFrame(() => {
         taskActionTriggerRef.current?.focus();
         taskActionTriggerRef.current = null;
@@ -8060,7 +7989,6 @@ function TaskListCard({
 }
 
 const toAppUrl = (route: KnownAppHashRoute): string => {
-  if (typeof window === "undefined") return "/app/";
   const baseUrl = `${window.location.pathname}${window.location.search}`;
   if (route.view === "detail") {
     return `${baseUrl}#${TASK_LISTS_ROUTE}/${encodeURIComponent(route.taskListId)}`;
@@ -8816,7 +8744,7 @@ function CalendarScreen({
         return;
       }
       const taskId = crypto.randomUUID();
-      const dateValue = values.date ? createDateFromKey(values.date) : null;
+      const dateValue = parseTaskDateValue(values.date) ?? null;
       const optimisticTask: DatedTask = {
         taskListId: targetTaskList.id,
         taskListName: targetTaskList.name,
@@ -8867,7 +8795,7 @@ function CalendarScreen({
       taskSettings.language,
       editedTask.task,
     );
-    const nextDateValue = values.date ? createDateFromKey(values.date) : null;
+    const nextDateValue = parseTaskDateValue(values.date) ?? null;
     const nextTask: Task = {
       ...editedTask.task,
       text: values.text.trim() === "" ? "" : parsed.text,
@@ -8984,7 +8912,7 @@ function CalendarScreen({
       );
       for (const [taskIndex, task] of orderedTasks.entries()) {
         if (task.completed) continue;
-        const parsedDate = parseTaskDate(task.date);
+        const parsedDate = parseTaskDateValue(task.date);
         flattened.push({
           taskListId: taskList.id,
           taskListName: taskList.name,
@@ -9056,9 +8984,9 @@ function CalendarScreen({
     const map: Record<string, Date[]> = {};
     for (const [monthKey, tasks] of Object.entries(datedTasksByMonth)) {
       const dateSet = new Set(tasks.map((task) => task.dateKey));
-      map[monthKey] = Array.from(dateSet)
-        .map((dateKey) => createDateFromKey(dateKey))
-        .filter((date): date is Date => Boolean(date));
+      map[monthKey] = Array.from(dateSet).flatMap(
+        (dateKey) => parseTaskDateValue(dateKey) ?? [],
+      );
     }
     return map;
   }, [datedTasksByMonth]);
@@ -9149,7 +9077,9 @@ function CalendarScreen({
           ref={taskScrollContainerRef}
           className={clsx(
             "ll-min-h-0 ll-flex-1 ll-overflow-y-auto",
-            showCompactHeaderOffset ? "ll-px-4 ll-safe-pb-6" : "ll-calendar-page",
+            showCompactHeaderOffset
+              ? "ll-px-4 ll-safe-pb-6"
+              : "ll-calendar-page",
           )}
         >
           {showCompactHeaderOffset ? null : (
@@ -9753,11 +9683,7 @@ function AppShellPage() {
     document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true });
   }, [currentView, isWideLayout]);
 
-  useIsomorphicLayoutEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
+  useLayoutEffect(() => {
     const syncView = () => {
       const route = parseAppHashRoute(window.location.hash);
       if (route.view === "unknown") {
@@ -9827,7 +9753,7 @@ function AppShellPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !isSessionActive) {
+    if (!isSessionActive) {
       return;
     }
 
@@ -9901,10 +9827,7 @@ function AppShellPage() {
       mode: "push" | "replace",
       historyDepthOverride?: number,
     ) => {
-      const currentHistoryDepth =
-        typeof window === "undefined"
-          ? 0
-          : getAppHistoryDepth(window.history.state);
+      const currentHistoryDepth = getAppHistoryDepth(window.history.state);
       const nextHistoryDepth =
         historyDepthOverride ??
         (mode === "push" ? currentHistoryDepth + 1 : currentHistoryDepth);
@@ -9923,10 +9846,6 @@ function AppShellPage() {
         }
         setPendingInitialTaskListRoute(false);
       });
-
-      if (typeof window === "undefined") {
-        return;
-      }
 
       historyDepthRef.current = nextHistoryDepth;
       const nextState = buildAppHistoryState(
@@ -10024,9 +9943,6 @@ function AppShellPage() {
   };
   const openTaskAction = (taskListId: string, taskId: string) => {
     setActiveTaskAction({ taskListId, taskId });
-    if (typeof window === "undefined") {
-      return;
-    }
     const route = getCurrentDetailRoute();
     if (route === null) {
       return;
@@ -10044,9 +9960,6 @@ function AppShellPage() {
   };
   const closeTaskAction = () => {
     setActiveTaskAction(null);
-    if (typeof window === "undefined") {
-      return;
-    }
     if (readTaskActionHistoryState(window.history.state) !== null) {
       window.history.back();
       return;
@@ -10064,7 +9977,6 @@ function AppShellPage() {
 
   const handleBackToTaskLists = () => {
     if (
-      typeof window !== "undefined" &&
       getAppHistoryDepth(window.history.state) > 0 &&
       (currentView === "detail" ||
         currentView === "settings" ||

@@ -77,6 +77,7 @@
 ## セキュリティ・品質
 
 - 英語相対日付の解析は UI 翻訳の dynamic import に依存させない。`sync-shared-locales.mjs` が shared locale の英語 `datePatterns` だけを `src/english-date-patterns.json` に生成し、parser が静的に読む。英語の UI 翻訳全体は引き続き dynamic import にする。言語正規化を変更するときは `entry.tsx` / `lp.ts` / `public/theme.js` を揃える。
+- Web は SSR を行わないため、`typeof window` / `typeof document` のガードや `useIsomorphicLayoutEffect` を持ち込まない。localStorage の読み書きは例外を握りつぶす `readStorageItem` / `writeStorageItem`（`null` で削除、成否を boolean で返す）を通す。
 - `ErrorBoundary` はクラスコンポーネントのため `withTranslation()` HOC で i18next を注入する（`useTranslation` フック不可）。
 
 - Web の確認 UI は `window.confirm` / `window.alert` を使わず、`ConfirmDialog`（Radix Dialog、タイトル + 本文 + キャンセル / 削除）を使う。dialog 内からの確認は元の `DialogContent` の内側に置いて入れ子にする。

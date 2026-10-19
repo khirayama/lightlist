@@ -210,6 +210,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.content.ContextCompat
 import androidx.compose.runtime.rememberUpdatedState
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.SnapshotMetadata
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
@@ -373,6 +374,9 @@ private fun passwordResetCode(rawValue: String?): String? {
     val code = rawValue?.trim() ?: return null
     return code.takeIf { it.isNotEmpty() && it.toByteArray().size <= 2048 }
 }
+
+private val SnapshotMetadata.isServerConfirmed: Boolean
+    get() = !isFromCache && !hasPendingWrites()
 
 private fun nowMillis(): Long = System.currentTimeMillis()
 
@@ -941,6 +945,15 @@ private data class TaskSummary(
     val pinned: Boolean
 )
 
+private val taskOrderComparator = compareBy<TaskSummary> { it.order }.thenBy { it.id }
+
+private fun insertTask(tasks: List<TaskSummary>, task: TaskSummary, position: String): List<TaskSummary> =
+    if (position == "bottom") {
+        tasks + task.copy(order = (tasks.lastOrNull()?.order ?: 0.0) + 1.0)
+    } else {
+        listOf(task.copy(order = (tasks.firstOrNull()?.order ?: 1.0) - 1.0)) + tasks
+    }
+
 private data class FirestoreTaskRecord(
     val id: String? = null,
     val text: String? = null,
@@ -988,7 +1001,7 @@ private fun FirestoreTaskRecord.toTaskSummary(taskId: String): TaskSummary? {
 
 private fun FirestoreTaskListRecord.taskSummaries(): List<TaskSummary> {
     return tasks.mapNotNull { (taskId, task) -> task.toTaskSummary(taskId) }
-        .sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
+        .sortedWith(taskOrderComparator)
 }
 
 private fun decodeTaskListRecord(document: DocumentSnapshot): FirestoreTaskListRecord {
@@ -2228,6 +2241,21 @@ private fun resolveAuthErrorMessage(
     return message ?: translations.t(fallbackKey)
 }
 
+private suspend fun runAuthRequest(
+    translations: Translations,
+    timeoutOperation: String,
+    request: suspend () -> Unit
+): String? =
+    try {
+        withTimeout(10_000) { request() }
+        null
+    } catch (e: TimeoutCancellationException) {
+        recordNonFatalException(timeoutOperation)
+        translations.t("auth.error.general")
+    } catch (e: Exception) {
+        resolveAuthErrorMessage(translations, e)
+    }
+
 private fun normalizeLanguageCode(language: String): String {
     return if (Translations.isSupported(language)) language else "ja"
 }
@@ -2415,6 +2443,10 @@ private data class SettingsState(
     val isStartupPending: Boolean get() = isLoading && !isStartupCached
 }
 
+private fun isValidTheme(theme: String): Boolean = theme == "system" || theme == "light" || theme == "dark"
+
+private fun isValidTaskInsertPosition(position: String): Boolean = position == "top" || position == "bottom"
+
 private object StartupSettingsCache {
     private const val PREFS_NAME = "lightlist.startup"
     private const val KEY_UID = "uid"
@@ -2430,15 +2462,15 @@ private object StartupSettingsCache {
 
     private fun read(context: Context, userId: String): SettingsState? {
         val prefs = prefs(context)
-        val theme = prefs.getString(KEY_THEME, null)
+        val theme = prefs.getString(KEY_THEME, null)?.takeIf(::isValidTheme)
         val language = prefs.getString(KEY_LANGUAGE, null)
-        val taskInsertPosition = prefs.getString(KEY_TASK_INSERT_POSITION, null)
+        val taskInsertPosition = prefs.getString(KEY_TASK_INSERT_POSITION, null)?.takeIf(::isValidTaskInsertPosition)
         if (
             prefs.getString(KEY_UID, null) != userId ||
-            (theme != "system" && theme != "light" && theme != "dark") ||
+            theme == null ||
             language == null ||
             !Translations.isSupported(language) ||
-            (taskInsertPosition != "top" && taskInsertPosition != "bottom") ||
+            taskInsertPosition == null ||
             !prefs.contains(KEY_AUTO_SORT)
         ) {
             return null
@@ -2498,9 +2530,9 @@ private fun resolveSettingsState(
     val language = record.language ?: "ja"
     val taskInsertPosition = record.taskInsertPosition ?: "top"
     if (
-        (theme != "system" && theme != "light" && theme != "dark") ||
+        !isValidTheme(theme) ||
         !Translations.isSupported(language) ||
-        (taskInsertPosition != "top" && taskInsertPosition != "bottom")
+        !isValidTaskInsertPosition(taskInsertPosition)
     ) {
         return null
     }
@@ -2620,7 +2652,7 @@ private fun <T> subscribeToOrderedTaskLists(
                 taskListsById = next
                 taskListsLoaded = true
                 val serverConfirmed = snapshot != null &&
-                    !snapshot.metadata.isFromCache && !snapshot.metadata.hasPendingWrites()
+                    snapshot.metadata.isServerConfirmed
                 if (serverConfirmed) failedScopes.remove("taskLists")
                 taskListsRetry.markHealthy(serverConfirmed)
                 publish()
@@ -2645,7 +2677,7 @@ private fun <T> subscribeToOrderedTaskLists(
                 orderedTaskListIds = parseOrderedTaskListIds(snapshot?.data ?: emptyMap())
                 orderLoaded = true
                 val serverConfirmed = snapshot != null &&
-                    !snapshot.metadata.isFromCache && !snapshot.metadata.hasPendingWrites()
+                    snapshot.metadata.isServerConfirmed
                 if (serverConfirmed) failedScopes.remove("order")
                 orderRetry.markHealthy(serverConfirmed)
                 publish()
@@ -3266,9 +3298,7 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                         } else {
                             uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
                         }
-                        if (snapshot?.metadata?.isFromCache == false &&
-                            !snapshot.metadata.hasPendingWrites()
-                        ) {
+                        if (snapshot?.metadata?.isServerConfirmed == true) {
                             retryDelayMs = 1000L
                             reportedError = false
                             if (!snapshot.exists() && Firebase.auth.currentUser?.uid == userId) {
@@ -4744,19 +4774,11 @@ private fun SignInView(onShowReset: () -> Unit) {
                 isLoading = true
                 errorMessage = null
                 scope.launch {
-                    try {
-                        withTimeout(10_000) {
-                            Firebase.auth.signInWithEmailAndPassword(email.trim(), password).await()
-                        }
-                        logLogin()
-                    } catch (e: TimeoutCancellationException) {
-                        recordNonFatalException("sign_in_timeout")
-                        errorMessage = t.t("auth.error.general")
-                    } catch (e: Exception) {
-                        errorMessage = resolveAuthErrorMessage(t, e)
-                    } finally {
-                        isLoading = false
+                    errorMessage = runAuthRequest(t, "sign_in_timeout") {
+                        Firebase.auth.signInWithEmailAndPassword(email.trim(), password).await()
                     }
+                    if (errorMessage == null) logLogin()
+                    isLoading = false
                 }
             },
             enabled = !isLoading && isOnline,
@@ -4841,24 +4863,11 @@ private fun SignUpView(language: String) {
                 isLoading = true
                 errorMessage = null
                 scope.launch {
-                    try {
-                        withTimeout(10_000) {
-                            signUpWithInitialData(
-                                trimmedEmail,
-                                password,
-                                language,
-                                t.t("app.initialTaskListName")
-                            )
-                        }
-                        logSignUp()
-                    } catch (e: TimeoutCancellationException) {
-                        recordNonFatalException("sign_up_timeout")
-                        errorMessage = t.t("auth.error.general")
-                    } catch (e: Exception) {
-                        errorMessage = resolveAuthErrorMessage(t, e)
-                    } finally {
-                        isLoading = false
+                    errorMessage = runAuthRequest(t, "sign_up_timeout") {
+                        signUpWithInitialData(trimmedEmail, password, language, t.t("app.initialTaskListName"))
                     }
+                    if (errorMessage == null) logSignUp()
+                    isLoading = false
                 }
             },
             enabled = !isLoading && isOnline,
@@ -4918,20 +4927,14 @@ private fun PasswordResetRequestView(
                     isLoading = true
                     errorMessage = null
                     scope.launch {
-                        try {
-                            withTimeout(10_000) {
-                                sendPasswordResetEmail(trimmedEmail, language)
-                            }
+                        errorMessage = runAuthRequest(t, "password_reset_timeout") {
+                            sendPasswordResetEmail(trimmedEmail, language)
+                        }
+                        if (errorMessage == null) {
                             logPasswordResetEmailSent()
                             successMessage = t.t("auth.passwordReset.success")
-                        } catch (e: TimeoutCancellationException) {
-                            recordNonFatalException("password_reset_timeout")
-                            errorMessage = t.t("auth.error.general")
-                        } catch (e: Exception) {
-                            errorMessage = resolveAuthErrorMessage(t, e)
-                        } finally {
-                            isLoading = false
                         }
+                        isLoading = false
                     }
                 },
                 enabled = !isLoading && isOnline,
@@ -5122,7 +5125,7 @@ private fun CalendarScreen(
 
     fun displayedTasks(taskList: TaskListDetail): List<TaskSummary> =
         (pendingCalendarTaskLists[taskList.id] ?: taskList.tasks)
-            .sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
+            .sortedWith(taskOrderComparator)
 
     fun displayedHistory(taskList: TaskListDetail): List<String> =
         pendingCalendarHistories[taskList.id] ?: taskList.history
@@ -5187,25 +5190,18 @@ private fun CalendarScreen(
         if (!hasTaskContent(parsed.text, dateKey, pinned)) return
         val taskId = java.util.UUID.randomUUID().toString()
         val orderedTasks = displayedTasks(taskList)
-        val nextOrder = if (settingsState.taskInsertPosition == "bottom") {
-            (orderedTasks.lastOrNull()?.order ?: 0.0) + 1.0
-        } else {
-            (orderedTasks.firstOrNull()?.order ?: 1.0) - 1.0
-        }
         val insertedTask = TaskSummary(
             id = taskId,
             text = parsed.text,
             completed = false,
             date = dateKey,
-            order = nextOrder,
+            order = 0.0,
             pinned = pinned
         )
-        val insertedTasks = if (settingsState.taskInsertPosition == "bottom") {
-            orderedTasks + insertedTask
-        } else {
-            listOf(insertedTask) + orderedTasks
-        }
-        val nextTasks = normalizeTasks(insertedTasks, settingsState.autoSort)
+        val nextTasks = normalizeTasks(
+            insertTask(orderedTasks, insertedTask, settingsState.taskInsertPosition),
+            settingsState.autoSort
+        )
         val nextHistory = buildHistory(parsed.text, displayedHistory(taskList))
         val updates = buildTaskUpdateData(orderedTasks, nextTasks) + mapOf("history" to nextHistory)
         val pendingValues = mapOf(taskList.id to nextTasks)
@@ -5234,7 +5230,7 @@ private fun CalendarScreen(
     ) {
         val taskList = calendarTaskLists.firstOrNull { it.id == task.taskListId } ?: return
         val currentTask = displayedTasks(taskList).firstOrNull { it.id == task.taskId } ?: return
-        val orderedTasks = displayedTasks(taskList).sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
+        val orderedTasks = displayedTasks(taskList)
         val nextTasks = normalizeTasks(
             orderedTasks.map { if (it.id == task.taskId) transform(it) else it },
             settingsState.autoSort
@@ -5294,26 +5290,11 @@ private fun CalendarScreen(
 
         val targetTaskList = calendarTaskLists.firstOrNull { it.id == taskListId } ?: return
         val orderedTargetTasks = displayedTasks(targetTaskList)
-            .sortedWith(compareBy<TaskSummary> { it.order }.thenBy { it.id })
-        val nextOrder = if (settingsState.taskInsertPosition == "bottom") {
-            (orderedTargetTasks.lastOrNull()?.order ?: 0.0) + 1.0
-        } else {
-            (orderedTargetTasks.firstOrNull()?.order ?: 1.0) - 1.0
-        }
-        val movedTask = TaskSummary(
-            id = task.taskId,
-            text = nextText,
-            completed = currentTask.completed,
-            date = dateKey,
-            order = nextOrder,
-            pinned = pinned
+        val movedTask = currentTask.copy(text = nextText, date = dateKey, pinned = pinned)
+        val nextTargetTasks = normalizeTasks(
+            insertTask(orderedTargetTasks, movedTask, settingsState.taskInsertPosition),
+            settingsState.autoSort
         )
-        val insertedTasks = if (settingsState.taskInsertPosition == "bottom") {
-            orderedTargetTasks + movedTask
-        } else {
-            listOf(movedTask) + orderedTargetTasks
-        }
-        val nextTargetTasks = normalizeTasks(insertedTasks, settingsState.autoSort)
         val nextTargetHistory = buildHistory(nextText, displayedHistory(targetTaskList))
         val targetUpdates = buildTaskUpdateData(orderedTargetTasks, nextTargetTasks) +
             mapOf("history" to nextTargetHistory)
@@ -6774,7 +6755,7 @@ private fun TaskListDetailPagerScreen(
                 backgroundColor = if (showPager) Color.Transparent else taskListBackgroundColor,
                 contentBehindTopBar = showPager
             ) {
-                if (showPager && currentTaskList != null) {
+                if (showPager) {
                     val topBarInset = if (showTopBar) {
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues()
                             .calculateTopPadding() + TaskListDetailMetrics.topBarHeight
@@ -7322,9 +7303,7 @@ private fun getDisplayOrderedTasks(tasks: List<TaskSummary>): List<TaskSummary> 
 }
 
 private fun getOrderOrderedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
-    return tasks.filter(::hasTaskContent).sortedWith(
-        compareBy<TaskSummary> { it.order }.thenBy { it.id }
-    )
+    return tasks.filter(::hasTaskContent).sortedWith(taskOrderComparator)
 }
 
 private fun getAutoSortedTasks(tasks: List<TaskSummary>): List<TaskSummary> {
@@ -7893,27 +7872,16 @@ private fun TaskListDetailContent(
         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
         newTaskText = ""
         val taskId = java.util.UUID.randomUUID().toString()
-        val tasks = displayTasks
-        val order = if (taskInsertPosition == "top")
-            (tasks.firstOrNull()?.order ?: 1.0) - 1.0
-        else
-            (tasks.lastOrNull()?.order ?: 0.0) + 1.0
         val insertedTask = TaskSummary(
             id = taskId,
             text = parsed.text,
             completed = false,
             date = parsed.date ?: "",
-            order = order,
+            order = 0.0,
             pinned = parsed.pinned
         )
         performTaskMutation(
-            buildNextTasks = { currentTasks ->
-                if (taskInsertPosition == "top") {
-                    listOf(insertedTask) + currentTasks
-                } else {
-                    currentTasks + insertedTask
-                }
-            },
+            buildNextTasks = { currentTasks -> insertTask(currentTasks, insertedTask, taskInsertPosition) },
             history = buildHistory(parsed.text, displayHistory)
         )
     }

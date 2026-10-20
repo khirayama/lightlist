@@ -222,16 +222,8 @@ private enum AppTypography {
         .custom("GenInterfaceJP-SemiBold", size: 12, relativeTo: .caption)
     }
 
-    static func title() -> Font {
-        .custom("GenInterfaceJPDisplay-Bold", size: 28, relativeTo: .title)
-    }
-
     static func sectionTitle() -> Font {
         .custom("GenInterfaceJPDisplay-Bold", size: 20, relativeTo: .title3)
-    }
-
-    static func headline() -> Font {
-        .custom("GenInterfaceJPDisplay-Bold", size: 17, relativeTo: .headline)
     }
 
     static func captionMedium() -> Font {
@@ -1043,19 +1035,6 @@ enum AppRoute: Hashable {
     case settings
     case calendar
 
-    var title: String {
-        switch self {
-        case .taskLists:
-            return "TaskLists"
-        case .taskList:
-            return "TaskList"
-        case .settings:
-            return "Settings"
-        case .calendar:
-            return "Calendar"
-        }
-    }
-
     static var initialPath: [AppRoute] {
         [.taskList(taskListId: "__initial__")]
     }
@@ -1221,9 +1200,7 @@ private struct FirestoreTaskListRecord: Codable {
         (tasks ?? [:]).compactMap { taskId, task in
             task.taskSummary(taskId: taskId)
         }
-        .sorted {
-            $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order
-        }
+        .sorted(by: isTaskOrderedBefore)
     }
 }
 
@@ -1297,19 +1274,25 @@ private func canReorderTasks(_ first: TaskSummary, _ second: TaskSummary, autoSo
     !autoSort || (taskDisplayGroup(first) == taskDisplayGroup(second) && first.date == second.date)
 }
 
+nonisolated private func isTaskOrderedBefore(_ lhs: TaskSummary, _ rhs: TaskSummary) -> Bool {
+    lhs.order == rhs.order ? lhs.id < rhs.id : lhs.order < rhs.order
+}
+
+private func taskDateSortKey(_ date: String) -> String {
+    date.isEmpty ? "9999-12-31" : date
+}
+
 private func getDisplayOrderedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
     tasks.filter(hasTaskContent).sorted { lhs, rhs in
         let lhsGroup = taskDisplayGroup(lhs)
         let rhsGroup = taskDisplayGroup(rhs)
         if lhsGroup != rhsGroup { return lhsGroup < rhsGroup }
-        return lhs.order == rhs.order ? lhs.id < rhs.id : lhs.order < rhs.order
+        return isTaskOrderedBefore(lhs, rhs)
     }
 }
 
 private func getOrderOrderedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
-    tasks.filter(hasTaskContent).sorted {
-        $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order
-    }
+    tasks.filter(hasTaskContent).sorted(by: isTaskOrderedBefore)
 }
 
 private func getAutoSortedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
@@ -1318,11 +1301,18 @@ private func getAutoSortedTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
             let lhsGroup = taskDisplayGroup(lhs)
             let rhsGroup = taskDisplayGroup(rhs)
             if lhsGroup != rhsGroup { return lhsGroup < rhsGroup }
-            let lhsDate = lhs.date.isEmpty ? "9999-12-31" : lhs.date
-            let rhsDate = rhs.date.isEmpty ? "9999-12-31" : rhs.date
+            let lhsDate = taskDateSortKey(lhs.date)
+            let rhsDate = taskDateSortKey(rhs.date)
             if lhsDate != rhsDate { return lhsDate < rhsDate }
-            return lhs.order == rhs.order ? lhs.id < rhs.id : lhs.order < rhs.order
+            return isTaskOrderedBefore(lhs, rhs)
         })
+}
+
+private func insertTask(_ task: TaskSummary, into tasks: [TaskSummary], position: String) -> [TaskSummary] {
+    if position == "bottom" {
+        return tasks + [task.updating(order: (tasks.last?.order ?? 0) + 1)]
+    }
+    return [task.updating(order: (tasks.first?.order ?? 1) - 1)] + tasks
 }
 
 private func renumberTasks(_ tasks: [TaskSummary]) -> [TaskSummary] {
@@ -1966,9 +1956,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
     }
 
     private func displayedTasks(for taskList: TaskListDetail) -> [TaskSummary] {
-        (pendingTaskArrays[taskList.id] ?? taskList.tasks).sorted {
-            $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order
-        }
+        (pendingTaskArrays[taskList.id] ?? taskList.tasks).sorted(by: isTaskOrderedBefore)
     }
 
     private func displayedHistory(for taskList: TaskListDetail) -> [String] {
@@ -2014,8 +2002,8 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         }
         .sorted {
             if $0.pinned != $1.pinned { return $0.pinned && !$1.pinned }
-            let leftDate = $0.date.isEmpty ? "9999-12-31" : $0.date
-            let rightDate = $1.date.isEmpty ? "9999-12-31" : $1.date
+            let leftDate = taskDateSortKey($0.date)
+            let rightDate = taskDateSortKey($1.date)
             if leftDate != rightDate { return leftDate < rightDate }
             if $0.taskListIndex != $1.taskListIndex { return $0.taskListIndex < $1.taskListIndex }
             if $0.taskIndex != $1.taskIndex { return $0.taskIndex < $1.taskIndex }
@@ -2106,25 +2094,19 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             onFailure()
             return
         }
-        let taskId = UUID().uuidString
         let orderedTasks = displayedTasks(for: taskList)
-        let nextOrder =
-            taskInsertPosition == "bottom"
-            ? (orderedTasks.last?.order ?? 0) + 1
-            : (orderedTasks.first?.order ?? 1) - 1
         let insertedTask = TaskSummary(
-            id: taskId,
+            id: UUID().uuidString,
             text: parsed.text,
             completed: false,
             date: dateStr,
-            order: nextOrder,
+            order: 0,
             pinned: pinned
         )
-        let insertedTasks =
-            taskInsertPosition == "bottom"
-            ? orderedTasks + [insertedTask]
-            : [insertedTask] + orderedTasks
-        let nextTasks = normalizeTasks(insertedTasks, autoSort: autoSort)
+        let nextTasks = normalizeTasks(
+            insertTask(insertedTask, into: orderedTasks, position: taskInsertPosition),
+            autoSort: autoSort
+        )
         let nextHistory = buildHistory(
             newText: parsed.text,
             history: displayedHistory(for: taskList),
@@ -2218,24 +2200,12 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         }
         let resolved = resolveTaskInput(rawText, translations: translations, currentTask: currentTask)
         let nextText = rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : resolved.text
-        let nextOrder =
-            taskInsertPosition == "bottom"
-            ? (targetTasks.last?.order ?? 0) + 1
-            : (targetTasks.first?.order ?? 1) - 1
-        let movedTask = TaskSummary(
-            id: task.taskId,
-            text: nextText,
-            completed: currentTask.completed,
-            date: dateStr,
-            order: nextOrder,
-            pinned: pinned
-        )
+        let movedTask = currentTask.updating(text: nextText, date: dateStr, pinned: pinned)
         let nextSourceTasks = normalizeTasks(sourceTasks.filter { $0.id != task.taskId }, autoSort: autoSort)
-        let insertedTasks =
-            taskInsertPosition == "bottom"
-            ? targetTasks + [movedTask]
-            : [movedTask] + targetTasks
-        let nextTargetTasks = normalizeTasks(insertedTasks, autoSort: autoSort)
+        let nextTargetTasks = normalizeTasks(
+            insertTask(movedTask, into: targetTasks, position: taskInsertPosition),
+            autoSort: autoSort
+        )
         var sourceUpdates = buildTaskUpdateData(previousTasks: sourceTasks, tasks: nextSourceTasks)
         var targetUpdates = buildTaskUpdateData(previousTasks: targetTasks, tasks: nextTargetTasks)
         let targetHistory = buildHistory(
@@ -3223,7 +3193,6 @@ private extension VerticalAlignment {
 
 private enum AppIconMetrics {
     static let standardActionIconSize: CGFloat = 22
-    static let navigationIconSize: CGFloat = 22
     static let compactActionIconSize: CGFloat = 20
     static let inlineActionIconSize: CGFloat = 18
     static let dragHandleDotSize: CGFloat = 4
@@ -4790,27 +4759,15 @@ private struct DetailPagerContent: View {
     }
 }
 
-private struct TaskListDetailPagerView: View {
-    let initialTaskListId: String
-    let currentUserId: String?
-    @Environment(\.dismiss) private var dismiss
+private struct TaskListDetailPagerBody: View {
     @EnvironmentObject var translations: Translations
-    @State private var selectedTaskListId: String
-    @StateObject private var viewModel = OrderedTaskListViewModel<TaskListDetail>(mapper: mapTaskListDetail)
-    @StateObject private var settingsViewModel = SettingsViewModel()
+    @ObservedObject var viewModel: OrderedTaskListViewModel<TaskListDetail>
+    @ObservedObject var settingsViewModel: SettingsViewModel
     @ObservedObject private var autoSortOverrides = AutoSortOverrideStore.shared
-
-    private var navigationBarBackground: String? {
-        viewModel.status == .loading || viewModel.status == .error
-            ? nil
-            : (viewModel.taskLists.first(where: { $0.id == selectedTaskListId }) ?? viewModel.taskLists.first)?.background
-    }
-
-    init(initialTaskListId: String, currentUserId: String?) {
-        self.initialTaskListId = initialTaskListId
-        self.currentUserId = currentUserId
-        _selectedTaskListId = State(initialValue: initialTaskListId)
-    }
+    let currentUserId: String?
+    @Binding var selectedTaskListId: String
+    let showsIndicator: Bool
+    let ignoresSafeAreaBackground: Bool
 
     var body: some View {
         Group {
@@ -4830,23 +4787,17 @@ private struct TaskListDetailPagerView: View {
                 DetailPagerContent(
                     selectedTaskListId: $selectedTaskListId,
                     taskLists: viewModel.taskLists,
-                    taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "top",
+                    taskInsertPosition: settingsViewModel.taskInsertPosition,
                     autoSort: autoSortOverrides.value(
                         for: currentUserId,
                         fallback: settingsViewModel.settings?.autoSort ?? true
                     ),
-                    showsIndicator: true,
-                    ignoresSafeAreaBackground: true
+                    showsIndicator: showsIndicator,
+                    ignoresSafeAreaBackground: ignoresSafeAreaBackground
                 )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar { TodayDateToolbarItem(isOnColoredBackground: hasTaskListBackgroundColor(navigationBarBackground)) }
-        .taskListNavigationBar(
-            navigationBarBackground,
-            plainVisibility: .hidden
-        )
         .onAppear {
             viewModel.bind(uid: currentUserId)
             settingsViewModel.bind(uid: currentUserId)
@@ -4859,6 +4810,44 @@ private struct TaskListDetailPagerView: View {
             viewModel.reset()
             settingsViewModel.reset()
         }
+    }
+}
+
+private struct TaskListDetailPagerView: View {
+    let initialTaskListId: String
+    let currentUserId: String?
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedTaskListId: String
+    @StateObject private var viewModel = OrderedTaskListViewModel<TaskListDetail>(mapper: mapTaskListDetail)
+    @StateObject private var settingsViewModel = SettingsViewModel()
+
+    private var navigationBarBackground: String? {
+        viewModel.status == .loading || viewModel.status == .error
+            ? nil
+            : (viewModel.taskLists.first(where: { $0.id == selectedTaskListId }) ?? viewModel.taskLists.first)?.background
+    }
+
+    init(initialTaskListId: String, currentUserId: String?) {
+        self.initialTaskListId = initialTaskListId
+        self.currentUserId = currentUserId
+        _selectedTaskListId = State(initialValue: initialTaskListId)
+    }
+
+    var body: some View {
+        TaskListDetailPagerBody(
+            viewModel: viewModel,
+            settingsViewModel: settingsViewModel,
+            currentUserId: currentUserId,
+            selectedTaskListId: $selectedTaskListId,
+            showsIndicator: true,
+            ignoresSafeAreaBackground: true
+        )
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { TodayDateToolbarItem(isOnColoredBackground: hasTaskListBackgroundColor(navigationBarBackground)) }
+        .taskListNavigationBar(
+            navigationBarBackground,
+            plainVisibility: .hidden
+        )
         .onChange(of: viewModel.taskLists) { _, taskLists in
             guard !taskLists.isEmpty else {
                 if viewModel.status == .ready { dismiss() }
@@ -4878,57 +4867,23 @@ private struct TaskListDetailPagerView: View {
 }
 
 private struct RegularTaskListDetailPagerView: View {
-    @EnvironmentObject var translations: Translations
     @Binding var selectedTaskListId: String?
     let currentUserId: String?
     @StateObject private var viewModel = OrderedTaskListViewModel<TaskListDetail>(mapper: mapTaskListDetail)
     @StateObject private var settingsViewModel = SettingsViewModel()
-    @ObservedObject private var autoSortOverrides = AutoSortOverrideStore.shared
 
     var body: some View {
-        Group {
-            if viewModel.status == .loading {
-                TaskLoadingPlaceholder(detail: true)
-            } else if viewModel.status == .error {
-                VStack {
-                    Spacer()
-                    AppAlert(message: translations.t("app.loadError"))
-                        .padding(.horizontal, 16)
-                    Spacer()
-                }
-            } else if viewModel.taskLists.isEmpty {
-                TaskStateNotice(icon: "list.bullet", titleKey: "app.emptyState", hintKey: "app.emptyStateHint")
-                    .frame(maxHeight: .infinity)
-            } else {
-                DetailPagerContent(
-                    selectedTaskListId: Binding(
-                        get: { resolvedTaskListId },
-                        set: { selectedTaskListId = $0 }
-                    ),
-                    taskLists: viewModel.taskLists,
-                    taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "top",
-                    autoSort: autoSortOverrides.value(
-                        for: currentUserId,
-                        fallback: settingsViewModel.settings?.autoSort ?? true
-                    ),
-                    showsIndicator: false,
-                    ignoresSafeAreaBackground: false
-                )
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            viewModel.bind(uid: currentUserId)
-            settingsViewModel.bind(uid: currentUserId)
-        }
-        .onChange(of: currentUserId) { _, nextUid in
-            viewModel.bind(uid: nextUid)
-            settingsViewModel.bind(uid: nextUid)
-        }
-        .onDisappear {
-            viewModel.reset()
-            settingsViewModel.reset()
-        }
+        TaskListDetailPagerBody(
+            viewModel: viewModel,
+            settingsViewModel: settingsViewModel,
+            currentUserId: currentUserId,
+            selectedTaskListId: Binding(
+                get: { resolvedTaskListId },
+                set: { selectedTaskListId = $0 }
+            ),
+            showsIndicator: false,
+            ignoresSafeAreaBackground: false
+        )
         .onChange(of: viewModel.taskLists) { _, taskLists in
             guard !taskLists.isEmpty else {
                 selectedTaskListId = nil
@@ -6113,25 +6068,17 @@ private struct TaskListDetailPage: View {
         triggerLightImpact()
         newTaskText = ""
         focusedNewTaskListId = taskList.id
-        let taskId = UUID().uuidString
-        let currentTasks = displayTasks
-        let order: Double =
-            taskInsertPosition == "top"
-            ? (currentTasks.first?.order ?? 1.0) - 1.0
-            : (currentTasks.last?.order ?? 0.0) + 1.0
         let insertedTask = TaskSummary(
-            id: taskId,
+            id: UUID().uuidString,
             text: parsed.text,
             completed: false,
             date: parsed.date ?? "",
-            order: order,
+            order: 0,
             pinned: parsed.pinned
         )
         performTaskMutation(
             buildNextTasks: { currentTasks in
-                taskInsertPosition == "top"
-                    ? [insertedTask] + currentTasks
-                    : currentTasks + [insertedTask]
+                insertTask(insertedTask, into: currentTasks, position: taskInsertPosition)
             },
             additionalUpdates: [
                 "history": buildHistory(
@@ -6585,7 +6532,7 @@ private struct SharedTaskListPreviewView: View {
             } else if let taskList = viewModel.taskList {
                 TaskListDetailPage(
                     taskList: taskList,
-                    taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "top",
+                    taskInsertPosition: settingsViewModel.taskInsertPosition,
                     autoSort: autoSortOverrides.value(
                         for: currentUserId,
                         fallback: settingsViewModel.settings?.autoSort ?? true
@@ -6678,6 +6625,8 @@ private final class SettingsViewModel: ObservableObject {
 
     @Published private(set) var settings: Settings? = nil
     @Published var userEmail: String = ""
+
+    var taskInsertPosition: String { settings?.taskInsertPosition ?? "top" }
     @Published private(set) var isLoading = true
     @Published private(set) var hasError = false
 
@@ -8166,6 +8115,17 @@ private struct CalendarScreenView: View {
 
     private var calendarTasks: [CalendarTask] { viewModel.calendarTasks }
 
+    private var autoSort: Bool {
+        autoSortOverrides.value(for: currentUserId, fallback: settingsViewModel.settings?.autoSort ?? true)
+    }
+
+    private var calendarErrorBinding: Binding<String?> {
+        Binding(
+            get: { viewModel.calendarError },
+            set: { if $0 == nil { viewModel.clearError() } }
+        )
+    }
+
     @State private var displayedMonth: Date = {
         let cal = currentGregorianCalendar()
         return cal.date(from: cal.dateComponents([.year, .month], from: Date())) ?? Date()
@@ -8234,10 +8194,7 @@ private struct CalendarScreenView: View {
                     initialText: "",
                     initialPinned: false,
                     initialDate: request.date,
-                    errorMessage: Binding(
-                        get: { viewModel.calendarError },
-                        set: { if $0 == nil { viewModel.clearError() } }
-                    ),
+                    errorMessage: calendarErrorBinding,
                     onSubmit: { taskListId, text, pinned, dateStr, onSuccess, onFailure in
                         triggerLightImpact()
                         viewModel.addTask(
@@ -8245,8 +8202,8 @@ private struct CalendarScreenView: View {
                             rawText: text,
                             dateStr: dateStr,
                             pinned: pinned,
-                            taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "top",
-                            autoSort: settingsViewModel.settings?.autoSort ?? true,
+                            taskInsertPosition: settingsViewModel.taskInsertPosition,
+                            autoSort: autoSort,
                             translations: translations,
                             onSuccess: onSuccess,
                             onFailure: onFailure
@@ -8262,10 +8219,7 @@ private struct CalendarScreenView: View {
                     initialText: task.text,
                     initialPinned: task.pinned,
                     initialDate: parseTaskInputDate(task.date),
-                    errorMessage: Binding(
-                        get: { viewModel.calendarError },
-                        set: { if $0 == nil { viewModel.clearError() } }
-                    ),
+                    errorMessage: calendarErrorBinding,
                     onSubmit: { taskListId, text, pinned, dateStr, onSuccess, onFailure in
                         triggerLightImpact()
                         viewModel.saveTask(
@@ -8274,11 +8228,8 @@ private struct CalendarScreenView: View {
                             rawText: text,
                             pinned: pinned,
                             dateStr: dateStr,
-                            taskInsertPosition: settingsViewModel.settings?.taskInsertPosition ?? "top",
-                            autoSort: autoSortOverrides.value(
-                                for: currentUserId,
-                                fallback: settingsViewModel.settings?.autoSort ?? true
-                            ),
+                            taskInsertPosition: settingsViewModel.taskInsertPosition,
+                            autoSort: autoSort,
                             translations: translations,
                             onSuccess: onSuccess,
                             onFailure: onFailure
@@ -8433,10 +8384,7 @@ private struct CalendarScreenView: View {
                         onToggleComplete: {
                             viewModel.completeTask(
                                 task,
-                                autoSort: autoSortOverrides.value(
-                                    for: currentUserId,
-                                    fallback: settingsViewModel.settings?.autoSort ?? true
-                                ),
+                                autoSort: autoSort,
                                 translations: translations,
                                 animated: !reduceMotion
                             )

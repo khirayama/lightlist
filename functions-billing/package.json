@@ -6,7 +6,7 @@
   "scripts": { "build": "tsc" },
   "dependencies": {
     "@google-cloud/billing": "6.1.1",
-    "firebase-functions": "7.0.3"
+    "firebase-functions": "7.4.0"
   },
   "devDependencies": { "typescript": "5.9.3" }
 }

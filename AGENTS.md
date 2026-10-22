@@ -146,6 +146,8 @@
 ## セキュリティ・品質ルール
 
 - `console.error` にユーザーメール等の PII（個人識別情報）を含めない。`userEmail` は必ずログから除外する。
+- Functions は Firestore 上のユーザー入力（`settings.language` など）で object を引くとき `in` ではなく `Object.hasOwn` を使い、`__proto__` などの prototype key を受け付けない。通知タイトルに使うリスト名は 100 文字に切り詰めて FCM の payload 上限を超えないようにする。
+- 依存の脆弱性確認は `apps/web` / `functions` / `functions-billing` で `npm audit`、native は Package.resolved と `libs.versions.toml` の版を OSV（`api.osv.dev`）で照会する。Web の `@grpc/grpc-js`（`@firebase/firestore` が `~1.9` に固定）の advisory は Node 実行時専用でブラウザ bundle に含まれないため対象外とし、`overrides` で書き換えない。
 - CI による品質ゲートは設定しない。品質確認は変更があった app のローカル検証コマンド実行を正本とする。
 
 ## 作業完了チェック

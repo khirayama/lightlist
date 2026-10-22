@@ -14,6 +14,7 @@ initializeApp();
 setGlobalOptions({ region: "asia-northeast1", maxInstances: 3 });
 
 const NOTIFICATION_COOLDOWN_MS = 10 * 60 * 1000;
+const NOTIFICATION_TITLE_MAX_LENGTH = 100;
 const recentNotifications = new Map<string, number>();
 
 type RecordValue = Record<string, unknown>;
@@ -23,7 +24,7 @@ const isRecord = (value: unknown): value is RecordValue =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const notificationBody = (language: unknown): string => {
-  if (typeof language === "string" && language in pushLocales) {
+  if (typeof language === "string" && Object.hasOwn(pushLocales, language)) {
     return pushLocales[language as keyof typeof pushLocales];
   }
   return pushLocales.ja;
@@ -121,7 +122,10 @@ export const notifySharedTaskListUpdates = onDocumentWrittenWithAuthContext(
     if (!before || !after) return;
     if (typeof after.memberCount !== "number" || after.memberCount <= 1) return;
 
-    const taskListName = typeof after.name === "string" ? after.name : "Lightlist";
+    const taskListName =
+      typeof after.name === "string"
+        ?Array.from(after.name).slice(0, NOTIFICATION_TITLE_MAX_LENGTH).join("")
+        : "Lightlist";
     const listNameChanged = before.name !== after.name;
     if (!listNameChanged && !hasVisibleTaskChange(before, after)) return;
 

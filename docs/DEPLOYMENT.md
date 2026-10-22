@@ -44,7 +44,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - manifest は `apps/web/public/manifest.webmanifest`。`start_url` は `/app`、`scope` は `/`、`display` は `standalone`。
 - manifest の screenshots は `apps/web/public/screenshots/store/wide/*.png`（`1920x1080`）と `apps/web/public/screenshots/store/narrow/*.png`（`750x1334`）を参照する。
 - icons は `/icons/icon-192.png` / `/icons/icon-512.png` / `/icons/maskable-512.png`。
-- service worker は `apps/web/public/sw.js`。同一オリジンの Vite assets / フォント / アイコン / manifest と、過去に表示した navigation response を cache し、オフライン時は最後に取得した navigation を返す。navigation は network-first だが、3 秒以内に応答がなく cache がある場合は cache を返し、network 応答は裏で cache を更新する。build 後に `scripts/version-service-worker.mjs` が `dist` の revision から cache version を生成し、deploy 単位で旧 cache を activate 時に削除する。
+- service worker は `apps/web/public/sw.js`。同一オリジンの Vite assets / フォント / アイコン / manifest と、過去に表示した navigation response を cache し（navigation は query・hash を除いた origin + path を cache key にし、`oobCode` や共有コードを含む URL を Cache Storage に残さない）、オフライン時は最後に取得した navigation を返す。navigation は network-first だが、3 秒以内に応答がなく cache がある場合は cache を返し、network 応答は裏で cache を更新する。build 後に `scripts/version-service-worker.mjs` が `dist` の revision から cache version を生成し、deploy 単位で旧 cache を activate 時に削除する。
 - Firebase Messaging は別の `/notifications/firebase-messaging-sw.js` を `/notifications/` scope で登録する。通知 worker は dev 起動時に `public/notifications/`、production build 時に `dist/notifications/` へ生成し、offline shell worker と分離する。
 - LP とアプリ側 entry は、HTTPS / `localhost` / `127.0.0.1` でのみ `/sw.js` を登録し、登録後に `registration.update()` を呼ぶ。
 - Firestore のデータ同期は Firestore SDK の永続 cache に任せ、service worker は静的 shell だけを扱う。更新通知 UI は持たず、`skipWaiting()` と `clients.claim()` で更新を適用する。
@@ -61,6 +61,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 - CI で `wrangler pages deploy` を使う場合は `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` を設定する。Pages project は事前に作成しておく。
 - response headers は `apps/web/public/_headers` を使う。AASA は build 後に `dist/.well-known/apple-app-site-association`、Digital Asset Links は `dist/.well-known/assetlinks.json` へ生成し、どちらも `application/json`・短い cache lifetime で配信する。通常の `npm run build` は Web 単体開発を許可するため、対応する環境変数が未設定なら関連付けファイルを生成しない。Pages Functions を追加した場合、Function response の header は Function 側で返す。
 - CSP は `_headers` で管理し、Cloudflare Insights の script / beacon と、self-hosted の `theme.js` / `font-loader.js` を許可する。HTML 側に inline script / event handler を追加せず、`unsafe-inline` も追加しない。
+- 外部 script は Google Analytics（`www.googletagmanager.com`）と Cloudflare Insights だけを許可し、`frame-src` / `frame-ancestors` は `'none'`、`form-action` は `'self'` とする。Firebase Auth は popup / redirect resolver を同梱せず、Firebase Auth の reCAPTCHA（Enterprise を含む）も未構成のため、`apis.google.com` / `www.google.com` / `www.gstatic.com` / `*.firebaseapp.com` は script・frame に許可しない（JSONP などによる CSP 回避の経路を残さない）。popup / redirect サインインや Auth の reCAPTCHA を有効にする場合は、先に CSP の `script-src` / `frame-src` と `Cross-Origin-Opener-Policy`（`same-origin`）を見直す。
 - `404.html` は `apps/web/dist/404.html` を custom 404 として使う。`500.html` は build 出力へ含めるが、Cloudflare Pages が自動で custom 500 として扱う前提は置かない。
 
 ## Web env

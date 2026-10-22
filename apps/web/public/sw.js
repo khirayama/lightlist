@@ -53,8 +53,10 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   if (request.mode === "navigate") {
+    const url = new URL(request.url);
+    const cacheKey = `${url.origin}${url.pathname}`;
     const network = fetch(request).then((response) => {
-      cacheResponse(request, response);
+      cacheResponse(cacheKey, response);
       return response;
     });
     const offlineResponse = () =>
@@ -71,7 +73,7 @@ self.addEventListener("fetch", (event) => {
           resolve(response);
         };
         const timer = setTimeout(() => {
-          caches.match(request).then((cached) => {
+          caches.match(cacheKey).then((cached) => {
             if (cached) settle(cached);
           });
         }, NAVIGATION_TIMEOUT_MS);
@@ -83,7 +85,7 @@ self.addEventListener("fetch", (event) => {
           .catch(() => {
             clearTimeout(timer);
             caches
-              .match(request)
+              .match(cacheKey)
               .then((cached) => settle(cached ?? offlineResponse()));
           });
       }),

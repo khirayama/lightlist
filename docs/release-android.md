@@ -67,7 +67,7 @@ adb shell pm get-app-links com.lightlist.app
 ```
 
 - Firebase Authentication のアプリ内パスワードリセットは Firebase Hosting link domain を使う。Firebase Console に Android package、Play App Signing SHA-1 / SHA-256、Hosting links、Web fallback URL を設定し、`mode=resetPassword` と `oobCode` を含む Hosting link が native reset 画面を開くことを確認する。必要なら `LIGHTLIST_FIREBASE_AUTH_LINK_DOMAIN` で app の link domain を上書きする。
-- `lightlist://password-reset?oobCode=...` と `lightlist://sharecodes/CODE` の custom scheme も確認する。
+- `lightlist://sharecodes/CODE` の custom scheme も確認する（パスワードリセットは HTTPS だけを受け付ける）。
 
 ### 5. 端末データと成果物
 
@@ -88,7 +88,7 @@ zipalign -c -P 16 -v 4 app/build/outputs/apk/release/app-release.apk
 
 ### 7. App content
 
-- Data safety を入力する。
+- Data safety を入力する。Crashlytics へ Firebase Auth の uid をユーザー ID として送るため、「ユーザー ID」（アプリの機能・分析、第三者共有なし）を申告に含める。iOS の Privacy Manifest も `NSPrivacyCollectedDataTypeUserID` を宣言する。
 - Privacy Policy を公開 URL で提供する（PDF 不可、地域制限やログイン必須にしない）。store listing の developer / company / app name と整合する主体名を記載する。
 - App access、Ads（現状なし）、Content rating questionnaire、Target audience を入力する。
 - News / Government / Financial features など該当有無を確認する。
@@ -116,7 +116,6 @@ just bundle-play
 
 - 最初は internal testing track に AAB をアップロードする。新規個人デベロッパーアカウントで production access が未解放の場合は、closed testing で 12 人以上の tester に 14 日間連続 opt-in してもらってから production access を申請する。
 - Firebase Auth / Firestore / Crashlytics / Analytics、deep link、パスワードリセット、共有コードの未認証プレビューとログイン済み参加導線、主要言語、RTL、端末テーマ、tablet 幅を確認する。
-  - `lightlist://password-reset?oobCode=...`
   - `lightlist://sharecodes/CODE`
   - `https://lightlist.app/sharecodes/?code=CODE`
   - `https://lightlist.app/password_reset?oobCode=...`

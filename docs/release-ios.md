@@ -21,7 +21,7 @@
 ### 暗号化輸出規制 / プライバシー
 
 - `ITSAppUsesNonExemptEncryption: NO` を Info.plist で申告済み（標準 HTTPS のみ）。提出ごとの輸出コンプライアンス質問は不要。
-- Privacy Manifest は `Lightlist/Resources/PrivacyInfo.xcprivacy` を正とする（メールアドレス、クラッシュデータ、その他の診断データ、Product Interaction、UserDefaults API、トラッキングなし）。Crashlytics へ送る例外の説明は固定文言に限り、メールアドレス・タスク本文・例外理由を含めない。
+- Privacy Manifest は `Lightlist/Resources/PrivacyInfo.xcprivacy` を正とする（メールアドレス、ユーザー ID（Crashlytics の user ID に Firebase Auth の uid を設定するため）、クラッシュデータ、その他の診断データ、Product Interaction、UserDefaults API、トラッキングなし）。Crashlytics へ送る例外の説明は固定文言に限り、メールアドレス・タスク本文・例外理由を含めない。
 - App Store Connect の「App のプライバシー」回答は `PrivacyInfo.xcprivacy` と整合させる。
 
 ## あなたがやること
@@ -52,7 +52,7 @@
 - Universal Links を有効にするには `https://lightlist.app/.well-known/apple-app-site-association` を配置する（Content-Type: `application/json`、リダイレクトなし）。AASA は `apps/web/apple-app-site-association.template.json` から build 後に生成する。
 - Cloudflare Pages の Git integration build と Direct Upload の両方で `LIGHTLIST_IOS_TEAM_ID` を設定する。`npm run cf:preview` / `npm run cf:deploy` は値なしで失敗する。通常の `npm run build` は Web 単体開発を許可するため、値がないと AASA を生成しない。
 - AASA の `appIDs` は `LIGHTLIST_IOS_TEAM_ID.com.lightlist.app`、components は正規共有 URL 用の `/sharecodes/`、互換 URL 用の `/sharecodes/*`、`/password_reset` を対象にする。デプロイ前に実際の endpoint が JSON を返すことを確認する。
-- HTTPS 共有リンクの正規形は `https://lightlist.app/sharecodes/?code=CODE`。`lightlist://password-reset?oobCode=...` と `lightlist://sharecodes/CODE` の custom scheme も確認する。
+- HTTPS 共有リンクの正規形は `https://lightlist.app/sharecodes/?code=CODE`。`lightlist://sharecodes/CODE` の custom scheme も確認する（パスワードリセットは HTTPS だけを受け付ける）。
 - AASA 未配置でも審査はブロックされない（https リンクは Web へフォールバックする）。
 
 ### 5. App Store 提出物の生成

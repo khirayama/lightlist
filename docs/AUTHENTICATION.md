@@ -68,7 +68,7 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
 
 ## deep link
 
-- パスワードリセット: `lightlist://password-reset?oobCode=...` と `https://lightlist.app/password_reset?oobCode=...`（iOS / Android）
+- パスワードリセット: `https://lightlist.app/password_reset?oobCode=...`（iOS / Android）。メールは HTTPS のリンクだけを送るため、他アプリが登録できる custom scheme ではリセットを受け付けない。
 - 共有コード: [sharing.md](./sharing.md) を参照。
 
 ## Cloudflare Pages 配信時の前提

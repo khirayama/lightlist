@@ -23,27 +23,28 @@ native:
   just ios
 
 web:
-  cd apps/web && npm run dev
+  just _node apps/web npm --prefix apps/web run dev
 
 check-web:
-  cd apps/web && npm run check && npm run build
+  just _node apps/web npm --prefix apps/web run check
+  just _node apps/web npm --prefix apps/web run build
 
 check-functions:
-  cd functions && npm run build
-  cd functions-billing && npm run build
+  just _node functions npm --prefix functions run build
+  just _node functions-billing npm --prefix functions-billing run build
 
 audit-web:
-  cd apps/web && npm audit
+  just _node apps/web npm --prefix apps/web audit
 
 audit-functions:
   #!/usr/bin/env zsh
   audit_status=0
-  (cd functions && npm audit) || audit_status=1
-  (cd functions-billing && npm audit) || audit_status=1
+  just _node functions npm --prefix functions audit || audit_status=1
+  just _node functions-billing npm --prefix functions-billing audit || audit_status=1
   exit "$audit_status"
 
 screenshots target='all':
-  cd apps/web && npm run screenshots:generate -- {{target}}
+  just _node apps/web npm --prefix apps/web run screenshots:generate -- {{target}}
 
 run-all:
   just android
@@ -51,11 +52,33 @@ run-all:
   just web
 
 deploy-firebase environment='dev':
-  case '{{environment}}' in \
-    dev) firebase --config ./firebase.json deploy --project lightlist-dev ;; \
-    prod) firebase --config ./firebase.json deploy --project lightlist-prod-b0269 ;; \
-    *) echo "環境は dev または prod を指定してください" >&2; exit 1 ;; \
+  #!/usr/bin/env zsh
+  set -eu
+  project="$(just _firebase-project {{environment}})"
+  just _node functions firebase --config ./firebase.json deploy --project "$project"
+
+backfill-share-previews environment='dev':
+  #!/usr/bin/env zsh
+  set -eu
+  project="$(just _firebase-project {{environment}})"
+  just _node functions npm --prefix functions run build
+  just _node functions node functions/scripts/backfill-share-previews.mjs "$project"
+
+_firebase-project environment:
+  #!/usr/bin/env zsh
+  case '{{environment}}' in
+    dev) echo lightlist-dev ;;
+    prod) echo lightlist-prod-b0269 ;;
+    *) echo "環境は dev または prod を指定してください" >&2; exit 1 ;;
   esac
+
+_node directory +command:
+  #!/usr/bin/env zsh
+  set -eu
+  if command -v fnm >/dev/null; then
+    exec fnm exec --using={{directory}}/.node-version -- {{command}}
+  fi
+  exec {{command}}
 
 loc:
   @echo "Web (TypeScript/TSX):"

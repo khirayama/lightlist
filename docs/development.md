@@ -20,7 +20,7 @@
 
 ## ローカル検証
 
-リポジトリルートから、対象に対応する Node.js / npm を選択して実行する。
+リポジトリルートから実行する。Functions 系の recipe（`check-functions` / `audit-functions` / `deploy-firebase` / `backfill-share-previews`）は fnm があれば各ディレクトリの `.node-version` へ自動で切り替える。Web と fnm のない環境では、対象に対応する Node.js / npm を選択して実行する。
 
 | コマンド | 検証対象 |
 | --- | --- |

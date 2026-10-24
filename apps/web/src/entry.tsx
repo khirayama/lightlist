@@ -99,6 +99,7 @@ import {
 } from "firebase/firestore";
 import type {
   DocumentData,
+  DocumentReference,
   Firestore,
   FirestoreError,
   QuerySnapshot,
@@ -434,7 +435,6 @@ type AppState = {
   taskListOrderStatus: DataLoadStatus;
   taskListDocsStatus: DataLoadStatus;
   taskListOrderUpdatedAt: number | null;
-  sharedTaskListsById: Record<string, TaskList>;
   startupError: string | null;
 };
 
@@ -525,7 +525,9 @@ function getWebNotificationDeviceId(): string {
   const storedId = readStorageItem(WEB_NOTIFICATION_DEVICE_ID_KEY);
   if (storedId) return storedId;
   const deviceId = crypto.randomUUID();
-  window.localStorage.setItem(WEB_NOTIFICATION_DEVICE_ID_KEY, deviceId);
+  if (!writeStorageItem(WEB_NOTIFICATION_DEVICE_ID_KEY, deviceId)) {
+    throw new Error("notification-unavailable");
+  }
   return deviceId;
 }
 
@@ -589,6 +591,7 @@ async function registerWebNotificationDevice(
   }
   const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
   if (!vapidKey) throw new Error("notification-unavailable");
+  const deviceId = getWebNotificationDeviceId();
   await releaseStaleWebNotificationToken(uid);
   const registration = await navigator.serviceWorker.register(
     "/notifications/firebase-messaging-sw.js",
@@ -605,7 +608,6 @@ async function registerWebNotificationDevice(
   if (!options.requestPermission && token === options.registeredToken) {
     return registration;
   }
-  const deviceId = getWebNotificationDeviceId();
   const deviceWrite = updateDoc(doc(getDbInstance(), "settings", uid), {
     [`notificationDevices.${deviceId}`]: {
       token,
@@ -779,7 +781,7 @@ const logException = (operation: string, error?: unknown) => {
   return logAppEvent("exception", params);
 };
 type SyncListenerSource =
-  "settings" | "task_list_order" | "task_lists" | "shared_task_list";
+  "settings" | "task_list_order" | "task_lists" | "share_preview";
 const logSyncListenerError = (
   source: SyncListenerSource,
   errorCategory: string,
@@ -1000,6 +1002,62 @@ const isRetryableFirestoreListenerError = (
     error.code,
   ) ||
   (authIsLoading && error.code === "permission-denied");
+
+type RetryingListener = { markHealthy: () => void; dispose: () => void };
+
+function listenWithRetry({
+  source,
+  subscribe,
+  onFailure,
+  isAuthLoading,
+}: {
+  source: SyncListenerSource;
+  subscribe: (onError: (error: FirestoreError) => void) => () => void;
+  onFailure: (error: FirestoreError) => void;
+  isAuthLoading: () => boolean;
+}): RetryingListener {
+  let disposed = false;
+  let retryTimer: number | null = null;
+  let retryDelayMs = 1000;
+  let reportedError = false;
+  let unsubscribe: (() => void) | null = null;
+  const clearListener = () => {
+    unsubscribe?.();
+    unsubscribe = null;
+  };
+  const install = () => {
+    if (disposed) return;
+    clearListener();
+    unsubscribe = subscribe((error) => {
+      if (disposed || retryTimer !== null) return;
+      if (!reportedError) {
+        void logSyncListenerError(source, error.code);
+        reportedError = true;
+      }
+      onFailure(error);
+      clearListener();
+      if (!isRetryableFirestoreListenerError(error, isAuthLoading())) return;
+      const delayMs = retryDelayMs;
+      retryDelayMs = Math.min(retryDelayMs * 2, 30000);
+      retryTimer = window.setTimeout(() => {
+        retryTimer = null;
+        install();
+      }, delayMs);
+    });
+  };
+  install();
+  return {
+    markHealthy: () => {
+      retryDelayMs = 1000;
+      reportedError = false;
+    },
+    dispose: () => {
+      disposed = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+      clearListener();
+    },
+  };
+}
 
 const getErrorMessage = (
   errorCode: string,
@@ -1514,18 +1572,11 @@ type SettingsState = Pick<AppState, "settings" | "settingsStatus">;
 type SettingsContextValue = SettingsState & {
   setOptimisticAutoSort: (autoSort: boolean) => void;
 };
-type TaskListIndexState = {
-  hasStartupError: boolean;
-  taskListOrderStatus: AppState["taskListOrderStatus"];
-  taskListDocsStatus: AppState["taskListDocsStatus"];
-  taskLists: TaskList[];
-};
 type TaskListsState = {
   taskListOrder: TaskListOrderStore | null;
   taskListOrderStatus: AppState["taskListOrderStatus"];
   taskListDocsStatus: AppState["taskListDocsStatus"];
   taskListsById: Record<string, TaskListStore>;
-  sharedTaskListsById: Record<string, TaskListStore>;
 };
 
 const initialSessionState: SessionState = {
@@ -1547,7 +1598,6 @@ const initialTaskListsState = (
   taskListOrderStatus,
   taskListDocsStatus: "idle",
   taskListsById: {},
-  sharedTaskListsById: {},
 });
 
 const toUser = (user: FirebaseAuthUser | null): User | null => {
@@ -1796,26 +1846,12 @@ type TaskListsAction =
       taskListOrderStatus: AppState["taskListOrderStatus"];
     }
   | {
-      type: "setTaskListChunk";
-      taskListIds: string[];
+      type: "setTaskListDocs";
       taskListsById: Record<string, TaskListStore>;
-    }
-  | {
-      type: "pruneTaskListsById";
-      taskListIds: string[];
-    }
-  | {
-      type: "setTaskListOrderStatus";
-      taskListOrderStatus: AppState["taskListOrderStatus"];
     }
   | {
       type: "setTaskListDocsStatus";
       taskListDocsStatus: AppState["taskListDocsStatus"];
-    }
-  | {
-      type: "setSharedTaskList";
-      taskListId: string;
-      taskListData: TaskListStore | null;
     };
 
 const taskListsReducer = (
@@ -1833,89 +1869,26 @@ const taskListsReducer = (
         taskListOrder: action.taskListOrder,
         taskListOrderStatus: action.taskListOrderStatus,
       };
-    case "setTaskListChunk": {
-      const nextTaskListsById = { ...state.taskListsById };
-      let hasChanged = false;
-      action.taskListIds.forEach((taskListId) => {
-        const taskListData = action.taskListsById[taskListId] ?? null;
-        if (!taskListData) {
-          if (
-            !Object.prototype.hasOwnProperty.call(nextTaskListsById, taskListId)
-          ) {
-            return;
-          }
-          delete nextTaskListsById[taskListId];
-          hasChanged = true;
-          return;
-        }
-        if (nextTaskListsById[taskListId] === taskListData) {
-          return;
-        }
-        nextTaskListsById[taskListId] = taskListData;
-        hasChanged = true;
-      });
-      return hasChanged
-        ? {
-            ...state,
-            taskListsById: nextTaskListsById,
-          }
-        : state;
-    }
-    case "pruneTaskListsById": {
-      const nextTaskListsById: Record<string, TaskListStore> = {};
-      const keepTaskListIds = new Set(action.taskListIds);
-      Object.entries(state.taskListsById).forEach(
-        ([taskListId, taskListData]) => {
-          if (keepTaskListIds.has(taskListId)) {
-            nextTaskListsById[taskListId] = taskListData;
-          }
-        },
-      );
+    case "setTaskListDocs": {
+      const previousIds = Object.keys(state.taskListsById);
+      const nextIds = Object.keys(action.taskListsById);
       if (
-        Object.keys(nextTaskListsById).length ===
-          Object.keys(state.taskListsById).length &&
-        Object.keys(nextTaskListsById).every(
+        previousIds.length === nextIds.length &&
+        nextIds.every(
           (taskListId) =>
-            nextTaskListsById[taskListId] === state.taskListsById[taskListId],
+            state.taskListsById[taskListId] ===
+            action.taskListsById[taskListId],
         )
       ) {
         return state;
       }
-      return {
-        ...state,
-        taskListsById: nextTaskListsById,
-      };
+      return { ...state, taskListsById: action.taskListsById };
     }
-    case "setTaskListOrderStatus":
-      return {
-        ...state,
-        taskListOrderStatus: action.taskListOrderStatus,
-      };
     case "setTaskListDocsStatus":
       return {
         ...state,
         taskListDocsStatus: action.taskListDocsStatus,
       };
-    case "setSharedTaskList": {
-      const nextSharedTaskListsById = { ...state.sharedTaskListsById };
-      if (!action.taskListData) {
-        if (
-          !Object.prototype.hasOwnProperty.call(
-            nextSharedTaskListsById,
-            action.taskListId,
-          )
-        ) {
-          return state;
-        }
-        delete nextSharedTaskListsById[action.taskListId];
-      } else {
-        nextSharedTaskListsById[action.taskListId] = action.taskListData;
-      }
-      return {
-        ...state,
-        sharedTaskListsById: nextSharedTaskListsById,
-      };
-    }
     default:
       return state;
   }
@@ -1925,9 +1898,7 @@ type TaskListsContextValue = {
   taskListOrderStatus: AppState["taskListOrderStatus"];
   taskListDocsStatus: AppState["taskListDocsStatus"];
   taskLists: TaskList[];
-  sharedTaskListsById: Record<string, TaskList>;
   hasStartupError: boolean;
-  registerSharedTaskList: (taskListId: string) => () => void;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -1987,10 +1958,10 @@ function AppStateProvider({
   );
   const taskListOrderStateRef = useRef(taskListsState.taskListOrder);
   taskListOrderStateRef.current = taskListsState.taskListOrder;
-  const sharedTaskListsByIdRef = useRef(taskListsState.sharedTaskListsById);
-  sharedTaskListsByIdRef.current = taskListsState.sharedTaskListsById;
-  const sharedTaskListRefCounts = useRef(new Map<string, number>());
-  const sharedTaskListUnsubscribers = useRef(new Map<string, () => void>());
+  const isAuthLoading = useCallback(
+    () => sessionRef.current.authStatus === "loading",
+    [],
+  );
 
   useEffect(() => {
     if (isAuthFreePage()) {
@@ -2029,18 +2000,13 @@ function AppStateProvider({
   }, []);
 
   useEffect(() => {
-    if (!loadAppData) {
-      setSettingsState(initialSettingsState);
-      return;
-    }
     optimisticAutoSortRef.current = null;
-    if (!activeUid) {
+    if (!loadAppData || !activeUid) {
       setSettingsState(initialSettingsState);
       return;
     }
 
     const settingsRef = doc(getDbInstance(), "settings", activeUid);
-
     const startupSettings =
       startupSnapshot?.uid === activeUid && !startupLiveRef.current.settings
         ? startupSnapshot.settings
@@ -2051,125 +2017,86 @@ function AppStateProvider({
         : { settings: current.settings, settingsStatus: "loading" },
     );
 
-    let disposed = false;
-    let retryTimer: number | null = null;
-    let retryDelayMs = 1000;
-    let reportedError = false;
-    let unsubscribe: (() => void) | null = null;
-    const clearListener = () => {
-      unsubscribe?.();
-      unsubscribe = null;
-    };
-    const scheduleRetry = (error: FirestoreError) => {
-      if (disposed || retryTimer !== null) return;
-      markStartupLive("settings");
-      if (!reportedError) {
-        void logSyncListenerError("settings", error.code);
-        reportedError = true;
-      }
-      setSettingsState((current) => ({
-        settings: current.settings,
-        settingsStatus: "error",
-      }));
-      clearListener();
-      if (
-        !isRetryableFirestoreListenerError(
-          error,
-          sessionRef.current.authStatus === "loading",
-        )
-      ) {
-        return;
-      }
-      const delayMs = retryDelayMs;
-      retryDelayMs = Math.min(retryDelayMs * 2, 30000);
-      retryTimer = window.setTimeout(() => {
-        retryTimer = null;
-        if (!disposed) installListener();
-      }, delayMs);
-    };
-    const installListener = () => {
-      if (disposed) return;
-      clearListener();
-      unsubscribe = onSnapshot(
-        settingsRef,
-        { includeMetadataChanges: true },
-        (snapshot) => {
-          markStartupLive("settings");
-          try {
-            const settingsStore = assertSettingsStore(
-              snapshot.exists() ? snapshot.data() : {},
-              activeUid,
-            );
-            const nextSettings = mapSettingsStore(settingsStore);
-            if (!nextSettings) {
-              throw new Error(`Settings mapping failed: ${activeUid}`);
-            }
-            const optimisticAutoSort = optimisticAutoSortRef.current;
-            if (
-              optimisticAutoSort !== null &&
-              nextSettings.autoSort === optimisticAutoSort
-            ) {
-              optimisticAutoSortRef.current = null;
-            }
-            setSettingsState({
-              settings: {
-                ...nextSettings,
-                autoSort:
-                  optimisticAutoSortRef.current ?? nextSettings.autoSort,
-              },
-              settingsStatus: "ready",
-            });
-            if (
-              !snapshot.metadata.fromCache &&
-              !snapshot.metadata.hasPendingWrites
-            ) {
-              retryDelayMs = 1000;
-              reportedError = false;
-              if (
-                !snapshot.exists() &&
-                getAuthInstance().currentUser?.uid === activeUid
-              ) {
-                void ensureInitialUserData(
+    const listener = listenWithRetry({
+      source: "settings",
+      isAuthLoading,
+      onFailure: () => {
+        markStartupLive("settings");
+        setSettingsState((current) => ({
+          settings: current.settings,
+          settingsStatus: "error",
+        }));
+      },
+      subscribe: (onError) =>
+        onSnapshot(
+          settingsRef,
+          { includeMetadataChanges: true },
+          (snapshot) => {
+            markStartupLive("settings");
+            try {
+              const nextSettings = mapSettingsStore(
+                assertSettingsStore(
+                  snapshot.exists() ? snapshot.data() : {},
                   activeUid,
-                  normalizeLanguage(i18next.language),
-                ).catch((error: unknown) => {
-                  logException("initial_user_data", error);
-                });
+                ),
+              );
+              if (!nextSettings) {
+                throw new Error(`Settings mapping failed: ${activeUid}`);
               }
+              const optimisticAutoSort = optimisticAutoSortRef.current;
+              if (
+                optimisticAutoSort !== null &&
+                nextSettings.autoSort === optimisticAutoSort
+              ) {
+                optimisticAutoSortRef.current = null;
+              }
+              setSettingsState({
+                settings: {
+                  ...nextSettings,
+                  autoSort:
+                    optimisticAutoSortRef.current ?? nextSettings.autoSort,
+                },
+                settingsStatus: "ready",
+              });
+              if (
+                !snapshot.metadata.fromCache &&
+                !snapshot.metadata.hasPendingWrites
+              ) {
+                listener.markHealthy();
+                if (
+                  !snapshot.exists() &&
+                  getAuthInstance().currentUser?.uid === activeUid
+                ) {
+                  void ensureInitialUserData(
+                    activeUid,
+                    normalizeLanguage(i18next.language),
+                  ).catch((error: unknown) => {
+                    logException("initial_user_data", error);
+                  });
+                }
+              }
+            } catch (error) {
+              console.error("settings decode error:", error);
+              logException("settings_decode", error);
+              setSettingsState((current) => ({
+                settings: current.settings,
+                settingsStatus: "error",
+              }));
             }
-          } catch (error) {
-            console.error("settings decode error:", error);
-            logException("settings_decode", error);
-            setSettingsState((current) => ({
-              settings: current.settings,
-              settingsStatus: "error",
-            }));
-          }
-        },
-        scheduleRetry,
-      );
-    };
-    installListener();
-
-    return () => {
-      disposed = true;
-      if (retryTimer !== null) window.clearTimeout(retryTimer);
-      clearListener();
-    };
-  }, [activeUid, loadAppData, markStartupLive, startupSnapshot]);
+          },
+          onError,
+        ),
+    });
+    return listener.dispose;
+  }, [activeUid, isAuthLoading, loadAppData, markStartupLive, startupSnapshot]);
 
   useEffect(() => {
-    if (!loadAppData) {
-      dispatchTaskLists({ type: "reset", taskListOrderStatus: "idle" });
-      return;
-    }
-    if (!activeUid) {
+    if (!loadAppData || !activeUid) {
       dispatchTaskLists({ type: "reset", taskListOrderStatus: "idle" });
       return;
     }
 
     const taskListOrderRef = doc(getDbInstance(), "taskListOrder", activeUid);
-
     if (
       startupSnapshot?.uid === activeUid &&
       !startupLiveRef.current.taskListOrder &&
@@ -2180,117 +2107,68 @@ function AppStateProvider({
       dispatchTaskLists({ type: "reset", taskListOrderStatus: "loading" });
     }
 
-    let disposed = false;
-    let retryTimer: number | null = null;
-    let retryDelayMs = 1000;
-    let reportedError = false;
-    let unsubscribe: (() => void) | null = null;
-    const clearListener = () => {
-      unsubscribe?.();
-      unsubscribe = null;
-    };
-    const scheduleRetry = (error: FirestoreError) => {
-      if (disposed || retryTimer !== null) return;
-      markStartupLive("taskListOrder");
-      if (!reportedError) {
-        void logSyncListenerError("task_list_order", error.code);
-        reportedError = true;
-      }
+    const markOrderError = () =>
       dispatchTaskLists({
         type: "setTaskListOrder",
         taskListOrder: taskListOrderStateRef.current,
         taskListOrderStatus: "error",
       });
-      clearListener();
-      if (
-        !isRetryableFirestoreListenerError(
-          error,
-          sessionRef.current.authStatus === "loading",
-        )
-      ) {
-        return;
-      }
-      const delayMs = retryDelayMs;
-      retryDelayMs = Math.min(retryDelayMs * 2, 30000);
-      retryTimer = window.setTimeout(() => {
-        retryTimer = null;
-        if (!disposed) installListener();
-      }, delayMs);
-    };
-    const installListener = () => {
-      if (disposed) return;
-      clearListener();
-      unsubscribe = onSnapshot(
-        taskListOrderRef,
-        { includeMetadataChanges: true },
-        (snapshot) => {
-          markStartupLive("taskListOrder");
-          try {
-            const taskListOrder = snapshot.exists()
-              ? assertTaskListOrderStore(snapshot.data(), activeUid)
-              : null;
-            dispatchTaskLists({
-              type: "setTaskListOrder",
-              taskListOrder,
-              taskListOrderStatus: "ready",
-            });
-            if (
-              !snapshot.metadata.fromCache &&
-              !snapshot.metadata.hasPendingWrites
-            ) {
-              retryDelayMs = 1000;
-              reportedError = false;
+    const listener = listenWithRetry({
+      source: "task_list_order",
+      isAuthLoading,
+      onFailure: () => {
+        markStartupLive("taskListOrder");
+        markOrderError();
+      },
+      subscribe: (onError) =>
+        onSnapshot(
+          taskListOrderRef,
+          { includeMetadataChanges: true },
+          (snapshot) => {
+            markStartupLive("taskListOrder");
+            try {
+              dispatchTaskLists({
+                type: "setTaskListOrder",
+                taskListOrder: snapshot.exists()
+                  ? assertTaskListOrderStore(snapshot.data(), activeUid)
+                  : null,
+                taskListOrderStatus: "ready",
+              });
+              if (
+                !snapshot.metadata.fromCache &&
+                !snapshot.metadata.hasPendingWrites
+              ) {
+                listener.markHealthy();
+              }
+            } catch (error) {
+              console.error("taskListOrder decode error:", error);
+              logException("task_list_order_decode", error);
+              markOrderError();
             }
-          } catch (error) {
-            console.error("taskListOrder decode error:", error);
-            logException("task_list_order_decode", error);
-            dispatchTaskLists({
-              type: "setTaskListOrder",
-              taskListOrder: taskListOrderStateRef.current,
-              taskListOrderStatus: "error",
-            });
-          }
-        },
-        scheduleRetry,
-      );
-    };
-    installListener();
-
-    return () => {
-      disposed = true;
-      if (retryTimer !== null) window.clearTimeout(retryTimer);
-      clearListener();
-    };
-  }, [activeUid, loadAppData, markStartupLive, startupSnapshot]);
+          },
+          onError,
+        ),
+    });
+    return listener.dispose;
+  }, [activeUid, isAuthLoading, loadAppData, markStartupLive, startupSnapshot]);
 
   const orderedTaskListIds = useMemo(
     () => getOrderedTaskListIds(taskListsState.taskListOrder),
     [taskListsState.taskListOrder],
   );
   useEffect(() => {
-    if (!loadAppData || !activeUid) {
-      dispatchTaskLists({ type: "pruneTaskListsById", taskListIds: [] });
-      dispatchTaskLists({
-        type: "setTaskListDocsStatus",
-        taskListDocsStatus: "loading",
-      });
-      return;
-    }
-
     dispatchTaskLists({
       type: "setTaskListDocsStatus",
       taskListDocsStatus: "loading",
     });
+    if (!loadAppData || !activeUid) {
+      dispatchTaskLists({ type: "setTaskListDocs", taskListsById: {} });
+      return;
+    }
 
     let disposed = false;
-    let retryTimer: number | null = null;
-    let retryDelayMs = 1000;
     let failed = false;
-    let unsubscribe: (() => void) | null = null;
-    const clearListener = () => {
-      unsubscribe?.();
-      unsubscribe = null;
-    };
+    let listener: RetryingListener | null = null;
     const applyTaskListSnapshot = (snapshot: QuerySnapshot<DocumentData>) => {
       const taskListsById: Record<string, TaskListStore> = {};
       snapshot.docs.forEach((documentSnapshot) => {
@@ -2312,192 +2190,50 @@ function AppStateProvider({
           logException("task_list_decode", error);
         }
       });
-      const taskListIds = snapshot.docs.map(
-        (documentSnapshot) => documentSnapshot.id,
-      );
-      dispatchTaskLists({ type: "pruneTaskListsById", taskListIds });
-      dispatchTaskLists({
-        type: "setTaskListChunk",
-        taskListIds,
-        taskListsById,
-      });
+      dispatchTaskLists({ type: "setTaskListDocs", taskListsById });
     };
-    const installListener = (memberKey: string) => {
+    void getMemberKey(activeUid).then((memberKey) => {
       if (disposed) return;
-      clearListener();
-      unsubscribe = onSnapshot(
-        getMemberTaskListsQuery(getDbInstance(), memberKey),
-        { includeMetadataChanges: true },
-        (snapshot) => {
-          if (disposed) return;
+      const taskListsListener = listenWithRetry({
+        source: "task_lists",
+        isAuthLoading,
+        onFailure: () => {
           markStartupLive("taskLists");
-          applyTaskListSnapshot(snapshot);
-          if (
-            !snapshot.metadata.fromCache &&
-            !snapshot.metadata.hasPendingWrites
-          ) {
-            retryDelayMs = 1000;
-            failed = false;
-          }
-          dispatchTaskLists({
-            type: "setTaskListDocsStatus",
-            taskListDocsStatus: failed ? "error" : "ready",
-          });
-        },
-        (error: FirestoreError) => {
-          if (disposed || retryTimer !== null) return;
-          markStartupLive("taskLists");
-          if (!failed) void logSyncListenerError("task_lists", error.code);
           failed = true;
           dispatchTaskLists({
             type: "setTaskListDocsStatus",
             taskListDocsStatus: "error",
           });
-          clearListener();
-          if (
-            !isRetryableFirestoreListenerError(
-              error,
-              sessionRef.current.authStatus === "loading",
-            )
-          ) {
-            return;
-          }
-          const delayMs = retryDelayMs;
-          retryDelayMs = Math.min(delayMs * 2, 30000);
-          retryTimer = window.setTimeout(() => {
-            retryTimer = null;
-            installListener(memberKey);
-          }, delayMs);
         },
-      );
-    };
-    void getMemberKey(activeUid).then(installListener);
+        subscribe: (onError) =>
+          onSnapshot(
+            getMemberTaskListsQuery(getDbInstance(), memberKey),
+            { includeMetadataChanges: true },
+            (snapshot) => {
+              markStartupLive("taskLists");
+              applyTaskListSnapshot(snapshot);
+              if (
+                !snapshot.metadata.fromCache &&
+                !snapshot.metadata.hasPendingWrites
+              ) {
+                taskListsListener.markHealthy();
+                failed = false;
+              }
+              dispatchTaskLists({
+                type: "setTaskListDocsStatus",
+                taskListDocsStatus: failed ? "error" : "ready",
+              });
+            },
+            onError,
+          ),
+      });
+      listener = taskListsListener;
+    });
     return () => {
       disposed = true;
-      if (retryTimer !== null) window.clearTimeout(retryTimer);
-      clearListener();
+      listener?.dispose();
     };
-  }, [activeUid, loadAppData, markStartupLive]);
-
-  const registerSharedTaskList = useCallback((taskListId: string) => {
-    const nextCount =
-      (sharedTaskListRefCounts.current.get(taskListId) ?? 0) + 1;
-    sharedTaskListRefCounts.current.set(taskListId, nextCount);
-
-    if (!sharedTaskListUnsubscribers.current.has(taskListId)) {
-      let disposed = false;
-      let retryTimer: number | null = null;
-      let retryDelayMs = 1000;
-      let reportedError = false;
-      let unsubscribe: (() => void) | null = null;
-      const clearListener = () => {
-        unsubscribe?.();
-        unsubscribe = null;
-      };
-      const scheduleRetry = (error: FirestoreError) => {
-        if (disposed || retryTimer !== null) return;
-        if (!reportedError) {
-          void logSyncListenerError("shared_task_list", error.code);
-          reportedError = true;
-        }
-        dispatchTaskLists({
-          type: "setSharedTaskList",
-          taskListId,
-          taskListData: sharedTaskListsByIdRef.current[taskListId] ?? null,
-        });
-        clearListener();
-        if (
-          !isRetryableFirestoreListenerError(
-            error,
-            sessionRef.current.authStatus === "loading",
-          )
-        ) {
-          return;
-        }
-        const delayMs = retryDelayMs;
-        retryDelayMs = Math.min(retryDelayMs * 2, 30000);
-        retryTimer = window.setTimeout(() => {
-          retryTimer = null;
-          if (!disposed) installListener();
-        }, delayMs);
-      };
-      const installListener = () => {
-        if (disposed) return;
-        clearListener();
-        unsubscribe = onSnapshot(
-          doc(getDbInstance(), "taskLists", taskListId),
-          { includeMetadataChanges: true },
-          (snapshot) => {
-            const rawTaskListData = snapshot.exists()
-              ? snapshot.data({ serverTimestamps: "estimate" })
-              : null;
-            if (rawTaskListData) {
-              scheduleMalformedTaskCleanup(
-                taskListId,
-                rawTaskListData,
-                snapshot.metadata.fromCache,
-                snapshot.metadata.hasPendingWrites,
-              );
-            }
-            let taskListData: TaskListStore | null = null;
-            try {
-              taskListData = rawTaskListData
-                ? normalizeTaskListStore(
-                    assertTaskListStore(rawTaskListData, taskListId),
-                  )
-                : null;
-            } catch (error) {
-              console.error("shared taskList decode error:", error);
-              logException("shared_task_list_decode", error);
-            }
-            dispatchTaskLists({
-              type: "setSharedTaskList",
-              taskListId,
-              taskListData,
-            });
-            if (!snapshot.metadata.fromCache) {
-              retryDelayMs = 1000;
-              reportedError = false;
-            }
-          },
-          scheduleRetry,
-        );
-      };
-      const cleanup = () => {
-        disposed = true;
-        if (retryTimer !== null) window.clearTimeout(retryTimer);
-        clearListener();
-      };
-      sharedTaskListUnsubscribers.current.set(taskListId, cleanup);
-      installListener();
-    }
-
-    return () => {
-      const currentCount = sharedTaskListRefCounts.current.get(taskListId);
-      if (!currentCount || currentCount <= 1) {
-        sharedTaskListRefCounts.current.delete(taskListId);
-        sharedTaskListUnsubscribers.current.get(taskListId)?.();
-        sharedTaskListUnsubscribers.current.delete(taskListId);
-        dispatchTaskLists({
-          type: "setSharedTaskList",
-          taskListId,
-          taskListData: null,
-        });
-        return;
-      }
-      sharedTaskListRefCounts.current.set(taskListId, currentCount - 1);
-    };
-  }, []);
-
-  useEffect(() => {
-    const unsubscribers = sharedTaskListUnsubscribers.current;
-    const refCounts = sharedTaskListRefCounts.current;
-    return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
-      unsubscribers.clear();
-      refCounts.clear();
-    };
-  }, []);
+  }, [activeUid, isAuthLoading, loadAppData, markStartupLive]);
 
   const taskLists = useMemo(
     () =>
@@ -2510,23 +2246,6 @@ function AppStateProvider({
     [orderedTaskListIds, taskListsState.taskListsById],
   );
 
-  const sharedTaskListsById = useMemo(() => {
-    const orderedIdSet = new Set(orderedTaskListIds);
-    const nextSharedTaskListsById: Record<string, TaskList> = {};
-    Object.entries(taskListsState.sharedTaskListsById).forEach(
-      ([taskListId, taskListData]) => {
-        if (orderedIdSet.has(taskListId)) {
-          return;
-        }
-        nextSharedTaskListsById[taskListId] = mapTaskListStoreToTaskList(
-          taskListId,
-          taskListData,
-        );
-      },
-    );
-    return nextSharedTaskListsById;
-  }, [orderedTaskListIds, taskListsState.sharedTaskListsById]);
-
   const hasStartupError =
     settingsState.settingsStatus === "error" ||
     taskListsState.taskListOrderStatus === "error" ||
@@ -2538,14 +2257,10 @@ function AppStateProvider({
       taskListOrderStatus: taskListsState.taskListOrderStatus,
       taskListDocsStatus: taskListsState.taskListDocsStatus,
       taskLists,
-      sharedTaskListsById,
       hasStartupError,
-      registerSharedTaskList,
     }),
     [
       hasStartupError,
-      registerSharedTaskList,
-      sharedTaskListsById,
       taskLists,
       taskListsState.taskListDocsStatus,
       taskListsState.taskListOrderStatus,
@@ -2632,41 +2347,73 @@ function useSettings(): AppState["settings"] {
   return useSettingsState().settings;
 }
 
-function useTaskListIndexState(): TaskListIndexState {
-  const {
-    hasStartupError,
-    taskListOrderStatus,
-    taskListDocsStatus,
-    taskLists,
-  } = useRequiredContext(TaskListsContext);
-  return {
-    hasStartupError,
-    taskListOrderStatus,
-    taskListDocsStatus,
-    taskLists,
-  };
+function useTaskListIndexState(): TaskListsContextValue {
+  return useRequiredContext(TaskListsContext);
 }
 
-function useTaskList(taskListId: string | null): TaskList | null {
-  const { taskLists, sharedTaskListsById, registerSharedTaskList } =
-    useRequiredContext(TaskListsContext);
-  const taskList = taskListId
-    ? (taskLists.find((item) => item.id === taskListId) ??
-      sharedTaskListsById[taskListId] ??
-      null)
-    : null;
-  const isOwnTaskList = taskListId
-    ? taskLists.some((item) => item.id === taskListId)
-    : false;
+type SharePreviewState =
+  | { status: "loading" }
+  | { status: "notFound" }
+  | { status: "error" }
+  | { status: "ready"; taskListId: string; taskList: TaskList | null };
+
+function useSharePreview(shareCode: string | null): SharePreviewState {
+  const [state, setState] = useState<SharePreviewState>({ status: "loading" });
 
   useEffect(() => {
-    if (!taskListId || isOwnTaskList) {
+    const normalizedCode = shareCode ? normalizeShareCode(shareCode) : null;
+    if (!normalizedCode) {
+      setState({ status: "notFound" });
       return;
     }
-    return registerSharedTaskList(taskListId);
-  }, [isOwnTaskList, registerSharedTaskList, taskListId]);
+    setState({ status: "loading" });
+    const listener = listenWithRetry({
+      source: "share_preview",
+      isAuthLoading: () => false,
+      onFailure: (error) => {
+        setState(
+          error.code === "permission-denied"
+            ? { status: "notFound" }
+            : { status: "error" },
+        );
+      },
+      subscribe: (onError) =>
+        onSnapshot(
+          doc(getDbInstance(), "shareCodes", normalizedCode),
+          (snapshot) => {
+            if (!snapshot.exists()) {
+              setState({ status: "notFound" });
+              return;
+            }
+            try {
+              const shareCodeData = assertShareCodeStore(
+                snapshot.data(),
+                normalizedCode,
+              );
+              setState({
+                status: "ready",
+                taskListId: shareCodeData.taskListId,
+                taskList: shareCodeData.preview
+                  ? mapTaskListStoreToTaskList(
+                      shareCodeData.taskListId,
+                      shareCodeData.preview,
+                    )
+                  : null,
+              });
+              if (!snapshot.metadata.fromCache) listener.markHealthy();
+            } catch (error) {
+              console.error("share preview decode error:", error);
+              logException("share_preview_decode", error);
+              setState({ status: "error" });
+            }
+          },
+          onError,
+        ),
+    });
+    return listener.dispose;
+  }, [shareCode]);
 
-  return taskList;
+  return state;
 }
 
 const withAuthLanguage = async <T,>(
@@ -3202,8 +2949,8 @@ function assertTaskListStore(data: unknown, id: string): TaskListStore {
     tasks === null ||
     !Array.isArray(data.history) ||
     !data.history.every((value) => typeof value === "string") ||
-    (data.shareCode !== null && typeof data.shareCode !== "string") ||
-    (data.background !== null && typeof data.background !== "string") ||
+    (data.shareCode != null && typeof data.shareCode !== "string") ||
+    (data.background != null && typeof data.background !== "string") ||
     typeof data.memberCount !== "number" ||
     !Number.isInteger(data.memberCount) ||
     data.memberCount < 1 ||
@@ -3226,9 +2973,10 @@ function assertTaskListStore(data: unknown, id: string): TaskListStore {
     name: data.name,
     tasks: validTasks,
     history: data.history,
-    shareCode: data.shareCode,
-    background: data.background,
+    shareCode: typeof data.shareCode === "string" ? data.shareCode : null,
+    background: typeof data.background === "string" ? data.background : null,
     memberCount: data.memberCount,
+    memberKeys: data.memberKeys,
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
   };
@@ -3306,17 +3054,53 @@ function assertSettingsStore(data: unknown, uid: string): SettingsStore {
 function assertShareCodeStore(
   data: unknown,
   shareCode: string,
-): { taskListId: string; createdAt: number } {
+): { taskListId: string; createdAt: number; preview: TaskListStore | null } {
   if (
     !isRecord(data) ||
     typeof data.taskListId !== "string" ||
     !data.taskListId ||
+    data.taskListId.includes("/") ||
     typeof data.createdAt !== "number" ||
     !Number.isFinite(data.createdAt)
   ) {
     throw new Error(`ShareCode data is malformed: ${shareCode}`);
   }
-  return { taskListId: data.taskListId, createdAt: data.createdAt };
+  const preview = data.preview;
+  if (preview === undefined) {
+    return {
+      taskListId: data.taskListId,
+      createdAt: data.createdAt,
+      preview: null,
+    };
+  }
+  if (
+    !isRecord(preview) ||
+    typeof preview.name !== "string" ||
+    !isRecord(preview.tasks) ||
+    (preview.background !== null && typeof preview.background !== "string") ||
+    typeof preview.syncedAt !== "number"
+  ) {
+    throw new Error(`ShareCode preview is malformed: ${shareCode}`);
+  }
+  const tasks: Record<string, TaskListStoreTask> = {};
+  for (const [taskId, task] of Object.entries(preview.tasks)) {
+    if (isCompleteTaskStoreTask(taskId, task)) tasks[taskId] = task;
+  }
+  return {
+    taskListId: data.taskListId,
+    createdAt: data.createdAt,
+    preview: normalizeTaskListStore({
+      id: data.taskListId,
+      name: preview.name,
+      tasks,
+      history: [],
+      shareCode,
+      background: preview.background,
+      memberCount: 1,
+      createdAt: data.createdAt,
+      updatedAt: preview.syncedAt,
+    }),
+  };
 }
 
 const shareCodePattern = /^[A-Z0-9]{8}$/;
@@ -3590,12 +3374,14 @@ async function createTaskList(name: string, background?: string | null) {
         getDocFromCache(taskListOrderRef).catch(() => getDoc(taskListOrderRef)),
         getMemberKey(uid),
       ]);
-      const taskListOrder = assertTaskListOrderStore(
-        taskListOrderSnapshot.data(),
-        uid,
-      );
+      const taskListOrder = taskListOrderSnapshot.exists()
+        ? assertTaskListOrderStore(taskListOrderSnapshot.data(), uid)
+        : null;
       const nextOrder =
-        Math.max(0, ...getOrderedTaskListOrders(taskListOrder)) + 1;
+        Math.max(
+          0,
+          ...(taskListOrder ? getOrderedTaskListOrders(taskListOrder) : []),
+        ) + 1;
       const normalizedName = name.trim();
       const batch = writeBatch(db);
       batch.set(doc(db, "taskLists", nextTaskListId), {
@@ -3619,6 +3405,7 @@ async function createTaskList(name: string, background?: string | null) {
         {
           [nextTaskListId]: { order: nextOrder },
           updatedAt: now,
+          ...(taskListOrder ? {} : { createdAt: now }),
         },
         { merge: true },
       );
@@ -3653,18 +3440,24 @@ async function deleteTaskList(
       const taskListRef = doc(db, "taskLists", taskListId);
       const taskListOrderRef = doc(db, "taskListOrder", uid);
       const membershipRef = doc(db, "taskLists", taskListId, "members", uid);
-      const [[taskListSnapshot, taskListOrderSnapshot], memberKey] =
+      const read = (ref: DocumentReference) =>
+        serverConfirmed
+          ? getDocFromServer(ref)
+          : getDocFromCache(ref).catch(() => getDoc(ref));
+      const [taskListSnapshot, taskListOrderSnapshot, memberKey] =
         await Promise.all([
-          Promise.all(
-            [taskListRef, taskListOrderRef].map((ref) =>
-              serverConfirmed
-                ? getDocFromServer(ref)
-                : getDocFromCache(ref).catch(() => getDoc(ref)),
-            ),
-          ),
+          read(taskListRef).catch((error: unknown) => {
+            if (isCodedError(error) && error.code === "permission-denied") {
+              return null;
+            }
+            throw error;
+          }),
+          read(taskListOrderRef),
           getMemberKey(uid),
         ]);
-      const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
+      const taskList = taskListSnapshot?.exists()
+        ? assertTaskListStore(taskListSnapshot.data(), taskListId)
+        : null;
       if (!taskListOrderSnapshot.exists()) {
         return;
       }
@@ -3685,6 +3478,16 @@ async function deleteTaskList(
         [taskListId]: deleteField(),
         updatedAt: now,
       });
+      if (taskListSnapshot && !taskList) {
+        batch.delete(membershipRef);
+      }
+      if (
+        !taskList ||
+        (taskList.memberKeys !== undefined &&
+          !taskList.memberKeys.includes(memberKey))
+      ) {
+        return { committed: batch.commit() };
+      }
       batch.delete(membershipRef);
       if (taskList.memberCount <= 1) {
         if (taskList.shareCode) {
@@ -3772,20 +3575,13 @@ async function updateTask(
   settings: ResolvedTaskSettings,
 ) {
   await enqueueTaskListMutation(taskListId, async () => {
-    const needsTaskListRead =
-      settings.autoSort ||
-      typeof updates.text === "string" ||
-      typeof updates.date === "string" ||
-      typeof updates.pinned === "boolean";
-    const taskList = needsTaskListRead
-      ? await getTaskListData(taskListId)
-      : null;
-    const currentTask = taskList?.tasks[taskId];
-    if (needsTaskListRead && !currentTask) {
+    const taskList = await getTaskListData(taskListId);
+    const currentTask = taskList.tasks[taskId];
+    if (!currentTask) {
       throw new Error("Task not found");
     }
     const resolvedTextAndDate =
-      typeof updates.text === "string" && currentTask
+      typeof updates.text === "string"
         ? resolveTaskInput(updates.text, settings.language, currentTask)
         : null;
     const normalizedUpdates: Partial<
@@ -3808,17 +3604,13 @@ async function updateTask(
     }
     const now = Date.now();
     const historyUpdate =
-      taskList &&
-      currentTask &&
       resolvedTextAndDate &&
       resolvedTextAndDate.text.trim() !== currentTask.text.trim()
         ? buildHistory(taskList, resolvedTextAndDate.text, currentTask.text)
         : null;
 
-    const nextCurrentTask = currentTask
-      ? { ...currentTask, ...normalizedUpdates }
-      : null;
-    if (nextCurrentTask && !hasTaskContent(nextCurrentTask)) {
+    const nextCurrentTask = { ...currentTask, ...normalizedUpdates };
+    if (!hasTaskContent(nextCurrentTask)) {
       return {
         committed: updateDoc(doc(getDbInstance(), "taskLists", taskListId), {
           [`tasks.${taskId}`]: deleteField(),
@@ -3843,10 +3635,6 @@ async function updateTask(
           nextUpdates,
         ),
       };
-    }
-
-    if (!taskList || !currentTask) {
-      throw new Error("Task not found");
     }
 
     const tasks = getOrderedTasks(taskList);
@@ -4036,31 +3824,20 @@ async function updateTasksOrder(
 
 const MAX_SHARE_CODE_ATTEMPTS = 10;
 
-async function fetchTaskListByShareCode(shareCode: string) {
+async function fetchTaskListIdByShareCode(shareCode: string) {
   const normalizedCode = normalizeShareCode(shareCode);
   if (!normalizedCode) return null;
-  const snapshots = await getDocFromServer(
-    doc(getDbInstance(), "shareCodes", normalizedCode),
-  );
-  return snapshots.exists()
-    ? assertShareCodeStore(snapshots.data(), normalizedCode)
-    : null;
-}
-
-async function fetchTaskListIdByShareCode(shareCode: string) {
-  const shareCodeData = await fetchTaskListByShareCode(shareCode);
-  if (!shareCodeData) return null;
-  const snapshot = await getDocFromServer(
-    doc(getDbInstance(), "taskLists", shareCodeData.taskListId),
-  );
-  if (!snapshot.exists()) return null;
-  const taskList = assertTaskListStore(
-    snapshot.data(),
-    shareCodeData.taskListId,
-  );
-  return taskList.shareCode === normalizeShareCode(shareCode)
-    ? shareCodeData.taskListId
-    : null;
+  try {
+    const snapshot = await getDocFromServer(
+      doc(getDbInstance(), "shareCodes", normalizedCode),
+    );
+    return snapshot.exists()
+      ? assertShareCodeStore(snapshot.data(), normalizedCode).taskListId
+      : null;
+  } catch (error) {
+    if (isCodedError(error) && error.code === "permission-denied") return null;
+    throw error;
+  }
 }
 
 async function addSharedTaskListToOrder(taskListId: string, shareCode: string) {
@@ -4074,21 +3851,12 @@ async function addSharedTaskListToOrder(taskListId: string, shareCode: string) {
       const taskListRef = doc(db, "taskLists", taskListId);
       const taskListOrderRef = doc(db, "taskListOrder", uid);
       const membershipRef = doc(db, "taskLists", taskListId, "members", uid);
-      const [
-        taskListSnapshot,
-        taskListOrderSnapshot,
-        membershipSnapshot,
-        memberKey,
-      ] = await Promise.all([
-        getDocFromServer(taskListRef),
-        getDocFromServer(taskListOrderRef),
-        getDocFromServer(membershipRef),
-        getMemberKey(uid),
-      ]);
-      const taskList = assertTaskListStore(taskListSnapshot.data(), taskListId);
-      if (taskList.shareCode !== normalizedCode) {
-        throw new Error("Invalid share code");
-      }
+      const [taskListOrderSnapshot, membershipSnapshot, memberKey] =
+        await Promise.all([
+          getDocFromServer(taskListOrderRef),
+          getDocFromServer(membershipRef),
+          getMemberKey(uid),
+        ]);
       const taskListOrder = taskListOrderSnapshot.exists()
         ? assertTaskListOrderStore(taskListOrderSnapshot.data(), uid)
         : null;
@@ -4113,6 +3881,7 @@ async function addSharedTaskListToOrder(taskListId: string, shareCode: string) {
         {
           [taskListId]: { order: nextOrder },
           updatedAt: now,
+          ...(taskListOrder ? {} : { createdAt: now }),
         },
         { merge: true },
       );
@@ -9324,6 +9093,8 @@ function TaskListSidebarPanel({
   const [createListBackground, setCreateListBackground] = useState<
     string | null
   >(null);
+  const [creatingList, setCreatingList] = useState(false);
+  const [createListError, setCreateListError] = useState<string | null>(null);
   const [showJoinListDialog, setShowJoinListDialog] = useState(false);
   const [joinListInput, setJoinListInput] = useState("");
   const [joiningList, setJoiningList] = useState(false);
@@ -9353,11 +9124,19 @@ function TaskListSidebarPanel({
 
   const handleCreateList = async () => {
     const name = createListInput.trim();
-    if (!name) return;
-    await onCreateList(name, createListBackground);
-    setCreateListInput("");
-    setCreateListBackground(null);
-    setShowCreateListDialog(false);
+    if (!name || creatingList) return;
+    setCreatingList(true);
+    setCreateListError(null);
+    try {
+      await onCreateList(name, createListBackground);
+      setCreateListInput("");
+      setCreateListBackground(null);
+      setShowCreateListDialog(false);
+    } catch (err) {
+      setCreateListError(resolveErrorMessage(err, t, "common.error"));
+    } finally {
+      setCreatingList(false);
+    }
   };
 
   const handleJoinList = async () => {
@@ -9465,10 +9244,12 @@ function TaskListSidebarPanel({
           <Dialog
             open={showCreateListDialog}
             onOpenChange={(open: boolean) => {
+              if (creatingList) return;
               setShowCreateListDialog(open);
               if (!open) {
                 setCreateListInput("");
                 setCreateListBackground(null);
+                setCreateListError(null);
               }
             }}
           >
@@ -9491,6 +9272,9 @@ function TaskListSidebarPanel({
                 }}
               >
                 <div className="ll-mt-5 ll-flex ll-flex-col ll-gap-5">
+                  {createListError ? (
+                    <Alert variant="error">{createListError}</Alert>
+                  ) : null}
                   <label className="ll-flex ll-flex-col ll-gap-2">
                     <span className="ll-field-label">
                       {t("app.taskListName")}
@@ -9523,7 +9307,7 @@ function TaskListSidebarPanel({
                   </DialogClose>
                   <button
                     type="submit"
-                    disabled={!createListInput.trim()}
+                    disabled={!createListInput.trim() || creatingList}
                     className={BUTTON_PRIMARY_CLASS}
                   >
                     {t("app.create")}
@@ -11204,73 +10988,45 @@ function ShareCodePreviewPage() {
   const user = useUser();
   const settings = useSettings();
   const { taskLists: ownTaskLists } = useTaskListIndexState();
-  const [sharecode, setSharecode] = useState<string | null>(null);
-  const [sharedTaskListId, setSharedTaskListId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [sharecode] = useState(() =>
+    new URL(window.location.href).searchParams.get("code"),
+  );
+  const preview = useSharePreview(sharecode);
   const [addToOrderLoading, setAddToOrderLoading] = useState(false);
   const [addToOrderError, setAddToOrderError] = useState<string | null>(null);
   const [activeTaskAction, setActiveTaskAction] = useState<string | null>(null);
-  useEffect(() => {
-    const code = new URL(window.location.href).searchParams.get("code");
-    setSharecode(code);
-    if (!code) {
-      setError(t("pages.sharecode.notFound"));
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    if (!sharecode) return;
-
-    let cancelled = false;
-
-    const loadTaskList = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const taskListId = await fetchTaskListIdByShareCode(sharecode);
-        if (cancelled) return;
-        if (!taskListId) {
-          setSharedTaskListId(null);
-          setError(t("pages.sharecode.notFound"));
-          return;
-        }
-
-        setSharedTaskListId(taskListId);
-        log("share", { method: "share_code", content_type: "task_list" });
-      } catch (err) {
-        setError(
-          navigator.onLine
-            ? resolveErrorMessage(err, t, "pages.sharecode.error")
-            : t("common.requiresConnection"),
-        );
-        setSharedTaskListId(null);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void loadTaskList();
-    return () => {
-      cancelled = true;
-    };
-  }, [sharecode, t]);
-
-  const taskList = useTaskList(sharedTaskListId);
-  const isMember = ownTaskLists.some((item) => item.id === sharedTaskListId);
   const isOnline = useIsOnline();
+  const sharedTaskListId =
+    preview.status === "ready" ? preview.taskListId : null;
+  const ownTaskList =
+    ownTaskLists.find((item) => item.id === sharedTaskListId) ?? null;
+  const isMember = ownTaskList !== null;
+  const taskList =
+    ownTaskList ?? (preview.status === "ready" ? preview.taskList : null);
+  const loading =
+    preview.status === "loading" || (preview.status === "ready" && !taskList);
+  const error =
+    preview.status === "notFound"
+      ? t("pages.sharecode.notFound")
+      : preview.status === "error"
+        ? isOnline
+          ? t("pages.sharecode.error")
+          : t("common.requiresConnection")
+        : null;
   useDocumentTitle(taskList?.name ?? error);
 
+  useEffect(() => {
+    if (!sharedTaskListId) return;
+    log("share", { method: "share_code", content_type: "task_list" });
+  }, [sharedTaskListId]);
+
   const handleAddToOrder = async () => {
-    if (!taskList || !user || !sharecode) return;
+    if (!sharedTaskListId || !user || !sharecode) return;
 
     try {
       setAddToOrderLoading(true);
       setAddToOrderError(null);
-      await addSharedTaskListToOrder(taskList.id, sharecode);
+      await addSharedTaskListToOrder(sharedTaskListId, sharecode);
       logAppEvent("share_code_join");
       window.location.assign("/app/");
     } catch (err) {
@@ -11281,8 +11037,6 @@ function ShareCodePreviewPage() {
       setAddToOrderLoading(false);
     }
   };
-
-  if (loading) return <Spinner fullPage />;
 
   if (error) {
     return (
@@ -11298,28 +11052,13 @@ function ShareCodePreviewPage() {
     );
   }
 
-  if (!loading && sharedTaskListId && !taskList) return <Spinner fullPage />;
-
-  if (!taskList) {
-    return (
-      <div className="ll-flex ll-h-full ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
-        <div className="ll-bg-white-b ll-p-4 ll-shadow-sm ll-dark-bg-gray-900b">
-          <HistoryBackButton />
-        </div>
-        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="ll-p-4">
-          <h1 className="ll-text-center ll-text-gray-600 ll-dark-text-gray-300">
-            {t("pages.sharecode.notFound")}
-          </h1>
-        </main>
-      </div>
-    );
-  }
+  if (loading || !taskList) return <Spinner fullPage />;
 
   return (
     <div className="ll-flex ll-h-full ll-flex-col ll-bg-gray-50 ll-dark-bg-gray-950">
       <header className="ll-flex ll-items-center ll-justify-between ll-border-b ll-border-gray-300 ll-bg-white-b ll-px-4 ll-py-3 ll-dark-border-gray-700 ll-dark-bg-gray-900b">
         <HistoryBackButton />
-        {user && (
+        {user && !isMember && (
           <button
             type="button"
             onClick={handleAddToOrder}
@@ -11343,7 +11082,7 @@ function ShareCodePreviewPage() {
             <Alert variant="error">{addToOrderError}</Alert>
           </div>
         )}
-        {user && !isOnline ? (
+        {user && !isMember && !isOnline ? (
           <ConnectionRequiredNote className="ll-p-4 ll-pb-0" />
         ) : null}
 

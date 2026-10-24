@@ -38,4 +38,4 @@
 - `app_settings_auto_sort_change`: `enabled: boolean`
 - `app_settings_startup_view_change`: `view: "taskList" | "calendar" | "taskLists"`
 - `app_exception`: `operation: string`, `error_category?: string`
-- `app_sync_listener_error`: `source: "settings" | "task_list_order" | "task_lists" | "shared_task_list"`, `error_category: string`
+- `app_sync_listener_error`: `source: "settings" | "task_list_order" | "task_lists" | "share_preview" | "membership"`, `error_category: string`

@@ -576,8 +576,8 @@ private fun rememberReduceMotion(): Boolean {
 }
 
 class Translations {
-    private var dict: JSONObject = JSONObject()
-    private var currentLanguage = "ja"
+    private var dict by mutableStateOf(JSONObject())
+    private var currentLanguage by mutableStateOf("ja")
 
     companion object {
         val supported = listOf("ja","en","es","de","fr","ko","zh-CN","hi","ar","pt-BR","id")
@@ -609,10 +609,13 @@ class Translations {
             }
         }
 
+        private val relativePatternsCache = java.util.concurrent.ConcurrentHashMap<String, List<TaskDatePattern>>()
+
         fun getRelativePatterns(language: String): List<TaskDatePattern> {
             val lang = if (supported.contains(language)) language else "ja"
+            relativePatternsCache[lang]?.let { return it }
             val locale = allLocales?.optJSONObject(lang) ?: return emptyList()
-            return getRelativePatternsFromDict(locale)
+            return getRelativePatternsFromDict(locale).also { relativePatternsCache[lang] = it }
         }
 
         private fun getRelativePatternsFromDict(dict: JSONObject): List<TaskDatePattern> {
@@ -880,17 +883,9 @@ class MainActivity : ComponentActivity() {
         val host = data.host?.lowercase(Locale.ROOT)
         val pathSegments = data.pathSegments
 
-        if (scheme == "lightlist") {
-            if (host == "password-reset" && pathSegments.isEmpty()) {
-                passwordResetCode(data.getQueryParameter("oobCode"))?.let { code ->
-                    return PendingDeepLink.PasswordReset(code)
-                }
-            }
-
-            if (host == "sharecodes" && pathSegments.size == 1) {
-                normalizedShareCode(pathSegments[0])?.let { shareCode ->
-                    return PendingDeepLink.ShareCode(shareCode)
-                }
+        if (scheme == "lightlist" && host == "sharecodes" && pathSegments.size == 1) {
+            normalizedShareCode(pathSegments[0])?.let { shareCode ->
+                return PendingDeepLink.ShareCode(shareCode)
             }
         }
 
@@ -1004,34 +999,33 @@ private fun FirestoreTaskListRecord.taskSummaries(): List<TaskSummary> {
         .sortedWith(taskOrderComparator)
 }
 
-private fun decodeTaskListRecord(document: DocumentSnapshot): FirestoreTaskListRecord {
-    return runCatching {
-        document.toObject(FirestoreTaskListRecord::class.java)
-    }.getOrNull() ?: FirestoreTaskListRecord(
-        name = document.getString("name"),
-        tasks = (document.get("tasks") as? Map<*, *>)
-            ?.entries
-            ?.mapNotNull { (key, value) ->
-                val taskId = key as? String ?: return@mapNotNull null
-                val task = value as? Map<*, *> ?: return@mapNotNull null
-                val record = FirestoreTaskRecord(
-                    id = task["id"] as? String,
-                    text = task["text"] as? String,
-                    completed = task["completed"] as? Boolean,
-                    date = task["date"] as? String,
-                    order = (task["order"] as? Number)?.toDouble(),
-                    pinned = task["pinned"] as? Boolean
-                )
-                taskId to record
-            }
-            ?.toMap()
-            .orEmpty(),
-        history = (document.get("history") as? List<*>)?.mapNotNull { it as? String }.orEmpty(),
-        memberCount = (document.get("memberCount") as? Number)?.toLong(),
-        background = document.getString("background"),
-        shareCode = document.getString("shareCode")
-    )
-}
+private fun taskListRecordFromMap(data: Map<*, *>): FirestoreTaskListRecord = FirestoreTaskListRecord(
+    name = data["name"] as? String,
+    tasks = (data["tasks"] as? Map<*, *>)
+        ?.entries
+        ?.mapNotNull { (key, value) ->
+            val taskId = key as? String ?: return@mapNotNull null
+            val task = value as? Map<*, *> ?: return@mapNotNull null
+            taskId to FirestoreTaskRecord(
+                id = task["id"] as? String,
+                text = task["text"] as? String,
+                completed = task["completed"] as? Boolean,
+                date = task["date"] as? String,
+                order = (task["order"] as? Number)?.toDouble(),
+                pinned = task["pinned"] as? Boolean
+            )
+        }
+        ?.toMap()
+        .orEmpty(),
+    history = (data["history"] as? List<*>)?.mapNotNull { it as? String }.orEmpty(),
+    memberCount = (data["memberCount"] as? Number)?.toLong(),
+    background = data["background"] as? String,
+    shareCode = data["shareCode"] as? String
+)
+
+private fun decodeTaskListRecord(document: DocumentSnapshot): FirestoreTaskListRecord =
+    runCatching { document.toObject(FirestoreTaskListRecord::class.java) }.getOrNull()
+        ?: taskListRecordFromMap(document.data.orEmpty())
 
 private class TaskListMutationQueue(
     private val scope: CoroutineScope
@@ -1152,7 +1146,7 @@ private data class SharedTaskListPreviewUiState(
     val taskList: TaskListDetail? = null,
     val isLoading: Boolean = false,
     val isAdded: Boolean = false,
-    val errorMessage: String? = null
+    val errorKey: String? = null
 )
 
 private data class CalendarTask(
@@ -1173,8 +1167,6 @@ private data class CalendarTask(
 
 private const val TASK_LIST_NOT_FOUND_ERROR = "TASK_LIST_NOT_FOUND"
 private const val SHARE_CODE_GENERATION_FAILED_ERROR = "SHARE_CODE_GENERATION_FAILED"
-private const val TASK_LIST_ORDER_NOT_FOUND_ERROR = "TASK_LIST_ORDER_NOT_FOUND"
-private const val TASK_LIST_ALREADY_ADDED_ERROR = "TASK_LIST_ALREADY_ADDED"
 private const val TABLET_MIN_WIDTH_DP = 840
 private object AppIconMetrics {
     val standardActionIconSize = 24.dp
@@ -2187,16 +2179,6 @@ private fun AppCalendarDay(
 }
 
 private val AUTH_ERROR_KEY_MAP = mapOf(
-    "auth/invalid-credential" to "auth.error.invalidCredential",
-    "auth/user-not-found" to "auth.error.userNotFound",
-    "auth/email-already-in-use" to "auth.error.emailAlreadyInUse",
-    "auth/weak-password" to "auth.error.weakPassword",
-    "auth/invalid-email" to "auth.error.invalidEmail",
-    "auth/operation-not-allowed" to "auth.error.operationNotAllowed",
-    "auth/too-many-requests" to "auth.error.tooManyRequests",
-    "auth/requires-recent-login" to "auth.error.requiresRecentLogin",
-    "auth/expired-action-code" to "auth.passwordReset.expiredCode",
-    "auth/invalid-action-code" to "auth.passwordReset.invalidCode",
     "ERROR_INVALID_CREDENTIAL" to "auth.error.invalidCredential",
     "ERROR_WRONG_PASSWORD" to "auth.error.invalidCredential",
     "ERROR_USER_NOT_FOUND" to "auth.error.userNotFound",
@@ -2227,18 +2209,11 @@ private fun resolveAuthErrorMessage(
         }
     }
 
-    val message = error.message
-    if (message != null &&
-        message.contains("incorrect, malformed or has expired", ignoreCase = true)
-    ) {
+    if (error.message?.contains("incorrect, malformed or has expired", ignoreCase = true) == true) {
         return translations.t("auth.error.invalidCredential")
     }
 
-    if (errorCode != null) {
-        return translations.t(fallbackKey)
-    }
-
-    return message ?: translations.t(fallbackKey)
+    return translations.t(fallbackKey)
 }
 
 private suspend fun runAuthRequest(
@@ -2323,6 +2298,8 @@ private fun validateConfirmPasswordField(
         else -> null
     }
 }
+
+private var authScreenLanguage: String? = null
 
 private val initialUserDataScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 private val initialUserDataRequests = mutableMapOf<String, Deferred<Unit>>()
@@ -2411,14 +2388,19 @@ private suspend fun signUpWithInitialData(
 
 private suspend fun sendPasswordResetEmail(email: String, language: String) {
     val auth = Firebase.auth
-    auth.setLanguageCode(normalizeLanguageCode(language))
+    val previousLanguageCode = auth.languageCode
     val actionCodeSettings = ActionCodeSettings.newBuilder()
         .setUrl(BuildConfig.PASSWORD_RESET_URL)
         .setHandleCodeInApp(true)
         .setAndroidPackageName(BuildConfig.APPLICATION_ID, false, null)
         .setLinkDomain(BuildConfig.PASSWORD_RESET_LINK_DOMAIN)
         .build()
-    auth.sendPasswordResetEmail(email, actionCodeSettings).await()
+    auth.setLanguageCode(normalizeLanguageCode(language))
+    try {
+        auth.sendPasswordResetEmail(email, actionCodeSettings).await()
+    } finally {
+        if (previousLanguageCode == null) auth.useAppLanguage() else auth.setLanguageCode(previousLanguageCode)
+    }
 }
 
 private enum class TabletPane {
@@ -2819,6 +2801,7 @@ fun RootScreen(
             SharedTaskListPreviewScreen(
                 shareCode = pendingSharePreviewCode!!,
                 userId = currentUserId,
+                settingsState = settingsState,
                 onDismiss = { pendingSharePreviewCode = null },
                 onAdded = { taskListId ->
                     pendingSharePreviewCode = null
@@ -2831,6 +2814,7 @@ fun RootScreen(
             if (isTabletLayout) {
                 TabletRootScreen(
                     userId = currentUserId,
+                    settingsState = settingsState,
                     initialSelectedTaskListId = requestedTaskListId,
                     onSelectedTaskListHandled = { requestedTaskListId = null }
                 )
@@ -3070,13 +3054,13 @@ private fun OfflineNotice(modifier: Modifier = Modifier) {
 private fun SharedTaskListPreviewScreen(
     shareCode: String,
     userId: String?,
+    settingsState: SettingsState,
     onDismiss: () -> Unit,
     onAdded: (String) -> Unit
 ) {
     val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
     val previewUiState = rememberSharedTaskListPreviewState(shareCode, userId)
-    val settingsState = resolvedSettingsState(userId, rememberSettingsState(userId))
     val scope = rememberCoroutineScope()
     var isJoining by remember { mutableStateOf(false) }
     var addToOrderError by remember { mutableStateOf<String?>(null) }
@@ -3115,7 +3099,7 @@ private fun SharedTaskListPreviewScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            previewUiState.errorMessage ?: t.t("pages.sharecode.error"),
+                            t.t(previewUiState.errorKey ?: "pages.sharecode.error"),
                             color = MaterialTheme.colorScheme.error
                         )
                     }
@@ -3238,39 +3222,17 @@ private fun rememberSettingsState(userId: String?): SettingsState {
             val db = Firebase.firestore
             val email = Firebase.auth.currentUser?.email ?: ""
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-            var disposed = false
-            var retryJob: Job? = null
-            var retryDelayMs = 1000L
-            var reportedError = false
             var listener: ListenerRegistration? = null
-            var installListener: (() -> Unit)? = null
-            fun clearListener() {
+            lateinit var retry: SyncListenerRetryController
+            fun install() {
                 listener?.remove()
-                listener = null
-            }
-            fun scheduleRetry(error: Exception) {
-                if (disposed || retryJob?.isActive == true) return
-                if (!reportedError) {
-                    recordSyncListenerError("settings", error)
-                    reportedError = true
-                }
-                uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
-                val delayMs = retryDelayMs
-                retryDelayMs = minOf(retryDelayMs * 2, 30000L)
-                clearListener()
-                retryJob = scope.launch {
-                    delay(delayMs)
-                    retryJob = null
-                    if (!disposed) installListener?.invoke()
-                }
-            }
-            installListener = listener@{
-                if (disposed) return@listener
-                clearListener()
                 listener = db.collection("settings").document(userId)
                     .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
                         if (error != null) {
-                            scheduleRetry(error)
+                            listener?.remove()
+                            listener = null
+                            uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
+                            retry.fail("settings", error)
                             return@addSnapshotListener
                         }
                         val data = when {
@@ -3298,11 +3260,10 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                         } else {
                             uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
                         }
+                        retry.markHealthy(snapshot?.metadata?.isServerConfirmed == true)
                         if (snapshot?.metadata?.isServerConfirmed == true) {
-                            retryDelayMs = 1000L
-                            reportedError = false
                             if (!snapshot.exists() && Firebase.auth.currentUser?.uid == userId) {
-                                val language = resolveDeviceLanguage(context)
+                                val language = authScreenLanguage ?: resolveDeviceLanguage(context)
                                 val initialTaskListName = Translations.from(context, language)
                                     .t("app.initialTaskListName")
                                 scope.launch {
@@ -3312,11 +3273,11 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                         }
                     }
             }
-            checkNotNull(installListener).invoke()
+            retry = SyncListenerRetryController(scope, ::install, ::recordSyncListenerError)
+            install()
             onDispose {
-                disposed = true
-                retryJob?.cancel()
-                clearListener()
+                retry.dispose()
+                listener?.remove()
                 scope.cancel()
             }
         }
@@ -3324,22 +3285,26 @@ private fun rememberSettingsState(userId: String?): SettingsState {
     return uiState
 }
 
-private fun parseOrderedTaskListIds(data: Map<String, Any>): List<String> {
-    return data.entries
-        .mapNotNull { entry ->
-            if (entry.key == "createdAt" || entry.key == "updatedAt" ||
-                entry.key.isEmpty() || '/' in entry.key
-            ) {
-                return@mapNotNull null
-            }
-            val value = entry.value as? Map<*, *> ?: return@mapNotNull null
-            val order = (value["order"] as? Number)?.toDouble()
-                ?.takeIf { it.isFinite() } ?: return@mapNotNull null
-            entry.key to order
+private fun parseTaskListOrderEntries(data: Map<String, Any>): List<Pair<String, Double>> =
+    data.entries.mapNotNull { entry ->
+        if (entry.key == "createdAt" || entry.key == "updatedAt" ||
+            entry.key.isEmpty() || '/' in entry.key
+        ) {
+            return@mapNotNull null
         }
+        val value = entry.value as? Map<*, *> ?: return@mapNotNull null
+        val order = (value["order"] as? Number)?.toDouble()
+            ?.takeIf { it.isFinite() } ?: return@mapNotNull null
+        entry.key to order
+    }
+
+private fun parseOrderedTaskListOrders(data: Map<String, Any>): List<Double> =
+    parseTaskListOrderEntries(data).map { it.second }
+
+private fun parseOrderedTaskListIds(data: Map<String, Any>): List<String> =
+    parseTaskListOrderEntries(data)
         .sortedWith(compareBy<Pair<String, Double>> { it.second }.thenBy { it.first })
         .map { it.first }
-}
 
 private fun parseTaskListSummary(taskListId: String, data: FirestoreTaskListRecord): TaskListSummary {
     val memberCount = data.memberCount?.toInt() ?: 1
@@ -3430,7 +3395,6 @@ private fun rememberSharedTaskListPreviewState(
     shareCode: String,
     userId: String?
 ): SharedTaskListPreviewUiState {
-    val t = LocalTranslations.current
     val db = Firebase.firestore
     var uiState by remember(shareCode) {
         mutableStateOf(SharedTaskListPreviewUiState(isLoading = true))
@@ -3439,167 +3403,109 @@ private fun rememberSharedTaskListPreviewState(
     LaunchedEffect(shareCode) {
         val normalized = normalizedShareCode(shareCode)
         if (normalized == null) {
-            uiState = SharedTaskListPreviewUiState(
-                isLoading = false,
-                errorMessage = t.t("pages.sharecode.notFound")
-            )
+            uiState = SharedTaskListPreviewUiState(errorKey = "pages.sharecode.notFound")
             return@LaunchedEffect
         }
-
         uiState = SharedTaskListPreviewUiState(isLoading = true)
-        try {
+        uiState = try {
             val taskListId = fetchTaskListIdByShareCode(normalized)
             if (taskListId == null) {
-                uiState = SharedTaskListPreviewUiState(
-                    isLoading = false,
-                    errorMessage = t.t("pages.sharecode.notFound")
-                )
+                SharedTaskListPreviewUiState(errorKey = "pages.sharecode.notFound")
             } else {
-                uiState = uiState.copy(taskListId = taskListId, isLoading = true, errorMessage = null)
                 logShare()
+                SharedTaskListPreviewUiState(taskListId = taskListId, isLoading = true)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
-            uiState = SharedTaskListPreviewUiState(
-                isLoading = false,
-                errorMessage = t.t("pages.sharecode.error")
-            )
+            SharedTaskListPreviewUiState(errorKey = "pages.sharecode.error")
         }
     }
 
-    DisposableEffect(uiState.taskListId) {
-        val taskListId = uiState.taskListId
-        if (taskListId == null) {
+    val taskListId = uiState.taskListId
+    val isAdded = uiState.isAdded
+    DisposableEffect(taskListId, isAdded) {
+        val normalized = normalizedShareCode(shareCode)
+        if (taskListId == null || normalized == null) {
             onDispose {}
         } else {
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-            var disposed = false
-            var retryJob: Job? = null
-            var retryDelayMs = 1000L
-            var reportedError = false
             var listener: ListenerRegistration? = null
-            var installListener: (() -> Unit)? = null
-            fun clearListener() {
+            lateinit var retry: SyncListenerRetryController
+            fun install() {
                 listener?.remove()
-                listener = null
-            }
-            fun scheduleRetry(error: Exception) {
-                if (disposed || retryJob?.isActive == true) return
-                if (!reportedError) {
-                    recordSyncListenerError("shared_task_list", error)
-                    reportedError = true
+                val reference = if (isAdded) {
+                    db.collection("taskLists").document(taskListId)
+                } else {
+                    db.collection("shareCodes").document(normalized)
                 }
-                uiState = uiState.copy(
-                    taskList = null,
-                    isLoading = false,
-                    errorMessage = t.t("pages.sharecode.error")
-                )
-                val delayMs = retryDelayMs
-                retryDelayMs = minOf(retryDelayMs * 2, 30000L)
-                clearListener()
-                retryJob = scope.launch {
-                    delay(delayMs)
-                    retryJob = null
-                    if (!disposed) installListener?.invoke()
-                }
-            }
-            installListener = listener@{
-                if (disposed) return@listener
-                clearListener()
-                listener = db.collection("taskLists").document(taskListId)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            scheduleRetry(error)
-                            return@addSnapshotListener
-                        }
-                        uiState = if (snapshot == null || !snapshot.exists()) {
-                            uiState.copy(
-                                taskList = null,
-                                isLoading = false,
-                                errorMessage = t.t("pages.sharecode.notFound")
-                            )
-                        } else {
-                            uiState.copy(
-                                taskList = parseTaskListDetail(
-                                    taskListId,
-                                    decodeTaskListRecord(snapshot)
-                                ),
-                                isLoading = false,
-                                errorMessage = null
-                            )
-                        }
-                        if (snapshot?.metadata?.isFromCache == false) {
-                            retryDelayMs = 1000L
-                            reportedError = false
-                        }
+                listener = reference.addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        listener?.remove()
+                        listener = null
+                        uiState = uiState.copy(
+                            taskList = null,
+                            isLoading = false,
+                            errorKey = if (error.isPermissionDenied()) "pages.sharecode.notFound" else "pages.sharecode.error"
+                        )
+                        if (!error.isPermissionDenied()) retry.fail("share_preview", error)
+                        return@addSnapshotListener
                     }
+                    if (snapshot == null || !snapshot.exists()) {
+                        uiState = uiState.copy(taskList = null, isLoading = false, errorKey = "pages.sharecode.notFound")
+                        return@addSnapshotListener
+                    }
+                    val record = if (isAdded) {
+                        decodeTaskListRecord(snapshot)
+                    } else {
+                        (snapshot.get("preview") as? Map<*, *>)?.let(::taskListRecordFromMap)
+                    }
+                    uiState = if (record == null) {
+                        uiState.copy(taskList = null, isLoading = true, errorKey = null)
+                    } else {
+                        uiState.copy(taskList = parseTaskListDetail(taskListId, record), isLoading = false, errorKey = null)
+                    }
+                    retry.markHealthy(!snapshot.metadata.isFromCache)
+                }
             }
-            checkNotNull(installListener).invoke()
+            retry = SyncListenerRetryController(scope, ::install, ::recordSyncListenerError)
+            install()
             onDispose {
-                disposed = true
-                retryJob?.cancel()
-                clearListener()
+                retry.dispose()
+                listener?.remove()
                 scope.cancel()
             }
         }
     }
 
-    DisposableEffect(userId, uiState.taskListId) {
-        val taskListId = uiState.taskListId
+    DisposableEffect(userId, taskListId) {
         if (userId == null || taskListId == null) {
             uiState = uiState.copy(isAdded = false)
             onDispose {}
         } else {
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-            var disposed = false
-            var retryJob: Job? = null
-            var retryDelayMs = 1000L
-            var reportedError = false
             var listener: ListenerRegistration? = null
-            var installListener: (() -> Unit)? = null
-            fun clearListener() {
+            lateinit var retry: SyncListenerRetryController
+            fun install() {
                 listener?.remove()
-                listener = null
-            }
-            fun scheduleRetry(error: Exception) {
-                if (disposed || retryJob?.isActive == true) return
-                if (!reportedError) {
-                    recordSyncListenerError("membership", error)
-                    reportedError = true
-                }
-                val delayMs = retryDelayMs
-                retryDelayMs = minOf(retryDelayMs * 2, 30000L)
-                clearListener()
-                retryJob = scope.launch {
-                    delay(delayMs)
-                    retryJob = null
-                    if (!disposed) installListener?.invoke()
-                }
-            }
-            installListener = listener@{
-                if (disposed) return@listener
-                clearListener()
-                listener = db.collection("taskLists")
-                    .document(taskListId)
-                    .collection("members")
-                    .document(userId)
+                listener = db.collection("taskLists").document(taskListId)
+                    .collection("members").document(userId)
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            scheduleRetry(error)
+                            listener?.remove()
+                            listener = null
+                            retry.fail("membership", error)
                             return@addSnapshotListener
                         }
-                        val isAdded = snapshot?.exists() == true
-                        uiState = uiState.copy(isAdded = isAdded)
-                        if (snapshot?.metadata?.isFromCache == false) {
-                            retryDelayMs = 1000L
-                            reportedError = false
-                        }
+                        uiState = uiState.copy(isAdded = snapshot?.exists() == true)
+                        retry.markHealthy(snapshot?.metadata?.isFromCache == false)
                     }
             }
-            checkNotNull(installListener).invoke()
+            retry = SyncListenerRetryController(scope, ::install, ::recordSyncListenerError)
+            install()
             onDispose {
-                disposed = true
-                retryJob?.cancel()
-                clearListener()
+                retry.dispose()
+                listener?.remove()
                 scope.cancel()
             }
         }
@@ -3656,14 +3562,21 @@ private suspend fun removeShareCode(taskListId: String) {
     batch.commit().await()
 }
 
+private fun Exception.isPermissionDenied(): Boolean =
+    (this as? FirebaseFirestoreException)?.code == FirebaseFirestoreException.Code.PERMISSION_DENIED
+
+private fun nextTaskListOrder(data: Map<String, Any>?): Double =
+    (parseOrderedTaskListOrders(data.orEmpty()).maxOrNull() ?: 0.0) + 1.0
+
 private suspend fun fetchTaskListIdByShareCode(shareCode: String): String? {
-    val db = Firebase.firestore
     val normalized = normalizedShareCode(shareCode) ?: return null
-    val snap = db.collection("shareCodes").document(normalized).get(Source.SERVER).await()
-    if (!snap.exists()) return null
-    val taskListId = snap.getString("taskListId")?.takeIf { it.isNotEmpty() && !it.contains("/") } ?: return null
-    val taskList = db.collection("taskLists").document(taskListId).get(Source.SERVER).await()
-    return taskListId.takeIf { taskList.getString("shareCode") == normalized }
+    val snap = try {
+        Firebase.firestore.collection("shareCodes").document(normalized).get(Source.SERVER).await()
+    } catch (e: FirebaseFirestoreException) {
+        if (e.isPermissionDenied()) return null
+        throw e
+    }
+    return snap.getString("taskListId")?.takeIf { it.isNotEmpty() && !it.contains("/") }
 }
 
 private suspend fun addSharedTaskListToOrder(taskListId: String, joinCode: String) {
@@ -3680,25 +3593,13 @@ private suspend fun addSharedTaskListToOrder(taskListId: String, joinCode: Strin
         return
     }
 
-    val orders = orderData.entries.mapNotNull { entry ->
-        if (entry.key == "createdAt" || entry.key == "updatedAt") return@mapNotNull null
-        val value = entry.value as? Map<*, *> ?: return@mapNotNull null
-        (value["order"] as? Number)?.toDouble()
-    }
-    val newOrder = if (orders.isEmpty()) 1.0 else orders.max() + 1.0
-
-    val taskListSnap = taskListRef.get().await()
-    if (!taskListSnap.exists()) throw Exception(TASK_LIST_NOT_FOUND_ERROR)
-
+    val orderUpdates = mutableMapOf<String, Any>(
+        taskListId to mapOf("order" to nextTaskListOrder(orderData)),
+        "updatedAt" to nowMillis()
+    )
+    if (!orderSnap.exists()) orderUpdates["createdAt"] = nowMillis()
     db.batch().apply {
-        set(
-            taskListOrderRef,
-            mapOf(
-                taskListId to mapOf("order" to newOrder),
-                "updatedAt" to nowMillis()
-            ),
-            SetOptions.merge()
-        )
+        set(taskListOrderRef, orderUpdates, SetOptions.merge())
         if (!membershipSnap.exists()) {
             set(
                 membershipRef,
@@ -4016,12 +3917,8 @@ private fun colorLabel(t: Translations, hex: String?): String = when (hex) {
     else -> t.t("taskList.colorCustom")
 }
 
-private fun localizeJoinListError(t: Translations, error: Exception): String = when (error.message) {
-    TASK_LIST_NOT_FOUND_ERROR -> t.t("pages.sharecode.notFound")
-    TASK_LIST_ORDER_NOT_FOUND_ERROR,
-    TASK_LIST_ALREADY_ADDED_ERROR -> t.t("pages.sharecode.addToOrderError")
-    else -> t.t("pages.sharecode.addToOrderError")
-}
+private fun localizeJoinListError(t: Translations, error: Exception): String =
+    t.t(if (error.message == TASK_LIST_NOT_FOUND_ERROR) "pages.sharecode.notFound" else "pages.sharecode.addToOrderError")
 
 private fun parseHexColor(hex: String): Color {
     return try {
@@ -4215,35 +4112,28 @@ private fun parsePinPrefix(text: String, t: Translations): Pair<String, Boolean>
     return source to false
 }
 
+private val NUMERIC_TASK_DATE_PATTERNS = listOf(
+    TaskDatePattern(Regex("""^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$TASK_DATE_SPACE_OR_END""")) { match ->
+        taskInputDateFrom(
+            match.groupValues[1].toInt(),
+            match.groupValues[2].toInt(),
+            match.groupValues[3].toInt()
+        )
+    },
+    TaskDatePattern(Regex("""^(\d{1,2})[-/.](\d{1,2})$TASK_DATE_SPACE_OR_END""")) { match ->
+        val month = match.groupValues[1].toInt()
+        val day = match.groupValues[2].toInt()
+        val currentYear = currentGregorianCalendar().get(Calendar.YEAR)
+        val date = taskInputDateFrom(currentYear, month, day) ?: return@TaskDatePattern null
+        if (date.before(makeTaskOffsetDate(0))) taskInputDateFrom(currentYear + 1, month, day) else date
+    },
+)
+
 private fun parseDateFromTaskInput(text: String, t: Translations): Pair<String, String?> {
     val source = text.trim()
     if (source.isEmpty()) return source to null
 
     val normalized = normalizeTaskDateDigits(source)
-    val numericPatterns = listOf(
-        TaskDatePattern(Regex("""^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$TASK_DATE_SPACE_OR_END""")) { match ->
-            val year = match.groupValues[1].toInt()
-            val month = match.groupValues[2].toInt()
-            val day = match.groupValues[3].toInt()
-            val date = taskInputDateFrom(year, month, day) ?: return@TaskDatePattern null
-            val calendar = currentGregorianCalendar().apply { time = date }
-            if (calendar.get(Calendar.YEAR) == year && calendar.get(Calendar.MONTH) == month - 1 && calendar.get(Calendar.DAY_OF_MONTH) == day) date else null
-        },
-        TaskDatePattern(Regex("""^(\d{1,2})[-/.](\d{1,2})$TASK_DATE_SPACE_OR_END""")) { match ->
-            val month = match.groupValues[1].toInt()
-            val day = match.groupValues[2].toInt()
-            val now = currentGregorianCalendar()
-            val currentYear = now.get(Calendar.YEAR)
-            val date = taskInputDateFrom(currentYear, month, day) ?: return@TaskDatePattern null
-            val today = currentGregorianCalendar().apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }.time
-            if (date.before(today)) taskInputDateFrom(currentYear + 1, month, day) else date
-        },
-    )
 
     val relativePatternSets = buildList {
         add(t.getRelativePatterns())
@@ -4252,7 +4142,7 @@ private fun parseDateFromTaskInput(text: String, t: Translations): Pair<String, 
         }
     }
 
-    (listOf(numericPatterns) + relativePatternSets).forEach { patterns ->
+    (listOf(NUMERIC_TASK_DATE_PATTERNS) + relativePatternSets).forEach { patterns ->
         patterns.forEach { pattern ->
             val match = pattern.regex.find(normalized) ?: return@forEach
             if (match.range.first != 0) return@forEach
@@ -4559,6 +4449,11 @@ private fun AuthView(
         onScreenChange(screen)
     }
 
+    SideEffect { authScreenLanguage = selectedLanguage }
+
+    CompositionLocalProvider(
+        LocalLayoutDirection provides if (selectedLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr
+    ) {
     ScreenScaffold(title = t.t("title")) {
         Box(
             modifier = Modifier
@@ -4668,6 +4563,7 @@ private fun AuthView(
             )
         }
     }
+    }
 }
 
 @Composable
@@ -4729,7 +4625,7 @@ private fun SignInView(onShowReset: () -> Unit) {
     val t = LocalTranslations.current
     val scope = rememberCoroutineScope()
     var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -4799,8 +4695,8 @@ private fun SignUpView(language: String) {
     val t = LocalTranslations.current
     val scope = rememberCoroutineScope()
     var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
@@ -4958,8 +4854,8 @@ private fun ResetPasswordView(
     val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
     val scope = rememberCoroutineScope()
-    var password by rememberSaveable { mutableStateOf("") }
-    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -6374,7 +6270,6 @@ private fun TaskListsScreen(
             val uid = Firebase.auth.currentUser?.uid ?: return
             val db = Firebase.firestore
             val taskListId = db.collection("taskLists").document().id
-            val nextOrder = (uiState.taskLists.size + 1).toDouble()
             val now = nowMillis()
             val newTaskList = hashMapOf<String, Any?>(
                 "id" to taskListId,
@@ -6391,11 +6286,12 @@ private fun TaskListsScreen(
             scope.launch {
                 try {
                     val taskListOrderRef = db.collection("taskListOrder").document(uid)
+                    val taskListOrderSnapshot = cacheFirstDocument(taskListOrderRef)
                     val taskListOrderUpdates = mutableMapOf<String, Any>(
-                        taskListId to mapOf("order" to nextOrder),
+                        taskListId to mapOf("order" to nextTaskListOrder(taskListOrderSnapshot.data)),
                         "updatedAt" to now
                     )
-                    if (!cacheFirstDocument(taskListOrderRef).exists()) {
+                    if (!taskListOrderSnapshot.exists()) {
                         taskListOrderUpdates["createdAt"] = now
                     }
                     val batch = db.batch().apply {
@@ -6550,13 +6446,13 @@ private fun TaskListsScreen(
 @Composable
 private fun TabletRootScreen(
     userId: String?,
+    settingsState: SettingsState,
     initialSelectedTaskListId: String?,
     onSelectedTaskListHandled: () -> Unit
 ) {
     val selectedTaskListState = rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPane by rememberSaveable { mutableStateOf(TabletPane.TaskList) }
     var hasAppliedStartupPane by rememberSaveable { mutableStateOf(false) }
-    val settingsState = resolvedSettingsState(userId, rememberSettingsState(userId))
     val sharedTaskListsState = rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
 
     LaunchedEffect(settingsState.isStartupPending) {
@@ -6631,6 +6527,7 @@ private fun TabletRootScreen(
                     selectedTaskListIdState = selectedTaskListState,
                     showTopBar = false,
                     onEmpty = { selectedTaskListState.value = null },
+                    externalTaskListsState = sharedTaskListsState,
                     externalSettingsState = settingsState
                 )
             }
@@ -6646,10 +6543,11 @@ private fun TaskListDetailPagerScreen(
     selectedTaskListIdState: MutableState<String?>? = null,
     showTopBar: Boolean = true,
     onEmpty: (() -> Unit)? = if (navController != null) ({ navController.navigateUp() }) else null,
+    externalTaskListsState: OrderedTaskListsUiState<TaskListDetail>? = null,
     externalSettingsState: SettingsState? = null
 ) {
     val t = LocalTranslations.current
-    val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
+    val uiState = externalTaskListsState ?: rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
     val settingsState = resolvedSettingsState(
         userId,
         externalSettingsState ?: rememberSettingsState(userId)
@@ -7839,18 +7737,13 @@ private fun TaskListDetailContent(
                 val taskListOrderRef = db.collection("taskListOrder").document(uid)
                 val taskListRef = db.collection("taskLists").document(taskListId)
                 val taskListOrderSnapshot = cacheFirstDocument(taskListOrderRef)
-                if (!taskListOrderSnapshot.exists() || !taskListOrderSnapshot.contains(taskListId)) {
-                    return@launch
-                }
                 val taskListSnapshot = cacheFirstDocument(taskListRef)
-                if (!taskListSnapshot.exists()) {
-                    return@launch
+                if (taskListOrderSnapshot.contains(taskListId) && taskListSnapshot.exists()) {
+                    commitReportingFailure(
+                        makeTaskListMembershipRemovalBatch(db, taskListOrderRef, taskListId, taskListSnapshot)
+                    )
+                    logTaskListDelete()
                 }
-
-                commitReportingFailure(
-                    makeTaskListMembershipRemovalBatch(db, taskListOrderRef, taskListId, taskListSnapshot)
-                )
-                logTaskListDelete()
                 showRemoveListConfirm = false
                 showEditDialog = false
             } catch (_: Exception) {
@@ -9263,24 +9156,29 @@ private fun SettingsView(
             errorMessage = null
             scope.launch {
                 try {
-                    val user = Firebase.auth.currentUser ?: return@launch
-                    val email = user.email ?: return@launch
+                    val user = Firebase.auth.currentUser ?: throw IllegalStateException("Missing user")
+                    val email = user.email ?: throw IllegalStateException("Missing email")
                     user.reauthenticate(com.google.firebase.auth.EmailAuthProvider.getCredential(email, password)).await()
                     val uid = user.uid
                     val db = Firebase.firestore
+                    val ownMemberKey = memberKey(uid)
                     val taskListOrderRef = db.collection("taskListOrder").document(uid)
-                    val taskListOrderSnapshot = taskListOrderRef.get().await()
+                    val taskListOrderSnapshot = taskListOrderRef.get(Source.SERVER).await()
                     if (taskListOrderSnapshot.exists()) {
-                        val taskListIds = taskListOrderSnapshot.data
-                            ?.keys
-                            ?.filter { it != "createdAt" && it != "updatedAt" }
-                            ?: emptyList()
+                        val taskListIds = parseOrderedTaskListIds(taskListOrderSnapshot.data.orEmpty())
                         coroutineScope {
                             taskListIds.map { taskListId ->
                                 async {
                                     val taskListRef = db.collection("taskLists").document(taskListId)
-                                    val snap = taskListRef.get().await()
+                                    val snap = try {
+                                        taskListRef.get(Source.SERVER).await()
+                                    } catch (e: FirebaseFirestoreException) {
+                                        if (e.isPermissionDenied()) return@async
+                                        throw e
+                                    }
                                     if (!snap.exists()) return@async
+                                    val memberKeys = snap.get("memberKeys") as? List<*>
+                                    if (memberKeys != null && ownMemberKey !in memberKeys) return@async
                                     makeTaskListMembershipRemovalBatch(
                                         db,
                                         taskListOrderRef,

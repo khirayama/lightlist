@@ -81,7 +81,7 @@
 - locale の正本は `shared/locales/locales.json` 1 ファイルとし、Web / iOS / Android はその JSON を各 app 起動前または build 時にローカル resource へ同期して読む。String Catalog (.xcstrings) は採用しない。iOS の `apps/ios/Lightlist/Resources/locales.json` は自動同期スクリプトを持たない手動コピーのため、`shared/locales/locales.json` を変更したら `cp` で必ず追従させる。Web の `apps/web/scripts/sync-shared-locales.mjs` は言語別の `src/locales/<lang>.json` 生成に加え、LP 用 subset を `src/lp-locales.json`、英語相対日付の解析用 subset を `src/english-date-patterns.json` へ生成する。
 - iOS / Android の認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち（`reset` はタブではなく `signin` からの独立導線）、認証前でも言語切替を行える。ネイティブ側で Firebase Auth と Firestore 初期データ作成を完結させる。
 - Web / iOS / Android のメール/パスワードログインは Firebase Auth 応答待ちを 10 秒で打ち切り、loading state を必ず戻して汎用認証エラーを表示する。
-- 画面に出すエラーは SDK のメッセージ（`localizedDescription` / `message`）をそのまま使わず shared locale の key へ対応付ける。Firebase Auth は `auth.error.*` / `auth.passwordReset.*`、対応のない code は `auth.error.general`、共有参加の失敗は `pages.sharecode.notFound` / `pages.sharecode.addToOrderError` とする。
+- 画面に出すエラーは SDK のメッセージ（`localizedDescription` / `message`）をそのまま使わず shared locale の key へ対応付ける（対応のない Auth 以外のエラーも `auth.error.general`）。Firebase Auth は `auth.error.*` / `auth.passwordReset.*`、対応のない code は `auth.error.general`、共有参加の失敗は `pages.sharecode.notFound` / `pages.sharecode.addToOrderError` とする。
 - task 入力の pin prefix 照合は大文字小文字だけを無視し、ダイアクリティカルマークは区別する（iOS で `.diacriticInsensitive` を使わない）。
 - iOS / Android の tablet regular 幅は、左 360pt 前後のサイドバーにタスクリスト一覧と主要操作を置き、右ペインにタスクリスト詳細または設定を表示する。詳細の pager (`TabView(.page)` / `HorizontalPager`) とサイドバー選択状態は双方向同期する。
 - Web / iOS / Android のタスクリスト詳細ページャーは、追加入力欄がフォーカス中にスワイプまたはスクロールで別リストへ切り替わる場合、切替先リストの追加入力欄へフォーカスを引き継ぐ。追加入力欄が非フォーカス時にページ切替だけで新たにフォーカスしない。
@@ -115,13 +115,13 @@
 - サインアップの初期データ作成（settings / 初期リスト / membership / taskListOrder）は 3 プラットフォーム共通の冪等な `ensureInitialUserData` に集約する。サーバーで `settings/{uid}` の不在を確認したときだけ作成し、失敗しても Auth ユーザーを削除しない。settings listener がサーバー確定 snapshot で不在を検知したら同じ処理で自己修復する。
 - Firestore Rules が必要とする書き込み形（新コレクション・field）をクライアントへ入れた場合、本番 Rules のデプロイ（必要なら Admin での backfill を先行）をアプリ配布より先に行う。本番 Rules が古いまま配布すると batch 全体が `permission-denied` になり、リスト作成・サインアップ初期データが作成されない（2026-09 に membership Rules 未デプロイで発生）。
 - アカウント削除は「全タスクリストの離脱/削除 → settings + taskListOrder の削除 → `deleteUser`」の順を維持する。auth 削除後は Firestore Rules で書き込みできないため逆順にはできず、`requires-recent-login` で `deleteUser` だけ失敗した場合はエラー表示して再ログイン後の再実行に任せる。
-- 共有権限モデルは「共有URLを知っているユーザーは未認証でもプレビュー閲覧可、編集は membership 保持者のみ」とする。共有URLを知っていることはプレビュー取得用の bearer credential として扱う。
+- 共有権限モデルは「共有URLを知っているユーザーは未認証でもプレビュー閲覧可、編集は membership 保持者のみ」とする。共有URLを知っていることはプレビュー取得用の bearer credential として扱う。`taskLists` の読み取りは membership 保持者（`memberKeys` / membership document）だけに許可し、未参加者のプレビューは通知 Functions が書き込みのたびに `shareCodes/{code}.preview`（`name` / `background` / 完全な `tasks` / `syncedAt`）へ書く写しだけを読む。`taskListId` を知っているだけでは読めないため、共有コードの解除・再発行で旧コード保持者のアクセスが失効する。クライアントは共有コード解決・参加の前に `taskLists` 本体を読まず（未参加者は `permission-denied`）、`shareCodes` の `permission-denied` は「該当なし」として扱う。参加済みユーザーのプレビューはリスト本体を購読して編集 UI を出す。既存の共有リストには `functions/scripts/backfill-share-previews.mjs` で写しを作る。
 - `taskLists/{taskListId}/members/{uid}` を保持権限の正本とし、`taskListOrder/{uid}` は表示順専用にする。新規作成・共有参加・離脱では membership、order、`memberCount`、`memberKeys` を同一 batch で更新する。
 - `taskLists.memberKeys` は `sha256("lightlist-member:" + uid)` の小文字 hex（Rules の `hashing.sha256(...).toHexString().lower()` と一致）で、Web は `crypto.subtle`、iOS は CryptoKit、Android は `MessageDigest` で計算する。共有コードのプレビューで未認証でも読めるため、taskList document に生の uid やメールアドレスを置かない。更新は自分の key の `arrayUnion` / `arrayRemove` だけにし、配列の置き換えをしない。
 - 新規タスクリストの `background` 既定値は `null` とし、カレンダーの同日タスクはタスクリスト順、次にリスト内表示順で並べる。
 - 共有コード生成は 8 文字の英大文字・数字を暗号学的乱数で作る。Web は `crypto.getRandomValues`、iOS は `SecRandomCopyBytes`、Android は `SecureRandom` を使い、生成・削除は事前 read 後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。生成の試行回数は 3 プラットフォームとも最大 10 回で、既存 `shareCode` がある場合は trim + uppercase 正規化した doc ID で旧 `shareCodes` doc を同じ batch で削除する。外部入力・deep link・既存値から Firestore document path を組み立てる前に、trim + uppercase 後の完全一致 `^[A-Z0-9]{8}$` を必ず検証し、不正な path を作らない。
 - `memberCount <= 1` のタスクリスト実体削除（リスト削除・アカウント削除の両方）では、`taskLists.shareCode` が残っていれば対応する `shareCodes` doc も同じ batch で削除し、削除済みリストを指す共有コードを残さない。
-- `taskListOrder/{uid}` は本人が任意の `taskListId` を追加できるが、その追加自体を保持権限付与として扱わない。共有参加時は正規化済み `joinCode` を持つ membership document を同一 batch で作成する。
+- `taskListOrder/{uid}` は本人が任意の `taskListId` を追加できるが、その追加自体を保持権限付与として扱わない。共有参加時は正規化済み `joinCode` を持つ membership document を同一 batch で作成する。並び替えの field path 更新は他端末で外した ID を復活させ得るため、order に残る非メンバーの ID は表示から外すだけでエラーにせず、リスト削除・退会では membership がない（`permission-denied` / `memberKeys` に自分の key がない）リストの order エントリーだけを外す。新しい order 値は 3 プラットフォームとも既存の最大値 + 1 とし、件数 + 1 を使わない。`taskListOrder` 欠損時の作成・参加は merge 書き込みで `createdAt` も入れる。
 - `taskLists` / `taskListOrder` / `shareCodes` の `createdAt` / `updatedAt` は Firestore Rules の `int` 型検証と pending snapshot の安定性に合わせ、server timestamp ではなく Unix epoch milliseconds の number を書き込む。Web の `taskLists` 読み取りは既存データや pending snapshot に timestamp-like 値が混在しても `estimate` として解決する。
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
 - `shared/locales/locales.json` は英語で残す文言はブランド名（`title` / `app.name`）とマスク文字（`auth.placeholder.password`）のみとする。
@@ -130,6 +130,8 @@
 - 共有コードの生成・解除はサーバーから現行リストを読んで batch を組み、Rules でも旧コード文書の同時削除を要求する。コード解決はサーバーの現在値と照合し、Rules もリストから参照されない既存コード文書の get を拒否する。競合失敗は画面で通知し、再実行時に再取得する。
 - 退会は 3 プラットフォームとも確認画面で現在のパスワードを入力し、`EmailAuthProvider` による再認証が成功するまで Firestore データを削除しない。パスワードは永続化・ログ出力しない。Auth ユーザー削除はデータ削除後に行う。
 
+- Firestore listener の再試行（1 秒から最大 30 秒の指数待機、初回失敗だけ記録、server 確定 snapshot で初期化）は共通部品（Web `listenWithRetry`、iOS `ListenerRetryScheduler`、Android `SyncListenerRetryController`）を使い、画面ごとに再実装しない。同じ参照（settings / taskLists）を同じ画面ツリーで二重に購読しない（Android tablet はルートの settings と一覧の購読を子へ渡す）。
+- パスワードは Android の `rememberSaveable`（saved state Bundle）にも入れない。パスワードリセットの custom scheme（`lightlist://password-reset`）は他アプリが登録できるため受け付けない。Firebase Auth の `languageCode` はメール送信の間だけ変更して戻す。
 - オフライン表示は 3 プラットフォームともルートに 1 つだけ置く `OfflineNotice`（Web は `AppWrapperBody`、iOS は `RootView` と fullScreenCover の overlay、Android は `RootScreen` の `BoxWithConstraints` 末尾）で行い、画面ごとに追加しない。同じ `OfflineNotice` がサーバーに拒否された書き込みの通知（`common.syncFailed` + 閉じる。Web `syncFailureListeners`、iOS `SyncFailureCenter`、Android `SyncFailureState`）も表示する。Android は `ACCESS_NETWORK_STATE` を manifest に宣言する。
 - オフライン対応は Firestore の永続 cache とローカル書き込みに任せ、UI は書き込み Promise / completion / Task（= サーバー応答）を待たない。SDK へ投入した時点で sheet / dialog を閉じ、サーバー応答は queue のドレインで追跡して local pending の解放だけに使う。サーバーでの失敗は各 queue（Web `trackCommit`、iOS `TaskListMutationQueue`、Android `TaskListMutationQueue`）から同期失敗通知へ流し、画面ごとのエラー表示は投入前の失敗（検証・読み取り失敗）に限る。自動実行の部分 map 除去は通知しない。
 - サーバー判定が必要な操作（認証、パスワードリセット、メールアドレス変更、退会、共有コードの生成・解除・解決、共有参加）はオフライン中に無効化して `common.requiresConnection` を表示し（Web `useIsOnline` + `ConnectionRequiredNote`、iOS `NetworkStatus.shared` + `ConnectionRequiredNote`、Android `rememberIsOnline()` + `ConnectionRequiredNote`）、サーバー応答を待つ。退会で離脱するリストの batch もサーバー応答を待つ（Web `deleteTaskList(id, { serverConfirmed: true })`）。
@@ -140,7 +142,7 @@
 
 ## 主要コマンド
 
-- ルート: `just deploy-firebase`（既定は dev）/ `just deploy-firebase prod` で `firebase.json` に定義した Firebase リソースを一括配信する。環境ごとの Firebase project ID は recipe 内で固定し、`.firebaserc` の既定値に依存しない。
+- ルート: `just deploy-firebase`（既定は dev）/ `just deploy-firebase prod` で `firebase.json` に定義した Firebase リソースを一括配信し、直後に `just backfill-share-previews <env>` で既存共有リストのプレビューを作る。Functions 系の recipe は `just _node <dir> <command>` で fnm があれば `<dir>/.node-version` の Node.js（Functions は 22 + npm 12.0.2）に切り替えて実行する（既定の Node.js のままだと predeploy が `EBADDEVENGINES` で失敗する）。環境ごとの Firebase project ID は recipe 内で固定し、`.firebaserc` の既定値に依存しない。
 - app ごとのコマンドは各 `apps/<app>/AGENTS.md` を参照する。
 
 ## セキュリティ・品質ルール
@@ -148,7 +150,7 @@
 - Node.js / npm は各 Node プロジェクトの `.node-version` / `packageManager` / `devEngines` に従う。Functions の Cloud Build 用 npm 版は `engines.npm` も揃える。3 プロジェクトの `.npmrc` は `strict-allow-scripts=true` を維持し、install script は完全バージョン付き `allowScripts` で個別承認する。手順は `docs/development.md`。
 - ローカル一括検証は `just check-web` / `just check-functions`、依存監査は `just audit-web` / `just audit-functions`。対象に対応する Node.js を選択して実行する。
 - `console.error` にユーザーメール等の PII（個人識別情報）を含めない。`userEmail` は必ずログから除外する。
-- Functions は Firestore 上のユーザー入力（`settings.language` など）で object を引くとき `in` ではなく `Object.hasOwn` を使い、`__proto__` などの prototype key を受け付けない。通知タイトルに使うリスト名は 100 文字に切り詰めて FCM の payload 上限を超えないようにする。
+- Functions は Firestore 上のユーザー入力（`settings.language` など）で object を引くとき `in` ではなく `Object.hasOwn` を使い、`__proto__` などの prototype key を受け付けない。ユーザー入力の map key（`notificationDevices` の device ID など）を field path に使うときはドット連結ではなく `FieldPath` を使い、メンバーごとの配信は `Promise.allSettled` で他メンバーへ失敗を波及させない。通知タイトルに使うリスト名は 100 文字に切り詰めて FCM の payload 上限を超えないようにする。
 - 依存の脆弱性確認は `apps/web` / `functions` / `functions-billing` で `npm audit`、native は Package.resolved と `libs.versions.toml` の版を OSV（`api.osv.dev`）で照会する。Web の `@grpc/grpc-js`（`@firebase/firestore` が `~1.9` に固定）の advisory は Node 実行時専用でブラウザ bundle に含まれないため対象外とし、`overrides` で書き換えない。
 - CI による品質ゲートは設定しない。品質確認は変更があった app のローカル検証コマンド実行を正本とする。
 

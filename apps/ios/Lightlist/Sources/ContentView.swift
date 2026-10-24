@@ -85,19 +85,10 @@ private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
     let pathComponents = url.pathComponents.filter { $0 != "/" }
     let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
 
-    if scheme == "lightlist" {
-        if host == "password-reset", pathComponents.isEmpty {
-            guard let code = passwordResetCode(from: queryItems?.first(where: { $0.name == "oobCode" })?.value) else {
-                return nil
-            }
-            return .passwordReset(code: code)
-        }
-
-        if host == "sharecodes", pathComponents.count == 1,
-            let shareCode = normalizedShareCode(pathComponents[0])
-        {
-            return .shareCode(shareCode)
-        }
+    if scheme == "lightlist", host == "sharecodes", pathComponents.count == 1,
+        let shareCode = normalizedShareCode(pathComponents[0])
+    {
+        return .shareCode(shareCode)
     }
 
     if scheme == "https", host == "lightlist.app", url.port == nil || url.port == 443 {
@@ -847,16 +838,23 @@ final class Translations: ObservableObject {
         return app?["initialTaskListName"] as? String ?? "app.initialTaskListName"
     }
 
+    private static var relativePatternsCache: [String: [TaskDatePattern]] = [:]
+
     fileprivate func getRelativePatterns() -> [TaskDatePattern] {
-        return Self.getRelativePatterns(from: dict)
+        Self.getRelativePatterns(for: language)
     }
 
     fileprivate static func getRelativePatterns(for language: String) -> [TaskDatePattern] {
         let lang = supported.contains(language) ? language : "ja"
+        if let cached = relativePatternsCache[lang] {
+            return cached
+        }
         guard let locale = loadAllLocales()[lang] as? [String: Any] else {
             return []
         }
-        return getRelativePatterns(from: locale)
+        let patterns = getRelativePatterns(from: locale)
+        relativePatternsCache[lang] = patterns
+        return patterns
     }
 
     private static func getRelativePatterns(from dict: [String: Any]) -> [TaskDatePattern] {
@@ -1135,6 +1133,16 @@ private func stringArray(_ value: Any?) -> [String]? {
     return result
 }
 
+nonisolated private func boolValue(_ value: Any?) -> Bool? {
+    guard let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }
+    return number.boolValue
+}
+
+nonisolated private func numberValue(_ value: Any?) -> Double? {
+    guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+    return number.doubleValue
+}
+
 private struct FirestoreTaskRecord: Codable {
     let id: String?
     let text: String?
@@ -1146,10 +1154,10 @@ private struct FirestoreTaskRecord: Codable {
     init(data: [String: Any]) {
         id = stringValue(data["id"])
         text = stringValue(data["text"])
-        completed = data["completed"] as? Bool
+        completed = boolValue(data["completed"])
         date = stringValue(data["date"])
-        order = (data["order"] as? NSNumber)?.doubleValue
-        pinned = data["pinned"] as? Bool
+        order = numberValue(data["order"])
+        pinned = boolValue(data["pinned"])
     }
 
     nonisolated func taskSummary(taskId: String) -> TaskSummary? {
@@ -1686,6 +1694,18 @@ private func orderedTaskListIds(from data: [String: Any]?) -> [String] {
         .map { $0.taskListId }
 }
 
+private func nextTaskListOrder(from data: [String: Any]?) -> Double {
+    let orders = (data ?? [:]).compactMap { key, value -> Double? in
+        guard key != "createdAt", key != "updatedAt",
+            let order = (value as? [String: Any])?["order"] as? NSNumber,
+            CFGetTypeID(order) != CFBooleanGetTypeID(),
+            order.doubleValue.isFinite
+        else { return nil }
+        return order.doubleValue
+    }
+    return (orders.max() ?? 0) + 1
+}
+
 nonisolated private func memberKey(uid: String) -> String {
     SHA256.hash(data: Data("lightlist-member:\(uid)".utf8)).map { String(format: "%02x", $0) }.joined()
 }
@@ -1698,11 +1718,11 @@ private func isCompleteTaskData(taskId: String, value: Any) -> Bool {
     guard let task = value as? [String: Any],
         task["id"] as? String == taskId,
         task["text"] is String,
-        task["completed"] is Bool,
+        boolValue(task["completed"]) != nil,
         task["date"] is String,
-        let order = task["order"] as? NSNumber,
-        order.doubleValue.isFinite,
-        task["pinned"] is Bool
+        let order = numberValue(task["order"]),
+        order.isFinite,
+        boolValue(task["pinned"]) != nil
     else { return false }
     return true
 }
@@ -1777,6 +1797,40 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
     )
 }
 
+@MainActor
+private final class ListenerRetryScheduler {
+    private var task: Task<Void, Never>?
+    private var delayNanoseconds: UInt64 = 1_000_000_000
+    private var reportedError = false
+
+    func fail(source: String, error: Error, retry: @escaping @MainActor () -> Void) {
+        if !reportedError {
+            logSyncListenerError(source: source, error: error)
+            reportedError = true
+        }
+        guard task == nil else { return }
+        let delay = delayNanoseconds
+        delayNanoseconds = min(delayNanoseconds * 2, 30_000_000_000)
+        task = Task { @MainActor [weak self] in
+            do { try await Task.sleep(nanoseconds: delay) } catch { return }
+            guard let self, !Task.isCancelled else { return }
+            self.task = nil
+            retry()
+        }
+    }
+
+    func markHealthy() {
+        delayNanoseconds = 1_000_000_000
+        reportedError = false
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
+        markHealthy()
+    }
+}
+
 @MainActor private class OrderedTaskListViewModel<Item>: ObservableObject {
     @Published private(set) var taskLists: [Item] = []
     @Published private(set) var status: LoadStatus = .idle
@@ -1784,16 +1838,16 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
     private let mapper: (String, FirestoreTaskListRecord) -> Item
     private var taskListOrderListener: ListenerRegistration?
     private var taskListsListener: ListenerRegistration?
-    private var retryTasks: [String: Task<Void, Never>] = [:]
-    private var retryDelays: [String: UInt64] = [:]
-    private var failedScopes: Set<String> = []
+    private let orderRetry = ListenerRetryScheduler()
+    private let taskListsRetry = ListenerRetryScheduler()
+    private var orderFailed = false
+    private var taskListsFailed = false
     private var currentUid: String?
     private var orderedIds: [String] = []
     private var taskListsById: [String: Item] = [:]
     private var listenerGeneration = 0
     private var orderLoaded = false
     private var taskListsLoaded = false
-    private var taskListsServerLoaded = false
 
     init(mapper: @escaping (String, FirestoreTaskListRecord) -> Item) {
         self.mapper = mapper
@@ -1810,16 +1864,15 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
     }
 
     deinit {
-        for task in retryTasks.values { task.cancel() }
         taskListOrderListener?.remove()
         taskListsListener?.remove()
     }
 
     func reset() {
-        for task in retryTasks.values { task.cancel() }
-        retryTasks = [:]
-        retryDelays = [:]
-        failedScopes = []
+        orderRetry.cancel()
+        taskListsRetry.cancel()
+        orderFailed = false
+        taskListsFailed = false
         listenerGeneration += 1
         taskListOrderListener?.remove()
         taskListOrderListener = nil
@@ -1830,29 +1883,8 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
         taskListsById = [:]
         orderLoaded = false
         taskListsLoaded = false
-        taskListsServerLoaded = false
         taskLists = []
         status = .idle
-    }
-
-    private func scheduleRetry(key: String, source: String, error: Error, install: @escaping @MainActor () -> Void) {
-        if failedScopes.insert(key).inserted { logSyncListenerError(source: source, error: error) }
-        guard retryTasks[key] == nil else { return }
-        let delay = retryDelays[key] ?? 1_000_000_000
-        retryDelays[key] = min(delay * 2, 30_000_000_000)
-        retryTasks[key] = Task { [weak self] in
-            do { try await Task.sleep(nanoseconds: delay) } catch { return }
-            guard let self, !Task.isCancelled else { return }
-            self.retryTasks.removeValue(forKey: key)
-            install()
-        }
-    }
-
-    private func markHealthy(key: String, isServerConfirmed: Bool) {
-        if isServerConfirmed {
-            retryDelays.removeValue(forKey: key)
-            failedScopes.remove(key)
-        }
     }
 
     private func installOrderListener(uid: String) {
@@ -1864,7 +1896,8 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
             if let error {
                 self.taskListOrderListener?.remove()
                 self.taskListOrderListener = nil
-                self.scheduleRetry(key: "order", source: "task_list_order", error: error) { [weak self] in
+                self.orderFailed = true
+                self.orderRetry.fail(source: "task_list_order", error: error) { [weak self] in
                     self?.installOrderListener(uid: uid)
                 }
                 self.publishTaskLists()
@@ -1872,8 +1905,10 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
             }
             self.orderedIds = orderedTaskListIds(from: snapshot?.data())
             self.orderLoaded = true
-            let serverConfirmed = snapshot.map { !$0.metadata.isFromCache && !$0.metadata.hasPendingWrites } ?? false
-            self.markHealthy(key: "order", isServerConfirmed: serverConfirmed)
+            if snapshot.map({ !$0.metadata.isFromCache && !$0.metadata.hasPendingWrites }) ?? false {
+                self.orderFailed = false
+                self.orderRetry.markHealthy()
+            }
             self.publishTaskLists()
         }
     }
@@ -1887,7 +1922,8 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
                 if let error {
                     self.taskListsListener?.remove()
                     self.taskListsListener = nil
-                    self.scheduleRetry(key: "taskLists", source: "task_lists", error: error) { [weak self] in
+                    self.taskListsFailed = true
+                    self.taskListsRetry.fail(source: "task_lists", error: error) { [weak self] in
                         self?.installTaskListsListener(uid: uid)
                     }
                     self.publishTaskLists()
@@ -1907,19 +1943,17 @@ nonisolated private func mapTaskListDetail(id: String, data: FirestoreTaskListRe
                 }
                 self.taskListsById = nextTaskListsById
                 self.taskListsLoaded = true
-                let serverConfirmed = snapshot.map { !$0.metadata.isFromCache && !$0.metadata.hasPendingWrites } ?? false
-                if serverConfirmed { self.taskListsServerLoaded = true }
-                self.markHealthy(key: "taskLists", isServerConfirmed: serverConfirmed)
+                if snapshot.map({ !$0.metadata.isFromCache && !$0.metadata.hasPendingWrites }) ?? false {
+                    self.taskListsFailed = false
+                    self.taskListsRetry.markHealthy()
+                }
                 self.publishTaskLists()
             }
     }
 
     private func publishTaskLists() {
         taskLists = orderedIds.compactMap { taskListsById[$0] }
-        let orderFailed = failedScopes.contains("order")
-        let taskListsFailedWithoutData = failedScopes.contains("taskLists") && taskLists.isEmpty
-        let noTaskListLoaded = orderLoaded && taskListsServerLoaded && !orderedIds.isEmpty && taskLists.isEmpty
-        if orderFailed || taskListsFailedWithoutData || noTaskListLoaded {
+        if orderFailed || (taskListsFailed && taskLists.isEmpty) {
             status = .error
         } else if (orderLoaded && taskListsLoaded) || !taskLists.isEmpty {
             status = .ready
@@ -2287,7 +2321,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
 private func resolvePasswordResetErrorMessage(translations: Translations, error: Error) -> String {
     let nsError = error as NSError
     guard nsError.domain == "FIRAuthErrorDomain" else {
-        return error.localizedDescription
+        return translations.t("auth.error.general")
     }
     let authError = AuthErrorCode(rawValue: nsError.code)
     switch authError {
@@ -2362,10 +2396,31 @@ private struct ParsedTaskInput {
 }
 
 private struct TaskDatePattern {
-    let pattern: String
-    let options: NSRegularExpression.Options
+    let regex: NSRegularExpression?
     let resolveDate: ([String]) -> Date?
+
+    init(pattern: String, options: NSRegularExpression.Options, resolveDate: @escaping ([String]) -> Date?) {
+        regex = try? NSRegularExpression(pattern: pattern, options: options)
+        self.resolveDate = resolveDate
+    }
 }
+
+private let numericTaskDatePatterns: [TaskDatePattern] = [
+    .init(pattern: #"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
+        guard let year = Int(groups[1]), let month = Int(groups[2]), let day = Int(groups[3]) else { return nil }
+        return taskInputDateFrom(year: year, month: month, day: day)
+    },
+    .init(pattern: #"^(\d{1,2})[-/.](\d{1,2})\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
+        guard let month = Int(groups[1]), let day = Int(groups[2]) else { return nil }
+        let calendar = currentGregorianCalendar()
+        let currentYear = calendar.component(.year, from: Date())
+        guard let date = taskInputDateFrom(year: currentYear, month: month, day: day) else { return nil }
+        if date < calendar.startOfDay(for: Date()) {
+            return taskInputDateFrom(year: currentYear + 1, month: month, day: day)
+        }
+        return date
+    },
+]
 
 private let taskDateSpaceOrEndPattern = #"(?:[\s　]|$)"#
 
@@ -2482,7 +2537,7 @@ private func makeTaskOffsetDate(_ offset: Int) -> Date? {
 private func resolveTaskDate(from source: String, patterns: [TaskDatePattern]) -> (date: Date, matchedLength: Int)? {
     let nsSource = source as NSString
     for pattern in patterns {
-        guard let regex = try? NSRegularExpression(pattern: pattern.pattern, options: pattern.options) else { continue }
+        guard let regex = pattern.regex else { continue }
         let range = NSRange(location: 0, length: nsSource.length)
         guard let match = regex.firstMatch(in: source, options: [], range: range), match.range.location == 0 else { continue }
         var groups: [String] = []
@@ -2533,29 +2588,7 @@ private func parseDateFromTaskInput(_ text: String, translations: Translations) 
     }
 
     let normalized = normalizeTaskDateDigits(source)
-    let calendar = currentGregorianCalendar()
-    let numericPatterns: [TaskDatePattern] = [
-        .init(pattern: #"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
-            guard let year = Int(groups[1]), let month = Int(groups[2]), let day = Int(groups[3]) else { return nil }
-            guard let date = taskInputDateFrom(year: year, month: month, day: day) else { return nil }
-            let components = calendar.dateComponents([.year, .month, .day], from: date)
-            return components.year == year && components.month == month && components.day == day ? date : nil
-        },
-        .init(pattern: #"^(\d{1,2})[-/.](\d{1,2})\#(taskDateSpaceOrEndPattern)"#, options: []) { groups in
-            guard let month = Int(groups[1]), let day = Int(groups[2]) else { return nil }
-            let currentYear = calendar.component(.year, from: Date())
-            guard let date = taskInputDateFrom(year: currentYear, month: month, day: day) else { return nil }
-            let components = calendar.dateComponents([.month, .day], from: date)
-            guard components.month == month && components.day == day else { return nil }
-            let today = calendar.startOfDay(for: Date())
-            if date < today {
-                return taskInputDateFrom(year: currentYear + 1, month: month, day: day)
-            }
-            return date
-        },
-    ]
-
-    if let resolved = resolveTaskDate(from: normalized, patterns: numericPatterns) {
+    if let resolved = resolveTaskDate(from: normalized, patterns: numericTaskDatePatterns) {
         let stripped = (source as NSString).substring(from: resolved.matchedLength).trimmingCharacters(in: .whitespacesAndNewlines)
         return (stripped, formatTaskInputDate(resolved.date))
     }
@@ -2636,7 +2669,7 @@ private func isValidEmail(_ email: String) -> Bool {
 private func resolveAuthErrorMessage(translations: Translations, error: Error) -> String {
     let nsError = error as NSError
     guard nsError.domain == "FIRAuthErrorDomain" else {
-        return error.localizedDescription
+        return translations.t("auth.error.general")
     }
     let authError = AuthErrorCode(rawValue: nsError.code)
     switch authError {
@@ -2776,12 +2809,7 @@ struct RootView: View {
     @State private var theme: String = UserDefaults.standard.string(forKey: cachedThemeKey) ?? "system"
     @State private var isLoggedIn = Auth.auth().currentUser != nil
     @State private var currentUserId = Auth.auth().currentUser?.uid
-    @State private var notificationsEnabled = false
-    @State private var registeredNotificationToken: String?
-    @State private var settingsListener: ListenerRegistration?
-    @State private var settingsRetryTask: Task<Void, Never>?
-    @State private var settingsRetryDelayNanoseconds: UInt64 = 1_000_000_000
-    @State private var settingsRetryReportedError = false
+    @StateObject private var settingsStore = SettingsViewModel()
     @State private var authHandle: AuthStateDidChangeListenerHandle?
     @State private var selectedTaskListId: String? = "__initial__"
     @State private var selectedRegularPane: RegularPane =
@@ -2797,6 +2825,10 @@ struct RootView: View {
 
     init(pendingDeepLink: Binding<PendingDeepLink?> = .constant(nil)) {
         _pendingDeepLink = pendingDeepLink
+    }
+
+    private var notificationsEnabled: Bool {
+        settingsStore.settings?.notifySharedListUpdates ?? false
     }
 
     private var colorScheme: ColorScheme? {
@@ -2862,9 +2894,12 @@ struct RootView: View {
             }
         }
         .onDisappear { stopListening() }
-        .task(id: "\(currentUserId ?? ""):\(notificationsEnabled):\(registeredNotificationToken ?? "")") {
+        .task(id: "\(currentUserId ?? ""):\(notificationsEnabled):\(settingsStore.registeredNotificationToken ?? "")") {
             guard let uid = currentUserId, notificationsEnabled else { return }
-            await SharedNotificationRegistration.refresh(uid: uid, registeredToken: registeredNotificationToken)
+            await SharedNotificationRegistration.refresh(uid: uid, registeredToken: settingsStore.registeredNotificationToken)
+        }
+        .onChange(of: settingsStore.settings) { _, settings in
+            applySettings(settings)
         }
         .task(id: currentUserId ?? "") {
             try? await SharedNotificationRegistration.releaseStaleToken()
@@ -2910,8 +2945,21 @@ struct RootView: View {
             }
             .overlay(alignment: .bottom) { OfflineNotice() }
             .environmentObject(translations)
+            .environmentObject(settingsStore)
         }
         .environmentObject(translations)
+        .environmentObject(settingsStore)
+    }
+
+    private func applySettings(_ settings: SettingsViewModel.Settings?) {
+        guard currentUserId != nil else { return }
+        if let settings {
+            theme = settings.theme
+            translations.load(language: settings.language)
+        } else if settingsStore.hasError {
+            theme = "system"
+            translations.load(language: "ja")
+        }
     }
 
     private func syncNavigation(for sizeClass: UserInterfaceSizeClass?) {
@@ -3054,103 +3102,24 @@ struct RootView: View {
             Task { @MainActor in
                 isLoggedIn = user != nil
                 currentUserId = user?.uid
-                notificationsEnabled = false
-                registeredNotificationToken = nil
-                settingsRetryTask?.cancel()
-                settingsRetryTask = nil
-                settingsRetryDelayNanoseconds = 1_000_000_000
-                settingsRetryReportedError = false
-                settingsListener?.remove()
-                guard let uid = user?.uid else {
+                settingsStore.bind(uid: user?.uid, initialLanguage: translations.language)
+                if user == nil {
                     AutoSortOverrideStore.shared.clearAll()
                     theme = "system"
                     UserDefaults.standard.removeObject(forKey: cachedThemeKey)
                     UserDefaults.standard.removeObject(forKey: cachedLanguageKey)
                     UserDefaults.standard.removeObject(forKey: cachedStartupViewKey)
                     translations.load(language: resolveDeviceLanguage())
-                    return
                 }
-                installSettingsListener(uid: uid)
             }
         }
     }
 
     private func stopListening() {
-        settingsRetryTask?.cancel()
-        settingsRetryTask = nil
-        settingsListener?.remove()
+        settingsStore.reset()
         if let handle = authHandle {
             Auth.auth().removeStateDidChangeListener(handle)
             authHandle = nil
-        }
-    }
-
-    private func installSettingsListener(uid: String) {
-        settingsListener?.remove()
-        settingsListener = Firestore.firestore()
-            .collection("settings").document(uid)
-            .addSnapshotListener(includeMetadataChanges: true) { snapshot, error in
-                Task { @MainActor in
-                    guard currentUserId == uid else { return }
-                    if let error {
-                        scheduleSettingsRetry(uid: uid, error: error)
-                        return
-                    }
-                    guard let data = decodeSettingsRecord(from: snapshot) else {
-                        theme = "system"
-                        translations.load(language: "ja")
-                        return
-                    }
-                    if snapshot?.exists == false,
-                        snapshot?.metadata.isFromCache == false,
-                        snapshot?.metadata.hasPendingWrites == false,
-                        Auth.auth().currentUser?.uid == uid
-                    {
-                        Task { @MainActor in
-                            await ensureInitialUserData(uid: uid, language: resolveDeviceLanguage())
-                        }
-                    }
-                    registeredNotificationToken = SharedNotificationRegistration.registeredToken(in: snapshot)
-                    notificationsEnabled = data.notifySharedListUpdates ?? false
-                    let nextTheme = data.theme ?? "system"
-                    let language = data.language ?? "ja"
-                    let startupView = normalizedStartupView(data.startupView)
-                    theme = nextTheme
-                    if snapshot?.metadata.isFromCache == false,
-                        snapshot?.metadata.hasPendingWrites == false
-                    {
-                        UserDefaults.standard.set(nextTheme, forKey: cachedThemeKey)
-                        UserDefaults.standard.set(language, forKey: cachedLanguageKey)
-                        UserDefaults.standard.set(startupView, forKey: cachedStartupViewKey)
-                    }
-                    translations.load(language: language)
-                    if snapshot?.metadata.isFromCache == false,
-                        snapshot?.metadata.hasPendingWrites == false
-                    {
-                        settingsRetryDelayNanoseconds = 1_000_000_000
-                        settingsRetryReportedError = false
-                    }
-                }
-            }
-    }
-
-    private func scheduleSettingsRetry(uid: String, error: Error) {
-        if !settingsRetryReportedError {
-            logSyncListenerError(source: "settings", error: error)
-            settingsRetryReportedError = true
-        }
-        guard settingsRetryTask == nil else { return }
-        let delay = settingsRetryDelayNanoseconds
-        settingsRetryDelayNanoseconds = min(settingsRetryDelayNanoseconds * 2, 30_000_000_000)
-        settingsRetryTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: delay)
-            } catch {
-                return
-            }
-            settingsRetryTask = nil
-            guard currentUserId == uid else { return }
-            installSettingsListener(uid: uid)
         }
     }
 
@@ -3813,12 +3782,14 @@ private struct PasswordResetRequestView: View {
         errorMessage = nil
         successMessage = nil
         let auth = Auth.auth()
+        let previousLanguageCode = auth.languageCode
         auth.languageCode = normalizeLanguageCode(language)
         let actionCodeSettings = ActionCodeSettings()
         actionCodeSettings.url = URL(string: passwordResetURLString())
         actionCodeSettings.handleCodeInApp = false
         auth.sendPasswordReset(withEmail: trimmedEmail, actionCodeSettings: actionCodeSettings) { error in
             Task { @MainActor in
+                auth.languageCode = previousLanguageCode
                 isLoading = false
                 if let error {
                     errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
@@ -4506,43 +4477,43 @@ private struct TaskListsView: View {
         guard let uid = Auth.auth().currentUser?.uid else { return }
         let db = Firestore.firestore()
         let taskListId = db.collection("taskLists").document().documentID
-        let newOrder = Double(viewModel.taskLists.count + 1)
-
-        var newTaskList: [String: Any] = [
-            "id": taskListId,
-            "name": name,
-            "tasks": [String: Any](),
-            "history": [Any](),
-            "shareCode": NSNull(),
-            "memberCount": 1,
-            "memberKeys": [memberKey(uid: uid)],
-            "createdAt": nowMillis(),
-            "updatedAt": nowMillis(),
-        ]
-        if let background {
-            newTaskList["background"] = background
-        } else {
-            newTaskList["background"] = NSNull()
-        }
-
-        let batch = db.batch()
-        batch.setData(newTaskList, forDocument: db.collection("taskLists").document(taskListId))
-        batch.setData(
-            [
-                "joinedAt": nowMillis(),
-                "joinCode": NSNull(),
-            ], forDocument: db.collection("taskLists").document(taskListId).collection("members").document(uid))
-        batch.setData(
-            [
-                "\(taskListId)": ["order": newOrder],
-                "updatedAt": nowMillis(),
-            ] as [String: Any], forDocument: db.collection("taskListOrder").document(uid), merge: true)
-
-        commitReportingFailure(batch)
-        logTaskListCreate()
+        let taskListOrderRef = db.collection("taskListOrder").document(uid)
         showCreateSheet = false
-        awaitingTaskList = (taskListId, syncFailures.failureRevision)
-        openAwaitingTaskList()
+        Task {
+            let orderSnapshot = try? await cacheFirstDocument(taskListOrderRef)
+            let now = nowMillis()
+            var orderUpdates: [String: Any] = [
+                taskListId: ["order": nextTaskListOrder(from: orderSnapshot?.data())],
+                "updatedAt": now,
+            ]
+            if orderSnapshot?.exists != true {
+                orderUpdates["createdAt"] = now
+            }
+            let batch = db.batch()
+            batch.setData(
+                [
+                    "id": taskListId,
+                    "name": name,
+                    "tasks": [String: Any](),
+                    "history": [Any](),
+                    "shareCode": NSNull(),
+                    "background": background.map { $0 as Any } ?? NSNull(),
+                    "memberCount": 1,
+                    "memberKeys": [memberKey(uid: uid)],
+                    "createdAt": now,
+                    "updatedAt": now,
+                ], forDocument: db.collection("taskLists").document(taskListId))
+            batch.setData(
+                [
+                    "joinedAt": now,
+                    "joinCode": NSNull(),
+                ], forDocument: db.collection("taskLists").document(taskListId).collection("members").document(uid))
+            batch.setData(orderUpdates, forDocument: taskListOrderRef, merge: true)
+            commitReportingFailure(batch)
+            logTaskListCreate()
+            awaitingTaskList = (taskListId, syncFailures.failureRevision)
+            openAwaitingTaskList()
+        }
     }
 
     private func openAwaitingTaskList() {
@@ -4762,7 +4733,7 @@ private struct DetailPagerContent: View {
 private struct TaskListDetailPagerBody: View {
     @EnvironmentObject var translations: Translations
     @ObservedObject var viewModel: OrderedTaskListViewModel<TaskListDetail>
-    @ObservedObject var settingsViewModel: SettingsViewModel
+    @EnvironmentObject private var settingsViewModel: SettingsViewModel
     @ObservedObject private var autoSortOverrides = AutoSortOverrideStore.shared
     let currentUserId: String?
     @Binding var selectedTaskListId: String
@@ -4800,15 +4771,12 @@ private struct TaskListDetailPagerBody: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             viewModel.bind(uid: currentUserId)
-            settingsViewModel.bind(uid: currentUserId)
         }
         .onChange(of: currentUserId) { _, nextUid in
             viewModel.bind(uid: nextUid)
-            settingsViewModel.bind(uid: nextUid)
         }
         .onDisappear {
             viewModel.reset()
-            settingsViewModel.reset()
         }
     }
 }
@@ -4819,7 +4787,6 @@ private struct TaskListDetailPagerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTaskListId: String
     @StateObject private var viewModel = OrderedTaskListViewModel<TaskListDetail>(mapper: mapTaskListDetail)
-    @StateObject private var settingsViewModel = SettingsViewModel()
 
     private var navigationBarBackground: String? {
         viewModel.status == .loading || viewModel.status == .error
@@ -4836,7 +4803,6 @@ private struct TaskListDetailPagerView: View {
     var body: some View {
         TaskListDetailPagerBody(
             viewModel: viewModel,
-            settingsViewModel: settingsViewModel,
             currentUserId: currentUserId,
             selectedTaskListId: $selectedTaskListId,
             showsIndicator: true,
@@ -4870,12 +4836,10 @@ private struct RegularTaskListDetailPagerView: View {
     @Binding var selectedTaskListId: String?
     let currentUserId: String?
     @StateObject private var viewModel = OrderedTaskListViewModel<TaskListDetail>(mapper: mapTaskListDetail)
-    @StateObject private var settingsViewModel = SettingsViewModel()
 
     var body: some View {
         TaskListDetailPagerBody(
             viewModel: viewModel,
-            settingsViewModel: settingsViewModel,
             currentUserId: currentUserId,
             selectedTaskListId: Binding(
                 get: { resolvedTaskListId },
@@ -5168,25 +5132,9 @@ private struct TaskListDetailPage: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @MainActor private static var dateDisplayFormatters: [String: DateFormatter] = [:]
-
-    private static func dateDisplayFormatter(for language: String) -> DateFormatter {
-        let identifier = localeIdentifier(for: language)
-        if let formatter = dateDisplayFormatters[identifier] {
-            return formatter
-        }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: identifier)
-        formatter.calendar = currentGregorianCalendar(locale: formatter.locale)
-        formatter.timeZone = .autoupdatingCurrent
-        formatter.setLocalizedDateFormatFromTemplate("MMMEd")
-        dateDisplayFormatters[identifier] = formatter
-        return formatter
-    }
-
     private func formatDateDisplay(_ dateStr: String) -> String {
         guard let date = parseTaskInputDate(dateStr) else { return dateStr }
-        return Self.dateDisplayFormatter(for: translations.language).string(from: date)
+        return calendarTaskDateLabel(date, language: translations.language)
     }
 
     @ViewBuilder
@@ -5624,7 +5572,7 @@ private struct TaskListDetailPage: View {
         .onChange(of: isTextFieldFocused) { _, focused in
             guard !focused,
                 let taskId = editingTaskId,
-                let task = taskList.tasks.first(where: { $0.id == taskId })
+                let task = displayTasks.first(where: { $0.id == taskId })
             else { return }
             commitEdit(task)
         }
@@ -6199,14 +6147,22 @@ private struct TaskListDetailPage: View {
     }
 }
 
+private func isPermissionDenied(_ error: Error) -> Bool {
+    let nsError = error as NSError
+    return nsError.domain == FirestoreErrorDomain && nsError.code == FirestoreErrorCode.permissionDenied.rawValue
+}
+
 private func fetchTaskListIdByShareCode(_ shareCode: String) async throws -> String? {
-    let db = Firestore.firestore()
     guard let normalized = normalizedShareCode(shareCode) else { return nil }
-    let snap = try await db.collection("shareCodes").document(normalized).getDocument(source: .server)
-    guard snap.exists, let data = snap.data() else { return nil }
-    guard let taskListId = data["taskListId"] as? String, !taskListId.isEmpty, !taskListId.contains("/") else { return nil }
-    let taskList = try await db.collection("taskLists").document(taskListId).getDocument(source: .server)
-    return taskList.data()?["shareCode"] as? String == normalized ? taskListId : nil
+    do {
+        let snap = try await Firestore.firestore().collection("shareCodes").document(normalized).getDocument(source: .server)
+        guard let taskListId = snap.data()?["taskListId"] as? String, !taskListId.isEmpty, !taskListId.contains("/") else {
+            return nil
+        }
+        return taskListId
+    } catch  where isPermissionDenied(error) {
+        return nil
+    }
 }
 
 private func addSharedTaskListToOrder(taskListId: String, joinCode: String) async throws {
@@ -6222,22 +6178,14 @@ private func addSharedTaskListToOrder(taskListId: String, joinCode: String) asyn
     if orderData[taskListId] != nil, membershipSnap.exists {
         return
     }
-    let orders = orderData.compactMap { entry -> Double? in
-        guard entry.key != "createdAt", entry.key != "updatedAt",
-            let val = entry.value as? [String: Any],
-            let order = (val["order"] as? NSNumber)?.doubleValue
-        else { return nil }
-        return order
+    var orderUpdates: [String: Any] = [
+        taskListId: ["order": nextTaskListOrder(from: orderData)],
+        "updatedAt": nowMillis(),
+    ]
+    if !orderSnap.exists {
+        orderUpdates["createdAt"] = nowMillis()
     }
-    let newOrder = orders.max().map { $0 + 1.0 } ?? 1.0
-
-    let taskListSnap = try await taskListRef.getDocument()
-    guard taskListSnap.exists, taskListSnap.data() != nil else {
-        throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
-    }
-    batch.setData(
-        [taskListId: ["order": newOrder], "updatedAt": nowMillis()] as [String: Any],
-        forDocument: taskListOrderRef, merge: true)
+    batch.setData(orderUpdates, forDocument: taskListOrderRef, merge: true)
     if !membershipSnap.exists {
         batch.setData(
             [
@@ -6261,66 +6209,42 @@ private final class SharedTaskListPreviewViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var isJoining = false
     @Published private(set) var isAdded = false
-    @Published private(set) var errorMessage: String?
+    @Published private(set) var errorKey: String?
 
     private let db = Firestore.firestore()
-    private var taskListListener: ListenerRegistration?
-    private var orderListener: ListenerRegistration?
+    private var dataListener: ListenerRegistration?
+    private var membershipListener: ListenerRegistration?
+    private let dataRetry = ListenerRetryScheduler()
+    private let membershipRetry = ListenerRetryScheduler()
     private var currentTaskListId: String?
     private var currentShareCode: String?
-    private var taskListRetryTask: Task<Void, Never>?
-    private var orderRetryTask: Task<Void, Never>?
-    private var taskListRetryDelayNanoseconds: UInt64 = 1_000_000_000
-    private var orderRetryDelayNanoseconds: UInt64 = 1_000_000_000
-    private var taskListRetryReportedError = false
-    private var orderRetryReportedError = false
+    private var currentUid: String?
     private var bindTask: Task<Void, Never>?
 
-    func bind(shareCode: String, uid: String?, translations: Translations) {
-        bindTask?.cancel()
-        bindTask = nil
+    func bind(shareCode: String, uid: String?) {
+        reset()
         guard let normalizedCode = normalizedShareCode(shareCode) else {
-            taskList = nil
-            errorMessage = translations.t("pages.sharecode.notFound")
-            isLoading = false
-            isAdded = false
+            errorKey = "pages.sharecode.notFound"
             return
         }
-
+        currentShareCode = normalizedCode
+        currentUid = uid
         isLoading = true
-        errorMessage = nil
-        updateOrderSubscription(uid: uid, taskListId: currentTaskListId)
-
         bindTask = Task { @MainActor [weak self] in
-            guard let self else { return }
             do {
-                try Task.checkCancellation()
-                guard let taskListId = try await fetchTaskListIdByShareCode(normalizedCode) else {
-                    self.resetTaskListListener()
-                    self.currentTaskListId = nil
-                    self.taskList = nil
-                    self.isAdded = false
-                    self.errorMessage = translations.t("pages.sharecode.notFound")
-                    self.isLoading = false
-                    self.updateOrderSubscription(uid: uid, taskListId: nil)
+                let taskListId = try await fetchTaskListIdByShareCode(normalizedCode)
+                guard let self, !Task.isCancelled else { return }
+                guard let taskListId else {
+                    self.fail("pages.sharecode.notFound")
                     return
                 }
-                try Task.checkCancellation()
-
-                self.subscribeToTaskList(taskListId: taskListId, translations: translations)
-                self.currentShareCode = normalizedCode
-                self.updateOrderSubscription(uid: uid, taskListId: taskListId)
+                self.currentTaskListId = taskListId
+                self.installDataListener()
+                self.installMembershipListener()
                 logShare()
-            } catch is CancellationError {
-                return
             } catch {
-                self.resetTaskListListener()
-                self.currentTaskListId = nil
-                self.taskList = nil
-                self.isAdded = false
-                self.errorMessage = translations.t("pages.sharecode.error")
-                self.isLoading = false
-                self.updateOrderSubscription(uid: uid, taskListId: nil)
+                guard let self, !Task.isCancelled else { return }
+                self.fail("pages.sharecode.error")
             }
         }
     }
@@ -6328,186 +6252,111 @@ private final class SharedTaskListPreviewViewModel: ObservableObject {
     func reset() {
         bindTask?.cancel()
         bindTask = nil
-        resetTaskListListener()
-        resetOrderListener()
+        dataRetry.cancel()
+        membershipRetry.cancel()
+        dataListener?.remove()
+        dataListener = nil
+        membershipListener?.remove()
+        membershipListener = nil
         currentTaskListId = nil
         currentShareCode = nil
+        currentUid = nil
         taskList = nil
         isLoading = false
         isJoining = false
         isAdded = false
-        errorMessage = nil
+        errorKey = nil
     }
 
     func joinCurrentTaskList() async throws -> String {
-        guard let taskListId = currentTaskListId else {
-            throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Task list not found"])
+        guard let taskListId = currentTaskListId, let currentShareCode else {
+            throw NSError(domain: "com.lightlist", code: -1)
         }
-
-        await MainActor.run {
-            isJoining = true
-            errorMessage = nil
-        }
-
-        do {
-            guard let currentShareCode else {
-                throw NSError(domain: "com.lightlist", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing share code"])
-            }
-            try await addSharedTaskListToOrder(taskListId: taskListId, joinCode: currentShareCode)
-            await MainActor.run {
-                isAdded = true
-                isJoining = false
-            }
-            logShareCodeJoin()
-            return taskListId
-        } catch {
-            await MainActor.run {
-                isJoining = false
-            }
-            throw error
-        }
+        isJoining = true
+        errorKey = nil
+        defer { isJoining = false }
+        try await addSharedTaskListToOrder(taskListId: taskListId, joinCode: currentShareCode)
+        isAdded = true
+        logShareCodeJoin()
+        return taskListId
     }
 
-    private func subscribeToTaskList(taskListId: String, translations: Translations) {
-        guard currentTaskListId != taskListId else {
-            return
-        }
-
-        resetTaskListListener()
-        currentTaskListId = taskListId
-        installTaskListListener(taskListId: taskListId, translations: translations)
+    private func fail(_ key: String) {
+        taskList = nil
+        errorKey = key
+        isLoading = false
     }
 
-    private func installTaskListListener(taskListId: String, translations: Translations) {
-        taskListListener?.remove()
-        taskListListener = db.collection("taskLists").document(taskListId).addSnapshotListener { [weak self] snapshot, error in
-            guard let self else { return }
-
-            Task { @MainActor in
-                guard self.currentTaskListId == taskListId else { return }
-                if let error {
-                    self.taskList = nil
-                    self.errorMessage = translations.t("pages.sharecode.error")
-                    self.isLoading = false
-                    self.scheduleTaskListRetry(taskListId: taskListId, translations: translations, error: error)
+    private func installDataListener() {
+        dataListener?.remove()
+        dataListener = nil
+        guard let taskListId = currentTaskListId, let shareCode = currentShareCode else { return }
+        let isAdded = isAdded
+        let reference =
+            isAdded
+            ? db.collection("taskLists").document(taskListId)
+            : db.collection("shareCodes").document(shareCode)
+        dataListener = reference.addSnapshotListener { [weak self] snapshot, error in
+            guard let self, self.currentTaskListId == taskListId, self.isAdded == isAdded else { return }
+            if let error {
+                self.dataListener?.remove()
+                self.dataListener = nil
+                if isPermissionDenied(error) {
+                    self.fail("pages.sharecode.notFound")
                     return
                 }
-
-                guard let snapshot, snapshot.exists else {
-                    self.taskList = nil
-                    self.errorMessage = translations.t("pages.sharecode.notFound")
-                    self.isLoading = false
-                    return
+                self.fail("pages.sharecode.error")
+                self.dataRetry.fail(source: "share_preview", error: error) { [weak self] in
+                    self?.installDataListener()
                 }
-
-                guard let record = decodeTaskListRecord(from: snapshot) else {
-                    self.taskList = nil
-                    self.errorMessage = translations.t("pages.sharecode.error")
-                    self.isLoading = false
-                    return
-                }
-                self.taskList = mapTaskListDetail(id: taskListId, data: record)
-                self.errorMessage = nil
-                self.isLoading = false
-                if !snapshot.metadata.isFromCache {
-                    self.taskListRetryDelayNanoseconds = 1_000_000_000
-                    self.taskListRetryReportedError = false
-                }
-            }
-        }
-    }
-
-    private func scheduleTaskListRetry(taskListId: String, translations: Translations, error: Error) {
-        guard currentTaskListId == taskListId else { return }
-        if !taskListRetryReportedError {
-            logSyncListenerError(source: "shared_task_list", error: error)
-            taskListRetryReportedError = true
-        }
-        guard taskListRetryTask == nil else { return }
-        let delay = taskListRetryDelayNanoseconds
-        taskListRetryDelayNanoseconds = min(taskListRetryDelayNanoseconds * 2, 30_000_000_000)
-        taskListRetryTask = Task { @MainActor [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: delay)
-            } catch {
                 return
             }
-            guard let self, self.currentTaskListId == taskListId else { return }
-            self.taskListRetryTask = nil
-            self.installTaskListListener(taskListId: taskListId, translations: translations)
+            guard let snapshot, snapshot.exists, let data = snapshot.data() else {
+                self.fail("pages.sharecode.notFound")
+                return
+            }
+            let recordData = isAdded ? data : data["preview"] as? [String: Any]
+            guard let recordData else {
+                self.taskList = nil
+                self.isLoading = true
+                return
+            }
+            guard isValidTaskListRecordData(recordData) else {
+                self.fail("pages.sharecode.error")
+                return
+            }
+            self.taskList = mapTaskListDetail(id: taskListId, data: FirestoreTaskListRecord(data: recordData))
+            self.errorKey = nil
+            self.isLoading = false
+            if !snapshot.metadata.isFromCache {
+                self.dataRetry.markHealthy()
+            }
         }
     }
 
-    private func updateOrderSubscription(uid: String?, taskListId: String?) {
-        resetOrderListener()
-
-        guard let uid, let taskListId else {
-            isAdded = false
-            return
-        }
-
-        installOrderListener(uid: uid, taskListId: taskListId)
-    }
-
-    private func installOrderListener(uid: String, taskListId: String) {
-        orderListener?.remove()
-        orderListener = db.collection("taskLists")
-            .document(taskListId)
-            .collection("members")
-            .document(uid)
+    private func installMembershipListener() {
+        membershipListener?.remove()
+        membershipListener = nil
+        guard let uid = currentUid, let taskListId = currentTaskListId else { return }
+        membershipListener = db.collection("taskLists").document(taskListId).collection("members").document(uid)
             .addSnapshotListener { [weak self] snapshot, error in
-                guard let self else { return }
-                Task { @MainActor in
-                    if let error {
-                        self.scheduleOrderRetry(uid: uid, taskListId: taskListId, error: error)
-                        return
+                guard let self, self.currentTaskListId == taskListId else { return }
+                if let error {
+                    self.membershipListener?.remove()
+                    self.membershipListener = nil
+                    self.membershipRetry.fail(source: "membership", error: error) { [weak self] in
+                        self?.installMembershipListener()
                     }
-                    self.isAdded = snapshot?.exists == true
-                    if snapshot?.metadata.isFromCache == false {
-                        self.orderRetryDelayNanoseconds = 1_000_000_000
-                        self.orderRetryReportedError = false
-                    }
+                    return
                 }
+                let isAdded = snapshot?.exists == true
+                if !(snapshot?.metadata.isFromCache ?? true) {
+                    self.membershipRetry.markHealthy()
+                }
+                guard isAdded != self.isAdded else { return }
+                self.isAdded = isAdded
+                self.installDataListener()
             }
-    }
-
-    private func scheduleOrderRetry(uid: String, taskListId: String, error: Error) {
-        guard currentTaskListId == taskListId else { return }
-        if !orderRetryReportedError {
-            logSyncListenerError(source: "membership", error: error)
-            orderRetryReportedError = true
-        }
-        guard orderRetryTask == nil else { return }
-        let delay = orderRetryDelayNanoseconds
-        orderRetryDelayNanoseconds = min(orderRetryDelayNanoseconds * 2, 30_000_000_000)
-        orderRetryTask = Task { @MainActor [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: delay)
-            } catch {
-                return
-            }
-            guard let self, self.currentTaskListId == taskListId else { return }
-            self.orderRetryTask = nil
-            self.installOrderListener(uid: uid, taskListId: taskListId)
-        }
-    }
-
-    private func resetTaskListListener() {
-        taskListRetryTask?.cancel()
-        taskListRetryTask = nil
-        taskListRetryDelayNanoseconds = 1_000_000_000
-        taskListRetryReportedError = false
-        taskListListener?.remove()
-        taskListListener = nil
-    }
-
-    private func resetOrderListener() {
-        orderRetryTask?.cancel()
-        orderRetryTask = nil
-        orderRetryDelayNanoseconds = 1_000_000_000
-        orderRetryReportedError = false
-        orderListener?.remove()
-        orderListener = nil
     }
 }
 
@@ -6519,7 +6368,7 @@ private struct SharedTaskListPreviewView: View {
     let onAdded: (String) -> Void
 
     @StateObject private var viewModel = SharedTaskListPreviewViewModel()
-    @StateObject private var settingsViewModel = SettingsViewModel()
+    @EnvironmentObject private var settingsViewModel: SettingsViewModel
     @ObservedObject private var autoSortOverrides = AutoSortOverrideStore.shared
     @State private var addToOrderError: String?
     @ObservedObject private var networkStatus = NetworkStatus.shared
@@ -6547,7 +6396,7 @@ private struct SharedTaskListPreviewView: View {
                     Spacer()
                     AppAlert(
                         message: networkStatus.isOnline
-                            ? viewModel.errorMessage ?? translations.t("pages.sharecode.error")
+                            ? translations.t(viewModel.errorKey ?? "pages.sharecode.error")
                             : translations.t("common.requiresConnection")
                     )
                     .padding(.horizontal, 16)
@@ -6595,26 +6444,20 @@ private struct SharedTaskListPreviewView: View {
             }
         }
         .onAppear {
-            settingsViewModel.bind(uid: currentUserId)
-            viewModel.bind(shareCode: shareCode, uid: currentUserId, translations: translations)
+            viewModel.bind(shareCode: shareCode, uid: currentUserId)
         }
         .onChange(of: currentUserId) { _, nextUid in
-            settingsViewModel.bind(uid: nextUid)
-            viewModel.bind(shareCode: shareCode, uid: nextUid, translations: translations)
+            viewModel.bind(shareCode: shareCode, uid: nextUid)
         }
         .onDisappear {
-            settingsViewModel.reset()
             viewModel.reset()
-        }
-        .onChange(of: translations.language) { _, _ in
-            viewModel.bind(shareCode: shareCode, uid: currentUserId, translations: translations)
         }
     }
 }
 
 @MainActor
 private final class SettingsViewModel: ObservableObject {
-    struct Settings {
+    struct Settings: Equatable {
         var theme: String = "system"
         var language: String = "ja"
         var taskInsertPosition: String = "top"
@@ -6624,6 +6467,7 @@ private final class SettingsViewModel: ObservableObject {
     }
 
     @Published private(set) var settings: Settings? = nil
+    @Published private(set) var registeredNotificationToken: String?
     @Published var userEmail: String = ""
 
     var taskInsertPosition: String { settings?.taskInsertPosition ?? "top" }
@@ -6633,9 +6477,8 @@ private final class SettingsViewModel: ObservableObject {
     private let db = Firestore.firestore()
     private var settingsListener: ListenerRegistration?
     private var currentUid: String?
-    private var retryTask: Task<Void, Never>?
-    private var retryDelayNanoseconds: UInt64 = 1_000_000_000
-    private var reportedListenerError = false
+    private var initialLanguage = "ja"
+    private let retry = ListenerRetryScheduler()
     private let autoSortOverrides = AutoSortOverrideStore.shared
     private var pendingSettings: Settings?
     private var settingsMutationRevision = 0
@@ -6660,7 +6503,8 @@ private final class SettingsViewModel: ObservableObject {
         )
     }
 
-    func bind(uid: String?) {
+    func bind(uid: String?, initialLanguage: String) {
+        self.initialLanguage = initialLanguage
         guard currentUid != uid else { return }
         reset()
         currentUid = uid
@@ -6675,12 +6519,12 @@ private final class SettingsViewModel: ObservableObject {
     }
 
     func reset() {
-        retryTask?.cancel()
-        retryTask = nil
+        retry.cancel()
         settingsListener?.remove()
         settingsListener = nil
         currentUid = nil
         settings = nil
+        registeredNotificationToken = nil
         pendingSettings = nil
         settingsMutationRevision = 0
         isLoading = false
@@ -6691,12 +6535,26 @@ private final class SettingsViewModel: ObservableObject {
         settingsListener?.remove()
         settingsListener = db.collection("settings").document(uid)
             .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
-                guard let self else { return }
+                guard let self, self.currentUid == uid else { return }
                 if let error {
                     self.isLoading = false
                     self.hasError = true
-                    self.scheduleListenerRetry(error: error)
+                    self.retry.fail(source: "settings", error: error) { [weak self] in
+                        guard let self, self.currentUid == uid else { return }
+                        self.installSettingsListener(uid: uid)
+                    }
                     return
+                }
+                self.registeredNotificationToken = SharedNotificationRegistration.registeredToken(in: snapshot)
+                let isServerConfirmed = snapshot?.metadata.isFromCache == false && snapshot?.metadata.hasPendingWrites == false
+                if isServerConfirmed {
+                    self.retry.markHealthy()
+                    if snapshot?.exists == false, Auth.auth().currentUser?.uid == uid {
+                        let language = self.initialLanguage
+                        Task { @MainActor in
+                            await ensureInitialUserData(uid: uid, language: language)
+                        }
+                    }
                 }
                 guard let data = decodeSettingsRecord(from: snapshot),
                     let settings = self.resolveSettings(data)
@@ -6706,41 +6564,18 @@ private final class SettingsViewModel: ObservableObject {
                     self.hasError = true
                     return
                 }
-                if autoSortOverrides.value(for: uid, fallback: settings.autoSort) == settings.autoSort {
-                    autoSortOverrides.clear(for: uid)
+                if self.autoSortOverrides.value(for: uid, fallback: settings.autoSort) == settings.autoSort {
+                    self.autoSortOverrides.clear(for: uid)
                 }
                 self.settings = self.pendingSettings ?? settings
                 self.isLoading = false
                 self.hasError = false
-                if snapshot?.metadata.isFromCache == false,
-                    snapshot?.metadata.hasPendingWrites == false
-                {
-                    self.retryDelayNanoseconds = 1_000_000_000
-                    self.reportedListenerError = false
+                if isServerConfirmed {
+                    UserDefaults.standard.set(settings.theme, forKey: cachedThemeKey)
+                    UserDefaults.standard.set(settings.language, forKey: cachedLanguageKey)
+                    UserDefaults.standard.set(settings.startupView, forKey: cachedStartupViewKey)
                 }
             }
-    }
-
-    private func scheduleListenerRetry(error: Error) {
-        if !reportedListenerError {
-            logSyncListenerError(source: "settings", error: error)
-            reportedListenerError = true
-        }
-        guard retryTask == nil else { return }
-        let delay = retryDelayNanoseconds
-        retryDelayNanoseconds = min(retryDelayNanoseconds * 2, 30_000_000_000)
-        retryTask = Task { [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: delay)
-            } catch {
-                return
-            }
-            guard let self, !Task.isCancelled, let uid = self.currentUid else {
-                return
-            }
-            self.retryTask = nil
-            self.installSettingsListener(uid: uid)
-        }
     }
 
     func updateSettings(
@@ -6816,10 +6651,19 @@ private final class SettingsViewModel: ObservableObject {
                 let taskListOrderRef = db.collection("taskListOrder").document(uid)
                 let orderSnapshot = try await taskListOrderRef.getDocument(source: .server)
                 let taskListIds = orderedTaskListIds(from: orderSnapshot.data())
+                let ownMemberKey = memberKey(uid: uid)
                 for taskListId in taskListIds {
                     let taskListRef = db.collection("taskLists").document(taskListId)
-                    let taskListSnapshot = try await taskListRef.getDocument(source: .server)
+                    let taskListSnapshot: DocumentSnapshot
+                    do {
+                        taskListSnapshot = try await taskListRef.getDocument(source: .server)
+                    } catch  where isPermissionDenied(error) {
+                        continue
+                    }
                     guard taskListSnapshot.exists else { continue }
+                    if let memberKeys = stringArray(taskListSnapshot.data()?["memberKeys"]), !memberKeys.contains(ownMemberKey) {
+                        continue
+                    }
                     try await makeTaskListMembershipRemovalBatch(
                         db: db,
                         taskListOrderRef: taskListOrderRef,
@@ -6905,7 +6749,7 @@ private struct SettingsView: View {
     @EnvironmentObject var translations: Translations
     let currentUserId: String?
     var showsBackButton = true
-    @StateObject private var viewModel = SettingsViewModel()
+    @EnvironmentObject private var viewModel: SettingsViewModel
     @ObservedObject private var autoSortOverrides = AutoSortOverrideStore.shared
     @State private var showSignOutAlert = false
     @State private var showDeleteAlert = false
@@ -7104,17 +6948,8 @@ private struct SettingsView: View {
         .navigationDestination(isPresented: $showLicenses) {
             LicensesView(showsBackButton: true)
         }
-        .onAppear {
-            viewModel.bind(uid: currentUserId)
-        }
-        .onChange(of: currentUserId) { _, nextUid in
-            viewModel.bind(uid: nextUid)
+        .onChange(of: currentUserId) { _, _ in
             isSigningOut = false
-        }
-        .onDisappear {
-            if !showLicenses {
-                viewModel.reset()
-            }
         }
         .alert(translations.t("auth.signOutConfirm.title"), isPresented: $showSignOutAlert) {
             Button(translations.t("common.cancel"), role: .cancel) {}
@@ -8110,7 +7945,7 @@ private struct CalendarScreenView: View {
     var defaultTaskListId: String? = nil
     var onOpenTaskList: ((String) -> Void)? = nil
     @StateObject private var viewModel = CalendarViewModel()
-    @StateObject private var settingsViewModel = SettingsViewModel()
+    @EnvironmentObject private var settingsViewModel: SettingsViewModel
     @ObservedObject private var autoSortOverrides = AutoSortOverrideStore.shared
 
     private var calendarTasks: [CalendarTask] { viewModel.calendarTasks }
@@ -8176,15 +8011,12 @@ private struct CalendarScreenView: View {
         calendarContent
             .onAppear {
                 viewModel.bind(uid: currentUserId)
-                settingsViewModel.bind(uid: currentUserId)
             }
             .onDisappear {
                 viewModel.reset()
-                settingsViewModel.reset()
             }
             .onChange(of: currentUserId) { _, nextUid in
                 viewModel.bind(uid: nextUid)
-                settingsViewModel.bind(uid: nextUid)
             }
             .sheet(item: $addSheetRequest) { request in
                 CalendarTaskSheet(

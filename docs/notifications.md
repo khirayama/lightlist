@@ -20,7 +20,8 @@ Android 宛ては `priority: "high"` で送り、Doze 中の端末でも待た�
 
 ## 費用を抑えるための制約
 
-- Functions は `memberCount` が 1 以下のタスクリストでは Firestore を読まずに終了する。共有していないリストの編集で読み書きを発生させない。
+- Functions は `memberCount` が 1 以下のタスクリストでは通知のための Firestore 読み取りをせずに終了する。同じ trigger は共有コードがあるリストの名前・背景色・タスクが変わったときだけ `shareCodes/{code}.preview` を更新する（[sharing.md](./sharing.md)）。共有コードのないリストの編集では読み書きを発生させない。
+- 無効 token の端末登録の削除は device ID を `FieldPath` で指定し、メンバーごとの配信失敗は他メンバーの配信を止めずに `failureCodes` へ記録する。
 - 通知は最初の変更ですぐ配信し、同じタスクリストの同じ変更者による変更はその後 10 分間配信しない。抑制は変更者ごとに独立し、別のメンバーの変更は抑制中でも配信する。待ってまとめて送る処理は持たない。配信先が 0 件だった場合も同じ期間は再確認しない。配信を試みて 1 件も成功せず失敗があった場合と、配信処理が例外で中断した場合は、抑制の記録を削除して次の変更で再配信する。抑制の判定は Functions instance 内の記録を先に見て、記録がなければ `notificationThrottles/{taskListId}_{変更者 uid}` を 1 回読む。変更者を特定できない書き込みは `notificationThrottles/{taskListId}` を使う。
 - trigger の再配信に対する重複抑止用 document は持たない。重複して配信されても抑制の対象になるか、同じ `taskListId` の通知を上書きするだけになる。
 - 共有リストの通知対象の変更 1 回あたりの Firestore 操作は、抑制中なら読み取り 0〜1 回。配信するときは抑制 document の読み書き各 1 回に加えて、`members` の人数分と変更者以外の `settings` の人数分の読み取り。

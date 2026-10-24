@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase-admin/app";
-import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, getFirestore } from "firebase-admin/firestore";
 import {
   getMessaging,
   type BatchResponse,
@@ -9,6 +9,7 @@ import * as logger from "firebase-functions/logger";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentWrittenWithAuthContext } from "firebase-functions/v2/firestore";
 import pushLocales from "./push-locales.json";
+import { isRecord, syncSharePreview } from "./share-preview";
 
 initializeApp();
 setGlobalOptions({ region: "asia-northeast1", maxInstances: 3 });
@@ -17,11 +18,7 @@ const NOTIFICATION_COOLDOWN_MS = 10 * 60 * 1000;
 const NOTIFICATION_TITLE_MAX_LENGTH = 100;
 const recentNotifications = new Map<string, number>();
 
-type RecordValue = Record<string, unknown>;
 type DeviceRegistration = { deviceId: string; token: string; platform: string };
-
-const isRecord = (value: unknown): value is RecordValue =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const notificationBody = (language: unknown): string => {
   if (typeof language === "string" && Object.hasOwn(pushLocales, language)) {
@@ -73,20 +70,23 @@ const removeInvalidRegistrations = async (
   registrations: DeviceRegistration[],
   responses: BatchResponse,
 ) => {
-  const updates: Record<string, unknown> = {};
-  responses.responses.forEach((response, index) => {
-    if (
-      !response.success &&
-      (response.error?.code === "messaging/registration-token-not-registered" ||
-        response.error?.code === "messaging/invalid-registration-token")
-    ) {
-      updates[`notificationDevices.${registrations[index].deviceId}`] =
-        FieldValue.delete();
-    }
-  });
-  if (Object.keys(updates).length > 0) {
-    await getFirestore().collection("settings").doc(uid).update(updates);
-  }
+  const invalidDeviceIds = responses.responses.flatMap((response, index) =>
+    !response.success &&
+    (response.error?.code === "messaging/registration-token-not-registered" ||
+      response.error?.code === "messaging/invalid-registration-token")
+      ? [registrations[index].deviceId]
+      : [],
+  );
+  const [first, ...rest] = invalidDeviceIds;
+  if (first === undefined) return;
+  const fieldsAndValues = rest.flatMap((deviceId) => [
+    new FieldPath("notificationDevices", deviceId),
+    FieldValue.delete(),
+  ]);
+  await getFirestore()
+    .collection("settings")
+    .doc(uid)
+    .update(new FieldPath("notificationDevices", first), FieldValue.delete(), ...fieldsAndValues);
 };
 
 const isCoolingDown = (notifiedAt: unknown, now: number): boolean =>
@@ -119,18 +119,26 @@ export const notifySharedTaskListUpdates = onDocumentWrittenWithAuthContext(
   async (event) => {
     const before = event.data?.before.data();
     const after = event.data?.after.data();
+    const taskListId = event.params.taskListId;
+    await syncSharePreview(getFirestore(), taskListId, before, after, Date.parse(event.time)).catch(
+      (error: unknown) => {
+        logger.error("share preview sync failed", {
+          taskListId,
+          code: isRecord(error) && typeof error.code === "string" ? error.code : "unknown",
+        });
+      },
+    );
     if (!before || !after) return;
     if (typeof after.memberCount !== "number" || after.memberCount <= 1) return;
 
     const taskListName =
       typeof after.name === "string"
-        ?Array.from(after.name).slice(0, NOTIFICATION_TITLE_MAX_LENGTH).join("")
+        ? Array.from(after.name).slice(0, NOTIFICATION_TITLE_MAX_LENGTH).join("")
         : "Lightlist";
     const listNameChanged = before.name !== after.name;
     if (!listNameChanged && !hasVisibleTaskChange(before, after)) return;
 
     const db = getFirestore();
-    const taskListId = event.params.taskListId;
     const actorUid = event.authId;
     const throttleKey = actorUid ? `${taskListId}_${actorUid}` : taskListId;
     if (!(await claimNotification(throttleKey))) return;
@@ -138,7 +146,7 @@ export const notifySharedTaskListUpdates = onDocumentWrittenWithAuthContext(
     const failureCodes: string[] = [];
     const deliver = async () => {
       const members = await event.data?.after.ref.collection("members").get();
-      await Promise.all(
+      const results = await Promise.allSettled(
         (members?.docs ?? [])
           .map((member) => member.id)
           .filter((uid) => uid !== actorUid)
@@ -180,6 +188,14 @@ export const notifySharedTaskListUpdates = onDocumentWrittenWithAuthContext(
             }
           }),
       );
+      for (const result of results) {
+        if (result.status === "rejected") {
+          const reason: unknown = result.reason;
+          failureCodes.push(
+            isRecord(reason) && typeof reason.code === "string" ? reason.code : "member_failed",
+          );
+        }
+      }
     };
     try {
       await deliver();

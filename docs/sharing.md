@@ -9,7 +9,7 @@
 - `removeShareCode()`: `taskLists.shareCode` を `null` に戻し、対応する `shareCodes` ドキュメントを削除する。
 - 生成・削除は transaction ではなく、サーバーから現在のリストを取得した後の batch write で `shareCodes` と `taskLists.shareCode` を更新する。既存 `shareCode` の doc は正規化（trim + uppercase）した ID で同 batch 削除する。Rules も更新・解除・リスト実体削除時に旧コード文書の削除を要求する。同時操作で前提が変わった書き込みは失敗し、画面のエラーを確認して再実行する。
 - リスト実体削除（アカウント削除を含む）でも、残った `shareCode` に対応する `shareCodes` doc を残さない。
-- 共有コードの解決ではコード文書と対象リストをサーバーから取得し、リストの現在のコードとの一致を確認する。Rules もリストから参照されない既存コード文書の取得を拒否する。古いコード文書が残っていても共有先を解決できず、共有コードを新たに開くには接続が必要になる。
+- 共有コードの解決ではコード文書をサーバーから取得する。Rules がリストの現在のコードと一致しない文書の取得を拒否するため、`permission-denied` は「該当なし」として扱う。未参加者は対象リストを読めないため、リスト本体は読まない。古いコード文書が残っていても共有先を解決できず、共有コードを新たに開くには接続が必要になる。
 - 外部入力、deep link、既存の `taskLists.shareCode` から Firestore document path を作る前に、trim + uppercase 後の完全一致 `^[A-Z0-9]{8}$` を必ず検証する。不正な値は未検出として扱い、不正な document path を作らない。
 - 共有ダイアログのコピー操作は、コード文字列ではなく共有 URL（Web は `${origin}/sharecodes/?code=CODE`、native は `https://lightlist.app/sharecodes/?code=CODE`）をクリップボードへ入れる。コード自体は読み取り専用の等幅フィールドに表示する。コピー成功の表示は最後の成功から 2 秒間とし、共有画面を閉じるかコードが変わったら解除する。閉じた画面への遅延結果は反映しない。
 - Web / iOS / Android の共有ダイアログは、発行済み共有コードの参加 URL を QR コードでも表示する。QR を読み取れない場合に備え、共有 URL のコピーと共有コードの表示も維持する。native は Debug / Release とも HTTPS 正規形 `https://lightlist.app/sharecodes/?code=CODE` を使う。開発 Firebase project で生成したコードは本番サイトでは解決できない。
@@ -30,14 +30,16 @@
 ## 共有権限モデル
 
 - 共有 URL を知っているユーザーは、未認証でも共有リストをプレビュー閲覧できる。
-- 共有コードはプレビュー取得用の bearer credential として扱う。対象リストの `name` / `tasks` / `history` / `background` の更新には membership document が必要で、未参加のコード保持者による編集は Rules で拒否する。
+- 共有コードはプレビュー取得用の bearer credential として扱う。未参加者が読めるのは通知 Functions が `shareCodes/{shareCode}.preview` に書く写し（`name` / `background` / `tasks`）だけで、`taskLists/{taskListId}`（`history` / `memberKeys` を含む）は membership を持つユーザーだけが読める。コードを解除・再発行すると旧コードの文書は消え、`taskListId` を知っていても読めない。
+- プレビューの写しはリストの書き込みイベントから非同期に作られるため、コード発行直後や移行直後は `preview` が無いことがある。この間は読み込み中として扱う。既存の共有リストは `functions/scripts/backfill-share-previews.mjs` で写しを作る（[deployment.md](./deployment.md)）。
+- 対象リストの `name` / `tasks` / `history` / `background` の更新には membership document が必要で、未参加のコード保持者による編集は Rules で拒否する。
 - ただし共有コードの発行・再生成・失効は `shareCodes` への書き込みを伴うため、認証済みかつ membership document を持つユーザーだけが行える。コード保持者が任意のコードを勝手に張り替えることはできない。
 - 自分の一覧へ追加する操作だけは認証が必要。
 - `taskListOrder/{uid}` は表示順専用であり、認証済みユーザーが任意の `taskListId` を追加しても権限は付与されない。加入時は、正しい共有コードを含む membership document を同一 batch で作成する。
 
 ## 画面導線
 
-- 共有コードプレビューは未認証でも開く。未参加ユーザーの native / Web preview は task の追加・完了・編集・並び替えを含む編集 UI を表示せず、読み取り専用で扱う。編集と共有コード管理、タスクリスト削除の導線は membership document を持つユーザーにだけ表示する。ログイン済みかつ未参加のときだけ加入導線を表示する。
+- 共有コードプレビューは未認証でも開く。未参加ユーザーには `preview` の写しを読み取り専用で表示し、task の追加・完了・編集・並び替えを含む編集 UI を表示しない。参加済みユーザー（membership あり）はリスト本体を購読して通常の編集 UI を表示する。編集と共有コード管理、タスクリスト削除の導線は membership document を持つユーザーにだけ表示する。ログイン済みかつ未参加のときだけ加入導線を表示する。
 - Web / HTTPS: `https://lightlist.app/sharecodes/?code=CODE`
 - iOS: `lightlist://sharecodes/CODE`、HTTPS 正規形
 - Android: `lightlist://sharecodes/CODE`、HTTPS 正規形

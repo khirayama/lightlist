@@ -94,12 +94,6 @@ service cloud.firestore {
           && hasUniqueMemberKeys();
       }
 
-      // ヘルパー関数: 有効な共有コード紐付けがあるか確認
-      function isValidShareCode() {
-        return resource.data.shareCode != null
-          && get(/databases/$(database)/documents/shareCodes/$(resource.data.shareCode)).data.taskListId == taskListId;
-      }
-
       function isValidMemberCountUpdate() {
         return request.resource.data.memberCount is int
           && resource.data.memberCount is int
@@ -218,8 +212,9 @@ service cloud.firestore {
           );
       }
 
-      // 読み取り権限: memberKeys / membership documentに含まれている、または有効な共有コードが存在する
-      allow read: if isMemberBeforeOrAfter() || isValidShareCode();
+      // 読み取り権限: memberKeys / membership documentに含まれている。
+      // 未参加者のプレビューは Functions が shareCodes/{code}.preview に書く写しだけを読み、taskListId の推測では読めない
+      allow read: if isMemberBeforeOrAfter();
 
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(allowedTaskListKeys())

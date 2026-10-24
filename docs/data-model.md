@@ -66,10 +66,11 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 
 ### shareCodes/{shareCode}
 
-共有コードから `taskListId` への逆引き。
+共有コードから `taskListId` への逆引きと、未参加者向けのプレビュー。
 
 - `taskListId`
 - `createdAt`
+- `preview`: 通知 Functions がリストの書き込みのたびに Admin SDK で書く表示用の写し。`name` / `background` / `tasks`（完全な task だけ）/ `syncedAt`（書き込みイベントの時刻。古いイベントで上書きしない）。`history` / `memberKeys` / `memberCount` は含めない。クライアントは書き込まない。
 
 ### notificationThrottles/{taskListId}_{actorUid}
 
@@ -81,7 +82,7 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 
 - 表示順は `taskListOrder/{uid}` が正。保持権限は `taskLists/{taskListId}/members/{uid}` が正。
 - リスト実体は `taskLists/{taskListId}` が正。
-- 共有コードは `shareCodes/{shareCode}` から `taskListId` を引く。
+- 共有コードは `shareCodes/{shareCode}` から `taskListId` を引く。未参加者のプレビューは `shareCodes/{shareCode}.preview` だけを読み、`taskLists/{taskListId}` は読まない。
 - 実体が存在しない ID の順序エントリーは管理者による整合性確認後に除去できる。旧クライアントの document ID 指定クエリでは、アクセスできない ID を含むと全体が拒否されるため、残存参照を維持しない。補正はバックアップと `updateTime` 前提条件を付け、正常なリストの順序・本文・保持権限を変更しない。
 - `taskListOrder` と `taskLists` は別管理する。一方だけで順序と実体を兼ねない。加入・離脱時は order と membership、`memberCount`、`memberKeys`（自分の key だけを `arrayUnion` / `arrayRemove`）を同一 batch で更新する。
 
@@ -121,10 +122,10 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 ## Firestore ルール
 
 - `settings/{uid}` と `taskListOrder/{uid}` は本人のみ読み書き可能。
-- `shareCodes/{shareCode}` は `get` のみ誰でも可能で、`list` は不可。作成は認証済みかつ対象リストを保持しているユーザーに限り、さらに同一 commit で `taskLists/{taskListId}.shareCode == shareCode` になることを要求する。更新は不可。
-- `taskLists/{taskListId}` は、`memberKeys` に自分の key があるか、自分の membership document が存在するか、有効な `shareCode` がある場合に読み書きできる。`memberKeys` の判定を先に評価し、通常の読み書きで membership document の `exists()`（課金対象の読み取り）を発生させない。
+- `shareCodes/{shareCode}` は `get` のみ誰でも可能で、`list` は不可。リストの現在のコードと一致しない文書の取得は拒否する。作成は認証済みかつ対象リストを保持しているユーザーに限り、キーは `taskListId` / `createdAt` だけ、さらに同一 commit で `taskLists/{taskListId}.shareCode == shareCode` になることを要求する。クライアントからの更新は不可（`preview` は Functions だけが書く）。
+- `taskLists/{taskListId}` は、`memberKeys` に自分の key があるか、自分の membership document が存在する場合だけ読み書きできる。共有コードの有無では読み取りを許可しない（`taskListId` を知っているだけの旧コード保持者や元メンバーが、コードの再発行後も読み続けられないようにするため）。`memberKeys` の判定を先に評価し、通常の読み書きで membership document の `exists()`（課金対象の読み取り）を発生させない。
 - `memberKeys` は作成時は自分の key 1 件だけ、参加時（`memberCount` +1・membership 作成）は自分の key の追加だけ、離脱時（`memberCount` -1・membership 削除）は自分の key の除去だけを許可し、それ以外の更新では変更を禁止する。重複した key は許可しない。
-- `taskLists/{taskListId}` は共有コードを知っているだけでは更新できない。共有コードは未参加ユーザーのプレビュー読み取りに限り、更新には membership document が必要。
+- `taskLists/{taskListId}` は共有コードを知っているだけでは読み書きできない。共有コードで読めるのは `shareCodes/{shareCode}.preview` だけで、更新には membership document が必要。
 - `taskLists.shareCode` は `null` か `^[A-Z0-9]{8}$` のみ許可し、新しい値は同一 commit で作成される `shareCodes` doc と一致していなければならない。新規作成時は `null` 固定。
 - `taskListOrder/{uid}` は表示順だけを保持し、本人の書き込み内容が `taskLists/{taskListId}` のアクセス権を付与することはない。新規作成・共有コード加入時は membership document の作成を同一 batch に含める。
 - `taskLists` の削除は最後の保持者（`memberCount <= 1`）のみ可能。

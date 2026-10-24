@@ -72,6 +72,8 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 
 ## Firebase デプロイ
 
+配信前のローカル build は Functions 用 Node.js 22 と npm 12.0.2 で実行する。Cloud Build の npm 版も両 Functions の `engines.npm` で固定し、未承認の install script があれば停止する。環境の切り替えと承認手順は [development.md](./development.md) を参照。
+
 費用の合計100円を条件とする課金停止の構成・復旧制約は [billing-control.md](./billing-control.md) を参照する。課金停止の配信は通常の通知Functionsとは別の `firebase.billing.json` を使用する。
 
 - リポジトリルートで実行する。

@@ -145,6 +145,8 @@
 
 ## セキュリティ・品質ルール
 
+- Node.js / npm は各 Node プロジェクトの `.node-version` / `packageManager` / `devEngines` に従う。Functions の Cloud Build 用 npm 版は `engines.npm` も揃える。3 プロジェクトの `.npmrc` は `strict-allow-scripts=true` を維持し、install script は完全バージョン付き `allowScripts` で個別承認する。手順は `docs/development.md`。
+- ローカル一括検証は `just check-web` / `just check-functions`、依存監査は `just audit-web` / `just audit-functions`。対象に対応する Node.js を選択して実行する。
 - `console.error` にユーザーメール等の PII（個人識別情報）を含めない。`userEmail` は必ずログから除外する。
 - Functions は Firestore 上のユーザー入力（`settings.language` など）で object を引くとき `in` ではなく `Object.hasOwn` を使い、`__proto__` などの prototype key を受け付けない。通知タイトルに使うリスト名は 100 文字に切り詰めて FCM の payload 上限を超えないようにする。
 - 依存の脆弱性確認は `apps/web` / `functions` / `functions-billing` で `npm audit`、native は Package.resolved と `libs.versions.toml` の版を OSV（`api.osv.dev`）で照会する。Web の `@grpc/grpc-js`（`@firebase/firestore` が `~1.9` に固定）の advisory は Node 実行時専用でブラウザ bundle に含まれないため対象外とし、`overrides` で書き換えない。

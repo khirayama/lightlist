@@ -21,7 +21,8 @@ export default defineConfig(({ mode }) => {
         name: "LightlistMessagingWorker",
         fileName: () => "firebase-messaging-sw.js",
       },
-      outDir: mode === "development" ? "public/notifications" : "dist/notifications",
+      outDir:
+        mode === "development" ? "public/notifications" : "dist/notifications",
       emptyOutDir: false,
     },
   };

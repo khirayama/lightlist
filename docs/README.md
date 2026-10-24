@@ -6,6 +6,7 @@
 
 ## ドメイン仕様
 
+- [development.md](./development.md) — 開発環境の必須バージョン、依存 script の承認、ローカル検証・脆弱性の判定
 - [data-model.md](./data-model.md) — Firestore のコレクション構造、参照関係、ルール
 - [task-lists.md](./task-lists.md) — タスク / タスクリストの挙動、並び替え、入力解析
 - [sharing.md](./sharing.md) — 共有コードと共有権限モデル

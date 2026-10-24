@@ -14,15 +14,17 @@ Web の Firebase Auth / Firestore 実装は `apps/web/src/entry.tsx` に統合�
 
 ## 前提
 
-- Node.js 24+
-- npm 12+
+- Web: Node.js 24.19.0、npm 12.0.2
+- Functions: Node.js 22.23.4、npm 12.0.2
 - Firebase プロジェクト（Auth + Firestore）
+
+対象ディレクトリの `.node-version` に合わせて Node.js を選択する。必須設定と依存 script の承認手順は [開発環境](./docs/development.md) を参照。
 
 ## セットアップ
 
 ```bash
 cd apps/web
-npm install
+npm ci
 ```
 
 ### 環境変数
@@ -49,6 +51,10 @@ cd apps/web && npm run dev
 ## ビルド / チェック
 
 ```bash
+just check-web                  # Web の一括検証 + production build
+just check-functions            # Node.js 22 で両 Functions を build
+just audit-web                  # Web の依存監査（対象外の指摘は docs 参照）
+just audit-functions            # 両 Functions の依存監査
 cd apps/web && npm run build      # ビルド
 cd apps/web && npm run typecheck  # 型チェック
 cd apps/web && npm run lint       # Lint

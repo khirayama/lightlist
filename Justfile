@@ -25,6 +25,23 @@ native:
 web:
   cd apps/web && npm run dev
 
+check-web:
+  cd apps/web && npm run check && npm run build
+
+check-functions:
+  cd functions && npm run build
+  cd functions-billing && npm run build
+
+audit-web:
+  cd apps/web && npm audit
+
+audit-functions:
+  #!/usr/bin/env zsh
+  audit_status=0
+  (cd functions && npm audit) || audit_status=1
+  (cd functions-billing && npm audit) || audit_status=1
+  exit "$audit_status"
+
 screenshots target='all':
   cd apps/web && npm run screenshots:generate -- {{target}}
 

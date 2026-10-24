@@ -22,10 +22,16 @@ type NotificationClickEvent = Event & {
 type MessagingServiceWorker = WorkerGlobalScope & {
   location: WorkerLocation;
   clients: {
-    matchAll(options: { type: "window"; includeUncontrolled: boolean }): Promise<WorkerWindowClient[]>;
+    matchAll(options: {
+      type: "window";
+      includeUncontrolled: boolean;
+    }): Promise<WorkerWindowClient[]>;
     openWindow(url: string): Promise<WorkerWindowClient | null>;
   };
-  addEventListener(type: "notificationclick", listener: (event: NotificationClickEvent) => void): void;
+  addEventListener(
+    type: "notificationclick",
+    listener: (event: NotificationClickEvent) => void,
+  ): void;
 };
 
 const serviceWorker = globalThis as unknown as MessagingServiceWorker;
@@ -36,23 +42,31 @@ serviceWorker.addEventListener("notificationclick", (event) => {
   event.stopImmediatePropagation();
   event.notification.close();
   event.waitUntil(
-    serviceWorker.clients.matchAll({ type: "window", includeUncontrolled: true }).then(
-      (clients) => {
+    serviceWorker.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
         const appClient = clients.find((client) => {
           const url = new URL(client.url);
-          return url.origin === serviceWorker.location.origin && url.pathname.startsWith("/app/");
+          return (
+            url.origin === serviceWorker.location.origin &&
+            url.pathname.startsWith("/app/")
+          );
         });
         if (!appClient) {
           return serviceWorker.clients.openWindow(
-            taskListId ? `/app/?taskListId=${encodeURIComponent(taskListId)}` : "/app/",
+            taskListId
+              ? `/app/?taskListId=${encodeURIComponent(taskListId)}`
+              : "/app/",
           );
         }
         if (taskListId) {
-          appClient.postMessage({ type: "lightlist-open-task-list", taskListId });
+          appClient.postMessage({
+            type: "lightlist-open-task-list",
+            taskListId,
+          });
         }
         return appClient.focus();
-      },
-    ),
+      }),
   );
 });
 

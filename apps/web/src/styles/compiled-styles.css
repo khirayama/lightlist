@@ -1404,7 +1404,10 @@
       line-height: var(--ll-leading, var(--text-3xl--line-height));
     }
   }
-  :where(.ll-dark-divide-gray-700:is(.dark *):not([data-colored-background] *) > :not(:last-child)) {
+  :where(
+    .ll-dark-divide-gray-700:is(.dark *):not([data-colored-background] *)
+      > :not(:last-child)
+  ) {
     border-color: #374151;
   }
   .ll-dark-border-amber-900-40:is(.dark *):not([data-colored-background] *) {
@@ -1429,7 +1432,9 @@
     border-color: #004e3b66;
   }
   @supports (color: color-mix(in lab, red, red)) {
-    .ll-dark-border-emerald-900-40:is(.dark *):not([data-colored-background] *) {
+    .ll-dark-border-emerald-900-40:is(.dark *):not(
+        [data-colored-background] *
+      ) {
       border-color: color-mix(
         in oklab,
         var(--color-emerald-900) 40%,
@@ -1532,44 +1537,66 @@
   .ll-dark-text-gray-50:is(.dark *):not([data-colored-background] *) {
     color: #f9fafb;
   }
-  .ll-dark-peer-checked-bg-gray-700:is(.dark *):not([data-colored-background] *):is(
-      :where(.ll-peer):checked ~ *
-    ) {
+  .ll-dark-peer-checked-bg-gray-700:is(.dark *):not(
+      [data-colored-background] *
+    ):is(:where(.ll-peer):checked ~ *) {
     background-color: #374151;
   }
-  .ll-dark-focus-within-outline-gray-700:is(.dark *):not([data-colored-background] *):focus-within {
+  .ll-dark-focus-within-outline-gray-700:is(.dark *):not(
+      [data-colored-background] *
+    ):focus-within {
     outline-color: #374151;
   }
   @media (hover: hover) {
-    .ll-dark-hover-bg-gray-950:is(.dark *):not([data-colored-background] *):hover {
+    .ll-dark-hover-bg-gray-950:is(.dark *):not(
+        [data-colored-background] *
+      ):hover {
       background-color: #030712;
     }
-    .ll-dark-hover-bg-gray-50-10:is(.dark *):not([data-colored-background] *):hover {
+    .ll-dark-hover-bg-gray-50-10:is(.dark *):not(
+        [data-colored-background] *
+      ):hover {
       background-color: oklab(98.4625% -0.000643373 -0.00158/0.1);
     }
-    .ll-dark-hover-bg-gray-900:is(.dark *):not([data-colored-background] *):hover {
+    .ll-dark-hover-bg-gray-900:is(.dark *):not(
+        [data-colored-background] *
+      ):hover {
       background-color: #111827;
     }
-    .ll-dark-hover-bg-gray-900-60:is(.dark *):not([data-colored-background] *):hover {
+    .ll-dark-hover-bg-gray-900-60:is(.dark *):not(
+        [data-colored-background] *
+      ):hover {
       background-color: oklab(21.0084% -0.00295345 -0.031625/0.6);
     }
-    .ll-dark-hover-text-gray-50:is(.dark *):not([data-colored-background] *):hover {
+    .ll-dark-hover-text-gray-50:is(.dark *):not(
+        [data-colored-background] *
+      ):hover {
       color: #f9fafb;
     }
-    .ll-dark-hover-opacity-90:is(.dark *):not([data-colored-background] *):hover {
+    .ll-dark-hover-opacity-90:is(.dark *):not(
+        [data-colored-background] *
+      ):hover {
       opacity: 0.9;
     }
   }
-  .ll-dark-focus-border-gray-300:is(.dark *):not([data-colored-background] *):focus {
+  .ll-dark-focus-border-gray-300:is(.dark *):not(
+      [data-colored-background] *
+    ):focus {
     border-color: #d1d5db;
   }
-  .ll-dark-focus-ring-gray-700:is(.dark *):not([data-colored-background] *):focus {
+  .ll-dark-focus-ring-gray-700:is(.dark *):not(
+      [data-colored-background] *
+    ):focus {
     --ll-ring-color: #374151;
   }
-  .ll-dark-focus-outline-gray-300:is(.dark *):not([data-colored-background] *):focus {
+  .ll-dark-focus-outline-gray-300:is(.dark *):not(
+      [data-colored-background] *
+    ):focus {
     outline-color: #d1d5db;
   }
-  .ll-dark-focus-visible-outline-gray-300:is(.dark *):not([data-colored-background] *):focus-visible {
+  .ll-dark-focus-visible-outline-gray-300:is(.dark *):not(
+      [data-colored-background] *
+    ):focus-visible {
     outline-color: #d1d5db;
   }
   .ll-font-display {

@@ -79,6 +79,8 @@
 
 ## 完了条件
 
+Node.js / npm は対象ディレクトリの `.node-version` / `packageManager` / `devEngines` に合わせる。Functions の `engines.npm` は Cloud Build の指定にも使う。3 プロジェクトの `strict-allow-scripts=true` と完全バージョン付き `allowScripts` を維持する。ローカル一括検証は `just check-web` / `just check-functions`、依存監査は `just audit-web` / `just audit-functions`。手順と対象外の指摘は `docs/development.md`。
+
 1. 実装と `docs/` の仕様を整合させる。
 2. 恒久的な知見が増えた場合は、まず `AGENTS.md` を更新する。
 3. 変更があった app だけ、対応する npm script / Justfile の検証を実行する。

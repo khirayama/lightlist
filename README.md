@@ -65,8 +65,8 @@ cd apps/web && npm run knip       # 未使用コード検査
 ## Firebase デプロイ
 
 ```bash
-just deploy-firebase         # dev (default): all resources in firebase.json
-just deploy-firebase prod    # prod: all resources in firebase.json
+just deploy-firebase         # dev (default): all resources in firebase/firebase.json
+just deploy-firebase prod    # prod: all resources in firebase/firebase.json
 ```
 
 `just` の deploy recipe は、PATH 上で解決できる global `firebase` CLI を前提にしています。

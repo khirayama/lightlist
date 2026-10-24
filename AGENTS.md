@@ -48,9 +48,9 @@
 - 完了した本文の取り消し線は text-decoration ではなく描画で伸ばす（Web `ll-task-strike` の `background-size`、iOS `StrikethroughText` の mask、Android `StrikethroughText` の `drawWithContent` + `TextLayoutResult` の行ごと描画）。いずれも開始側から約 150ms、mount 時は描画済みにする。インライン編集欄は従来の text-decoration のままでよい。
 - 全タスク完了時は一覧末尾に `pages.tasklist.allCompleted` を表示し（Web `AllTasksCompletedNotice` は mount 時の遷移判定だけ `ll-anim-pop`、iOS は opacity + scale transition、Android は `animateItem` の fade）、iOS / Android は最後の完了操作だけ成功の触覚 feedback（iOS `.success` / Android `Confirm`）にする。未完了件数は数字部分だけを差し替える（Web `RollingCountLabel` + `ll-count-roll`、iOS `numericText`、Android `RollingCountText` の `AnimatedContent`）。ページャーのインジケータは選択丸をスクロール量に連動させた worm 形状（`start = base + max(0, 2f - 1)` / `end = base + min(1, 2f)`）で描き、Web は scroll handler から CSS 変数を直接更新、iOS は `@Observable` の `TaskListPagerProgress` をインジケータだけが読む、Android は `currentPage + currentPageOffsetFraction` を draw phase で読み、再コンポーズ・再レンダーを起こさない。
 - カレンダーの日付選択は 3 プラットフォーム共通で選択円を約 240ms の spring / scale、該当タスク行の背景色を約 180ms で切り替える。Web は `prefers-reduced-motion`、iOS は `accessibilityReduceMotion`、Android は `rememberReduceMotion()` に従い、reduce motion 時は即時反映する。iOS / Android の日付・タスク行からの選択は selection feedback（iOS `UISelectionFeedbackGenerator`、Android `SegmentFrequentTick`）を返すが、月移動に伴う選択解除では返さない。
-- Firebase デプロイ設定（`firestore.rules`, `firebase.json`, `.firebaserc`, `firestore.indexes.json`）はリポジトリルートに配置。
+- Firebase 関連（`firebase.json`, `firebase.billing.json`, `.firebaserc`, `firestore.rules`, `firestore.indexes.json`, `functions/`, `functions-billing/`）は `firebase/` に集約する。`apps/` はクライアントアプリだけを置く。Firebase CLI は `--config` で渡した設定ファイルのディレクトリを基準に相対パスを解決する。
 - 通知 Functions は共有していないリスト（`memberCount` 1 以下）で Firestore を読まずに終了させ、重複抑止用の document を持たない。通知は最初の変更ですぐ配信して同じリスト・同じ変更者の組はその後 10 分間抑制し（待ってまとめて送らない。リスト単位にすると相手の返信的な変更が届かない）、instance 内の記録を先に見てから `notificationThrottles/{taskListId}_{変更者 uid}` を読む。通知は `taskListId` を tag / collapse id にして上書きする。Android 宛ては `priority: "high"` を指定する（既定の normal は Doze 中に遅延する）。配信を試みて全件失敗した場合と例外で中断した場合は抑制の記録を削除し、抑制を通過した呼び出しだけ `taskListId`・成功件数・error code を記録する（uid・token は記録しない）。クライアントの端末登録は settings 購読結果の登録済み token と異なるときだけ書き込み、ログアウトは登録削除と端末側の FCM token 削除を待ってからサインアウトする。オフラインのログアウトでは token が残るため、端末に token の所有 uid を保存し、現在のユーザーと異なれば登録前に token を破棄して別ユーザーへ通知が届かないようにする（詳細は `docs/notifications.md`）。
-- 課金停止処理は `functions-billing` と `firebase.billing.json` の専用 codebase で本番プロジェクトだけに配信し、通知 Functions の通常配信へ混在させない。課金停止の権限・監視範囲・復旧制約は `docs/billing-control.md` を参照する。
+- 課金停止処理は `firebase/functions-billing` と `firebase/firebase.billing.json` の専用 codebase で本番プロジェクトだけに配信し、通知 Functions の通常配信へ混在させない。課金停止の権限・監視範囲・復旧制約は `docs/billing-control.md` を参照する。
 - `.gitignore` はルートで共通ローカル生成物（OS / editor / Node / Firebase 設定）を管理し、`apps/web/.gitignore` / `apps/ios/.gitignore` / `apps/android/.gitignore` は各アプリ固有の生成物だけを管理する。
 - `taskListOrder` の読み取りは有効な `order` map だけを採用し、余分なスカラー field で一覧全体をエラーにしない。ドット記法を set + merge で保存した残存 field は表示順として扱わない。
 - Web の task 更新系は Firestore `tasks` map の列挙順を順序根拠に使わず、必ず `order` 昇順の配列へ直してから追加・自動並び替え・D&D 並び替え・完了済み削除を計算する。
@@ -115,7 +115,7 @@
 - サインアップの初期データ作成（settings / 初期リスト / membership / taskListOrder）は 3 プラットフォーム共通の冪等な `ensureInitialUserData` に集約する。サーバーで `settings/{uid}` の不在を確認したときだけ作成し、失敗しても Auth ユーザーを削除しない。settings listener がサーバー確定 snapshot で不在を検知したら同じ処理で自己修復する。
 - Firestore Rules が必要とする書き込み形（新コレクション・field）をクライアントへ入れた場合、本番 Rules のデプロイ（必要なら Admin での backfill を先行）をアプリ配布より先に行う。本番 Rules が古いまま配布すると batch 全体が `permission-denied` になり、リスト作成・サインアップ初期データが作成されない（2026-09 に membership Rules 未デプロイで発生）。
 - アカウント削除は「全タスクリストの離脱/削除 → settings + taskListOrder の削除 → `deleteUser`」の順を維持する。auth 削除後は Firestore Rules で書き込みできないため逆順にはできず、`requires-recent-login` で `deleteUser` だけ失敗した場合はエラー表示して再ログイン後の再実行に任せる。
-- 共有権限モデルは「共有URLを知っているユーザーは未認証でもプレビュー閲覧可、編集は membership 保持者のみ」とする。共有URLを知っていることはプレビュー取得用の bearer credential として扱う。`taskLists` の読み取りは membership 保持者（`memberKeys` / membership document）だけに許可し、未参加者のプレビューは通知 Functions が書き込みのたびに `shareCodes/{code}.preview`（`name` / `background` / 完全な `tasks` / `syncedAt`）へ書く写しだけを読む。`taskListId` を知っているだけでは読めないため、共有コードの解除・再発行で旧コード保持者のアクセスが失効する。クライアントは共有コード解決・参加の前に `taskLists` 本体を読まず（未参加者は `permission-denied`）、`shareCodes` の `permission-denied` は「該当なし」として扱う。参加済みユーザーのプレビューはリスト本体を購読して編集 UI を出す。既存の共有リストには `functions/scripts/backfill-share-previews.mjs` で写しを作る。
+- 共有権限モデルは「共有URLを知っているユーザーは未認証でもプレビュー閲覧可、編集は membership 保持者のみ」とする。共有URLを知っていることはプレビュー取得用の bearer credential として扱う。`taskLists` の読み取りは membership 保持者（`memberKeys` / membership document）だけに許可し、未参加者のプレビューは通知 Functions が書き込みのたびに `shareCodes/{code}.preview`（`name` / `background` / 完全な `tasks` / `syncedAt`）へ書く写しだけを読む。`taskListId` を知っているだけでは読めないため、共有コードの解除・再発行で旧コード保持者のアクセスが失効する。クライアントは共有コード解決・参加の前に `taskLists` 本体を読まず（未参加者は `permission-denied`）、`shareCodes` の `permission-denied` は「該当なし」として扱う。参加済みユーザーのプレビューはリスト本体を購読して編集 UI を出す。既存の共有リストには `firebase/functions/scripts/backfill-share-previews.mjs` で写しを作る。
 - `taskLists/{taskListId}/members/{uid}` を保持権限の正本とし、`taskListOrder/{uid}` は表示順専用にする。新規作成・共有参加・離脱では membership、order、`memberCount`、`memberKeys` を同一 batch で更新する。
 - `taskLists.memberKeys` は `sha256("lightlist-member:" + uid)` の小文字 hex（Rules の `hashing.sha256(...).toHexString().lower()` と一致）で、Web は `crypto.subtle`、iOS は CryptoKit、Android は `MessageDigest` で計算する。共有コードのプレビューで未認証でも読めるため、taskList document に生の uid やメールアドレスを置かない。更新は自分の key の `arrayUnion` / `arrayRemove` だけにし、配列の置き換えをしない。
 - 新規タスクリストの `background` 既定値は `null` とし、カレンダーの同日タスクはタスクリスト順、次にリスト内表示順で並べる。
@@ -142,7 +142,7 @@
 
 ## 主要コマンド
 
-- ルート: `just deploy-firebase`（既定は dev）/ `just deploy-firebase prod` で `firebase.json` に定義した Firebase リソースを一括配信し、直後に `just backfill-share-previews <env>` で既存共有リストのプレビューを作る。Functions 系の recipe は `just _node <dir> <command>` で fnm があれば `<dir>/.node-version` の Node.js（Functions は 22 + npm 12.0.2）に切り替えて実行する（既定の Node.js のままだと predeploy が `EBADDEVENGINES` で失敗する）。環境ごとの Firebase project ID は recipe 内で固定し、`.firebaserc` の既定値に依存しない。
+- ルート: `just deploy-firebase`（既定は dev）/ `just deploy-firebase prod` で `firebase/firebase.json` に定義した Firebase リソースを一括配信し、直後に `just backfill-share-previews <env>` で既存共有リストのプレビューを作る。Functions 系の recipe は `just _node <dir> <command>` で fnm があれば `<dir>/.node-version` の Node.js（Functions は 22 + npm 12.0.2）に切り替えて実行する（既定の Node.js のままだと predeploy が `EBADDEVENGINES` で失敗する）。環境ごとの Firebase project ID は recipe 内で固定し、`.firebaserc` の既定値に依存しない。
 - app ごとのコマンドは各 `apps/<app>/AGENTS.md` を参照する。
 
 ## セキュリティ・品質ルール
@@ -151,7 +151,7 @@
 - ローカル一括検証は `just check-web` / `just check-functions`、依存監査は `just audit-web` / `just audit-functions`。対象に対応する Node.js を選択して実行する。
 - `console.error` にユーザーメール等の PII（個人識別情報）を含めない。`userEmail` は必ずログから除外する。
 - Functions は Firestore 上のユーザー入力（`settings.language` など）で object を引くとき `in` ではなく `Object.hasOwn` を使い、`__proto__` などの prototype key を受け付けない。ユーザー入力の map key（`notificationDevices` の device ID など）を field path に使うときはドット連結ではなく `FieldPath` を使い、メンバーごとの配信は `Promise.allSettled` で他メンバーへ失敗を波及させない。通知タイトルに使うリスト名は 100 文字に切り詰めて FCM の payload 上限を超えないようにする。
-- 依存の脆弱性確認は `apps/web` / `functions` / `functions-billing` で `npm audit`、native は Package.resolved と `libs.versions.toml` の版を OSV（`api.osv.dev`）で照会する。Web の `@grpc/grpc-js`（`@firebase/firestore` が `~1.9` に固定）の advisory は Node 実行時専用でブラウザ bundle に含まれないため対象外とし、`overrides` で書き換えない。
+- 依存の脆弱性確認は `apps/web` / `firebase/functions` / `firebase/functions-billing` で `npm audit`、native は Package.resolved と `libs.versions.toml` の版を OSV（`api.osv.dev`）で照会する。Web の `@grpc/grpc-js`（`@firebase/firestore` が `~1.9` に固定）の advisory は Node 実行時専用でブラウザ bundle に含まれないため対象外とし、`overrides` で書き換えない。
 - CI による品質ゲートは設定しない。品質確認は変更があった app のローカル検証コマンド実行を正本とする。
 
 ## 作業完了チェック

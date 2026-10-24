@@ -20,9 +20,9 @@ NOTE.md
 
 # Node / web toolchain
 node_modules/
-functions/lib/
-functions-billing/lib/
-functions/src/push-locales.json
+firebase/functions/lib/
+firebase/functions-billing/lib/
+firebase/functions/src/push-locales.json
 .pnp
 .pnp.js
 .turbo/

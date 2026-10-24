@@ -5,8 +5,8 @@
 | 対象 | ローカル Node.js | npm |
 | --- | --- | --- |
 | Web | `apps/web/.node-version` の 24.19.0 | 12.0.2 |
-| 通知 Functions | `functions/.node-version` の 22.23.4 | 12.0.2 |
-| 課金停止 Functions | `functions-billing/.node-version` の 22.23.4 | 12.0.2 |
+| 通知 Functions | `firebase/functions/.node-version` の 22.23.4 | 12.0.2 |
+| 課金停止 Functions | `firebase/functions-billing/.node-version` の 22.23.4 | 12.0.2 |
 
 各ディレクトリで Node.js を切り替えてから `npm ci` を実行する。fnm を使う場合は `fnm use --install-if-missing` で `.node-version` を適用し、必要なら選択した Node.js に `npm install --global npm@12.0.2` で npm を導入する。
 

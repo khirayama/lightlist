@@ -74,17 +74,17 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Pa
 
 配信前のローカル build は Functions 用 Node.js 22 と npm 12.0.2 で実行する。Cloud Build の npm 版も両 Functions の `engines.npm` で固定し、未承認の install script があれば停止する。環境の切り替えと承認手順は [development.md](./development.md) を参照。
 
-費用の合計100円を条件とする課金停止の構成・復旧制約は [billing-control.md](./billing-control.md) を参照する。課金停止の配信は通常の通知Functionsとは別の `firebase.billing.json` を使用する。
+費用の合計100円を条件とする課金停止の構成・復旧制約は [billing-control.md](./billing-control.md) を参照する。課金停止の配信は通常の通知Functionsとは別の `firebase/firebase.billing.json` を使用する。
 
 - リポジトリルートで実行する。
 - membership Rules を初回デプロイする前に、[data-model.md](./data-model.md) の membership 移行を完了し、既存リストの保持ユーザーと `memberCount` の照合結果を確認する。アプリの更新を先に配布すると、membership 読み取りが `permission-denied` になり、タスクリスト一覧を構築できない。
 - `memberKeys` クエリを使うクライアントは、[data-model.md](./data-model.md) の memberKeys 移行（Phase 1 Rules のデプロイと backfill）を完了してから配布する。先に配布すると一覧のクエリが拒否される。
 - membership の backfill と Rules のデプロイが完了してからアプリを配布する。
-- クライアントが新しいコレクション・field を書き込む変更は、本番 Rules のデプロイ後に配布する。配布前に本番の Rules release（`firebaserules.googleapis.com/v1/projects/lightlist-prod-b0269/releases/cloud.firestore`）の ruleset がリポジトリの `firestore.rules` と一致することを確認する。Cloudflare Pages の Git integration は production branch への push で Web を本番配布するため、Rules 変更を含む commit は push 前に `just deploy-firebase prod` を済ませる。
+- クライアントが新しいコレクション・field を書き込む変更は、本番 Rules のデプロイ後に配布する。配布前に本番の Rules release（`firebaserules.googleapis.com/v1/projects/lightlist-prod-b0269/releases/cloud.firestore`）の ruleset がリポジトリの `firebase/firestore.rules` と一致することを確認する。Cloudflare Pages の Git integration は production branch への push で Web を本番配布するため、Rules 変更を含む commit は push 前に `just deploy-firebase prod` を済ませる。
 - 共有プレビューの写し（`shareCodes/{code}.preview`）は通知 Functions がリストの書き込みから作る。Rules は `taskLists` の読み取りを membership 保持者だけに許可するため、`just deploy-firebase <env>` の直後に `just backfill-share-previews <env>` を実行し、既存の共有リストの写しを作る（Application Default Credentials が必要。未設定なら `gcloud auth application-default login`）。写しを読まない旧クライアントでは、未参加者のプレビューが表示できなくなる。
 - dev: `just deploy-firebase`（既定値。明示する場合は `just deploy-firebase dev`）
 - prod: `just deploy-firebase prod`
-- deploy は `firebase.json` に定義した Firestore Rules / indexes と通知 Functions を一括で反映する。環境ごとの project ID は recipe 内で固定しており、`.firebaserc` の既定 project に依存しない。不正な環境名は deploy せずエラーにする。
-- deploy 設定（`firestore.rules` / `firebase.json` / `.firebaserc` / `firestore.indexes.json`）はリポジトリルートに置く。
-- deploy recipe は PATH 上の global `firebase` CLI を前提とする。Functions の predeploy（`npm --prefix functions run build`）は `devEngines` で Node.js 22 と npm 12.0.2 を要求するため、`deploy-firebase` / `backfill-share-previews` / `check-functions` / `audit-functions` は fnm があれば対象ディレクトリの `.node-version` で実行する（`just _node <dir> <command>`）。fnm がない環境では、実行前に対応する Node.js / npm を選択する。`firebase.json` が参照する `functions` codebase のみを対象にし、課金停止 Functions は `firebase.billing.json` の専用手順で本番だけに配信する。
+- deploy は `firebase/firebase.json` に定義した Firestore Rules / indexes と通知 Functions を一括で反映する。環境ごとの project ID は recipe 内で固定しており、`.firebaserc` の既定 project に依存しない。不正な環境名は deploy せずエラーにする。
+- deploy 設定（`firebase.json` / `firebase.billing.json` / `.firebaserc` / `firestore.rules` / `firestore.indexes.json`）と Functions のソース（`functions/` / `functions-billing/`）は `firebase/` に置く。
+- deploy recipe は PATH 上の global `firebase` CLI を前提とする。Functions の predeploy（`npm --prefix "$RESOURCE_DIR" run build`）は `devEngines` で Node.js 22 と npm 12.0.2 を要求するため、`deploy-firebase` / `backfill-share-previews` / `check-functions` / `audit-functions` は fnm があれば対象ディレクトリの `.node-version` で実行する（`just _node <dir> <command>`）。fnm がない環境では、実行前に対応する Node.js / npm を選択する。`firebase/firebase.json` が参照する `functions` codebase のみを対象にし、課金停止 Functions は `firebase/firebase.billing.json` の専用手順で本番だけに配信する。
 - 通知 Functions は Firebase Blaze プランと Node.js 22 runtime を使う。具体的な FCM / APNs / Web Push 設定は [notifications.md](./notifications.md) を参照する。

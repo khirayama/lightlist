@@ -25,7 +25,7 @@
 
 - Firebase App Check は使用しない。Web / iOS / Android のクライアントで provider を初期化せず、Firebase Console の enforcement も有効化しない。
 - Rules が要求する書き込み形をクライアントへ入れる変更は、本番 Rules のデプロイ（必要なら Admin backfill 先行）をアプリ配布より先に行い、本番 ruleset がリポジトリと一致することを確認する。サインアップ初期データは冪等な `ensureInitialUserData` で作成し、settings の不在をサーバー確定 snapshot で検知したら自己修復する。
-- Firebase のデプロイ設定（`firestore.rules`、`firebase.json`、`.firebaserc`、`firestore.indexes.json`）はリポジトリルートに置く。
+- Firebase のデプロイ設定（`firebase.json`、`firebase.billing.json`、`.firebaserc`、`firestore.rules`、`firestore.indexes.json`）と Functions（`functions/`、`functions-billing/`）は `firebase/` に集約し、`apps/` にはクライアントアプリだけを置く。
 - Web の本番配信は Cloudflare Pages とする。Root directory は `apps/web`、output directory は `dist`、Node.js は `apps/web/.node-version` の `24.19.0`、package manager は `apps/web/package.json` の `npm@12.0.2` に固定する。
 - npm 12 の依存 install script は `apps/web/package.json` の完全バージョン付き `allowScripts` で明示承認し、依存更新時は `npm approve-scripts --allow-scripts-pending` で未承認がないことを確認する。
 - 本番ドメインは `https://lightlist.app/`。native の共有 URL・パスワードリセット URL・Universal Links / App Links もこのドメインに揃え、`lightlist.com` は使わない。

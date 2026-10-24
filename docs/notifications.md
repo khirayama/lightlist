@@ -32,7 +32,7 @@ Android 宛ては `priority: "high"` で送り、Doze 中の端末でも待た�
 
 1. Firebase Console で Cloud Messaging を有効にする。
 2. Firebase Functions をデプロイするプロジェクトを Blaze プランにし、Cloud Functions for Firebase の Node.js 22 runtime が利用できる状態にする。
-3. リポジトリルートで `just deploy-firebase`（dev）または `just deploy-firebase prod` を実行する。Firestore Rules / indexes と通知 Functions を同じ環境へ配信し、`firebase.json` の predeploy が Functions を build する。
+3. リポジトリルートで `just deploy-firebase`（dev）または `just deploy-firebase prod` を実行する。Firestore Rules / indexes と通知 Functions を同じ環境へ配信し、`firebase/firebase.json` の predeploy が Functions を build する。
 4. iOS 配信では Apple Developer の App ID に Push Notifications capability を許可し、対応する provisioning profile を更新する。APNs authentication key を Firebase Console の Project settings > Cloud Messaging > Apple app configuration に登録する。Debug / Release の entitlement は `apps/ios/Lightlist/Lightlist.entitlements` で設定する。
 5. Web 配信では Firebase Console の Project settings > Cloud Messaging > Web Push certificates で VAPID key pair を用意し、公開鍵を Cloudflare Pages の `VITE_FIREBASE_VAPID_KEY` build environment variable に設定する。Web Push は HTTPS と Push API 対応ブラウザーが必要。Firebase JavaScript SDK が非対応と判定した環境では設定を有効にできない。iOS / iPadOS では native app の通知を利用する。
 6. Android の `google-services.json` と iOS の `GoogleService-Info.plist` が、配信する app identifier と同じ Firebase project のものか確認する。

@@ -30,8 +30,8 @@ check-web:
   just _node apps/web npm --prefix apps/web run build
 
 check-functions:
-  just _node functions npm --prefix functions run build
-  just _node functions-billing npm --prefix functions-billing run build
+  just _node firebase/functions npm --prefix firebase/functions run build
+  just _node firebase/functions-billing npm --prefix firebase/functions-billing run build
 
 audit-web:
   just _node apps/web npm --prefix apps/web audit
@@ -39,8 +39,8 @@ audit-web:
 audit-functions:
   #!/usr/bin/env zsh
   audit_status=0
-  just _node functions npm --prefix functions audit || audit_status=1
-  just _node functions-billing npm --prefix functions-billing audit || audit_status=1
+  just _node firebase/functions npm --prefix firebase/functions audit || audit_status=1
+  just _node firebase/functions-billing npm --prefix firebase/functions-billing audit || audit_status=1
   exit "$audit_status"
 
 screenshots target='all':
@@ -55,14 +55,14 @@ deploy-firebase environment='dev':
   #!/usr/bin/env zsh
   set -eu
   project="$(just _firebase-project {{environment}})"
-  just _node functions firebase --config ./firebase.json deploy --project "$project"
+  just _node firebase/functions firebase --config firebase/firebase.json deploy --project "$project"
 
 backfill-share-previews environment='dev':
   #!/usr/bin/env zsh
   set -eu
   project="$(just _firebase-project {{environment}})"
-  just _node functions npm --prefix functions run build
-  just _node functions node functions/scripts/backfill-share-previews.mjs "$project"
+  just _node firebase/functions npm --prefix firebase/functions run build
+  just _node firebase/functions node firebase/functions/scripts/backfill-share-previews.mjs "$project"
 
 _firebase-project environment:
   #!/usr/bin/env zsh

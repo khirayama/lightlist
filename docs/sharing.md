@@ -31,7 +31,7 @@
 
 - 共有 URL を知っているユーザーは、未認証でも共有リストをプレビュー閲覧できる。
 - 共有コードはプレビュー取得用の bearer credential として扱う。未参加者が読めるのは通知 Functions が `shareCodes/{shareCode}.preview` に書く写し（`name` / `background` / `tasks`）だけで、`taskLists/{taskListId}`（`history` / `memberKeys` を含む）は membership を持つユーザーだけが読める。コードを解除・再発行すると旧コードの文書は消え、`taskListId` を知っていても読めない。
-- プレビューの写しはリストの書き込みイベントから非同期に作られるため、コード発行直後や移行直後は `preview` が無いことがある。この間は読み込み中として扱う。既存の共有リストは `functions/scripts/backfill-share-previews.mjs` で写しを作る（[deployment.md](./deployment.md)）。
+- プレビューの写しはリストの書き込みイベントから非同期に作られるため、コード発行直後や移行直後は `preview` が無いことがある。この間は読み込み中として扱う。既存の共有リストは `firebase/functions/scripts/backfill-share-previews.mjs` で写しを作る（[deployment.md](./deployment.md)）。
 - 対象リストの `name` / `tasks` / `history` / `background` の更新には membership document が必要で、未参加のコード保持者による編集は Rules で拒否する。
 - ただし共有コードの発行・再生成・失効は `shareCodes` への書き込みを伴うため、認証済みかつ membership document を持つユーザーだけが行える。コード保持者が任意のコードを勝手に張り替えることはできない。
 - 自分の一覧へ追加する操作だけは認証が必要。

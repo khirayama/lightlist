@@ -1,6 +1,6 @@
 # データモデル
 
-Cloud Firestore に 5 つのトップレベルコレクションを持つ。ルール本体は `firestore.rules`（リポジトリルート）を正とする。
+Cloud Firestore に 5 つのトップレベルコレクションを持つ。ルール本体は `firebase/firestore.rules`を正とする。
 
 ## コレクション
 

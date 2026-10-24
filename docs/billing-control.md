@@ -21,10 +21,10 @@
 - 本番の実行用service accountには `roles/logging.logWriter` をプロジェクトに、`roles/run.invoker` を `stoplightlistbilling` の Cloud Run service だけに付与する。trigger も同じ service account で Function を呼ぶため、invoker がないと予算通知が 403 で届かない（Firebase CLI は付与しない）。Pub/Sub topic `lightlist-budget-stop` の `roles/pubsub.publisher` は予算通知サービス（`billing-budget-alert@system.gserviceaccount.com`）だけに付与し、一般ユーザーには公開しない。
 - 本番でCloud Billing API・Cloud Billing Budget APIとFunctions・Eventarc・Pub/Subの実行に必要なAPIを有効にする。
 - 予算には両プロジェクトのfilterとPub/Sub topic（`notificationsRule.pubsubTopic` = `projects/lightlist-prod-b0269/topics/lightlist-budget-stop`、schema `1.0`）を設定する。予算名だけで範囲を保証できないため、filterも確認する。
-- `functions-billing/.env.lightlist-prod-b0269` に `BILLING_STOP_ENABLED=true` を設定した配信で停止を有効にする。未設定時は停止せずログだけ出力する。このファイルは秘密情報を含まないため commit してよく、未 commit のまま別環境から配信すると停止が無効になる。
+- `firebase/functions-billing/.env.lightlist-prod-b0269` に `BILLING_STOP_ENABLED=true` を設定した配信で停止を有効にする。未設定時は停止せずログだけ出力する。このファイルは秘密情報を含まないため commit してよく、未 commit のまま別環境から配信すると停止が無効になる。
 
 ## 配信と再開
 
-停止処理は通常の通知Functionsとは独立したcodebaseに配置する。リポジトリルートで `npm --prefix functions-billing ci` の後、`firebase deploy --config firebase.billing.json --only functions:billing-control --project lightlist-prod-b0269` を実行する。`retry: true` のため非対話の初回配信は `--force` を求められる（この codebase 以外の Function は削除されない）。開発プロジェクトには配信しない。配信後は、請求先 ID が一致しない属性のメッセージを topic へ publish し、Cloud Run のログが 2xx になることで停止させずに経路を確認できる。
+停止処理は通常の通知Functionsとは独立したcodebaseに配置する。リポジトリルートで `npm --prefix firebase/functions-billing ci` の後、`firebase deploy --config firebase/firebase.billing.json --only functions:billing-control --project lightlist-prod-b0269` を実行する。`retry: true` のため非対話の初回配信は `--force` を求められる（この codebase 以外の Function は削除されない）。開発プロジェクトには配信しない。配信後は、請求先 ID が一致しない属性のメッセージを topic へ publish し、Cloud Run のログが 2xx になることで停止させずに経路を確認できる。
 
 月替わりの自動再開は行わない。再開には両プロジェクトの請求先を手動で再接続し、サービスとデータの状態を確認する。同じ月に再開すると、100円以上の実績通知によって再び停止する。再開前に停止処理を無効化するか、予算と停止処理の条件を変更する。

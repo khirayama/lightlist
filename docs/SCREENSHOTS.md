@@ -9,7 +9,7 @@
 
 ## 生成
 
-- `cd apps/web && npm run screenshots:generate -- <target>` またはルートの `just screenshots <target>`。
+- `cd apps/web && npm run screenshots -- <target>` またはルートの `just screenshots <target>`。
 - `target` は `all` / `ios` / `android` / `web`。
 - 生成スクリプトは `apps/web` の devDependencies の `sharp` を使うため、`apps/web` の依存解決済み環境で実行する。
 - 各出力ディレクトリを一度空にしてから連番ファイル名で再生成する。

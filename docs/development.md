@@ -18,18 +18,22 @@
 
 依存を更新するときは `npm install --ignore-scripts` で script を実行せずに依存と lockfile を更新し、script と配布元を確認したパッケージだけ `npm approve-scripts <pkg>` で承認する。`npm approve-scripts --allow-scripts-pending` で未承認がないことを確認して `npm ci` を実行する。一括承認や `--dangerously-allow-all-scripts` で回避しない。
 
+## ローカル起動
+
+リポジトリルートの `just dev` で、手元の状態をまとめて動かす。`just deploy-firebase dev` で Rules・indexes・Functions を dev へ反映した後、Web の dev server（`apps/web/.env.development.local` の `lightlist-dev`）、MCP の Functions emulator（`http://127.0.0.1:5001/lightlist-dev/asia-northeast1/mcp`）、Functions の `tsc --watch` を同時に起動し、Ctrl-C でまとめて止める。Firestore / Auth は emulator ではなく dev の実プロジェクトを使い、prod には接続しない。iOS / Android の Debug ビルドも同じ dev とローカルの MCP URL を使う。詳細は [api.md](./api.md)。
+
 ## ローカル検証
 
-リポジトリルートから実行する。Functions 系の recipe（`check-functions` / `audit-functions` / `deploy-firebase` / `backfill-share-previews`）は fnm があれば各ディレクトリの `.node-version` へ自動で切り替える。Web と fnm のない環境では、対象に対応する Node.js / npm を選択して実行する。
+リポジトリルートから実行する。Functions 系の recipe（`check-functions` / `audit-functions` / `deploy-firebase` / `deploy-billing`）は fnm があれば各ディレクトリの `.node-version` へ自動で切り替える。Web と fnm のない環境では、対象に対応する Node.js / npm を選択して実行する。
 
 | コマンド | 検証対象 |
 | --- | --- |
-| `just check-web` | locale・license 生成、lint、アプリ・通知 worker・Vite 設定の型チェック、未使用コード、production build |
+| `just check-web` | locale・license 生成、lint、アプリ・Vite 設定の型チェック、未使用コード、production build |
 | `just check-functions` | 通知 Functions と課金停止 Functions の TypeScript build |
 | `just audit-web` | Web の開発用依存を含む npm 監査 |
 | `just audit-functions` | 両 Functions の npm 監査 |
 
-Web の整形は `npm run format`、書き換えない検査は `npm run format:check` を使う。生成された locale・license・通知 worker とローカル agent 設定は整形対象から除外する。
+Web の整形は `npm run format` を使う。生成された locale・license とローカル agent 設定は整形対象から除外する。
 
 Web のみを確認する場合は `apps/web` の `npm run check` / `npm run build` でも同じ検証を行える。CI 品質ゲートは設けず、変更対象のローカル検証を必須とする。
 

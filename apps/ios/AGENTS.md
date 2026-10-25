@@ -1,60 +1,58 @@
 # iOS（apps/ios）
 
-ルートの `AGENTS.md` を前提に、iOS 固有の規則をまとめる。
+ルートの `AGENTS.md` を前提に、iOS 固有の規則と落とし穴をまとめる。提出手順は `docs/release-ios.md`。
 
-## 実装規則
+## プロジェクト・ビルド
 
-- iOS の配色は `AppPalette` を正とし、system semantic color（`Color(.systemBackground)` / `Color(.separator)` / `Color.secondary` など）や `Color.accentColor`（青）を UI に直接使わない。primary 塗りは `AppPalette.primary`、その上の文字は `AppPalette.onPrimary`。`Menu` / `Picker` などシステム部品のアクセントがモノクロになるよう `Lightlist/Resources/Assets.xcassets/AccentColor.colorset` に light `#111827` / dark `#F9FAFB` を定義したまま維持する（空にするとシステム青に戻る）。autoSort `Toggle` は `.tint(AppPalette.primary)` を付ける。
-- iOS の UI 部品は Web の `ll-components` と同じ役割の共通部品を `ContentView.swift` に持ち、画面ごとに独自スタイルを作らない: ボタンは `AppButtonStyle`（`.primary` / `.secondary` / `.tonal` / `.ghost` / `.danger`、高さ 44・角丸 12・SemiBold 15、認証画面だけ角丸 8）、アイコンボタンは `AppIconButtonStyle`（44 / 48 の正方形）、入力欄は `.appField()`（高さ 44・角丸 12・`AppPalette.border` の 1px 枠・`fieldBackground`）、ラベル付き入力は `AppFormField`、エラー / 成功表示は `AppAlert`（Web `Alert` の red / emerald 面）。`.textFieldStyle(.roundedBorder)` / `.buttonStyle(.borderedProminent)` / `.bordered` は使わない。`Form` の行に置く `Button` のラベルは `.foregroundStyle(Color.primary)` で色を指定する（`.primary` は tint 基準の階層色に解決され、システム青になる）。
-- iOS のダイアログ（リスト作成・参加・編集・共有）は `AppDialog` で、標準のシート構成（`NavigationStack` + inline タイトル、toolbar の `.cancellationAction` にキャンセル / 閉じる、`.confirmationAction` に確定）にする。確定以外の操作（共有コードの生成、`.danger` の「一覧から外す」「共有を解除」）は本文の末尾に置く。高さは本文の実測 + `AppMetrics.dialogBarHeight` の detent、背景は不透明な `cardSurface`、角丸 28。task action sheet は `FittedSheetModifier` で内容高さの detent とし、iOS 18 以降の iPad では `.form.fitted` で中央のフィット表示にする。カレンダーのタスクシートは確定ボタン固定のため `.large` を維持する。
-- iOS の push 画面（タスクリスト詳細・設定・ライセンス・カレンダー）は標準ナビゲーションバー（`.navigationTitle` + inline、標準の戻るボタンと戻るスワイプ）を使い、自前のヘッダーで置き換えない。タイトルの書体は `LightlistApp.init` の `UINavigationBar.appearance().titleTextAttributes` で指定する。タスクリスト一覧（root）だけはブランドヘッダーを本文に置き、`.navigationTitle(title)` を付けたうえでバーを隠す（戻るボタンのラベルに使われる）。タスクリスト詳細はバーの背景を隠し、ページャーのインジケータ行を `safeAreaInset(edge: .top)` に置く。regular 幅のカレンダー・設定はバーを隠し、`AppPageTitle`（Display Bold 26）をページ先頭に置く。
-- iOS のタスクリスト詳細の横ページャー（`TabView(.page)`）は戻るスワイプを横取りするため、`PagerBackSwipeEnabler` がページャーの scroll view に `PagerBackSwipeGestureRecognizer` を足し、先頭ページでの右スワイプ（LTR のみ）を `popViewController` に割り当てる。ページャーの pan / swipe recognizer には、この recognizer と `interactivePopGestureRecognizer` の失敗を要求する。
-- iOS の月カレンダーは `MonthCalendarView`（前後月ボタン 44・月見出し・曜日・月外日を含む週グリッド・日セル 48・日付ボタン 40・ドット 6）を唯一の実装とし、カレンダー画面・task action sheet・カレンダーのタスクシートで共用する。`DatePicker(.graphical)` は使わない。選択済みの日付を再度選ぶと選択解除（`nil`）を返す。
-- iOS のカレンダー画面は 1 カラムでもページ見出し・月カレンダー・追加ボタンを `ScrollView` の外に固定し、一覧だけを `ScrollView` でスクロールさせる。regular 幅で詳細ペインが 640pt 以上のときだけ Web の 64rem 以上と同じ 2 カラム（左に最大 416 のカレンダー + 追加ボタンを固定、右に一覧をスクロール）にする。
-- iOS の設定画面・ライセンス画面は `Form`（`scrollContentBackground(.hidden)` + `AppPalette.pageBackground`、行の背景は `cardSurface`）で組み、セクション見出しは `Section` の header、選択行は `Picker`（Form 既定の menu 形式）、autoSort は `Toggle`、ライセンスは `DisclosureGroup` とする。メールアドレス変更はアカウントセクション内で展開するインラインフォーム、ライセンスは `navigationDestination` でプッシュ遷移する。regular 幅の設定ペインは `NavigationStack` で包む。
-- `apps/ios` の commit 対象は `project.yml` と `Lightlist/` 配下のソースを基本とし、XcodeGen が生成する `Lightlist.xcodeproj`、`xcuserdata` / `xcuserstate` / `build` / `build-*` / `DerivedData` は含めない。Firebase plist は `apps/ios/Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` にローカル配置して `.gitignore` で除外し、build configuration に応じて app bundle 内の標準名 `GoogleService-Info.plist` へ 1 つだけコピーする。entitlements は `apps/ios/Lightlist/Lightlist.entitlements` を使う。 例外として SwiftPM の解決版固定のため `Lightlist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` だけは commit し、`.gitignore` の否定パターンで追跡を維持する。
-- XcodeGen 2.46.0 は target `attributes.SystemCapabilities` の nested dictionary を PBX dictionary ではなく文字列として生成する。Push Notifications capability は `project.yml` の `postGenCommand` が生成後の値を検証して PBX dictionary に直すため、修正スクリプトを維持し、XcodeGen の更新後も生成結果を確認する。
-- iOS の起動も cache-first でユーザ入力受付までを最短にする。`LightlistApp.init` で `FirebaseApp.configure()` 直後に Firestore の `PersistentCacheSettings`（sizeBytes 無制限）を設定し、`warmUpStartupData()` が background TaskGroup で `settings` / `taskListOrder` / `taskLists` の `memberKeys` クエリの `source: .cache` 読み取りを並列実行して Firestore client のコールド初期化を SwiftUI 初回合成と並行させる。表示言語・テーマ・起動画面は UserDefaults（`lightlist.language` / `lightlist.theme` / `lightlist.startupView`）へキャッシュし、`Translations.init` と `RootView` の `theme` / 初期 path（`AppRoute.startupPath()`）/ regular 初期ペインの初期値が Firestore settings snapshot を待たずに初回フレームから反映する（settings snapshot 到着時に更新、ログアウトで削除。設定画面での起動画面変更時は即時に UserDefaults も更新する）。`OrderedTaskListViewModel.bind` は taskListOrder listener と `taskLists` の `memberKeys` クエリ listener を同時に 1 組だけ張り、order snapshot で taskLists 購読を張り直さない。一覧の全体エラーは Web / Android と同じく taskListOrder listener の失敗か、taskLists listener が失敗して 1 件も表示できない場合だけにする（order に残った非メンバーの ID は表示から外すだけでエラーにしない。並び替えの field path 更新が他端末で外した ID を復活させることがあるため）。`publishTaskLists` は `.loading` 中でも非空になった時点で `.ready` へ昇格する。表示が一時的に cache の古い内容でも listener の live snapshot が後から追いつく前提で問題ない。
-- iOS の未ログイン起動時の認証画面も、`ContentView.swift` の `resolveDeviceLanguage()` で端末ロケール（`Locale.preferredLanguages`）をサポート言語へ丸めて初回表示言語として使う。丸め規則は Android と同じく `zh-*` は `zh-CN`、`pt-*` は `pt-BR`、それ以外の未対応ロケールは `ja`。`ja` 固定にしない。
-- iOS の表示言語は `ContentView.swift` 内の `RootView` で選択言語に対応する `locale`、gregorian calendar、`layoutDirection` をルート環境へ設定する。`ar` は RTL、それ以外は LTR とし、SwiftUI の自動反転に委ねる。再起動不要。
-- iOS のディープリンクは `https://lightlist.app/password_reset?oobCode=...`（パスワードリセット。他アプリが同じ scheme を登録できるため custom scheme では受け付けない）、`lightlist://sharecodes/CODE` または HTTPS 正規形 `https://lightlist.app/sharecodes/?code=CODE`（共有コード）を処理する。`LightlistApp` で URL を `PendingDeepLink` へ変換し、`RootView` 側でパスワードリセット画面または共有リストプレビューへ振り分ける。共有コードは未認証でもプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。
-- iOS の認証状態監視と認証画面表示は `RootView` に集約し、子 view に auth listener や認証用 full screen cover を分散させない。子 view（detail pager / settings / shared preview / calendar）は `currentUserId` を引数で受け取り、`onAppear` と `onChange(of: currentUserId)` でリスト系の view model を bind する。settings は `RootView` が持つ 1 つの `SettingsViewModel` だけが購読し（テーマ・言語・UserDefaults キャッシュ・通知端末の登録済み token・初期データの自己修復も担う）、子 view は `environmentObject` で参照して自前で bind / reset しない。
-- iOS の `TaskListsView` は `onDisappear` で listener を全解除しない。購読の張り替えは `bind(uid:)` の uid 変化と `deinit` に任せ、detail への push/pop で再購読を発生させない。
-- iOS の `Translations` は `locales.json` の parse 結果を static にキャッシュし、言語切替や date pattern 取得のたびにディスクから再読込しない（Android の `allLocales` キャッシュと同じ方針）。
-- iOS の認証済み画面遷移は `RootView` の `AppRoute` と `NavigationStack` で管理し、compact 幅は `TaskListsView` から `TaskListDetailPagerView` / `SettingsView` / `CalendarScreenView` へ遷移し、regular 幅は `NavigationSplitView`（`.balanced`、サイドバー幅 360、`columnVisibility` は `.all`）のサイドバーに `TaskListsView`、detail に `RegularTaskListDetailPagerView` / `SettingsView` / `CalendarScreenView` を置く。サイドバーと detail のナビゲーションバーは隠し、ページ見出しは本文の `AppPageTitle` で表す。
-- iOS の `TaskListDetailPagerView` / `RegularTaskListDetailPagerView` は、選択中タスクリストの `background` を詳細画面背景として使う。compact 幅は safe area を含む全面、regular 幅は detail column 内の上下端まで（`ignoresSafeArea(edges: .vertical)`、横方向は広げない）に適用し、sidebar には広げない。色は `resolveTaskListBackgroundColor` で Web の `resolveTaskListBackground` と同じく解決する（light / dark とも選択色そのまま、未設定は `AppPalette.pageBackground`）。背景色付きのページとインジケータは `taskListColorScheme` で `colorScheme` を `.light` に固定し、sheet / alert はその外側、履歴 popover は元の `colorScheme` を渡してアプリのテーマに戻す。compact 幅のナビゲーションバーは `taskListNavigationBar` で背景を同じ選択色・`toolbarColorScheme(.light)` にして戻るボタンとステータスバーを暗色にする（`toolbarColorScheme` はバー背景が visible のときだけ効く）。背景は top chrome の `safeAreaInset` より外側に付け、ヘッダー領域まで同色にする。
-- iOS の compact 幅タスクリスト詳細は `TaskListDetailPagerView` 自体を full screen コンテナとして描画し、最外層背景は選択中タスクリストの `background` を `ignoresSafeArea()` で全面へ敷く。本体は画面いっぱいの `VStack` を同じ背景で満たす。ページャーのインジケータだけを固定表示し（ドット 8・ピッチ 26・選択は scale 1.1、regular 幅では表示しない）、タスクリスト名、タスク追加欄、並び替え・完了済み削除操作、タスク行は同じ `ScrollView` に載せる。インジケータ表示時は各ページを上端の safe area（インジケータ行の下端）で `mask` し、一覧がインジケータの下へスクロールしないようにする（下端は home indicator の下まで描く。背景色は `mask` の外側に付けてインジケータの背後まで塗る）。見出し・入力欄・操作列は間隔 16（操作列は上 -4 / 下 -8 で Web の `ll-task-toolbar` と同じ詰め）、タスク行同士は間隔 0 で別の `VStack` に置く。
-- iOS のアプリ内アイコンは `ContentView.swift` の metrics を正とし、標準アクションとナビゲーション `22pt`、テキスト横の補助アクション `18pt`、詳細画面の小型アクション `20pt` を基準に目視サイズを揃える。AppIcon 資産とは分けて扱う。
-- iOS のタスクリスト一覧は `List`（`.plain`、`scrollContentBackground(.hidden)`、`defaultMinListRowHeight` 0、行は `plainListRow()` で inset・separator・背景を指定）で組み、並び替えは `.onMove` と `.environment(\.editMode, .constant(.active))` で行末に標準ハンドルを常時表示する（編集モード中も行内のボタンは操作できる。`onDelete` は付けない）。`List` の行内に `NavigationLink` を置くと disclosure が付くため、行内の遷移は `Button` で path を操作する。
-- iOS のタスク一覧は `List` にしない。`List` 標準のドラッグは行頭に handle を置けず、常時編集モードでは本文の長押しドラッグが無効になり、ドラッグ中に横ページャーが切り替わる。`.contextMenu` も付けない。
-- iOS の SwiftUI 並び替えドラッグは、移動中の行の local 座標系ではなく親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で収集した行高さだけを使う。`frame(in:)` の位置監視を drag state に戻さない。
-- iOS のタスク本文の長押し並び替えは `UILongPressGestureRecognizer` を `UIGestureRecognizerRepresentable`（iOS 18 以降）で本文に付ける。SwiftUI の `LongPressGesture.sequenced(before: DragGesture)` は `simultaneousGesture` だと本文上からの縦スクロールとページ切替を止め、`gesture` だと発火せず、`highPriorityGesture` だとタップ編集を壊すため使わない。`Button` に付けた representable も発火しないため、iOS 18 以降の本文は `onTapGesture` + button trait の非 `Button` とし、iOS 17 は従来の `Button`（drag handle のみ）を維持する。
-- iOS の `List` を含む `body` は型検査が失敗しやすい（「failed to produce diagnostic」）。行のまとまりは computed property へ分け、`.onMove(perform:)` へ三項演算子で関数参照と `nil` を渡さない。
-- iOS のタスクリスト詳細のタスク行は `ScrollView` 内の `LazyVStack` で描画する。並び替えの swap 判定は隣接行の `taskItemHeights` だけを使い、未計測の行は現在行の高さで代用する前提を維持する。
-- iOS の全画面ルートと sheet / dialog は `frame(maxWidth: .infinity, maxHeight: .infinity)` を維持しつつ、背景ビュー側だけで safe area を無視する。標準ナビゲーションバーを使わない iPhone ヘッダーは `SafeAreaNavigationHeader` と `safeAreaInset(edge: .top)` を使う。`LightlistApp` は hidden `UIViewRepresentable` の `WindowSceneConfigurator` で attach 済み `UIWindow` を初期化し、window 背景色と root view controller の safe area / layout margins も全画面前提に揃える。`ScrollView` ベースの全画面フォームはカードラッパーを持たず、外側 `maxWidth` 制約や `RoundedRectangle` でカード化しない。
-- iOS の custom header 付き画面と sheet / dialog は、header を `safeAreaInset(edge: .top)` に載せ、本文 root も `frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)` で画面高または detent 高いっぱいまで広げる。header inset と重複する大きな `padding(.top)` は本文側で足さず、追加の視覚余白は最小限に留める。
-- iOS の Firebase Analytics は `FirebaseApp.configure()` で自動有効化し、Crashlytics も `ContentView.swift` 内の `LightlistApp` で初期化する。
-- iOS の Firebase Auth callback と auth state listener から SwiftUI state を更新する処理は MainActor 上で行い、ログイン completion で `error` と `result` がともに空の場合も汎用認証エラーを表示する。
-- iOS の App Store 提出: Release ビルドは `PASSWORD_RESET_URL=https://lightlist.app/password_reset`。`ITSAppUsesNonExemptEncryption: NO` で暗号化輸出規制を申告し、`Lightlist/Resources/PrivacyInfo.xcprivacy` で Privacy Manifest を宣言する（メールアドレス、ユーザー ID、クラッシュデータ、その他の診断データ、Product Interaction、UserDefaults API）。Crashlytics に uid を設定する限りユーザー ID の宣言を外さない。Crashlytics へ送る例外説明にユーザー入力や生の例外理由を含めない。
-- iOS の App Store 提出物は `cd apps/ios && just archive` で生成する IPA（`apps/ios/build-archive/export/Lightlist.ipa`）を正とし、`just upload` で App Store Connect へアップロードする。Justfile は gitignore 対象の `apps/ios/.env.local`（雛形は commit 済みの `apps/ios/.env.sample`）から `LIGHTLIST_IOS_TEAM_ID` と任意の App Store Connect API key（`LIGHTLIST_ASC_KEY_ID` / `LIGHTLIST_ASC_ISSUER_ID` / `LIGHTLIST_ASC_KEY_PATH`、既定 `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`）を読む。署名は automatic signing + `-allowProvisioningUpdates` とし、証明書・profile・`.p8` をリポジトリに置かない。export 設定は `apps/ios/ExportOptions.plist`（method `app-store-connect`）を正とし、archive 時に Team ID を入れた複製を使う。`just archive` は最後に `just verify-ipa` で配布証明書署名・Team ID・`get-task-allow`・associated domains・App Store 用 profile・同梱 Firebase plist の `BUNDLE_ID` を検証する。Firebase plist の `BUNDLE_ID` と `PRODUCT_BUNDLE_IDENTIFIER` の不一致は build script で失敗させる。再アップロード時は `project.yml` の `CURRENT_PROJECT_VERSION` を上げる。手順詳細は `docs/release-ios.md`。
-- iOS の Info.plist は xcodegen の `info:`（`project.yml`）で `Lightlist/Info.plist` へ生成し、`CFBundleLocalizations` にサポート 11 言語（`zh-CN` は `zh-Hans` 表記）、`CFBundleURLTypes`（`lightlist` scheme）、`UIAppFonts`、`PASSWORD_RESET_URL` を宣言する。`GENERATE_INFOPLIST_FILE: YES` と併用できるが、`INFOPLIST_KEY_*` が効くのは Apple 定義のスカラーキーのみで、配列・辞書・カスタムキー（`CFBundleURLTypes` / `UIAppFonts` / `PASSWORD_RESET_URL` 等）は `INFOPLIST_KEY_` 形式では built product に入らない。必ず `info.properties` 側へ書く。`CFBundleDevelopmentRegion` は生成側の `DEVELOPMENT_LANGUAGE` が勝つため、xcodegen `options.developmentLanguage: ja` で揃える。
-- iOS の AppIcon は `shared/assets/brand/logo.svg` を元に、白背景の不透明な正方形 PNG として `apps/ios/Lightlist/Resources/Assets.xcassets/AppIcon.appiconset` の全スロットへ配置する。
-- iOS のオンライン判定は `NetworkStatus.shared`（`NWPathMonitor`）を `@ObservedObject` で参照し、オンライン必須操作には `ConnectionRequiredNote` を併記する。同期失敗は `SyncFailureCenter.shared.report()` に集約し、queue 外の batch（リスト作成・削除）は `commitReportingFailure(_:)` で commit する。completion に渡す関数は `nonisolated` にする（file 内の private 関数は MainActor と推論され、Firestore の `@Sendable` completion へ渡すと Swift 6 でエラーになる）。async 文脈から completion 版 API を直接呼ぶと「asynchronous alternative」警告が出るため、同期 helper 経由で呼ぶ。
-- iOS の lint / format は Xcode 同梱の swift-format を使い、設定は `apps/ios/.swift-format`（4 スペース indent・行長 140・`respectsExistingLineBreaks`・`NoAccessLevelOnExtensionDeclaration` 無効で `private extension` を許可）を正とする。`just format` で整形し、`just lint`（`--strict`）が警告 0 になる状態を保つ。`.forEach {}` は for-in、定数・変数は lowerCamelCase で書く。
+- commit するのは `project.yml` と `Lightlist/` 配下のソース。XcodeGen が生成する `Lightlist.xcodeproj`・`Lightlist/Info.plist`・`xcuserdata`・`build*`・`DerivedData` は含めない。例外として `Lightlist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` だけは `.gitignore` の否定パターンで追跡する。
+- Info.plist は `project.yml` の `info:` で生成する。`INFOPLIST_KEY_*` が効くのは Apple 定義のスカラーキーだけで、配列・辞書（`CFBundleLocalizations` の 11 言語（`zh-CN` は `zh-Hans`）・`UIAppFonts`）は `info.properties` に書く。`CFBundleDevelopmentRegion` は `options.developmentLanguage: ja` で揃える。Push capability は entitlements の `aps-environment` から automatic signing が反映するため `SystemCapabilities` は書かない。テスト target は持たない。
+- `shared/locales/locales.json` と `shared/licenses/manual-licenses.json` は `project.yml` の sources で直接 bundle resource にし、コピーを持たない。
+- Firebase plist は `Lightlist/Resources/Firebase/{Debug,Release}/GoogleService-Info.plist` に置き（gitignore 対象）、build configuration に応じて bundle 内の `GoogleService-Info.plist` へ 1 つだけコピーする。`BUNDLE_ID` と `PRODUCT_BUNDLE_IDENTIFIER` の不一致は build script で失敗させる。
+- URL などの固定値は Info.plist や build setting にせず Swift の定数で持つ（Debug / Release の差は `#if DEBUG`）。
+- LicensePlist の build tool plugin は `license_plist.yml` を必須設定として読む。初回 build で Xcode の trust が必要で、CLI では `xcodebuild -skipPackagePluginValidation` を使う。
+- lint / format は Xcode 同梱の swift-format（設定 `.swift-format`）。`just lint`（`--strict`）の警告 0 を保つ。`.forEach {}` ではなく for-in、定数・変数は lowerCamelCase で書く。
+- Swift 6: Firestore の `@Sendable` completion へ渡す関数は `nonisolated` にする（file 内の private 関数は MainActor と推論されてエラーになる）。async 文脈から completion 版 API を直接呼ぶと「asynchronous alternative」警告が出るため同期 helper 経由で呼ぶ。
+- `List` を含む `body` は型検査が失敗しやすい（「failed to produce diagnostic」）。行のまとまりは computed property へ分け、`.onMove(perform:)` に三項演算子で関数参照と `nil` を渡さない。
+- 提出: `just archive` が IPA を作り `just verify-ipa` で署名・entitlements・Firebase plist を検証、`just upload` で App Store Connect へ送る。再アップロード時は `project.yml` の `CURRENT_PROJECT_VERSION` を上げる。署名情報は `.env.local`（雛形 `.env.sample`）から読み、証明書・profile・`.p8` をリポジトリに置かない。
+- AppIcon は `shared/assets/brand/logo.svg` を白背景の不透明な正方形 PNG にして全スロットへ置く。
+- Privacy Manifest（`PrivacyInfo.xcprivacy`）は Crashlytics に uid を設定する限りユーザー ID の宣言を外さない。Crashlytics の例外説明にユーザー入力や生の例外理由を含めない。
 
-- 月カレンダーの `firstWeekday` は表示言語の共通仕様で明示する。Foundation の locale 既定値は `zh-CN` / `id` で Web と異なるため、そのまま使わない。
+## UI 部品
 
-- iOS の FCM token 取得は `didRegisterForRemoteNotificationsWithDeviceToken` による APNs token 設定完了後に行う。`registerForRemoteNotifications()` の呼び出し直後には取得しない。端末登録更新は設定画面ではなく認証・設定の確定を起点にする。
+- 色は `AppPalette` だけを使い、system semantic color（`Color(.systemBackground)`・`Color.secondary` など）や `Color.accentColor` を UI に直接使わない。`Menu` / `Picker` のアクセントをモノクロにするため `Assets.xcassets/AccentColor.colorset` の定義を維持する（空にするとシステムの青に戻る）。`Toggle` には `.tint(AppPalette.primary)` を付ける。`Form` の行の `Button` ラベルは `.foregroundStyle(Color.primary)` で指定する（`.primary` だけだと tint 基準の青になる）。
+- 共通部品は `ContentView.swift` にあり、画面ごとに独自スタイルを作らない: `AppButtonStyle` / `AppIconButtonStyle` / `.appField()` / `AppFormField` / `AppAlert` / `AppDialog` / `AppPageTitle` / `MonthCalendarView` / `FittedSheetModifier`。`.textFieldStyle(.roundedBorder)`・`.buttonStyle(.borderedProminent)` / `.bordered`・`DatePicker(.graphical)` は使わない。
+- ダイアログ（リスト作成・参加・編集・共有）は `AppDialog` で標準のシート構成（`NavigationStack` + inline タイトル、`.cancellationAction` / `.confirmationAction`）にし、確定以外の操作は本文の末尾に置く。task action sheet は `FittedSheetModifier`（iOS 18 以降の iPad は `.form.fitted`）、カレンダーのタスクシートは確定ボタンを固定するため `.large`。
+- push 画面は標準ナビゲーションバー（標準の戻るボタン・戻るスワイプ）を使い、自前ヘッダーに置き換えない。タイトル書体は `LightlistApp.init` の `UINavigationBar.appearance()` で指定する。root のタスクリスト一覧はバーを隠すが、戻るボタンのラベルに使われるため `.navigationTitle` は付ける。regular 幅は `NavigationSplitView` のサイドバーに `TaskListsView` を置き、バーを隠して `AppPageTitle` を本文に置く。
+- iOS 26 の toolbar item は既定で Liquid Glass のボタン風背景が付く。今日の日付など操作できない表示は `.principal` に置き、`sharedBackgroundVisibility(.hidden)` + `allowsHitTesting(false)` にする（`.topBarTrailing` などボタン用の placement に置かない）。
+- タスクリストの背景色は `resolveTaskListBackgroundColor` で解決し、背景色付きのページとインジケータは `taskListColorScheme` で `.light` に固定する。sheet / alert はその外側に置き、履歴 popover には元の `colorScheme` を渡す。compact のバーは `taskListNavigationBar` + `toolbarColorScheme(.light)` にする（`toolbarColorScheme` はバー背景が visible のときだけ効く）。背景は top chrome の `safeAreaInset` より外側に付ける。
+- 全画面ルートと sheet / dialog は `frame(maxWidth: .infinity, maxHeight: .infinity)` を保ち、safe area は背景ビューだけで無視する。
+
+## タスクリスト詳細・並び替え
+
+- 横ページャー（`TabView(.page)`）は戻るスワイプを横取りするため、`PagerBackSwipeEnabler` が先頭ページでの右スワイプ（LTR のみ）を pop に割り当てる。ページャーの pan / swipe recognizer にはこの recognizer と `interactivePopGestureRecognizer` の失敗を要求する。
+- compact のインジケータは `safeAreaInset(edge: .top)` に固定し、各ページはその下端で `mask` してタスクがインジケータの下へスクロールしないようにする（背景色は `mask` の外側に付ける）。スクロール量は `@Observable` の `TaskListPagerProgress` をインジケータだけが読み、ページを再描画しない。
+- タスクリスト一覧は `List` + `.onMove` + `.environment(\.editMode, .constant(.active))` で行末に標準ハンドルを常時表示する（`onDelete` は付けない）。行内に `NavigationLink` を置くと disclosure が付くため、遷移は `Button` で path を操作する。
+- タスク一覧は `List` にしない（行頭に handle を置けず、常時編集モードでは本文の長押しドラッグが無効になり、ドラッグ中に横ページャーが切り替わる）。`ScrollView` 内の `LazyVStack` で描き、`.contextMenu` も付けない。
+- ドラッグは親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で集めた隣接行の高さ（`taskItemHeights`、未計測は現在行の高さで代用）だけを使う。`frame(in:)` の位置監視を drag state に戻さない。
+- 本文の長押し並び替えは `TaskLongPressDragGesture`（`UIGestureRecognizerRepresentable`、iOS 18 以降）で付ける。SwiftUI の `LongPressGesture.sequenced(before: DragGesture)` は `simultaneousGesture` だとスクロールとページ切替を止め、`gesture` だと発火せず、`highPriorityGesture` だとタップ編集を壊す。`Button` に付けた representable も発火しないため、iOS 18 以降の本文は `onTapGesture` + button trait の非 `Button`、iOS 17 は `Button` のまま（drag handle だけで並び替え）にする。
+- 取り消し線は `StrikethroughText` の mask で伸ばし、件数は `numericText` で差し替える。
+- pin prefix の照合に `.diacriticInsensitive` を使わない（大文字小文字だけを無視する）。
+
+## 状態・Firebase
+
+- 認証状態の監視と認証画面の表示は `RootView` に集約する。子 view は `currentUserId` を引数で受け取り、`onAppear` と `onChange(of: currentUserId)` で view model を bind する。settings は `RootView` の `SettingsViewModel` 1 つだけが購読し（テーマ・言語・UserDefaults キャッシュ・通知端末の登録・初期データの自己修復を担う）、子は `environmentObject` で参照する。
+- `TaskListsView` は `onDisappear` で listener を解除しない（push / pop で再購読させない）。`OrderedTaskListViewModel` は `deinit` で解放し、`CalendarViewModel` は `CalendarScreenView` 自身が bind する。task の mutation queue は view ではなく `TaskListMutationQueues`（プロセス内の taskListId 登録）で保持する。
+- 起動: `LightlistApp.init` で `FirebaseApp.configure()` 直後に `PersistentCacheSettings`（無制限）を設定し、`warmUpStartupData()` で cache 読み取りを並列に始める。言語・テーマ・起動画面は UserDefaults（`lightlist.language` / `lightlist.theme` / `lightlist.startupView`）から初回フレームで使い、初期 path は `AppRoute.startupPath()` で決める。`publishTaskLists` は `.loading` 中でも非空になれば `.ready` にする。
+- `Translations` は `locales.json` の parse 結果を static にキャッシュする。未ログイン時の言語は `resolveDeviceLanguage()` で決める。`RootView` が locale・gregorian calendar・`layoutDirection` をルート環境に設定する。
+- deep link は `PendingDeepLink` へ変換して `RootView` で振り分ける。
+- Auth の callback と listener からの state 更新は MainActor 上で行い、ログイン completion で `error` と `result` がともに空の場合も汎用エラーを表示する。
+- オンライン判定は `NetworkStatus.shared`、同期失敗は `SyncFailureCenter.shared.report()`。queue 外の batch（リスト作成・削除）は `commitReportingFailure(_:)` で commit する。
+- 前景復帰時の Firestore 再接続は SDK が行うため、Web / Android のような張り直しを追加しない。
+- FCM token は `didRegisterForRemoteNotificationsWithDeviceToken` で APNs token を設定した後に取得する（`registerForRemoteNotifications()` の直後には取れない）。
 
 ## 主要コマンド
 
-- `just lint`（swift-format lint --strict）
-- `just format`（swift-format format --in-place）
-- `just build`
-- `just build-release`
-- `just archive`（App Store 提出用 IPA を `build-archive/export/Lightlist.ipa` へ生成し、署名を検証）
-- `just upload`（archive を App Store Connect へアップロード）
-- `just signing-report`（Team ID・API key・signing identity・provisioning profile の確認）
-- `xcodegen generate`（`project.yml` → `.xcodeproj` 生成）
-- Xcode で開いてビルド（CLI: `xcodebuild -scheme Lightlist -destination 'platform=iOS Simulator,...'`）
-- Firebase plist は `.gitignore` で除外。Firebase コンソールからダウンロードして `apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist` と `apps/ios/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist` に配置
+- `just format` / `just lint` / `just build` / `just build-release`
+- `just run`、`just simulator <名前または UDID>` / `just simulator-list`、`just screenshot`
+- `just archive` / `just verify-ipa` / `just upload` / `just signing-report`
+- `xcodegen generate`（`project.yml` → `.xcodeproj`）

@@ -59,6 +59,7 @@ verify-ipa:
   [[ "$team" == "$LIGHTLIST_IOS_TEAM_ID" ]] || failures+=("TeamIdentifier が $LIGHTLIST_IOS_TEAM_ID ではありません: $team")
   [[ "$authority" == "Apple Distribution:"* ]] || failures+=("配布用証明書で署名されていません: $authority")
   [[ "$(plist "$work/entitlements.plist" get-task-allow)" != "true" ]] || failures+=("get-task-allow が true です")
+  [[ "$(plist "$work/entitlements.plist" aps-environment)" == "production" ]] || failures+=("aps-environment が production ではありません")
   [[ "$(plist "$work/entitlements.plist" com.apple.developer.associated-domains:0)" == "applinks:lightlist.app" ]] || failures+=("associated domains がありません")
   [[ -z "$(plist "$work/profile.plist" ProvisionedDevices)" ]] || failures+=("App Store 用 provisioning profile ではありません")
   [[ "$firebase_bundle_id" == "com.lightlist.app" ]] || failures+=("GoogleService-Info.plist の BUNDLE_ID が不正です: $firebase_bundle_id")

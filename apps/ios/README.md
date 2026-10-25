@@ -1,22 +1,11 @@
+# Lightlist iOS
+
 ```sh
-just build
-just emulator "iPhone 16"
-just run
-just emulator "3D7C2C1C-0000-0000-0000-000000000000"
+just build          # xcodegen generate + Debug build（simulator）
+just run            # 起動中の simulator へインストールして起動
+just build-release  # Release build（simulator）
+just archive        # App Store 提出用 IPA（build-archive/export/Lightlist.ipa）
+just upload         # App Store Connect へアップロード
 ```
 
-## Current UI
-
-- The app opens on the `TaskLists` page after login.
-- The `TaskLists` page subscribes to Firestore `taskListOrder/{uid}` and `taskLists/{taskListId}` and shows task lists in that order.
-- Tapping a task list opens `TaskList` details at the selected list, and the detail page supports horizontal paging across neighboring task lists.
-- The `TaskList` page subscribes to the same ordered task lists, shows tasks in each list, and keeps the selected page in sync with the current task list.
-- The `TaskLists` page allows navigation to `Settings`.
-
-## Navigation behavior
-
-- Compact layouts use one value-based `NavigationStack` rooted at `TaskLists`.
-- Regular layouts use `NavigationSplitView` while preserving the same logical destination: task list detail, calendar, or settings.
-- When the horizontal size class changes, the compact path and regular detail selection are synchronized so rotation and window resizing do not reset the current page.
-- Authentication, password reset, and shared-list preview are mutually exclusive full-screen presentations.
-- Task list detail keeps horizontal paging between ordered task lists inside the destination instead of adding another navigation-stack entry.
+Firebase の `GoogleService-Info.plist` は `Lightlist/Resources/Firebase/{Debug,Release}/` に置く（gitignore 対象）。提出手順は [docs/release-ios.md](../../docs/release-ios.md) を参照する。

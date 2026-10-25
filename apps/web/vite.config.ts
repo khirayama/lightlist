@@ -9,14 +9,35 @@ import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { prepareAssets } from "./scripts/prepare.ts";
+
+const buildAssets = (): Plugin => {
+  let outDir = "";
+  return {
+    name: "build-assets",
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    buildStart: prepareAssets,
+    closeBundle() {
+      const serviceWorkerPath = resolve(outDir, "sw.js");
+      if (!existsSync(serviceWorkerPath)) return;
+      writeFileSync(
+        serviceWorkerPath,
+        readFileSync(serviceWorkerPath, "utf8").replaceAll(
+          "__BUILD_ID__",
+          Date.now().toString(36),
+        ),
+      );
+    },
+  };
+};
 
 const pagePathRedirect = (): Plugin => ({
   name: "page-path-redirect",
   configureServer(server) {
     server.middlewares.use((req, res, next) => {
-      const match = req.url?.match(
-        /^\/(app|login|sharecodes|password_reset)(\?.*)?$/,
-      );
+      const match = req.url?.match(/^\/(app|login|sharecodes)(\?.*)?$/);
       if (match) {
         res.statusCode = 301;
         res.setHeader("Location", `/${match[1]}/${match[2] ?? ""}`);
@@ -373,7 +394,7 @@ export default defineConfig({
   root: resolve(import.meta.dirname, "html"),
   base: "/",
   appType: "mpa",
-  plugins: [pagePathRedirect(), landingPages(), react()],
+  plugins: [buildAssets(), pagePathRedirect(), landingPages(), react()],
   publicDir: resolve(import.meta.dirname, "public"),
   resolve: {
     alias: {
@@ -392,10 +413,6 @@ export default defineConfig({
         legal: resolve(import.meta.dirname, "html/legal/index.html"),
         login: resolve(import.meta.dirname, "html/login/index.html"),
         app: resolve(import.meta.dirname, "html/app/index.html"),
-        passwordReset: resolve(
-          import.meta.dirname,
-          "html/password_reset/index.html",
-        ),
         sharecodes: resolve(import.meta.dirname, "html/sharecodes/index.html"),
         notFound: resolve(import.meta.dirname, "html/404.html"),
         serverError: resolve(import.meta.dirname, "html/500.html"),

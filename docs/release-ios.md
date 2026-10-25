@@ -16,7 +16,7 @@
 ### 対応デバイスと言語
 
 - `TARGETED_DEVICE_FAMILY` は `1,2`（iPhone + iPad）。iPad 対応として提出するため、App Store Connect には iPad 用スクリーンショットも必要。
-- 対応言語は `Lightlist/Info.plist`（`project.yml` の `info:` から生成）の `CFBundleLocalizations` で宣言する: `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-Hans` / `hi` / `ar` / `pt-BR` / `id`。development region は `ja`。
+- 対応言語は `project.yml` の `info:`（`Lightlist/Info.plist` へ生成、commit しない）の `CFBundleLocalizations` で宣言する: `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-Hans` / `hi` / `ar` / `pt-BR` / `id`。development region は `ja`。
 
 ### 暗号化輸出規制 / プライバシー
 
@@ -49,10 +49,22 @@
 ### 4. Universal Links / deep links
 
 - associated domains は `applinks:lightlist.app`（`Lightlist/Lightlist.entitlements`）。
-- Universal Links を有効にするには `https://lightlist.app/.well-known/apple-app-site-association` を配置する（Content-Type: `application/json`、リダイレクトなし）。AASA は `apps/web/apple-app-site-association.template.json` から build 後に生成する。
-- Cloudflare Pages の Git integration build と Direct Upload の両方で `LIGHTLIST_IOS_TEAM_ID` を設定する。`npm run cf:preview` / `npm run cf:deploy` は値なしで失敗する。通常の `npm run build` は Web 単体開発を許可するため、値がないと AASA を生成しない。
-- AASA の `appIDs` は `LIGHTLIST_IOS_TEAM_ID.com.lightlist.app`、components は正規共有 URL 用の `/sharecodes/`、互換 URL 用の `/sharecodes/*`、`/password_reset` を対象にする。デプロイ前に実際の endpoint が JSON を返すことを確認する。
-- HTTPS 共有リンクの正規形は `https://lightlist.app/sharecodes/?code=CODE`。`lightlist://sharecodes/CODE` の custom scheme も確認する（パスワードリセットは HTTPS だけを受け付ける）。
+- Universal Links を有効にするには `https://lightlist.app/.well-known/apple-app-site-association` を配置する（Content-Type: `application/json`、リダイレクトなし）。Team ID が決まったら次の内容で `apps/web/public/.well-known/apple-app-site-association` を作り、Web を配信する。デプロイ後に実際の endpoint が JSON を返すことを確認する。
+
+```json
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["<TEAM_ID>.com.lightlist.app"],
+        "components": [{ "/": "/sharecodes/" }]
+      }
+    ]
+  }
+}
+```
+
+- 共有リンクは `https://lightlist.app/sharecodes/?code=CODE` の 1 形式だけで、custom scheme は持たない。
 - AASA 未配置でも審査はブロックされない（https リンクは Web へフォールバックする）。
 
 ### 5. App Store 提出物の生成
@@ -66,7 +78,7 @@ just upload
 ```
 
 - `just archive` は `build-archive/` を作り直し、`ExportOptions.plist` に Team ID を入れた export 設定で archive と IPA export を行う。出力 IPA は `apps/ios/build-archive/export/Lightlist.ipa`。
-- `just archive` は最後に `just verify-ipa` を実行し、Apple Distribution 証明書での署名・TeamIdentifier・`get-task-allow` が無効・`applinks:lightlist.app` の entitlement・App Store 用 profile（登録端末なし）・同梱 `GoogleService-Info.plist` の `BUNDLE_ID` を検証する。profile の有効期限、版数、Firebase project ID も表示する。
+- `just archive` は最後に `just verify-ipa` を実行し、Apple Distribution 証明書での署名・TeamIdentifier・`get-task-allow` が無効・`aps-environment` が `production`（entitlements は `development` を書き、配布用 export で Xcode が置き換える）・`applinks:lightlist.app` の entitlement・App Store 用 profile（登録端末なし）・同梱 `GoogleService-Info.plist` の `BUNDLE_ID` を検証する。profile の有効期限、版数、Firebase project ID も表示する。
 - `just upload` は同じ archive を `destination=upload` で export し、App Store Connect へ直接アップロードする。Xcode Organizer や Transporter で `Lightlist.ipa` をアップロードしてもよい。
 - export 設定の正本は `apps/ios/ExportOptions.plist`（method `app-store-connect`、automatic signing、dSYM upload あり）。
 - Debug / Release の build は `Copy Firebase Config` script で `GoogleService-Info.plist` の存在と `BUNDLE_ID` が `PRODUCT_BUNDLE_IDENTIFIER` と一致することを確認し、不一致なら失敗する。

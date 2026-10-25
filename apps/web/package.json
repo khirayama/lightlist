@@ -1,12 +1,7 @@
 {
   "name": "@lightlist/web",
-  "version": "1.0.0",
   "private": true,
   "packageManager": "npm@12.0.2",
-  "engines": {
-    "node": "^24.19.0 || >=26.0.0",
-    "npm": "12.0.2"
-  },
   "devEngines": {
     "runtime": {
       "name": "node",
@@ -19,32 +14,15 @@
       "onFail": "error"
     }
   },
-  "description": "",
   "scripts": {
-    "prepare:assets": "node scripts/sync-shared-locales.mjs && npm run licenses:generate",
-    "predev": "npm run prepare:assets && NODE_ENV=development node scripts/build-messaging-service-worker.mjs",
-    "prebuild": "npm run prepare:assets",
-    "prelint": "npm run prepare:assets",
-    "pretypecheck": "npm run prepare:assets",
-    "licenses:generate": "node scripts/generate-licenses.mjs",
     "dev": "vite",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "eslint . --max-warnings=0",
-    "knip": "knip",
-    "check": "npm run prepare:assets && eslint . --max-warnings=0 && tsc --noEmit && tsc --noEmit -p tsconfig.messaging.json && tsc --noEmit -p tsconfig.node.json && knip",
     "build": "vite build",
-    "postbuild": "node scripts/build-messaging-service-worker.mjs && node scripts/write-apple-app-site-association.mjs dist --if-configured && node scripts/write-assetlinks.mjs dist --if-configured && node scripts/version-service-worker.mjs dist",
-    "preview": "vite preview",
-    "cf:build": "npm run prepare:assets && vite build && node scripts/build-messaging-service-worker.mjs && node scripts/write-apple-app-site-association.mjs dist && node scripts/write-assetlinks.mjs dist && node scripts/version-service-worker.mjs dist",
-    "cf:preview": "npm run cf:build && wrangler pages dev dist",
-    "cf:deploy": "npm run cf:build && wrangler pages deploy dist --project-name \"$CLOUDFLARE_PAGES_PROJECT_NAME\"",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.messaging.json && tsc --noEmit -p tsconfig.node.json",
-    "screenshots:generate": "node scripts/generate-store-screenshots.mjs"
+    "check": "node scripts/prepare.ts && eslint . --max-warnings=0 && tsc --noEmit && tsc --noEmit -p tsconfig.node.json && knip",
+    "format": "prettier --write .",
+    "preview": "vite build && wrangler dev",
+    "deploy": "vite build && wrangler deploy",
+    "screenshots": "node scripts/generate-store-screenshots.mjs"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "module",
   "dependencies": {
     "@dnd-kit/abstract": "^0.5.0",

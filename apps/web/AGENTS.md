@@ -1,88 +1,79 @@
 # Web（apps/web）
 
-ルートの `AGENTS.md` を前提に、Web 固有の規則をまとめる。
+ルートの `AGENTS.md` を前提に、Web 固有の規則と落とし穴をまとめる。配信・PWA・LP・CSP の仕様は `docs/deployment.md`。
 
-## 構成・配信
+## 構成
 
-- Web は TypeScript 7 系を採用し、`strict` + `skipLibCheck=false` で依存型定義まで検証する。runtime source は TS / TSX に限定し、`allowJs` は有効化しない。依存解決は npm の標準 peer dependency 検証を使い、`legacy-peer-deps` / `--force` で回避しない。
-- Web の Vite HTML entry は `apps/web/html` に集約し、`apps/web/src` は React/TypeScript コード専用とする。
-- SDK（Firebase Auth/Firestore、状態管理・ミューテーション）は `apps/web/src/entry.tsx` に統合済み。独立パッケージ (`packages/sdk`) は廃止。
-- Firebase 初期化は `apps/web/src/entry.tsx` に閉じ、`import.meta.env.VITE_FIREBASE_*` を直接読む。別途の初期化呼び出しは不要。 Auth は `getAuth` ではなく `initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence] })` で popup / redirect resolver を同梱しない。popup / redirect サインインを導入する場合だけ resolver を明示的に渡し、HTML の preconnect と CSP も合わせて見直す。
-- Web UI は `firebase/*` を直接 import しない。Web のアプリ側 runtime TS/TSX 実装は `apps/web/src/entry.tsx` に集約する。LP だけは例外として `apps/web/src/lp.ts` を使う。
-- Web の Vite root は `apps/web/html` を正とし、静的 asset は `apps/web/public`、env は `apps/web/.env*` を使う。
-- Web の本番静的配信は Cloudflare Pages を正とし、root path 配信を前提に Vite `base` は `/` を維持する。build 出力は `apps/web/dist`、Cloudflare Pages 用 response headers は `apps/web/public/_headers` に置く。Universal Links 用 AASA は `apps/web/apple-app-site-association.template.json` と `LIGHTLIST_IOS_TEAM_ID` から、Android App Links 用 Digital Asset Links は `apps/web/assetlinks.template.json` と `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT`（Play App Signing SHA-256、複数はカンマ区切り）から、それぞれ `dist/.well-known/` へ生成する。`cf:preview` / `cf:deploy` は両環境変数を必須とし、Git integration（本番 project の production domain は `lightlist.app`）は両方を設定するまで `npm run build`、設定後は `npm ci && npm run cf:build` を build command にする。
-- オフライン shell は `apps/web/public/sw.js` の root scope を維持する。Firebase Messaging は別の `/notifications/firebase-messaging-sw.js` を `/notifications/` scope で登録し、2つの worker の cache・click handler・更新処理を混在させない。通知表示は FCM SDK に任せ、通知の独自 click listener は `getMessaging()` より前に登録する（SDK の listener はイベント伝播を止める）。通知 worker は開発時に `public/notifications/`、production build 時に `dist/notifications/` へ生成する。
-- Cloudflare Pages の Web build は Node.js `24.19.0` を前提とし、`apps/web/.node-version` で固定する。Pages の Root directory は `apps/web`、output directory は `dist` とし、`apps/web/package.json` の `packageManager` は `npm@12.0.2` に固定する。Node.js 22.22.2 同梱 npm から npm 12 への直接更新は `promise-retry` 欠損で失敗するため使用しない。
-- npm 12 は依存パッケージの install script を既定で拒否する。`apps/web/package.json` の `allowScripts` は `npm approve-scripts <pkg>` で承認した実行必須パッケージと完全なバージョンを保持し、依存更新時は `npm approve-scripts --allow-scripts-pending` が未承認なしになるよう同期する。
-- Web のアプリ側 HTML entry（`login` / `app` / `sharecodes` / `password_reset` / `404` / `500`）は `apps/web/src/entry.tsx` 1 本を共通 bootstrap とし、各 HTML の `body[data-page]` で描画 page を切り替える。script path は各 HTML 自身の配置位置を基準に相対指定し、`apps/web/html/404.html` / `500.html` は `../src/entry.tsx`、`apps/web/html/*/index.html` は `../../src/entry.tsx` を使う。Vite 設定の `/src` alias も維持する。
-- Web の初期 HTML module scripts には初回表示に必須でない payload を載せない。Firebase Analytics とカレンダー用 date-fns locale は静的 import に戻さず、実使用時の dynamic import + Vite chunk として保持する。 アプリ翻訳は `ja` だけを `./locales/ja.json` から静的 import し、他言語は `LOCALE_LOADERS` の言語別 dynamic import で読む。言語変更は必ず `changeAppLanguage()`（読み込み後に `i18next.changeLanguage`）を通し、`i18next.changeLanguage` を直接呼ばない。bootstrap も検出言語の読み込み後に `root.render` する。
-- Web の chunk 分割は Vite 8 / Rolldown の `build.rolldownOptions.output.codeSplitting.groups` を使い、`includeDependenciesRecursively: false` を維持する。明示 group の UI 依存は、group 外へ残った推移依存から entry へ戻る import が発生しないよう同じ group に含め、生成物の import 循環を確認する。再帰的な依存取り込みは Analytics 側へ共通依存を移し、初期 HTML からの読み込みを発生させる。date-fns group から `locale/` を除外し、英語の既定値と共通 helper は専用 group、他言語は言語別 dynamic import とする。Rollup 互換の `rollupOptions.output.manualChunks` へ戻さない。
-- LP（`apps/web/html/index.html`）はアプリと完全分離し、ja 本文を直書きした静的 HTML + `apps/web/src/lp.ts`（vanilla TS。react / firebase / i18next 非依存）で構成する。LP は言語別の静的ページ（`/`=ja、`/en/` … `/zh-cn/` `/pt-br/`）とし、`vite.config.ts` の `landingPages` plugin が `[data-i18n]` / `[data-i18n-alt]` の文言、head の SEO meta・canonical・`hreflang`・JSON-LD、`html[lang]` / `dir`、`/login/?lang=` リンクを言語別に書き出す（dev は `transformIndexHtml`、build は `closeBundle` で `dist/<path>/index.html` と `sitemap.xml` を生成）。実行時の翻訳差し替えとブラウザ言語による自動転送は行わない。lp.ts はページの `html[lang]` を現在言語とし、旧 `?lang=` と `/` での `localStorage.i18nextLng`（ja 以外）による転送、言語ドロップダウンの遷移、service worker 登録だけを担う。言語選択は `localStorage.i18nextLng` 経由でアプリ側 i18next と引き継ぎ合い、`normalizeLanguage` は entry.tsx と同名のまま lp.ts へ意図的に複製する。LP 翻訳は sync スクリプトが生成する `apps/web/src/lp-locales.json`（`pages.index.*` + `copyright` + `common.skipToMain` の flat key 辞書）を使う。LP に section や FAQ 項目を足すときは HTML の ja 直書き・`shared/locales/locales.json` の全言語・JSON-LD（FAQ は `vite.config.ts` の `LP_FAQ_KEYS`）を揃え、`data-i18n` 要素は子要素を持たないテキストだけにし、新しい utility は `lp-styles.css` に `ll-lp-*` で定義する。headline / subheadline は `white-space: pre-line` 前提のため、HTML 側は `<!-- prettier-ignore -->` + `&#10;` で 1 行記述を維持する。 法的ページ（`privacy` / `terms` / `support` / `account-deletion`）は `apps/web/html/legal/index.html` を唯一のテンプレートとし、同じ plugin が `apps/web/src/legal/<lang>.json` から言語別の静的ページ（`/privacy/`、`/en/privacy/` …）を書き出す。本文は plugin が生成するため `.ll-legal` 配下の要素セレクタ（`apps/web/src/styles/legal.css`）で装飾し、JavaScript は読み込まない。ページを増減するときは plugin の `LEGAL_PAGES`・全言語の JSON・LP フッターのリンクを揃える。 LP の section は枠線で区切らず、白と淡いグレー（`ll-lp-bg-neutral-100`）の面を交互に置き、グレー面上のカードは枠なしの白面にする。ヘッダーは全幅で 1 行に収め（24rem 未満はワードマークを隠す）、ヒーロー画像は 40rem 未満でモバイル画面だけを表示し、カレンダー画像は 4:3 の右寄せで切り出す。LP は `.dark` class を付与しないため常に light で表示され、`ll-lp-dark-*` は現状適用されない。 LP の CSS は `base.css`（layer 宣言・utility・テーマ変数・html/body・見出し/スクロールバーの base）と `lp-styles.css` だけを読み、アプリの component / motion を含む `globals.css` を import しない。
-- `npm run format:check` は書き換えずに整形を検査する。`.prettierignore` で locale・license・通知 worker の生成物とローカル agent 設定を除外し、再生成による整形差分を防ぐ。
-- Web の型チェックはアプリ・通知 worker に加えて `tsconfig.node.json` の両 Vite 設定（`vite.config.ts` / `vite.messaging.config.ts`）も対象とし、strict 検証を維持する。
-- Web の前処理は `prepare:assets` に集約し、`npm run dev|build|lint|typecheck` のたびに shared locale 同期と `licenses:generate` を実行する。Cloudflare Pages の `cf:build` も同じ前処理を一度だけ実行する。 検証をまとめて行う場合は `npm run check`（前処理 1 回 + eslint + tsc + knip）を使う。ライセンス生成はインストール済みの `license-checker-rseidelsohn` の API を直接呼び、前処理中の `npx` による依存取得や一時設定ファイルを持ち込まない。`sync-shared-locales.mjs` はアプリ用に `src/locales/<lang>.json` を言語別に生成する（単一の `src/locales.json` は持たない）。
-- Web は外部スタイル生成ライブラリを使わず、`apps/web/src/styles/globals.css` の通常 CSS と `apps/web/src/styles/compiled-styles.css` でスタイルを保持する。フォント CSS は bundle に巻き込まず、各 HTML entry で public asset として読む。読み込みは render-blocking にしない（`<link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'">` + `<noscript>` fallback の非同期パターンを全 HTML entry で統一。フォント読込中は fallback フォント描画を許容）。Web に同梱する書体は通常 400 / 500 / 600 / 700 と表示 700 に限り、未使用 weight は CSS と WOFF2 の両方を置かない。新規スタイルは通常 CSS または既存の named class を優先する。 `globals.css` は先頭で `base.css` を import し、LP と共有する基盤は `base.css` に置く。`compiled-styles.css` の utility は TSX / HTML から参照されなくなったら削除してよい（クラス名を文字列連結で組み立てないため、静的な出現有無で判定できる）。ただし末尾の `@property --ll-*` 定義は TSX に出現しなくても、残存 utility が `var(--ll-*)` で参照する限り削除しない（Chrome では未登録の `--ll-border-style` / `--ll-outline-style` などが未定義になり、border・outline・ring・transform が無効化される）。
-- Web の `taskLists` 購読は `activeUid` だけに依存する `memberKeys` クエリ 1 本とし、`taskListOrder` の変化（並び替え・作成・名前変更）で張り直さない。並び替えだけで `pruneTaskListsById` による全消去や再購読を起こさない（ドロワー・詳細がスケルトンへ戻り全体が再マウントされる）。`taskListDocsStatus` はこのクエリの snapshot だけで更新し、order snapshot で `loading` に戻さない。`Carousel` のスライド wrapper は子要素の `key` を使い、`index` を key にしない（`Children.map` の合成 key が変わり、並び替えで `TaskListCard` が再マウントされる）。
-- Web の共通 UI 部品は `globals.css` の `@layer ll-components`（`ll-btn` + `ll-btn-primary` / `ll-btn-secondary` / `ll-btn-ghost` / `ll-btn-tonal` / `ll-btn-danger` / `ll-btn-destructive`、`ll-icon-btn`、`ll-field` / `ll-field-label` / `ll-select-wrap`、`ll-nav-row` / `ll-sidebar-item`、`ll-settings-row` / `ll-settings-heading`、`ll-muted-text` / `ll-muted-icon`）を使い、TSX では `BUTTON_*_CLASS` / `ICON_BUTTON_CLASS` 定数経由で指定する。レイヤー順は globals.css 先頭の `@layer` 宣言で `ll-components` を utility（`ll-styles`）より前に置き、utility で上書きできるようにする。色付き背景上の補助アイコン・補助文字は固定グレーでなく前景色の透過（`--ll-muted-icon` / `--ll-muted-text`）で描く。ダイアログのフッターは右寄せで「secondary（キャンセル/閉じる）→ primary」、破壊的操作は `DialogFooter` の `start` に `ll-btn-danger` のテキストボタンで置く。`compiled-styles.css` に存在しない `ll-*` class を TSX で使わない（追加時は定義も足す）。
-- Web のモーションは `globals.css` の named class（`ll-anim-overlay` / `ll-anim-dialog` / `ll-anim-sheet` / `ll-anim-task-enter` / `ll-anim-task-exit` / `ll-anim-pop` / `ll-pressable` / `ll-check-mark` / `ll-check-circle` / `ll-task-row` / `ll-calendar-day` / `ll-calendar-task-row` / `ll-task-strike` / `ll-count-roll`）で管理し、すべて `@media (prefers-reduced-motion: no-preference)` 内に定義する。タスク行の enter アニメーション（`ll-anim-task-enter`）は dnd-kit の inline `transform` / `opacity` と衝突するため fill mode を持たせない（exit 用 `ll-anim-task-exit` は削除まで `both` で opacity 0 を保持してよい）。新規タスク検知は `TaskListCard` の `knownTaskIdsRef`（描画後に effect で同期）で行い、初回 mount では発火させない。完了済み削除は `prefers-reduced-motion: reduce` でない場合のみ `exitingTaskIds` を立てて約 120ms 待ってから保存する。dnd-kit の inline transition は `@media (prefers-reduced-motion: reduce)` の `transition: none !important` で無効化する。Radix の `data-state` 属性で開閉を駆動し、`ll-anim-sheet` は 40rem 以上で dialog 用 keyframes に切り替える。compiled-styles の中央寄せは `translate` プロパティ（`transform` と独立）なので keyframes は `transform` を使ってよい。押下フィードバックは `transform` ではなく独立 `scale` プロパティで行い（dnd-kit の inline `transform` と衝突させない）、押し込みは約 80ms、戻りは `--ll-ease-spring`（CSS `linear()` の減衰 spring）で返す。完了トグルの ripple（`ll-check-fill`）は mount 時に発火させないよう checkbox の `:focus` 中だけに限定する。送信ボタンの表示切替は opacity + scale + rotate（RTL は反転）で行う。見出し（h1–h3）は `font-feature-settings: "palt"` + `letter-spacing: 0.01em` + `text-wrap: balance` を適用する。
-- カレンダー画面は 3 プラットフォーム共通で、月カレンダー + 「タスクを追加」ボタンを常に固定し、タスク一覧だけをスクロールさせる。Web は 1 カラム（64rem 未満）でも 2 カラムでも、月グリッド + 「タスクを追加」ボタン（`.ll-calendar-layout-aside`）を縦スクロール要素の上端に sticky 固定し（ページ背景色・z-index 付き）、一覧だけをその下でスクロールさせる。日付選択時のスクロールは、固定カレンダーに隠れない可視範囲の中央へ対象行を置く。
-- Web の react-day-picker の `components`（`DayButton` など）には render 内で生成した関数を渡さず、モジュールレベルの component と定数オブジェクトを渡す（描画ごとに全日付ボタンが再マウントされる）。日付ごとの表示データは context で渡す。カレンダー画面の日付選択時のスクロールは、一覧の親要素ではなく画面の縦スクロール要素（`overflow-y-auto` の div）を対象にする。
-- Web の並び替えは現行 dnd-kit の `@dnd-kit/react` + `@dnd-kit/dom` + `@dnd-kit/abstract` を使う。旧 `@dnd-kit/core` / `@dnd-kit/sortable` / `@dnd-kit/modifiers` / `@dnd-kit/utilities` を混在・再導入しない。
-- Web の task 並び替えは `TASK_SORTABLE_SENSORS`、taskList 並び替えは `SORTABLE_SENSORS` を使う。task 行の長押しは `data-task-text` を持つ本文ボタン上のタッチだけで起動し、行全体に `touch-action: none` を付けない（縦スクロールと carousel が止まる）。起動後のスクロール・click・contextmenu の抑止は dnd-kit の `PointerSensor` に任せる。
-- Web の sortable drop は `operation.source.initialIndex` / `operation.source.index` を最終位置の正とする。`operation.target.id` から最終順を再計算すると dnd feedback と楽観表示がずれてドロップ時にちらつくため使用しない。
-- Web の i18n 初期化、対応言語定義、言語正規化、方向判定、翻訳依存のエラー解決・バリデーションは `apps/web/src/entry.tsx` に集約する（LP 用の言語ヘルパ複製は `apps/web/src/lp.ts` のみ許可）。
-- Web の Auth / settings / taskLists の状態購読は `apps/web/src/entry.tsx` の `AppStateProvider` と hook を正とし、`useSyncExternalStore` ベースの独自 store は持ち込まない。
-- Web の Firestore 読み取りは購読・単発取得ともに `entry.tsx` の共通境界検証を通し、`settings` / `taskListOrder` / `taskLists` / `shareCodes` を型 assertion だけでドメイン型へ変換しない。トップレベルdocumentが不正な場合は読み込みエラーまたは当該documentの部分劣化とし、task map 内の不正要素だけは除外・server確定snapshotで削除する。
-- Web の Firestore IndexedDB cache に `settings` / `taskListOrder` / `taskLists` の実データがある場合は、placeholder / skeleton より cache hydrate 済み実データ表示を優先する。auth 復元を待たず即描画するため、直近ログイン uid を localStorage `lightlist.lastUid` に保持し（`onAuthStateChanged` で書き込み・ログアウトで削除）、`AppStateProvider` の settings / taskListOrder / taskLists 購読は `activeUid`（確定 uid、auth loading 中は lastUid）をキーに起動・依存させる。auth が同一 uid で確定しても再購読せず、別 uid / 未認証確定で購読を張り直す。`AppShellPage` のスケルトン解除も authStatus ではなく `isSessionActive`（authenticated または loading かつ activeUid あり）+ データ hydrate 状態で判定する。app 系ページ（auth-free 以外）は React mount 前に `getAuthInstance()` / `getDbInstance()` を呼び捨てたうえで `warmUpStartupData()` を実行し、IndexedDB オープン・auth 復元・Firestore persistent cache のコールド初期化（leader election 含む）を React 初回描画と並行開始する。`warmUpStartupData()` は lastUid で `settings` / `taskListOrder` を `getDocFromCache`、`taskLists` の `memberKeys` クエリを `getDocsFromCache` で先読みする。`AppStateProvider` は listener 自身の初回 cache snapshot を hydrate に使い、同じ参照への `getDocFromCache` / `getDocsFromCache` を重ねない。Firestore の cache 読み取りは Auth の起動時再検証（通信 1 往復）が終わるまで返らないため、app page（`data-page="app"`）だけは localStorage `lightlist.startupSnapshot`（uid・settings・taskListOrder・taskLists）を `readStartupSnapshot()` で読み、settings / taskLists の初期 state として初回 render から表示する。読み取りは Firestore と同じ境界検証（`assertSettingsStore` / `assertTaskListOrderStore` / `assertTaskListStore`）を通し、uid 不一致・不正値・parse 失敗はスナップショットなしとして扱う。書き込みは認証確定かつ 3 つの購読がすべて `ready` のときだけ、変更から 1 秒後と `pagehide` で行い、保存失敗（容量超過など）とログアウトでは削除する。スナップショット表示中（`isStartupSnapshotActive`）は `AppShellPage` のルートを `inert` にして task action も開かず、3 つの listener が初回 snapshot またはエラーを返した時点で解除する。スナップショットは表示専用で、mutation の基準にしない。`getDbInstance()` の persistent cache は `cacheSizeBytes: CACHE_SIZE_UNLIMITED` で LRU GC を無効化し（iOS の無制限 `PersistentCacheSettings` と同一方針）、Web / iOS / Android の `taskLists` クエリは cache snapshot / live snapshot ともに `docChanges()` ではなく snapshot 全体で保持分を置き換える。
-- Web の task mutation は書き込み前の taskList read を `getDocFromCache` 優先（失敗時のみ `getDoc`）で行い、settings は Firestore を再読せず UI の購読済み値を `ResolvedTaskSettings` として引数で渡す。
-- Web の `index` / `404` / `500` / `password_reset` ページ（`body[data-page]` 判定）では Firebase Auth の状態購読を行わない。
-- Web の認証後状態は単一 context にまとめず、`SessionContext` / `SettingsContext` / `TaskListsContext` の 3 分割を維持して無関係な購読者の再レンダーを避ける。
-- Web の task action は狭幅で actual bottom sheet、広幅で centered dialog を使う。route hash は変えずに `history.state` を 1 段積み、戻る操作と `Esc`/dismiss のどちらでも閉じて起点ボタンへ focus を戻す。
-- Web の compact layout とタスクリスト carousel は、現在表示中の画面・スライドだけを Tab 順と accessibility tree に含める。compact layout の画面切替時は main landmark へフォーカスを移し、初回表示ではフォーカスを奪わない。認証の `signin` / `signup` は選択中タブだけを Tab 順に含め、左右矢印と Home / End で移動する。パスワードリセットはタブではない独立導線として扱う。
-- Web の各ページは `useDocumentTitle()` で `document.title` を「画面名 - Lightlist」に保つ（app shell はルートごとに一覧 = `app.drawerTitle` / 詳細 = タスクリスト名 / 設定 / ライセンス / カレンダー、login は選択中タブ、password_reset、sharecodes はリスト名またはエラー文言、404 / 500）。各ページは skip link の遷移先となる `main#main-content`（`MAIN_CONTENT_ID`）を 1 つ持ち、エラー表示・404 / 500 でも省略しない。タスクリスト名の見出しは `h1` とする。
-- Web のカレンダー行上段（日付・リスト名のボタン）は最小高 24px（`.ll-calendar-task-meta`）とし、WCAG 2.5.8 のターゲットサイズを満たす。
-- パスワードリセットURLは `VITE_PASSWORD_RESET_URL`（Web）が必須。prod 設定で `localhost` を使わない。
-- Web は言語切替時に `document.documentElement.lang` と `dir` を同期する。`ar` は RTL、それ以外は LTR。 初回描画前は `public/theme.js` が `?lang=` → `localStorage.i18nextLng` → `navigator.language` から `lang` / `dir` を先に設定する（言語正規化は entry.tsx と同じ規則を複製する）。`theme.js` は保存済みテーマの `dark` class と `theme-color` meta も設定し、`applyTheme()` も明示テーマ時は両 `theme-color` meta を同色に、`system` では media 別の既定色に戻す。
-- Web のタスクリスト背景色は light / dark とも選択色をそのまま使い、背景色付きの要素（carousel の各ページ・インジケータ・compact の詳細ヘッダー・起動スケルトン・`TaskListCard`）へ `data-colored-background` を付ける。この属性の内側は dark でも light の配色にするため、`compiled-styles.css` の `:is(.dark *)` と `globals.css` の `.dark .ll-*` は必ず `:not([data-colored-background] *)` を付けて定義し、テーマ依存の CSS 変数は `[data-colored-background]` で light 値へ戻す。dialog / sheet は portal で属性の外に描画されるためアプリのテーマに従う。
-- Web のアプリ側 HTML は `viewport-fit=cover` を使い、Android のナビゲーションバー / iOS のホームインジケータ下まで背景を広げる。縦スクロール領域・ボトムシートの下端余白は `globals.css` の `ll-safe-pb*`（または `ll-page-container` / `ll-calendar-page` の組み込み）で `env(safe-area-inset-bottom)` を加え、通常の `ll-pb-*` を使わない。左右は app ルートの `ll-safe-px` で確保する。`html` の背景色（`base.css`）を指定しないと PWA のシステムバー領域が白のまま残る。compact 幅のタスクリスト詳細（起動スケルトン含む）を表示している間は `AppShellPage` の effect が `html` の inline `background-color` を表示中リストの背景色にし、画面・幅・リストが変わったら inline 指定を外して `base.css` のテーマ色へ戻す。
-- `manifest.webmanifest` に `theme_color` を置かない。Android の WebAPK はインストール時の manifest `theme_color` をナビゲーションバー色に固定し（`WebappIntentDataProvider.getNavigationBarColor`、`WebAppNavigationBarThemeColor`）、動的な `theme-color` meta や CSS では変えられない。省略すると OS 既定色が端末の light / dark に従う。ステータスバーは `theme-color` meta で追従させる。
-- Web の wide layout のタスクリスト詳細は、`min-height: 100%` の入れ子では高さが伝わらないため、詳細コンテナと `Carousel`（`fitContent`）を flex column + `flex: 1` でつなぎ、タスクが少ないリストでも背景色を本文ペインの下端まで広げる。
-- Web の `Carousel` は `direction` prop を必須運用し、RTL 時の `scrollLeft` はブラウザ差分（positive/negative）を正規化して index を算出する。
-- Web の認証後シェルは `apps/web/src/entry.tsx` 内の app page 実装を単一入口とし、`/app/#/task-lists` を stack root、`/app/#/task-lists/:taskListId` を task list 詳細、`/app/#/settings` を設定画面として扱う。`/app/` は bootstrap alias として client mount 後に `#/task-lists` を積み、settings の読込完了（cache 含む）を待って `startupView` で初期遷移を分岐する。`taskList`（既定）は taskLists 解決まで一覧へ切り替えず詳細スケルトンを表示したまま待ってから、前回選択リスト（localStorage `lightlist.lastTaskList` の `id` + 解決済み `background`。スケルトン背景にも使う）か先頭リストの `#/task-lists/:taskListId` を push する（一覧 root 表示は taskLists 0 件時のみ）。`calendar` は `#/calendar` を push し、`taskLists` は `#/task-lists` root に留まる。compact 幅の横スライドアニメーションは初期 route 確定後に有効化し、起動時の詳細→一覧→詳細のチラつきを出さない。`/settings` の独立 route は持たない。
-- Web の開発サーバーと production build は `vite` / `vite build` を使う。
-- Web の本番レスポンスヘッダはアプリ内では持たず、配信基盤側で `Content-Security-Policy`、`Cross-Origin-Opener-Policy`、`Referrer-Policy`、`X-Content-Type-Options`、`X-Frame-Options`、`Permissions-Policy`、`Strict-Transport-Security` を付与する。CSP の外部 script は `www.googletagmanager.com` と `static.cloudflareinsights.com` だけとし、`frame-src` / `frame-ancestors` は `'none'` を維持する。Firebase Auth の popup / redirect / reCAPTCHA 用 origin（`apis.google.com` / `www.google.com` / `www.gstatic.com` / `*.firebaseapp.com`）は JSONP 等で CSP を回避できるため、それらの機能を導入するまで許可しない。
-- `public/sw.js` の navigation cache は query・hash を除いた origin + path を key にする。`password_reset?oobCode=` や `sharecodes?code=` の URL を Cache Storage に残さない。
-- `apps/web` ではアプリ側 runtime TS/TSX 実装を `apps/web/src/entry.tsx` 1 ファイルへ集約し、各 HTML entry は `body[data-page]` で同ファイル内の page component を切り替える。LP のみ `apps/web/src/lp.ts` を使う。
-- Web Analytics の実装は `apps/web/src/entry.tsx` に集約。PII をパラメータに含めない。イベント設計は `docs/analytics.md` を参照。
-- Web の主要ページ:
-  - `apps/web/html/index.html`（ランディング, 静的 HTML + `src/lp.ts`、`data-page` なし）
-  - `apps/web/html/login/index.html`（サインイン/サインアップ/リセット依頼, `data-page="login"`）
-  - `apps/web/html/app/index.html`（認証後シェル, `data-page="app"`）
-  - `apps/web/html/password_reset/index.html`（`data-page="password_reset"`）
-  - `apps/web/html/sharecodes/index.html`（`data-page="sharecodes"`）
-  - `apps/web/html/404.html`（カスタム404ページ, `data-page="404"`）
-  - `apps/web/html/500.html`（カスタム500ページ, `data-page="500"`）
-- 共通 import:
-  - Web アプリ内: `@/*`
+- アプリの runtime は `src/entry.tsx` 1 ファイル（Firebase 初期化・i18n・状態購読・Analytics・全ページ）。HTML entry は Vite root の `html/` に置き、`body[data-page]`（`login` / `app` / `sharecodes` / `404` / `500`）で描画するページを切り替える。import alias は `@/*`。
+- LP は `html/index.html` + `src/lp.ts`（React / Firebase / i18next に依存しない）。法的ページは `html/legal/index.html` を唯一のテンプレートとし、`vite.config.ts` の `landingPages` plugin が言語別の静的ページを書き出す。
+- 言語正規化は `entry.tsx` / `lp.ts` / `public/theme.js` に意図的に複製しているため、変えるときは 3 つを揃える。
+- 生成物（`src/locales/*.json`・`src/lp-locales.json`・`src/english-date-patterns.json`・`public/licenses/licenses.json`）は `scripts/prepare.ts` が dev / build / `npm run check` の開始時に生成する。commit・手編集しない（Prettier は `.gitignore` で除外される）。英語相対日付の parser は `english-date-patterns.json` を静的に読み、UI 翻訳の dynamic import に依存させない。
+- `scripts/*.ts` は Node.js の型 strip でそのまま実行し、`vite.config.ts` からは `.ts` 拡張子付きで import する。
+- Worker は `worker/index.ts` 1 本で `/mcp` の中継だけを担う（`assets.run_worker_first` は `/mcp` のみ）。Cloudflare Pages へ戻さない（理由は `docs/deployment.md`）。
+- env は `.env.development.local` / `.env.production.local` だけにし、`.env.local` は置かない（production mode も読むため dev の値が本番 build に混入する）。ドメイン・URL などの固定値は env にしない。
+- TypeScript 7 の `strict` + `skipLibCheck=false` を維持し、`allowJs` を有効にしない。npm の peer dependency 検証を `legacy-peer-deps` / `--force` で回避しない。依存更新後は `npm approve-scripts --allow-scripts-pending` が未承認なしになるよう `allowScripts` を同期する。Node.js 22 同梱の npm から npm 12 へ直接更新すると `promise-retry` 欠損で失敗する。
+
+## 初期 payload・chunk
+
+- Firebase Analytics と date-fns の locale は dynamic import のまま保ち、静的 import に戻さない。アプリ翻訳は `ja` だけを静的 import し、他言語は `LOCALE_LOADERS` で読む。言語変更は必ず `changeAppLanguage()` を通す（`i18next.changeLanguage` を直接呼ばない）。
+- chunk 分割は Rolldown の `build.rolldownOptions.output.codeSplitting.groups` + `includeDependenciesRecursively: false`。明示した group の UI 依存は推移依存ごと同じ group に入れ、entry へ戻る import や循環を作らない（再帰取り込みにすると共通依存が Analytics 側へ移り、初期 HTML から読まれる）。`rollupOptions.output.manualChunks` に戻さない。
+- Auth は `initializeAuth` に persistence だけを渡し、popup / redirect resolver を同梱しない。導入するときは CSP・preconnect も見直す。
+- フォント CSS は bundle に入れず、全 HTML entry で非同期 preload（`onload` で stylesheet 化 + `<noscript>`）にする。
+
+## CSS・UI
+
+- スタイルは通常 CSS だけ: `base.css`（LP と共有する基盤）、`globals.css`（`@layer ll-components` の共通部品とモーション）、`compiled-styles.css`（utility）。LP は `globals.css` を読まない。
+- TSX で使う `ll-*` class は必ず定義する。utility は参照がなくなれば削除してよい（class 名を文字列連結しないので静的検索で判定できる）。ただし末尾の `@property --ll-*` は残す（未登録だと Chrome で border・outline・ring・transform が効かなくなる）。
+- ボタンは `BUTTON_*_CLASS` / `ICON_BUTTON_CLASS` 定数で指定する。layer は `ll-components` を utility より前に置き、utility で上書きできるようにする。
+- dark のセレクタ（`compiled-styles.css` の `:is(.dark *)`、`globals.css` の `.dark .ll-*`）は必ず `:not([data-colored-background] *)` を付ける。背景色付き領域の CSS 変数は `[data-colored-background]` で light の値へ戻す。
+- モーションは `@media (prefers-reduced-motion: no-preference)` の中で定義する。`ll-anim-task-enter` に fill mode を付けない（dnd-kit の inline `transform` / `opacity` と衝突する）。押下表現は `transform` ではなく独立した `scale` プロパティで行う。完了 ripple は checkbox の `:focus` 中に限定し、mount で発火させない。取り消し線は `ll-task-strike` の `background-size` で描く。
+- 確認 UI は `ConfirmDialog` を使い、`window.confirm` / `window.alert` を使わない。dialog 内からの確認は元の `DialogContent` の内側に入れ子にする。
+- safe area: アプリ側 HTML は `viewport-fit=cover`。下端の余白は `ll-safe-pb*`（通常の `ll-pb-*` ではなく）、左右は app ルートの `ll-safe-px`。`html` の背景色を指定しないと PWA のシステムバー領域が白く残る。`manifest.webmanifest` に `theme_color` を置かない（WebAPK がナビゲーションバー色を固定する）。
+- wide layout の詳細は `min-height: 100%` の入れ子では高さが伝わらないため、詳細コンテナと `Carousel` を flex column + `flex: 1` でつなぐ。
+- `Carousel` は `direction` prop を必ず渡す（RTL の `scrollLeft` はブラウザ差を正規化する）。スライドの wrapper は子の `key` を使い、`index` を key にしない（並び替えで `TaskListCard` が再マウントされる）。インジケータは scroll handler から CSS 変数を直接更新し、React の再レンダーを起こさない。
+- react-day-picker の `components` には render 内で作った関数を渡さず、モジュールレベルの component を渡す（毎回すべての日付ボタンが再マウントされる）。日付ごとのデータは context で渡す。
+- カレンダー画面の日付選択時のスクロールは、一覧の親ではなく画面の縦スクロール要素を対象にする（月カレンダーと追加ボタンはその中で sticky）。
+
+## 並び替え（dnd-kit）
+
+- `@dnd-kit/react` + `@dnd-kit/dom` + `@dnd-kit/abstract` だけを使い、旧 `@dnd-kit/core` / `sortable` / `modifiers` / `utilities` を入れない。
+- sensor は task が `TASK_SORTABLE_SENSORS`、taskList が `SORTABLE_SENSORS`。長押しは `[data-task-text]` 上のタッチだけで開始し、行全体に `touch-action: none` を付けない（縦スクロールと carousel が止まる）。
+- drop 位置は `operation.source.initialIndex` / `operation.source.index` を正とし、`operation.target.id` から再計算しない（楽観表示とずれてちらつく）。
+- 配置のアニメーションは `useSortable` の `transition`（`idle: true`）に一本化し、独自の `transform` FLIP を重ねない。
+- 読み上げは `DragDropProvider` の `plugins` に `buildDndAccessibility()`（`a11y.drag*` をローカライズ）を渡す。
+
+## 状態・Firestore
+
+- 状態は `AppStateProvider` と `SessionContext` / `SettingsContext` / `TaskListsContext` の 3 分割を維持する（無関係な再レンダーを避けるため）。`useSyncExternalStore` の独自 store を持ち込まない。
+- taskLists の購読は `activeUid` だけに依存させる。order の snapshot で `taskListDocsStatus` を `loading` に戻さない（ドロワー・詳細がスケルトンへ戻り再マウントされる）。
+- Firestore の読み取りは購読・単発とも共通の境界検証（`assertSettingsStore` / `assertTaskListOrderStore` / `assertTaskListStore` など）を通し、型 assertion だけで変換しない。
+- 起動（仕様は `docs/data-model.md`）: localStorage `lightlist.lastUid` で auth 確定前から購読を始め、mount 前に `warmUpStartupData()` を呼ぶ。listener の初回 cache snapshot を hydrate に使い、同じ参照へ `getDocFromCache` を重ねない。`lightlist.startupSnapshot`（`readStartupSnapshot()`）は表示専用で、表示中は app shell を `inert` にし、mutation の基準にしない。
+- mutation: `enqueueTaskListMutations` は SDK への投入で resolve し、サーバー応答は `trackCommit` が同期失敗通知へ流す。応答待ちが必要な操作だけ `{ waitForCommit: true }` を渡す。pending は `waitForTaskListMutations(ids)` を待ってから解放する（投入の resolve で解放すると旧表示へ戻る）。キュー内で `await updateDoc` / `await batch.commit` して投入を止めない。
+- task mutation の settings は Firestore を再読せず、購読済みの値を `ResolvedTaskSettings` で渡す。`updateSettings` は同期関数で、画面に更新中ロックを持たない。
+- `index` / `404` / `500` では Auth を購読しない。30 秒以上 hidden だった後の復帰では `restartNetworkAfterHidden` で接続を張り直す。
+- localStorage は `readStorageItem` / `writeStorageItem` を通す。SSR しないため `typeof window` ガードや `useIsomorphicLayoutEffect` を持ち込まない。
+- `ErrorBoundary` はクラスコンポーネントのため `withTranslation()` で i18next を注入する。
+
+## ルーティング・アクセシビリティ
+
+- 認証後シェルは hash route（`/app/#/task-lists`・`#/task-lists/:taskListId`・`#/settings`・`#/calendar`）。`/app/` は mount 後に `#/task-lists` を積み、settings 読み込み後に `startupView` で初期遷移する。compact の横スライドは初期 route の確定後に有効化する（起動時のちらつき防止）。`/settings` の独立 route は持たない。
+- task action は狭幅で bottom sheet、広幅で dialog。`history.state` を 1 段積み、戻る操作と `Esc` のどちらでも閉じて起点のボタンへフォーカスを戻す。
+- compact layout と carousel は表示中の画面・スライドだけを Tab 順と accessibility tree に含める。画面切替時は main へフォーカスを移す（初回表示では奪わない）。
+- 各ページは `useDocumentTitle()` で「画面名 - Lightlist」を設定し、`main#main-content`（`MAIN_CONTENT_ID`）を 1 つ持つ（エラー・404 / 500 でも省略しない）。タスクリスト名の見出しは `h1`。
+- オンライン判定は `useIsOnline()`、オンライン必須操作の説明は `ConnectionRequiredNote`。
+
+## LP の編集
+
+- section や FAQ を足すときは、HTML の ja 直書き・`shared/locales/locales.json` の全言語・JSON-LD（FAQ は `vite.config.ts` の `LP_FAQ_KEYS`）を揃える。`data-i18n` 要素は子要素を持たないテキストだけにし、新しい utility は `lp-styles.css` に `ll-lp-*` で定義する。
+- headline / subheadline は `white-space: pre-line` 前提のため、HTML は `<!-- prettier-ignore -->` + `&#10;` の 1 行記述を保つ。
+- 法的ページを増減するときは plugin の `LEGAL_PAGES`・全言語の `src/legal/<lang>.json`・LP フッターのリンクを揃える。
+- LP は `.dark` を付けないため常に light で表示される。
 
 ## 主要コマンド
 
-- `npm run dev`
-- `npm run build`
-- `npm run cf:preview`
-- `npm run cf:deploy`
+- `npm run dev` / `npm run build`
+- `npm run check`（前処理 + eslint / tsc / knip）
 - `npm run format`
-- `npm run lint`
-- `npm run knip`
-- `npm run typecheck`
-- `npm run check`（prepare:assets を 1 回実行して lint / typecheck / knip）
-
-## セキュリティ・品質
-
-- 英語相対日付の解析は UI 翻訳の dynamic import に依存させない。`sync-shared-locales.mjs` が shared locale の英語 `datePatterns` だけを `src/english-date-patterns.json` に生成し、parser が静的に読む。英語の UI 翻訳全体は引き続き dynamic import にする。言語正規化を変更するときは `entry.tsx` / `lp.ts` / `public/theme.js` を揃える。
-- Web は SSR を行わないため、`typeof window` / `typeof document` のガードや `useIsomorphicLayoutEffect` を持ち込まない。localStorage の読み書きは例外を握りつぶす `readStorageItem` / `writeStorageItem`（`null` で削除、成否を boolean で返す）を通す。
-- `ErrorBoundary` はクラスコンポーネントのため `withTranslation()` HOC で i18next を注入する（`useTranslation` フック不可）。
-
-- Web の確認 UI は `window.confirm` / `window.alert` を使わず、`ConfirmDialog`（Radix Dialog、タイトル + 本文 + キャンセル / 削除）を使う。dialog 内からの確認は元の `DialogContent` の内側に置いて入れ子にする。
-- オフライン表示は `AppWrapperBody` 直下の `OfflineNotice`（オフラインは `role="status"`、同期失敗は `role="alert"` + 閉じるボタン `ll-offline-notice-action` / `ll-offline-notice-close`。容器 `ll-offline-notice` は `pointer-events: none` で同期失敗のピルだけ操作可能）1 つだけで行い、画面ごとに追加しない。オンライン判定は `useIsOnline()`、オンライン必須操作の説明は `ConnectionRequiredNote` を使う。
-- Web の `enqueueTaskListMutations` は SDK への投入完了で resolve し、サーバー応答は `trackCommit` で同期失敗通知へ流す。サーバー応答まで待つ必要がある操作（共有コード解除・共有参加・退会中のリスト削除・部分 map 除去）だけ `{ waitForCommit: true }` を渡す。楽観表示の解放は `waitForTaskListMutations(ids)`（queue ドレイン）を待ってから行い、投入 Promise の resolve で解放しない（listener のローカル反映前に旧表示へ戻る）。設定の `updateSettings` は同期関数で、画面側に更新中ロックを持たない。
+- `npm run preview`（build + `wrangler dev`）
+- `npm run deploy`（通常はルートの `just deploy-web` / `just release` から実行）
+- `npm run screenshots -- <target>`

@@ -13,14 +13,12 @@ build:
 build-release:
   ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease
 
-bundle: bundle-play
-
-bundle-play:
+bundle:
   #!/usr/bin/env zsh
   set -euo pipefail
   signing_env="$(just _signing-env)"
   eval "$signing_env"
-  ./gradlew bundleRelease -PLIGHTLIST_REQUIRE_RELEASE_SIGNING=true
+  ./gradlew bundleRelease
   just verify-bundle
 
 verify-bundle:

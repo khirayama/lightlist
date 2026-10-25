@@ -20,9 +20,3 @@
 /.well-known/assetlinks.json
   Content-Type: application/json
   Cache-Control: public, max-age=300
-
-https://:project.pages.dev/*
-  X-Robots-Tag: noindex
-
-https://:version.:project.pages.dev/*
-  X-Robots-Tag: noindex

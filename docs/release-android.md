@@ -9,7 +9,7 @@
 
 - Android の Gradle は build cache・configuration cache・daemon・parallel execution・file-system watching・tooling parallelism を有効にする。Kotlin は incremental compilation を有効にし、Gradle daemon の heap は 4GB を割り当てる。
 - Kotlin の増分コンパイルキャッシュが壊れた場合は、`cd apps/android && ./gradlew clean assembleDebug` を一度実行して生成物を再構築する。通常の `just build` は clean を実行せず、configuration cache と build cache の再利用を優先する。
-- `just build-release` は内部確認用 APK のため release lint（`lintVital`）と Crashlytics の mapping upload/injection を除外し、R8 縮小・resource shrinking・署名を実行する。Google Play 提出用の `just bundle-play` は release lint と Crashlytics の mapping 処理を含む完全な release build とする。Crashlytics Gradle plugin は runtime が必要とする build ID を注入するため全 variant に適用し、mapping upload は `bundleRelease` を要求した build だけで有効にする。`./gradlew assembleRelease` を直接実行した場合も内部確認用経路になる。
+- `just build-release` は内部確認用 APK のため release lint（`lintVital`）を除外し、R8 縮小・resource shrinking・署名を実行する。upload key の署名環境変数がなければ debug keystore で署名する。Google Play 提出用の `just bundle` は release lint を含む完全な release build とする。Crashlytics Gradle plugin は runtime が必要とする build ID を注入するため全 variant に適用し、mapping upload は upload key で署名する build だけで有効にする。
 
 ## 判断事項
 
@@ -43,10 +43,10 @@
 - upload key は `cd apps/android && just keystore-create` で作成する。既定では `~/.lightlist/android/upload-keystore.p12`（PKCS12、RSA 4096、有効期間 30 年、alias `upload`）を作り、ランダム生成したパスワードを login Keychain の service `com.lightlist.android.upload-key`（account は alias）へ保存する。既存の keystore または Keychain 項目がある場合は上書きせずに失敗する。
 - keystore はリポジトリ外に置き、パスと alias だけを gitignore 対象の `apps/android/.env.local` に書く（`apps/android/.env.sample` をコピーして作る）。パスワードはファイルや shell 履歴に残さない。
 
-- `just bundle-play` / `just verify-bundle` / `just signing-report` は、環境変数に `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` がなければ Keychain から読み、`LIGHTLIST_ANDROID_KEY_PASSWORD` がなければ store password を使う（PKCS12 は両者が同じ）。シェルの環境変数は `.env.local` より優先する。Gradle を直接実行する場合は 4 つの `LIGHTLIST_ANDROID_*` を Gradle property または環境変数で渡す。
+- `just bundle` / `just verify-bundle` / `just signing-report` は、環境変数に `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` がなければ Keychain から読み、`LIGHTLIST_ANDROID_KEY_PASSWORD` がなければ store password を使う（PKCS12 は両者が同じ）。シェルの環境変数は `.env.local` より優先する。Gradle を直接実行する場合は 4 つの `LIGHTLIST_ANDROID_*` を Gradle property または環境変数で渡す。
 - keystore ファイルと Keychain のパスワード（`security find-generic-password -s com.lightlist.android.upload-key -a upload -w`）を、パスワードマネージャーなど別の安全な場所へバックアップする。紛失・漏洩時は Play Console の App integrity から upload key のリセットを依頼する（app signing key は影響を受けない）。
 - `just signing-report` で debug keystore と upload key の SHA-1 / SHA-256・有効期間を確認する。Play App Signing の app signing key の fingerprint は Play Console の App integrity でだけ確認できる。
-- `just bundle-play` は生成後に `just verify-bundle` を実行し、AAB の署名証明書 SHA-256 が upload key と一致しなければ失敗する。
+- `just bundle` は生成後に `just verify-bundle` を実行し、AAB の署名証明書 SHA-256 が upload key と一致しなければ失敗する。
 
 ### 3. Firebase 設定
 
@@ -56,8 +56,22 @@
 
 ### 4. App Links / deep links
 
-- `https://lightlist.app/sharecodes/?code=CODE` と `https://lightlist.app/password_reset?oobCode=...` を release build で確認する。
-- App Links の自動検証には `https://lightlist.app/.well-known/assetlinks.json` が必要。Cloudflare Pages の `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` へ **Play App Signing certificate** の SHA-256 fingerprint を設定して `npm run cf:build` で生成する。upload key の fingerprint だけを設定してはいけない。direct install の署名も検証する必要がある場合だけ、その SHA-256 をカンマ区切りで追加する。
+- `https://lightlist.app/sharecodes/?code=CODE` を release build で確認する。
+- App Links の自動検証には `https://lightlist.app/.well-known/assetlinks.json` が必要。次の内容で `apps/web/public/.well-known/assetlinks.json` を作り、`sha256_cert_fingerprints` に **Play App Signing certificate** の SHA-256 fingerprint（大文字・コロン区切り）を書いて Web を配信する。upload key の fingerprint だけを書いてはいけない。direct install の署名も検証する必要がある場合だけ、その SHA-256 を配列に追加する。
+
+```json
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.lightlist.app",
+      "sha256_cert_fingerprints": ["<SHA256>"]
+    }
+  }
+]
+```
+
 - endpoint は redirect なしの JSON (`Content-Type: application/json`) を返す。デプロイ後、release build を端末へ入れて次を確認する。
 
 ```sh
@@ -66,8 +80,6 @@ adb shell pm verify-app-links --re-verify com.lightlist.app
 adb shell pm get-app-links com.lightlist.app
 ```
 
-- Firebase Authentication のアプリ内パスワードリセットは Firebase Hosting link domain を使う。Firebase Console に Android package、Play App Signing SHA-1 / SHA-256、Hosting links、Web fallback URL を設定し、`mode=resetPassword` と `oobCode` を含む Hosting link が native reset 画面を開くことを確認する。必要なら `LIGHTLIST_FIREBASE_AUTH_LINK_DOMAIN` で app の link domain を上書きする。
-- `lightlist://sharecodes/CODE` の custom scheme も確認する（パスワードリセットは HTTPS だけを受け付ける）。
 
 ### 5. 端末データと成果物
 
@@ -106,7 +118,7 @@ cd apps/android
 just lint
 just build
 just build-release
-just bundle-play
+just bundle
 ```
 
 - Google Play 提出用 AAB は `apps/android/app/build/outputs/bundle/release/app-release.aab`。
@@ -116,9 +128,7 @@ just bundle-play
 
 - 最初は internal testing track に AAB をアップロードする。新規個人デベロッパーアカウントで production access が未解放の場合は、closed testing で 12 人以上の tester に 14 日間連続 opt-in してもらってから production access を申請する。
 - Firebase Auth / Firestore / Crashlytics / Analytics、deep link、パスワードリセット、共有コードの未認証プレビューとログイン済み参加導線、主要言語、RTL、端末テーマ、tablet 幅を確認する。
-  - `lightlist://sharecodes/CODE`
   - `https://lightlist.app/sharecodes/?code=CODE`
-  - `https://lightlist.app/password_reset?oobCode=...`
 - 問題がなければ production release を staged rollout で小さく公開する。Crashlytics、Play Console Android vitals、Firebase Analytics を確認し、段階的に rollout 率を上げる。
 
 ## 後から変更しづらいもの

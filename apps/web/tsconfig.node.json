@@ -1,11 +1,13 @@
 {
   "compilerOptions": {
-    "composite": true,
     "target": "ES2022",
     "strict": true,
+    "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
   },
-  "include": ["vite.config.ts", "vite.messaging.config.ts"]
+  "include": ["vite.config.ts", "scripts/*.ts"]
 }

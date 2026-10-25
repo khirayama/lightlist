@@ -1,4 +1,7 @@
 .wrangler/
 dist/
-/public/notifications/firebase-messaging-sw.js
 *.tsbuildinfo
+public/licenses/
+src/locales/
+src/lp-locales.json
+src/english-date-patterns.json

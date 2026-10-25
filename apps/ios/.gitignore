@@ -27,3 +27,4 @@ Tuist/.build/
 .build/
 .swiftpm/
 Lightlist/Resources/Firebase/*/GoogleService-Info.plist
+Lightlist/Info.plist

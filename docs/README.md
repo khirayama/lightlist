@@ -2,7 +2,7 @@
 
 `docs/` はドメイン仕様・必須設定・制約を置く場所。アプリの挙動、見落としやすい前提、維持したい制約を、利用者視点と実装制約の両方から簡潔に書く。
 
-実装メトリクスやファイル構成の細部、作業ルールは `AGENTS.md` と `CLAUDE.md` を正とする。ここでそれらを重複管理しない。
+UI の寸法・色・アニメーション時間などの数値は各実装の定数を正とし、作業ルールと実装上の落とし穴は `AGENTS.md` に置く。ここでそれらを重複管理しない。
 
 ## ドメイン仕様
 
@@ -12,20 +12,19 @@
 - [sharing.md](./sharing.md) — 共有コードと共有権限モデル
 - [authentication.md](./authentication.md) — 認証方式、必須環境変数、初期データ、パスワードリセット
 - [notifications.md](./notifications.md) — 共有リスト更新通知、端末登録、配信設定
+- [api.md](./api.md) — 外部 API（MCP）、API トークン、ツールと書き込み規則
 
 ## 設定・運用
 
-- [app-check.md](./app-check.md) — Firebase App Check を使用しない構成
 - [analytics.md](./analytics.md) — Analytics イベント設計
-- [deployment.md](./deployment.md) — Web 配信、PWA、Cloudflare Pages、Firebase デプロイ
+- [deployment.md](./deployment.md) — Web 配信、PWA、Cloudflare Workers、Firebase デプロイ
+- [billing-control.md](./billing-control.md) — 費用監視と課金停止
 - [legal.md](./legal.md) — ライセンス表記
 - [screenshots.md](./screenshots.md) — 配信用スクリーンショット生成
 
 ## 開発用起動
 
-- Android Emulator はルートで `just emulator` を実行する。AVD 名を変更する場合は `just emulator <AVD名>` として指定する。
-- iOS Simulator はルートで `just simulator` を実行する。デバイス名または UDID を変更する場合は `just simulator <デバイス名またはUDID>` として指定する。
-- いずれも各アプリの `Justfile` にある起動処理へ委譲し、ビルドは別途 `just android` / `just ios` で行う。
+- Android Emulator は `cd apps/android && just emulator <AVD名>`、iOS Simulator は `cd apps/ios && just simulator <デバイス名またはUDID>` で起動し、ルートの `just android` / `just ios` でビルドしてインストールする。
 
 ## リリース
 
@@ -36,7 +35,7 @@
 
 - モノレポ構成。`apps/web`（Vite + React + TypeScript）/ `apps/ios`（SwiftUI, iOS 17+）/ `apps/android`（Kotlin + Gradle）。
 - Web は `apps/web` の実装をアプリケーション仕様の正とし、iOS / Android は同じドメイン仕様へ揃える。
-- 3 プラットフォームとも Firebase Authentication + Cloud Firestore を直接使う。
+- 3 プラットフォームとも Firebase Authentication + Cloud Firestore を直接使う。外部 API（MCP）だけは Functions が Admin SDK で Firestore を読み書きする。
 - サポート言語は `ja` / `en` / `es` / `de` / `fr` / `ko` / `zh-CN` / `hi` / `ar` / `pt-BR` / `id`。`fallbackLng` は `ja`。
 
 ## 書くこと / 書かないこと

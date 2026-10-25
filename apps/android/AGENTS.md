@@ -1,61 +1,55 @@
 # Android（apps/android）
 
-ルートの `AGENTS.md` を前提に、Android 固有の規則をまとめる。
+ルートの `AGENTS.md` を前提に、Android 固有の規則と落とし穴をまとめる。提出手順は `docs/release-android.md`。
 
-## 実装規則
+## ビルド・設定
 
-- Android のシート（task action・カレンダーのタスクシート・同梱アセット）は `ContentView.kt` の `AppSheet` だけで表示する。ウィンドウ幅 640dp 未満は `ModalBottomSheet`（標準の drag handle・上角丸 28・padding 左右 16 / 下 24）、640dp 以上は Web の `ll-sheet-panel` と同じ中央の `Dialog`（最大幅 448・角丸 20・padding 24 / 16 / 24）にする。`ModalBottomSheet` は背の高い content を入れると既定の `contentWindowInsets`（status bar を含む）との再アンカーで全画面へ広がるため、`contentWindowInsets = { WindowInsets(0) }` を渡し、content 側で `navigationBarsPadding()` + `imePadding()` と最大高 `min(704dp, 画面高の 88%, 画面高 - status bar - 8dp)`（Web の `ll-max-h-sheet`）を指定する。シートの見出しは `AppSheetHeader`（タイトル 16 SemiBold + Ghost の閉じる。閉じるは終了側へ 12dp はみ出させて文字端を揃える）を使う。
-- Android は Material You の dynamic color（`dynamicDarkColorScheme` / `dynamicLightColorScheme`）を使わず、`ContentView.kt` の `LightColorScheme` / `DarkColorScheme` を上記パレットで明示定義する（`surfaceContainer*` 系も含めて指定し、sheet / dialog の面色を dark `#111827` に揃える）。起動 window theme は `values/themes.xml`（light）と `values-night/themes.xml`（dark）で OS 設定に追従させる。`res/values/colors.xml` のテンプレート色は削除済みで復活させない。
-- Android の UI 部品は Material 3 の標準部品をアプリの配色・角丸で包んだ共通部品を `ContentView.kt` に持ち、画面ごとに独自スタイルを作らない: ボタンは `AppButton`（Primary / Destructive = `Button`、Secondary = `OutlinedButton`、Tonal = `FilledTonalButton`、Ghost / Danger = `TextButton`。最小高 44・角丸 12・SemiBold 14、Ghost / Danger は横 padding 12）、アイコンボタンは `AppIconButton`（`IconButton`、48）、入力欄は `AppTextField`（`OutlinedTextField`、角丸 12・`outlineVariant` 枠・focus 時は `onSurfaceVariant` 枠）、ラベルは `AppFieldLabel`、エラー / 成功表示は `AppAlert`、スイッチは `AppSwitch`（`Switch`、行側の `toggleable` で操作する表示専用）、リスト色ドットは `AppListDot`（10dp、未設定は 1.5dp の輪）、色選択は `AppColorPicker`（7 色を 1 行に収める）。押下表現は Material の ripple に任せ、これらの部品へ独自の scale を重ねない。月カレンダーは `AppMonthCalendar` を使い、Material の `DatePicker` は使わない。色付き背景上の補助文字・補助アイコンは `mutedTextColor()` / `mutedIconColor()`（前景色の 64% / 42%、dark 68% / 45%）で描く。
-- Android のダイアログ（リスト作成・参加・編集・共有・確認・設定の選択肢）は `AppDialog`（Material の `AlertDialog`。`usePlatformDefaultWidth = false` + 左右 16 の余白 + 最大幅 416、角丸 16、`surfaceContainer`、タイトル Display Bold 18、本文に説明 14 とラベル付きフィールド、ボタン領域は終了側に「Secondary → Primary」、破壊的操作は `footerStart` の `Danger` テキストボタン）と `AppConfirmDialog` で組む。既定の幅のままだと `footerStart` の文言が切れる。設定の選択肢は `AppDialog` 内の行 + 選択中のチェックで表す。
-- Android の月カレンダーは `AppMonthCalendar`（`CalendarMonth` を状態に持ち、前後月 44 の円ボタン + 20dp chevron・月見出し 16 SemiBold・曜日 12 Medium（ICU `SHORT`）・月外日を muted text で含む週グリッド・日セル 48・日付ボタン 40・当日 1dp リング・ドットは日付ボタン内の下部に 6dp）を唯一の実装とし、カレンダー画面・task action sheet・カレンダーのタスクシートで共用する。週の開始曜日は Web の date-fns locale と同じく `es` / `de` / `fr` / `zh-CN` / `id` は月曜、`ar` は土曜、それ以外は日曜。選択済みの日付を再度選ぶと選択解除、月外日を選ぶとその月へ移動して選択する。シート内では `AppSheetCalendarSurface`（`surfaceDim`・角丸 16・padding 8 / 8 / 12）に載せる。
-- Android のタスクリスト一覧は Web の `TaskListSidebarPanel` と同じ構成にする: `surfaceContainer` 面・padding 16・ブロック間 12、ヘッダーはブランドロゴ（`R.drawable.brand_logo`、`shared/assets/brand/logo.svg` と同じグラデーション）24 + `title`（Display Bold 18）と設定アイコン 22、カレンダーのナビ行（高さ 44・角丸 10・20dp アイコン）、`app.drawerTitle` の小見出し、リスト行（最小高 52・色ドット・名前 14 Medium・`taskList.remainingCount`・終了側の drag handle 40×44）、一覧の直下に Tonal の「新規作成（add）/ リストに参加（link）」2 列。tablet は表示中のペインに応じてリスト行・カレンダー行・設定アイコンへ `rowActive`（前景色 7% / dark 10%）の面を付ける。
-- Android のカレンダー画面は日グリッド・「タスクを追加」ボタン（常時表示、`add` アイコン、日付選択時は「日付 · タスクを追加」）を `LazyColumn` の外に固定し、一覧だけを `LazyColumn` でスクロールさせる（1 カラムでも同じ）。tablet の右ペインは `AppPageTitleTextStyle`（Display Bold 24）の見出しと padding 上 40 / 左右 24 を置き、ペイン幅 720dp 以上で左に 288〜416dp のカレンダー + 追加ボタン、右に一覧の 2 カラムにする。追加の既定日は選択日（未選択なら今日）、既定の追加先は選択中のタスクリスト（なければ先頭）。
-- Android の設定画面は Web と同じく、選択行を値 + chevron-down（`AppDialog` で選択）、遷移行を chevron-right（muted icon）、メールアドレス変更をアカウントカード内のインラインフォーム、autoSort を `AppSwitch` とする。compact は header 56 + padding 上 8 / 左右 16 / 下 40、tablet は page title + padding 上 40 / 左右 24、いずれも最大幅 640。
-- Android の `DetailScreenScaffold` のヘッダーは `CenterAlignedTopAppBar`（透明の container、`expandedHeight` 56 / 48（詳細）、navigationIcon に戻る、タイトルは 16 SemiBold）とする。tablet の右ペイン（`showTopBar = false`）は本文側で status bar を含む `safeDrawing` を確保する。
-- Android の認証画面は Web の `LoginPage` と同じく、`surfaceDim` 背景上の角丸 24 + `outlineVariant` 枠のカード（最大幅 544・padding 24）に `title`（Display Bold 24）・終了側の言語セレクト・`signin` / `signup` のセグメントタブ・上ラベル付き入力欄（`auth.placeholder.*`、入力エラーは欄の直下）・全幅の Primary / Secondary ボタンを置き、カードの下に `copyright` を表示する。パスワードリセットはタブにせず「パスワードを忘れた」Secondary ボタンから開き、表示中はタブを隠す。
-- Android の起動は cache-first でユーザ入力受付までを最短にする。`MainActivity.onCreate` の `warmUpStartupData()` が background thread で `Translations.preload()`（151KB の locales.json パース）と Firestore の cache 先読み（`settings` / `taskListOrder` を `Source.CACHE` で get）を行う。`taskLists` は `memberKeys` クエリの cache get と listener 購読を taskListOrder と同時に開始し、`subscribeToOrderedTaskLists` は order snapshot で taskLists 購読を張り直さない。両方の初回 snapshot（cache 含む）が揃ってから一覧を publish する。Firestore client のコールド初期化（SQLite オープン）は初回合成と並行させる。表示が一時的に cache の古い内容でも listener の live snapshot が後から追いつく前提で問題ない。設定値（テーマ・言語・追加位置・autoSort・起動画面）は `StartupSettingsCache` が uid 付きで SharedPreferences（`lightlist.startup`）へ保存し、`rememberSettingsState` の初期値として初回フレームから反映する（存在する settings snapshot を受けるたびに差分だけ更新、ログアウトで削除、uid 不一致・不正値は無視）。この初期値は `isLoading = true` のまま `isStartupCached = true` とし、起動時の分岐は `isStartupPending`（保存値がなく読み込み中）だけを待つ。ログイン済み起動時の自動遷移は保存値があれば即時、なければ settings listener の初回 snapshot（cache 含む）を待ってから `startupView` で分岐する（`taskList` は `TaskList/__initial__`、`calendar` は `Calendar?initial=true`、`taskLists` は root に留まる）。この自動遷移はスライドアニメーションを適用しない（`isInitialAutoNavigation()` で `__initial__` 宛と `Calendar?initial=true` 宛の enter/exit を `EnterTransition.None` / `ExitTransition.None` にする。Web の「横スライドは初期 route 確定後に有効化」と同一仕様）。release build は `androidx.profileinstaller` を依存に含め、AGP が同梱する library baseline profile をインストール時に適用する。
-- Android のタスクリスト件数表示は Web と同じ未完了件数を `taskList.remainingCount_one` / `taskList.remainingCount_other`（なければ `taskList.remainingCount`）で `count` 付きに解決し、`"${count}個のタスク"` のような直書きを持ち込まない。
-- Android の設定値表示やアクセシビリティ文言も shared locale key を正とし、`system` / `top` / `Settings` / 固定曜日名のような raw value や固定言語文字列を直接表示しない。
-- Android の i18n は `ContentView.kt` 内の `Translations` で `locales.json` の言語ノードを読み分けて使う。
-- Android の app module は `ContentView.kt` 内の analytics helper が `BuildConfig.DEBUG` を参照するため、`apps/android/app/build.gradle.kts` の `buildFeatures.buildConfig = true` を維持する。
-- Android のパスワードリセット URL は `BuildConfig.PASSWORD_RESET_URL` で管理し、既定値は `https://lightlist.app/password_reset` とする。
-- Android のネイティブなパスワードリセット送信は Firebase Hosting link を `handleCodeInApp: true` で開く。link host は `BuildConfig.PASSWORD_RESET_LINK_DOMAIN` と manifest placeholder で debug / release ごとに揃え、Firebase Hosting で構成済みの domain だけを `LIGHTLIST_FIREBASE_AUTH_LINK_DOMAIN` で上書きする。Cloudflare Pages の domain を Firebase Hosting link domain として未構成のまま指定しない。
-- Android の Firebase 設定は build variant ごとに `google-services.json` を分け、debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json` を使う。release 用ファイルの package 名は `com.lightlist.app` と一致させる。
-- Android の Firebase BoM は v34 以降を前提にし、`firebase-*-ktx` ではなく `firebase-auth` / `firebase-firestore` / `firebase-analytics` / `firebase-crashlytics` の main module を使う。
-- Android の release APK は R8 縮小後も Firebase component registrar の no-arg constructor と、Firestore の `DocumentSnapshot.toObject()` で変換する `FirestoreSettingsRecord` / `FirestoreTaskListRecord` / `FirestoreTaskRecord` のクラス名・フィールド・アクセサ・no-arg constructor を保持する必要がある。`apps/android/app/proguard-rules.pro` の対応する `-keep` 指定を維持し、削除しない。
-- Android の Google Play 提出物は `cd apps/android && just bundle-play` で生成する release AAB（`apps/android/app/build/outputs/bundle/release/app-release.aab`）を正とする。release upload key 署名は `LIGHTLIST_ANDROID_KEYSTORE` / `LIGHTLIST_ANDROID_KEYSTORE_PASSWORD` / `LIGHTLIST_ANDROID_KEY_ALIAS` / `LIGHTLIST_ANDROID_KEY_PASSWORD` を Gradle property または環境変数で渡す。Justfile は gitignore 対象の `apps/android/.env.local`（keystore パスと alias、雛形は commit 済みの `apps/android/.env.sample`）を読み、パスワードは環境変数がなければ login Keychain の service `com.lightlist.android.upload-key`（account は alias）から取得する。upload key は `just keystore-create` でリポジトリ外（既定 `~/.lightlist/android/upload-keystore.p12`）に作成し、パスワードをファイルへ書かない。`just bundle-play` は生成後に AAB の署名証明書 SHA-256 が upload key と一致することを `just verify-bundle` で検証する。版数は `apps/android/gradle.properties` の `LIGHTLIST_VERSION_CODE` / `LIGHTLIST_VERSION_NAME` を正とし、Play Console にアップロード済みの値より大きくしてから生成する。
-- Android の認証フォームは Compose Autofill を有効にするため `ContentView.kt` の `AuthTextField` に `contentType` を必ず設定し、サインインは既存資格情報、サインアップ/パスワードリセットは新規資格情報として宣言する。
-- Android の未ログイン起動時の認証画面は、保存済み settings が無い場合に端末ロケールをサポート言語へ丸めて初回表示言語として使い、`Translations` は初回描画前にロード済みインスタンスを `CompositionLocal` へ渡して翻訳キーの生表示を避ける。`zh-*` は `zh-CN`、`pt-*` は `pt-BR` に丸め、それ以外の未対応ロケールは `ja` にフォールバックする。
-- Android のディープリンクは `lightlist://sharecodes/CODE`、HTTPS 正規形 `https://lightlist.app/sharecodes/?code=CODE`、`https://lightlist.app/password_reset?oobCode=...` と Firebase Hosting link を処理し（パスワードリセットは他アプリが同じ scheme を登録できる custom scheme では受け付けない）、`ContentView.kt` 内の `MainActivity` で `PendingDeepLink` へ変換して UI 側で処理する。共有コードは未認証でもプレビューを開き、ログイン済みかつ未参加のときだけ `taskListOrder` 追加導線を出す。
-- Android の `TaskListDetailPagerScreen` は選択中タスクリストの `background` を詳細ペイン背景として使う。compact 幅は画面全体、regular 幅は右ペインだけに適用し、左ペイン（Web の sidebar と同じ `surfaceContainer`）との間に境界線を置かない。色は `resolveTaskListBackgroundColor` で解決し、light / dark とも選択色そのままを使う。背景色付きの詳細（`DetailScreenScaffold` の戻るボタン・各ページ・インジケータ）と共有プレビューは `TaskListColorScope` で `LightColorScheme` の `MaterialTheme` に包み、`AppDialog` / `AppSheet` / 履歴 `DropdownMenu` は `AppThemeScope` でアプリのテーマ（`LocalAppColorScheme`）に戻す。背景色付きの領域から新しい popup を開くときも `AppThemeScope` で包む。compact 幅では `ColoredSystemBarsEffect` でステータスバー・ナビゲーションバーのアイコンを暗色にする。`DetailScreenScaffold` は `containerColor` に配色外の色を渡すため `contentColor` を `onBackground` で明示する（省略すると既定の黒になり dark で文字・アイコンが読めない）。regular 幅ではページインジケータを表示せず、本文の上に 40dp の余白を取り、本文は最大幅 672dp で中央に置く（Web の `ll-task-column`）。`TaskListDetailPage` はページャーのインジケータだけを固定表示し、タスクリスト名、タスク追加欄、並び替え・完了済み削除操作、タスク一覧を同じ `LazyColumn` に含める。
-- Android の `TaskListDetailPagerScreen` は Web と同じく、ヘッダーとページインジケータに背景を持たせず、`HorizontalPager` を画面全体（ステータスバー・ヘッダー・ナビゲーションバーの下）に広げて各ページが自分の背景色を描く。`DetailScreenScaffold(contentBehindTopBar = true)` で content の inset を外し、各ページ側で `safeDrawing` 上端 + ヘッダー高（regular 幅は `safeDrawing` の上端）・下端・左右と `imePadding` を確保し、本文を最大幅で中央に置く。インジケータは同じ上端 inset の位置に透明で重ね、各ページは上端 inset にインジケータ行の高さ（`indicatorContentInset`）も加えて `LazyColumn` をその下から始める（Web compact と同じく、タスクがインジケータの下へスクロールせず、インジケータの背後は各ページの背景色になる）。読み込み中・エラー・空状態は従来どおり Scaffold の content inset を使う。
-- Android の一覧ヘッダー、詳細ヘッダー、設定ヘッダー、カレンダー確認画面の上部クロームは `WindowInsets.safeDrawing` を反映し、ステータスバーと重ねない。詳細/設定/カレンダーの共通ヘッダーは safe area 分を外側コンテナで確保し、戻るボタンやタイトルの固定高さを inset と共有しない。
-- Android のタスクリスト詳細は `TaskListDetailMetrics` を正とし、Web の `ll-task-row` と同じ幾何で組む: 行は左右 12dp の `Modifier.bleed`、drag handle 48（終了側 20dp 重ね。当たり判定は完了トグルより前面に置いた開始側 38dp とし、handle と完了トグルの中心の中点で分ける）、完了トグル 48（終了側 8dp 重ね）、本文は最小高 48・16sp Medium / 行高 28、日付は最小高 20 の行（font scale 拡大時は伸ばし、文字を切らない）に 12sp を 8dp 下げて置き、日付ありの行は下揃え・なしは中央揃え、右端 action 48（20dp アイコン）、行 padding 上下 2 で行ピッチ 52（日付あり 72）。見出し行は最小高 48（Display Bold 20）、入力欄の下に操作列（上 12 / 下 8、高さ 44、muted text 14 Medium + 24dp 枠の 20dp アイコン、並び替えは 2 件未満・完了削除は完了なしで alpha 0.5）を置く。個別の `offset` で位置を合わせない。
-- Android の `TaskListDetailPage` の本文系テキスト（新規入力欄、task 本文、インライン編集欄、日付ラベル）は local `TextStyle` を共有し、`includeFontPadding = false` と固定 line height で言語や font fallback による高さ揺れを吸収する。新規入力欄は local metrics の最小高さを持たせる。
-- Android の task action は `AppSheet` + `AppMonthCalendar` を使い、TalkBack では `paneTitle` を設定して別ペインとして読ませる。カレンダー部分は縦スクロール可能にする。
-- Android のアプリ内アイコンは Web の `AppIcon`（Material の path）と同じ図形・サイズにする。`AppIconMetrics` の戻る 24dp、設定・リスト編集・共有 22dp、行 action・操作列・drag handle・送信・chevron 20dp、ボタン内アイコン 18dp、カレンダー行のピン 14dp を基準にし、編集・削除は `Icons.Outlined.*`、並び替えは `Icons.AutoMirrored.Filled.Sort` を使う。launcher icon 資産とは分けて扱う。
-- Android の `TaskListDetailPage` は、タイトル・入力欄・操作列のセクション間余白と、タスク行同士の余白を別メトリクスで管理する。タスク行間はセクション間より詰める。
-- Android Compose の handle 並び替えで `pointerInput` を使う場合、再 compose ごとに変わる gesture lambda を key や detector 本体に直接渡さない。drag 中に state 更新が入っても detector を再生成せず、必要な callback は `rememberUpdatedState` 経由で参照する。detector には `onDragEnd = { currentOnDragEnd() }` のように lambda 内で呼ぶ形で渡し、`onDragEnd = currentOnDragEnd` と値で渡さない（detector 開始時の callback が固定され、古い `displayTasks` を基準に保存差分を計算して並び替えが元に戻る）。
-- Android のタスク本文の長押し並び替えは、本文の `clickable` より後ろに `pointerInput` + `detectDragGesturesAfterLongPress` を置く（後ろの modifier が Main pass を先に受け、ドラッグ終了の up を消費して編集開始の click を止める）。長押し成立前に `LazyColumn` / `HorizontalPager` が移動を消費すると長押しは取り消されるため、スクロールとページ切替を別途止めない。`detectDragGesturesAfterLongPress` は待機中の coroutine が取り消されても `onDragCancel` を呼ぶ（`detectDragGestures` は呼ばない）ため、ドラッグ中の自動スクロールで画面外の行が破棄されると、その行の `onDragCancel` が届く。`onDragCancel` は `draggingTaskId` が自分の task のときだけドラッグ状態を解除する。
-- Android の launcher icon は `shared/assets/brand/maskable-512.png` を正とし、70% に縮小して中央配置した素材から adaptive icon と density 別 mipmap を生成する。themed icon 用の monochrome layer は同じ意匠の単色 vector を使う。
-- Android の release build は `isMinifyEnabled = true` とし、`allowBackup = false` を維持する。
-- Android の `just build-release` は内部配布確認用 release APK（`apps/android/app/build/outputs/apk/release/app-release.apk`）を生成し、release 署名情報を渡さなければ debug keystore で署名する。
-- Android の `just bundle`（互換用 `just bundle-play`）は release upload key 署名なしでは失敗させ、Google Play 提出用 AAB を生成し、upload key 署名を検証する。
-- Android の Firestore は `MainActivity.onCreate` の `configureFirestore()` で `PersistentCacheSettings`（`CACHE_SIZE_UNLIMITED`）を設定する。設定は Firestore の初回利用前に 1 回だけ（Activity 再生成で再設定すると例外）行う。オンライン判定は `rememberIsOnline()`、オンライン必須操作の説明は `ConnectionRequiredNote`、同期失敗は `SyncFailureState.report()`（queue 外の batch は `commitReportingFailure`）を使い、書き込みの `Task` を Composition の `scope` で `await` して UI を待たせない。
-- Android の Baseline Profile は未導入（library profile を `profileinstaller` で適用するのみ）。導入時は、AGP の instrumentation 実行がアプリをアンインストールするためログイン後画面のプロファイルに自動ログインが必要なこと、release 系 variant は release 用 Firebase 設定を使うことを前提に設計する。
+- Firebase 設定は variant ごとに分ける: debug は `app/google-services.json`、release は `app/src/release/google-services.json`（package 名 `com.lightlist.app`）。Firebase BoM は v34 以降で、`firebase-*-ktx` ではなく main module を使う。
+- `buildFeatures.buildConfig = true` を維持する（analytics helper と URL の切り替えが `BuildConfig.DEBUG` を参照する）。URL などの固定値は `BuildConfig` field や Gradle property にせず Kotlin の定数で持つ。
+- release は `isMinifyEnabled = true`・`allowBackup = false`。Firestore の読み取りは map から手で record へ変換し（`taskListRecordFromMap` / `settingsRecordFromMap`）、`toObject()` のリフレクション変換を使わない。そのため R8 の keep（`proguard-rules.pro`）は Firebase component registrar の no-arg constructor だけでよい。
+- ライセンス表示は従来版 Activity を含む `play-services-oss-licenses:17.2.2` に固定する（17.4.0 以降は Compose 依存が本体の Compose BOM と競合する）。従来版の古い AppCompat を置き換えるため `androidx.appcompat:appcompat:1.8.0` を直接依存に含め、OSS licenses plugin は全 variant に適用する。
+- Crashlytics Gradle plugin は SDK の初期化に必要な build ID を注入するため全 variant に適用し、mapping の upload だけを upload key で署名する build で有効にする。
+- `androidx.profileinstaller` で library baseline profile を適用する。独自の Baseline Profile は未導入（導入する場合、instrumentation がアプリをアンインストールするためログイン後画面の計測には自動ログインが必要）。
+- `settings.gradle.kts` を変えたら configuration cache を消してから build する。
+- 版数は `gradle.properties` の `LIGHTLIST_VERSION_CODE` / `LIGHTLIST_VERSION_NAME`。Play Console のアップロード済みの値より大きくしてから `just bundle` する。upload key はリポジトリ外（`just keystore-create`）に置き、パスワードは環境変数か login Keychain から渡してファイルに書かない。
+- launcher icon は `shared/assets/brand/maskable-512.png` を 70% に縮小した素材から生成する（themed icon は単色 vector）。
 
-- タスク入力・月グリッドの内部計算は `currentGregorianCalendar()` を使い、`Calendar.getInstance()` の端末既定暦へ戻さない。カレンダーの pending は `taskListId` ごとの全タスク配列と履歴を保持し、連続操作の差分を listener の旧配列から計算しない。詳細画面の履歴もタスクと同じ操作世代で解放する。
+## UI 部品・テーマ
 
-- 通知端末登録はルートの認証・設定の確定を起点に更新する。`onNewToken()` だけでは、token が変わらない再ログインを検知できない。
+- dynamic color を使わず、`ContentView.kt` の `LightColorScheme` / `DarkColorScheme` を明示定義する（`surfaceContainer*` も指定する）。起動 window theme は `values/themes.xml` / `values-night/themes.xml`。`res/values/colors.xml` のテンプレート色を復活させない。
+- 共通部品は `ContentView.kt` にあり、画面ごとに独自スタイルを作らない: `AppButton` / `AppIconButton` / `AppTextField` / `AppFieldLabel` / `AppAlert` / `AppSwitch` / `AppListDot` / `AppColorPicker` / `AppDialog` / `AppConfirmDialog` / `AppSheet` / `AppSheetHeader` / `AppMonthCalendar` / `DetailScreenScaffold`。押下表現は Material の ripple に任せて独自の scale を重ねない。Material の `DatePicker` は使わない。
+- シートは `AppSheet` だけで出す（640dp 未満は `ModalBottomSheet`、以上は中央の `Dialog`）。`ModalBottomSheet` は既定の `contentWindowInsets`（status bar を含む）だと背の高い content が全画面へ広がるため、`contentWindowInsets = { WindowInsets(0) }` を渡し、content 側で `navigationBarsPadding()` + `imePadding()` と最大高を指定する。
+- `AppDialog` は `usePlatformDefaultWidth = false` + 最大幅で組む（既定の幅だと `footerStart` の文言が切れる）。
+- 背景色付きの詳細と共有プレビューは `TaskListColorScope`（`LightColorScheme` の `MaterialTheme`）で包み、そこから開く `AppDialog` / `AppSheet` / `DropdownMenu` などの popup は `AppThemeScope` でアプリのテーマに戻す。compact は `ColoredSystemBarsEffect` でシステムバーのアイコンを暗色にする。`DetailScreenScaffold` に配色外の `containerColor` を渡すときは `contentColor` を `onBackground` で明示する（省略すると黒になり dark で読めない）。
+- 詳細の `HorizontalPager` は `DetailScreenScaffold(contentBehindTopBar = true)` で画面全体に広げ、各ページが自分の背景色を描く。各ページは `safeDrawing` 上端 + ヘッダー高 + インジケータ行（`indicatorContentInset`）を自分で確保し、タスクがインジケータの下へスクロールしないようにする。インジケータは `currentPage + currentPageOffsetFraction` を draw phase で読み、再コンポーズを起こさない。
+- 上部クロームは `WindowInsets.safeDrawing` を外側コンテナで確保し、戻るボタンやタイトルの固定高さと inset を共有しない。
+- task row の幾何は `TaskListDetailMetrics` に集約し、個別の `offset` で位置を合わせない。本文系テキストは共通の `TextStyle`（`includeFontPadding = false` + 固定 line height）で言語・font fallback による高さの揺れを吸収する。
+- 取り消し線は `StrikethroughText`（`drawWithContent` + `TextLayoutResult` の行ごと描画）、件数は `RollingCountText`、行の追加・削除・配置は `Modifier.animateItem`、アイコン切替は `Crossfade`。
+- task action は `AppSheet` + `AppMonthCalendar` で、TalkBack 用に `paneTitle` を設定する。
+- 件数・設定値・アクセシビリティ文言も shared locale の key で解決する（`taskList.remainingCount_one` / `_other` の複数形を含む）。`system` / `top` などの raw value を表示しない。
+
+## ジェスチャー
+
+- `pointerInput` の key や detector 本体に再コンポーズごとに変わる lambda を渡さない。callback は `rememberUpdatedState` で参照し、`onDragEnd = { currentOnDragEnd() }` のように lambda 内で呼ぶ（`onDragEnd = currentOnDragEnd` と値で渡すと開始時の callback に固定され、古い `displayTasks` から差分を作って並び替えが元に戻る）。
+- 本文の長押し並び替えは、本文の `clickable` より後ろに `pointerInput` + `detectDragGesturesAfterLongPress` を置く（後ろの modifier が先に up を消費して編集開始の click を止める）。長押し成立前の `LazyColumn` / `HorizontalPager` の移動で長押しは取り消されるため、スクロールやページ切替を別途止めない。
+- `detectDragGesturesAfterLongPress` は coroutine が取り消されても `onDragCancel` を呼ぶため、自動スクロールで画面外の行が破棄されるとその行の `onDragCancel` が届く。`onDragCancel` は `draggingTaskId` が自分の task のときだけドラッグ状態を解除する。
+
+## 状態・Firebase
+
+- `MainActivity.onCreate` の `configureFirestore()` で `PersistentCacheSettings`（`CACHE_SIZE_UNLIMITED`）を設定する。設定は Firestore の初回利用前に 1 回だけ（Activity の再生成で再設定すると例外になる）。
+- 起動: `warmUpStartupData()` が background thread で `Translations.preload()` と cache の先読みを行う。設定値は `StartupSettingsCache`（SharedPreferences `lightlist.startup`、uid 付き）から初回フレームで使い、起動時の分岐は `isStartupPending` だけを待つ。起動時の自動遷移（`isInitialAutoNavigation()`）にはスライドアニメーションを付けない。`Translations` は初回描画前にロード済みのインスタンスを `CompositionLocal` で渡す（翻訳 key の生表示を避ける）。
+- `subscribeToOrderedTaskLists` は order の snapshot で taskLists の購読を張り直さない。tablet ではルートの settings と一覧の購読を子へ渡し、二重に購読しない。
+- task の mutation queue は Composition の `rememberCoroutineScope` ではなく `TaskListMutationQueues`（プロセス内の taskListId 登録）で保持する（画面移動で待機中の書き込みをキャンセルしない）。書き込みの `Task` を Composition の scope で `await` して UI を待たせない。
+- カレンダーの pending は `taskListId` ごとの全タスク配列と履歴を保持し、連続操作の差分を listener の旧配列から計算しない。日付計算は `currentGregorianCalendar()` を使い、`Calendar.getInstance()` に戻さない。
+- 前景復帰: SDK は自身を online と判定している間は接続を張り直さないため、`onStop` から 30 秒以上経った `onStart` で `restartFirestoreNetworkAfterBackground` を実行する（Activity が作り直されても効くようプロセス内の変数で保持する）。
+- オンライン判定は `rememberIsOnline()`（manifest に `ACCESS_NETWORK_STATE`）、同期失敗は `SyncFailureState.report()`、queue 外の batch は `commitReportingFailure`。
+- 認証フォームの `AuthTextField` には Autofill 用の `contentType` を必ず設定する（サインインは既存資格情報、サインアップ / リセットは新規資格情報）。
+- 通知端末の登録はルートの認証・設定の確定を起点に更新する（`onNewToken()` だけでは token が変わらない再ログインを検知できない）。
 
 ## 主要コマンド
 
-- `just lint`
-- `just build`
-- `just build-release`
-- ルートの `just bundle` または `cd apps/android && just bundle`（互換用 `just bundle-play`）
-- `just keystore-create`（upload key を作成し、パスワードを Keychain へ保存）
-- `just signing-report`（debug / upload key の fingerprint 確認）
-- `just run`（通常は上書きインストールで Firebase Auth セッションを保持し、失敗時のみアンインストールして入れ直す）
-- `just run-clean`（明示的なクリーン再インストール用。アプリデータとログイン状態は消える）
+- `just lint` / `just build` / `just build-release`（内部確認用 APK。署名情報がなければ debug keystore）
+- `just bundle`（Play 提出用 AAB を upload key で署名し `just verify-bundle` で検証）
+- `just run`（上書きインストールでログインを保持）/ `just run-clean`（アプリデータを消して入れ直す）
+- `just emulator <AVD名>` / `just emulator-list`、`just screenshot`
+- `just keystore-create` / `just signing-report`

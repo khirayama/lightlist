@@ -68,14 +68,7 @@
     "passwordReset": {
       "instruction": "Gib die E-Mail-Adresse ein, die mit deinem Konto verknüpft ist. Wir senden dir eine E-Mail zum Zurücksetzen des Passworts.",
       "success": "E-Mail zum Zurücksetzen gesendet. Bitte prüfe deinen Posteingang.",
-      "title": "Passwort zurücksetzen",
-      "newPassword": "Neues Passwort",
-      "confirmNewPassword": "Neues Passwort bestätigen",
-      "setNewPassword": "Passwort zurücksetzen",
-      "settingNewPassword": "Wird zurückgesetzt...",
-      "invalidCode": "Der Link zum Zurücksetzen ist ungültig",
-      "expiredCode": "Der Link zum Zurücksetzen ist abgelaufen",
-      "resetSuccess": "Passwort erfolgreich geändert"
+      "title": "Passwort zurücksetzen"
     },
     "placeholder": {
       "email": "beispiel@email.de",
@@ -261,6 +254,24 @@
       "enable": "Lass dich benachrichtigen, wenn andere Mitglieder Aufgaben ändern",
       "permissionDenied": "Benachrichtigungen sind blockiert. Erlaube sie in den Geräteeinstellungen.",
       "unavailable": "Push-Benachrichtigungen sind in dieser Umgebung nicht verfügbar."
+    },
+    "apiTokens": {
+      "title": "API-Tokens",
+      "description": "Tokens, mit denen KI-Tools und andere Programme deine Aufgabenlisten über MCP lesen und bearbeiten können.",
+      "nameLabel": "Name",
+      "namePlaceholder": "z. B. Claude Code",
+      "create": "Token erstellen",
+      "creating": "Wird erstellt...",
+      "createdNotice": "Dieses Token wird nur jetzt angezeigt. Kopiere es und bewahre es sicher auf.",
+      "tokenLabel": "Token",
+      "endpointLabel": "MCP-Endpunkt",
+      "setupLabel": "Einrichtungsbeispiele für KI-Tools",
+      "listTitle": "Deine Tokens",
+      "empty": "Noch keine Tokens",
+      "createdAt": "Erstellt am {{date}}",
+      "delete": "Löschen",
+      "deleteTitle": "Dieses Token löschen?",
+      "deleteMessage": "Integrationen, die „{{name}}“ verwenden, funktionieren dann nicht mehr."
     }
   },
   "pages": {

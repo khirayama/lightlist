@@ -72,22 +72,12 @@ const LANGUAGE_PATHS: Record<Language, string> = {
 };
 
 const pageLanguage = normalizeLanguage(document.documentElement.lang);
-const queryLanguage = new URLSearchParams(window.location.search).get("lang");
 const storedLanguage = window.localStorage.getItem("i18nextLng");
-const preferredLanguage = queryLanguage
-  ? normalizeLanguage(queryLanguage)
-  : pageLanguage === DEFAULT_LANGUAGE && storedLanguage
-    ? normalizeLanguage(storedLanguage)
-    : pageLanguage;
-
-if (preferredLanguage !== pageLanguage) {
-  window.location.replace(LANGUAGE_PATHS[preferredLanguage]);
-} else if (queryLanguage) {
-  window.history.replaceState(
-    window.history.state,
-    "",
-    LANGUAGE_PATHS[pageLanguage],
-  );
+if (pageLanguage === DEFAULT_LANGUAGE && storedLanguage) {
+  const preferredLanguage = normalizeLanguage(storedLanguage);
+  if (preferredLanguage !== pageLanguage) {
+    window.location.replace(LANGUAGE_PATHS[preferredLanguage]);
+  }
 }
 
 const languageSelect = document.getElementById("lp-language");
@@ -100,13 +90,6 @@ if (languageSelect instanceof HTMLSelectElement) {
   });
 }
 
-const isSecureOrLocalhost =
-  window.location.protocol === "https:" ||
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1";
-if (isSecureOrLocalhost && "serviceWorker" in navigator) {
-  navigator.serviceWorker
-    .register("/sw.js")
-    .then((registration) => registration.update())
-    .catch(() => {});
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
 }

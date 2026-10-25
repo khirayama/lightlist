@@ -68,14 +68,7 @@
     "passwordReset": {
       "instruction": "Saisissez l'adresse e-mail associée à votre compte. Nous vous enverrons un e-mail de réinitialisation du mot de passe.",
       "success": "E-mail de réinitialisation envoyé. Veuillez vérifier votre boîte de réception.",
-      "title": "Réinitialiser le mot de passe",
-      "newPassword": "Nouveau mot de passe",
-      "confirmNewPassword": "Confirmer le nouveau mot de passe",
-      "setNewPassword": "Réinitialiser le mot de passe",
-      "settingNewPassword": "Réinitialisation...",
-      "invalidCode": "Le lien de réinitialisation est invalide",
-      "expiredCode": "Le lien de réinitialisation a expiré",
-      "resetSuccess": "Mot de passe modifié avec succès"
+      "title": "Réinitialiser le mot de passe"
     },
     "placeholder": {
       "email": "exemple@email.com",
@@ -262,6 +255,24 @@
       "enable": "Recevez une notification lorsqu’un autre membre modifie des tâches",
       "permissionDenied": "Les notifications sont bloquées. Autorisez-les dans les réglages de votre appareil.",
       "unavailable": "Les notifications push ne sont pas disponibles dans cet environnement."
+    },
+    "apiTokens": {
+      "title": "Jetons d'API",
+      "description": "Jetons permettant aux outils d'IA et à d'autres programmes de lire et modifier vos listes de tâches via MCP.",
+      "nameLabel": "Nom",
+      "namePlaceholder": "ex. : Claude Code",
+      "create": "Créer un jeton",
+      "creating": "Création...",
+      "createdNotice": "Ce jeton n'est affiché qu'une seule fois. Copiez-le et conservez-le en lieu sûr.",
+      "tokenLabel": "Jeton",
+      "endpointLabel": "Point de terminaison MCP",
+      "setupLabel": "Exemples de configuration pour les outils d'IA",
+      "listTitle": "Vos jetons",
+      "empty": "Aucun jeton pour l'instant",
+      "createdAt": "Créé le {{date}}",
+      "delete": "Supprimer",
+      "deleteTitle": "Supprimer ce jeton ?",
+      "deleteMessage": "Les intégrations utilisant « {{name}} » ne fonctionneront plus."
     }
   },
   "pages": {

@@ -10,12 +10,18 @@
 - メール / パスワードログインは Firebase Auth の応答待ちを 10 秒で打ち切り、loading state を戻して汎用認証エラーを表示する。
 - 認証エラーは Firebase Auth の error code を `auth.error.*` / `auth.passwordReset.*` へ対応付けて表示し、対応のない code は `auth.error.general` を表示する。SDK の英語メッセージをそのまま表示しない。メールアドレス変更の失敗も同じ対応付けを使う。
 - 認証完了直後に必要な初期ドキュメントは `settings` / `taskLists` / `taskLists/{taskListId}/members/{uid}` / `taskListOrder`。これらは同一 batch で作成する。
-- 設定画面は 3 プラットフォームとも淡いページ背景の上に、ボーダーレスの面カードを配置する。各セクション見出しはカード内の先頭に置き、設定行の操作領域は 44pt / 48dp 以上を維持する。
+
+## 設定画面
+
+- 3 プラットフォームとも淡いページ背景の上にボーダーレスの面カードを置き、カード内の先頭に muted 色のセクション見出し、行間は hairline divider だけで区切る。枠線・影は付けず、設定行の操作領域は 44pt / 48dp 以上を維持する。
+- セクション順は「アカウント（`settings.userInfo.title`：メール表示・メールアドレス変更・API トークン）→ 表示と動作（`settings.preferences.title`：言語・テーマ・起動画面・追加位置・autoSort・共有リストの更新通知）→ 法的情報 → アカウント操作」。
+- 言語・テーマ・起動画面（`settings.startupView.*`）・追加位置は同じ行 + ピッカー / ダイアログ形式で選ぶ。autoSort は本文 `settings.autoSort.title` + muted の説明 `settings.autoSort.enable` + スイッチの行とする。
+- アカウント操作は塗り・枠線のボタンにせず、他の設定行と同じテキスト行で表す（ログアウト `settings.danger.signOut` は通常の文字色、アカウント削除 `settings.danger.deleteAccount` は error 色）。実行中は `settings.signingOut` / `settings.deletingAccount` を表示する。
+- `settings/{uid}` が存在しない場合も永久に読み込み中にせず、既定値で表示する。
 
 ## Web の必須環境変数
 
 - Firebase 初期化: `VITE_FIREBASE_API_KEY` / `VITE_FIREBASE_AUTH_DOMAIN` / `VITE_FIREBASE_PROJECT_ID` / `VITE_FIREBASE_STORAGE_BUCKET` / `VITE_FIREBASE_MESSAGING_SENDER_ID` / `VITE_FIREBASE_APP_ID`
-- パスワードリセット: `VITE_PASSWORD_RESET_URL`
 - Web Push: `VITE_FIREBASE_VAPID_KEY`（Firebase Console の Project settings > Cloud Messaging > Web Push certificates にある公開鍵）
 
 ## Firebase 設定ファイル
@@ -23,11 +29,11 @@
 - iOS は build configuration で切り替える。Debug は `apps/ios/Lightlist/Resources/Firebase/Debug/GoogleService-Info.plist`、Release は同 `Release/GoogleService-Info.plist` を入力にし、app bundle には標準名 `GoogleService-Info.plist` を 1 つだけ配置する。
 - Android は配置で切り替える。debug は `apps/android/app/google-services.json`、release は `apps/android/app/src/release/google-services.json`。
 - iOS Release / Android release のファイルは bundle identifier / applicationId `com.lightlist.app` に一致する Firebase app から取得する。
-- 設定同期は同じ Firebase project と同じ Auth `uid` の組み合わせだけで成立する。ローカル Web（`apps/web/.env.local`）と Android debug は `lightlist-dev`、Cloudflare Pages の本番 Web と Android release は `lightlist-prod-b0269` に揃える。dev Web と release Android（またはその逆）を併用すると、別 project のため設定は同期しない。
+- 設定同期は同じ Firebase project と同じ Auth `uid` の組み合わせだけで成立する。ローカル Web（`apps/web/.env.development.local`）と Android debug は `lightlist-dev`、本番 Web（`apps/web/.env.production.local` で build）と Android release は `lightlist-prod-b0269` に揃える。dev Web と release Android（またはその逆）を併用すると、別 project のため設定は同期しない。
 
 ## サインアップ（Web / Native 共通）
 
-Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作成する。初期データ作成は Web / iOS / Android 共通の冪等処理として扱う。
+Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作成する。初期データ作成は Web / iOS / Android 共通の冪等処理 `ensureInitialUserData` に集約する。
 
 - サーバーから `settings/{uid}` を読み、存在すれば何もしない。`taskListOrder/{uid}` が既にあれば `settings` だけを作成する。
 - 初期データ作成に失敗しても Auth ユーザーは削除せず、サインアップは完了扱いにして失敗を匿名の例外ログに残す。
@@ -50,17 +56,14 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
   3. 各リストを一覧から外す。最後の保持者なら共有コードを含めて実体削除し、それ以外は保持者数を減算する。
   4. `settings/{uid}` と `taskListOrder/{uid}` を削除する。
   5. Firebase Auth のユーザーを削除する。
+- 外部 API のトークン（`apiTokens`）はクライアントでは削除せず、Auth ユーザーの削除を受けた Functions が削除する（[api.md](./api.md)）。
 - Firestore と Auth をまたぐ削除全体は原子的ではない。再認証成功後でも通信・権限などの失敗で一部削除済みになる場合があり、エラー後は再実行する。
 
 ## パスワードリセット
 
-- Web: `sendPasswordResetEmail(email, language?)`。`ActionCodeSettings` は `url: VITE_PASSWORD_RESET_URL`、`handleCodeInApp: false`。`/password_reset/` ページが `oobCode` を検証し、成功時は 2 秒後に `/` へ遷移する。
-- Native: iOS は Info.plist の `PASSWORD_RESET_URL`、Android は `BuildConfig.PASSWORD_RESET_URL` を使う。既定値は `https://lightlist.app/password_reset`。
-- Android の送信は `handleCodeInApp: true`、`setAndroidPackageName(com.lightlist.app, false, null)`、`setLinkDomain(BuildConfig.PASSWORD_RESET_LINK_DOMAIN)` を使う。debug は `lightlist-dev.firebaseapp.com`、release は `lightlist-prod-b0269.firebaseapp.com` を既定の Firebase Hosting link domain とし、Firebase Hosting で実際に構成した custom link domain を使う場合だけ `LIGHTLIST_FIREBASE_AUTH_LINK_DOMAIN` で両 variant を上書きする。Cloudflare Pages の `lightlist.app` は Firebase Hosting link domain として登録済みでない限り、この値に使わない。
-- Android は Firebase Hosting link の `mode=resetPassword` と `oobCode` を処理し、対応アプリがない端末では Firebase Authentication のメールテンプレートに設定した Web fallback へ遷移する。Web の `/password_reset/` はその fallback を担当する。
-- 検証は `verifyPasswordResetCode(code)`、確定は `confirmPasswordReset(code, newPassword)`。
+- 送信は Web / iOS / Android とも `sendPasswordResetEmail(email)` だけを呼び、`ActionCodeSettings` を渡さない。メールのリンクは Firebase Authentication の標準 action handler（`<project>.firebaseapp.com/__/auth/action`）を開き、新しいパスワードの入力と確定は標準ページで行う。アプリ・Web に独自のリセット画面や deep link は持たない。
+- Firebase Console のメールテンプレートの action URL は標準のまま変更しない（メールアドレス変更の確認なども同じ action URL を使うため）。
 - 送信メールの言語は、明示引数 -> 現在設定 -> `ja` の順で解決する。
-- 本番のリセット URL に `localhost` は使わない。
 
 ## メールアドレス変更（Web）
 
@@ -68,14 +71,7 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
 
 ## deep link
 
-- パスワードリセット: `https://lightlist.app/password_reset?oobCode=...`（iOS / Android）。メールは HTTPS のリンクだけを送るため、他アプリが登録できる custom scheme ではリセットを受け付けない。
-- 共有コード: [sharing.md](./sharing.md) を参照。
-
-## Cloudflare Pages 配信時の前提
-
-- Firebase Authentication の authorized domains に Cloudflare Pages の `*.pages.dev` または運用 custom domain を追加する。
-- `VITE_PASSWORD_RESET_URL` は実際に配信する `/password_reset` URL に合わせる。
-- Firebase Console の Authentication > Settings > Authorized domains には Web fallback domain を登録する。Authentication の mobile link / Hosting links 設定では Android app `com.lightlist.app` と、配布に使う signing certificate の SHA-1 / SHA-256 を登録し、`PASSWORD_RESET_LINK_DOMAIN` と同じ Firebase Hosting link domain を有効化する。メールテンプレートの fallback URL は `https://lightlist.app/password_reset` にする。
+- 共有コードだけを扱う（[sharing.md](./sharing.md)）。custom scheme は持たない。
 
 ## サポート言語
 

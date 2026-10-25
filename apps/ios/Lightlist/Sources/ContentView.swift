@@ -28,31 +28,10 @@ private func normalizedShareCode(_ rawValue: String) -> String? {
 
 private func normalizedShareCodeInput(_ rawValue: String) -> String? {
     let input = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard let components = URLComponents(string: input), let scheme = components.scheme?.lowercased() else {
+    guard let components = URLComponents(string: input), components.scheme != nil else {
         return normalizedShareCode(input)
     }
-    let path = components.path.split(separator: "/").map(String.init)
-    if scheme == "lightlist", components.host?.lowercased() == "sharecodes", path.count == 1 {
-        return normalizedShareCode(path[0])
-    }
-    guard scheme == "https" || scheme == "http", path.first?.lowercased() == "sharecodes" else {
-        return nil
-    }
-    if path.count > 1 {
-        return normalizedShareCode(path[1])
-    }
     return normalizedShareCode(components.queryItems?.first(where: { $0.name == "code" })?.value ?? "")
-}
-
-private func passwordResetCode(from rawValue: String?) -> String? {
-    guard let rawValue else {
-        return nil
-    }
-    let code = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !code.isEmpty, code.utf8.count <= 2048 else {
-        return nil
-    }
-    return code
 }
 
 private func generateRandomShareCode() throws -> String {
@@ -74,7 +53,6 @@ private func generateRandomShareCode() throws -> String {
 }
 
 enum PendingDeepLink: Equatable {
-    case passwordReset(code: String)
     case shareCode(String)
     case taskList(String)
 }
@@ -84,12 +62,6 @@ private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
     let host = url.host?.lowercased()
     let pathComponents = url.pathComponents.filter { $0 != "/" }
     let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
-
-    if scheme == "lightlist", host == "sharecodes", pathComponents.count == 1,
-        let shareCode = normalizedShareCode(pathComponents[0])
-    {
-        return .shareCode(shareCode)
-    }
 
     if scheme == "https", host == "lightlist.app", url.port == nil || url.port == 443 {
         if let taskListId = queryItems?.first(where: { $0.name == "taskListId" })?.value,
@@ -102,20 +74,6 @@ private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
             let shareCode = normalizedShareCode(queryItems?.first(where: { $0.name == "code" })?.value ?? "")
         {
             return .shareCode(shareCode)
-        }
-
-        if pathComponents.count == 2,
-            pathComponents[0].lowercased() == "sharecodes",
-            let shareCode = normalizedShareCode(pathComponents[1])
-        {
-            return .shareCode(shareCode)
-        }
-
-        if pathComponents.count == 1,
-            pathComponents[0].lowercased() == "password_reset",
-            let code = passwordResetCode(from: queryItems?.first(where: { $0.name == "oobCode" })?.value)
-        {
-            return .passwordReset(code: code)
         }
     }
 
@@ -1051,15 +1009,12 @@ enum AppRoute: Hashable {
 
 private enum RootPresentation: Identifiable {
     case auth
-    case passwordReset(String)
     case sharePreview(String)
 
     var id: String {
         switch self {
         case .auth:
             return "auth"
-        case .passwordReset(let code):
-            return "passwordReset:\(code)"
         case .sharePreview(let code):
             return "sharePreview:\(code)"
         }
@@ -2317,23 +2272,6 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
     }
 }
 
-@MainActor
-private func resolvePasswordResetErrorMessage(translations: Translations, error: Error) -> String {
-    let nsError = error as NSError
-    guard nsError.domain == "FIRAuthErrorDomain" else {
-        return translations.t("auth.error.general")
-    }
-    let authError = AuthErrorCode(rawValue: nsError.code)
-    switch authError {
-    case .expiredActionCode:
-        return translations.t("auth.passwordReset.expiredCode")
-    case .invalidActionCode:
-        return translations.t("auth.passwordReset.invalidCode")
-    default:
-        return resolveAuthErrorMessage(translations: translations, error: error)
-    }
-}
-
 private enum AuthScreen: Int, CaseIterable, Identifiable {
     case signIn
     case signUp
@@ -2655,11 +2593,6 @@ private func resolveTaskInput(_ text: String, translations: Translations, curren
     )
 }
 
-private func passwordResetURLString() -> String {
-    (Bundle.main.object(forInfoDictionaryKey: "PASSWORD_RESET_URL") as? String)
-        ?? "https://lightlist.app/password_reset"
-}
-
 private func isValidEmail(_ email: String) -> Bool {
     let pattern = #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#
     return email.range(of: pattern, options: .regularExpression) != nil
@@ -2817,7 +2750,6 @@ struct RootView: View {
         ? .calendar
         : .taskList
     @State private var splitViewVisibility: NavigationSplitViewVisibility = .all
-    @State private var pendingPasswordResetCode: String?
     @State private var pendingSharePreviewCode: String?
     @State private var pendingShareCode: String?
     @StateObject private var translations = Translations()
@@ -2852,9 +2784,6 @@ struct RootView: View {
     }
 
     private var presentedScreen: RootPresentation? {
-        if let pendingPasswordResetCode {
-            return .passwordReset(pendingPasswordResetCode)
-        }
         if let pendingSharePreviewCode {
             return .sharePreview(pendingSharePreviewCode)
         }
@@ -2866,7 +2795,6 @@ struct RootView: View {
             get: { presentedScreen },
             set: { presented in
                 guard presented == nil else { return }
-                pendingPasswordResetCode = nil
                 pendingSharePreviewCode = nil
             }
         )
@@ -2921,13 +2849,6 @@ struct RootView: View {
                 case .auth:
                     NavigationStack {
                         AuthView(language: translations.language)
-                    }
-                case .passwordReset(let code):
-                    NavigationStack {
-                        PasswordResetView(
-                            code: code,
-                            onDismiss: { self.pendingPasswordResetCode = nil }
-                        )
                     }
                 case .sharePreview(let code):
                     NavigationStack {
@@ -3129,8 +3050,6 @@ struct RootView: View {
         }
 
         switch deepLink {
-        case .passwordReset(let code):
-            pendingPasswordResetCode = code
         case .shareCode(let shareCode):
             pendingSharePreviewCode = shareCode
         case .taskList(let taskListId):
@@ -3784,10 +3703,7 @@ private struct PasswordResetRequestView: View {
         let auth = Auth.auth()
         let previousLanguageCode = auth.languageCode
         auth.languageCode = normalizeLanguageCode(language)
-        let actionCodeSettings = ActionCodeSettings()
-        actionCodeSettings.url = URL(string: passwordResetURLString())
-        actionCodeSettings.handleCodeInApp = false
-        auth.sendPasswordReset(withEmail: trimmedEmail, actionCodeSettings: actionCodeSettings) { error in
+        auth.sendPasswordReset(withEmail: trimmedEmail) { error in
             Task { @MainActor in
                 auth.languageCode = previousLanguageCode
                 isLoading = false
@@ -3797,134 +3713,6 @@ private struct PasswordResetRequestView: View {
                     logPasswordResetEmailSent()
                     successMessage = translations.t("auth.passwordReset.success")
                 }
-            }
-        }
-    }
-}
-
-private struct PasswordResetView: View {
-    let code: String
-    let onDismiss: () -> Void
-    @EnvironmentObject var translations: Translations
-    @State private var newPassword = ""
-    @State private var confirmPassword = ""
-    @State private var errorMessage: String?
-    @State private var successMessage: String?
-    @State private var isVerifying = true
-    @State private var isSubmitting = false
-    @ObservedObject private var networkStatus = NetworkStatus.shared
-
-    private var isFormDisabled: Bool {
-        isVerifying || isSubmitting || newPassword.isEmpty || confirmPassword.isEmpty || !networkStatus.isOnline
-    }
-
-    var body: some View {
-        ScreenScaffold(title: translations.t("auth.passwordReset.title")) {
-            VStack(spacing: 16) {
-                if let successMessage {
-                    AppAlert(message: successMessage, variant: .success)
-                } else {
-                    AuthTextField(
-                        label: translations.t("auth.passwordReset.newPassword"),
-                        placeholder: translations.t("auth.placeholder.password"),
-                        text: $newPassword,
-                        isSecure: true,
-                        contentType: .newPassword,
-                        disabled: isVerifying || isSubmitting
-                    )
-
-                    AuthTextField(
-                        label: translations.t("auth.passwordReset.confirmNewPassword"),
-                        placeholder: translations.t("auth.placeholder.password"),
-                        text: $confirmPassword,
-                        isSecure: true,
-                        contentType: .newPassword,
-                        disabled: isVerifying || isSubmitting
-                    )
-                }
-
-                if let errorMessage {
-                    AppAlert(message: errorMessage)
-                }
-
-                if isVerifying {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                }
-
-                if successMessage == nil, !networkStatus.isOnline {
-                    ConnectionRequiredNote()
-                }
-
-                if successMessage == nil {
-                    Button(
-                        isSubmitting
-                            ? translations.t("auth.passwordReset.settingNewPassword") : translations.t("auth.passwordReset.setNewPassword")
-                    ) {
-                        submit()
-                    }
-                    .buttonStyle(AppButtonStyle(variant: .primary, fullWidth: true, cornerRadius: authButtonCornerRadius))
-                    .disabled(isFormDisabled)
-                }
-
-                Button(translations.t("common.close")) {
-                    onDismiss()
-                }
-                .buttonStyle(AppButtonStyle(variant: .secondary, fullWidth: true, cornerRadius: authButtonCornerRadius))
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .onAppear(perform: verifyCode)
-    }
-
-    private func verifyCode() {
-        isVerifying = true
-        errorMessage = nil
-        Auth.auth().verifyPasswordResetCode(code) { _, error in
-            Task { @MainActor in
-                isVerifying = false
-                if let error {
-                    errorMessage =
-                        networkStatus.isOnline
-                        ? resolvePasswordResetErrorMessage(translations: translations, error: error)
-                        : translations.t("common.requiresConnection")
-                }
-            }
-        }
-    }
-
-    private func submit() {
-        guard !newPassword.isEmpty else {
-            errorMessage = translations.t("auth.validation.password.required")
-            return
-        }
-
-        guard newPassword.count >= 8 else {
-            errorMessage = translations.t("auth.validation.password.tooShort")
-            return
-        }
-
-        guard !confirmPassword.isEmpty else {
-            errorMessage = translations.t("auth.validation.confirmPassword.required")
-            return
-        }
-
-        guard newPassword == confirmPassword else {
-            errorMessage = translations.t("auth.validation.confirmPassword.notMatch")
-            return
-        }
-
-        isSubmitting = true
-        errorMessage = nil
-        Auth.auth().confirmPasswordReset(withCode: code, newPassword: newPassword) { error in
-            Task { @MainActor in
-                isSubmitting = false
-                if let error {
-                    errorMessage = resolvePasswordResetErrorMessage(translations: translations, error: error)
-                    return
-                }
-
-                successMessage = translations.t("auth.passwordReset.resetSuccess")
             }
         }
     }
@@ -6661,9 +6449,7 @@ private final class SettingsViewModel: ObservableObject {
                         continue
                     }
                     guard taskListSnapshot.exists else { continue }
-                    if let memberKeys = stringArray(taskListSnapshot.data()?["memberKeys"]), !memberKeys.contains(ownMemberKey) {
-                        continue
-                    }
+                    guard stringArray(taskListSnapshot.data()?["memberKeys"])?.contains(ownMemberKey) == true else { continue }
                     try await makeTaskListMembershipRemovalBatch(
                         db: db,
                         taskListOrderRef: taskListOrderRef,
@@ -6756,6 +6542,7 @@ private struct SettingsView: View {
     @State private var deletePassword = ""
     @State private var showEmailChangeForm = false
     @State private var showLicenses = false
+    @State private var showApiTokens = false
     @State private var newEmail = ""
     @State private var emailChangeError: String? = nil
     @State private var emailChangeSuccess = false
@@ -6802,6 +6589,9 @@ private struct SettingsView: View {
                         if !networkStatus.isOnline {
                             ConnectionRequiredNote()
                         }
+                    }
+                    navigationRow(label: translations.t("settings.apiTokens.title"), disabled: actionsDisabled) {
+                        showApiTokens = true
                     }
                 }
                 SettingsSection(title: translations.t("settings.preferences.title")) {
@@ -6947,6 +6737,9 @@ private struct SettingsView: View {
         }
         .navigationDestination(isPresented: $showLicenses) {
             LicensesView(showsBackButton: true)
+        }
+        .navigationDestination(isPresented: $showApiTokens) {
+            ApiTokensView(currentUserId: currentUserId)
         }
         .onChange(of: currentUserId) { _, _ in
             isSigningOut = false
@@ -7154,6 +6947,323 @@ private struct SettingsView: View {
                 .foregroundStyle(color)
         }
         .disabled(disabled)
+    }
+}
+
+private struct ApiTokenRecord: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let createdAt: Int64
+}
+
+private let apiTokenNameMaxLength = 50
+
+#if DEBUG
+    private let mcpEndpointURL = "http://127.0.0.1:5001/lightlist-dev/asia-northeast1/mcp"
+#else
+    private let mcpEndpointURL = "https://lightlist.app/mcp"
+#endif
+
+private struct McpClientExample: Identifiable {
+    let id: String
+    let name: String
+    let location: String?
+    let snippet: String
+}
+
+private func mcpClientExamples(endpoint: String, token: String) -> [McpClientExample] {
+    let header = "Authorization: Bearer \(token)"
+    func jsonConfig(root: String, typeLine: String) -> String {
+        [
+            "{",
+            "  \"\(root)\": {",
+            "    \"lightlist\": {",
+            typeLine,
+            "      \"url\": \"\(endpoint)\",",
+            "      \"headers\": {",
+            "        \"Authorization\": \"Bearer \(token)\"",
+            "      }",
+            "    }",
+            "  }",
+            "}",
+        ]
+        .filter { !$0.isEmpty }
+        .joined(separator: "\n")
+    }
+    return [
+        McpClientExample(
+            id: "claude-code",
+            name: "Claude Code",
+            location: nil,
+            snippet: "claude mcp add --transport http lightlist \(endpoint) --header \"\(header)\""
+        ),
+        McpClientExample(
+            id: "codex",
+            name: "Codex",
+            location: "~/.codex/config.toml",
+            snippet: "[mcp_servers.lightlist]\nurl = \"\(endpoint)\"\nhttp_headers = { \"Authorization\" = \"Bearer \(token)\" }"
+        ),
+        McpClientExample(
+            id: "cursor",
+            name: "Cursor",
+            location: "~/.cursor/mcp.json",
+            snippet: jsonConfig(root: "mcpServers", typeLine: "")
+        ),
+        McpClientExample(
+            id: "vscode",
+            name: "VS Code",
+            location: "MCP: Open User Configuration",
+            snippet: jsonConfig(root: "servers", typeLine: "      \"type\": \"http\",")
+        ),
+        McpClientExample(
+            id: "gemini-cli",
+            name: "Gemini CLI",
+            location: nil,
+            snippet: "gemini mcp add --scope user --transport http --header \"\(header)\" lightlist \(endpoint)"
+        ),
+    ]
+}
+
+private func makeApiToken() -> String? {
+    var bytes = [UInt8](repeating: 0, count: 32)
+    guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { return nil }
+    let encoded = Data(bytes).base64EncodedString()
+        .replacingOccurrences(of: "+", with: "-")
+        .replacingOccurrences(of: "/", with: "_")
+        .replacingOccurrences(of: "=", with: "")
+    return "ll_\(encoded)"
+}
+
+private func apiTokenId(token: String) -> String {
+    SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined()
+}
+
+private func truncatedApiTokenName(_ name: String) -> String {
+    var result = ""
+    for character in name.trimmingCharacters(in: .whitespacesAndNewlines) {
+        if result.utf16.count + String(character).utf16.count > apiTokenNameMaxLength { break }
+        result.append(character)
+    }
+    return result
+}
+
+private func fetchApiTokens(uid: String) async throws -> [ApiTokenRecord] {
+    let snapshot = try await Firestore.firestore().collection("apiTokens").whereField("uid", isEqualTo: uid).getDocuments()
+    return snapshot.documents.compactMap { document -> ApiTokenRecord? in
+        let data = document.data()
+        guard document.documentID.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil,
+            let name = data["name"] as? String,
+            let createdAt = data["createdAt"] as? Int64
+        else { return nil }
+        return ApiTokenRecord(id: document.documentID, name: name, createdAt: createdAt)
+    }
+    .sorted { $0.createdAt > $1.createdAt }
+}
+
+private struct ApiTokensView: View {
+    @EnvironmentObject var translations: Translations
+    @Environment(\.locale) private var locale
+    let currentUserId: String?
+    @ObservedObject private var networkStatus = NetworkStatus.shared
+    @State private var apiTokens: [ApiTokenRecord]? = nil
+    @State private var name = ""
+    @State private var createdToken: String? = nil
+    @State private var copiedValue: String? = nil
+    @State private var isCreating = false
+    @State private var isDeleting = false
+    @State private var deleteTarget: ApiTokenRecord? = nil
+    @State private var showDeleteAlert = false
+    @State private var errorMessage: String? = nil
+
+    var body: some View {
+        SettingsPage(title: translations.t("settings.apiTokens.title"), showsBackButton: true) {
+            Text(translations.t("settings.apiTokens.description"))
+                .font(AppTypography.subheadline())
+                .foregroundStyle(AppPalette.mutedText)
+                .fixedSize(horizontal: false, vertical: true)
+                .settingsPlainRow()
+            if let errorMessage {
+                AppAlert(message: errorMessage)
+                    .settingsPlainRow()
+            }
+            if let createdToken {
+                SettingsSection(title: translations.t("settings.apiTokens.tokenLabel")) {
+                    Text(translations.t("settings.apiTokens.createdNotice"))
+                        .font(AppTypography.caption())
+                        .foregroundStyle(AppPalette.mutedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    copyField(value: createdToken)
+                }
+                SettingsSection(title: translations.t("settings.apiTokens.setupLabel")) {
+                    ForEach(mcpClientExamples(endpoint: mcpEndpointURL, token: createdToken)) { example in
+                        DisclosureGroup {
+                            copyField(value: example.snippet, multiline: true)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(example.name)
+                                    .foregroundStyle(Color.primary)
+                                if let location = example.location {
+                                    Text(location)
+                                        .font(AppTypography.caption().monospaced())
+                                        .foregroundStyle(AppPalette.mutedText)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            SettingsSection(title: translations.t("settings.apiTokens.create")) {
+                AppFormField(label: translations.t("settings.apiTokens.nameLabel")) {
+                    TextField(
+                        "",
+                        text: $name,
+                        prompt: Text(translations.t("settings.apiTokens.namePlaceholder")).foregroundStyle(AppPalette.placeholder)
+                    )
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .disabled(isCreating || isDeleting)
+                    .appField()
+                }
+                Button(isCreating ? translations.t("settings.apiTokens.creating") : translations.t("settings.apiTokens.create")) {
+                    createToken()
+                }
+                .buttonStyle(AppButtonStyle(variant: .primary, fullWidth: true))
+                .disabled(isCreating || isDeleting || currentUserId == nil || !networkStatus.isOnline)
+                if !networkStatus.isOnline {
+                    ConnectionRequiredNote()
+                }
+                AppFormField(label: translations.t("settings.apiTokens.endpointLabel")) {
+                    Text(mcpEndpointURL)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                        .appField(monospaced: true)
+                }
+            }
+            SettingsSection(title: translations.t("settings.apiTokens.listTitle")) {
+                if let apiTokens {
+                    if apiTokens.isEmpty {
+                        Text(translations.t("settings.apiTokens.empty"))
+                            .foregroundStyle(AppPalette.mutedText)
+                    } else {
+                        ForEach(apiTokens) { apiToken in
+                            apiTokenRow(apiToken)
+                        }
+                    }
+                } else {
+                    Text(translations.t("common.loading"))
+                        .foregroundStyle(AppPalette.mutedText)
+                }
+            }
+        }
+        .task(id: currentUserId) {
+            await loadTokens()
+        }
+        .alert(
+            translations.t("settings.apiTokens.deleteTitle"),
+            isPresented: $showDeleteAlert,
+            presenting: deleteTarget
+        ) { apiToken in
+            Button(translations.t("common.cancel"), role: .cancel) {}
+            Button(translations.t("settings.apiTokens.delete"), role: .destructive) {
+                deleteToken(apiToken)
+            }
+            .disabled(isDeleting || !networkStatus.isOnline)
+        } message: { apiToken in
+            Text(translations.t("settings.apiTokens.deleteMessage", ["name": displayName(apiToken)]))
+        }
+    }
+
+    private func copyField(value: String, multiline: Bool = false) -> some View {
+        HStack(alignment: multiline ? .top : .center, spacing: 8) {
+            Text(value)
+                .lineLimit(multiline ? nil : 1)
+                .truncationMode(.middle)
+                .fixedSize(horizontal: false, vertical: multiline)
+                .textSelection(.enabled)
+                .appField(monospaced: true)
+            Button(copiedValue == value ? translations.t("common.copied") : translations.t("common.copy")) {
+                UIPasteboard.general.string = value
+                copiedValue = value
+            }
+            .buttonStyle(AppButtonStyle(variant: .secondary))
+        }
+    }
+
+    private func apiTokenRow(_ apiToken: ApiTokenRecord) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayName(apiToken))
+                    .foregroundStyle(Color.primary)
+                Text(translations.t("settings.apiTokens.createdAt", ["date": formattedDate(apiToken.createdAt)]))
+                    .font(AppTypography.caption())
+                    .foregroundStyle(AppPalette.mutedText)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button(translations.t("settings.apiTokens.delete")) {
+                deleteTarget = apiToken
+                showDeleteAlert = true
+            }
+            .buttonStyle(AppButtonStyle(variant: .danger))
+            .disabled(isCreating || isDeleting || !networkStatus.isOnline)
+        }
+    }
+
+    private func formattedDate(_ millis: Int64) -> String {
+        Date(timeIntervalSince1970: Double(millis) / 1000)
+            .formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: locale))
+    }
+
+    private func displayName(_ apiToken: ApiTokenRecord) -> String {
+        apiToken.name.isEmpty ? formattedDate(apiToken.createdAt) : apiToken.name
+    }
+
+    private func loadTokens() async {
+        guard let currentUserId else { return }
+        do {
+            apiTokens = try await fetchApiTokens(uid: currentUserId)
+        } catch {
+            apiTokens = []
+            errorMessage = translations.t("auth.error.general")
+        }
+    }
+
+    private func createToken() {
+        guard let uid = currentUserId, !isCreating, let token = makeApiToken() else { return }
+        let record = ApiTokenRecord(id: apiTokenId(token: token), name: truncatedApiTokenName(name), createdAt: nowMillis())
+        isCreating = true
+        errorMessage = nil
+        Task { @MainActor in
+            defer { isCreating = false }
+            do {
+                try await Firestore.firestore().collection("apiTokens").document(record.id).setData([
+                    "uid": uid,
+                    "name": record.name,
+                    "createdAt": record.createdAt,
+                ])
+                createdToken = token
+                copiedValue = nil
+                name = ""
+                apiTokens = [record] + (apiTokens ?? [])
+            } catch {
+                errorMessage = translations.t("auth.error.general")
+            }
+        }
+    }
+
+    private func deleteToken(_ apiToken: ApiTokenRecord) {
+        guard !isDeleting else { return }
+        isDeleting = true
+        errorMessage = nil
+        Task { @MainActor in
+            defer { isDeleting = false }
+            do {
+                try await Firestore.firestore().collection("apiTokens").document(apiToken.id).delete()
+                apiTokens = apiTokens?.filter { $0.id != apiToken.id }
+            } catch {
+                errorMessage = translations.t("auth.error.general")
+            }
+        }
     }
 }
 

@@ -25,13 +25,13 @@
   - `taskListOrder/{uid}` が欠損していても merge 書き込みで自動作成する。
   - 既に追加済みなら no-op とし、`memberCount` を重複加算しない。
 - 「リストに参加」での失敗は、コードの形式不正・該当なしを `pages.sharecode.notFound`、それ以外を `pages.sharecode.addToOrderError` として同じ sheet / dialog 内に表示する。SDK のメッセージはそのまま表示しない。
-- 「リストに参加」の入力は共有コードのほか、共有 URL（`/sharecodes/?code=CODE` または `/sharecodes/CODE`）も受け付け、参加前にコードへ正規化する。native の `lightlist://sharecodes/CODE` deep link も受け付ける。
+- 「リストに参加」の入力は共有コードのほか、共有 URL（`https://lightlist.app/sharecodes/?code=CODE`）も受け付け、参加前にコードへ正規化する。
 
 ## 共有権限モデル
 
 - 共有 URL を知っているユーザーは、未認証でも共有リストをプレビュー閲覧できる。
 - 共有コードはプレビュー取得用の bearer credential として扱う。未参加者が読めるのは通知 Functions が `shareCodes/{shareCode}.preview` に書く写し（`name` / `background` / `tasks`）だけで、`taskLists/{taskListId}`（`history` / `memberKeys` を含む）は membership を持つユーザーだけが読める。コードを解除・再発行すると旧コードの文書は消え、`taskListId` を知っていても読めない。
-- プレビューの写しはリストの書き込みイベントから非同期に作られるため、コード発行直後や移行直後は `preview` が無いことがある。この間は読み込み中として扱う。既存の共有リストは `firebase/functions/scripts/backfill-share-previews.mjs` で写しを作る（[deployment.md](./deployment.md)）。
+- プレビューの写しはリストの書き込みイベントから非同期に作られるため、コード発行直後は `preview` が無いことがある。この間は読み込み中として扱う。
 - 対象リストの `name` / `tasks` / `history` / `background` の更新には membership document が必要で、未参加のコード保持者による編集は Rules で拒否する。
 - ただし共有コードの発行・再生成・失効は `shareCodes` への書き込みを伴うため、認証済みかつ membership document を持つユーザーだけが行える。コード保持者が任意のコードを勝手に張り替えることはできない。
 - 自分の一覧へ追加する操作だけは認証が必要。
@@ -40,6 +40,4 @@
 ## 画面導線
 
 - 共有コードプレビューは未認証でも開く。未参加ユーザーには `preview` の写しを読み取り専用で表示し、task の追加・完了・編集・並び替えを含む編集 UI を表示しない。参加済みユーザー（membership あり）はリスト本体を購読して通常の編集 UI を表示する。編集と共有コード管理、タスクリスト削除の導線は membership document を持つユーザーにだけ表示する。ログイン済みかつ未参加のときだけ加入導線を表示する。
-- Web / HTTPS: `https://lightlist.app/sharecodes/?code=CODE`
-- iOS: `lightlist://sharecodes/CODE`、HTTPS 正規形
-- Android: `lightlist://sharecodes/CODE`、HTTPS 正規形
+- 共有 URL は `https://lightlist.app/sharecodes/?code=CODE` の 1 形式だけとし、iOS は Universal Links、Android は App Links で開く。custom scheme は持たない。

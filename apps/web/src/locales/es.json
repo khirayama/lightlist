@@ -68,14 +68,7 @@
     "passwordReset": {
       "instruction": "Ingresa la dirección de correo asociada a tu cuenta. Te enviaremos un correo para restablecer la contraseña.",
       "success": "Correo de restablecimiento enviado. Revisa tu bandeja de entrada.",
-      "title": "Restablecer contraseña",
-      "newPassword": "Nueva contraseña",
-      "confirmNewPassword": "Confirmar nueva contraseña",
-      "setNewPassword": "Restablecer contraseña",
-      "settingNewPassword": "Restableciendo...",
-      "invalidCode": "El enlace de restablecimiento no es válido",
-      "expiredCode": "El enlace de restablecimiento ha caducado",
-      "resetSuccess": "La contraseña se cambió correctamente"
+      "title": "Restablecer contraseña"
     },
     "placeholder": {
       "email": "ejemplo@correo.com",
@@ -265,6 +258,24 @@
       "enable": "Recibe avisos cuando otro miembro cambie tareas",
       "permissionDenied": "Las notificaciones están bloqueadas. Permítelas en los ajustes del dispositivo.",
       "unavailable": "Las notificaciones push no están disponibles en este entorno."
+    },
+    "apiTokens": {
+      "title": "Tokens de API",
+      "description": "Tokens que permiten a herramientas de IA y otros programas leer y actualizar tus listas de tareas mediante MCP.",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "p. ej., Claude Code",
+      "create": "Crear token",
+      "creating": "Creando...",
+      "createdNotice": "Este token solo se muestra ahora. Cópialo y guárdalo en un lugar seguro.",
+      "tokenLabel": "Token",
+      "endpointLabel": "Endpoint de MCP",
+      "setupLabel": "Ejemplos de configuración para herramientas de IA",
+      "listTitle": "Tus tokens",
+      "empty": "Aún no hay tokens",
+      "createdAt": "Creado el {{date}}",
+      "delete": "Eliminar",
+      "deleteTitle": "¿Eliminar este token?",
+      "deleteMessage": "Las integraciones que usan «{{name}}» dejarán de funcionar."
     }
   },
   "pages": {

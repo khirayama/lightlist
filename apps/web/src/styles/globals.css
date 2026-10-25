@@ -1506,6 +1506,18 @@
   rotate: 90deg;
 }
 
+.ll-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ll-disclosure-chevron {
+  flex-shrink: 0;
+}
+
+.ll-disclosure[open] .ll-disclosure-chevron {
+  rotate: 90deg;
+}
+
 .ll-offline-notice {
   position: fixed;
   inset-inline: 0;

@@ -60,11 +60,6 @@ export const stopLightlistBilling = onMessagePublished<BudgetNotification>(
       intervalStart.getTime() > now.getTime()
     ) return;
 
-    if (process.env.BILLING_STOP_ENABLED !== "true") {
-      logger.warn("課金停止は無効です", { costAmount: notification.costAmount });
-      return;
-    }
-
     for (const projectId of projects) {
       const name = `projects/${projectId}`;
       const [info] = await billing.getProjectBillingInfo({ name });

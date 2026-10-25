@@ -68,14 +68,7 @@
     "passwordReset": {
       "instruction": "Masukkan alamat email yang terhubung dengan akun Anda. Kami akan mengirim email reset kata sandi.",
       "success": "Email reset kata sandi telah dikirim. Silakan periksa email Anda.",
-      "title": "Reset kata sandi",
-      "newPassword": "Kata sandi baru",
-      "confirmNewPassword": "Konfirmasi kata sandi baru",
-      "setNewPassword": "Reset kata sandi",
-      "settingNewPassword": "Sedang mereset...",
-      "invalidCode": "Tautan reset kata sandi tidak valid",
-      "expiredCode": "Tautan reset kata sandi telah kedaluwarsa",
-      "resetSuccess": "Kata sandi berhasil diubah"
+      "title": "Reset kata sandi"
     },
     "placeholder": {
       "email": "contoh@email.com",
@@ -255,6 +248,24 @@
       "enable": "Dapatkan pemberitahuan saat anggota lain mengubah tugas",
       "permissionDenied": "Notifikasi diblokir. Izinkan notifikasi di pengaturan perangkat.",
       "unavailable": "Notifikasi push tidak tersedia di lingkungan ini."
+    },
+    "apiTokens": {
+      "title": "Token API",
+      "description": "Token yang memungkinkan alat AI dan program lain membaca serta memperbarui daftar tugas Anda melalui MCP.",
+      "nameLabel": "Nama",
+      "namePlaceholder": "mis. Claude Code",
+      "create": "Buat token",
+      "creating": "Membuat...",
+      "createdNotice": "Token ini hanya ditampilkan sekarang. Salin dan simpan di tempat yang aman.",
+      "tokenLabel": "Token",
+      "endpointLabel": "Endpoint MCP",
+      "setupLabel": "Contoh pengaturan untuk alat AI",
+      "listTitle": "Token Anda",
+      "empty": "Belum ada token",
+      "createdAt": "Dibuat {{date}}",
+      "delete": "Hapus",
+      "deleteTitle": "Hapus token ini?",
+      "deleteMessage": "Integrasi yang menggunakan \"{{name}}\" tidak akan berfungsi lagi."
     }
   },
   "pages": {

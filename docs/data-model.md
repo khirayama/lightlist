@@ -1,6 +1,6 @@
 # データモデル
 
-Cloud Firestore に 5 つのトップレベルコレクションを持つ。ルール本体は `firebase/firestore.rules`を正とする。
+Cloud Firestore に 6 つのトップレベルコレクションを持つ。ルール本体は `firebase/firestore.rules`を正とする。
 
 ## コレクション
 
@@ -53,9 +53,9 @@ Task の decode では `id` / `text` / `completed` / `date` / `order` / `pinned`
 
 Web は `settings` / `taskListOrder` / `taskLists` / `shareCodes` の購読・単発取得を共通の境界検証へ通し、トップレベルfieldと動的mapの全要素を検証してからドメインモデルへ渡す。不正な `settings` と `taskListOrder` の必須時刻 field は読み込みエラーとし、不正な `taskLists` document は当該documentだけを表示対象から外す。3 プラットフォームの `taskListOrder` の動的要素は、有効な document ID（空文字・`/` を含む ID は除外）と有限の数値 `order` を持つ map だけを採用し、不正な要素やドットを含む余分な数値 field は無視する。bool は数値として扱わない。task map 内の不正要素はリスト全体を無効にせず除外し、server確定snapshotで自動削除する。
 
-iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestoreドキュメントへ変換してからドメインモデルへ渡す。トップレベルの `taskLists` ドキュメントが型不正の場合は当該リストを表示対象から外し、空レコードへ劣化させない。動的なキーを持つ `taskListOrder`、部分mapの検証・削除、ドット記法の差分更新だけはFirestore APIの境界で動的データを使う。`theme` / `language` / `taskInsertPosition` / `autoSort` が不正な型・値の場合は設定画面を読み込みエラーとして扱い、`startupView` の不正値だけは `taskList` に正規化する。
+iOS / Android の `taskLists` と `settings` の読み取りは型付きのレコード（iOS は `Codable`、Android は map から手で組み立てる record）へ変換してからドメインモデルへ渡す。トップレベルの `taskLists` ドキュメントが型不正の場合は当該リストを表示対象から外し、空レコードへ劣化させない。動的なキーを持つ `taskListOrder`、部分mapの検証・削除、ドット記法の差分更新だけはFirestore APIの境界で動的データを使う。`theme` / `language` / `taskInsertPosition` / `autoSort` が不正な型・値の場合は設定画面を読み込みエラーとして扱い、`startupView` の不正値だけは `taskList` に正規化する。
 
-- Android の release R8 縮小後も、リフレクションで変換する `FirestoreSettingsRecord` のクラス名・フィールド・アクセサ・no-arg constructor を保持する。指定は `apps/android/app/proguard-rules.pro` を正とする。
+- Android はリフレクション変換（`toObject()`）を使わないため、release の R8 keep 指定（`apps/android/app/proguard-rules.pro`）は Firebase component registrar の no-arg constructor だけを保持する。
 
 ### taskListOrder/{uid}
 
@@ -63,6 +63,8 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 
 - `{ [taskListId]: { order } }`
 - `createdAt` / `updatedAt`
+
+新しく追加するリストの `order` は 3 プラットフォームとも既存の最大値 + 1 とし、件数 + 1 を使わない。並び替えの field path 更新は他端末で外した ID を復活させることがあるため、order に残る非メンバーのリスト ID は表示から外すだけでエラーにしない。リスト削除・退会では、membership がない（`permission-denied` または `memberKeys` に自分の key がない）リストの order エントリーだけを外す。欠損時の作成・共有参加は merge 書き込みで `createdAt` も入れる。
 
 ### shareCodes/{shareCode}
 
@@ -78,12 +80,21 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 
 - `notifiedAt`: 最後に通知を配信した Unix epoch milliseconds。
 
+### apiTokens/{tokenHash}
+
+外部 API（MCP）用のトークン（[api.md](./api.md)）。document ID はトークン平文の SHA-256（小文字 hex 64 文字）で、平文は保存しない。
+
+- `uid`: 発行したユーザー
+- `name`: 任意の名前（50 文字以内）
+- `createdAt`: Unix epoch milliseconds
+
+Rules はクライアントに本人の uid での作成（3 field だけ）、`uid` で絞った一覧、本人の削除だけを許可し、更新と ID 指定の `get` は許可しない。検証は Functions が Admin SDK で行う。Auth ユーザーの削除時に Functions が削除する。
+
 ## 参照関係
 
 - 表示順は `taskListOrder/{uid}` が正。保持権限は `taskLists/{taskListId}/members/{uid}` が正。
 - リスト実体は `taskLists/{taskListId}` が正。
 - 共有コードは `shareCodes/{shareCode}` から `taskListId` を引く。未参加者のプレビューは `shareCodes/{shareCode}.preview` だけを読み、`taskLists/{taskListId}` は読まない。
-- 実体が存在しない ID の順序エントリーは管理者による整合性確認後に除去できる。旧クライアントの document ID 指定クエリでは、アクセスできない ID を含むと全体が拒否されるため、残存参照を維持しない。補正はバックアップと `updateTime` 前提条件を付け、正常なリストの順序・本文・保持権限を変更しない。
 - `taskListOrder` と `taskLists` は別管理する。一方だけで順序と実体を兼ねない。加入・離脱時は order と membership、`memberCount`、`memberKeys`（自分の key だけを `arrayUnion` / `arrayRemove`）を同一 batch で更新する。
 
 ## 同期モデル
@@ -117,31 +128,15 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きFirestor
 
 - `settings` / `taskLists` / `taskListOrder` / `shareCodes` の `createdAt` / `updatedAt` は Unix epoch milliseconds の number で書き込む。`settings` の時刻 field だけは表示・同期に必須ではない。
 - server timestamp は使わない。Firestore Rules の `int` 型検証と pending snapshot の安定性に合わせるため。
-- 読み取り側は timestamp-like 値が混在しても `estimate` として解決し、UI へ `null` を流さない。
 
 ## Firestore ルール
 
 - `settings/{uid}` と `taskListOrder/{uid}` は本人のみ読み書き可能。
 - `shareCodes/{shareCode}` は `get` のみ誰でも可能で、`list` は不可。リストの現在のコードと一致しない文書の取得は拒否する。作成は認証済みかつ対象リストを保持しているユーザーに限り、キーは `taskListId` / `createdAt` だけ、さらに同一 commit で `taskLists/{taskListId}.shareCode == shareCode` になることを要求する。クライアントからの更新は不可（`preview` は Functions だけが書く）。
-- `taskLists/{taskListId}` は、`memberKeys` に自分の key があるか、自分の membership document が存在する場合だけ読み書きできる。共有コードの有無では読み取りを許可しない（`taskListId` を知っているだけの旧コード保持者や元メンバーが、コードの再発行後も読み続けられないようにするため）。`memberKeys` の判定を先に評価し、通常の読み書きで membership document の `exists()`（課金対象の読み取り）を発生させない。
+- `taskLists/{taskListId}` は `memberKeys` に自分の key がある場合だけ読み書きできる（参加の commit だけは同時に作る自分の membership document で判定する）。`memberKeys` は必須 field。共有コードの有無では読み取りを許可しない（`taskListId` を知っているだけの旧コード保持者や元メンバーが、コードの再発行後も読み続けられないようにするため）。
 - `memberKeys` は作成時は自分の key 1 件だけ、参加時（`memberCount` +1・membership 作成）は自分の key の追加だけ、離脱時（`memberCount` -1・membership 削除）は自分の key の除去だけを許可し、それ以外の更新では変更を禁止する。重複した key は許可しない。
 - `taskLists/{taskListId}` は共有コードを知っているだけでは読み書きできない。共有コードで読めるのは `shareCodes/{shareCode}.preview` だけで、更新には membership document が必要。
 - `taskLists.shareCode` は `null` か `^[A-Z0-9]{8}$` のみ許可し、新しい値は同一 commit で作成される `shareCodes` doc と一致していなければならない。新規作成時は `null` 固定。
 - `taskListOrder/{uid}` は表示順だけを保持し、本人の書き込み内容が `taskLists/{taskListId}` のアクセス権を付与することはない。新規作成・共有コード加入時は membership document の作成を同一 batch に含める。
 - `taskLists` の削除は最後の保持者（`memberCount <= 1`）のみ可能。
 - `memberCount` は参加時 `+1`、離脱時 `-1` のみ許可する。
-
-## membership 移行
-
-membership document 導入前に作成された既存リストには、信頼できる管理用 Admin SDK から `taskListOrder/{uid}` と `taskLists/{taskListId}.memberCount` を照合して、保持ユーザーごとの `taskLists/{taskListId}/members/{uid}` を backfill する。`taskListOrder` に残る実体不明の ID は membership を作成せず、実体の `memberCount` は backfill した membership 数へ補正する。
-
-移行完了と件数照合を確認してから Firestore Rules をデプロイする。クライアント SDK には既存リストを安全に認定する権限がないため、Rules デプロイを先行すると既存ユーザーのリストが読めなくなる。
-
-## memberKeys 移行
-
-`memberKeys` は `members` サブコレクションを正として Admin 権限で backfill する（dry-run で差分と `memberCount` 不一致を確認してから適用し、書き込みは `updateTime` 前提条件付き）。旧 Rules は `memberKeys` を許可しないため、次の順で行う。
-
-1. 移行用 Rules（Phase 1）をデプロイする。`memberKeys` を持たない旧クライアントの作成・参加も許可し、離脱だけは key の除去を必須にして離脱後の読み取り権を残さない。
-2. backfill を適用し、再実行で差分 0 を確認する。
-3. `memberKeys` クエリを使うクライアントを配布する。
-4. backfill を再実行して移行期間中の旧クライアント書き込みを補正し、差分 0 を確認してから、旧クライアント向け分岐を削除した Rules（Phase 2）をデプロイする。

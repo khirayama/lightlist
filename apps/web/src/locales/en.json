@@ -68,14 +68,7 @@
     "passwordReset": {
       "instruction": "Enter the email address associated with your account. We will send you a password reset email.",
       "success": "Password reset email sent. Please check your email.",
-      "title": "Reset Password",
-      "newPassword": "New Password",
-      "confirmNewPassword": "Confirm New Password",
-      "setNewPassword": "Reset Password",
-      "settingNewPassword": "Resetting...",
-      "invalidCode": "Password reset link is invalid",
-      "expiredCode": "Password reset link has expired",
-      "resetSuccess": "Password changed successfully"
+      "title": "Reset Password"
     },
     "placeholder": {
       "email": "example@email.com",
@@ -260,6 +253,24 @@
       "enable": "Get notified when another member changes tasks",
       "permissionDenied": "Notifications are blocked. Allow notifications in your device settings.",
       "unavailable": "Push notifications are unavailable in this environment."
+    },
+    "apiTokens": {
+      "title": "API Tokens",
+      "description": "Tokens that let AI tools and other programs read and update your task lists over MCP.",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Claude Code",
+      "create": "Create Token",
+      "creating": "Creating...",
+      "createdNotice": "This token is shown only now. Copy it and keep it somewhere safe.",
+      "tokenLabel": "Token",
+      "endpointLabel": "MCP Endpoint",
+      "setupLabel": "Setup examples for AI tools",
+      "listTitle": "Your Tokens",
+      "empty": "No tokens yet",
+      "createdAt": "Created {{date}}",
+      "delete": "Delete",
+      "deleteTitle": "Delete this token?",
+      "deleteMessage": "Integrations using \"{{name}}\" will stop working."
     }
   },
   "pages": {

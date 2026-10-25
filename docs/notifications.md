@@ -2,7 +2,7 @@
 
 共有リストの通知は Firebase Cloud Messaging（FCM）で配信する。ユーザー設定 `notifySharedListUpdates` は既定で無効。ユーザーが有効にし、OS またはブラウザーの通知許可を与えた端末だけが受信する。
 
-タスクリスト document の変更時に Cloud Functions が前後の値を比較し、タスクの追加・削除・本文・完了・日付・ピン留めの変更とリスト名の変更を通知対象とする。表示順だけの変更は通知しない。変更者自身には送らず、通知を有効にしている共有メンバーの登録済み端末へ配信する。本文は設定言語に合わせた共通文言（`settings.language` が対応言語の自身のキーでなければ `ja`）、タイトルはタスクリスト名の先頭 100 文字（コードポイント単位）とし、タスク本文は通知に含めない。通知をタップすると該当タスクリストを開く。
+タスクリスト document の変更時に Cloud Functions が前後の値を比較し、タスクの追加・削除・本文・完了・日付・ピン留めの変更とリスト名の変更を通知対象とする。表示順だけの変更は通知しない。変更者自身には送らず、通知を有効にしている共有メンバーの登録済み端末へ配信する。本文は設定言語に合わせた共通文言（`settings.language` が対応言語の自身のキーでなければ `ja`）、タイトルはタスクリスト名の先頭 100 文字（コードポイント単位）とし、タスク本文は通知に含めない。通知をタップすると該当タスクリストを開く。外部 API（MCP）による書き込みは trigger では通知せず、API が利用者を変更者として同じ通知処理を呼ぶ（[api.md](./api.md)）。
 
 同じタスクリストの通知は 3 プラットフォームとも 1 件に上書きし、連続した変更で通知を積み上げない（Android `tag` / `collapseKey`、iOS `apns-collapse-id`、Web `tag` に `taskListId` を使う）。
 
@@ -14,7 +14,7 @@ Android 宛ては `priority: "high"` で送り、Doze 中の端末でも待た�
 - `settings/{uid}.notificationDevices.{deviceId}`: 端末ごとの `{ token, platform, updatedAt }`。`deviceId` は端末内で生成・保存する UUID。
 - 通知を無効にすると、そのユーザーの端末登録 map を空にする。
 - ログアウト時は、オンラインなら現在の端末登録の削除と端末側の FCM token 削除を最大 3 秒待ってからサインアウトする。オフライン時や待機期限内に削除が終わらなかった場合は、サーバー上の登録と端末の token が残ることがある。
-- 端末は取得した FCM token の所有ユーザー（uid）を端末内に保存する。認証状態の確定時と端末登録の前に、所有ユーザーが現在のログインユーザーと異なれば（未ログインを含む）端末の token を破棄する（iOS / Android は FCM token の削除、Web は通知 worker の push subscription の解除）。破棄に失敗した場合は端末登録を行わず、次回の起動・ログイン時に再試行する。前のユーザーに残った登録は次回配信時に無効 token として削除される。
+- 端末は取得した FCM token の所有ユーザー（uid）を端末内に保存する。認証状態の確定時と端末登録の前に、所有ユーザーが現在のログインユーザーと異なれば（未ログインを含む）端末の token を破棄する（iOS / Android は FCM token の削除、Web は service worker の push subscription の解除）。破棄に失敗した場合は端末登録を行わず、次回の起動・ログイン時に再試行する。前のユーザーに残った登録は次回配信時に無効 token として削除される。
 - 配信結果が無効 token を示した場合、Functions が該当端末登録を削除する。
 - 端末登録の書き込みは、settings の購読結果にある登録済み token と端末の token が異なるときだけ行う。起動のたびに書き込まない。
 
@@ -34,7 +34,7 @@ Android 宛ては `priority: "high"` で送り、Doze 中の端末でも待た�
 2. Firebase Functions をデプロイするプロジェクトを Blaze プランにし、Cloud Functions for Firebase の Node.js 22 runtime が利用できる状態にする。
 3. リポジトリルートで `just deploy-firebase`（dev）または `just deploy-firebase prod` を実行する。Firestore Rules / indexes と通知 Functions を同じ環境へ配信し、`firebase/firebase.json` の predeploy が Functions を build する。
 4. iOS 配信では Apple Developer の App ID に Push Notifications capability を許可し、対応する provisioning profile を更新する。APNs authentication key を Firebase Console の Project settings > Cloud Messaging > Apple app configuration に登録する。Debug / Release の entitlement は `apps/ios/Lightlist/Lightlist.entitlements` で設定する。
-5. Web 配信では Firebase Console の Project settings > Cloud Messaging > Web Push certificates で VAPID key pair を用意し、公開鍵を Cloudflare Pages の `VITE_FIREBASE_VAPID_KEY` build environment variable に設定する。Web Push は HTTPS と Push API 対応ブラウザーが必要。Firebase JavaScript SDK が非対応と判定した環境では設定を有効にできない。iOS / iPadOS では native app の通知を利用する。
+5. Web 配信では Firebase Console の Project settings > Cloud Messaging > Web Push certificates で VAPID key pair を用意し、公開鍵を `apps/web/.env.production.local`（dev は `.env.development.local`）の `VITE_FIREBASE_VAPID_KEY` に設定する。Web Push は HTTPS と Push API 対応ブラウザーが必要。Firebase JavaScript SDK が非対応と判定した環境では設定を有効にできない。iOS / iPadOS では native app の通知を利用する。
 6. Android の `google-services.json` と iOS の `GoogleService-Info.plist` が、配信する app identifier と同じ Firebase project のものか確認する。
 
 配信先は FCM registration token を使用する。Firebase SDK の installation ID による登録モードは有効にしない。
@@ -47,19 +47,19 @@ Android 宛ては `priority: "high"` で送り、Doze 中の端末でも待た�
 - iOS 本番: `apps/ios/Lightlist/Resources/Firebase/Release/GoogleService-Info.plist`
 - Android 開発: `apps/android/app/google-services.json`
 - Android 本番: `apps/android/app/src/release/google-services.json`
-- Web ローカル開発: `apps/web/.env.local`
+- Web ローカル開発: `apps/web/.env.development.local`（本番は `apps/web/.env.production.local`）
 
 これらのローカル設定は Git 管理外のため、環境別にバックアップする。APNs authentication key の `.p8` と対応する Key ID・Team ID も保管する。秘密鍵のバックアップ先は共有範囲を限定する。
 
-Web の `VITE_FIREBASE_VAPID_KEY` は公開鍵であり、`VITE_FIREBASE_PROJECT_ID` と同じ Firebase project の値を使う。Cloudflare Pages の Production と Preview は別々に設定し、保存後の次回 build で反映する。環境変数の保存だけでは配信済み Web は更新されない。
+Web の `VITE_FIREBASE_VAPID_KEY` は公開鍵であり、`VITE_FIREBASE_PROJECT_ID` と同じ Firebase project の値を使う。値はローカルの build に埋め込まれるため、変更後は Web を再配信する。
 
 通知 Functions は Firestore Rules / indexes と合わせて `just deploy-firebase`（dev）/ `just deploy-firebase prod` で同じ環境へ一括配信する。配信後にクライアントを配布する。予算アラートは請求先 account の対象 project 範囲を確認し、通知金額を課金上限として扱わない。
 
 端末登録はログインユーザーと通知設定が確定した時点で更新し、設定画面を開く必要はない。iOS は APNs 登録完了後に FCM token を取得し、APNs 登録失敗または 15 秒の待機期限超過時には有効化を失敗として扱う。
 
-Web のバックグラウンド通知は FCM SDK の自動表示を使用する。クリック時に同一 origin の既存アプリタブがあれば、通知 worker が `taskListId` を `postMessage` で渡してフォーカスし、アプリ側が該当リストを開く。通知 worker はアプリのページを制御しないため、`WindowClient.navigate()` は使わない。アプリタブがない場合は `taskListId` 付きの URL を新しいタブで開く。同一 origin のページが表示中の場合、SDK は通知を表示せずページへ渡すため、アプリ以外のページ（LP・ログイン画面）だけが表示中のときは通知が出ない。
+Web Push は root scope の `sw.js` 1 本で受ける。FCM の token は FCM SDK の `getToken` にこの registration を渡して取得し、受信（`push`）と表示は service worker が FCM の payload（`notification` / `data.taskListId`）から直接行う。ページの表示状態にかかわらず通知を表示する。クリック時に同一 origin の `/app/` タブがあれば `taskListId` を `postMessage` で渡してフォーカスし、アプリ側が該当リストを開く。アプリタブがない場合は `taskListId` 付きの URL を新しいタブで開く。
 
-通知 worker の初回登録時は、worker が active になるのを待ってから FCM token を取得する。
+初回登録時は service worker が active になるのを待ってから FCM token を取得する。
 
 通知許可はアプリ内スイッチを有効にしたときだけ要求する。OS 設定で許可を後から取り消した場合、アプリ内設定は維持されるが通知は届かない。再許可後にアプリを起動すると端末登録を更新する。
 

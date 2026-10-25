@@ -23,8 +23,10 @@
     "build": "node scripts/sync-push-locales.mjs && tsc"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "^2.3.1",
     "firebase-admin": "^14.5.0",
-    "firebase-functions": "^7.0.3"
+    "firebase-functions": "^7.0.3",
+    "zod": "^4.6.7"
   },
   "allowScripts": {
     "@firebase/util@1.15.3": true,

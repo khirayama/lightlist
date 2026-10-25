@@ -69,14 +69,7 @@
       "passwordReset": {
         "instruction": "أدخل عنوان البريد الإلكتروني المرتبط بحسابك. سنرسل لك رسالة لإعادة تعيين كلمة المرور.",
         "success": "تم إرسال رسالة إعادة تعيين كلمة المرور. يرجى التحقق من بريدك الإلكتروني.",
-        "title": "إعادة تعيين كلمة المرور",
-        "newPassword": "كلمة مرور جديدة",
-        "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
-        "setNewPassword": "إعادة تعيين كلمة المرور",
-        "settingNewPassword": "جارٍ إعادة التعيين...",
-        "invalidCode": "رابط إعادة تعيين كلمة المرور غير صالح",
-        "expiredCode": "انتهت صلاحية رابط إعادة تعيين كلمة المرور",
-        "resetSuccess": "تم تغيير كلمة المرور بنجاح"
+        "title": "إعادة تعيين كلمة المرور"
       },
       "placeholder": {
         "email": "مثال@بريد.كوم",
@@ -251,6 +244,24 @@
         "enable": "تلقي إشعار عندما يغيّر عضو آخر المهام",
         "permissionDenied": "الإشعارات محظورة. اسمح بها من إعدادات جهازك.",
         "unavailable": "الإشعارات الفورية غير متاحة في هذه البيئة."
+      },
+      "apiTokens": {
+        "title": "رموز API",
+        "description": "رموز تتيح لأدوات الذكاء الاصطناعي والبرامج الأخرى قراءة قوائم المهام وتحديثها عبر MCP.",
+        "nameLabel": "الاسم",
+        "namePlaceholder": "مثال: Claude Code",
+        "create": "إنشاء رمز",
+        "creating": "جارٍ الإنشاء...",
+        "createdNotice": "يظهر هذا الرمز الآن فقط. انسخه واحفظه في مكان آمن.",
+        "tokenLabel": "الرمز",
+        "endpointLabel": "نقطة نهاية MCP",
+        "setupLabel": "أمثلة على إعداد أدوات الذكاء الاصطناعي",
+        "listTitle": "رموزك",
+        "empty": "لا توجد رموز بعد",
+        "createdAt": "أُنشئ في {{date}}",
+        "delete": "حذف",
+        "deleteTitle": "حذف هذا الرمز؟",
+        "deleteMessage": "ستتوقف عمليات التكامل التي تستخدم «{{name}}» عن العمل."
       }
     },
     "pages": {
@@ -491,14 +502,7 @@
       "passwordReset": {
         "instruction": "Gib die E-Mail-Adresse ein, die mit deinem Konto verknüpft ist. Wir senden dir eine E-Mail zum Zurücksetzen des Passworts.",
         "success": "E-Mail zum Zurücksetzen gesendet. Bitte prüfe deinen Posteingang.",
-        "title": "Passwort zurücksetzen",
-        "newPassword": "Neues Passwort",
-        "confirmNewPassword": "Neues Passwort bestätigen",
-        "setNewPassword": "Passwort zurücksetzen",
-        "settingNewPassword": "Wird zurückgesetzt...",
-        "invalidCode": "Der Link zum Zurücksetzen ist ungültig",
-        "expiredCode": "Der Link zum Zurücksetzen ist abgelaufen",
-        "resetSuccess": "Passwort erfolgreich geändert"
+        "title": "Passwort zurücksetzen"
       },
       "placeholder": {
         "email": "beispiel@email.de",
@@ -684,6 +688,24 @@
         "enable": "Lass dich benachrichtigen, wenn andere Mitglieder Aufgaben ändern",
         "permissionDenied": "Benachrichtigungen sind blockiert. Erlaube sie in den Geräteeinstellungen.",
         "unavailable": "Push-Benachrichtigungen sind in dieser Umgebung nicht verfügbar."
+      },
+      "apiTokens": {
+        "title": "API-Tokens",
+        "description": "Tokens, mit denen KI-Tools und andere Programme deine Aufgabenlisten über MCP lesen und bearbeiten können.",
+        "nameLabel": "Name",
+        "namePlaceholder": "z. B. Claude Code",
+        "create": "Token erstellen",
+        "creating": "Wird erstellt...",
+        "createdNotice": "Dieses Token wird nur jetzt angezeigt. Kopiere es und bewahre es sicher auf.",
+        "tokenLabel": "Token",
+        "endpointLabel": "MCP-Endpunkt",
+        "setupLabel": "Einrichtungsbeispiele für KI-Tools",
+        "listTitle": "Deine Tokens",
+        "empty": "Noch keine Tokens",
+        "createdAt": "Erstellt am {{date}}",
+        "delete": "Löschen",
+        "deleteTitle": "Dieses Token löschen?",
+        "deleteMessage": "Integrationen, die „{{name}}“ verwenden, funktionieren dann nicht mehr."
       }
     },
     "pages": {
@@ -924,14 +946,7 @@
       "passwordReset": {
         "instruction": "Enter the email address associated with your account. We will send you a password reset email.",
         "success": "Password reset email sent. Please check your email.",
-        "title": "Reset Password",
-        "newPassword": "New Password",
-        "confirmNewPassword": "Confirm New Password",
-        "setNewPassword": "Reset Password",
-        "settingNewPassword": "Resetting...",
-        "invalidCode": "Password reset link is invalid",
-        "expiredCode": "Password reset link has expired",
-        "resetSuccess": "Password changed successfully"
+        "title": "Reset Password"
       },
       "placeholder": {
         "email": "example@email.com",
@@ -1116,6 +1131,24 @@
         "enable": "Get notified when another member changes tasks",
         "permissionDenied": "Notifications are blocked. Allow notifications in your device settings.",
         "unavailable": "Push notifications are unavailable in this environment."
+      },
+      "apiTokens": {
+        "title": "API Tokens",
+        "description": "Tokens that let AI tools and other programs read and update your task lists over MCP.",
+        "nameLabel": "Name",
+        "namePlaceholder": "e.g. Claude Code",
+        "create": "Create Token",
+        "creating": "Creating...",
+        "createdNotice": "This token is shown only now. Copy it and keep it somewhere safe.",
+        "tokenLabel": "Token",
+        "endpointLabel": "MCP Endpoint",
+        "setupLabel": "Setup examples for AI tools",
+        "listTitle": "Your Tokens",
+        "empty": "No tokens yet",
+        "createdAt": "Created {{date}}",
+        "delete": "Delete",
+        "deleteTitle": "Delete this token?",
+        "deleteMessage": "Integrations using \"{{name}}\" will stop working."
       }
     },
     "pages": {
@@ -1356,14 +1389,7 @@
       "passwordReset": {
         "instruction": "Ingresa la dirección de correo asociada a tu cuenta. Te enviaremos un correo para restablecer la contraseña.",
         "success": "Correo de restablecimiento enviado. Revisa tu bandeja de entrada.",
-        "title": "Restablecer contraseña",
-        "newPassword": "Nueva contraseña",
-        "confirmNewPassword": "Confirmar nueva contraseña",
-        "setNewPassword": "Restablecer contraseña",
-        "settingNewPassword": "Restableciendo...",
-        "invalidCode": "El enlace de restablecimiento no es válido",
-        "expiredCode": "El enlace de restablecimiento ha caducado",
-        "resetSuccess": "La contraseña se cambió correctamente"
+        "title": "Restablecer contraseña"
       },
       "placeholder": {
         "email": "ejemplo@correo.com",
@@ -1553,6 +1579,24 @@
         "enable": "Recibe avisos cuando otro miembro cambie tareas",
         "permissionDenied": "Las notificaciones están bloqueadas. Permítelas en los ajustes del dispositivo.",
         "unavailable": "Las notificaciones push no están disponibles en este entorno."
+      },
+      "apiTokens": {
+        "title": "Tokens de API",
+        "description": "Tokens que permiten a herramientas de IA y otros programas leer y actualizar tus listas de tareas mediante MCP.",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "p. ej., Claude Code",
+        "create": "Crear token",
+        "creating": "Creando...",
+        "createdNotice": "Este token solo se muestra ahora. Cópialo y guárdalo en un lugar seguro.",
+        "tokenLabel": "Token",
+        "endpointLabel": "Endpoint de MCP",
+        "setupLabel": "Ejemplos de configuración para herramientas de IA",
+        "listTitle": "Tus tokens",
+        "empty": "Aún no hay tokens",
+        "createdAt": "Creado el {{date}}",
+        "delete": "Eliminar",
+        "deleteTitle": "¿Eliminar este token?",
+        "deleteMessage": "Las integraciones que usan «{{name}}» dejarán de funcionar."
       }
     },
     "pages": {
@@ -1793,14 +1837,7 @@
       "passwordReset": {
         "instruction": "Saisissez l'adresse e-mail associée à votre compte. Nous vous enverrons un e-mail de réinitialisation du mot de passe.",
         "success": "E-mail de réinitialisation envoyé. Veuillez vérifier votre boîte de réception.",
-        "title": "Réinitialiser le mot de passe",
-        "newPassword": "Nouveau mot de passe",
-        "confirmNewPassword": "Confirmer le nouveau mot de passe",
-        "setNewPassword": "Réinitialiser le mot de passe",
-        "settingNewPassword": "Réinitialisation...",
-        "invalidCode": "Le lien de réinitialisation est invalide",
-        "expiredCode": "Le lien de réinitialisation a expiré",
-        "resetSuccess": "Mot de passe modifié avec succès"
+        "title": "Réinitialiser le mot de passe"
       },
       "placeholder": {
         "email": "exemple@email.com",
@@ -1987,6 +2024,24 @@
         "enable": "Recevez une notification lorsqu’un autre membre modifie des tâches",
         "permissionDenied": "Les notifications sont bloquées. Autorisez-les dans les réglages de votre appareil.",
         "unavailable": "Les notifications push ne sont pas disponibles dans cet environnement."
+      },
+      "apiTokens": {
+        "title": "Jetons d'API",
+        "description": "Jetons permettant aux outils d'IA et à d'autres programmes de lire et modifier vos listes de tâches via MCP.",
+        "nameLabel": "Nom",
+        "namePlaceholder": "ex. : Claude Code",
+        "create": "Créer un jeton",
+        "creating": "Création...",
+        "createdNotice": "Ce jeton n'est affiché qu'une seule fois. Copiez-le et conservez-le en lieu sûr.",
+        "tokenLabel": "Jeton",
+        "endpointLabel": "Point de terminaison MCP",
+        "setupLabel": "Exemples de configuration pour les outils d'IA",
+        "listTitle": "Vos jetons",
+        "empty": "Aucun jeton pour l'instant",
+        "createdAt": "Créé le {{date}}",
+        "delete": "Supprimer",
+        "deleteTitle": "Supprimer ce jeton ?",
+        "deleteMessage": "Les intégrations utilisant « {{name}} » ne fonctionneront plus."
       }
     },
     "pages": {
@@ -2227,14 +2282,7 @@
       "passwordReset": {
         "instruction": "अपने खाते से जुड़ा ईमेल पता दर्ज करें। हम आपको पासवर्ड रीसेट ईमेल भेजेंगे।",
         "success": "पासवर्ड रीसेट ईमेल भेज दिया गया है। कृपया अपना ईमेल देखें।",
-        "title": "पासवर्ड रीसेट करें",
-        "newPassword": "नया पासवर्ड",
-        "confirmNewPassword": "नए पासवर्ड की पुष्टि करें",
-        "setNewPassword": "पासवर्ड रीसेट करें",
-        "settingNewPassword": "रीसेट किया जा रहा है...",
-        "invalidCode": "पासवर्ड रीसेट लिंक अमान्य है",
-        "expiredCode": "पासवर्ड रीसेट लिंक की अवधि समाप्त हो गई है",
-        "resetSuccess": "पासवर्ड सफलतापूर्वक बदल दिया गया"
+        "title": "पासवर्ड रीसेट करें"
       },
       "placeholder": {
         "email": "udaharan@email.com",
@@ -2408,6 +2456,24 @@
         "enable": "जब कोई अन्य सदस्य कार्यों में बदलाव करे, तब सूचना पाएं",
         "permissionDenied": "सूचनाएं अवरुद्ध हैं। डिवाइस सेटिंग में सूचनाओं की अनुमति दें।",
         "unavailable": "इस परिवेश में पुश सूचनाएं उपलब्ध नहीं हैं।"
+      },
+      "apiTokens": {
+        "title": "API टोकन",
+        "description": "ये टोकन AI टूल और दूसरे प्रोग्राम को MCP के ज़रिए आपकी टास्क सूचियाँ पढ़ने और बदलने देते हैं।",
+        "nameLabel": "नाम",
+        "namePlaceholder": "जैसे: Claude Code",
+        "create": "टोकन बनाएँ",
+        "creating": "बनाया जा रहा है...",
+        "createdNotice": "यह टोकन सिर्फ़ अभी दिखाया जाएगा। इसे कॉपी करके किसी सुरक्षित जगह रखें।",
+        "tokenLabel": "टोकन",
+        "endpointLabel": "MCP एंडपॉइंट",
+        "setupLabel": "AI टूल के लिए सेटअप के उदाहरण",
+        "listTitle": "आपके टोकन",
+        "empty": "अभी कोई टोकन नहीं है",
+        "createdAt": "{{date}} को बनाया गया",
+        "delete": "हटाएँ",
+        "deleteTitle": "यह टोकन हटाएँ?",
+        "deleteMessage": "\"{{name}}\" का उपयोग करने वाले इंटीग्रेशन काम करना बंद कर देंगे।"
       }
     },
     "pages": {
@@ -2648,14 +2714,7 @@
       "passwordReset": {
         "instruction": "Masukkan alamat email yang terhubung dengan akun Anda. Kami akan mengirim email reset kata sandi.",
         "success": "Email reset kata sandi telah dikirim. Silakan periksa email Anda.",
-        "title": "Reset kata sandi",
-        "newPassword": "Kata sandi baru",
-        "confirmNewPassword": "Konfirmasi kata sandi baru",
-        "setNewPassword": "Reset kata sandi",
-        "settingNewPassword": "Sedang mereset...",
-        "invalidCode": "Tautan reset kata sandi tidak valid",
-        "expiredCode": "Tautan reset kata sandi telah kedaluwarsa",
-        "resetSuccess": "Kata sandi berhasil diubah"
+        "title": "Reset kata sandi"
       },
       "placeholder": {
         "email": "contoh@email.com",
@@ -2835,6 +2894,24 @@
         "enable": "Dapatkan pemberitahuan saat anggota lain mengubah tugas",
         "permissionDenied": "Notifikasi diblokir. Izinkan notifikasi di pengaturan perangkat.",
         "unavailable": "Notifikasi push tidak tersedia di lingkungan ini."
+      },
+      "apiTokens": {
+        "title": "Token API",
+        "description": "Token yang memungkinkan alat AI dan program lain membaca serta memperbarui daftar tugas Anda melalui MCP.",
+        "nameLabel": "Nama",
+        "namePlaceholder": "mis. Claude Code",
+        "create": "Buat token",
+        "creating": "Membuat...",
+        "createdNotice": "Token ini hanya ditampilkan sekarang. Salin dan simpan di tempat yang aman.",
+        "tokenLabel": "Token",
+        "endpointLabel": "Endpoint MCP",
+        "setupLabel": "Contoh pengaturan untuk alat AI",
+        "listTitle": "Token Anda",
+        "empty": "Belum ada token",
+        "createdAt": "Dibuat {{date}}",
+        "delete": "Hapus",
+        "deleteTitle": "Hapus token ini?",
+        "deleteMessage": "Integrasi yang menggunakan \"{{name}}\" tidak akan berfungsi lagi."
       }
     },
     "pages": {
@@ -3075,14 +3152,7 @@
       "passwordReset": {
         "instruction": "登録されているメールアドレスを入力してください。パスワードリセットメールを送信します。",
         "success": "パスワードリセットメールを送信しました。メールをご確認ください。",
-        "title": "パスワード再設定",
-        "newPassword": "新しいパスワード",
-        "confirmNewPassword": "新しいパスワード確認",
-        "setNewPassword": "パスワード再設定",
-        "settingNewPassword": "再設定中...",
-        "invalidCode": "パスワードリセットリンクが無効です",
-        "expiredCode": "パスワードリセットリンクの有効期限が切れています",
-        "resetSuccess": "パスワードが正常に変更されました"
+        "title": "パスワード再設定"
       },
       "placeholder": {
         "email": "sample@example.com",
@@ -3256,6 +3326,24 @@
         "enable": "他のメンバーがタスクを更新したときに通知します",
         "permissionDenied": "通知が許可されていません。端末の設定で通知を許可してください。",
         "unavailable": "この環境ではプッシュ通知を利用できません。"
+      },
+      "apiTokens": {
+        "title": "API トークン",
+        "description": "AI ツールや外部のプログラムから、MCP でタスクリストを読み書きするためのトークンです。",
+        "nameLabel": "名前",
+        "namePlaceholder": "例: Claude Code",
+        "create": "トークンを発行",
+        "creating": "発行中...",
+        "createdNotice": "このトークンは今だけ表示されます。コピーして安全な場所に保管してください。",
+        "tokenLabel": "トークン",
+        "endpointLabel": "MCP エンドポイント",
+        "setupLabel": "AI ツールの設定例",
+        "listTitle": "発行済みのトークン",
+        "empty": "発行済みのトークンはありません",
+        "createdAt": "{{date}} に発行",
+        "delete": "削除",
+        "deleteTitle": "トークンを削除しますか？",
+        "deleteMessage": "「{{name}}」を使っている連携は使えなくなります。"
       }
     },
     "pages": {
@@ -3496,14 +3584,7 @@
       "passwordReset": {
         "instruction": "계정에 연결된 이메일 주소를 입력해 주세요. 비밀번호 재설정 메일을 보내드립니다.",
         "success": "비밀번호 재설정 메일을 보냈습니다. 이메일을 확인해 주세요.",
-        "title": "비밀번호 재설정",
-        "newPassword": "새 비밀번호",
-        "confirmNewPassword": "새 비밀번호 확인",
-        "setNewPassword": "비밀번호 재설정",
-        "settingNewPassword": "재설정 중...",
-        "invalidCode": "비밀번호 재설정 링크가 유효하지 않습니다",
-        "expiredCode": "비밀번호 재설정 링크가 만료되었습니다",
-        "resetSuccess": "비밀번호가 성공적으로 변경되었습니다"
+        "title": "비밀번호 재설정"
       },
       "placeholder": {
         "email": "example@이메일.com",
@@ -3684,6 +3765,24 @@
         "enable": "다른 멤버가 작업을 변경하면 알림을 받습니다",
         "permissionDenied": "알림이 차단되었습니다. 기기 설정에서 알림을 허용하세요.",
         "unavailable": "이 환경에서는 푸시 알림을 사용할 수 없습니다."
+      },
+      "apiTokens": {
+        "title": "API 토큰",
+        "description": "AI 도구나 외부 프로그램이 MCP로 작업 목록을 읽고 수정할 수 있게 하는 토큰입니다.",
+        "nameLabel": "이름",
+        "namePlaceholder": "예: Claude Code",
+        "create": "토큰 발급",
+        "creating": "발급 중...",
+        "createdNotice": "이 토큰은 지금만 표시됩니다. 복사해서 안전한 곳에 보관하세요.",
+        "tokenLabel": "토큰",
+        "endpointLabel": "MCP 엔드포인트",
+        "setupLabel": "AI 도구 설정 예시",
+        "listTitle": "발급된 토큰",
+        "empty": "발급된 토큰이 없습니다",
+        "createdAt": "{{date}}에 발급",
+        "delete": "삭제",
+        "deleteTitle": "토큰을 삭제할까요?",
+        "deleteMessage": "\"{{name}}\"을(를) 사용하는 연동은 더 이상 작동하지 않습니다."
       }
     },
     "pages": {
@@ -3924,14 +4023,7 @@
       "passwordReset": {
         "instruction": "Digite o endereço de e-mail associado à sua conta. Enviaremos um e-mail para redefinir a senha.",
         "success": "E-mail de redefinição de senha enviado. Verifique sua caixa de entrada.",
-        "title": "Redefinir senha",
-        "newPassword": "Nova senha",
-        "confirmNewPassword": "Confirmar nova senha",
-        "setNewPassword": "Redefinir senha",
-        "settingNewPassword": "Redefinindo...",
-        "invalidCode": "O link de redefinição de senha é inválido",
-        "expiredCode": "O link de redefinição de senha expirou",
-        "resetSuccess": "Senha alterada com sucesso"
+        "title": "Redefinir senha"
       },
       "placeholder": {
         "email": "exemplo@email.com",
@@ -4126,6 +4218,24 @@
         "enable": "Receba avisos quando outra pessoa alterar tarefas",
         "permissionDenied": "As notificações estão bloqueadas. Permita-as nas configurações do dispositivo.",
         "unavailable": "As notificações push não estão disponíveis neste ambiente."
+      },
+      "apiTokens": {
+        "title": "Tokens de API",
+        "description": "Tokens que permitem que ferramentas de IA e outros programas leiam e atualizem suas listas de tarefas via MCP.",
+        "nameLabel": "Nome",
+        "namePlaceholder": "ex.: Claude Code",
+        "create": "Criar token",
+        "creating": "Criando...",
+        "createdNotice": "Este token só é exibido agora. Copie-o e guarde-o em um lugar seguro.",
+        "tokenLabel": "Token",
+        "endpointLabel": "Endpoint do MCP",
+        "setupLabel": "Exemplos de configuração para ferramentas de IA",
+        "listTitle": "Seus tokens",
+        "empty": "Nenhum token ainda",
+        "createdAt": "Criado em {{date}}",
+        "delete": "Excluir",
+        "deleteTitle": "Excluir este token?",
+        "deleteMessage": "As integrações que usam \"{{name}}\" deixarão de funcionar."
       }
     },
     "pages": {
@@ -4366,14 +4476,7 @@
       "passwordReset": {
         "instruction": "请输入与你账户关联的电子邮箱地址。我们会发送密码重置邮件。",
         "success": "密码重置邮件已发送，请检查邮箱。",
-        "title": "重置密码",
-        "newPassword": "新密码",
-        "confirmNewPassword": "确认新密码",
-        "setNewPassword": "重置密码",
-        "settingNewPassword": "重置中...",
-        "invalidCode": "密码重置链接无效",
-        "expiredCode": "密码重置链接已过期",
-        "resetSuccess": "密码修改成功"
+        "title": "重置密码"
       },
       "placeholder": {
         "email": "example@邮箱.com",
@@ -4556,6 +4659,24 @@
         "enable": "其他成员更改任务时通知我",
         "permissionDenied": "通知已被阻止。请在设备设置中允许通知。",
         "unavailable": "此环境不支持推送通知。"
+      },
+      "apiTokens": {
+        "title": "API 令牌",
+        "description": "用于让 AI 工具和其他程序通过 MCP 读取和更新你的任务列表的令牌。",
+        "nameLabel": "名称",
+        "namePlaceholder": "例如：Claude Code",
+        "create": "创建令牌",
+        "creating": "正在创建...",
+        "createdNotice": "此令牌仅在现在显示。请复制并妥善保管。",
+        "tokenLabel": "令牌",
+        "endpointLabel": "MCP 端点",
+        "setupLabel": "AI 工具配置示例",
+        "listTitle": "已创建的令牌",
+        "empty": "还没有令牌",
+        "createdAt": "创建于 {{date}}",
+        "delete": "删除",
+        "deleteTitle": "删除此令牌？",
+        "deleteMessage": "使用“{{name}}”的集成将无法继续使用。"
       }
     },
     "pages": {

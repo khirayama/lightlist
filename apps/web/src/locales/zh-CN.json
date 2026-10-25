@@ -68,14 +68,7 @@
     "passwordReset": {
       "instruction": "请输入与你账户关联的电子邮箱地址。我们会发送密码重置邮件。",
       "success": "密码重置邮件已发送，请检查邮箱。",
-      "title": "重置密码",
-      "newPassword": "新密码",
-      "confirmNewPassword": "确认新密码",
-      "setNewPassword": "重置密码",
-      "settingNewPassword": "重置中...",
-      "invalidCode": "密码重置链接无效",
-      "expiredCode": "密码重置链接已过期",
-      "resetSuccess": "密码修改成功"
+      "title": "重置密码"
     },
     "placeholder": {
       "email": "example@邮箱.com",
@@ -258,6 +251,24 @@
       "enable": "其他成员更改任务时通知我",
       "permissionDenied": "通知已被阻止。请在设备设置中允许通知。",
       "unavailable": "此环境不支持推送通知。"
+    },
+    "apiTokens": {
+      "title": "API 令牌",
+      "description": "用于让 AI 工具和其他程序通过 MCP 读取和更新你的任务列表的令牌。",
+      "nameLabel": "名称",
+      "namePlaceholder": "例如：Claude Code",
+      "create": "创建令牌",
+      "creating": "正在创建...",
+      "createdNotice": "此令牌仅在现在显示。请复制并妥善保管。",
+      "tokenLabel": "令牌",
+      "endpointLabel": "MCP 端点",
+      "setupLabel": "AI 工具配置示例",
+      "listTitle": "已创建的令牌",
+      "empty": "还没有令牌",
+      "createdAt": "创建于 {{date}}",
+      "delete": "删除",
+      "deleteTitle": "删除此令牌？",
+      "deleteMessage": "使用“{{name}}”的集成将无法继续使用。"
     }
   },
   "pages": {

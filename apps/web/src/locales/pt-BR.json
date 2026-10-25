@@ -68,14 +68,7 @@
     "passwordReset": {
       "instruction": "Digite o endereço de e-mail associado à sua conta. Enviaremos um e-mail para redefinir a senha.",
       "success": "E-mail de redefinição de senha enviado. Verifique sua caixa de entrada.",
-      "title": "Redefinir senha",
-      "newPassword": "Nova senha",
-      "confirmNewPassword": "Confirmar nova senha",
-      "setNewPassword": "Redefinir senha",
-      "settingNewPassword": "Redefinindo...",
-      "invalidCode": "O link de redefinição de senha é inválido",
-      "expiredCode": "O link de redefinição de senha expirou",
-      "resetSuccess": "Senha alterada com sucesso"
+      "title": "Redefinir senha"
     },
     "placeholder": {
       "email": "exemplo@email.com",
@@ -270,6 +263,24 @@
       "enable": "Receba avisos quando outra pessoa alterar tarefas",
       "permissionDenied": "As notificações estão bloqueadas. Permita-as nas configurações do dispositivo.",
       "unavailable": "As notificações push não estão disponíveis neste ambiente."
+    },
+    "apiTokens": {
+      "title": "Tokens de API",
+      "description": "Tokens que permitem que ferramentas de IA e outros programas leiam e atualizem suas listas de tarefas via MCP.",
+      "nameLabel": "Nome",
+      "namePlaceholder": "ex.: Claude Code",
+      "create": "Criar token",
+      "creating": "Criando...",
+      "createdNotice": "Este token só é exibido agora. Copie-o e guarde-o em um lugar seguro.",
+      "tokenLabel": "Token",
+      "endpointLabel": "Endpoint do MCP",
+      "setupLabel": "Exemplos de configuração para ferramentas de IA",
+      "listTitle": "Seus tokens",
+      "empty": "Nenhum token ainda",
+      "createdAt": "Criado em {{date}}",
+      "delete": "Excluir",
+      "deleteTitle": "Excluir este token?",
+      "deleteMessage": "As integrações que usam \"{{name}}\" deixarão de funcionar."
     }
   },
   "pages": {

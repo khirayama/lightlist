@@ -52,11 +52,11 @@ service cloud.firestore {
       }
 
       function memberKeysBefore() {
-        return resource.data.get('memberKeys', []);
+        return resource.data.memberKeys;
       }
 
       function memberKeysAfter() {
-        return request.resource.data.get('memberKeys', []);
+        return request.resource.data.memberKeys;
       }
 
       // memberKeys は membership document と同一 commit で整合させるため、判定に追加の読み取りを要しない
@@ -73,10 +73,6 @@ service cloud.firestore {
       function isMemberAfter() {
         return request.auth != null
           && existsAfter(/databases/$(database)/documents/taskLists/$(taskListId)/members/$(request.auth.uid));
-      }
-
-      function isMemberBeforeOrAfter() {
-        return hasMemberKeyBefore() || isMemberBefore() || isMemberAfter();
       }
 
       function hasUniqueMemberKeys() {
@@ -130,7 +126,7 @@ service cloud.firestore {
           && request.resource.data.memberCount is int
           && request.resource.data.createdAt is int
           && request.resource.data.updatedAt is int
-          && request.resource.data.get('memberKeys', []) is list
+          && request.resource.data.memberKeys is list
           && (
             background == null
             || (background is string && background.matches('^#[0-9A-Fa-f]{6}$'))
@@ -212,9 +208,8 @@ service cloud.firestore {
           );
       }
 
-      // 読み取り権限: memberKeys / membership documentに含まれている。
       // 未参加者のプレビューは Functions が shareCodes/{code}.preview に書く写しだけを読み、taskListId の推測では読めない
-      allow read: if isMemberBeforeOrAfter();
+      allow read: if hasMemberKeyBefore();
 
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(allowedTaskListKeys())
@@ -222,10 +217,11 @@ service cloud.firestore {
         && request.resource.data.id == taskListId
         && request.resource.data.memberCount == 1
         && request.resource.data.get('shareCode', null) == null
-        && request.resource.data.get('memberKeys', null) == [memberKey()]
+        && request.resource.data.memberKeys == [memberKey()]
         && existsAfter(/databases/$(database)/documents/taskLists/$(taskListId)/members/$(request.auth.uid));
 
-      allow update: if isMemberBeforeOrAfter()
+      // 参加は同一 commit で作る membership document で判定する
+      allow update: if (hasMemberKeyBefore() || isMemberAfter())
         && request.resource.data.keys().hasOnly(allowedTaskListKeys())
         && hasValidTaskListFields()
         && request.resource.data.id == resource.data.id
@@ -241,6 +237,21 @@ service cloud.firestore {
         && resource.data.memberCount is int
         && resource.data.memberCount <= 1
         && isPreviousShareCodeRemoved();
+    }
+
+    // API トークン: document ID はトークンの SHA-256。検証は Functions が Admin SDK で行うため get は許可しない
+    match /apiTokens/{tokenHash} {
+      allow list: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && tokenHash.matches('^[0-9a-f]{64}$')
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'createdAt'])
+        && request.resource.data.keys().hasAll(['uid', 'name', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 50
+        && request.resource.data.createdAt is int;
+      allow update: if false;
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
   }
 }

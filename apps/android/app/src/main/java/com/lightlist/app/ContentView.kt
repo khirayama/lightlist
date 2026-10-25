@@ -17,6 +17,7 @@ import android.graphics.Bitmap
 import android.os.Bundle
 import android.os.SystemClock
 import android.text.format.DateFormat
+import android.util.Base64
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -127,7 +128,10 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.collapse
+import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -169,7 +173,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.firebase.Firebase
-import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.auth
@@ -351,15 +354,13 @@ private fun normalizedShareCode(rawValue: String?): String? {
 private fun normalizedShareCodeInput(rawValue: String): String? {
     val input = rawValue.trim()
     val uri = input.toUri()
-    val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return normalizedShareCode(input)
-    val path = uri.pathSegments
-    if (scheme == "lightlist" && uri.host.equals("sharecodes", ignoreCase = true) && path.size == 1) {
-        return normalizedShareCode(path[0])
-    }
-    if (scheme != "https" && scheme != "http" || !path.firstOrNull().equals("sharecodes", ignoreCase = true)) {
-        return null
-    }
-    return normalizedShareCode(path.getOrNull(1) ?: uri.getQueryParameter("code"))
+    return normalizedShareCode(
+        when {
+            uri.scheme == null -> input
+            uri.isHierarchical -> uri.getQueryParameter("code")
+            else -> null
+        }
+    )
 }
 
 private fun memberKey(userId: String): String =
@@ -370,10 +371,99 @@ private fun memberKey(userId: String): String =
 private fun memberTaskListsQuery(db: FirebaseFirestore, userId: String): Query =
     db.collection("taskLists").whereArrayContains("memberKeys", memberKey(userId))
 
-private fun passwordResetCode(rawValue: String?): String? {
-    val code = rawValue?.trim() ?: return null
-    return code.takeIf { it.isNotEmpty() && it.toByteArray().size <= 2048 }
+private data class ApiTokenRecord(val id: String, val name: String, val createdAt: Long)
+
+private const val API_TOKEN_NAME_MAX_LENGTH = 50
+private val apiTokenIdPattern = Regex("^[0-9a-f]{64}$")
+
+private fun mcpEndpointUrl(): String =
+    if (BuildConfig.DEBUG) "http://127.0.0.1:5001/lightlist-dev/asia-northeast1/mcp" else "https://lightlist.app/mcp"
+
+private data class McpClientExample(
+    val id: String,
+    val name: String,
+    val location: String?,
+    val snippet: String
+)
+
+private fun mcpClientExamples(endpoint: String, token: String): List<McpClientExample> {
+    val header = "Authorization: Bearer $token"
+    fun jsonConfig(root: String, typeLine: String?): String =
+        listOfNotNull(
+            "{",
+            "  \"$root\": {",
+            "    \"lightlist\": {",
+            typeLine,
+            "      \"url\": \"$endpoint\",",
+            "      \"headers\": {",
+            "        \"Authorization\": \"Bearer $token\"",
+            "      }",
+            "    }",
+            "  }",
+            "}"
+        ).joinToString("\n")
+    return listOf(
+        McpClientExample(
+            "claude-code",
+            "Claude Code",
+            null,
+            "claude mcp add --transport http lightlist $endpoint --header \"$header\""
+        ),
+        McpClientExample(
+            "codex",
+            "Codex",
+            "~/.codex/config.toml",
+            "[mcp_servers.lightlist]\nurl = \"$endpoint\"\nhttp_headers = { \"Authorization\" = \"Bearer $token\" }"
+        ),
+        McpClientExample("cursor", "Cursor", "~/.cursor/mcp.json", jsonConfig("mcpServers", null)),
+        McpClientExample(
+            "vscode",
+            "VS Code",
+            "MCP: Open User Configuration",
+            jsonConfig("servers", "      \"type\": \"http\",")
+        ),
+        McpClientExample(
+            "gemini-cli",
+            "Gemini CLI",
+            null,
+            "gemini mcp add --scope user --transport http --header \"$header\" lightlist $endpoint"
+        )
+    )
 }
+
+private fun makeApiToken(): String {
+    val bytes = ByteArray(32).also(shareCodeRandom::nextBytes)
+    return "ll_" + Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+}
+
+private fun apiTokenId(token: String): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest(token.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+private fun truncatedApiTokenName(name: String): String {
+    val trimmed = name.trim()
+    var end = 0
+    while (end < trimmed.length) {
+        val next = trimmed.offsetByCodePoints(end, 1)
+        if (next > API_TOKEN_NAME_MAX_LENGTH) break
+        end = next
+    }
+    return trimmed.substring(0, end)
+}
+
+private suspend fun fetchApiTokens(userId: String): List<ApiTokenRecord> =
+    Firebase.firestore.collection("apiTokens").whereEqualTo("uid", userId).get().await().documents
+        .mapNotNull { document ->
+            val name = document.get("name") as? String
+            val createdAt = document.get("createdAt") as? Long
+            if (!apiTokenIdPattern.matches(document.id) || name == null || createdAt == null) {
+                null
+            } else {
+                ApiTokenRecord(document.id, name, createdAt)
+            }
+        }
+        .sortedByDescending { it.createdAt }
 
 private val SnapshotMetadata.isServerConfirmed: Boolean
     get() = !isFromCache && !hasPendingWrites()
@@ -782,7 +872,6 @@ sealed class AppRoute(val route: String, val title: String) {
 }
 
 sealed class PendingDeepLink {
-    data class PasswordReset(val code: String) : PendingDeepLink()
     data class ShareCode(val shareCode: String) : PendingDeepLink()
     data class TaskList(val taskListId: String) : PendingDeepLink()
 }
@@ -883,40 +972,11 @@ class MainActivity : ComponentActivity() {
         val host = data.host?.lowercase(Locale.ROOT)
         val pathSegments = data.pathSegments
 
-        if (scheme == "lightlist" && host == "sharecodes" && pathSegments.size == 1) {
-            normalizedShareCode(pathSegments[0])?.let { shareCode ->
-                return PendingDeepLink.ShareCode(shareCode)
-            }
-        }
-
         if (scheme == "https" && host == "lightlist.app" && (data.port == -1 || data.port == 443)) {
             if (pathSegments.size == 1 && pathSegments[0].equals("sharecodes", ignoreCase = true)) {
                 normalizedShareCode(data.getQueryParameter("code"))?.let { shareCode ->
                     return PendingDeepLink.ShareCode(shareCode)
                 }
-            }
-
-            if (pathSegments.size == 2 && pathSegments[0].equals("sharecodes", ignoreCase = true)) {
-                normalizedShareCode(pathSegments[1])?.let { shareCode ->
-                    return PendingDeepLink.ShareCode(shareCode)
-                }
-            }
-
-            if (pathSegments.size == 1 && pathSegments[0].equals("password_reset", ignoreCase = true)) {
-                passwordResetCode(data.getQueryParameter("oobCode"))?.let { code ->
-                    return PendingDeepLink.PasswordReset(code)
-                }
-            }
-        }
-
-        if (
-            scheme == "https" &&
-                host == BuildConfig.PASSWORD_RESET_LINK_DOMAIN.lowercase(Locale.ROOT) &&
-                (data.port == -1 || data.port == 443) &&
-                data.getQueryParameter("mode")?.equals("resetPassword", ignoreCase = true) == true
-        ) {
-            passwordResetCode(data.getQueryParameter("oobCode"))?.let { code ->
-                return PendingDeepLink.PasswordReset(code)
             }
         }
 
@@ -1024,8 +1084,16 @@ private fun taskListRecordFromMap(data: Map<*, *>): FirestoreTaskListRecord = Fi
 )
 
 private fun decodeTaskListRecord(document: DocumentSnapshot): FirestoreTaskListRecord =
-    runCatching { document.toObject(FirestoreTaskListRecord::class.java) }.getOrNull()
-        ?: taskListRecordFromMap(document.data.orEmpty())
+    taskListRecordFromMap(document.data.orEmpty())
+
+private fun settingsRecordFromMap(data: Map<*, *>): FirestoreSettingsRecord = FirestoreSettingsRecord(
+    theme = data["theme"] as? String,
+    language = data["language"] as? String,
+    taskInsertPosition = data["taskInsertPosition"] as? String,
+    autoSort = data["autoSort"] as? Boolean,
+    notifySharedListUpdates = data["notifySharedListUpdates"] as? Boolean,
+    startupView = data["startupView"] as? String
+)
 
 private class TaskListMutationQueue(
     private val scope: CoroutineScope
@@ -1435,10 +1503,7 @@ private fun windowWidthDp(): Dp {
     return with(LocalDensity.current) { windowInfo.containerSize.width.toDp() }
 }
 
-private fun shareCodeUrl(code: String): String {
-    val baseUri = BuildConfig.PASSWORD_RESET_URL.toUri()
-    return "${baseUri.scheme}://${baseUri.authority}/sharecodes/?code=$code"
-}
+private fun shareCodeUrl(code: String): String = "https://lightlist.app/sharecodes/?code=$code"
 
 private fun shareQRCodeBitmap(code: String): Bitmap? = runCatching {
     val size = 256
@@ -1580,6 +1645,7 @@ private fun AppTextField(
     readOnly: Boolean = false,
     monospace: Boolean = false,
     password: Boolean = false,
+    singleLine: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
@@ -1598,7 +1664,7 @@ private fun AppTextField(
         placeholder = placeholder?.let {
             { Text(it, style = textStyle.copy(color = mutedTextColor()), maxLines = 1, overflow = TextOverflow.Ellipsis) }
         },
-        singleLine = true,
+        singleLine = singleLine,
         keyboardOptions = if (password) keyboardOptions.copy(keyboardType = KeyboardType.Password) else keyboardOptions,
         keyboardActions = keyboardActions,
         visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
@@ -2187,9 +2253,7 @@ private val AUTH_ERROR_KEY_MAP = mapOf(
     "ERROR_INVALID_EMAIL" to "auth.error.invalidEmail",
     "ERROR_OPERATION_NOT_ALLOWED" to "auth.error.operationNotAllowed",
     "ERROR_TOO_MANY_REQUESTS" to "auth.error.tooManyRequests",
-    "ERROR_REQUIRES_RECENT_LOGIN" to "auth.error.requiresRecentLogin",
-    "ERROR_EXPIRED_ACTION_CODE" to "auth.passwordReset.expiredCode",
-    "ERROR_INVALID_ACTION_CODE" to "auth.passwordReset.invalidCode"
+    "ERROR_REQUIRES_RECENT_LOGIN" to "auth.error.requiresRecentLogin"
 )
 
 private fun resolveAuthErrorMessage(
@@ -2389,15 +2453,9 @@ private suspend fun signUpWithInitialData(
 private suspend fun sendPasswordResetEmail(email: String, language: String) {
     val auth = Firebase.auth
     val previousLanguageCode = auth.languageCode
-    val actionCodeSettings = ActionCodeSettings.newBuilder()
-        .setUrl(BuildConfig.PASSWORD_RESET_URL)
-        .setHandleCodeInApp(true)
-        .setAndroidPackageName(BuildConfig.APPLICATION_ID, false, null)
-        .setLinkDomain(BuildConfig.PASSWORD_RESET_LINK_DOMAIN)
-        .build()
     auth.setLanguageCode(normalizeLanguageCode(language))
     try {
-        auth.sendPasswordResetEmail(email, actionCodeSettings).await()
+        auth.sendPasswordResetEmail(email).await()
     } finally {
         if (previousLanguageCode == null) auth.useAppLanguage() else auth.setLanguageCode(previousLanguageCode)
     }
@@ -2689,7 +2747,6 @@ fun RootScreen(
     var currentUserId by remember { mutableStateOf(Firebase.auth.currentUser?.uid) }
     var authStateResolved by remember { mutableStateOf(Firebase.auth.currentUser != null) }
     var authScreen by rememberSaveable { mutableStateOf(AuthScreen.SignIn) }
-    var pendingPasswordResetCode by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingSharePreviewCode by rememberSaveable { mutableStateOf<String?>(null) }
     var requestedTaskListId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -2763,10 +2820,6 @@ fun RootScreen(
 
     LaunchedEffect(pendingDeepLink) {
         when (pendingDeepLink) {
-            is PendingDeepLink.PasswordReset -> {
-                pendingPasswordResetCode = pendingDeepLink.code
-                authScreen = AuthScreen.Reset
-            }
             is PendingDeepLink.ShareCode -> {
                 pendingSharePreviewCode = pendingDeepLink.shareCode
             }
@@ -2792,12 +2845,7 @@ fun RootScreen(
         }
     ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        if (pendingPasswordResetCode != null) {
-            ResetPasswordView(
-                code = pendingPasswordResetCode!!,
-                onDismiss = { pendingPasswordResetCode = null }
-            )
-        } else if (pendingSharePreviewCode != null) {
+        if (pendingSharePreviewCode != null) {
             SharedTaskListPreviewScreen(
                 shareCode = pendingSharePreviewCode!!,
                 userId = currentUserId,
@@ -3235,14 +3283,8 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                             retry.fail("settings", error)
                             return@addSnapshotListener
                         }
-                        val data = when {
-                            snapshot == null -> null
-                            !snapshot.exists() -> FirestoreSettingsRecord()
-                            else -> runCatching {
-                                snapshot.toObject(FirestoreSettingsRecord::class.java)
-                            }.getOrNull()
-                        }
-                        val nextSettings = data?.let { resolveSettingsState(it, email) }
+                        if (snapshot == null) return@addSnapshotListener
+                        val nextSettings = resolveSettingsState(settingsRecordFromMap(snapshot.data.orEmpty()), email)
                         if (nextSettings != null) {
                             val override = autoSortOverrides[userId]
                             if (override != null && override == nextSettings.autoSort) {
@@ -3250,18 +3292,16 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                             }
                             uiState = nextSettings.copy(
                                 autoSort = autoSortOverrides[userId] ?: nextSettings.autoSort,
-                                notificationToken = snapshot?.let {
-                                    registeredSharedListNotificationToken(context, it)
-                                }
+                                notificationToken = registeredSharedListNotificationToken(context, snapshot)
                             )
-                            if (snapshot?.exists() == true) {
+                            if (snapshot.exists()) {
                                 StartupSettingsCache.write(context, userId, nextSettings)
                             }
                         } else {
                             uiState = SettingsState(userEmail = email, isLoading = false, hasError = true)
                         }
-                        retry.markHealthy(snapshot?.metadata?.isServerConfirmed == true)
-                        if (snapshot?.metadata?.isServerConfirmed == true) {
+                        retry.markHealthy(snapshot.metadata.isServerConfirmed)
+                        if (snapshot.metadata.isServerConfirmed) {
                             if (!snapshot.exists() && Firebase.auth.currentUser?.uid == userId) {
                                 val language = authScreenLanguage ?: resolveDeviceLanguage(context)
                                 val initialTaskListName = Translations.from(context, language)
@@ -4843,112 +4883,6 @@ private fun PasswordResetRequestView(
             style = AppButtonStyle.Secondary,
             modifier = Modifier.fillMaxWidth()
         )
-    }
-}
-
-@Composable
-private fun ResetPasswordView(
-    code: String,
-    onDismiss: () -> Unit
-) {
-    val isOnline = rememberIsOnline()
-    val t = LocalTranslations.current
-    val scope = rememberCoroutineScope()
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var passwordError by remember { mutableStateOf<String?>(null) }
-    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
-    var isVerifying by remember { mutableStateOf(true) }
-    var isSubmitting by remember { mutableStateOf(false) }
-
-    LaunchedEffect(code) {
-        isVerifying = true
-        errorMessage = null
-        try {
-            Firebase.auth.verifyPasswordResetCode(code).await()
-        } catch (e: Exception) {
-            errorMessage = resolveAuthErrorMessage(t, e)
-        } finally {
-            isVerifying = false
-        }
-    }
-
-    ScreenScaffold(t.t("auth.passwordReset.title")) {
-        if (successMessage == null) {
-            AuthTextField(
-                value = password,
-                onValueChange = {
-                    password = it
-                    passwordError = null
-                    confirmPasswordError = null
-                    errorMessage = null
-                },
-                label = t.t("auth.passwordReset.newPassword"),
-                contentType = ContentType.NewPassword,
-                password = true,
-                enabled = !isVerifying && !isSubmitting
-            )
-            Spacer(Modifier.height(16.dp))
-            AuthTextField(
-                value = confirmPassword,
-                onValueChange = {
-                    confirmPassword = it
-                    confirmPasswordError = null
-                    errorMessage = null
-                },
-                label = t.t("auth.passwordReset.confirmNewPassword"),
-                contentType = ContentType.NewPassword,
-                password = true,
-                enabled = !isVerifying && !isSubmitting
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            AuthMessages(listOf(passwordError, confirmPasswordError, errorMessage), successMessage)
-            if (!isOnline && successMessage == null) ConnectionRequiredNote()
-            if (isVerifying) {
-                CircularProgressIndicator(
-                    color = mutedTextColor(),
-                    strokeWidth = 2.dp,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .align(Alignment.CenterHorizontally)
-                )
-            }
-            AppButton(
-                text = if (isSubmitting) t.t("auth.passwordReset.settingNewPassword") else t.t("auth.passwordReset.setNewPassword"),
-                onClick = {
-                    passwordError = validatePasswordField(t, password, requireLength = true)
-                    confirmPasswordError = validateConfirmPasswordField(t, password, confirmPassword)
-                    if (passwordError != null || confirmPasswordError != null) {
-                        return@AppButton
-                    }
-
-                    isSubmitting = true
-                    errorMessage = null
-                    scope.launch {
-                        try {
-                            Firebase.auth.confirmPasswordReset(code, password).await()
-                            successMessage = t.t("auth.passwordReset.resetSuccess")
-                        } catch (e: Exception) {
-                            errorMessage = resolveAuthErrorMessage(t, e)
-                        } finally {
-                            isSubmitting = false
-                        }
-                    }
-                },
-                enabled = !isVerifying && !isSubmitting && successMessage == null && isOnline,
-                modifier = Modifier.fillMaxWidth()
-            )
-            AppButton(
-                text = t.t("common.close"),
-                onClick = onDismiss,
-                style = AppButtonStyle.Secondary,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
     }
 }
 
@@ -8525,6 +8459,280 @@ private val supportedLanguages = listOf(
 )
 
 @Composable
+private fun ApiTokensDialog(userId: String, onDismiss: () -> Unit) {
+    val t = LocalTranslations.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val isOnline = rememberIsOnline()
+    val endpointUrl = remember { mcpEndpointUrl() }
+    val dateFormat = remember(t.languageTag()) {
+        java.text.DateFormat.getDateTimeInstance(
+            java.text.DateFormat.MEDIUM,
+            java.text.DateFormat.SHORT,
+            localeForLanguage(t.languageTag())
+        )
+    }
+    var apiTokens by remember { mutableStateOf<List<ApiTokenRecord>?>(null) }
+    var name by remember { mutableStateOf("") }
+    var createdToken by remember { mutableStateOf<String?>(null) }
+    var copiedValue by remember { mutableStateOf<String?>(null) }
+    var isCreating by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<ApiTokenRecord?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val clientExamples = remember(createdToken) {
+        createdToken?.let { mcpClientExamples(endpointUrl, it) }.orEmpty()
+    }
+
+    fun formattedDate(millis: Long): String = dateFormat.format(Date(millis))
+
+    fun displayName(apiToken: ApiTokenRecord): String =
+        apiToken.name.ifEmpty { formattedDate(apiToken.createdAt) }
+
+    LaunchedEffect(userId) {
+        apiTokens = try {
+            fetchApiTokens(userId)
+        } catch (e: Exception) {
+            errorMessage = t.t("auth.error.general")
+            emptyList()
+        }
+    }
+
+    LaunchedEffect(copiedValue) {
+        if (copiedValue == null) return@LaunchedEffect
+        delay(2_000)
+        copiedValue = null
+    }
+
+    fun createToken() {
+        if (isCreating || !isOnline) return
+        val token = makeApiToken()
+        val record = ApiTokenRecord(apiTokenId(token), truncatedApiTokenName(name), nowMillis())
+        isCreating = true
+        errorMessage = null
+        scope.launch {
+            try {
+                Firebase.firestore.collection("apiTokens").document(record.id)
+                    .set(mapOf("uid" to userId, "name" to record.name, "createdAt" to record.createdAt))
+                    .await()
+                createdToken = token
+                copiedValue = null
+                name = ""
+                apiTokens = listOf(record) + apiTokens.orEmpty()
+            } catch (e: Exception) {
+                errorMessage = t.t("auth.error.general")
+            } finally {
+                isCreating = false
+            }
+        }
+    }
+
+    fun deleteToken(apiToken: ApiTokenRecord) {
+        if (isDeleting || !isOnline) return
+        isDeleting = true
+        errorMessage = null
+        scope.launch {
+            try {
+                Firebase.firestore.collection("apiTokens").document(apiToken.id).delete().await()
+                apiTokens = apiTokens?.filter { it.id != apiToken.id }
+            } catch (e: Exception) {
+                errorMessage = t.t("auth.error.general")
+            } finally {
+                isDeleting = false
+                deleteTarget = null
+            }
+        }
+    }
+
+    @Composable
+    fun CopyField(value: String, singleLine: Boolean = true) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top
+        ) {
+            AppTextField(
+                value = value,
+                onValueChange = {},
+                readOnly = true,
+                monospace = true,
+                singleLine = singleLine,
+                modifier = Modifier.weight(1f)
+            )
+            AppButton(
+                if (copiedValue == value) t.t("common.copied") else t.t("common.copy"),
+                onClick = {
+                    scope.launch {
+                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("api_token", value)))
+                        copiedValue = value
+                    }
+                },
+                style = AppButtonStyle.Secondary
+            )
+        }
+    }
+
+    @Composable
+    fun ClientExampleRow(example: McpClientExample) {
+        var expanded by rememberSaveable(example.id) { mutableStateOf(false) }
+        Column {
+            SettingsDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clickable(role = Role.Button) { expanded = !expanded }
+                    .semantics {
+                        if (expanded) {
+                            collapse { expanded = false; true }
+                        } else {
+                            expand { expanded = true; true }
+                        }
+                    }
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(example.name, style = AppRowTextStyle, color = MaterialTheme.colorScheme.onSurface)
+                    example.location?.let {
+                        Text(
+                            it,
+                            style = AppBodySmallTextStyle.copy(fontFamily = FontFamily.Monospace),
+                            color = mutedTextColor()
+                        )
+                    }
+                }
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(AppIconMetrics.compactActionIconSize)
+                        .rotate(if (expanded) 90f else 0f),
+                    tint = mutedIconColor()
+                )
+            }
+            if (expanded) {
+                Box(Modifier.padding(bottom = 12.dp)) {
+                    CopyField(example.snippet, singleLine = false)
+                }
+            }
+        }
+    }
+
+    AppDialog(
+        onDismissRequest = onDismiss,
+        title = t.t("settings.apiTokens.title"),
+        description = t.t("settings.apiTokens.description"),
+        footer = {
+            AppButton(t.t("common.close"), onClick = onDismiss, style = AppButtonStyle.Secondary)
+        }
+    ) {
+        Column(
+            modifier = Modifier.padding(top = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            errorMessage?.let {
+                AppAlert(message = it, isError = true)
+            }
+            if (createdToken != null) {
+                Text(
+                    t.t("settings.apiTokens.createdNotice"),
+                    style = AppBodySmallTextStyle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                AppDialogField(t.t("settings.apiTokens.tokenLabel")) {
+                    CopyField(createdToken.orEmpty())
+                }
+                Column {
+                    AppFieldLabel(t.t("settings.apiTokens.setupLabel"), Modifier.padding(bottom = 4.dp))
+                    clientExamples.forEach { example -> ClientExampleRow(example) }
+                }
+            }
+            AppDialogField(t.t("settings.apiTokens.endpointLabel")) {
+                AppTextField(value = endpointUrl, onValueChange = {}, readOnly = true, monospace = true)
+            }
+            AppDialogField(t.t("settings.apiTokens.nameLabel")) {
+                AppTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    placeholder = t.t("settings.apiTokens.namePlaceholder"),
+                    enabled = !isCreating && !isDeleting,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { createToken() })
+                )
+                AppButton(
+                    if (isCreating) t.t("settings.apiTokens.creating") else t.t("settings.apiTokens.create"),
+                    onClick = { createToken() },
+                    enabled = !isCreating && !isDeleting && isOnline,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (!isOnline) {
+                    ConnectionRequiredNote()
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                AppFieldLabel(t.t("settings.apiTokens.listTitle"), Modifier.semantics { heading() })
+                val tokens = apiTokens
+                when {
+                    tokens == null -> Text(
+                        t.t("common.loading"),
+                        style = AppBodySmallTextStyle,
+                        color = mutedTextColor()
+                    )
+                    tokens.isEmpty() -> Text(
+                        t.t("settings.apiTokens.empty"),
+                        style = AppBodySmallTextStyle,
+                        color = mutedTextColor()
+                    )
+                    else -> tokens.forEach { apiToken ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    displayName(apiToken),
+                                    style = AppRowTextStyle,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    t.t(
+                                        "settings.apiTokens.createdAt",
+                                        mapOf("date" to formattedDate(apiToken.createdAt))
+                                    ),
+                                    style = AppBodySmallTextStyle,
+                                    color = mutedTextColor()
+                                )
+                            }
+                            AppButton(
+                                t.t("settings.apiTokens.delete"),
+                                onClick = { deleteTarget = apiToken },
+                                style = AppButtonStyle.Danger,
+                                enabled = !isCreating && !isDeleting && isOnline
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    deleteTarget?.let { target ->
+        AppConfirmDialog(
+            title = t.t("settings.apiTokens.deleteTitle"),
+            message = t.t("settings.apiTokens.deleteMessage", mapOf("name" to displayName(target))),
+            confirmLabel = if (isDeleting) t.t("common.deleting") else t.t("settings.apiTokens.delete"),
+            cancelLabel = t.t("common.cancel"),
+            destructive = true,
+            enabled = !isDeleting && isOnline,
+            onConfirm = { deleteToken(target) },
+            onDismiss = { deleteTarget = null }
+        )
+    }
+}
+
+@Composable
 private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
@@ -8721,6 +8929,7 @@ private fun SettingsView(
     var showStartupViewDialog by remember { mutableStateOf(false) }
     var showEmailChangeDialog by remember { mutableStateOf(false) }
     var showBundledLicensesSheet by remember { mutableStateOf(false) }
+    var showApiTokensDialog by remember { mutableStateOf(false) }
     var newEmail by remember { mutableStateOf("") }
     var emailChangeError by remember { mutableStateOf<String?>(null) }
     var emailChangeSuccess by remember { mutableStateOf(false) }
@@ -8972,6 +9181,10 @@ private fun SettingsView(
                             }
                         }
                     }
+                    SettingsDivider()
+                    SettingsNavigationRow(label = t.t("settings.apiTokens.title"), enabled = userId != null) {
+                        showApiTokensDialog = true
+                    }
                 }
                 SettingsSectionCard(title = t.t("settings.preferences.title")) {
                     SettingsSelectRow(
@@ -9177,8 +9390,7 @@ private fun SettingsView(
                                         throw e
                                     }
                                     if (!snap.exists()) return@async
-                                    val memberKeys = snap.get("memberKeys") as? List<*>
-                                    if (memberKeys != null && ownMemberKey !in memberKeys) return@async
+                                    if ((snap.get("memberKeys") as? List<*>)?.contains(ownMemberKey) != true) return@async
                                     makeTaskListMembershipRemovalBatch(
                                         db,
                                         taskListOrderRef,
@@ -9238,6 +9450,10 @@ private fun SettingsView(
                 )
             }
         }
+    }
+
+    if (showApiTokensDialog && userId != null) {
+        ApiTokensDialog(userId = userId, onDismiss = { showApiTokensDialog = false })
     }
 
     if (showThemeDialog) {

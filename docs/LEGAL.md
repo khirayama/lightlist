@@ -4,9 +4,9 @@ Web / iOS / Android はアプリ内設定画面からライセンス表記へ遷
 
 ## 自動収集
 
-- Web は `apps/web/scripts/generate-licenses.mjs` を使い、`package-lock.json` と `node_modules` から依存ライブラリの名称・バージョン・ライセンス名・本文を `apps/web/public/licenses/licenses.json` に生成する。収集はインストール済みライブラリの API を直接呼び出して行い、前処理中にパッケージを取得しない。
+- Web は `apps/web/scripts/prepare.ts`（dev / build の開始時に実行）を使い、`package-lock.json` と `node_modules` から依存ライブラリの名称・バージョン・ライセンス名・本文を `apps/web/public/licenses/licenses.json` に生成する。収集はインストール済みライブラリの API を直接呼び出して行い、前処理中にパッケージを取得しない。
 - iOS は `LicensePlist` の Swift Package build tool plugin を使い、Swift Package 依存の acknowledgements HTML を build 時に生成して app bundle に含める。生成物のコピー script は plugin 出力を入力、DerivedData 内の完了 marker を出力として Xcode の依存解析に登録する。
-- Android は `com.google.android.gms.oss-licenses-plugin` と `com.google.android.gms:play-services-oss-licenses:17.2.2` を使い、依存ライブラリのライセンス一覧を従来版 `OssLicensesMenuActivity` で表示する。Compose ベースの v2 Activity を含む `17.4.0` 以降はアプリ本体の Compose BOM と独立した Compose 依存を持つため使用しない。従来版の古い推移依存を置き換え、Activity の superclass を compile classpath に公開するため、`androidx.appcompat:appcompat:1.8.0` を直接依存に含める。`oss-licenses-plugin` は runtime classpath を設定時に解決するため、Google Play 提出物を作る `bundleRelease` / `bundle-play` でだけ適用し、Debug build / lint / 内部確認用の `assembleRelease` では適用しない。
+- Android は `com.google.android.gms.oss-licenses-plugin` と `com.google.android.gms:play-services-oss-licenses:17.2.2` を使い、依存ライブラリのライセンス一覧を従来版 `OssLicensesMenuActivity` で表示する。Compose ベースの v2 Activity を含む `17.4.0` 以降はアプリ本体の Compose BOM と独立した Compose 依存を持つため使用しない。従来版の古い推移依存を置き換え、Activity の superclass を compile classpath に公開するため、`androidx.appcompat:appcompat:1.8.0` を直接依存に含める。`oss-licenses-plugin` は全 variant に適用する（debug は plugin が出力する簡易表示になる）。
 
 ## 手動管理
 
@@ -16,7 +16,7 @@ Web / iOS / Android はアプリ内設定画面からライセンス表記へ遷
 
 ## 運用
 
-- Web のライセンス JSON 生成は `npm run dev` / `build` / `lint` / `typecheck` / `check` の前処理に含める。前処理は毎回 `shared/locales/locales.json` の同期とライセンス JSON の再生成を行う（`check` は前処理を 1 回だけ実行して lint / typecheck / knip を続けて行う）。
+- Web のライセンス JSON 生成は `npm run dev` / `build` / `check` の前処理に含める。前処理は毎回 `shared/locales/locales.json` の同期とライセンス JSON の再生成を行う（`check` は前処理を 1 回だけ実行して eslint / tsc / knip を続けて行う）。
 - iOS の `LicensePlist` build tool plugin は初回 build 時に Xcode 上で trust が必要になる。
 - iOS の unattended build で plugin trust dialog を回避する場合は `xcodebuild` に `-skipPackagePluginValidation` を付ける。
 - Android の Debug build と `assembleRelease` では OSS licenses の生成リソースが存在しない場合がある。設定画面から `OssLicensesMenuActivity` を開けない場合は汎用のライセンス読み込みエラーを表示し、Google Play 提出用 AAB では生成済みリソースで表示する。

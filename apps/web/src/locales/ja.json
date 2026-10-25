@@ -68,14 +68,7 @@
     "passwordReset": {
       "instruction": "登録されているメールアドレスを入力してください。パスワードリセットメールを送信します。",
       "success": "パスワードリセットメールを送信しました。メールをご確認ください。",
-      "title": "パスワード再設定",
-      "newPassword": "新しいパスワード",
-      "confirmNewPassword": "新しいパスワード確認",
-      "setNewPassword": "パスワード再設定",
-      "settingNewPassword": "再設定中...",
-      "invalidCode": "パスワードリセットリンクが無効です",
-      "expiredCode": "パスワードリセットリンクの有効期限が切れています",
-      "resetSuccess": "パスワードが正常に変更されました"
+      "title": "パスワード再設定"
     },
     "placeholder": {
       "email": "sample@example.com",
@@ -249,6 +242,24 @@
       "enable": "他のメンバーがタスクを更新したときに通知します",
       "permissionDenied": "通知が許可されていません。端末の設定で通知を許可してください。",
       "unavailable": "この環境ではプッシュ通知を利用できません。"
+    },
+    "apiTokens": {
+      "title": "API トークン",
+      "description": "AI ツールや外部のプログラムから、MCP でタスクリストを読み書きするためのトークンです。",
+      "nameLabel": "名前",
+      "namePlaceholder": "例: Claude Code",
+      "create": "トークンを発行",
+      "creating": "発行中...",
+      "createdNotice": "このトークンは今だけ表示されます。コピーして安全な場所に保管してください。",
+      "tokenLabel": "トークン",
+      "endpointLabel": "MCP エンドポイント",
+      "setupLabel": "AI ツールの設定例",
+      "listTitle": "発行済みのトークン",
+      "empty": "発行済みのトークンはありません",
+      "createdAt": "{{date}} に発行",
+      "delete": "削除",
+      "deleteTitle": "トークンを削除しますか？",
+      "deleteMessage": "「{{name}}」を使っている連携は使えなくなります。"
     }
   },
   "pages": {

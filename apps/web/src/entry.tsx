@@ -50,7 +50,6 @@ import { getApps, initializeApp } from "firebase/app";
 import type { FirebaseApp } from "firebase/app";
 import type { Analytics } from "firebase/analytics";
 import {
-  confirmPasswordReset as firebaseConfirmPasswordReset,
   createUserWithEmailAndPassword,
   deleteUser,
   EmailAuthProvider,
@@ -64,18 +63,14 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   verifyBeforeUpdateEmail,
-  verifyPasswordResetCode as firebaseVerifyPasswordResetCode,
 } from "firebase/auth";
-import type {
-  ActionCodeSettings,
-  Auth,
-  User as FirebaseAuthUser,
-} from "firebase/auth";
+import type { Auth, User as FirebaseAuthUser } from "firebase/auth";
 import {
   arrayRemove,
   arrayUnion,
   CACHE_SIZE_UNLIMITED,
   collection,
+  deleteDoc,
   deleteField,
   disableNetwork,
   doc,
@@ -83,6 +78,7 @@ import {
   getDoc,
   getDocFromCache,
   getDocFromServer,
+  getDocs,
   getDocsFromCache,
   getFirestore,
   initializeFirestore,
@@ -285,25 +281,13 @@ type TaskListStore = {
   shareCode: string | null;
   background: string | null;
   memberCount: number;
-  memberKeys?: string[];
-  createdAt: number | TimestampLike;
-  updatedAt: number | TimestampLike;
-};
-
-type TimestampLike = {
-  toMillis: () => number;
+  memberKeys: string[];
+  createdAt: number;
+  updatedAt: number;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
-
-const hasToMillis = (value: unknown): value is TimestampLike =>
-  typeof value === "object" &&
-  value !== null &&
-  typeof (value as { toMillis?: unknown }).toMillis === "function";
-
-const toMillisValue = (value: number | TimestampLike): number =>
-  typeof value === "number" ? value : value.toMillis();
 
 // For App
 // User, SettingsStore, TaskListOrderStore, TaskListStoreのデータを利用して、生成される
@@ -507,8 +491,7 @@ function releaseStaleWebNotificationToken(
     const ownerUid = readStorageItem(WEB_NOTIFICATION_TOKEN_OWNER_KEY);
     if (!ownerUid || ownerUid === currentUid) return;
     if ("serviceWorker" in navigator) {
-      const registration =
-        await navigator.serviceWorker.getRegistration("/notifications/");
+      const registration = await navigator.serviceWorker.getRegistration("/");
       const subscription = await registration?.pushManager?.getSubscription();
       if (subscription && !(await subscription.unsubscribe())) {
         throw new Error("notification-unavailable");
@@ -537,9 +520,8 @@ function resolveWebNotificationToken(
   const deviceId = readStorageItem(WEB_NOTIFICATION_DEVICE_ID_KEY);
   const devices = settingsData.notificationDevices;
   const device = deviceId && isRecord(devices) ? devices[deviceId] : undefined;
-  if (isRecord(device) && typeof device.token === "string") return device.token;
-  return typeof settingsData.notificationToken === "string"
-    ? settingsData.notificationToken
+  return isRecord(device) && typeof device.token === "string"
+    ? device.token
     : undefined;
 }
 
@@ -569,7 +551,7 @@ function waitForServiceWorkerActivation(
 async function registerWebNotificationDevice(
   uid: string,
   options: { requestPermission: boolean; registeredToken?: string },
-): Promise<ServiceWorkerRegistration> {
+): Promise<void> {
   if (
     typeof Notification === "undefined" ||
     !("serviceWorker" in navigator) ||
@@ -593,10 +575,7 @@ async function registerWebNotificationDevice(
   if (!vapidKey) throw new Error("notification-unavailable");
   const deviceId = getWebNotificationDeviceId();
   await releaseStaleWebNotificationToken(uid);
-  const registration = await navigator.serviceWorker.register(
-    "/notifications/firebase-messaging-sw.js",
-    { scope: "/notifications/" },
-  );
+  const registration = await navigator.serviceWorker.register("/sw.js");
   await waitForServiceWorkerActivation(registration);
   const token = await messagingSdk.getToken(
     messagingSdk.getMessaging(getApp()),
@@ -605,9 +584,7 @@ async function registerWebNotificationDevice(
   if (!token) throw new Error("notification-unavailable");
   webNotificationTokenIssued = true;
   writeWebNotificationTokenOwner(uid);
-  if (!options.requestPermission && token === options.registeredToken) {
-    return registration;
-  }
+  if (!options.requestPermission && token === options.registeredToken) return;
   const deviceWrite = updateDoc(doc(getDbInstance(), "settings", uid), {
     [`notificationDevices.${deviceId}`]: {
       token,
@@ -620,7 +597,6 @@ async function registerWebNotificationDevice(
   });
   trackCommit(deviceWrite);
   await deviceWrite;
-  return registration;
 }
 
 async function unregisterWebNotificationDevice(
@@ -927,8 +903,6 @@ const ERROR_KEY_MAP = {
   "auth/invalid-email": "auth.error.invalidEmail",
   "auth/operation-not-allowed": "auth.error.operationNotAllowed",
   "auth/too-many-requests": "auth.error.tooManyRequests",
-  "auth/expired-action-code": "auth.passwordReset.expiredCode",
-  "auth/invalid-action-code": "auth.passwordReset.invalidCode",
   "auth/requires-recent-login": "auth.error.requiresRecentLogin",
 } as const;
 
@@ -946,11 +920,6 @@ type AuthFormData = {
   password: string;
   confirmPassword?: string;
   requirePasswordConfirm?: boolean;
-};
-
-type PasswordFormData = {
-  password: string;
-  confirmPassword: string;
 };
 
 const AUTH_SIGN_IN_TIMEOUT_MS = 10_000;
@@ -1132,27 +1101,6 @@ const validateAuthForm = (
   return errors;
 };
 
-const validatePasswordForm = (
-  data: PasswordFormData,
-  t: TFunction<"translation">,
-): FormErrors => {
-  const errors: FormErrors = {};
-
-  if (!data.password) {
-    errors.password = t("auth.validation.password.required");
-  } else if (data.password.length < 8) {
-    errors.password = t("auth.validation.password.tooShort");
-  }
-
-  if (!data.confirmPassword) {
-    errors.confirmPassword = t("auth.validation.confirmPassword.required");
-  } else if (data.password !== data.confirmPassword) {
-    errors.confirmPassword = t("auth.validation.confirmPassword.notMatch");
-  }
-
-  return errors;
-};
-
 const validateEmailChangeForm = (
   data: EmailChangeFormData,
   t: TFunction<"translation">,
@@ -1168,7 +1116,7 @@ const validateEmailChangeForm = (
 
 const MAIN_CONTENT_ID = "main-content";
 
-const AUTH_FREE_PAGES = new Set(["404", "500", "password_reset"]);
+const AUTH_FREE_PAGES = new Set(["404", "500"]);
 
 const isAuthFreePage = (): boolean =>
   AUTH_FREE_PAGES.has(document.body.dataset.page ?? "");
@@ -1421,15 +1369,8 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
   }, [activeUid, authStatus]);
 
   useEffect(() => {
-    const isSecureOrLocalhost =
-      window.location.protocol === "https:" ||
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-    if (isSecureOrLocalhost && "serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .then((registration) => registration.update())
-        .catch(() => {});
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
 
     const handleWindowError = (event: ErrorEvent) => {
@@ -1482,36 +1423,10 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
   const registeredToken = settings?.notificationToken;
   useEffect(() => {
     if (!activeUid || !notificationsEnabled) return;
-    let active = true;
-    let unsubscribe = () => {};
-    void (async () => {
-      try {
-        const registration = await registerWebNotificationDevice(activeUid, {
-          requestPermission: false,
-          registeredToken,
-        });
-        if (!active) return;
-        const { getMessaging, onMessage } = await import("firebase/messaging");
-        const detach = onMessage(getMessaging(getApp()), (payload) => {
-          const title = payload.notification?.title ?? "Lightlist";
-          const body = payload.notification?.body ?? "";
-          const taskListId = payload.data?.taskListId;
-          void registration.showNotification(title, {
-            body,
-            tag: taskListId,
-            data: { taskListId },
-          });
-        });
-        if (active) unsubscribe = detach;
-        else detach();
-      } catch {
-        return;
-      }
-    })();
-    return () => {
-      active = false;
-      unsubscribe();
-    };
+    void registerWebNotificationDevice(activeUid, {
+      requestPermission: false,
+      registeredToken,
+    }).catch(() => {});
   }, [activeUid, notificationsEnabled, registeredToken]);
 
   useEffect(() => {
@@ -1742,10 +1657,9 @@ const mapTaskListStoreToTaskList = (
   history: taskListData.history,
   shareCode: taskListData.shareCode,
   background: taskListData.background,
-  memberCount:
-    typeof taskListData.memberCount === "number" ? taskListData.memberCount : 1,
-  createdAt: toMillisValue(taskListData.createdAt),
-  updatedAt: toMillisValue(taskListData.updatedAt),
+  memberCount: taskListData.memberCount,
+  createdAt: taskListData.createdAt,
+  updatedAt: taskListData.updatedAt,
 });
 
 const getOrderedTaskListIds = (
@@ -1809,11 +1723,7 @@ const writeStartupSnapshot = (snapshot: StartupSnapshot): void => {
       uid: snapshot.uid,
       settings: snapshot.settings,
       taskListOrder: snapshot.taskListOrder,
-      taskLists: Object.values(snapshot.taskListsById).map((taskList) => ({
-        ...taskList,
-        createdAt: toMillisValue(taskList.createdAt),
-        updatedAt: toMillisValue(taskList.updatedAt),
-      })),
+      taskLists: Object.values(snapshot.taskListsById),
     }),
   );
   if (!saved) clearStartupSnapshot();
@@ -2172,9 +2082,7 @@ function AppStateProvider({
     const applyTaskListSnapshot = (snapshot: QuerySnapshot<DocumentData>) => {
       const taskListsById: Record<string, TaskListStore> = {};
       snapshot.docs.forEach((documentSnapshot) => {
-        const rawTaskListData = documentSnapshot.data({
-          serverTimestamps: "estimate",
-        });
+        const rawTaskListData = documentSnapshot.data();
         scheduleMalformedTaskCleanup(
           documentSnapshot.id,
           rawTaskListData,
@@ -2591,22 +2499,10 @@ async function signOut(notificationDeviceRegistered: boolean) {
 
 async function sendPasswordResetEmail(email: string, language?: Language) {
   const auth = getAuthInstance();
-  const actionCodeSettings: ActionCodeSettings = {
-    url: import.meta.env.VITE_PASSWORD_RESET_URL,
-    handleCodeInApp: false,
-  };
   const languageToUse = await getPreferredLanguage(language);
   await withAuthLanguage(languageToUse, () =>
-    firebaseSendPasswordResetEmail(auth, email, actionCodeSettings),
+    firebaseSendPasswordResetEmail(auth, email),
   );
-}
-
-async function verifyPasswordResetCode(code: string) {
-  return await firebaseVerifyPasswordResetCode(getAuthInstance(), code);
-}
-
-async function confirmPasswordReset(code: string, newPassword: string) {
-  await firebaseConfirmPasswordReset(getAuthInstance(), code, newPassword);
 }
 
 async function sendEmailChangeVerification(newEmail: string) {
@@ -2954,11 +2850,10 @@ function assertTaskListStore(data: unknown, id: string): TaskListStore {
     typeof data.memberCount !== "number" ||
     !Number.isInteger(data.memberCount) ||
     data.memberCount < 1 ||
-    (data.memberKeys !== undefined &&
-      (!Array.isArray(data.memberKeys) ||
-        !data.memberKeys.every((value) => typeof value === "string"))) ||
-    (typeof data.createdAt !== "number" && !hasToMillis(data.createdAt)) ||
-    (typeof data.updatedAt !== "number" && !hasToMillis(data.updatedAt))
+    !Array.isArray(data.memberKeys) ||
+    !data.memberKeys.every((value) => typeof value === "string") ||
+    typeof data.createdAt !== "number" ||
+    typeof data.updatedAt !== "number"
   ) {
     throw new Error(`TaskList data is malformed: ${id}`);
   }
@@ -3097,6 +2992,7 @@ function assertShareCodeStore(
       shareCode,
       background: preview.background,
       memberCount: 1,
+      memberKeys: [],
       createdAt: data.createdAt,
       updatedAt: preview.syncedAt,
     }),
@@ -3112,28 +3008,11 @@ const normalizeShareCode = (shareCode: string): string | null => {
 
 const normalizeShareCodeInput = (input: string): string | null => {
   const value = input.trim();
-  try {
-    const url = new URL(value);
-    const path = url.pathname.split("/").filter(Boolean);
-    if (
-      url.protocol === "lightlist:" &&
-      url.hostname.toLowerCase() === "sharecodes" &&
-      path.length === 1
-    ) {
-      return normalizeShareCode(path[0]);
-    }
-    if (
-      (url.protocol === "https:" || url.protocol === "http:") &&
-      path[0]?.toLowerCase() === "sharecodes"
-    ) {
-      return normalizeShareCode(
-        path.length > 1 ? path[1] : (url.searchParams.get("code") ?? ""),
-      );
-    }
-  } catch {
-    return normalizeShareCode(value);
-  }
-  return normalizeShareCode(value);
+  return normalizeShareCode(
+    URL.canParse(value)
+      ? (new URL(value).searchParams.get("code") ?? "")
+      : value,
+  );
 };
 
 function compareStringIds(left: string, right: string): number {
@@ -3169,10 +3048,7 @@ async function getTaskListData(taskListId: string): Promise<TaskListStore> {
   );
   if (!snapshot.exists()) throw new Error("Task list not found");
   return normalizeTaskListStore(
-    assertTaskListStore(
-      snapshot.data({ serverTimestamps: "estimate" }),
-      taskListId,
-    ),
+    assertTaskListStore(snapshot.data(), taskListId),
   );
 }
 
@@ -3481,11 +3357,7 @@ async function deleteTaskList(
       if (taskListSnapshot && !taskList) {
         batch.delete(membershipRef);
       }
-      if (
-        !taskList ||
-        (taskList.memberKeys !== undefined &&
-          !taskList.memberKeys.includes(memberKey))
-      ) {
+      if (!taskList || !taskList.memberKeys.includes(memberKey)) {
         return { committed: batch.commit() };
       }
       batch.delete(membershipRef);
@@ -3820,6 +3692,145 @@ async function updateTasksOrder(
       }),
     };
   });
+}
+
+type ApiTokenStore = { id: string; name: string; createdAt: number };
+
+const API_TOKEN_NAME_MAX_LENGTH = 50;
+const API_TOKEN_ID_PATTERN = /^[0-9a-f]{64}$/;
+const MCP_ENDPOINT_URL = import.meta.env.DEV
+  ? "http://127.0.0.1:5001/lightlist-dev/asia-northeast1/mcp"
+  : "https://lightlist.app/mcp";
+
+type McpClientExample = {
+  id: string;
+  name: string;
+  location: string | null;
+  snippet: string;
+};
+
+const buildMcpClientExamples = (
+  endpoint: string,
+  token: string,
+): McpClientExample[] => {
+  const header = `Authorization: Bearer ${token}`;
+  const jsonConfig = (root: string, server: Record<string, unknown>) =>
+    JSON.stringify(
+      {
+        [root]: {
+          lightlist: {
+            ...server,
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        },
+      },
+      null,
+      2,
+    );
+  return [
+    {
+      id: "claude-code",
+      name: "Claude Code",
+      location: null,
+      snippet: `claude mcp add --transport http lightlist ${endpoint} --header "${header}"`,
+    },
+    {
+      id: "codex",
+      name: "Codex",
+      location: "~/.codex/config.toml",
+      snippet: `[mcp_servers.lightlist]\nurl = "${endpoint}"\nhttp_headers = { "Authorization" = "Bearer ${token}" }`,
+    },
+    {
+      id: "cursor",
+      name: "Cursor",
+      location: "~/.cursor/mcp.json",
+      snippet: jsonConfig("mcpServers", { url: endpoint }),
+    },
+    {
+      id: "vscode",
+      name: "VS Code",
+      location: "MCP: Open User Configuration",
+      snippet: jsonConfig("servers", { type: "http", url: endpoint }),
+    },
+    {
+      id: "gemini-cli",
+      name: "Gemini CLI",
+      location: null,
+      snippet: `gemini mcp add --scope user --transport http --header "${header}" lightlist ${endpoint}`,
+    },
+  ];
+};
+
+function assertApiTokenStore(data: unknown, id: string): ApiTokenStore {
+  if (
+    !isRecord(data) ||
+    !API_TOKEN_ID_PATTERN.test(id) ||
+    typeof data.name !== "string" ||
+    typeof data.createdAt !== "number" ||
+    !Number.isFinite(data.createdAt)
+  ) {
+    throw new Error(`ApiToken data is malformed: ${id}`);
+  }
+  return { id, name: data.name, createdAt: data.createdAt };
+}
+
+const toHex = (buffer: ArrayBuffer): string =>
+  Array.from(new Uint8Array(buffer), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+
+const truncateApiTokenName = (name: string): string => {
+  let result = "";
+  for (const char of name.trim()) {
+    if (result.length + char.length > API_TOKEN_NAME_MAX_LENGTH) break;
+    result += char;
+  }
+  return result;
+};
+
+async function fetchApiTokens(): Promise<ApiTokenStore[]> {
+  const uid = requireCurrentUserId();
+  const snapshot = await getDocs(
+    query(collection(getDbInstance(), "apiTokens"), where("uid", "==", uid)),
+  );
+  return snapshot.docs
+    .flatMap((tokenDoc) => {
+      try {
+        return [assertApiTokenStore(tokenDoc.data(), tokenDoc.id)];
+      } catch {
+        return [];
+      }
+    })
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+async function createApiToken(
+  name: string,
+): Promise<{ token: string; apiToken: ApiTokenStore }> {
+  const uid = requireCurrentUserId();
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const token = `ll_${btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "")}`;
+  const id = toHex(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)),
+  );
+  const apiToken = {
+    id,
+    name: truncateApiTokenName(name),
+    createdAt: Date.now(),
+  };
+  await setDoc(doc(getDbInstance(), "apiTokens", id), {
+    uid,
+    name: apiToken.name,
+    createdAt: apiToken.createdAt,
+  });
+  return { token, apiToken };
+}
+
+async function deleteApiToken(id: string) {
+  await deleteDoc(doc(getDbInstance(), "apiTokens", id));
 }
 
 const MAX_SHARE_CODE_ATTEMPTS = 10;
@@ -4529,6 +4540,303 @@ function ConfirmDialog({
   );
 }
 
+function ApiTokensDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const isOnline = useIsOnline();
+  const [apiTokens, setApiTokens] = useState<ApiTokenStore[] | null>(null);
+  const [name, setName] = useState("");
+  const [createdToken, setCreatedToken] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    "create" | "delete" | null
+  >(null);
+  const [deleteTarget, setDeleteTarget] = useState<ApiTokenStore | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(i18n.language, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    [i18n.language],
+  );
+  const clientExamples = createdToken
+    ? buildMcpClientExamples(MCP_ENDPOINT_URL, createdToken)
+    : [];
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetchApiTokens().then(
+      (tokens) => {
+        if (!cancelled) setApiTokens(tokens);
+      },
+      (err: unknown) => {
+        if (cancelled) return;
+        setApiTokens([]);
+        setError(resolveErrorMessage(err, t, "auth.error.general"));
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [open, t]);
+
+  useEffect(() => {
+    if (!copiedField) return;
+    const timeout = window.setTimeout(() => setCopiedField(null), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [copiedField]);
+
+  const displayName = (apiToken: ApiTokenStore) =>
+    apiToken.name || dateFormatter.format(apiToken.createdAt);
+
+  const copy = async (field: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+    } catch {
+      setError(t("common.error"));
+    }
+  };
+
+  const handleCreate = async () => {
+    if (pendingAction || !isOnline) return;
+    setPendingAction("create");
+    setError(null);
+    try {
+      const { token, apiToken } = await createApiToken(name);
+      setCreatedToken(token);
+      setCopiedField(null);
+      setName("");
+      setApiTokens((current) => [apiToken, ...(current ?? [])]);
+    } catch (err) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget || pendingAction || !isOnline) return;
+    const target = deleteTarget;
+    setPendingAction("delete");
+    setError(null);
+    try {
+      await deleteApiToken(target.id);
+      setApiTokens(
+        (current) => current?.filter((item) => item.id !== target.id) ?? null,
+      );
+      setDeleteTarget(null);
+    } catch (err) {
+      setError(resolveErrorMessage(err, t, "auth.error.general"));
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        title={t("settings.apiTokens.title")}
+        description={t("settings.apiTokens.description")}
+      >
+        <div className="ll-mt-4 ll-flex ll-flex-col ll-gap-4">
+          {error ? <Alert variant="error">{error}</Alert> : null}
+          {createdToken ? (
+            <div className="ll-flex ll-flex-col ll-gap-3">
+              <Alert variant="warning" announcement="polite">
+                {t("settings.apiTokens.createdNotice")}
+              </Alert>
+              <label className="ll-flex ll-flex-col ll-gap-2">
+                <span className="ll-field-label">
+                  {t("settings.apiTokens.tokenLabel")}
+                </span>
+                <div className="ll-flex ll-gap-2">
+                  <input
+                    type="text"
+                    value={createdToken}
+                    readOnly
+                    className="ll-field ll-font-mono ll-min-w-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void copy("token", createdToken)}
+                    className={BUTTON_SECONDARY_CLASS}
+                  >
+                    {copiedField === "token"
+                      ? t("common.copied")
+                      : t("common.copy")}
+                  </button>
+                </div>
+              </label>
+              <div className="ll-flex ll-flex-col ll-gap-2">
+                <span className="ll-field-label">
+                  {t("settings.apiTokens.setupLabel")}
+                </span>
+                <div className="ll-flex ll-flex-col">
+                  {clientExamples.map((example) => (
+                    <details
+                      key={example.id}
+                      className="ll-disclosure ll-border-t ll-border-gray-300 ll-dark-border-gray-700"
+                    >
+                      <summary className="ll-flex ll-cursor-pointer ll-list-none ll-items-center ll-justify-between ll-gap-3 ll-py-3">
+                        <span className="ll-min-w-0">
+                          <span className="ll-block ll-text-sm ll-font-semibold">
+                            {example.name}
+                          </span>
+                          {example.location ? (
+                            <span className="ll-block ll-break-all ll-font-mono ll-text-xs ll-muted-text">
+                              {example.location}
+                            </span>
+                          ) : null}
+                        </span>
+                        <AppIcon
+                          name="chevron-right"
+                          size={20}
+                          className="ll-disclosure-chevron ll-muted-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        />
+                      </summary>
+                      <div className="ll-flex ll-gap-2 ll-pb-3">
+                        <textarea
+                          value={example.snippet}
+                          readOnly
+                          rows={Math.max(3, example.snippet.split("\n").length)}
+                          aria-label={example.name}
+                          className="ll-field ll-font-mono ll-min-w-0 ll-text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void copy(example.id, example.snippet)}
+                          className={BUTTON_SECONDARY_CLASS}
+                        >
+                          {copiedField === example.id
+                            ? t("common.copied")
+                            : t("common.copy")}
+                        </button>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+          <label className="ll-flex ll-flex-col ll-gap-2">
+            <span className="ll-field-label">
+              {t("settings.apiTokens.endpointLabel")}
+            </span>
+            <input
+              type="text"
+              value={MCP_ENDPOINT_URL}
+              readOnly
+              className="ll-field ll-font-mono ll-min-w-0"
+            />
+          </label>
+          <div className="ll-flex ll-flex-col ll-gap-2">
+            <label htmlFor="api-token-name" className="ll-field-label">
+              {t("settings.apiTokens.nameLabel")}
+            </label>
+            <div className="ll-flex ll-gap-2">
+              <input
+                id="api-token-name"
+                type="text"
+                value={name}
+                maxLength={API_TOKEN_NAME_MAX_LENGTH}
+                onChange={(event) => setName(event.target.value)}
+                placeholder={t("settings.apiTokens.namePlaceholder")}
+                disabled={pendingAction !== null}
+                className="ll-field ll-min-w-0"
+              />
+              <button
+                type="button"
+                onClick={() => void handleCreate()}
+                disabled={pendingAction !== null || !isOnline}
+                className={BUTTON_PRIMARY_CLASS}
+              >
+                {pendingAction === "create"
+                  ? t("settings.apiTokens.creating")
+                  : t("settings.apiTokens.create")}
+              </button>
+            </div>
+            {isOnline ? null : <ConnectionRequiredNote className="" />}
+          </div>
+          <div className="ll-flex ll-flex-col">
+            <h3 className="ll-settings-heading">
+              {t("settings.apiTokens.listTitle")}
+            </h3>
+            {apiTokens === null ? (
+              <p className="ll-m-0 ll-text-sm ll-muted-text">
+                {t("common.loading")}
+              </p>
+            ) : apiTokens.length === 0 ? (
+              <p className="ll-m-0 ll-text-sm ll-muted-text">
+                {t("settings.apiTokens.empty")}
+              </p>
+            ) : (
+              <ul className="ll-m-0 ll-flex ll-list-none ll-flex-col ll-p-0">
+                {apiTokens.map((apiToken) => (
+                  <li key={apiToken.id} className="ll-settings-row">
+                    <span className="ll-flex ll-min-w-0 ll-flex-1 ll-flex-col">
+                      <span className="ll-break-all">
+                        {displayName(apiToken)}
+                      </span>
+                      <span className="ll-text-xs ll-muted-text">
+                        {t("settings.apiTokens.createdAt", {
+                          date: dateFormatter.format(apiToken.createdAt),
+                        })}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(apiToken)}
+                      disabled={pendingAction !== null || !isOnline}
+                      className={BUTTON_DANGER_CLASS}
+                    >
+                      {t("settings.apiTokens.delete")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <button type="button" className={BUTTON_SECONDARY_CLASS}>
+              {t("common.close")}
+            </button>
+          </DialogClose>
+        </DialogFooter>
+        <ConfirmDialog
+          isOpen={deleteTarget !== null}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => void handleDelete()}
+          title={t("settings.apiTokens.deleteTitle")}
+          message={t("settings.apiTokens.deleteMessage", {
+            name: deleteTarget ? displayName(deleteTarget) : "",
+          })}
+          confirmText={
+            pendingAction === "delete"
+              ? t("common.deleting")
+              : t("settings.apiTokens.delete")
+          }
+          cancelText={t("common.cancel")}
+          isDestructive
+          disabled={pendingAction !== null || !isOnline}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SettingsSection({ children }: SettingsSectionProps) {
   return (
     <section className="ll-rounded-xl ll-bg-white-b ll-px-4 ll-py-3 ll-dark-bg-gray-900b">
@@ -4598,6 +4906,8 @@ function SettingsView({
   const [emailChangeSuccess, setEmailChangeSuccess] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
+  const [showApiTokens, setShowApiTokens] = useState(false);
+  const [apiTokensDialogKey, setApiTokensDialogKey] = useState(0);
 
   const updateSetting = (next: {
     theme?: Theme;
@@ -4931,6 +5241,30 @@ function SettingsView({
                       )}
                     </div>
                   )}
+                  <div className="ll-border-t ll-border-gray-300 ll-dark-border-gray-700" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApiTokensDialogKey((key) => key + 1);
+                      setShowApiTokens(true);
+                    }}
+                    disabled={actionsDisabled}
+                    className="ll-settings-row"
+                  >
+                    {t("settings.apiTokens.title")}
+                    <AppIcon
+                      name="chevron-right"
+                      size={20}
+                      className="ll-muted-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    />
+                  </button>
+                  <ApiTokensDialog
+                    key={apiTokensDialogKey}
+                    open={showApiTokens}
+                    onOpenChange={setShowApiTokens}
+                  />
                 </div>
               </div>
             </SettingsSection>
@@ -10799,175 +11133,6 @@ function LoginPage() {
   );
 }
 
-// pages/password_reset.tsx
-function PasswordResetPage() {
-  const { t } = useTranslation();
-  useDocumentTitle(t("auth.passwordReset.title"));
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [codeValid, setCodeValid] = useState<boolean | null>(null);
-  const [resetSuccess, setResetSuccess] = useState(false);
-  const isOnline = useIsOnline();
-
-  const primaryButtonClass = AUTH_PRIMARY_BUTTON_CLASS;
-  const secondaryButtonClass = AUTH_SECONDARY_BUTTON_CLASS;
-
-  useEffect(() => {
-    const oobCode = new URLSearchParams(window.location.search).get("oobCode");
-
-    if (!oobCode) {
-      setCodeValid(false);
-      return;
-    }
-
-    const verifyCode = async () => {
-      try {
-        await verifyPasswordResetCode(oobCode);
-        setCodeValid(true);
-      } catch (err) {
-        setErrors({
-          general: navigator.onLine
-            ? resolveErrorMessage(err, t, "auth.error.general")
-            : t("common.requiresConnection"),
-        });
-        setCodeValid(false);
-      }
-    };
-
-    verifyCode();
-  }, [t]);
-
-  const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setErrors({});
-
-    const validationErrors = validatePasswordForm(
-      { password, confirmPassword },
-      t,
-    );
-
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const oobCode = new URLSearchParams(window.location.search).get(
-        "oobCode",
-      );
-
-      if (!oobCode) {
-        throw new Error(t("auth.passwordReset.invalidCode"));
-      }
-
-      await confirmPasswordReset(oobCode, password);
-      setResetSuccess(true);
-
-      setTimeout(() => {
-        window.location.replace("/");
-      }, 2000);
-    } catch (err) {
-      setErrors({
-        general: resolveErrorMessage(err, t, "auth.error.general"),
-      });
-      setLoading(false);
-    }
-  };
-
-  const content = (() => {
-    if (codeValid === false) {
-      return (
-        <div className="ll-space-y-4">
-          <Alert variant="error">
-            {errors.general || t("auth.passwordReset.invalidCode")}
-          </Alert>
-          <button
-            type="button"
-            onClick={() => window.location.assign("/")}
-            className={secondaryButtonClass}
-          >
-            {t("auth.button.backToSignIn")}
-          </button>
-        </div>
-      );
-    }
-
-    if (resetSuccess) {
-      return (
-        <div className="ll-space-y-4">
-          <Alert variant="success">
-            {t("auth.passwordReset.resetSuccess")}
-          </Alert>
-          <div className="ll-flex ll-justify-center">
-            <Spinner />
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="ll-space-y-4">
-        {errors.general && <Alert variant="error">{errors.general}</Alert>}
-
-        <form onSubmit={handleSubmit} className="ll-space-y-4">
-          <FormInput
-            id="password"
-            label={t("auth.passwordReset.newPassword")}
-            type="password"
-            value={password}
-            onChange={setPassword}
-            error={errors.password}
-            disabled={loading}
-            placeholder={t("auth.placeholder.password")}
-            autoComplete="new-password"
-          />
-
-          <FormInput
-            id="confirmPassword"
-            label={t("auth.passwordReset.confirmNewPassword")}
-            type="password"
-            value={confirmPassword}
-            onChange={setConfirmPassword}
-            error={errors.confirmPassword}
-            disabled={loading}
-            placeholder={t("auth.placeholder.password")}
-            autoComplete="new-password"
-          />
-
-          {isOnline ? null : <ConnectionRequiredNote className="" />}
-          <button
-            type="submit"
-            disabled={loading || !isOnline}
-            className={primaryButtonClass}
-          >
-            {loading
-              ? t("auth.passwordReset.settingNewPassword")
-              : t("auth.passwordReset.setNewPassword")}
-          </button>
-        </form>
-
-        <button
-          type="button"
-          onClick={() => window.location.assign("/")}
-          className={secondaryButtonClass}
-        >
-          {t("auth.button.backToSignIn")}
-        </button>
-      </div>
-    );
-  })();
-
-  return (
-    <AuthPageLayout title={t("auth.passwordReset.title")}>
-      {content}
-    </AuthPageLayout>
-  );
-}
-
 // pages/sharecodes.tsx
 function HistoryBackButton() {
   const { t } = useTranslation();
@@ -11112,7 +11277,6 @@ const PAGE_COMPONENTS = {
   "500": ServerErrorPage,
   app: AppShellPage,
   login: LoginPage,
-  password_reset: PasswordResetPage,
   sharecodes: ShareCodePreviewPage,
 } as const;
 

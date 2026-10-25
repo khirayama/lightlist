@@ -106,8 +106,52 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-self.addEventListener("message", (event) => {
-  if (event?.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data?.json() ?? {};
+  } catch {
+    payload = {};
   }
+  const notification = payload.notification ?? {};
+  const taskListId = payload.data?.taskListId;
+  event.waitUntil(
+    self.registration.showNotification(notification.title ?? "Lightlist", {
+      body: notification.body ?? "",
+      tag: notification.tag ?? taskListId,
+      data: { taskListId },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  const taskListId = event.notification.data?.taskListId;
+  event.notification.close();
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        const appClient = clients.find((client) => {
+          const url = new URL(client.url);
+          return (
+            url.origin === self.location.origin &&
+            url.pathname.startsWith("/app/")
+          );
+        });
+        if (!appClient) {
+          return self.clients.openWindow(
+            taskListId
+              ? `/app/?taskListId=${encodeURIComponent(taskListId)}`
+              : "/app/",
+          );
+        }
+        if (taskListId) {
+          appClient.postMessage({
+            type: "lightlist-open-task-list",
+            taskListId,
+          });
+        }
+        return appClient.focus();
+      }),
+  );
 });

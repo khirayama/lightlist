@@ -124,7 +124,7 @@
             class="ll-sticky ll-top-0 ll-lp-z-40 ll-border-b ll-lp-border-black-10 ll-lp-bg-white-92 ll-lp-backdrop-blur ll-lp-dark-border-white-10 ll-lp-dark-bg-black-92"
           >
             <div
-              class="ll-mx-auto ll-flex ll-lp-max-w-6xl ll-items-center ll-justify-between ll-gap-3 ll-lp-px-6 ll-py-3"
+              class="ll-lp-header-inner ll-mx-auto ll-flex ll-lp-max-w-6xl ll-items-center ll-justify-between ll-gap-3 ll-lp-px-6 ll-py-3"
             >
               <div
                 class="ll-flex ll-shrink-0b ll-items-center ll-lp-gap-2x5 ll-lp-sm-gap-3"
@@ -136,7 +136,7 @@
                   class="ll-block ll-h-8 ll-w-auto ll-lp-sm-h-9"
                 />
                 <p
-                  class="ll-lp-hidden ll-lp-text-base ll-font-semibold ll-lp-tracking-extra-wide ll-lp-text-neutral-850 ll-lp-dark-text-neutral-50 ll-lp-xs-block ll-lp-sm-text-lg"
+                  class="ll-lp-hidden ll-lp-text-base ll-font-semibold ll-lp-tracking-extra-wide ll-lp-text-neutral-850 ll-lp-dark-text-neutral-50 ll-lp-sm-block ll-lp-sm-text-lg"
                 >
                   Lightlist
                 </p>
@@ -145,7 +145,9 @@
                 class="ll-flex ll-min-w-0 ll-items-center ll-gap-2 ll-lp-sm-gap-3"
               >
                 <label class="ll-flex ll-min-w-0 ll-items-center ll-text-sm">
-                  <span class="ll-sr-only">Language</span>
+                  <span class="ll-sr-only" data-i18n="settings.language.title"
+                    >言語</span
+                  >
                   <select
                     id="lp-language"
                     class="ll-lp-w-lang ll-min-w-0 ll-rounded-full ll-border ll-lp-border-black-10 ll-lp-bg-white ll-px-3 ll-py-1x5 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-lp-focus-border-neutral-500 ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900 ll-dark-text-gray-50 ll-lp-dark-focus-border-white-30 ll-lp-sm-w-auto ll-lp-sm-px-4 ll-lp-sm-py-2"
@@ -164,6 +166,12 @@
                   </select>
                 </label>
                 <a
+                  href="/docs/"
+                  class="ll-lp-header-guide ll-lp-footer-link ll-text-sm ll-lp-text-neutral-650"
+                  data-i18n="pages.docs.title"
+                  >使い方</a
+                >
+                <a
                   href="/login/"
                   class="ll-inline-flex ll-shrink-0b ll-items-center ll-justify-center ll-rounded-full ll-lp-bg-neutral-900 ll-px-4 ll-py-1x5 ll-text-sm ll-font-semibold ll-text-white ll-transition ll-lp-hover-bg-neutral-800 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-lp-focus-visible-outline-neutral-900 ll-lp-dark-bg-neutral-50 ll-lp-dark-text-neutral-950 ll-lp-dark-hover-bg-neutral-150 ll-lp-dark-focus-visible-outline-neutral-50 ll-lp-sm-px-5 ll-lp-sm-py-2"
                   data-i18n="pages.index.login"
@@ -177,14 +185,16 @@
           <main id="main-content" tabindex="-1">
             <section
               aria-labelledby="landing-hero-title"
-              class="ll-lp-px-6 ll-lp-pb-16 ll-lp-pt-12 ll-lp-sm-pb-24 ll-lp-sm-pt-20"
+              class="ll-lp-hero ll-lp-px-6 ll-lp-pb-16 ll-lp-pt-12 ll-lp-sm-pb-24 ll-lp-sm-pt-20"
             >
-              <div class="ll-mx-auto ll-lp-max-w-6xl">
-                <div class="ll-mx-auto ll-max-w-3xl ll-text-center">
+              <div class="ll-lp-hero-layout ll-mx-auto ll-lp-max-w-6xl">
+                <div
+                  class="ll-lp-hero-copy ll-mx-auto ll-max-w-3xl ll-text-center"
+                >
                   <!-- prettier-ignore -->
                   <h1 id="landing-hero-title" class="ll-font-display ll-lp-whitespace-pre-line ll-lp-phrase ll-lp-text-hero ll-font-semibold ll-lp-tracking-tighter ll-lp-text-neutral-925 ll-lp-dark-text-neutral-25 ll-lp-sm-text-6xl ll-lp-lg-text-7xl" data-i18n="pages.index.headline">タスクリストは、&#10;シンプルでいい。</h1>
                   <!-- prettier-ignore -->
-                  <p class="ll-mx-auto ll-mt-6 ll-lp-max-w-2xl ll-lp-whitespace-pre-line ll-lp-phrase ll-lp-balance ll-lp-text-lead ll-lp-text-neutral-550 ll-lp-dark-text-neutral-250 ll-lp-sm-mt-8" data-i18n="pages.index.subheadline">タスク管理アプリに疲れたあなたへ。&#10;余計な機能はない。誰でも、すぐに使いはじめられる。&#10;それでいて、必要なときは共有もできる。</p>
+                  <p class="ll-mx-auto ll-mt-6 ll-lp-max-w-2xl ll-lp-whitespace-pre-line ll-lp-phrase ll-lp-balance ll-lp-text-lead ll-lp-text-neutral-550 ll-lp-dark-text-neutral-250 ll-lp-sm-mt-8" data-i18n="pages.index.subheadline">やることも、これからの予定も。&#10;シンプルなリストとカレンダーで整理して、&#10;必要なときは共有できます。</p>
                   <div
                     class="ll-lp-mt-8 ll-flex ll-flex-col ll-items-center ll-gap-4 ll-lp-sm-mt-10"
                   >
@@ -206,7 +216,7 @@
                 </div>
 
                 <div
-                  class="ll-mx-auto ll-lp-mt-12 ll-lp-max-w-5xl ll-lp-sm-mt-16"
+                  class="ll-lp-hero-preview ll-mx-auto ll-lp-mt-12 ll-lp-max-w-5xl ll-lp-sm-mt-16"
                 >
                   <div class="ll-relative ll-lp-sm-pt-4">
                     <div
@@ -265,11 +275,11 @@
                     class="ll-font-display ll-lp-text-3xl ll-font-semibold ll-lp-tracking-tight ll-lp-text-neutral-900 ll-lp-dark-text-neutral-50 ll-lp-sm-text-4xl"
                     data-i18n="pages.index.features.title"
                   >
-                    Lightlistの3つのこと
+                    Lightlistの特長
                   </h2>
                 </div>
                 <div
-                  class="ll-lp-mt-10 ll-grid ll-gap-4 ll-lp-sm-mt-12 ll-lp-lg-grid-cols-3"
+                  class="ll-lp-mt-10 ll-grid ll-gap-4 ll-lp-sm-mt-12 ll-lp-sm-grid-cols-2 ll-lp-lg-grid-cols-4"
                 >
                   <div
                     class="ll-lp-rounded-28px ll-lp-bg-white ll-lp-p-7 ll-lp-dark-bg-neutral-850"
@@ -303,7 +313,7 @@
                       class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550 ll-lp-dark-text-neutral-350"
                       data-i18n="pages.index.features.simple.description"
                     >
-                      タスクを追加して、完了する。それだけ。説明書もチュートリアルも必要ありません。はじめてでも迷わない、ちょうどいいシンプルさです。
+                      タスクを追加して、完了する。日付を付ければ、これからの予定もカレンダーで確認できます。
                     </p>
                   </div>
                   <div
@@ -377,6 +387,48 @@
                       共有コードを発行するだけで、家族・友人・チームとリアルタイム共有。一人で使うだけでも、もちろん十分です。
                     </p>
                   </div>
+                  <div
+                    class="ll-lp-rounded-28px ll-lp-bg-white ll-lp-p-7 ll-lp-dark-bg-neutral-850"
+                  >
+                    <div
+                      class="ll-flex ll-h-12 ll-w-12 ll-items-center ll-justify-center ll-rounded-2xl ll-lp-bg-neutral-100"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="ll-h-7 ll-lp-w-7 ll-lp-text-neutral-650"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        aria-hidden="true"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18"
+                        />
+                      </svg>
+                    </div>
+                    <h3
+                      class="ll-font-display ll-lp-mt-5 ll-text-xl ll-font-semibold ll-lp-text-neutral-875"
+                      data-i18n="pages.index.features.mcp.title"
+                    >
+                      AIからも、いつものリストへ
+                    </h3>
+                    <p
+                      class="ll-mt-3 ll-lp-text-body ll-lp-text-neutral-550"
+                      data-i18n="pages.index.features.mcp.description"
+                    >
+                      Claude
+                      CodeやCodexから、タスクの追加や完了も。MCPでいつものリストにつながります。
+                    </p>
+                    <a
+                      href="/docs/#mcp"
+                      class="ll-lp-feature-link"
+                      data-i18n="pages.index.features.mcp.link"
+                      >MCPの設定方法</a
+                    >
+                  </div>
                 </div>
               </div>
             </section>
@@ -417,7 +469,7 @@
                         height="810"
                         loading="lazy"
                         decoding="async"
-                        class="ll-lp-crop-wide ll-w-full ll-lp-sm-aspect-auto"
+                        class="ll-w-full"
                         data-i18n-alt="pages.index.preview.calendarAlt"
                       />
                     </div>
@@ -744,6 +796,12 @@
             class="ll-border-t ll-lp-border-black-10 ll-lp-bg-neutral-100 ll-lp-px-6 ll-py-10 ll-text-center ll-lp-dark-border-white-10 ll-lp-dark-bg-neutral-900"
           >
             <nav class="ll-lp-footer-nav">
+              <a
+                href="/docs/"
+                class="ll-lp-footer-link ll-lp-text-neutral-650"
+                data-i18n="pages.docs.title"
+                >使い方</a
+              >
               <a
                 href="/privacy/"
                 class="ll-lp-footer-link ll-lp-text-neutral-650 ll-lp-dark-text-neutral-350"

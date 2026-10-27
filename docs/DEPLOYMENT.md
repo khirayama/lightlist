@@ -5,7 +5,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Wo
 ## Vite 構成
 
 - Vite root は `apps/web/html`、env dir は `apps/web`、public dir は `apps/web/public`。`base` は `/` で、subpath 配信はサポートしない。build 出力は `apps/web/dist`。
-- multi-page input は `index` / `legal` / `login` / `app` / `sharecodes` / `404` / `500`。
+- multi-page input は `index` / `docs` / `legal` / `login` / `app` / `sharecodes` / `404` / `500`。
 - dev server は `/app` / `/login` / `/sharecodes` を末尾スラッシュ付き URL へ redirect する。本番も canonical な導線はスラッシュ付き URL を使う。
 - `vite.config.ts` の `build-assets` plugin が、dev / build の開始時に `scripts/prepare.ts`（`shared/locales/locales.json` から言語別の `src/locales/<lang>.json`・`src/lp-locales.json`・`src/english-date-patterns.json` を、依存ライセンスと `shared/licenses/manual-licenses.json` から `public/licenses/licenses.json` を生成）を実行し、build 後に `dist/sw.js` の cache version を埋め込む。生成物は commit しない。`npm run check` も最初に同じ前処理を実行する。
 
@@ -16,7 +16,9 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Wo
 - 法的ページ（プライバシーポリシー `privacy` / 利用規約 `terms` / サポート `support` / アカウントとデータの削除 `account-deletion`）は LP と同じ言語 prefix の静的ページとする（`ja` は `/privacy/`、他言語は `/en/privacy/` など）。テンプレートは `apps/web/html/legal/index.html`、本文は `apps/web/src/legal/<lang>.json`（Web 専用。`shared/locales/locales.json` には入れない）、スタイルは `apps/web/src/styles/legal.css` で、`landingPages` plugin が build 後に全言語・全ページを書き出し、`dist/legal/` のテンプレート自体は削除して `sitemap.xml` に追加する。JavaScript は読み込まない。運営者名は Google Play の developer 名と同じ `khirayama`、連絡先は `support@lightlist.app`（plugin の `LEGAL_CONTACT` が本文中のアドレスを `mailto:` リンクにする）。本文は実装と一致させ、取得する情報・外部サービス・削除範囲が変わったら 11 言語すべてと `updated` の日付を更新する。LP のフッターから各ページへリンクする。
 - LP はブラウザ言語で自動転送しない（クローラーが各言語ページをそのまま取得できるようにするため）。転送は `/` を開いたときに `localStorage.i18nextLng` が `ja` 以外の場合だけ行う。`ja` 以外のページの「はじめる / ログイン」リンクは `/login/?lang=<lang>` としてアプリへ言語を引き継ぐ。
 - OGP 画像は `apps/web/public/og-image.png`（1200x630）を `https://lightlist.app/` からの絶対 URL で指定する。LP のヒーロー画像は `public/screenshot_ja_desktop.png`（1440x900）と `screenshot_ja_mobile.png`（780x1688）、機能紹介のカレンダー画像は `public/screenshot_ja_calendar.png`（1440x810。`apps/web/screenshots/web_06_calendar.png` を縮小したもの）で、差し替え時は `index.html` の `width` / `height` と OGP 画像も更新する。
-- LP の本文は「ヒーロー → 3 つの特徴 → 機能詳細 → 利用シーン → よくある質問 → CTA」の順とし、文言は `pages.index.*` を正とする。訴求内容は実装済みの機能に限り、iPhone / Android アプリはストア公開まで実際の状況（現在は「申請準備中」）を記載する（公開後は対応端末の記述・JSON-LD の `operatingSystem`・ストアへのリンクを更新する）。共有は「URL を知っていればログインなしで閲覧でき、編集にはログインと参加が必要」と記載する。日付入力の例は全言語共通で解釈できる相対表現か `mm/dd` 形式だけを使う。
+- LP の本文は「ヒーロー → 特長 → 機能詳細 → 利用シーン → よくある質問 → CTA」の順とし、文言は `pages.index.*` を正とする。特長はシンプルさ・複数端末・共有・MCP による AI 連携を並べ、AI 連携から使い方ページの `/docs/#mcp`（他言語は同じ言語 prefix）へリンクする。訴求内容は実装済みの機能に限り、iPhone / Android アプリはストア公開まで実際の状況（現在は「申請準備中」）を記載する（公開後は対応端末の記述・JSON-LD の `operatingSystem`・ストアへのリンクを更新する）。共有は「URL を知っていればログインなしで閲覧でき、編集にはログインと参加が必要」と記載する。日付入力の例は全言語共通で解釈できる相対表現か `mm/dd` 形式だけを使う。
+- 公開用の使い方ページは `/docs/`（日本語）、`/en/docs/` など LP と同じ 11 言語の静的 HTML とする。テンプレートは `html/docs/index.html`、文言の正本は `shared/locales/locales.json` の `pages.docs.*`、スタイルは `src/styles/docs.css`。`landingPages` plugin が dev / build の両方で翻訳・canonical・`hreflang`・MCP 設定例を挿入し、build 時に各ページを `sitemap.xml` へ追加する。LP のヘッダー（広幅）とフッターからリンクする。本文は基本操作・日付とカレンダー・共有・MCP 接続を扱い、目次とツール別の開閉式設定例で移動できる。言語選択には `lp.ts` を共用し、ページ種別とアンカーを保って切り替える。認証・Firebase は読み込まない。
+- 使い方ページはブラウザ標準のドキュメントスクロールを使い、ホイール・タッチ・キーボードで本文末尾まで移動できる。
 - `robots.txt` は `/app/`・`/sharecodes/` のクロールを拒否する。
 - アプリ側 entry は `apps/web/src/entry.tsx` 1 本。`body[data-page]` で `login` / `app` / `sharecodes` / `404` / `500` を切り替える。`login` / `app` / `sharecodes` は `../../src/entry.tsx`、`404` / `500` は `../src/entry.tsx` を module script として読む。
 - `index` / `404` / `500` では認証済みアプリの状態購読を前提にしない。`sharecodes` は未認証プレビューを許可しつつ、ログイン済み状態も見て参加導線を出す。

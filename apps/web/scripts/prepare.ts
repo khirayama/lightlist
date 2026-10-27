@@ -46,12 +46,19 @@ const syncLocales = () => {
       Object.entries(locales).map(([language, translation]) => {
         const common = translation.common as LocaleTree;
         const pages = translation.pages as LocaleTree;
+        const settings = translation.settings as LocaleTree;
+        const languageSetting = settings.language as LocaleTree;
         return [
           language,
-          flatten(pages.index, "pages.index", {
-            copyright: translation.copyright as string,
-            "common.skipToMain": common.skipToMain as string,
-          }),
+          flatten(
+            pages.docs,
+            "pages.docs",
+            flatten(pages.index, "pages.index", {
+              copyright: translation.copyright as string,
+              "common.skipToMain": common.skipToMain as string,
+              "settings.language.title": languageSetting.title as string,
+            }),
+          ),
         ];
       }),
     ),

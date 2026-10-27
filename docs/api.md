@@ -31,6 +31,8 @@ AI ツールや外部のプログラムからタスクリストを読み書き�
 
 いずれも Streamable HTTP と `Authorization: Bearer` ヘッダーで接続する。アプリはトークンを埋め込んだ形で表示する。
 
+公開用の設定手順は `https://lightlist.app/docs/#mcp`（他言語は LP と同じ言語 prefix）に置く。トークン発行 → クライアント設定 → 接続を有効にして依頼、の順に案内し、Claude Code / Codex / Cursor / VS Code / Gemini CLI の設定例は本節とアプリに揃える。Muse はカスタムコネクターの接続先と Authorization ヘッダーを案内する。公開ページでは実トークンを受け取らず、`ll_...` を置き換える例だけを表示する。全参加リストへの読み書き権限、有効期限なし、OAuth 非対応、トークン削除による失効、401 の対処も記載する。
+
 Claude Code（ターミナル）:
 
 ```sh

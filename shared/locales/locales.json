@@ -275,7 +275,7 @@
           "keywords": "قائمة مهام,تطبيق todo,قائمة مهام مشتركة,قائمة تسوق,مهام العائلة,مهام الفريق,Lightlist"
         },
         "features": {
-          "title": "ثلاثة أشياء يقدمها Lightlist",
+          "title": "مميزات Lightlist",
           "simple": {
             "title": "كل ما تحتاجه",
             "description": "أضف المهام. ضع علامة الإتمام. هذا كل شيء. لا حاجة إلى شرح أو دليل. يمكن لأي شخص البدء فورًا مهما كانت خبرته التقنية."
@@ -287,6 +287,11 @@
           "share": {
             "title": "شارك عندما تريد",
             "description": "أنشئ رمز مشاركة وادعُ أي شخص إلى قائمتك خلال ثوانٍ. يمكن لأي شخص لديه الرابط عرض القائمة بدون حساب. ولا يزعجك عندما لا تحتاجه."
+          },
+          "mcp": {
+            "title": "قوائمك، من الذكاء الاصطناعي أيضًا",
+            "description": "أضف المهام وأكملها من Muse, Claude Code أو Codex. اتصل بقوائمك اليومية عبر MCP.",
+            "link": "إعداد MCP"
           }
         },
         "preview": {
@@ -412,6 +417,64 @@
         "title": "حدث خطأ ما",
         "description": "حدث خطأ غير متوقع. يرجى إعادة تحميل الصفحة.",
         "reload": "إعادة تحميل الصفحة"
+      },
+      "docs": {
+        "title": "دليل الاستخدام",
+        "description": "تعرّف على أساسيات Lightlist وربط أدوات الذكاء الاصطناعي عبر MCP.",
+        "basics": {
+          "title": "البدء",
+          "body": "سجّل ببريدك الإلكتروني وأنشئ قائمة مهام. اكتب مهمة لإضافتها وضع علامة عليها عند الانتهاء.",
+          "imageAlt": "شاشة قائمة المهام"
+        },
+        "dates": {
+          "title": "التواريخ والتقويم",
+          "body": "اكتب «غدًا شراء الحليب» أو «12/24 هدايا» لتحديد تاريخ. يعرض التقويم المهام المؤرخة من جميع قوائمك.",
+          "examples": "أمثلة",
+          "example1": "tomorrow شراء الحليب",
+          "example2": "12/24 هدايا",
+          "example3": "pin tomorrow الحجز",
+          "example4": "tomorrow pin الحجز",
+          "tip": "اكتب التاريخ و pin في البداية بأي ترتيب. يمكنك أيضًا استخدام أحدهما فقط."
+        },
+        "sharing": {
+          "title": "مشاركة قائمة",
+          "body": "أنشئ رمز مشاركة للقائمة وأرسل رابطها. يمكن لأي شخص لديه الرابط عرضها دون تسجيل الدخول. يتطلب التعديل تسجيل الدخول والانضمام إلى القائمة."
+        },
+        "mcp": {
+          "title": "ربط الذكاء الاصطناعي (MCP)",
+          "body": "استخدم Muse, Claude Code وCodex وأدوات أخرى لعرض القوائم وإضافة المهام وتحديثها وإكمالها وإعادة ترتيبها.",
+          "muse": "أضف موصلًا مخصصًا في إعدادات موصلات Muse، واضبط العنوان وترويسة Authorization كما يلي. استبدل ll_... برمز API الخاص بك."
+        },
+        "token": {
+          "title": "إنشاء رمز وصول",
+          "body": "افتح الإعدادات ← الحساب ← رموز API وأنشئ رمزًا. يظهر مرة واحدة فقط، لذا انسخه قبل الإغلاق."
+        },
+        "clients": {
+          "title": "إعداد أداة الذكاء الاصطناعي",
+          "body": "افتح أداتك أدناه واستبدل ll_... برمزك. يمكنك أيضًا نسخ أمثلة جاهزة من شاشة إنشاء الرمز. إذا كانت لديك إعدادات سابقة، فأضف إليها مدخل lightlist."
+        },
+        "try": {
+          "title": "اطلب من الذكاء الاصطناعي",
+          "body": "بعد الإعداد، فعّل اتصال Lightlist في أداتك وجرّب هذه الطلبات.",
+          "read": "اعرض قوائم مهامي في Lightlist",
+          "add": "أضف الحليب إلى قائمة التسوق بتاريخ الغد"
+        },
+        "access": {
+          "title": "نطاق الوصول",
+          "body": "يتيح الرمز قراءة جميع القوائم التي انضممت إليها وتعديلها دون تاريخ انتهاء. لا يدعم إنشاء القوائم أو تغيير إعدادات المشاركة. يجب أن يدعم عميل MCP مصادقة Bearer. الاتصالات التي تعتمد على OAuth فقط غير مدعومة."
+        },
+        "revoke": {
+          "title": "قطع الاتصال",
+          "body": "احذف الرمز من قائمة رموز API في الإعدادات لإيقاف الوصول باستخدامه."
+        },
+        "trouble": {
+          "title": "مشكلات الاتصال",
+          "body": "تحقق من أن العنوان هو https://lightlist.app/mcp وأن ترويسة Authorization تحتوي على الرمز الصحيح. تعني الاستجابة 401 أن الرمز غير صالح. عند إنشاء رمز بديل، حدّث إعدادات أداتك أيضًا."
+        },
+        "accessibility": {
+          "title": "إمكانية الوصول",
+          "body": "استخدم قارئ الشاشة أو لوحة المفاتيح أو النص المكبّر. رتّب المهام بلوحة المفاتيح أو قارئ الشاشة، مع دعم إعداد تقليل الحركة."
+        }
       }
     },
     "a11y": {
@@ -719,7 +782,7 @@
           "keywords": "aufgabenliste,todo app,geteilte aufgabenliste,einkaufsliste,familienaufgaben,teamaufgaben,Lightlist"
         },
         "features": {
-          "title": "Drei Dinge, die Lightlist kann",
+          "title": "Das bietet Lightlist",
           "simple": {
             "title": "Genau das, was du brauchst",
             "description": "Aufgaben hinzufügen. Abhaken. Das ist alles. Kein Tutorial, kein Handbuch nötig. Jeder kann sofort loslegen – unabhängig von der Technik-Erfahrung."
@@ -731,6 +794,11 @@
           "share": {
             "title": "Teile, wenn du willst",
             "description": "Erstelle einen Freigabecode und lade in Sekunden andere ein. Mit dem Link kann jeder die Liste ohne Konto ansehen. Unauffällig, wenn du es nicht brauchst."
+          },
+          "mcp": {
+            "title": "Deine Listen, auch mit KI",
+            "description": "Erstelle und erledige Aufgaben mit Muse, Claude Code oder Codex. MCP verbindet dich mit deinen Listen.",
+            "link": "MCP einrichten"
           }
         },
         "preview": {
@@ -856,6 +924,64 @@
         "title": "Etwas ist schiefgelaufen",
         "description": "Ein unerwarteter Fehler ist aufgetreten. Bitte lade die Seite neu.",
         "reload": "Seite neu laden"
+      },
+      "docs": {
+        "title": "Anleitung",
+        "description": "Die Grundlagen von Lightlist und die Verbindung mit KI-Tools über MCP.",
+        "basics": {
+          "title": "Loslegen",
+          "body": "Registriere dich mit deiner E-Mail-Adresse und erstelle eine Aufgabenliste. Gib eine Aufgabe ein und hake sie ab, sobald sie erledigt ist.",
+          "imageAlt": "Aufgabenlistenansicht"
+        },
+        "dates": {
+          "title": "Datum und Kalender",
+          "body": "Mit „morgen Milch kaufen“ oder „12/24 Geschenke“ legst du ein Datum fest. Der Kalender zeigt Aufgaben mit Datum aus allen Listen.",
+          "examples": "Beispiele",
+          "example1": "tomorrow Milch kaufen",
+          "example2": "12/24 Geschenke",
+          "example3": "pin tomorrow Reservieren",
+          "example4": "tomorrow pin Reservieren",
+          "tip": "Datum und pin stehen am Anfang, in beliebiger Reihenfolge. Beide funktionieren auch einzeln."
+        },
+        "sharing": {
+          "title": "Eine Liste teilen",
+          "body": "Erstelle einen Freigabecode und versende die URL. Wer die URL kennt, kann die Liste ohne Anmeldung ansehen. Zum Bearbeiten sind die Anmeldung und der Beitritt zur Liste erforderlich."
+        },
+        "mcp": {
+          "title": "KI verbinden (MCP)",
+          "body": "Mit Muse, Claude Code, Codex und anderen Tools kannst du Listen ansehen und Aufgaben hinzufügen, ändern, erledigen oder umsortieren.",
+          "muse": "Füge in den Connector-Einstellungen von Muse einen benutzerdefinierten Connector hinzu und richte Adresse und Authorization-Header wie unten gezeigt ein. Ersetze ll_... durch dein API-Token."
+        },
+        "token": {
+          "title": "Token erstellen",
+          "body": "Öffne Einstellungen → Konto → API-Tokens und erstelle ein Token. Es wird nur einmal angezeigt. Kopiere es, bevor du die Ansicht schließt."
+        },
+        "clients": {
+          "title": "KI-Tool einrichten",
+          "body": "Öffne dein Tool unten und ersetze ll_... durch dein Token. Fertige Beispiele kannst du auch nach der Token-Erstellung kopieren. Ergänze eine vorhandene Konfiguration um den Eintrag lightlist."
+        },
+        "try": {
+          "title": "Die KI fragen",
+          "body": "Aktiviere nach der Einrichtung die Lightlist-Verbindung in deinem KI-Tool und probiere diese Anfragen.",
+          "read": "Zeige mir meine Aufgabenlisten in Lightlist",
+          "add": "Füge Milch für morgen zu meiner Einkaufsliste hinzu"
+        },
+        "access": {
+          "title": "Zugriff",
+          "body": "Ein Token kann alle Listen lesen und bearbeiten, denen du beigetreten bist, und läuft nicht ab. Listen können damit weder erstellt noch ihre Freigaben geändert werden. Der MCP-Client muss Bearer-Authentifizierung unterstützen. Reine OAuth-Verbindungen werden nicht unterstützt."
+        },
+        "revoke": {
+          "title": "Verbindung trennen",
+          "body": "Lösche das Token unter API-Tokens in den Einstellungen, um den Zugriff damit zu beenden."
+        },
+        "trouble": {
+          "title": "Verbindungsprobleme",
+          "body": "Prüfe die URL https://lightlist.app/mcp und das Token im Authorization-Header. Eine Antwort mit 401 bedeutet, dass das Token ungültig ist. Aktualisiere nach dem Erstellen eines neuen Tokens auch die Konfiguration deines KI-Tools."
+        },
+        "accessibility": {
+          "title": "Barrierefreiheit",
+          "body": "Nutze Screenreader, Tastatur oder größere Schrift. Aufgaben lassen sich per Tastatur oder Screenreader sortieren; reduzierte Bewegung wird berücksichtigt."
+        }
       }
     },
     "a11y": {
@@ -1162,7 +1288,7 @@
           "keywords": "task list,todo app,shared task list,shopping list,family tasks,team tasks,Lightlist"
         },
         "features": {
-          "title": "Three things Lightlist does",
+          "title": "Why Lightlist",
           "simple": {
             "title": "Just what you need",
             "description": "Add tasks. Check them off. That's it. No tutorial, no manual needed. Anyone can start right away — no matter their experience with technology."
@@ -1174,6 +1300,11 @@
           "share": {
             "title": "Share when you want to",
             "description": "Generate a share code and invite anyone to your list in seconds. Anyone with the link can view it without an account. Out of the way when you don't need it."
+          },
+          "mcp": {
+            "title": "Your lists, with AI too",
+            "description": "Add and complete tasks from Muse, Claude Code or Codex. Connect to your everyday lists through MCP.",
+            "link": "Set up MCP"
           }
         },
         "preview": {
@@ -1299,6 +1430,64 @@
         "title": "Something went wrong",
         "description": "An unexpected error occurred. Please try reloading the page.",
         "reload": "Reload Page"
+      },
+      "docs": {
+        "title": "Guide",
+        "description": "Learn the basics of Lightlist and connect AI tools through MCP.",
+        "basics": {
+          "title": "Get started",
+          "body": "Sign up with your email and create a task list. Enter a task to add it, then check it off when done.",
+          "imageAlt": "Task list screen"
+        },
+        "dates": {
+          "title": "Dates and calendar",
+          "body": "Type “tomorrow Buy milk” or “12/24 Gifts” to set a date. The calendar shows dated tasks from all your lists.",
+          "examples": "Examples",
+          "example1": "tomorrow Buy milk",
+          "example2": "12/24 Gifts",
+          "example3": "pin tomorrow Make a reservation",
+          "example4": "tomorrow pin Make a reservation",
+          "tip": "Put the date and pin at the beginning in either order. You can also use either one on its own."
+        },
+        "sharing": {
+          "title": "Share a list",
+          "body": "Generate a sharing code for the list and send its URL. Anyone with the URL can view it without signing in. Editing requires signing in and joining the list."
+        },
+        "mcp": {
+          "title": "Connect AI tools (MCP)",
+          "body": "Use Muse, Claude Code, Codex, and other tools to view lists and add, update, complete, or reorder tasks.",
+          "muse": "Add a custom connector in Muse’s connector settings and configure the endpoint and Authorization header as shown below. Replace ll_... with your API token."
+        },
+        "token": {
+          "title": "Create a token",
+          "body": "Open Settings → Account → API tokens and create a token. It is shown only once, so copy it before closing."
+        },
+        "clients": {
+          "title": "Configure your AI tool",
+          "body": "Open your tool below and replace ll_... with your token. You can also copy ready-to-use examples from the token creation screen. If you already have a configuration, add the lightlist entry to it."
+        },
+        "try": {
+          "title": "Ask your AI",
+          "body": "After setup, enable the Lightlist connection in your AI tool and try these requests.",
+          "read": "Show me my Lightlist task lists",
+          "add": "Add milk to my shopping list for tomorrow"
+        },
+        "access": {
+          "title": "Access",
+          "body": "A token can read and write every list you have joined and does not expire. Creating lists and changing sharing settings are not supported. Your MCP client must support Bearer authentication. OAuth-only connections are not supported."
+        },
+        "revoke": {
+          "title": "Disconnect",
+          "body": "Delete the token from API tokens in Settings to stop access with that token."
+        },
+        "trouble": {
+          "title": "Connection issues",
+          "body": "Check that the URL is https://lightlist.app/mcp and the Authorization header contains your token. A 401 response means the token is invalid. After creating a replacement token, update your AI tool configuration."
+        },
+        "accessibility": {
+          "title": "Accessibility",
+          "body": "Use a screen reader, keyboard, or larger text. Reorder tasks with a keyboard or screen reader, and respect reduced motion settings."
+        }
       }
     },
     "a11y": {
@@ -1610,7 +1799,7 @@
           "keywords": "lista de tareas,app todo,lista compartida,lista de compras,tareas familiares,tareas de equipo,Lightlist"
         },
         "features": {
-          "title": "Tres cosas que hace Lightlist",
+          "title": "Por qué Lightlist",
           "simple": {
             "title": "Solo lo que necesitas",
             "description": "Añade tareas. Márcalas como hechas. Eso es todo. Sin tutoriales ni manuales. Cualquiera puede empezar de inmediato, sin importar su experiencia tecnológica."
@@ -1622,6 +1811,11 @@
           "share": {
             "title": "Comparte cuando quieras",
             "description": "Genera un código y comparte tu lista en segundos. Cualquiera con el enlace puede verla sin cuenta. No molesta cuando no lo necesitas."
+          },
+          "mcp": {
+            "title": "Tus listas, también desde la IA",
+            "description": "Añade y completa tareas desde Muse, Claude Code o Codex. Conecta tus listas mediante MCP.",
+            "link": "Configurar MCP"
           }
         },
         "preview": {
@@ -1747,6 +1941,64 @@
         "title": "Algo salió mal",
         "description": "Ocurrió un error inesperado. Intenta recargar la página.",
         "reload": "Recargar página"
+      },
+      "docs": {
+        "title": "Guía",
+        "description": "Aprende a usar Lightlist y a conectar herramientas de IA mediante MCP.",
+        "basics": {
+          "title": "Primeros pasos",
+          "body": "Regístrate con tu correo y crea una lista. Escribe una tarea para añadirla y márcala al terminar.",
+          "imageAlt": "Pantalla de lista de tareas"
+        },
+        "dates": {
+          "title": "Fechas y calendario",
+          "body": "Escribe «mañana Comprar leche» o «12/24 Regalos» para asignar una fecha. El calendario muestra las tareas con fecha de todas tus listas.",
+          "examples": "Ejemplos",
+          "example1": "tomorrow Comprar leche",
+          "example2": "12/24 Regalos",
+          "example3": "pin tomorrow Reservar",
+          "example4": "tomorrow pin Reservar",
+          "tip": "Escribe la fecha y pin al principio en cualquier orden. También puedes usar solo uno."
+        },
+        "sharing": {
+          "title": "Compartir una lista",
+          "body": "Genera un código para compartir y envía su URL. Quien tenga la URL puede verla sin iniciar sesión. Para editarla, hay que iniciar sesión y unirse a la lista."
+        },
+        "mcp": {
+          "title": "Conectar la IA (MCP)",
+          "body": "Usa Muse, Claude Code, Codex y otras herramientas para consultar listas y añadir, actualizar, completar o reordenar tareas.",
+          "muse": "Añade un conector personalizado en los ajustes de conectores de Muse y configura la dirección y el encabezado Authorization como se muestra. Sustituye ll_... por tu token de API."
+        },
+        "token": {
+          "title": "Crear un token",
+          "body": "Abre Ajustes → Cuenta → Tokens de API y crea un token. Solo se muestra una vez: cópialo antes de cerrar."
+        },
+        "clients": {
+          "title": "Configurar tu herramienta de IA",
+          "body": "Abre tu herramienta abajo y sustituye ll_... por tu token. También puedes copiar ejemplos completos desde la pantalla de creación. Si ya tienes una configuración, añade la entrada lightlist."
+        },
+        "try": {
+          "title": "Pedir a la IA",
+          "body": "Después de configurar, activa la conexión con Lightlist en tu herramienta y prueba estas peticiones.",
+          "read": "Muéstrame mis listas de Lightlist",
+          "add": "Añade leche a mi lista de compras para mañana"
+        },
+        "access": {
+          "title": "Acceso",
+          "body": "El token permite leer y escribir en todas las listas a las que te hayas unido y no caduca. No permite crear listas ni cambiar cómo se comparten. El cliente MCP debe admitir autenticación Bearer. Las conexiones que solo usan OAuth no son compatibles."
+        },
+        "revoke": {
+          "title": "Desconectar",
+          "body": "Elimina el token en Tokens de API de Ajustes para detener el acceso con ese token."
+        },
+        "trouble": {
+          "title": "Problemas de conexión",
+          "body": "Comprueba la URL https://lightlist.app/mcp y el token de la cabecera Authorization. La respuesta 401 indica que el token no es válido. Si creas uno nuevo, actualiza la configuración de tu herramienta."
+        },
+        "accessibility": {
+          "title": "Accesibilidad",
+          "body": "Usa un lector de pantalla, el teclado o texto ampliado. Ordena tareas con el teclado o el lector de pantalla y respeta el ajuste de movimiento reducido."
+        }
       }
     },
     "a11y": {
@@ -2055,7 +2307,7 @@
           "keywords": "liste de tâches,application todo,liste partagée,liste de courses,tâches famille,tâches équipe,Lightlist"
         },
         "features": {
-          "title": "Trois choses que fait Lightlist",
+          "title": "Pourquoi Lightlist",
           "simple": {
             "title": "Juste ce qu'il faut",
             "description": "Ajoutez des tâches. Cochez-les. C'est tout. Aucun tutoriel, aucun manuel nécessaire. Tout le monde peut commencer immédiatement, quel que soit son niveau en technologie."
@@ -2067,6 +2319,11 @@
           "share": {
             "title": "Partagez quand vous voulez",
             "description": "Générez un code de partage et invitez n'importe qui en quelques secondes. Toute personne ayant le lien peut la consulter sans compte. Discret quand vous n'en avez pas besoin."
+          },
+          "mcp": {
+            "title": "Vos listes, aussi avec l’IA",
+            "description": "Ajoutez et terminez des tâches depuis Muse, Claude Code ou Codex. Retrouvez vos listes grâce à MCP.",
+            "link": "Configurer MCP"
           }
         },
         "preview": {
@@ -2192,6 +2449,64 @@
         "title": "Un problème est survenu",
         "description": "Une erreur inattendue est survenue. Veuillez recharger la page.",
         "reload": "Recharger la page"
+      },
+      "docs": {
+        "title": "Guide",
+        "description": "Les bases de Lightlist et la connexion des outils IA via MCP.",
+        "basics": {
+          "title": "Commencer",
+          "body": "Inscrivez-vous avec votre adresse e-mail et créez une liste. Saisissez une tâche pour l’ajouter, puis cochez-la une fois terminée.",
+          "imageAlt": "Écran de liste de tâches"
+        },
+        "dates": {
+          "title": "Dates et calendrier",
+          "body": "Saisissez « demain Acheter du lait » ou « 12/24 Cadeaux » pour définir une date. Le calendrier regroupe les tâches datées de toutes vos listes.",
+          "examples": "Exemples",
+          "example1": "tomorrow Acheter du lait",
+          "example2": "12/24 Cadeaux",
+          "example3": "pin tomorrow Réserver",
+          "example4": "tomorrow pin Réserver",
+          "tip": "Placez la date et pin au début, dans l’ordre voulu. Vous pouvez aussi utiliser un seul des deux."
+        },
+        "sharing": {
+          "title": "Partager une liste",
+          "body": "Générez un code de partage et envoyez son URL. Toute personne disposant de l’URL peut consulter la liste sans se connecter. Pour la modifier, il faut se connecter et la rejoindre."
+        },
+        "mcp": {
+          "title": "Connecter l’IA (MCP)",
+          "body": "Avec Muse, Claude Code, Codex et d’autres outils, consultez vos listes et ajoutez, modifiez, terminez ou réorganisez vos tâches.",
+          "muse": "Ajoutez un connecteur personnalisé dans les paramètres des connecteurs de Muse et configurez l’adresse et l’en-tête Authorization comme ci-dessous. Remplacez ll_... par votre jeton API."
+        },
+        "token": {
+          "title": "Créer un jeton",
+          "body": "Ouvrez Paramètres → Compte → Jetons API et créez un jeton. Il ne s’affiche qu’une fois : copiez-le avant de fermer."
+        },
+        "clients": {
+          "title": "Configurer votre outil IA",
+          "body": "Ouvrez votre outil ci-dessous et remplacez ll_... par votre jeton. Des exemples prêts à utiliser sont aussi disponibles à la création du jeton. Si une configuration existe déjà, ajoutez-y l’entrée lightlist."
+        },
+        "try": {
+          "title": "Demander à l’IA",
+          "body": "Après la configuration, activez la connexion Lightlist dans votre outil IA et essayez ces demandes.",
+          "read": "Montre-moi mes listes Lightlist",
+          "add": "Ajoute du lait à ma liste de courses pour demain"
+        },
+        "access": {
+          "title": "Accès",
+          "body": "Un jeton permet de lire et modifier toutes les listes que vous avez rejointes, sans date d’expiration. La création de listes et la modification du partage ne sont pas disponibles. Le client MCP doit accepter l’authentification Bearer. Les connexions uniquement OAuth ne sont pas prises en charge."
+        },
+        "revoke": {
+          "title": "Déconnecter",
+          "body": "Supprimez le jeton dans Jetons API des paramètres pour interrompre son accès."
+        },
+        "trouble": {
+          "title": "Problèmes de connexion",
+          "body": "Vérifiez l’URL https://lightlist.app/mcp et le jeton de l’en-tête Authorization. Une réponse 401 signifie que le jeton est invalide. Si vous le remplacez, mettez aussi à jour la configuration de votre outil IA."
+        },
+        "accessibility": {
+          "title": "Accessibilité",
+          "body": "Utilisez un lecteur d’écran, le clavier ou un texte agrandi. Triez les tâches au clavier ou avec un lecteur d’écran ; le réglage de réduction des animations est respecté."
+        }
       }
     },
     "a11y": {
@@ -2487,7 +2802,7 @@
           "keywords": "टास्क सूची,todo ऐप,साझा टास्क सूची,खरीदारी सूची,परिवार कार्य,टीम कार्य,Lightlist"
         },
         "features": {
-          "title": "Lightlist की तीन खास बातें",
+          "title": "Lightlist की खासियतें",
           "simple": {
             "title": "बस जितना ज़रूरी है",
             "description": "टास्क जोड़ें। पूरा होने पर टिक करें। बस इतना ही। कोई ट्यूटोरियल या मैनुअल नहीं चाहिए। तकनीकी अनुभव चाहे जैसा हो, कोई भी तुरंत शुरू कर सकता है।"
@@ -2499,6 +2814,11 @@
           "share": {
             "title": "जब चाहें तब साझा करें",
             "description": "शेयर कोड बनाएँ और कुछ ही सेकंड में किसी को भी आमंत्रित करें। लिंक वाला कोई भी व्यक्ति बिना खाते के सूची देख सकता है। जब आवश्यकता न हो, तो बिल्कुल बाधा नहीं।"
+          },
+          "mcp": {
+            "title": "आपकी सूचियां, AI से भी",
+            "description": "Muse, Claude Code या Codex से कार्य जोड़ें और पूरे करें। MCP से अपनी रोज़मर्रा की सूचियों से जुड़ें।",
+            "link": "MCP सेट करें"
           }
         },
         "preview": {
@@ -2624,6 +2944,64 @@
         "title": "कुछ गलत हो गया",
         "description": "एक अप्रत्याशित त्रुटि हुई। कृपया पेज रीलोड करें।",
         "reload": "पेज रीलोड करें"
+      },
+      "docs": {
+        "title": "उपयोग गाइड",
+        "description": "Lightlist का उपयोग करें और MCP से AI टूल कनेक्ट करें।",
+        "basics": {
+          "title": "शुरू करें",
+          "body": "ईमेल से साइन अप करके कार्य सूची बनाएं। कार्य लिखकर जोड़ें और पूरा होने पर टिक करें।",
+          "imageAlt": "कार्य सूची स्क्रीन"
+        },
+        "dates": {
+          "title": "तारीख और कैलेंडर",
+          "body": "तारीख जोड़ने के लिए “कल दूध खरीदना” या “12/24 उपहार” लिखें। कैलेंडर में सभी सूचियों के तारीख वाले कार्य दिखते हैं।",
+          "examples": "उदाहरण",
+          "example1": "tomorrow दूध खरीदें",
+          "example2": "12/24 उपहार",
+          "example3": "pin tomorrow बुकिंग करें",
+          "example4": "tomorrow pin बुकिंग करें",
+          "tip": "तारीख और pin शुरुआत में किसी भी क्रम में लिखें। दोनों में से एक भी इस्तेमाल कर सकते हैं।"
+        },
+        "sharing": {
+          "title": "सूची साझा करें",
+          "body": "सूची का साझाकरण कोड बनाकर उसका URL भेजें। URL वाला कोई भी व्यक्ति बिना साइन इन किए देख सकता है। संपादन के लिए साइन इन करके सूची से जुड़ना होगा।"
+        },
+        "mcp": {
+          "title": "AI कनेक्ट करें (MCP)",
+          "body": "Muse, Claude Code, Codex और अन्य टूल से सूचियां देखें तथा कार्य जोड़ें, बदलें, पूरे करें या उनका क्रम बदलें।",
+          "muse": "Muse की कनेक्टर सेटिंग में कस्टम कनेक्टर जोड़ें और नीचे दिखाए अनुसार पता तथा Authorization हेडर सेट करें। ll_... को अपने API टोकन से बदलें।"
+        },
+        "token": {
+          "title": "टोकन बनाएं",
+          "body": "सेटिंग्स → खाता → API टोकन खोलकर टोकन बनाएं। यह केवल एक बार दिखता है, इसलिए बंद करने से पहले कॉपी करें।"
+        },
+        "clients": {
+          "title": "AI टूल सेट करें",
+          "body": "नीचे अपना टूल खोलें और ll_... की जगह अपना टोकन डालें। टोकन बनाने वाली स्क्रीन से तैयार उदाहरण भी कॉपी कर सकते हैं। पहले से कॉन्फ़िगरेशन हो तो उसमें lightlist प्रविष्टि जोड़ें।"
+        },
+        "try": {
+          "title": "AI से कहें",
+          "body": "सेटअप के बाद अपने AI टूल में Lightlist कनेक्शन चालू करें और ये अनुरोध आज़माएं।",
+          "read": "मेरी Lightlist कार्य सूचियां दिखाओ",
+          "add": "खरीदारी सूची में कल के लिए दूध जोड़ो"
+        },
+        "access": {
+          "title": "पहुंच",
+          "body": "टोकन से उन सभी सूचियों को पढ़ा और बदला जा सकता है जिनसे आप जुड़े हैं। इसकी समय सीमा नहीं है। सूची बनाना या साझाकरण सेटिंग बदलना उपलब्ध नहीं है। MCP क्लाइंट में Bearer प्रमाणीकरण का समर्थन चाहिए। केवल OAuth वाले कनेक्शन समर्थित नहीं हैं।"
+        },
+        "revoke": {
+          "title": "कनेक्शन हटाएं",
+          "body": "उस टोकन की पहुंच रोकने के लिए सेटिंग्स में API टोकन सूची से उसे हटाएं।"
+        },
+        "trouble": {
+          "title": "कनेक्शन की समस्या",
+          "body": "जांचें कि URL https://lightlist.app/mcp है और Authorization हेडर में सही टोकन है। 401 का अर्थ है कि टोकन अमान्य है। नया टोकन बनाने पर AI टूल की सेटिंग भी अपडेट करें।"
+        },
+        "accessibility": {
+          "title": "सुलभता",
+          "body": "स्क्रीन रीडर, कीबोर्ड और बड़े टेक्स्ट का उपयोग करें। कीबोर्ड या स्क्रीन रीडर से कार्यों का क्रम बदलें; कम गति की सेटिंग भी समर्थित है।"
+        }
       }
     },
     "a11y": {
@@ -2925,7 +3303,7 @@
           "keywords": "daftar tugas,aplikasi todo,daftar tugas bersama,daftar belanja,tugas keluarga,tugas tim,Lightlist"
         },
         "features": {
-          "title": "Tiga hal yang dilakukan Lightlist",
+          "title": "Keunggulan Lightlist",
           "simple": {
             "title": "Hanya yang Anda butuhkan",
             "description": "Tambahkan tugas. Tandai selesai. Itu saja. Tanpa tutorial, tanpa manual. Siapa pun bisa langsung mulai, apa pun pengalaman teknologinya."
@@ -2937,6 +3315,11 @@
           "share": {
             "title": "Bagikan saat Anda mau",
             "description": "Buat kode berbagi dan undang siapa saja ke daftar Anda dalam hitungan detik. Siapa pun yang punya tautannya bisa melihat daftar tanpa akun. Tetap tidak mengganggu saat tidak dibutuhkan."
+          },
+          "mcp": {
+            "title": "Daftar Anda, juga lewat AI",
+            "description": "Tambah dan selesaikan tugas dari Muse, Claude Code atau Codex. Hubungkan daftar harian Anda melalui MCP.",
+            "link": "Atur MCP"
           }
         },
         "preview": {
@@ -3062,6 +3445,64 @@
         "title": "Terjadi kesalahan",
         "description": "Terjadi kesalahan tak terduga. Silakan muat ulang halaman.",
         "reload": "Muat ulang halaman"
+      },
+      "docs": {
+        "title": "Panduan",
+        "description": "Pelajari dasar Lightlist dan hubungkan alat AI melalui MCP.",
+        "basics": {
+          "title": "Mulai",
+          "body": "Daftar dengan email dan buat daftar tugas. Ketik tugas untuk menambahkannya, lalu centang setelah selesai.",
+          "imageAlt": "Layar daftar tugas"
+        },
+        "dates": {
+          "title": "Tanggal dan kalender",
+          "body": "Ketik “besok Beli susu” atau “12/24 Hadiah” untuk memberi tanggal. Kalender menampilkan tugas bertanggal dari semua daftar.",
+          "examples": "Contoh",
+          "example1": "tomorrow Beli susu",
+          "example2": "12/24 Hadiah",
+          "example3": "pin tomorrow Buat reservasi",
+          "example4": "tomorrow pin Buat reservasi",
+          "tip": "Letakkan tanggal dan pin di awal dalam urutan apa pun. Keduanya juga dapat digunakan sendiri."
+        },
+        "sharing": {
+          "title": "Bagikan daftar",
+          "body": "Buat kode berbagi untuk daftar dan kirim URL-nya. Siapa pun yang memiliki URL dapat melihat tanpa masuk. Untuk mengedit, pengguna harus masuk dan bergabung dengan daftar."
+        },
+        "mcp": {
+          "title": "Hubungkan AI (MCP)",
+          "body": "Gunakan Muse, Claude Code, Codex, dan alat lainnya untuk melihat daftar serta menambah, memperbarui, menyelesaikan, atau mengurutkan tugas.",
+          "muse": "Tambahkan konektor kustom di pengaturan konektor Muse, lalu atur alamat dan header Authorization seperti di bawah. Ganti ll_... dengan token API Anda."
+        },
+        "token": {
+          "title": "Buat token",
+          "body": "Buka Pengaturan → Akun → Token API dan buat token. Token hanya ditampilkan sekali, jadi salin sebelum menutup."
+        },
+        "clients": {
+          "title": "Atur alat AI",
+          "body": "Buka alat Anda di bawah dan ganti ll_... dengan token Anda. Contoh siap pakai juga dapat disalin dari layar pembuatan token. Jika sudah ada konfigurasi, tambahkan entri lightlist."
+        },
+        "try": {
+          "title": "Minta bantuan AI",
+          "body": "Setelah mengatur, aktifkan koneksi Lightlist di alat AI Anda dan coba permintaan berikut.",
+          "read": "Tampilkan daftar tugas Lightlist saya",
+          "add": "Tambahkan susu ke daftar belanja untuk besok"
+        },
+        "access": {
+          "title": "Akses",
+          "body": "Token dapat membaca dan mengedit semua daftar yang Anda ikuti dan tidak kedaluwarsa. Pembuatan daftar dan perubahan pengaturan berbagi tidak didukung. Klien MCP harus mendukung autentikasi Bearer. Koneksi yang hanya memakai OAuth tidak didukung."
+        },
+        "revoke": {
+          "title": "Putuskan koneksi",
+          "body": "Hapus token dari daftar Token API di Pengaturan untuk menghentikan akses dengan token tersebut."
+        },
+        "trouble": {
+          "title": "Masalah koneksi",
+          "body": "Periksa URL https://lightlist.app/mcp dan token pada header Authorization. Respons 401 berarti token tidak valid. Jika membuat token baru, perbarui juga konfigurasi alat AI."
+        },
+        "accessibility": {
+          "title": "Aksesibilitas",
+          "body": "Gunakan pembaca layar, keyboard, atau teks yang diperbesar. Urutkan tugas dengan keyboard atau pembaca layar; pengaturan kurangi gerakan juga didukung."
+        }
       }
     },
     "a11y": {
@@ -3350,17 +3791,17 @@
       "index": {
         "getStarted": "無料ではじめる",
         "headline": "タスクリストは、\nシンプルでいい。",
-        "subheadline": "タスク管理アプリに疲れたあなたへ。\n余計な機能はない。誰でも、すぐに使いはじめられる。\nそれでいて、必要なときは共有もできる。",
+        "subheadline": "やることも、これからの予定も。\nシンプルなリストとカレンダーで整理して、\n必要なときは共有できます。",
         "seo": {
           "title": "Lightlist | 無料で使えるシンプルな共有タスクリスト・ToDoアプリ",
           "description": "Lightlist は、買い物リストや家族のやることを共有できる、無料でシンプルなタスクリスト / ToDo アプリ。日付入力・カレンダー・オフラインに対応し、パソコンでもスマートフォンでもブラウザで同期して使えます。",
           "keywords": "タスクリスト,ToDo,共有タスクリスト,共有リスト,買い物リスト,家族,チーム,Lightlist"
         },
         "features": {
-          "title": "Lightlistの3つのこと",
+          "title": "Lightlistの特長",
           "simple": {
             "title": "これだけでいい",
-            "description": "タスクを追加して、完了する。それだけ。説明書もチュートリアルも必要ありません。はじめてでも迷わない、ちょうどいいシンプルさです。"
+            "description": "タスクを追加して、完了する。日付を付ければ、これからの予定もカレンダーで確認できます。"
           },
           "multidevice": {
             "title": "どこからでも、そのまま使える",
@@ -3369,6 +3810,11 @@
           "share": {
             "title": "必要なとき、共有できる",
             "description": "共有コードを発行するだけで、家族・友人・チームとリアルタイム共有。一人で使うだけでも、もちろん十分です。"
+          },
+          "mcp": {
+            "title": "AIからも、いつものリストへ",
+            "description": "Muse, Claude CodeやCodexから、タスクの追加や完了も。MCPでいつものリストにつながります。",
+            "link": "MCPの設定方法"
           }
         },
         "preview": {
@@ -3494,6 +3940,64 @@
         "title": "エラーが発生しました",
         "description": "予期しないエラーが発生しました。ページを再読み込みしてください。",
         "reload": "ページを再読み込み"
+      },
+      "docs": {
+        "title": "使い方",
+        "description": "Lightlistの基本操作と、AIツールからタスクを読み書きするMCPの設定方法。",
+        "basics": {
+          "title": "はじめる",
+          "body": "メールアドレスで登録し、タスクリストを作成します。タスクを入力して追加し、終わったらチェックを付けます。",
+          "imageAlt": "タスクリストの画面"
+        },
+        "dates": {
+          "title": "日付とカレンダー",
+          "body": "日付を付けたタスクはカレンダーにまとめて表示されます。日付を選んでタスクを追加することもでき、簡単な予定管理に使えます。",
+          "examples": "入力例",
+          "example1": "明日 牛乳を買う",
+          "example2": "12/24 プレゼント",
+          "example3": "pin 明日 予約する",
+          "example4": "明日 pin 予約する",
+          "tip": "日付と pin は順不同で、先頭に入力します。日付だけ、または pin だけでも使えます。"
+        },
+        "sharing": {
+          "title": "リストを共有する",
+          "body": "リストの共有コードを発行して、URLを送ります。URLを知っている人はログインなしで閲覧でき、編集にはログインしてリストに参加する必要があります。"
+        },
+        "mcp": {
+          "title": "AIとつなぐ（MCP）",
+          "body": "Muse, Claude CodeやCodexなどから、リストの確認、タスクの追加・更新・完了・並び替えができます。",
+          "muse": "Museのコネクター設定でカスタムコネクターを追加し、接続先とAuthorizationヘッダーを以下のように設定します。ll_... は発行したAPIトークンに置き換えてください。"
+        },
+        "token": {
+          "title": "トークンを発行する",
+          "body": "設定 → アカウント → APIトークンを開き、トークンを発行します。トークンは一度だけ表示されるので、その場でコピーしてください。"
+        },
+        "clients": {
+          "title": "AIツールに設定する",
+          "body": "使うツールを開き、例の ll_... を発行したトークンに置き換えます。発行画面では、トークン入りの設定例もコピーできます。既存の設定がある場合は、lightlist の項目を追加してください。"
+        },
+        "try": {
+          "title": "話しかける",
+          "body": "設定後、AIツールでLightlistの接続を有効にし、次のように依頼します。",
+          "read": "Lightlistのタスクリストを見せて",
+          "add": "買い物リストに、明日の日付で牛乳を追加して"
+        },
+        "access": {
+          "title": "接続できる範囲",
+          "body": "トークンで、自分が参加しているすべてのリストを読み書きできます。有効期限はありません。リストの作成や共有設定の変更には対応していません。Bearer認証に対応したMCPクライアントが必要です。OAuth専用の接続には対応していません。"
+        },
+        "revoke": {
+          "title": "接続を解除する",
+          "body": "設定のAPIトークン一覧からトークンを削除すると、そのトークンでのアクセスは停止します。"
+        },
+        "trouble": {
+          "title": "接続できないとき",
+          "body": "接続先が https://lightlist.app/mcp であることと、Authorizationヘッダーのトークンを確認してください。401はトークンが無効な状態です。再発行した場合はAIツールの設定も更新します。"
+        },
+        "accessibility": {
+          "title": "アクセシビリティ",
+          "body": "スクリーンリーダー、キーボード操作、文字サイズの拡大に対応しています。タスクの並び替えはキーボードやスクリーンリーダーでも操作できます。動きを減らす設定にも対応しています。"
+        }
       }
     },
     "a11y": {
@@ -3796,7 +4300,7 @@
           "keywords": "작업 목록,todo 앱,공유 작업 목록,쇼핑 목록,가족 작업,팀 작업,Lightlist"
         },
         "features": {
-          "title": "Lightlist가 하는 세 가지",
+          "title": "Lightlist의 특징",
           "simple": {
             "title": "필요한 것만",
             "description": "작업을 추가하고, 완료 체크하면 끝입니다. 튜토리얼도 매뉴얼도 필요 없습니다. 기술 경험과 상관없이 누구나 바로 시작할 수 있습니다."
@@ -3808,6 +4312,11 @@
           "share": {
             "title": "원할 때만 공유",
             "description": "공유 코드를 생성해 몇 초 만에 다른 사람을 초대하세요. 링크가 있으면 계정 없이도 목록을 볼 수 있습니다. 필요 없을 때는 방해하지 않습니다."
+          },
+          "mcp": {
+            "title": "AI에서도 평소 쓰던 목록으로",
+            "description": "Muse, Claude Code나 Codex에서 작업을 추가하고 완료하세요. MCP로 평소 쓰던 목록에 연결됩니다.",
+            "link": "MCP 설정 방법"
           }
         },
         "preview": {
@@ -3933,6 +4442,64 @@
         "title": "문제가 발생했습니다",
         "description": "예기치 않은 오류가 발생했습니다. 페이지를 새로고침해 주세요.",
         "reload": "페이지 새로고침"
+      },
+      "docs": {
+        "title": "사용 방법",
+        "description": "Lightlist의 기본 사용법과 MCP로 AI 도구를 연결하는 방법.",
+        "basics": {
+          "title": "시작하기",
+          "body": "이메일로 가입하고 작업 목록을 만드세요. 작업을 입력해 추가하고 완료하면 체크하세요.",
+          "imageAlt": "작업 목록 화면"
+        },
+        "dates": {
+          "title": "날짜와 캘린더",
+          "body": "“내일 우유 사기” 또는 “12/24 선물”처럼 입력하면 날짜를 지정할 수 있습니다. 캘린더에서 모든 목록의 날짜가 있는 작업을 확인하세요.",
+          "examples": "입력 예",
+          "example1": "tomorrow 우유 사기",
+          "example2": "12/24 선물",
+          "example3": "pin tomorrow 예약하기",
+          "example4": "tomorrow pin 예약하기",
+          "tip": "날짜와 pin을 순서에 상관없이 맨 앞에 입력하세요. 하나만 입력해도 됩니다."
+        },
+        "sharing": {
+          "title": "목록 공유하기",
+          "body": "목록의 공유 코드를 발급하고 URL을 보내세요. URL을 아는 사람은 로그인 없이 볼 수 있으며, 편집하려면 로그인하고 목록에 참여해야 합니다."
+        },
+        "mcp": {
+          "title": "AI 연결하기(MCP)",
+          "body": "Muse, Claude Code, Codex 등의 도구에서 목록을 확인하고 작업을 추가·수정·완료하거나 순서를 바꿀 수 있습니다.",
+          "muse": "Muse의 커넥터 설정에서 사용자 지정 커넥터를 추가하고 아래와 같이 연결 주소와 Authorization 헤더를 설정하세요. ll_...을 발급받은 API 토큰으로 바꾸세요."
+        },
+        "token": {
+          "title": "토큰 발급하기",
+          "body": "설정 → 계정 → API 토큰에서 토큰을 발급하세요. 한 번만 표시되므로 닫기 전에 복사하세요."
+        },
+        "clients": {
+          "title": "AI 도구 설정하기",
+          "body": "아래에서 사용할 도구를 열고 ll_...을 발급한 토큰으로 바꾸세요. 발급 화면에서 토큰이 포함된 설정 예시도 복사할 수 있습니다. 기존 설정이 있다면 lightlist 항목을 추가하세요."
+        },
+        "try": {
+          "title": "AI에게 요청하기",
+          "body": "설정 후 AI 도구에서 Lightlist 연결을 활성화하고 다음과 같이 요청하세요.",
+          "read": "Lightlist의 작업 목록을 보여 줘",
+          "add": "쇼핑 목록에 내일 날짜로 우유를 추가해 줘"
+        },
+        "access": {
+          "title": "접근 범위",
+          "body": "토큰으로 참여 중인 모든 목록을 읽고 수정할 수 있으며 만료 기간은 없습니다. 목록 생성과 공유 설정 변경은 지원하지 않습니다. Bearer 인증을 지원하는 MCP 클라이언트가 필요하며, OAuth 전용 연결은 지원하지 않습니다."
+        },
+        "revoke": {
+          "title": "연결 해제하기",
+          "body": "설정의 API 토큰 목록에서 토큰을 삭제하면 해당 토큰의 접근이 중단됩니다."
+        },
+        "trouble": {
+          "title": "연결되지 않을 때",
+          "body": "주소가 https://lightlist.app/mcp인지, Authorization 헤더의 토큰이 올바른지 확인하세요. 401 응답은 토큰이 유효하지 않다는 뜻입니다. 재발급했다면 AI 도구의 설정도 업데이트하세요."
+        },
+        "accessibility": {
+          "title": "접근성",
+          "body": "스크린 리더, 키보드, 글자 크기 확대를 지원합니다. 키보드나 스크린 리더로 작업을 정렬할 수 있으며 동작 줄이기 설정도 지원합니다."
+        }
       }
     },
     "a11y": {
@@ -4249,7 +4816,7 @@
           "keywords": "lista de tarefas,app todo,lista de tarefas compartilhada,lista de compras,tarefas da família,tarefas da equipe,Lightlist"
         },
         "features": {
-          "title": "Três coisas que o Lightlist faz",
+          "title": "Por que Lightlist",
           "simple": {
             "title": "Só o que você precisa",
             "description": "Adicione tarefas. Marque como concluídas. Só isso. Sem tutorial, sem manual. Qualquer pessoa pode começar na hora, independentemente da experiência com tecnologia."
@@ -4261,6 +4828,11 @@
           "share": {
             "title": "Compartilhe quando quiser",
             "description": "Gere um código de compartilhamento e convide qualquer pessoa para sua lista em segundos. Qualquer pessoa com o link pode ver a lista sem conta. Fica discreto quando você não precisa."
+          },
+          "mcp": {
+            "title": "Suas listas, também pela IA",
+            "description": "Adicione e conclua tarefas pelo Muse, Claude Code ou Codex. Conecte suas listas do dia a dia pelo MCP.",
+            "link": "Configurar MCP"
           }
         },
         "preview": {
@@ -4386,6 +4958,64 @@
         "title": "Algo deu errado",
         "description": "Ocorreu um erro inesperado. Tente recarregar a página.",
         "reload": "Recarregar página"
+      },
+      "docs": {
+        "title": "Guia",
+        "description": "Aprenda a usar o Lightlist e a conectar ferramentas de IA pelo MCP.",
+        "basics": {
+          "title": "Começar",
+          "body": "Cadastre-se com seu e-mail e crie uma lista. Digite uma tarefa para adicioná-la e marque quando terminar.",
+          "imageAlt": "Tela de lista de tarefas"
+        },
+        "dates": {
+          "title": "Datas e calendário",
+          "body": "Digite “amanhã Comprar leite” ou “12/24 Presentes” para definir uma data. O calendário mostra as tarefas com data de todas as suas listas.",
+          "examples": "Exemplos",
+          "example1": "tomorrow Comprar leite",
+          "example2": "12/24 Presentes",
+          "example3": "pin tomorrow Fazer reserva",
+          "example4": "tomorrow pin Fazer reserva",
+          "tip": "Coloque a data e pin no início, em qualquer ordem. Você também pode usar apenas um deles."
+        },
+        "sharing": {
+          "title": "Compartilhar uma lista",
+          "body": "Gere um código de compartilhamento e envie a URL. Qualquer pessoa com a URL pode ver a lista sem entrar. Para editar, é necessário entrar e participar da lista."
+        },
+        "mcp": {
+          "title": "Conectar a IA (MCP)",
+          "body": "Use Muse, Claude Code, Codex e outras ferramentas para ver listas e adicionar, atualizar, concluir ou reordenar tarefas.",
+          "muse": "Adicione um conector personalizado nas configurações de conectores do Muse e configure o endereço e o cabeçalho Authorization como abaixo. Substitua ll_... pelo seu token de API."
+        },
+        "token": {
+          "title": "Criar um token",
+          "body": "Abra Configurações → Conta → Tokens de API e crie um token. Ele aparece só uma vez, então copie antes de fechar."
+        },
+        "clients": {
+          "title": "Configurar sua ferramenta de IA",
+          "body": "Abra sua ferramenta abaixo e substitua ll_... pelo seu token. Você também pode copiar exemplos prontos na tela de criação do token. Se já houver uma configuração, adicione a entrada lightlist."
+        },
+        "try": {
+          "title": "Pedir à IA",
+          "body": "Após configurar, ative a conexão com o Lightlist na sua ferramenta e experimente estes pedidos.",
+          "read": "Mostre minhas listas de tarefas do Lightlist",
+          "add": "Adicione leite à minha lista de compras para amanhã"
+        },
+        "access": {
+          "title": "Acesso",
+          "body": "Um token pode ler e editar todas as listas de que você participa e não expira. Não permite criar listas nem mudar as configurações de compartilhamento. O cliente MCP precisa aceitar autenticação Bearer. Conexões que usam apenas OAuth não são compatíveis."
+        },
+        "revoke": {
+          "title": "Desconectar",
+          "body": "Exclua o token na lista de Tokens de API nas configurações para interromper o acesso por ele."
+        },
+        "trouble": {
+          "title": "Problemas de conexão",
+          "body": "Confira a URL https://lightlist.app/mcp e o token no cabeçalho Authorization. A resposta 401 indica que o token é inválido. Ao criar outro token, atualize também a configuração da ferramenta."
+        },
+        "accessibility": {
+          "title": "Acessibilidade",
+          "body": "Use leitor de tela, teclado ou texto ampliado. Reordene tarefas pelo teclado ou leitor de tela e respeite a configuração de movimento reduzido."
+        }
       }
     },
     "a11y": {
@@ -4690,7 +5320,7 @@
           "keywords": "任务清单,todo应用,共享任务清单,购物清单,家庭任务,团队任务,Lightlist"
         },
         "features": {
-          "title": "Lightlist 能做的三件事",
+          "title": "Lightlist的特点",
           "simple": {
             "title": "只做你需要的",
             "description": "添加任务，勾选完成，就这么简单。无需教程或说明书。无论技术经验如何，任何人都能立刻开始。"
@@ -4702,6 +5332,11 @@
           "share": {
             "title": "想共享时再共享",
             "description": "生成共享码，几秒内即可邀请他人加入列表。拿到链接的人无需账号即可查看。不需要时也不会打扰你。"
+          },
+          "mcp": {
+            "title": "通过AI，继续使用熟悉的列表",
+            "description": "从Muse, Claude Code或Codex添加、完成任务。通过MCP连接日常使用的列表。",
+            "link": "MCP配置方法"
           }
         },
         "preview": {
@@ -4827,6 +5462,64 @@
         "title": "出了点问题",
         "description": "发生了意外错误。请尝试重新加载页面。",
         "reload": "重新加载页面"
+      },
+      "docs": {
+        "title": "使用指南",
+        "description": "了解Lightlist的基本操作和通过MCP连接AI工具的方法。",
+        "basics": {
+          "title": "开始使用",
+          "body": "使用邮箱注册并创建任务列表。输入任务进行添加，完成后勾选即可。",
+          "imageAlt": "任务列表界面"
+        },
+        "dates": {
+          "title": "日期与日历",
+          "body": "输入“明天 买牛奶”或“12/24 礼物”即可设置日期。日历中可以查看所有列表中有日期的任务。",
+          "examples": "输入示例",
+          "example1": "tomorrow 买牛奶",
+          "example2": "12/24 礼物",
+          "example3": "pin tomorrow 预约",
+          "example4": "tomorrow pin 预约",
+          "tip": "将日期和 pin 写在开头，顺序不限。也可以只输入其中一个。"
+        },
+        "sharing": {
+          "title": "共享列表",
+          "body": "为列表生成共享码并发送链接。知道链接的人无需登录即可查看；编辑需要登录并加入列表。"
+        },
+        "mcp": {
+          "title": "连接AI（MCP）",
+          "body": "通过Muse, Claude Code、Codex等工具查看列表，添加、更新、完成任务或调整顺序。",
+          "muse": "在 Muse 的连接器设置中添加自定义连接器，按下方内容设置地址和 Authorization 请求头。将 ll_... 替换为创建的 API 令牌。"
+        },
+        "token": {
+          "title": "生成令牌",
+          "body": "打开设置 → 账户 → API令牌，生成令牌。令牌仅显示一次，请在关闭前复制。"
+        },
+        "clients": {
+          "title": "配置AI工具",
+          "body": "展开下方使用的工具，将ll_...替换为你的令牌。生成令牌的页面也提供可直接复制的配置示例。如已有配置，请添加lightlist项。"
+        },
+        "try": {
+          "title": "向AI提出请求",
+          "body": "配置后，在AI工具中启用Lightlist连接，然后试试以下请求。",
+          "read": "显示我的Lightlist任务列表",
+          "add": "在购物列表中添加明天要买的牛奶"
+        },
+        "access": {
+          "title": "访问范围",
+          "body": "令牌可读写你已加入的所有列表，且不会过期。不支持创建列表或更改共享设置。MCP客户端需要支持Bearer认证，不支持仅使用OAuth的连接。"
+        },
+        "revoke": {
+          "title": "断开连接",
+          "body": "在设置的API令牌列表中删除令牌，即可停止该令牌的访问。"
+        },
+        "trouble": {
+          "title": "无法连接时",
+          "body": "检查地址是否为https://lightlist.app/mcp，以及Authorization请求头中的令牌是否正确。401表示令牌无效。如果重新生成了令牌，请同步更新AI工具的配置。"
+        },
+        "accessibility": {
+          "title": "无障碍",
+          "body": "支持屏幕阅读器、键盘操作和文字放大。可使用键盘或屏幕阅读器调整任务顺序，也支持减少动态效果的设置。"
+        }
       }
     },
     "a11y": {

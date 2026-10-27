@@ -72,11 +72,14 @@ const LANGUAGE_PATHS: Record<Language, string> = {
 };
 
 const pageLanguage = normalizeLanguage(document.documentElement.lang);
+const pageSuffix = window.location.pathname.endsWith("/docs/") ? "docs/" : "";
 const storedLanguage = window.localStorage.getItem("i18nextLng");
 if (pageLanguage === DEFAULT_LANGUAGE && storedLanguage) {
   const preferredLanguage = normalizeLanguage(storedLanguage);
   if (preferredLanguage !== pageLanguage) {
-    window.location.replace(LANGUAGE_PATHS[preferredLanguage]);
+    window.location.replace(
+      `${LANGUAGE_PATHS[preferredLanguage]}${pageSuffix}${window.location.hash}`,
+    );
   }
 }
 
@@ -86,7 +89,9 @@ if (languageSelect instanceof HTMLSelectElement) {
   languageSelect.addEventListener("change", () => {
     const nextLanguage = normalizeLanguage(languageSelect.value);
     window.localStorage.setItem("i18nextLng", nextLanguage);
-    window.location.assign(LANGUAGE_PATHS[nextLanguage]);
+    window.location.assign(
+      `${LANGUAGE_PATHS[nextLanguage]}${pageSuffix}${window.location.hash}`,
+    );
   });
 }
 

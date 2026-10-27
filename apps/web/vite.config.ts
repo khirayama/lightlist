@@ -193,7 +193,7 @@ const localizeLegalHtml = (
       (_, head: string) => `${head}${pageUrl}"`,
     )
     .replace(
-      /(<([a-z0-9]+)\b[^>]*\sdata-i18n="([^"]+)"[^>]*>)[^<]*(<\/\2>)/g,
+      /(<([a-z0-9]+)\b[^>]*\sdata-i18n="([^"]+)"[^>]*>)[^<]*(<\/\2\s*>)/g,
       (_, open: string, _tag: string, key: string, close: string) =>
         `${open}${escapeHtml(lpLocales[language.code][key] ?? lpLocales.ja[key])}${close}`,
     )
@@ -234,7 +234,7 @@ const localizeLandingHtml = (source: string, path: string) => {
       (_, head: string) => `${head}${pageUrl}"`,
     )
     .replace(
-      /(<([a-z0-9]+)\b[^>]*\sdata-i18n="([^"]+)"[^>]*>)[^<]*(<\/\2>)/g,
+      /(<([a-z0-9]+)\b[^>]*\sdata-i18n="([^"]+)"[^>]*>)[^<]*(<\/\2\s*>)/g,
       (_, open: string, _tag: string, key: string, close: string) =>
         `${open}${escapeHtml(t(key))}${close}`,
     )
@@ -272,7 +272,10 @@ const localizeLandingHtml = (source: string, path: string) => {
       `href="/login/?lang=${language.code}"`,
     );
   }
-  html = localizeLegalLinks(html, language);
+  html = localizeLegalLinks(html, language).replaceAll(
+    'href="/docs/',
+    `href="${language.path}docs/`,
+  );
 
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
@@ -321,6 +324,106 @@ const LEGAL_ROUTES = LP_LANGUAGES.flatMap((language) =>
 const findLegalRoute = (pathname: string | undefined) =>
   LEGAL_ROUTES.find(({ path }) => path === pathname);
 
+const DOCS_CLIENTS = [
+  {
+    name: "Claude Code",
+    location: "",
+    snippet:
+      'claude mcp add --transport http lightlist https://lightlist.app/mcp --header "Authorization: Bearer ll_..."',
+  },
+  {
+    name: "Codex",
+    location: "~/.codex/config.toml",
+    snippet:
+      '[mcp_servers.lightlist]\nurl = "https://lightlist.app/mcp"\nhttp_headers = { "Authorization" = "Bearer ll_..." }',
+  },
+  ...[
+    {
+      name: "Cursor",
+      location: "~/.cursor/mcp.json",
+      root: "mcpServers",
+      http: false,
+    },
+    {
+      name: "VS Code",
+      location: "MCP: Open User Configuration",
+      root: "servers",
+      http: true,
+    },
+  ].map(({ name, location, root, http }) => ({
+    name,
+    location,
+    snippet: JSON.stringify(
+      {
+        [root]: {
+          lightlist: {
+            ...(http ? { type: "http" } : {}),
+            url: "https://lightlist.app/mcp",
+            headers: { Authorization: "Bearer ll_..." },
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  })),
+  {
+    name: "Gemini CLI",
+    location: "",
+    snippet:
+      'gemini mcp add --scope user --transport http --header "Authorization: Bearer ll_..." lightlist https://lightlist.app/mcp',
+  },
+];
+
+const localizeDocsHtml = (source: string, language: LpLanguage) => {
+  const locales = readLpLocales();
+  const t = (key: string) => locales[language.code][key] ?? locales.ja[key];
+  const pageUrl = `${LP_ORIGIN}${language.path}docs/`;
+  const clients = DOCS_CLIENTS.map(
+    ({ name, location, snippet }) =>
+      `<details><summary>${escapeHtml(name)}</summary>${location ? `<p class="ll-docs-location"><code>${escapeHtml(location)}</code></p>` : ""}<pre tabindex="0"><code>${escapeHtml(snippet)}</code></pre></details>`,
+  ).join("\n");
+
+  return source
+    .replace(
+      /<html lang="[^"]*" dir="[^"]*" class="ll-docs-root">/,
+      () =>
+        `<html lang="${language.code}" dir="${language.dir}" class="ll-docs-root">`,
+    )
+    .replace(
+      /<title>[^<]*<\/title>/,
+      () => `<title>${escapeHtml(t("pages.docs.title"))} | Lightlist</title>`,
+    )
+    .replace(
+      /(<meta\s+name="description"\s+content=")[^"]*"/,
+      (_, head: string) => `${head}${escapeHtml(t("pages.docs.description"))}"`,
+    )
+    .replace(
+      /(<link rel="canonical" href=")[^"]*"/,
+      (_, head: string) => `${head}${pageUrl}"`,
+    )
+    .replace(
+      /(<([a-z0-9]+)\b[^>]*\sdata-i18n="([^"]+)"[^>]*>)[^<]*(<\/\2\s*>)/g,
+      (_, open: string, _tag: string, key: string, close: string) =>
+        `${open}${escapeHtml(t(key))}${close}`,
+    )
+    .replace(
+      `<option value="${language.code}">`,
+      () => `<option value="${language.code}" selected>`,
+    )
+    .replaceAll('href="/"', `href="${language.path}"`)
+    .replaceAll(
+      'href="/login/"',
+      language.code === "ja"
+        ? 'href="/login/"'
+        : `href="/login/?lang=${language.code}"`,
+    )
+    .replace("<!--docs:clients-->", () => clients)
+    .replace(
+      "</head>",
+      () => `${lpAlternateLinks("    ", "link", "docs/")}\n  </head>`,
+    );
+};
 const landingPages = (): Plugin => {
   let outDir = "";
   let isBuild = false;
@@ -331,12 +434,28 @@ const landingPages = (): Plugin => {
       isBuild = config.command === "build";
     },
     configureServer(server) {
-      server.middlewares.use((req, _res, next) => {
+      server.middlewares.use((req, res, next) => {
         const pathname = req.url?.split("?")[0];
+        const docsLanguage = LP_LANGUAGES.find(
+          ({ path }) => `${path}docs` === pathname,
+        );
+        if (docsLanguage) {
+          res.statusCode = 301;
+          res.setHeader(
+            "Location",
+            `${docsLanguage.path}docs/${req.url?.slice(pathname?.length ?? 0) ?? ""}`,
+          );
+          res.end();
+          return;
+        }
         if (
           LP_LANGUAGES.some(({ path }) => path !== "/" && path === pathname)
         ) {
           req.url = "/index.html";
+        } else if (
+          LP_LANGUAGES.some(({ path }) => `${path}docs/` === pathname)
+        ) {
+          req.url = "/docs/index.html";
         } else if (findLegalRoute(pathname)) {
           req.url = "/legal/index.html";
         }
@@ -346,6 +465,12 @@ const landingPages = (): Plugin => {
     transformIndexHtml(html, ctx) {
       if (!ctx.server) return html;
       const pathname = (ctx.originalUrl ?? "/").split("?")[0];
+      if (ctx.path === "/docs/index.html") {
+        const language =
+          LP_LANGUAGES.find(({ path }) => `${path}docs/` === pathname) ??
+          LP_LANGUAGES[0];
+        return localizeDocsHtml(html, language);
+      }
       if (ctx.path === "/legal/index.html") {
         const route = findLegalRoute(pathname) ?? LEGAL_ROUTES[0];
         return localizeLegalHtml(html, route.language, route.page);
@@ -365,6 +490,18 @@ const landingPages = (): Plugin => {
           localizeLandingHtml(source, path),
         );
       }
+      const docsSource = readFileSync(
+        resolve(outDir, "docs/index.html"),
+        "utf8",
+      );
+      for (const language of LP_LANGUAGES) {
+        const dir = resolve(outDir, `.${language.path}docs/`);
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(
+          resolve(dir, "index.html"),
+          localizeDocsHtml(docsSource, language),
+        );
+      }
       const legalDir = resolve(outDir, "legal");
       const legalSource = readFileSync(resolve(legalDir, "index.html"), "utf8");
       rmSync(legalDir, { recursive: true });
@@ -381,7 +518,9 @@ const landingPages = (): Plugin => {
         `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${LP_LANGUAGES.map(
           ({ path }) =>
             `  <url>\n    <loc>${LP_ORIGIN}${path}</loc>\n${lpAlternateLinks("    ", "xhtml:link")}\n  </url>`,
-        ).join("\n")}\n${LEGAL_ROUTES.map(
+        ).join(
+          "\n",
+        )}\n${LP_LANGUAGES.map(({ path }) => `  <url>\n    <loc>${LP_ORIGIN}${path}docs/</loc>\n${lpAlternateLinks("    ", "xhtml:link", "docs/")}\n  </url>`).join("\n")}\n${LEGAL_ROUTES.map(
           ({ page, path }) =>
             `  <url>\n    <loc>${LP_ORIGIN}${path}</loc>\n${lpAlternateLinks("    ", "xhtml:link", `${page.slug}/`)}\n  </url>`,
         ).join("\n")}\n</urlset>\n`,
@@ -411,6 +550,7 @@ export default defineConfig({
       input: {
         index: resolve(import.meta.dirname, "html/index.html"),
         legal: resolve(import.meta.dirname, "html/legal/index.html"),
+        docs: resolve(import.meta.dirname, "html/docs/index.html"),
         login: resolve(import.meta.dirname, "html/login/index.html"),
         app: resolve(import.meta.dirname, "html/app/index.html"),
         sharecodes: resolve(import.meta.dirname, "html/sharecodes/index.html"),

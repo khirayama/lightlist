@@ -23,6 +23,7 @@
 ## CSS・UI
 
 - スタイルは通常 CSS だけ: `base.css`（LP と共有する基盤）、`globals.css`（`@layer ll-components` の共通部品とモーション）、`compiled-styles.css`（utility）。LP は `globals.css` を読まない。
+- `base.css` の `html` / `body` の高さ固定とスクロール抑止は layer 外にある。ページ固有で通常のドキュメントスクロールを使う場合も layer 外で両要素を上書きする（layer 内の指定では優先されない）。
 - TSX で使う `ll-*` class は必ず定義する。utility は参照がなくなれば削除してよい（class 名を文字列連結しないので静的検索で判定できる）。ただし末尾の `@property --ll-*` は残す（未登録だと Chrome で border・outline・ring・transform が効かなくなる）。
 - ボタンは `BUTTON_*_CLASS` / `ICON_BUTTON_CLASS` 定数で指定する。layer は `ll-components` を utility より前に置き、utility で上書きできるようにする。
 - dark のセレクタ（`compiled-styles.css` の `:is(.dark *)`、`globals.css` の `.dark .ll-*`）は必ず `:not([data-colored-background] *)` を付ける。背景色付き領域の CSS 変数は `[data-colored-background]` で light の値へ戻す。

@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ja" dir="ltr" class="ll-docs-root">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>使い方 | Lightlist</title>
+    <meta name="description" content="Lightlistの基本操作とMCPの設定方法。" />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://lightlist.app/docs/" />
+    <link rel="icon" href="/brand/logo.svg" sizes="any" type="image/svg+xml" />
+    <link
+      rel="preload"
+      as="style"
+      href="/fonts/gen-interface-jp/400.css"
+      data-font-stylesheet
+    />
+    <link
+      rel="preload"
+      as="style"
+      href="/fonts/gen-interface-jp/500.css"
+      data-font-stylesheet
+    />
+    <link
+      rel="preload"
+      as="style"
+      href="/fonts/gen-interface-jp/600.css"
+      data-font-stylesheet
+    />
+    <link
+      rel="preload"
+      as="style"
+      href="/fonts/gen-interface-jp/700.css"
+      data-font-stylesheet
+    />
+    <link
+      rel="preload"
+      as="style"
+      href="/fonts/gen-interface-jp/display-700.css"
+      data-font-stylesheet
+    />
+    <noscript>
+      <link rel="stylesheet" href="/fonts/gen-interface-jp/400.css" />
+      <link rel="stylesheet" href="/fonts/gen-interface-jp/500.css" />
+      <link rel="stylesheet" href="/fonts/gen-interface-jp/600.css" />
+      <link rel="stylesheet" href="/fonts/gen-interface-jp/700.css" />
+      <link rel="stylesheet" href="/fonts/gen-interface-jp/display-700.css" />
+    </noscript>
+    <script src="/font-loader.js" defer></script>
+    <link rel="stylesheet" href="../../src/styles/docs.css" />
+  </head>
+  <body class="ll-font-sans ll-docs-page">
+    <a class="ll-docs-skip" href="#main-content" data-i18n="common.skipToMain"
+      >メインコンテンツへ移動</a
+    >
+    <header
+      class="ll-sticky ll-top-0 ll-lp-z-40 ll-border-b ll-lp-border-black-10 ll-lp-bg-white-92 ll-lp-backdrop-blur"
+    >
+      <div
+        class="ll-lp-header-inner ll-mx-auto ll-flex ll-lp-max-w-6xl ll-items-center ll-justify-between ll-gap-3 ll-lp-px-6 ll-py-3"
+      >
+        <a
+          href="/"
+          aria-label="Lightlist"
+          class="ll-flex ll-shrink-0b ll-items-center ll-lp-gap-2x5 ll-lp-sm-gap-3"
+        >
+          <img
+            src="/brand/logo.svg"
+            alt=""
+            class="ll-block ll-h-8 ll-w-auto ll-lp-sm-h-9"
+          />
+          <span
+            class="ll-lp-hidden ll-lp-text-base ll-font-semibold ll-lp-tracking-extra-wide ll-lp-text-neutral-850 ll-lp-sm-block ll-lp-sm-text-lg"
+            >Lightlist</span
+          >
+        </a>
+        <div class="ll-flex ll-min-w-0 ll-items-center ll-gap-2 ll-lp-sm-gap-3">
+          <label class="ll-flex ll-min-w-0 ll-items-center ll-text-sm">
+            <span class="ll-sr-only" data-i18n="settings.language.title"
+              >言語</span
+            >
+            <select
+              id="lp-language"
+              class="ll-lp-w-lang ll-min-w-0 ll-rounded-full ll-border ll-lp-border-black-10 ll-lp-bg-white ll-px-3 ll-py-1x5 ll-text-sm ll-text-gray-900 ll-outline-none ll-transition ll-lp-focus-border-neutral-500 ll-lp-sm-w-auto ll-lp-sm-px-4 ll-lp-sm-py-2"
+            >
+              <option value="ja">日本語</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="de">Deutsch</option>
+              <option value="fr">Français</option>
+              <option value="ko">한국어</option>
+              <option value="zh-CN">简体中文</option>
+              <option value="hi">हिन्दी</option>
+              <option value="ar">العربية</option>
+              <option value="pt-BR">Português (Brasil)</option>
+              <option value="id">Bahasa Indonesia</option>
+            </select>
+          </label>
+          <a
+            href="#main-content"
+            class="ll-lp-header-guide ll-lp-footer-link ll-text-sm ll-lp-text-neutral-650"
+            data-i18n="pages.docs.title"
+            >使い方</a
+          >
+          <a
+            href="/login/"
+            class="ll-inline-flex ll-shrink-0b ll-items-center ll-justify-center ll-rounded-full ll-lp-bg-neutral-900 ll-px-4 ll-py-1x5 ll-text-sm ll-font-semibold ll-text-white ll-transition ll-lp-hover-bg-neutral-800 ll-focus-visible-outline-1 ll-focus-visible-outline-2 ll-focus-visible-outline-offset-2 ll-lp-focus-visible-outline-neutral-900 ll-lp-sm-px-5 ll-lp-sm-py-2"
+            data-i18n="pages.index.login"
+            >ログイン</a
+          >
+        </div>
+      </div>
+    </header>
+    <div class="ll-docs-layout">
+      <nav class="ll-docs-toc">
+        <a href="#basics" data-i18n="pages.docs.basics.title">はじめる</a>
+        <a href="#dates" data-i18n="pages.docs.dates.title">日付とカレンダー</a>
+        <a href="#accessibility" data-i18n="pages.docs.accessibility.title"
+          >アクセシビリティ</a
+        >
+        <a href="#sharing" data-i18n="pages.docs.sharing.title"
+          >リストを共有する</a
+        >
+        <a href="#mcp" data-i18n="pages.docs.mcp.title">AIとつなぐ（MCP）</a>
+      </nav>
+      <main id="main-content" tabindex="-1" class="ll-docs-content">
+        <h1 data-i18n="pages.docs.title">使い方</h1>
+        <section id="basics" aria-labelledby="basics-title">
+          <h2 id="basics-title" data-i18n="pages.docs.basics.title">
+            はじめる
+          </h2>
+          <p data-i18n="pages.docs.basics.body">
+            メールアドレスで登録し、タスクリストを作成します。タスクを入力して追加し、終わったらチェックを付けます。
+          </p>
+          <picture>
+            <source
+              media="(min-width: 40rem)"
+              srcset="/screenshot_ja_desktop.png"
+              width="1440"
+              height="900"
+            />
+            <img
+              class="ll-docs-image ll-docs-image-responsive"
+              src="/screenshot_ja_mobile.png"
+              width="780"
+              height="1688"
+              loading="lazy"
+              alt="タスクリストの画面"
+              data-i18n-alt="pages.docs.basics.imageAlt"
+            />
+          </picture>
+        </section>
+        <section id="dates" aria-labelledby="dates-title">
+          <h2 id="dates-title" data-i18n="pages.docs.dates.title">
+            日付とカレンダー
+          </h2>
+          <p data-i18n="pages.docs.dates.body">
+            日付を付けたタスクはカレンダーにまとめて表示されます。日付を選んでタスクを追加することもでき、簡単な予定管理に使えます。
+          </p>
+          <div class="ll-docs-examples">
+            <p data-i18n="pages.docs.dates.examples">入力例</p>
+            <ul>
+              <li>
+                <code data-i18n="pages.docs.dates.example1"
+                  >明日 牛乳を買う</code
+                >
+              </li>
+              <li>
+                <code data-i18n="pages.docs.dates.example2"
+                  >12/24 プレゼント</code
+                >
+              </li>
+              <li>
+                <code data-i18n="pages.docs.dates.example3"
+                  >pin 明日 予約する</code
+                >
+              </li>
+              <li>
+                <code data-i18n="pages.docs.dates.example4"
+                  >明日 pin 予約する</code
+                >
+              </li>
+            </ul>
+            <p data-i18n="pages.docs.dates.tip">
+              日付と pin は順不同で、先頭に入力します。日付だけ、または pin
+              だけでも使えます。
+            </p>
+          </div>
+          <img
+            class="ll-docs-image"
+            src="/screenshot_ja_calendar.png"
+            width="1440"
+            height="810"
+            loading="lazy"
+            alt="カレンダー画面"
+            data-i18n-alt="pages.index.preview.calendarAlt"
+          />
+        </section>
+        <section id="accessibility" aria-labelledby="accessibility-title">
+          <h2
+            id="accessibility-title"
+            data-i18n="pages.docs.accessibility.title"
+          >
+            アクセシビリティ
+          </h2>
+          <p data-i18n="pages.docs.accessibility.body">
+            スクリーンリーダー、キーボード操作、文字サイズの拡大に対応しています。タスクの並び替えはキーボードやスクリーンリーダーでも操作できます。動きを減らす設定にも対応しています。
+          </p>
+        </section>
+        <section id="sharing" aria-labelledby="sharing-title">
+          <h2 id="sharing-title" data-i18n="pages.docs.sharing.title">
+            リストを共有する
+          </h2>
+          <p data-i18n="pages.docs.sharing.body">
+            リストの共有コードを発行して、URLを送ります。URLを知っている人はログインなしで閲覧でき、編集にはログインしてリストに参加する必要があります。
+          </p>
+        </section>
+        <section id="mcp" aria-labelledby="mcp-title">
+          <h2 id="mcp-title" data-i18n="pages.docs.mcp.title">
+            AIとつなぐ（MCP）
+          </h2>
+          <p data-i18n="pages.docs.mcp.body">
+            Muse, Claude
+            CodeやCodexなどから、リストの確認、タスクの追加・更新・完了・並び替えができます。
+          </p>
+          <ol class="ll-docs-steps">
+            <li>
+              <h3 data-i18n="pages.docs.token.title">トークンを発行する</h3>
+              <p data-i18n="pages.docs.token.body">
+                設定 → アカウント →
+                APIトークンを開き、トークンを発行します。トークンは一度だけ表示されるので、その場でコピーしてください。
+              </p>
+            </li>
+            <li>
+              <h3 data-i18n="pages.docs.clients.title">AIツールに設定する</h3>
+              <p data-i18n="pages.docs.clients.body">
+                使うツールを開き、例の ll_...
+                を発行したトークンに置き換えます。発行画面では、トークン入りの設定例もコピーできます。既存の設定がある場合は、lightlist
+                の項目を追加してください。
+              </p>
+              <div class="ll-docs-clients">
+                <details>
+                  <summary>Muse</summary>
+                  <p data-i18n="pages.docs.mcp.muse">
+                    Museのコネクター設定でカスタムコネクターを追加し、接続先とAuthorizationヘッダーを以下のように設定します。ll_...
+                    は発行したAPIトークンに置き換えてください。
+                  </p>
+                  <pre tabindex="0"><code>https://lightlist.app/mcp
+Authorization: Bearer ll_...</code></pre>
+                </details>
+                <!--docs:clients-->
+              </div>
+            </li>
+            <li>
+              <h3 data-i18n="pages.docs.try.title">話しかける</h3>
+              <p data-i18n="pages.docs.try.body">
+                設定後、AIツールでLightlistの接続を有効にし、次のように依頼します。
+              </p>
+              <div class="ll-docs-prompts">
+                <blockquote data-i18n="pages.docs.try.read">
+                  Lightlistのタスクリストを見せて
+                </blockquote>
+                <blockquote data-i18n="pages.docs.try.add">
+                  買い物リストに、明日の日付で牛乳を追加して
+                </blockquote>
+              </div>
+            </li>
+          </ol>
+          <h3 data-i18n="pages.docs.access.title">接続できる範囲</h3>
+          <p data-i18n="pages.docs.access.body">
+            トークンで、自分が参加しているすべてのリストを読み書きできます。有効期限はありません。リストの作成や共有設定の変更には対応していません。Bearer認証に対応したMCPクライアントが必要です。OAuth専用の接続には対応していません。
+          </p>
+          <h3 data-i18n="pages.docs.revoke.title">接続を解除する</h3>
+          <p data-i18n="pages.docs.revoke.body">
+            設定のAPIトークン一覧からトークンを削除すると、そのトークンでのアクセスは停止します。
+          </p>
+          <h3 data-i18n="pages.docs.trouble.title">接続できないとき</h3>
+          <p data-i18n="pages.docs.trouble.body">
+            接続先が https://lightlist.app/mcp
+            であることと、Authorizationヘッダーのトークンを確認してください。401はトークンが無効な状態です。再発行した場合はAIツールの設定も更新します。
+          </p>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="../../src/lp.ts"></script>
+  </body>
+</html>

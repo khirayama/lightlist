@@ -1,0 +1,211 @@
+@import "./base.css";
+
+.ll-docs-root {
+  background: #fafafa;
+  height: auto;
+  overflow: auto;
+}
+
+.ll-docs-page {
+  height: auto;
+  overflow: visible;
+}
+
+@layer ll-styles {
+  .ll-docs-page {
+    background: #fafafa;
+    color: #374151;
+    font-size: 1rem;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+  }
+  .ll-docs-page header {
+    line-height: 1.5;
+  }
+  .ll-docs-page a:focus-visible,
+  .ll-docs-page select:focus-visible,
+  .ll-docs-page summary:focus-visible,
+  .ll-docs-page pre:focus-visible {
+    outline: 2px solid #111827;
+    outline-offset: 4px;
+  }
+  .ll-docs-skip {
+    position: fixed;
+    inset-block-start: 1rem;
+    inset-inline-start: 1rem;
+    z-index: 50;
+    padding: 0.5rem 1rem;
+    background: #111827;
+    color: #fff;
+    translate: 0 -200%;
+  }
+  .ll-docs-skip:focus {
+    translate: 0;
+  }
+  .ll-docs-layout {
+    display: grid;
+    gap: 3rem;
+    max-width: 68rem;
+    margin: 2rem auto 0;
+    padding: 0 1.5rem 6rem;
+  }
+  .ll-docs-toc {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: start;
+    gap: 0.5rem 1.5rem;
+    font-size: 0.875rem;
+  }
+  .ll-docs-toc a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+  .ll-docs-content {
+    min-width: 0;
+  }
+  .ll-docs-content h1,
+  .ll-docs-content h2,
+  .ll-docs-content h3 {
+    color: #111827;
+    font-weight: 600;
+    line-height: 1.4;
+    text-wrap: balance;
+  }
+  .ll-docs-content h1 {
+    font-family: "Gen Interface JP Display", sans-serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    letter-spacing: -0.04em;
+  }
+  .ll-docs-content section {
+    margin-top: 4rem;
+    padding-top: 3rem;
+    border-top: 1px solid #e5e7eb;
+    scroll-margin-top: 6rem;
+  }
+  .ll-docs-content section:first-of-type {
+    margin-top: 2.5rem;
+    padding-top: 0;
+    border-top: 0;
+  }
+  .ll-docs-content h2 {
+    font-size: 1.5rem;
+  }
+  .ll-docs-content h3 {
+    margin-top: 2rem;
+    font-size: 1.0625rem;
+  }
+  .ll-docs-content p {
+    margin-top: 0.75rem;
+  }
+  .ll-docs-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: 1.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 12px 36px #11182712;
+  }
+  .ll-docs-image-responsive {
+    max-width: 24rem;
+    margin-inline: auto;
+  }
+  @media (width >= 40rem) {
+    .ll-docs-image-responsive {
+      max-width: none;
+    }
+  }
+  .ll-docs-examples {
+    margin-top: 1.5rem;
+    padding: 1rem 1.25rem;
+    border-radius: 1rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+  }
+  .ll-docs-examples ul {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    list-style: none;
+    padding: 0;
+  }
+  .ll-docs-examples code {
+    font-family: inherit;
+    color: #111827;
+  }
+  .ll-docs-steps {
+    list-style: decimal;
+    padding-inline-start: 1.5rem;
+  }
+  .ll-docs-steps > li {
+    padding-inline-start: 0.5rem;
+  }
+  .ll-docs-steps > li::marker {
+    color: #111827;
+    font-weight: 600;
+  }
+  .ll-docs-clients {
+    margin-top: 1.5rem;
+    background: #fff;
+    border-radius: 1rem;
+    padding: 0.25rem 1.25rem;
+    border: 1px solid #e5e7eb;
+  }
+  .ll-docs-clients details + details {
+    border-top: 1px solid #f3f4f6;
+  }
+  .ll-docs-clients summary {
+    cursor: pointer;
+    padding-block: 1rem;
+    color: #111827;
+    font-weight: 500;
+  }
+  .ll-docs-location {
+    font-size: 0.8125rem;
+    direction: ltr;
+    text-align: start;
+  }
+  .ll-docs-clients pre {
+    direction: ltr;
+    text-align: left;
+    overflow-x: auto;
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background: #f9fafb;
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    overflow-wrap: normal;
+  }
+  .ll-docs-clients code {
+    font-family: ui-monospace, monospace;
+  }
+  .ll-docs-prompts {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  .ll-docs-prompts blockquote {
+    justify-self: start;
+    border-radius: 1rem;
+    padding: 0.75rem 1.25rem;
+    background: #f3f4f6;
+    color: #111827;
+  }
+  @media (width >= 52rem) {
+    .ll-docs-layout {
+      grid-template-columns: 12rem minmax(0, 1fr);
+      gap: 4rem;
+      margin-top: 4rem;
+    }
+    .ll-docs-toc {
+      position: sticky;
+      top: 6rem;
+      align-self: start;
+      flex-direction: column;
+      gap: 1rem;
+      padding-top: 0.75rem;
+      border-inline-start: 1px solid #d1d5db;
+      padding-inline-start: 1.25rem;
+    }
+  }
+}

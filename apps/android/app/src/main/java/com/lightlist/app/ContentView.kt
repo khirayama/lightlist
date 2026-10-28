@@ -2283,14 +2283,14 @@ private fun resolveAuthErrorMessage(
 
 private suspend fun runAuthRequest(
     translations: Translations,
-    timeoutOperation: String,
+    timeoutOperation: String? = null,
     request: suspend () -> Unit
 ): String? =
     try {
-        withTimeout(10_000) { request() }
+        if (timeoutOperation == null) request() else withTimeout(10_000) { request() }
         null
     } catch (e: TimeoutCancellationException) {
-        recordNonFatalException(timeoutOperation)
+        timeoutOperation?.let { recordNonFatalException(it) }
         translations.t("auth.error.general")
     } catch (e: Exception) {
         resolveAuthErrorMessage(translations, e)
@@ -4800,7 +4800,7 @@ private fun SignUpView(language: String) {
                 isLoading = true
                 errorMessage = null
                 scope.launch {
-                    errorMessage = runAuthRequest(t, "sign_up_timeout") {
+                    errorMessage = runAuthRequest(t) {
                         signUpWithInitialData(trimmedEmail, password, language, t.t("app.initialTaskListName"))
                     }
                     if (errorMessage == null) logSignUp()
@@ -4864,7 +4864,7 @@ private fun PasswordResetRequestView(
                     isLoading = true
                     errorMessage = null
                     scope.launch {
-                        errorMessage = runAuthRequest(t, "password_reset_timeout") {
+                        errorMessage = runAuthRequest(t) {
                             sendPasswordResetEmail(trimmedEmail, language)
                         }
                         if (errorMessage == null) {

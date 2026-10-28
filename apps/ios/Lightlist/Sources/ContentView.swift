@@ -3589,43 +3589,23 @@ private struct SignUpView: View {
 
         isLoading = true
         errorMessage = nil
-        var didComplete = false
         let normalizedLanguage = normalizeLanguageCode(language)
-        let auth = Auth.auth()
 
-        let timeoutTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(authSignInTimeoutSeconds * 1_000_000_000))
-            guard !Task.isCancelled, !didComplete else { return }
-            didComplete = true
-            isLoading = false
-            logException(operation: "auth_sign_up", errorCategory: "timeout")
-            errorMessage = translations.t("auth.error.general")
-        }
-
-        auth.createUser(withEmail: trimmedEmail, password: password) { result, error in
+        Auth.auth().createUser(withEmail: trimmedEmail, password: password) { result, error in
             Task { @MainActor in
-                guard !didComplete else { return }
-
                 if let error {
-                    didComplete = true
-                    timeoutTask.cancel()
                     isLoading = false
                     errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
                     return
                 }
 
                 guard let uid = result?.user.uid else {
-                    didComplete = true
-                    timeoutTask.cancel()
                     isLoading = false
                     errorMessage = translations.t("auth.error.general")
                     return
                 }
 
                 await ensureInitialUserData(uid: uid, language: normalizedLanguage)
-                guard !didComplete else { return }
-                didComplete = true
-                timeoutTask.cancel()
                 isLoading = false
                 logSignUp()
             }

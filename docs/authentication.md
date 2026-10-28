@@ -7,7 +7,7 @@
 - 認証 UI は `signin` / `signup` / `reset` の 3 導線を持ち、認証前でも言語切替を行える。`email` state はタブ間で共有する。
 - Web の `signin` / `signup` タブは選択中のタブだけを Tab 順に含め、左右矢印で切替、Home / End で先頭 / 末尾へ移動する。パスワードリセットはタブではない独立導線として扱い、表示中はタブリストを隠す。
 - Web / iOS / Android の認証画面は、淡いページ背景上の角丸 24 + 1px 枠線のカードにアプリ名（`title`）、終了側の言語選択、`signin` / `signup` の 2 タブ（パスワードリセットはタブに含めない）、ラベル付き入力欄（プレースホルダーは `auth.placeholder.*`）、横幅いっぱいの主ボタン / 副ボタンを置き、カードの下に `copyright` を表示する。入力エラーは各入力欄の直下、送信エラーはエラー表示面で示す。
-- メール / パスワードログインは Firebase Auth の応答待ちを 10 秒で打ち切り、loading state を戻して汎用認証エラーを表示する。
+- メール / パスワードログインは Firebase Auth の応答待ちを 10 秒で打ち切り、loading state を戻して汎用認証エラーを表示する。新規登録とパスワード再設定メールの送信は打ち切らない（新規登録を打ち切るとサーバー側ではアカウントが作成済みのまま失敗表示になり、再試行が登録済みエラーになる）。
 - 認証エラーは Firebase Auth の error code を `auth.error.*` / `auth.passwordReset.*` へ対応付けて表示し、対応のない code は `auth.error.general` を表示する。SDK の英語メッセージをそのまま表示しない。メールアドレス変更の失敗も同じ対応付けを使う。
 - 認証完了直後に必要な初期ドキュメントは `settings` / `taskLists` / `taskLists/{taskListId}/members/{uid}` / `taskListOrder`。これらは同一 batch で作成する。
 

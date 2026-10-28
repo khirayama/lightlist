@@ -8967,6 +8967,29 @@ private fun SettingsView(
     }
 
     var isUpdatingNotifications by remember { mutableStateOf(false) }
+
+    fun enableSharedNotifications(uid: String) {
+        scope.launch {
+            isUpdatingNotifications = true
+            try {
+                val token = try {
+                    sharedListNotificationToken(context, uid)
+                } catch (e: Exception) {
+                    errorMessage = t.t("settings.notifications.unavailable")
+                    return@launch
+                }
+                saveSharedListNotificationToken(context, uid, token, enablePreference = true)
+                errorMessage = null
+                logSettingsSharedNotificationsChange(true)
+            } catch (e: Exception) {
+                SyncFailureState.report()
+                errorMessage = t.t("auth.error.general")
+            } finally {
+                isUpdatingNotifications = false
+            }
+        }
+    }
+
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -8974,20 +8997,7 @@ private fun SettingsView(
         if (!granted) {
             errorMessage = t.t("settings.notifications.permissionDenied")
         } else if (uid != null) {
-            scope.launch {
-                isUpdatingNotifications = true
-                try {
-                    val token = sharedListNotificationToken(context, uid)
-                    saveSharedListNotificationToken(context, uid, token, enablePreference = true)
-                    errorMessage = null
-                    logSettingsSharedNotificationsChange(true)
-                } catch (e: Exception) {
-                    SyncFailureState.report()
-                    errorMessage = t.t("auth.error.general")
-                } finally {
-                    isUpdatingNotifications = false
-                }
-            }
+            enableSharedNotifications(uid)
         }
     }
 
@@ -9010,20 +9020,7 @@ private fun SettingsView(
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             return
         }
-        scope.launch {
-            isUpdatingNotifications = true
-            try {
-                val token = sharedListNotificationToken(context, uid)
-                saveSharedListNotificationToken(context, uid, token, enablePreference = true)
-                errorMessage = null
-                logSettingsSharedNotificationsChange(true)
-            } catch (e: Exception) {
-                SyncFailureState.report()
-                errorMessage = t.t("auth.error.general")
-            } finally {
-                isUpdatingNotifications = false
-            }
-        }
+        enableSharedNotifications(uid)
     }
 
     fun closeEmailChange() {

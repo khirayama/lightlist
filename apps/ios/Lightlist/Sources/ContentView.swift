@@ -6673,14 +6673,16 @@ private struct SettingsView: View {
                                     Task { @MainActor in
                                         defer { isUpdatingNotifications = false }
                                         do {
-                                            let authorized = try await SharedNotificationRegistration.requestPermissionAndEnable(uid: uid)
-                                            guard authorized else {
+                                            switch try await SharedNotificationRegistration.requestPermissionAndEnable(uid: uid) {
+                                            case .enabled:
+                                                logSettingsSharedNotificationsChange(enabled: true)
+                                            case .permissionDenied:
                                                 errorMessage = translations.t("settings.notifications.permissionDenied")
-                                                return
+                                            case .unavailable:
+                                                errorMessage = translations.t("settings.notifications.unavailable")
                                             }
-                                            logSettingsSharedNotificationsChange(enabled: true)
                                         } catch {
-                                            errorMessage = translations.t("settings.notifications.unavailable")
+                                            errorMessage = translations.t("auth.error.general")
                                         }
                                     }
                                 } else {
@@ -8482,18 +8484,29 @@ private enum SharedNotificationRegistration {
         }
     }
 
-    static func requestPermissionAndEnable(uid: String) async throws -> Bool {
+    enum EnableResult {
+        case enabled
+        case permissionDenied
+        case unavailable
+    }
+
+    static func requestPermissionAndEnable(uid: String) async throws -> EnableResult {
         let center = UNUserNotificationCenter.current()
-        let authorized: Bool
-        if await center.notificationSettings().authorizationStatus == .notDetermined {
-            authorized = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-        } else {
-            authorized = await isAuthorized()
+        let token: String
+        do {
+            let authorized: Bool
+            if await center.notificationSettings().authorizationStatus == .notDetermined {
+                authorized = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            } else {
+                authorized = await isAuthorized()
+            }
+            guard authorized else { return .permissionDenied }
+            token = try await registrationToken(uid: uid)
+        } catch {
+            return .unavailable
         }
-        guard authorized else { return false }
-        let token = try await registrationToken(uid: uid)
         try await saveDevice(uid: uid, token: token, enablePreference: true)
-        return true
+        return .enabled
     }
 
     static func refresh(uid: String, registeredToken: String?) async {

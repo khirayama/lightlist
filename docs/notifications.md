@@ -63,6 +63,8 @@ Web Push は root scope の `sw.js` 1 本で受ける。FCM の token は FCM SD
 
 通知許可はアプリ内スイッチを有効にしたときだけ要求する。OS 設定で許可を後から取り消した場合、アプリ内設定は維持されるが通知は届かない。再許可後にアプリを起動すると端末登録を更新する。
 
+スイッチを有効にできなかった場合、通知許可が得られないときは `settings.notifications.permissionDenied`、FCM token を取得できない環境では `settings.notifications.unavailable`、端末登録の書き込み失敗は `auth.error.general` を設定画面に表示する。
+
 ## Android開発環境の受信確認
 
 Androidの通知チャンネル名は表示言語の `settings.notifications.title` を使い、言語変更時に更新する。

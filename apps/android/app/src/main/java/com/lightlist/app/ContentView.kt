@@ -441,15 +441,16 @@ private fun apiTokenId(token: String): String =
         .digest(token.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
-private fun truncatedApiTokenName(name: String): String {
-    val trimmed = name.trim()
+private fun truncatedApiTokenName(name: String): String = apiTokenNamePrefix(name.trim())
+
+private fun apiTokenNamePrefix(name: String): String {
     var end = 0
-    while (end < trimmed.length) {
-        val next = trimmed.offsetByCodePoints(end, 1)
+    while (end < name.length) {
+        val next = name.offsetByCodePoints(end, 1)
         if (next > API_TOKEN_NAME_MAX_LENGTH) break
         end = next
     }
-    return trimmed.substring(0, end)
+    return name.substring(0, end)
 }
 
 private suspend fun fetchApiTokens(userId: String): List<ApiTokenRecord> =
@@ -8505,7 +8506,7 @@ private fun ApiTokensDialog(userId: String, onDismiss: () -> Unit) {
     }
 
     fun createToken() {
-        if (isCreating || !isOnline) return
+        if (isCreating || isDeleting || !isOnline) return
         val token = makeApiToken()
         val record = ApiTokenRecord(apiTokenId(token), truncatedApiTokenName(name), nowMillis())
         isCreating = true
@@ -8654,7 +8655,7 @@ private fun ApiTokensDialog(userId: String, onDismiss: () -> Unit) {
             AppDialogField(t.t("settings.apiTokens.nameLabel")) {
                 AppTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = { name = apiTokenNamePrefix(it) },
                     placeholder = t.t("settings.apiTokens.namePlaceholder"),
                     enabled = !isCreating && !isDeleting,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),

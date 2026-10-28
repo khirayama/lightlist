@@ -22,7 +22,7 @@ AI ツールや外部のプログラムからタスクリストを読み書き�
 ## トークンの発行と失効
 
 - Web / iOS / Android の設定画面の「アカウント」セクションの「API トークン」から開く（Web と Android はダイアログ、iOS は設定から push する画面）。
-- 発行は端末で乱数とハッシュを作り、クライアントが `apiTokens/{hash}` を Rules 経由で直接作成する。発行用の API は持たない。名前は任意で、前後の空白を除いた 50 文字（UTF-16）以内。
+- 発行は端末で乱数とハッシュを作り、クライアントが `apiTokens/{hash}` を Rules 経由で直接作成する。発行用の API は持たない。名前は任意で、前後の空白を除いた 50 文字（UTF-16）以内。入力欄も 50 文字までに制限する。
 - 書き込みがサーバーに確定してから平文を 1 回だけ表示し、エンドポイントと「AI ツールの設定例」を添える。設定例は Claude Code / Codex / Cursor / VS Code / Gemini CLI のクライアントごとに開閉式の一覧で並べ、トークンを埋め込んだ状態でコピーできる（内容は次節と同じ。3 プラットフォームの `mcpClientExamples` / `buildMcpClientExamples` で揃える）。画面を閉じると平文は再表示できない。
 - 発行と削除はオンライン必須の操作で、オフライン中は無効化して `common.requiresConnection` を表示する。一覧はオフラインでも cache から表示する。
 - 退会で Auth ユーザーが削除されると、Functions `deleteApiTokensOnUserDelete`（1st gen の Auth `onDelete` trigger）がその uid のトークンをすべて削除する。

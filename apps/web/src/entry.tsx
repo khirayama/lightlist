@@ -4067,54 +4067,28 @@ const ICON_PATHS: Record<AppIconName, string | string[]> = {
   "chevron-right": "M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z",
 };
 
-type AlertVariant = "info" | "error" | "success" | "warning";
+type AlertVariant = "error" | "success";
 
 interface AlertProps {
   children: ReactNode;
-  variant?: AlertVariant;
+  variant: AlertVariant;
   className?: string;
-  announcement?: "auto" | "assertive" | "polite" | "off";
 }
 
 const ALERT_VARIANT_CLASSES: Record<AlertVariant, string> = {
-  info: "ll-border-gray-300 ll-bg-gray-50 ll-text-gray-900 ll-dark-border-gray-700 ll-dark-bg-gray-900b ll-dark-text-gray-50",
   success:
     "ll-border-emerald-200 ll-bg-emerald-50 ll-text-emerald-900 ll-dark-border-emerald-900-40 ll-dark-bg-emerald-900-20 ll-dark-text-emerald-100",
-  warning:
-    "ll-border-amber-200 ll-bg-amber-50 ll-text-amber-900 ll-dark-border-amber-900-40 ll-dark-bg-amber-900-20 ll-dark-text-amber-100",
   error:
     "ll-border-red-200 ll-bg-red-50 ll-text-red-900 ll-dark-border-red-900-40 ll-dark-bg-red-900-20 ll-dark-text-red-100",
 };
 
-function Alert({
-  children,
-  variant = "info",
-  className,
-  announcement = "auto",
-}: AlertProps) {
-  const resolvedAnnouncement =
-    announcement === "auto"
-      ? variant === "error" || variant === "warning"
-        ? "assertive"
-        : "polite"
-      : announcement;
-  const role =
-    resolvedAnnouncement === "assertive"
-      ? "alert"
-      : resolvedAnnouncement === "polite"
-        ? "status"
-        : undefined;
-  const ariaLive =
-    resolvedAnnouncement === "assertive"
-      ? "assertive"
-      : resolvedAnnouncement === "polite"
-        ? "polite"
-        : undefined;
+function Alert({ children, variant, className }: AlertProps) {
+  const isError = variant === "error";
 
   return (
     <div
-      role={role}
-      aria-live={ariaLive}
+      role={isError ? "alert" : "status"}
+      aria-live={isError ? "assertive" : "polite"}
       className={clsx(
         "ll-rounded-xl ll-border ll-px-3 ll-py-2 ll-text-sm",
         ALERT_VARIANT_CLASSES[variant],
@@ -4651,9 +4625,9 @@ function ApiTokensDialog({
           {error ? <Alert variant="error">{error}</Alert> : null}
           {createdToken ? (
             <div className="ll-flex ll-flex-col ll-gap-3">
-              <Alert variant="warning" announcement="polite">
+              <p role="status" className="ll-m-0 ll-text-sm ll-muted-text">
                 {t("settings.apiTokens.createdNotice")}
-              </Alert>
+              </p>
               <label className="ll-flex ll-flex-col ll-gap-2">
                 <span className="ll-field-label">
                   {t("settings.apiTokens.tokenLabel")}

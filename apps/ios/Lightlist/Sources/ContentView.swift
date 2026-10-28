@@ -7041,8 +7041,12 @@ private func apiTokenId(token: String) -> String {
 }
 
 private func truncatedApiTokenName(_ name: String) -> String {
+    apiTokenNamePrefix(name.trimmingCharacters(in: .whitespacesAndNewlines))
+}
+
+private func apiTokenNamePrefix(_ name: String) -> String {
     var result = ""
-    for character in name.trimmingCharacters(in: .whitespacesAndNewlines) {
+    for character in name {
         if result.utf16.count + String(character).utf16.count > apiTokenNameMaxLength { break }
         result.append(character)
     }
@@ -7115,6 +7119,13 @@ private struct ApiTokensView: View {
                 }
             }
             SettingsSection(title: translations.t("settings.apiTokens.create")) {
+                AppFormField(label: translations.t("settings.apiTokens.endpointLabel")) {
+                    Text(mcpEndpointURL)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                        .appField(monospaced: true)
+                }
                 AppFormField(label: translations.t("settings.apiTokens.nameLabel")) {
                     TextField(
                         "",
@@ -7125,6 +7136,10 @@ private struct ApiTokensView: View {
                     .disableAutocorrection(true)
                     .disabled(isCreating || isDeleting)
                     .appField()
+                    .onChange(of: name) { _, next in
+                        let limited = apiTokenNamePrefix(next)
+                        if limited != next { name = limited }
+                    }
                 }
                 Button(isCreating ? translations.t("settings.apiTokens.creating") : translations.t("settings.apiTokens.create")) {
                     createToken()
@@ -7133,13 +7148,6 @@ private struct ApiTokensView: View {
                 .disabled(isCreating || isDeleting || currentUserId == nil || !networkStatus.isOnline)
                 if !networkStatus.isOnline {
                     ConnectionRequiredNote()
-                }
-                AppFormField(label: translations.t("settings.apiTokens.endpointLabel")) {
-                    Text(mcpEndpointURL)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .textSelection(.enabled)
-                        .appField(monospaced: true)
                 }
             }
             SettingsSection(title: translations.t("settings.apiTokens.listTitle")) {
@@ -7160,6 +7168,15 @@ private struct ApiTokensView: View {
         }
         .task(id: currentUserId) {
             await loadTokens()
+        }
+        .task(id: copiedValue) {
+            guard copiedValue != nil else { return }
+            do {
+                try await Task.sleep(for: .seconds(2))
+            } catch {
+                return
+            }
+            copiedValue = nil
         }
         .alert(
             translations.t("settings.apiTokens.deleteTitle"),

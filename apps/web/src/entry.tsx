@@ -2822,7 +2822,9 @@ function resolveTaskInput(
   if (currentTask) {
     const pinned = pinnedFromInput ? true : currentTask.pinned;
     return {
-      text: parsedText || currentTask.text,
+      text:
+        parsedText ||
+        (date === null && !pinnedFromInput ? "" : currentTask.text),
       date: date ?? currentTask.date,
       pinned,
       pinnedChanged: pinned !== currentTask.pinned,
@@ -3462,11 +3464,7 @@ async function updateTask(
       ...updates,
     };
     if (resolvedTextAndDate) {
-      normalizedUpdates.text =
-        updates.text?.trim() === "" &&
-        ("date" in updates || "pinned" in updates)
-          ? ""
-          : resolvedTextAndDate.text;
+      normalizedUpdates.text = resolvedTextAndDate.text;
       if (!("date" in updates)) {
         normalizedUpdates.date = resolvedTextAndDate.date;
       }
@@ -3557,13 +3555,7 @@ async function moveTask(
         typeof updates.text === "string"
           ? resolveTaskInput(updates.text, settings.language, currentTask)
           : null;
-      const nextText =
-        updates.text?.trim() === "" &&
-        ("date" in updates || "pinned" in updates)
-          ? ""
-          : resolved
-            ? resolved.text
-            : currentTask.text;
+      const nextText = resolved ? resolved.text : currentTask.text;
       const nextDate =
         updates.date !== undefined
           ? updates.date
@@ -7871,8 +7863,7 @@ function TaskListCard({
                     onEditEnd={(task, text) => {
                       if (editingTaskIdRef.current !== task.id) return;
                       const currentText = text ?? editingTaskText;
-                      const trimmedText = currentText.trim();
-                      if (trimmedText === "" || trimmedText === task.text) {
+                      if (currentText.trim() === task.text) {
                         setEditingTaskId(null);
                         return;
                       }
@@ -8875,7 +8866,7 @@ function CalendarScreen({
     const nextDateValue = parseTaskDateValue(values.date) ?? null;
     const nextTask: Task = {
       ...editedTask.task,
-      text: values.text.trim() === "" ? "" : parsed.text,
+      text: parsed.text,
       date: nextDateValue ? values.date : "",
       pinned: values.pinned,
     };

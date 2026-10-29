@@ -4226,7 +4226,7 @@ private fun resolveTaskInput(text: String, t: Translations, currentTask: TaskSum
     return if (currentTask != null) {
         val pinned = if (pinnedFromInput) true else currentTask.pinned
         ParsedTaskInput(
-            text = if (remaining.isEmpty()) currentTask.text else remaining,
+            text = if (remaining.isEmpty() && (parsedDate != null || pinnedFromInput)) currentTask.text else remaining,
             date = parsedDate ?: currentTask.date,
             pinned = pinned,
             pinnedChanged = pinned != currentTask.pinned
@@ -5102,8 +5102,7 @@ private fun CalendarScreen(
         val trimmed = text.trim()
         val sourceTaskList = calendarTaskLists.firstOrNull { it.id == task.taskListId } ?: return
         val currentTask = displayedTasks(sourceTaskList).firstOrNull { it.id == task.taskId } ?: return
-        val resolved = resolveTaskInput(trimmed, t, currentTask)
-        val nextText = if (trimmed.isEmpty()) "" else resolved.text
+        val nextText = resolveTaskInput(trimmed, t, currentTask).text
         if (taskListId == task.taskListId || !hasTaskContent(nextText, dateKey, pinned)) {
             updateCalendarTask(
                 task,
@@ -6793,6 +6792,7 @@ private fun TaskListRow(
     onMoveUp: (() -> Boolean)?,
     onMoveDown: (() -> Boolean)?,
     completeInlineEdit: () -> Unit,
+    cancelInlineEdit: () -> Unit,
     moveInlineCaretLeft: () -> Unit,
     moveInlineCaretRight: () -> Unit,
     onInlineEditBlur: () -> Unit
@@ -7022,6 +7022,13 @@ private fun TaskListRow(
                                     if (event.type == KeyEventType.KeyUp) {
                                         hasCommitted = true
                                         completeInlineEdit()
+                                    }
+                                    true
+                                }
+                                Key.Escape -> {
+                                    if (event.type == KeyEventType.KeyUp) {
+                                        hasCommitted = true
+                                        cancelInlineEdit()
                                     }
                                     true
                                 }
@@ -7524,13 +7531,12 @@ private fun TaskListDetailContent(
 
     fun commitEdit(task: TaskSummary, text: String) {
         if (editingTaskId != task.id) return
-        val trimmed = text.trim()
         val resolved = resolveTaskInput(text, t, task)
         val textChanged = resolved.text != task.text
         val dateChanged = (resolved.date ?: task.date) != task.date
         val pinnedChanged = resolved.pinnedChanged
         editingTaskId = null
-        if (!(trimmed.isEmpty() && !dateChanged) && (textChanged || dateChanged || pinnedChanged)) {
+        if (textChanged || dateChanged || pinnedChanged) {
             val changedFields = listOfNotNull(
                 if (textChanged) "text" else null,
                 if (dateChanged) "date" else null,
@@ -8120,6 +8126,10 @@ private fun TaskListDetailContent(
                         )
                     },
                     completeInlineEdit = { finishTaskEditing(task, focusManager) },
+                    cancelInlineEdit = {
+                        editingTaskId = null
+                        focusManager.clearFocus(force = true)
+                    },
                     moveInlineCaretLeft = ::moveInlineCaretLeft,
                     moveInlineCaretRight = ::moveInlineCaretRight,
                     onInlineEditBlur = { commitEdit(task, editingTextFieldValue.text) }

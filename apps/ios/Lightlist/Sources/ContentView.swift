@@ -2147,8 +2147,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             taskListId: task.taskListId, taskId: task.taskId, autoSort: autoSort, translations: translations, onSuccess: onSuccess,
             onFailure: onFailure
         ) { current, taskList in
-            let resolved = resolveTaskInput(trimmed, translations: translations, currentTask: current)
-            let nextText = trimmed.isEmpty ? "" : resolved.text
+            let nextText = resolveTaskInput(trimmed, translations: translations, currentTask: current).text
             var additionalUpdates: [String: Any] = [:]
             if nextText != current.text {
                 additionalUpdates["history"] = buildHistory(
@@ -2187,8 +2186,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             onFailure()
             return
         }
-        let resolved = resolveTaskInput(rawText, translations: translations, currentTask: currentTask)
-        let nextText = rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : resolved.text
+        let nextText = resolveTaskInput(rawText, translations: translations, currentTask: currentTask).text
         let movedTask = currentTask.updating(text: nextText, date: dateStr, pinned: pinned)
         let nextSourceTasks = normalizeTasks(sourceTasks.filter { $0.id != task.taskId }, autoSort: autoSort)
         let nextTargetTasks = normalizeTasks(
@@ -2579,7 +2577,7 @@ private func resolveTaskInput(_ text: String, translations: Translations, curren
     if let currentTask {
         let pinned = pinnedFromInput ? true : currentTask.pinned
         return ParsedTaskInput(
-            text: remaining.isEmpty ? currentTask.text : remaining,
+            text: remaining.isEmpty && (parsedDate != nil || pinnedFromInput) ? currentTask.text : remaining,
             date: parsedDate ?? currentTask.date,
             pinned: pinned,
             pinnedChanged: pinned != currentTask.pinned
@@ -5136,6 +5134,11 @@ private struct TaskListDetailPage: View {
                                 editingText = text.replacingOccurrences(of: "\n", with: "")
                                 commitEdit(task)
                             }
+                            .onKeyPress(.escape) {
+                                editingTaskId = nil
+                                isTextFieldFocused = false
+                                return .handled
+                            }
                             .font(task.pinned && !task.completed ? AppTypography.bodyBold() : AppTypography.bodyMedium())
                     } else if #available(iOS 18.0, *), allowsTaskEditing {
                         taskText(task)
@@ -5707,13 +5710,12 @@ private struct TaskListDetailPage: View {
 
     private func commitEdit(_ task: TaskSummary) {
         guard editingTaskId == task.id else { return }
-        let trimmed = editingText.trimmingCharacters(in: .whitespaces)
         let resolved = resolveTaskInput(editingText, translations: translations, currentTask: task)
         let textChanged = resolved.text != task.text
         let dateChanged = resolved.date != task.date
         let pinnedChanged = resolved.pinnedChanged
         editingTaskId = nil
-        guard !(trimmed.isEmpty && !dateChanged), textChanged || dateChanged || pinnedChanged else { return }
+        guard textChanged || dateChanged || pinnedChanged else { return }
         let changedFields = [textChanged ? "text" : nil, dateChanged ? "date" : nil, pinnedChanged ? "pinned" : nil]
             .compactMap { $0 }
             .joined(separator: ",")

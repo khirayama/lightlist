@@ -3272,6 +3272,7 @@ private fun rememberSettingsState(userId: String?): SettingsState {
             val email = Firebase.auth.currentUser?.email ?: ""
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
             var listener: ListenerRegistration? = null
+            var settingsExisted = false
             lateinit var retry: SyncListenerRetryController
             fun install() {
                 listener?.remove()
@@ -3285,6 +3286,11 @@ private fun rememberSettingsState(userId: String?): SettingsState {
                             return@addSnapshotListener
                         }
                         if (snapshot == null) return@addSnapshotListener
+                        if (snapshot.exists()) {
+                            settingsExisted = true
+                        } else if (settingsExisted) {
+                            return@addSnapshotListener
+                        }
                         val nextSettings = resolveSettingsState(settingsRecordFromMap(snapshot.data.orEmpty()), email)
                         if (nextSettings != null) {
                             val override = autoSortOverrides[userId]

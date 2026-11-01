@@ -6247,6 +6247,7 @@ private final class SettingsViewModel: ObservableObject {
     private let db = Firestore.firestore()
     private var settingsListener: ListenerRegistration?
     private var currentUid: String?
+    private var settingsExisted = false
     private var initialLanguage = "ja"
     private let retry = ListenerRetryScheduler()
     private let autoSortOverrides = AutoSortOverrideStore.shared
@@ -6293,6 +6294,7 @@ private final class SettingsViewModel: ObservableObject {
         settingsListener?.remove()
         settingsListener = nil
         currentUid = nil
+        settingsExisted = false
         settings = nil
         registeredNotificationToken = nil
         pendingSettings = nil
@@ -6313,6 +6315,11 @@ private final class SettingsViewModel: ObservableObject {
                         guard let self, self.currentUid == uid else { return }
                         self.installSettingsListener(uid: uid)
                     }
+                    return
+                }
+                if snapshot?.exists == true {
+                    self.settingsExisted = true
+                } else if self.settingsExisted {
                     return
                 }
                 self.registeredNotificationToken = SharedNotificationRegistration.registeredToken(in: snapshot)

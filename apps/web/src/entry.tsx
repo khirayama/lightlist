@@ -1927,6 +1927,7 @@ function AppStateProvider({
         : { settings: current.settings, settingsStatus: "loading" },
     );
 
+    let settingsExisted = false;
     const listener = listenWithRetry({
       source: "settings",
       isAuthLoading,
@@ -1943,6 +1944,11 @@ function AppStateProvider({
           { includeMetadataChanges: true },
           (snapshot) => {
             markStartupLive("settings");
+            if (snapshot.exists()) {
+              settingsExisted = true;
+            } else if (settingsExisted) {
+              return;
+            }
             try {
               const nextSettings = mapSettingsStore(
                 assertSettingsStore(

@@ -38,6 +38,7 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
 - サーバーから `settings/{uid}` を読み、存在すれば何もしない。`taskListOrder/{uid}` が既にあれば `settings` だけを作成する。
 - 初期データ作成に失敗しても Auth ユーザーは削除せず、サインアップは完了扱いにして失敗を匿名の例外ログに残す。
 - ログイン中の settings listener がサーバー確定（`fromCache == false` かつ `hasPendingWrites == false`）で `settings/{uid}` の不在を受け取ったら、同じ処理で初期データを作成して自己修復する。言語は端末（Web は現在の UI 言語）から解決する。
+- 同じ listener が一度でも `settings/{uid}` の存在を受け取った後の不在は、退会（他端末を含む）による削除として扱い、自己修復も既定値への切り替えも行わない。自己修復すると Auth 削除と競合して、退会済み uid の `settings` / `taskListOrder` / 初期リストが残る。
 - 同一プロセス内の同時実行は uid 単位で 1 本にまとめる。
 
 - 作成対象: `settings/{uid}` / `taskLists/{taskListId}` / `taskLists/{taskListId}/members/{uid}` / `taskListOrder/{uid}`
@@ -57,7 +58,7 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
   4. `settings/{uid}` と `taskListOrder/{uid}` を削除する。
   5. Firebase Auth のユーザーを削除する。
 - 外部 API のトークン（`apiTokens`）はクライアントでは削除せず、Auth ユーザーの削除を受けた Functions が削除する（[api.md](./api.md)）。
-- Firestore と Auth をまたぐ削除全体は原子的ではない。再認証成功後でも通信・権限などの失敗で一部削除済みになる場合があり、エラー後は再実行する。
+- Firestore と Auth をまたぐ削除全体は原子的ではない。再認証成功後でも通信・権限などの失敗で一部削除済みになる場合があり、エラー後は再実行する。再実行しないまま次回起動すると、不在の `settings/{uid}` は自己修復される。
 
 ## パスワードリセット
 

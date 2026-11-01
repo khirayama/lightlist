@@ -42,6 +42,7 @@
 - task の mutation queue は Composition の `rememberCoroutineScope` ではなく `TaskListMutationQueues`（プロセス内の taskListId 登録）で保持する（画面移動で待機中の書き込みをキャンセルしない）。書き込みの `Task` を Composition の scope で `await` して UI を待たせない。
 - カレンダーの pending は `taskListId` ごとの全タスク配列と履歴を保持し、連続操作の差分を listener の旧配列から計算しない。日付計算は `currentGregorianCalendar()` を使い、`Calendar.getInstance()` に戻さない。
 - 前景復帰: SDK は自身を online と判定している間は接続を張り直さないため、`onStop` から 30 秒以上経った `onStart` で `restartFirestoreNetworkAfterBackground` を実行する（Activity が作り直されても効くようプロセス内の変数で保持する）。
+- `key(startupLanguage)` は言語が変わるとツリーを作り直し、配下の `rememberCoroutineScope` をキャンセルする。設定変更を挟んで最後まで走らせる処理（退会など）は Composition の scope で動かさない。
 - オンライン判定は `rememberIsOnline()`（manifest に `ACCESS_NETWORK_STATE`）、同期失敗は `SyncFailureState.report()`、queue 外の batch は `commitReportingFailure`。
 - 認証フォームの `AuthTextField` には Autofill 用の `contentType` を必ず設定する（サインインは既存資格情報、サインアップ / リセットは新規資格情報）。
 - 通知端末の登録はルートの認証・設定の確定を起点に更新する（`onNewToken()` だけでは token が変わらない再ログインを検知できない）。

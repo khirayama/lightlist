@@ -2367,6 +2367,7 @@ private fun validateConfirmPasswordField(
 private var authScreenLanguage: String? = null
 
 private val initialUserDataScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+private val accountDeletionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 private val initialUserDataRequests = mutableMapOf<String, Deferred<Unit>>()
 
 private suspend fun ensureInitialUserData(uid: String, language: String, initialTaskListName: String) {
@@ -9381,7 +9382,7 @@ private fun SettingsView(
             showDeleteDialog = false
             isDeletingAccount = true
             errorMessage = null
-            scope.launch {
+            accountDeletionScope.launch {
                 try {
                     val user = Firebase.auth.currentUser ?: throw IllegalStateException("Missing user")
                     val email = user.email ?: throw IllegalStateException("Missing email")

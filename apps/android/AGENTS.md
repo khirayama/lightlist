@@ -31,6 +31,7 @@
 ## ジェスチャー
 
 - `pointerInput` の key や detector 本体に再コンポーズごとに変わる lambda を渡さない。callback は `rememberUpdatedState` で参照し、`onDragEnd = { currentOnDragEnd() }` のように lambda 内で呼ぶ（`onDragEnd = currentOnDragEnd` と値で渡すと開始時の callback に固定され、古い `displayTasks` から差分を作って並び替えが元に戻る）。
+- `rememberUpdatedState` に local 関数の参照（`::commitTaskListOrder`）を渡さない。Compose compiler が参照を memoize し、関数内の `val`（`displayTaskLists` など）が初回コンポーズの値に固定される。`{ ids: List<String> -> commitTaskListOrder(ids) }` のようにラムダで包む（参照のままだと空配列が pending になり、書き込み完了まで一覧が空状態になった）。
 - 本文の長押し並び替えは、本文の `clickable` より後ろに `pointerInput` + `detectDragGesturesAfterLongPress` を置く（後ろの modifier が先に up を消費して編集開始の click を止める）。長押し成立前の `LazyColumn` / `HorizontalPager` の移動で長押しは取り消されるため、スクロールやページ切替を別途止めない。
 - `detectDragGesturesAfterLongPress` は coroutine が取り消されても `onDragCancel` を呼ぶため、自動スクロールで画面外の行が破棄されるとその行の `onDragCancel` が届く。`onDragCancel` は `draggingTaskId` が自分の task のときだけドラッグ状態を解除する。
 

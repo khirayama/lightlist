@@ -5864,8 +5864,8 @@ private fun TaskListsScreen(
     }
 
     val currentTaskLists by rememberUpdatedState(displayTaskLists)
-    val currentCheckTaskListSwap by rememberUpdatedState(::checkTaskListSwap)
-    val currentCommitTaskListOrder by rememberUpdatedState(::commitTaskListOrder)
+    val currentCheckTaskListSwap by rememberUpdatedState({ checkTaskListSwap() })
+    val currentCommitTaskListOrder by rememberUpdatedState({ ids: List<String> -> commitTaskListOrder(ids) })
     val currentHaptic by rememberUpdatedState(haptic)
     val currentDensity by rememberUpdatedState(density)
 

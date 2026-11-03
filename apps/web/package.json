@@ -32,7 +32,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
-    "firebase": "^12.19.0",
+    "firebase": "^13.2.0",
     "i18next": "^26.4.2",
     "i18next-browser-languagedetector": "^8.2.1",
     "qrcode.react": "^4.2.0",
@@ -59,11 +59,16 @@
     "vite": "^8.3.5",
     "wrangler": "^4.152.0"
   },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.7",
+    "glob": "^14.0.3",
+    "minimatch": "^11.0.4"
+  },
   "allowScripts": {
     "@firebase/util@1.15.3": true,
     "esbuild@0.28.2": true,
     "fsevents@2.3.3": true,
     "protobufjs@7.6.6": true,
-    "workerd@1.20261019.1": true
+    "workerd@1.20261103.1": true
   }
 }

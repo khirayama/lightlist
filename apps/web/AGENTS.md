@@ -11,7 +11,7 @@
 - `scripts/*.ts` は Node.js の型 strip でそのまま実行し、`vite.config.ts` からは `.ts` 拡張子付きで import する。
 - Worker は `worker/index.ts` 1 本で `/mcp` の中継だけを担う（`assets.run_worker_first` は `/mcp` のみ）。Cloudflare Pages へ戻さない（理由は `docs/deployment.md`）。
 - env は `.env.development.local` / `.env.production.local` だけにし、`.env.local` は置かない（production mode も読むため dev の値が本番 build に混入する）。ドメイン・URL などの固定値は env にしない。
-- TypeScript 7 の `strict` + `skipLibCheck=false` を維持し、`allowJs` を有効にしない。npm の peer dependency 検証を `legacy-peer-deps` / `--force` で回避しない。依存更新後は `npm approve-scripts --allow-scripts-pending` が未承認なしになるよう `allowScripts` を同期する。Node.js 22 同梱の npm から npm 12 へ直接更新すると `promise-retry` 欠損で失敗する。
+- TypeScript 7 の `strict` + `skipLibCheck=false` を維持し、`allowJs` を有効にしない。npm の peer dependency 検証を `legacy-peer-deps` / `--force` で回避しない。依存更新後は `npm approve-scripts --allow-scripts-pending` が未承認なしになるよう `allowScripts` を同期する。Node.js 22 同梱の npm から npm 12 へ直接更新すると `promise-retry` 欠損で失敗する。`package.json` の `overrides` は上流が未対応の推移依存の脆弱性を引き上げるためのもので、親パッケージの更新時に不要になったら外す。既存の lock がある推移依存は overrides を足しても `npm install` だけでは差し替わらないため、該当する lock エントリを消してから install する。
 
 ## 初期 payload・chunk
 

@@ -41,4 +41,6 @@ Web のみを確認する場合は `apps/web` の `npm run check` / `npm run bui
 
 npm の監査結果は依存経路と実行環境を合わせて判断する。Web の Firestore が依存する `@grpc/grpc-js` は Node.js 専用で、ブラウザ bundle には含まれない。[証明書の認可判定](https://github.com/grpc/grpc-node/security/advisories/GHSA-m9gg-hp2v-232j)と[サーバーエラーの情報漏洩](https://github.com/grpc/grpc-node/security/advisories/GHSA-f596-whhp-79r4)は Web アプリの実行環境では対象外とする。この指摘は監査出力から隠さず、`npm audit` が非ゼロで終了する場合も advisory の内容を確認する。Firestore の指定を `overrides` で変更したり、`npm audit fix --force` で Firebase を降格させたりしない。Web プロジェクトで Node.js 向け Firestore や gRPC サーバーを使う場合は、この対象外判定を再評価する。
 
+3つの Node.js プロジェクトは `overrides` で `glob` / `minimatch` を修正版へ引き上げる。Functions では `@google-cloud/firestore-api` 配下の `gaxios` が `rimraf` → `glob` を実行時依存に含むため、非 force の `npm audit fix` でも `google-gax` / `gcp-metadata` が降格される。lockfile の差分で降格がないことを確認し、降格する場合は `overrides` で解消する。
+
 iOS は `Package.resolved` の revision、Android は `libs.versions.toml` の Maven 座標・固定版を OSV API で照合する。カタログに版がない BoM 管理の実ライブラリや native binary の内部依存まですべて監査した結果として扱わない。

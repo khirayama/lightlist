@@ -668,6 +668,7 @@ private fun rememberReduceMotion(): Boolean {
 
 class Translations {
     private var dict by mutableStateOf(JSONObject())
+    private var strings by mutableStateOf<Map<String, String>>(emptyMap())
     private var currentLanguage by mutableStateOf("ja")
 
     companion object {
@@ -682,23 +683,28 @@ class Translations {
 
         private fun loadLocales(context: Context): JSONObject {
             allLocales?.let { return it }
-            val locales = try {
-                JSONObject(context.assets.open("locales.json").bufferedReader().readText())
-            } catch (_: Exception) {
-                JSONObject()
+            return synchronized(this) {
+                allLocales ?: try {
+                    JSONObject(context.assets.open("locales.json").bufferedReader().readText())
+                } catch (_: Exception) {
+                    JSONObject()
+                }.also { allLocales = it }
             }
-            allLocales = locales
-            return locales
         }
 
-        fun from(context: Context, language: String): Translations {
-            val locales = loadLocales(context)
-            return Translations().apply {
-                val lang = if (supported.contains(language)) language else "ja"
-                currentLanguage = lang
-                dict = locales.optJSONObject(lang) ?: JSONObject()
+        private fun flatten(node: JSONObject, prefix: String, result: HashMap<String, String>) {
+            val keys = node.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                when (val value = node.get(key)) {
+                    is String -> result[prefix + key] = value
+                    is JSONObject -> flatten(value, "$prefix$key.", result)
+                }
             }
         }
+
+        fun from(context: Context, language: String): Translations =
+            Translations().apply { load(context, language) }
 
         private val relativePatternsCache = java.util.concurrent.ConcurrentHashMap<String, List<TaskDatePattern>>()
 
@@ -759,22 +765,16 @@ class Translations {
 
     fun load(context: Context, language: String) {
         val lang = if (supported.contains(language)) language else "ja"
+        val locale = loadLocales(context).optJSONObject(lang) ?: JSONObject()
         currentLanguage = lang
-        dict = loadLocales(context).optJSONObject(lang) ?: JSONObject()
+        dict = locale
+        strings = HashMap<String, String>().also { flatten(locale, "", it) }
     }
 
     fun languageTag(): String = currentLanguage
 
     fun t(key: String, vars: Map<String, String> = emptyMap()): String {
-        val parts = key.split(".")
-        var current: Any = dict
-        for (part in parts) {
-            current = when (current) {
-                is JSONObject -> if (current.has(part)) current.get(part) else return key
-                else -> return key
-            }
-        }
-        var result = current as? String ?: return key
+        var result = strings[key] ?: return key
         vars.forEach { (k, v) -> result = result.replace("{{$k}}", v) }
         return result
     }

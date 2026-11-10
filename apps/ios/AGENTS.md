@@ -35,6 +35,8 @@
 - タスク一覧は `List` にしない（行頭に handle を置けず、常時編集モードでは本文の長押しドラッグが無効になり、ドラッグ中に横ページャーが切り替わる）。`ScrollView` 内の `LazyVStack` で描き、`.contextMenu` も付けない。
 - ドラッグは親 `ScrollView` の named coordinate space を基準に追跡し、swap 判定は `GeometryReader` で集めた隣接行の高さ（`taskItemHeights`、未計測は現在行の高さで代用）だけを使う。`frame(in:)` の位置監視を drag state に戻さない。
 - 本文の長押し並び替えは `TaskLongPressDragGesture`（`UIGestureRecognizerRepresentable`、iOS 18 以降）で付ける。SwiftUI の `LongPressGesture.sequenced(before: DragGesture)` は `simultaneousGesture` だとスクロールとページ切替を止め、`gesture` だと発火せず、`highPriorityGesture` だとタップ編集を壊す。`Button` に付けた representable も発火しないため、iOS 18 以降の本文は `onTapGesture` + button trait の非 `Button`、iOS 17 は `Button` のまま（drag handle だけで並び替え）にする。
+- 表示用のタスク配列（`displayTasks`）は並べ替えを伴う computed property のため、`ForEach` の行 closure 内で参照せず、body 側で 1 回だけ計算して行へ渡す（行ごとに参照すると行数 × 全件ソートになる）。
+- `@Published` は値が変わったときだけ代入する（`OrderedTaskListViewModel` / `SettingsViewModel` は metadata だけの snapshot でも呼ばれ、同値の代入でも全画面が再評価される）。
 - 取り消し線は `StrikethroughText` の mask で伸ばし、件数は `numericText` で差し替える。
 - pin prefix の照合に `.diacriticInsensitive` を使わない（大文字小文字だけを無視する）。
 
@@ -42,8 +44,8 @@
 
 - 認証状態の監視と認証画面の表示は `RootView` に集約する。子 view は `currentUserId` を引数で受け取り、`onAppear` と `onChange(of: currentUserId)` で view model を bind する。settings は `RootView` の `SettingsViewModel` 1 つだけが購読し（テーマ・言語・UserDefaults キャッシュ・通知端末の登録・初期データの自己修復を担う）、子は `environmentObject` で参照する。
 - `TaskListsView` は `onDisappear` で listener を解除しない（push / pop で再購読させない）。`OrderedTaskListViewModel` は `deinit` で解放し、`CalendarViewModel` は `CalendarScreenView` 自身が bind する。task の mutation queue は view ではなく `TaskListMutationQueues`（プロセス内の taskListId 登録）で保持する。
-- 起動: `LightlistApp.init` で `FirebaseApp.configure()` 直後に `PersistentCacheSettings`（無制限）を設定し、`warmUpStartupData()` で cache 読み取りを並列に始める。言語・テーマ・起動画面は UserDefaults（`lightlist.language` / `lightlist.theme` / `lightlist.startupView`）から初回フレームで使い、初期 path は `AppRoute.startupPath()` で決める。`publishTaskLists` は `.loading` 中でも非空になれば `.ready` にする。
-- `Translations` は `locales.json` の parse 結果を static にキャッシュする。未ログイン時の言語は `resolveDeviceLanguage()` で決める。`RootView` が locale・gregorian calendar・`layoutDirection` をルート環境に設定する。
+- 起動: `LightlistApp.init` で `FirebaseApp.configure()` 直後に `PersistentCacheSettings`（無制限）を設定し、`warmUpStartupData()` で cache 読み取りを並列に始める。settings は `StartupSettingsCache`（UserDefaults、uid 付き）の保存値を bind 時に使い、言語・テーマ・起動画面は同じ保存値（`lightlist.language` / `lightlist.theme` / `lightlist.startupView`）を初回フレームで使う。初期 path は `AppRoute.startupPath()` で決める。`publishTaskLists` は `.loading` 中でも非空になれば `.ready` にする。
+- `Translations` は `locales.json` の parse 結果を static にキャッシュし、`t()` は load 時に平坦化した key で引く。未ログイン時の言語は `resolveDeviceLanguage()` で決める。`RootView` が locale・gregorian calendar・`layoutDirection` をルート環境に設定する。
 - deep link は `PendingDeepLink` へ変換して `RootView` で振り分ける。
 - Auth の callback と listener からの state 更新は MainActor 上で行い、ログイン completion で `error` と `result` がともに空の場合も汎用エラーを表示する。
 - オンライン判定は `NetworkStatus.shared`、同期失敗は `SyncFailureCenter.shared.report()`。queue 外の batch（リスト作成・削除）は `commitReportingFailure(_:)` で commit する。

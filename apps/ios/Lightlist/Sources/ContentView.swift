@@ -739,6 +739,7 @@ private struct ListColorDot: View {
 final class Translations: ObservableObject {
     @Published private(set) var language: String = "ja"
     private var dict: [String: Any] = [:]
+    private var strings: [String: String] = [:]
 
     private static let supported = ["ja", "en", "es", "de", "fr", "ko", "zh-CN", "hi", "ar", "pt-BR", "id"]
     private static var allLocales: [String: Any]?
@@ -764,22 +765,31 @@ final class Translations: ObservableObject {
 
     func load(language: String) {
         let lang = Self.supported.contains(language) ? language : "ja"
+        guard lang != self.language || strings.isEmpty else { return }
         guard let locale = Self.loadAllLocales()[lang] as? [String: Any] else {
             dict = [:]
+            strings = [:]
             return
         }
         dict = locale
+        var flattened: [String: String] = [:]
+        Self.flatten(locale, prefix: "", into: &flattened)
+        strings = flattened
         self.language = lang
     }
 
-    func t(_ key: String, _ vars: [String: String] = [:]) -> String {
-        let parts = key.split(separator: ".").map(String.init)
-        var current: Any = dict
-        for part in parts {
-            guard let d = current as? [String: Any], let next = d[part] else { return key }
-            current = next
+    private static func flatten(_ node: [String: Any], prefix: String, into result: inout [String: String]) {
+        for (key, value) in node {
+            if let text = value as? String {
+                result[prefix + key] = text
+            } else if let child = value as? [String: Any] {
+                flatten(child, prefix: prefix + key + ".", into: &result)
+            }
         }
-        guard var result = current as? String else { return key }
+    }
+
+    func t(_ key: String, _ vars: [String: String] = [:]) -> String {
+        guard var result = strings[key] else { return key }
         for (k, v) in vars {
             result = result.replacingOccurrences(of: "{{\(k)}}", with: v)
         }
@@ -1786,7 +1796,7 @@ private final class ListenerRetryScheduler {
     }
 }
 
-@MainActor private class OrderedTaskListViewModel<Item>: ObservableObject {
+@MainActor private class OrderedTaskListViewModel<Item: Equatable>: ObservableObject {
     @Published private(set) var taskLists: [Item] = []
     @Published private(set) var status: LoadStatus = .idle
     private let db = Firestore.firestore()
@@ -1907,11 +1917,20 @@ private final class ListenerRetryScheduler {
     }
 
     private func publishTaskLists() {
-        taskLists = orderedIds.compactMap { taskListsById[$0] }
+        let nextTaskLists = orderedIds.compactMap { taskListsById[$0] }
+        if nextTaskLists != taskLists {
+            taskLists = nextTaskLists
+        }
+        let nextStatus: LoadStatus
         if orderFailed || (taskListsFailed && taskLists.isEmpty) {
-            status = .error
+            nextStatus = .error
         } else if (orderLoaded && taskListsLoaded) || !taskLists.isEmpty {
-            status = .ready
+            nextStatus = .ready
+        } else {
+            nextStatus = status
+        }
+        if nextStatus != status {
+            status = nextStatus
         }
     }
 }
@@ -2758,7 +2777,7 @@ struct RootView: View {
     }
 
     private var notificationsEnabled: Bool {
-        settingsStore.settings?.notifySharedListUpdates ?? false
+        !settingsStore.isLoading && (settingsStore.settings?.notifySharedListUpdates ?? false)
     }
 
     private var colorScheme: ColorScheme? {
@@ -3025,9 +3044,7 @@ struct RootView: View {
                 if user == nil {
                     AutoSortOverrideStore.shared.clearAll()
                     theme = "system"
-                    UserDefaults.standard.removeObject(forKey: cachedThemeKey)
-                    UserDefaults.standard.removeObject(forKey: cachedLanguageKey)
-                    UserDefaults.standard.removeObject(forKey: cachedStartupViewKey)
+                    StartupSettingsCache.clear()
                     translations.load(language: resolveDeviceLanguage())
                 }
             }
@@ -5071,7 +5088,31 @@ private struct TaskListDetailPage: View {
         isHistoryPopoverPresented = isNewTaskFocused && !historyOptions.isEmpty
     }
 
-    private func taskRow(_ task: TaskSummary, displayTasks: [TaskSummary]) -> some View {
+    @ViewBuilder
+    private var taskRowsSection: some View {
+        let displayTasks = self.displayTasks
+        if displayTasks.isEmpty {
+            TaskStateNotice(
+                icon: "plus",
+                titleKey: "pages.tasklist.noTasks",
+                hintKey: allowsTaskEditing ? "pages.tasklist.noTasksHint" : nil,
+                color: mutedTextColor
+            )
+        } else {
+            let displayTaskIds = displayTasks.map(\.id)
+            LazyVStack(spacing: TaskListDetailMetrics.taskRowGap) {
+                ForEach(holdTaskPositions(displayTasks, heldIndexes: heldTaskIndexes)) { task in
+                    taskRow(task, displayTasks: displayTasks, displayTaskIds: displayTaskIds)
+                }
+            }
+            if displayTasks.allSatisfy(\.completed) {
+                AllTasksCompletedNotice(color: mutedTextColor)
+                    .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.98)))
+            }
+        }
+    }
+
+    private func taskRow(_ task: TaskSummary, displayTasks: [TaskSummary], displayTaskIds: [String]) -> some View {
         HStack(alignment: .taskRowContentCenter, spacing: TaskListDetailMetrics.taskRowSpacing) {
             DragHandleIcon()
                 .foregroundStyle(mutedIconColor)
@@ -5207,7 +5248,7 @@ private struct TaskListDetailPage: View {
         .scaleEffect(draggingTaskId == task.id ? 1.03 : 1.0)
         .animation(
             draggingTaskId == task.id || reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.86),
-            value: displayTasks.map(\.id)
+            value: displayTaskIds
         )
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: task.completed)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: exitingTaskIds.contains(task.id))
@@ -5303,24 +5344,7 @@ private struct TaskListDetailPage: View {
                 }
                 .padding(.bottom, TaskListDetailMetrics.sectionSpacing)
 
-                if displayTasks.isEmpty {
-                    TaskStateNotice(
-                        icon: "plus",
-                        titleKey: "pages.tasklist.noTasks",
-                        hintKey: allowsTaskEditing ? "pages.tasklist.noTasksHint" : nil,
-                        color: mutedTextColor
-                    )
-                } else {
-                    LazyVStack(spacing: TaskListDetailMetrics.taskRowGap) {
-                        ForEach(visibleTasks) { task in
-                            taskRow(task, displayTasks: displayTasks)
-                        }
-                    }
-                    if displayTasks.allSatisfy(\.completed) {
-                        AllTasksCompletedNotice(color: mutedTextColor)
-                            .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.98)))
-                    }
-                }
+                taskRowsSection
             }
             .frame(maxWidth: AppMetrics.taskColumnMaxWidth, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .top)
@@ -6225,6 +6249,57 @@ private struct SharedTaskListPreviewView: View {
     }
 }
 
+private enum StartupSettingsCache {
+    private static let uidKey = "lightlist.settingsUid"
+    private static let taskInsertPositionKey = "lightlist.taskInsertPosition"
+    private static let autoSortKey = "lightlist.autoSort"
+    private static let notifySharedListUpdatesKey = "lightlist.notifySharedListUpdates"
+
+    static func read(uid: String) -> SettingsViewModel.Settings? {
+        let defaults = UserDefaults.standard
+        guard defaults.string(forKey: uidKey) == uid,
+            let theme = defaults.string(forKey: cachedThemeKey),
+            theme == "system" || theme == "light" || theme == "dark",
+            let language = defaults.string(forKey: cachedLanguageKey),
+            supportedLanguages.contains(where: { $0.code == language }),
+            let taskInsertPosition = defaults.string(forKey: taskInsertPositionKey),
+            taskInsertPosition == "top" || taskInsertPosition == "bottom",
+            defaults.object(forKey: autoSortKey) != nil
+        else {
+            return nil
+        }
+        return SettingsViewModel.Settings(
+            theme: theme,
+            language: language,
+            taskInsertPosition: taskInsertPosition,
+            autoSort: defaults.bool(forKey: autoSortKey),
+            notifySharedListUpdates: defaults.bool(forKey: notifySharedListUpdatesKey),
+            startupView: normalizedStartupView(defaults.string(forKey: cachedStartupViewKey))
+        )
+    }
+
+    static func write(uid: String, settings: SettingsViewModel.Settings) {
+        guard read(uid: uid) != settings else { return }
+        let defaults = UserDefaults.standard
+        defaults.set(uid, forKey: uidKey)
+        defaults.set(settings.theme, forKey: cachedThemeKey)
+        defaults.set(settings.language, forKey: cachedLanguageKey)
+        defaults.set(settings.taskInsertPosition, forKey: taskInsertPositionKey)
+        defaults.set(settings.autoSort, forKey: autoSortKey)
+        defaults.set(settings.notifySharedListUpdates, forKey: notifySharedListUpdatesKey)
+        defaults.set(settings.startupView, forKey: cachedStartupViewKey)
+    }
+
+    static func clear() {
+        for key in [
+            uidKey, cachedThemeKey, cachedLanguageKey, taskInsertPositionKey, autoSortKey,
+            notifySharedListUpdatesKey, cachedStartupViewKey,
+        ] {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+}
+
 @MainActor
 private final class SettingsViewModel: ObservableObject {
     struct Settings: Equatable {
@@ -6286,6 +6361,7 @@ private final class SettingsViewModel: ObservableObject {
         userEmail = Auth.auth().currentUser?.email ?? ""
         isLoading = true
         hasError = false
+        settings = StartupSettingsCache.read(uid: uid)
         installSettingsListener(uid: uid)
     }
 
@@ -6309,8 +6385,7 @@ private final class SettingsViewModel: ObservableObject {
             .addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
                 guard let self, self.currentUid == uid else { return }
                 if let error {
-                    self.isLoading = false
-                    self.hasError = true
+                    self.setLoadState(isLoading: false, hasError: true)
                     self.retry.fail(source: "settings", error: error) { [weak self] in
                         guard let self, self.currentUid == uid else { return }
                         self.installSettingsListener(uid: uid)
@@ -6322,7 +6397,10 @@ private final class SettingsViewModel: ObservableObject {
                 } else if self.settingsExisted {
                     return
                 }
-                self.registeredNotificationToken = SharedNotificationRegistration.registeredToken(in: snapshot)
+                let registeredNotificationToken = SharedNotificationRegistration.registeredToken(in: snapshot)
+                if self.registeredNotificationToken != registeredNotificationToken {
+                    self.registeredNotificationToken = registeredNotificationToken
+                }
                 let isServerConfirmed = snapshot?.metadata.isFromCache == false && snapshot?.metadata.hasPendingWrites == false
                 if isServerConfirmed {
                     self.retry.markHealthy()
@@ -6336,23 +6414,33 @@ private final class SettingsViewModel: ObservableObject {
                 guard let data = decodeSettingsRecord(from: snapshot),
                     let settings = self.resolveSettings(data)
                 else {
-                    self.settings = nil
-                    self.isLoading = false
-                    self.hasError = true
+                    if self.settings != nil {
+                        self.settings = nil
+                    }
+                    self.setLoadState(isLoading: false, hasError: true)
                     return
                 }
                 if self.autoSortOverrides.value(for: uid, fallback: settings.autoSort) == settings.autoSort {
                     self.autoSortOverrides.clear(for: uid)
                 }
-                self.settings = self.pendingSettings ?? settings
-                self.isLoading = false
-                self.hasError = false
-                if isServerConfirmed {
-                    UserDefaults.standard.set(settings.theme, forKey: cachedThemeKey)
-                    UserDefaults.standard.set(settings.language, forKey: cachedLanguageKey)
-                    UserDefaults.standard.set(settings.startupView, forKey: cachedStartupViewKey)
+                let nextSettings = self.pendingSettings ?? settings
+                if self.settings != nextSettings {
+                    self.settings = nextSettings
+                }
+                self.setLoadState(isLoading: false, hasError: false)
+                if snapshot?.exists == true {
+                    StartupSettingsCache.write(uid: uid, settings: settings)
                 }
             }
+    }
+
+    private func setLoadState(isLoading: Bool, hasError: Bool) {
+        if self.isLoading != isLoading {
+            self.isLoading = isLoading
+        }
+        if self.hasError != hasError {
+            self.hasError = hasError
+        }
     }
 
     func updateSettings(
@@ -6872,18 +6960,7 @@ private struct SettingsView: View {
     }
 
     private func updateStartupView(_ startupView: String) {
-        let previousStartupView = UserDefaults.standard.string(forKey: cachedStartupViewKey)
-        UserDefaults.standard.set(startupView, forKey: cachedStartupViewKey)
-        viewModel.updateSettings(
-            ["startupView": startupView],
-            onFailure: {
-                if let previousStartupView {
-                    UserDefaults.standard.set(previousStartupView, forKey: cachedStartupViewKey)
-                } else {
-                    UserDefaults.standard.removeObject(forKey: cachedStartupViewKey)
-                }
-            }
-        )
+        viewModel.updateSettings(["startupView": startupView])
     }
 
     private func selectRow(

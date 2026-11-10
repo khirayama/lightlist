@@ -46,6 +46,7 @@
 ## 状態・Firestore
 
 - 状態は `AppStateProvider` と `SessionContext` / `SettingsContext` / `TaskListsContext` の 3 分割を維持する（無関係な再レンダーを避けるため）。`useSyncExternalStore` の独自 store を持ち込まない。
+- `TaskList` / `Task` は snapshot ごとに `reuseTaskList` で内容が同じ前回の参照を再利用し、settings も同値なら state を差し替えない（metadata だけの snapshot で再描画しないため）。`TaskItem` は memo 前提なので、表示配列は `useMemo`、callback は ref 経由の安定した関数で渡す（インライン関数にすると全行が毎回再描画される）。
 - taskLists の購読は `activeUid` だけに依存させる。order の snapshot で `taskListDocsStatus` を `loading` に戻さない（ドロワー・詳細がスケルトンへ戻り再マウントされる）。
 - Firestore の読み取りは購読・単発とも共通の境界検証（`assertSettingsStore` / `assertTaskListOrderStore` / `assertTaskListStore` など）を通し、型 assertion だけで変換しない。
 - 起動（仕様は `docs/data-model.md`）: localStorage `lightlist.lastUid` で auth 確定前から購読を始め、mount 前に `warmUpStartupData()` を呼ぶ。listener の初回 cache snapshot を hydrate に使い、同じ参照へ `getDocFromCache` を重ねない。`lightlist.startupSnapshot`（`readStartupSnapshot()`）は表示専用で、表示中は app shell を `inert` にし、mutation の基準にしない。

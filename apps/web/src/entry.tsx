@@ -321,19 +321,51 @@ type TaskList = {
   updatedAt: number;
 };
 
+const isSameTask = (left: Task, right: Task) =>
+  left.id === right.id &&
+  left.text === right.text &&
+  left.completed === right.completed &&
+  left.date === right.date &&
+  left.pinned === right.pinned;
+
 const areTasksEqual = (left: Task[], right: Task[]) =>
   left.length === right.length &&
   left.every((task, index) => {
     const other = right[index];
-    return (
-      other !== undefined &&
-      task.id === other.id &&
-      task.text === other.text &&
-      task.completed === other.completed &&
-      task.date === other.date &&
-      task.pinned === other.pinned
-    );
+    return other !== undefined && isSameTask(task, other);
   });
+
+const isShallowEqual = <T extends object>(left: T, right: T) => {
+  const leftKeys = Object.keys(left) as Array<keyof T>;
+  return (
+    leftKeys.length === Object.keys(right).length &&
+    leftKeys.every((key) => left[key] === right[key])
+  );
+};
+
+const areItemsIdentical = <T,>(left: readonly T[], right: readonly T[]) =>
+  left.length === right.length &&
+  left.every((item, index) => item === right[index]);
+
+const reuseTaskList = (
+  previous: TaskList | undefined,
+  next: TaskList,
+): TaskList => {
+  if (!previous) return next;
+  const previousTasks = new Map(previous.tasks.map((task) => [task.id, task]));
+  const tasks = next.tasks.map((task) => {
+    const previousTask = previousTasks.get(task.id);
+    return previousTask && isSameTask(previousTask, task) ? previousTask : task;
+  });
+  const reused = {
+    ...next,
+    tasks: areItemsIdentical(tasks, previous.tasks) ? previous.tasks : tasks,
+    history: areItemsIdentical(next.history, previous.history)
+      ? previous.history
+      : next.history,
+  };
+  return isShallowEqual(reused, previous) ? previous : reused;
+};
 
 type TaskListWrite<Result = void> = {
   committed: Promise<void>;
@@ -1795,10 +1827,9 @@ const taskListsReducer = (
       return { ...state, taskListsById: action.taskListsById };
     }
     case "setTaskListDocsStatus":
-      return {
-        ...state,
-        taskListDocsStatus: action.taskListDocsStatus,
-      };
+      return state.taskListDocsStatus === action.taskListDocsStatus
+        ? state
+        : { ...state, taskListDocsStatus: action.taskListDocsStatus };
     default:
       return state;
   }
@@ -1966,14 +1997,18 @@ function AppStateProvider({
               ) {
                 optimisticAutoSortRef.current = null;
               }
-              setSettingsState({
-                settings: {
-                  ...nextSettings,
-                  autoSort:
-                    optimisticAutoSortRef.current ?? nextSettings.autoSort,
-                },
-                settingsStatus: "ready",
-              });
+              const settings: Settings = {
+                ...nextSettings,
+                autoSort:
+                  optimisticAutoSortRef.current ?? nextSettings.autoSort,
+              };
+              setSettingsState((current) =>
+                current.settingsStatus === "ready" &&
+                current.settings &&
+                isShallowEqual(current.settings, settings)
+                  ? current
+                  : { settings, settingsStatus: "ready" },
+              );
               if (
                 !snapshot.metadata.fromCache &&
                 !snapshot.metadata.hasPendingWrites
@@ -2092,8 +2127,8 @@ function AppStateProvider({
         scheduleMalformedTaskCleanup(
           documentSnapshot.id,
           rawTaskListData,
-          snapshot.metadata.fromCache,
-          snapshot.metadata.hasPendingWrites,
+          documentSnapshot.metadata.fromCache,
+          documentSnapshot.metadata.hasPendingWrites,
         );
         try {
           taskListsById[documentSnapshot.id] = normalizeTaskListStore(
@@ -2149,16 +2184,29 @@ function AppStateProvider({
     };
   }, [activeUid, isAuthLoading, loadAppData, markStartupLive]);
 
-  const taskLists = useMemo(
-    () =>
-      orderedTaskListIds.flatMap((taskListId) => {
-        const taskListData = taskListsState.taskListsById[taskListId];
-        return taskListData
-          ? [mapTaskListStoreToTaskList(taskListId, taskListData)]
-          : [];
-      }),
-    [orderedTaskListIds, taskListsState.taskListsById],
-  );
+  const previousTaskListsRef = useRef<TaskList[]>([]);
+  const taskLists = useMemo(() => {
+    const previousTaskLists = previousTaskListsRef.current;
+    const previousTaskListsById = new Map(
+      previousTaskLists.map((taskList) => [taskList.id, taskList]),
+    );
+    const nextTaskLists = orderedTaskListIds.flatMap((taskListId) => {
+      const taskListData = taskListsState.taskListsById[taskListId];
+      return taskListData
+        ? [
+            reuseTaskList(
+              previousTaskListsById.get(taskListId),
+              mapTaskListStoreToTaskList(taskListId, taskListData),
+            ),
+          ]
+        : [];
+    });
+    if (areItemsIdentical(nextTaskLists, previousTaskLists)) {
+      return previousTaskLists;
+    }
+    previousTaskListsRef.current = nextTaskLists;
+    return nextTaskLists;
+  }, [orderedTaskListIds, taskListsState.taskListsById]);
 
   const hasStartupError =
     settingsState.settingsStatus === "error" ||
@@ -7171,8 +7219,10 @@ function TaskListCard({
   const [taskError, setTaskError] = useState<string | null>(null);
   const [pendingTasks, setPendingTasks] = useState<Task[] | null>(null);
   const pendingTasksRef = useRef<Task[] | null>(null);
-  const baseTasks =
-    pendingTasks ?? getDisplayOrderedTaskArray(taskList.tasks, autoSort);
+  const baseTasks = useMemo(
+    () => pendingTasks ?? getDisplayOrderedTaskArray(taskList.tasks, autoSort),
+    [autoSort, pendingTasks, taskList.tasks],
+  );
   const taskListTasksRef = useRef(taskList.tasks);
   taskListTasksRef.current = taskList.tasks;
   const { items: orderedTasks, reorder: reorderTask } = useOptimisticReorder(
@@ -7533,6 +7583,112 @@ function TaskListCard({
       });
   };
 
+  const taskItemHandlers = {
+    editEnd: (task: Task, text?: string) => {
+      if (editingTaskIdRef.current !== task.id) return;
+      const currentText = text ?? editingTaskText;
+      if (currentText.trim() === task.text) {
+        setEditingTaskId(null);
+        return;
+      }
+      const resolved = resolveTaskInput(
+        currentText,
+        normalizeLanguage(i18n.language),
+        task,
+      );
+      void runTaskMutation({
+        buildNextTasks: (currentTasks) =>
+          currentTasks.map((currentTask) =>
+            currentTask.id === task.id
+              ? {
+                  ...currentTask,
+                  text: resolved.text,
+                  date: resolved.date,
+                  pinned: resolved.pinnedChanged
+                    ? resolved.pinned
+                    : currentTask.pinned,
+                }
+              : currentTask,
+          ),
+        commit: () =>
+          updateTask(
+            taskList.id,
+            task.id,
+            { text: currentText },
+            resolvedTaskSettings,
+          ),
+        onSuccess: () => {
+          setEditingTaskId(null);
+          const fields = ["text", "date"];
+          if (resolved.pinnedChanged) fields.push("pinned");
+          logAppEvent("task_update", { fields: fields.join(",") });
+        },
+        onError: (error) => {
+          setTaskError(resolveErrorMessage(error, t, "common.error"));
+        },
+      });
+    },
+    dragInteractionChange: (active: boolean) => {
+      onDragInteractionChange?.(isActive && active);
+    },
+    toggle: (task: Task) => {
+      const currentTask =
+        pendingTasksRef.current?.find((current) => current.id === task.id) ??
+        task;
+      const nextCompleted = !currentTask.completed;
+      if (autoSort) holdTaskPosition(task.id);
+      void runTaskMutation({
+        buildNextTasks: (currentTasks) =>
+          currentTasks.map((currentTask) =>
+            currentTask.id === task.id
+              ? { ...currentTask, completed: nextCompleted }
+              : currentTask,
+          ),
+        commit: () =>
+          updateTask(
+            taskList.id,
+            task.id,
+            { completed: nextCompleted },
+            resolvedTaskSettings,
+          ),
+        onSuccess: () => logAppEvent("task_update", { fields: "completed" }),
+        onError: (error) => {
+          setTaskError(resolveErrorMessage(error, t, "common.error"));
+        },
+      });
+    },
+    openTaskActions: (task: Task, trigger: HTMLButtonElement | null) => {
+      onActivate?.(taskList.id);
+      taskActionTriggerRef.current = trigger;
+      onOpenTaskAction?.(taskList.id, task.id);
+    },
+  };
+  const taskItemHandlersRef = useRef(taskItemHandlers);
+  taskItemHandlersRef.current = taskItemHandlers;
+  const handleTaskEditStart = useCallback((task: Task) => {
+    setEditingTaskId(task.id);
+    setEditingTaskText(task.text);
+  }, []);
+  const handleTaskEditEnd = useCallback(
+    (task: Task, text?: string) =>
+      taskItemHandlersRef.current.editEnd(task, text),
+    [],
+  );
+  const handleTaskDragInteractionChange = useCallback(
+    (active: boolean) =>
+      taskItemHandlersRef.current.dragInteractionChange(active),
+    [],
+  );
+  const handleTaskToggle = useCallback(
+    (task: Task) => taskItemHandlersRef.current.toggle(task),
+    [],
+  );
+  const handleOpenTaskActions = useCallback(
+    (task: Task, trigger: HTMLButtonElement | null) =>
+      taskItemHandlersRef.current.openTaskActions(task, trigger),
+    [],
+  );
+
   return (
     <section
       className={clsx(
@@ -7862,103 +8018,11 @@ function TaskListCard({
                       editingTaskId === task.id ? editingTaskText : ""
                     }
                     onEditingTextChange={setEditingTaskText}
-                    onEditStart={(task) => {
-                      setEditingTaskId(task.id);
-                      setEditingTaskText(task.text);
-                    }}
-                    onEditEnd={(task, text) => {
-                      if (editingTaskIdRef.current !== task.id) return;
-                      const currentText = text ?? editingTaskText;
-                      if (currentText.trim() === task.text) {
-                        setEditingTaskId(null);
-                        return;
-                      }
-                      const resolved = resolveTaskInput(
-                        currentText,
-                        normalizeLanguage(i18n.language),
-                        task,
-                      );
-                      void runTaskMutation({
-                        buildNextTasks: (currentTasks) =>
-                          currentTasks.map((currentTask) =>
-                            currentTask.id === task.id
-                              ? {
-                                  ...currentTask,
-                                  text: resolved.text,
-                                  date: resolved.date,
-                                  pinned: resolved.pinnedChanged
-                                    ? resolved.pinned
-                                    : currentTask.pinned,
-                                }
-                              : currentTask,
-                          ),
-                        commit: () =>
-                          updateTask(
-                            taskList.id,
-                            task.id,
-                            { text: currentText },
-                            resolvedTaskSettings,
-                          ),
-                        onSuccess: () => {
-                          setEditingTaskId(null);
-                          const fields = ["text", "date"];
-                          if (resolved.pinnedChanged) fields.push("pinned");
-                          logAppEvent("task_update", {
-                            fields: fields.join(","),
-                          });
-                        },
-                        onError: (error) => {
-                          setTaskError(
-                            resolveErrorMessage(error, t, "common.error"),
-                          );
-                        },
-                      });
-                    }}
-                    onDragInteractionChange={(active) => {
-                      if (!isActive) {
-                        onDragInteractionChange?.(false);
-                        return;
-                      }
-                      onDragInteractionChange?.(active);
-                    }}
-                    onToggle={(task) => {
-                      const currentTask =
-                        pendingTasksRef.current?.find(
-                          (current) => current.id === task.id,
-                        ) ?? task;
-                      const nextCompleted = !currentTask.completed;
-                      if (autoSort) holdTaskPosition(task.id);
-                      void runTaskMutation({
-                        buildNextTasks: (currentTasks) =>
-                          currentTasks.map((currentTask) =>
-                            currentTask.id === task.id
-                              ? {
-                                  ...currentTask,
-                                  completed: nextCompleted,
-                                }
-                              : currentTask,
-                          ),
-                        commit: () =>
-                          updateTask(
-                            taskList.id,
-                            task.id,
-                            { completed: nextCompleted },
-                            resolvedTaskSettings,
-                          ),
-                        onSuccess: () =>
-                          logAppEvent("task_update", { fields: "completed" }),
-                        onError: (error) => {
-                          setTaskError(
-                            resolveErrorMessage(error, t, "common.error"),
-                          );
-                        },
-                      });
-                    }}
-                    onOpenTaskActions={(task, trigger) => {
-                      onActivate?.(taskList.id);
-                      taskActionTriggerRef.current = trigger;
-                      onOpenTaskAction?.(taskList.id, task.id);
-                    }}
+                    onEditStart={handleTaskEditStart}
+                    onEditEnd={handleTaskEditEnd}
+                    onDragInteractionChange={handleTaskDragInteractionChange}
+                    onToggle={handleTaskToggle}
+                    onOpenTaskActions={handleOpenTaskActions}
                   />
                 ))}
                 {allTasksCompleted ? (

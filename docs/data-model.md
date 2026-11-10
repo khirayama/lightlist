@@ -49,7 +49,7 @@ Task の構造:
 
 Task は「trim 後に 1 文字以上の `text`」「空でない `date`」「`pinned == true`」のいずれかを満たす。いずれも満たさないデータは不正 task として一覧・カレンダー・件数から除外し、既存 task の更新でこの状態になった場合は `tasks.<id>` を削除する。
 
-Task の decode では `id` / `text` / `completed` / `date` / `order` / `pinned` の全fieldと型を検証する。他端末で削除された task ID へ古い端末がドット記法のfield更新を送ると、Firestore上で一部fieldだけのmapが再生成されることがある。この部分mapは task として表示せず、cache由来でもpending write由来でもないserver確定snapshotで検出した場合に `tasks.<id>` を削除する。
+Task の decode では `id` / `text` / `completed` / `date` / `order` / `pinned` の全fieldと型を検証する。他端末で削除された task ID へ古い端末がドット記法のfield更新を送ると、Firestore上で一部fieldだけのmapが再生成されることがある。この部分mapは task として表示せず、当該 document が cache 由来でも pending write 由来でもない server 確定 snapshot で検出した場合に `tasks.<id>` を削除する（判定は document ごとの metadata で行い、他の document の pending write では見送らない）。
 
 Web は `settings` / `taskListOrder` / `taskLists` / `shareCodes` の購読・単発取得を共通の境界検証へ通し、トップレベルfieldと動的mapの全要素を検証してからドメインモデルへ渡す。不正な `settings` と `taskListOrder` の必須時刻 field は読み込みエラーとし、不正な `taskLists` document は当該documentだけを表示対象から外す。3 プラットフォームの `taskListOrder` の動的要素は、有効な document ID（空文字・`/` を含む ID は除外）と有限の数値 `order` を持つ map だけを採用し、不正な要素やドットを含む余分な数値 field は無視する。bool は数値として扱わない。task map 内の不正要素はリスト全体を無効にせず除外し、server確定snapshotで自動削除する。
 
@@ -106,7 +106,7 @@ Rules はクライアントに本人の uid での作成（3 field だけ）、`
 - taskLists の購読は taskListOrder に依存しないため、起動時は taskListOrder と taskLists のクエリを同時に開始する。
 - Web の通常購読は listener が返す初回 cache snapshot をそのまま hydrate に使い、同じ参照への明示的な cache get を重ねない。起動前 warm-up の cache get は IndexedDB と Firestore client の初期化だけを目的とする。
 - Web の認証後シェルは、直近の settings / taskListOrder / taskLists を端末の localStorage に起動スナップショットとして保存し、次回起動の初回描画に使う（Firestore の cache 読み取りが認証の再検証を待つ間も内容を表示するため）。スナップショットは表示専用とし、表示中は操作を受け付けず、Firestore の購読が初回の内容またはエラーを返した時点で通常の表示へ切り替える。保存は認証済みかつ全購読が読み込み済みのときだけ行い、ログアウト・別ユーザー・不正な内容・保存失敗では破棄する。
-- settings listener は metadata change を受け取り、cache snapshot で即時表示を更新する。server 確定かつ pending write なしの snapshot だけを同期復旧・通常のキャッシュ更新の確定点とする。iOS の `startupView` だけは設定選択時に起動用 UserDefaults も即時更新し、書き込み失敗時は直前値へ戻す。Android は起動用にテーマ・言語・追加位置・autoSort・起動画面を端末へ保存し、初回フレームの表示と起動画面の判定に使う。保存値は cache / pending を含む存在する settings snapshot に追従させ、書き込みがサーバーに拒否された場合も後続 snapshot で元へ戻る。設定変更はサーバー応答を待たずに次の変更を受け付け、書き込み失敗は後述の同期失敗通知で知らせる。
+- settings listener は metadata change を受け取り、cache snapshot で即時表示を更新する。server 確定かつ pending write なしの snapshot だけを同期復旧の確定点とする。iOS / Android は起動用にテーマ・言語・追加位置・autoSort・共有リストの通知・起動画面を uid 付きで端末（iOS は UserDefaults、Android は SharedPreferences）へ保存し、初回フレームの表示と起動画面の判定に使う（uid 不一致は無視し、ログアウトで削除する）。保存値は cache / pending を含む存在する settings snapshot に追従させ、書き込みがサーバーに拒否された場合も後続 snapshot で元へ戻る。保存値で表示している間も通知端末の登録は settings listener の初回 snapshot を待つ。設定変更はサーバー応答を待たずに次の変更を受け付け、書き込み失敗は後述の同期失敗通知で知らせる。
 - `taskLists` クエリは cache / live snapshot とも snapshot 全体で置き換える（差分適用しない）。
 - Firestore listener がエラーを返した場合は、現在の購読を解除して同じ参照を再登録する。再試行は 1 秒から始め、2 倍ずつ最大 30 秒まで待ち、画面・ユーザーの購読スコープが終了するまで継続する。cache snapshot と pending write を含む snapshot は復旧扱いにせず、server 確定かつ pending write なしの snapshot の受信で、その参照だけの失敗状態と待ち時間を初期化する。順序とリストの listener は metadata change も受け取る。
 - 背景から前景へ戻ったときの接続の張り直しは SDK ごとに異なる。iOS の SDK は前景復帰のたびに張り直す。Android の SDK は自身を接続中と判定している間は張り直さず、Web の SDK はブラウザーの online / offline だけを契機にするため、背景中に切れた接続に気付くまで他端末の更新が届かず、書き込みの応答も返らない。Android は Activity が 30 秒以上停止した後の再開時、Web は page が 30 秒以上 hidden だった後に visible へ戻ったときに、`disableNetwork` → `enableNetwork` で接続を張り直す。listener と未送信の書き込みは維持され、張り直しの間は cache 由来の snapshot が届く。iOS には追加しない。

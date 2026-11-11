@@ -126,6 +126,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.draw.rotate
@@ -666,6 +667,36 @@ private fun rememberReduceMotion(): Boolean {
     return reduceMotion.value
 }
 
+private const val reorderFeedbackMinimumIntervalMillis = 50L
+
+private class AppHapticFeedback(
+    private val haptic: HapticFeedback,
+    private val enabled: Boolean,
+) {
+    private var lastReorderFeedbackAt = 0L
+
+    fun performHapticFeedback(type: HapticFeedbackType) {
+        if (enabled) haptic.performHapticFeedback(type)
+    }
+
+    fun performReorderFeedback() {
+        if (!enabled) return
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastReorderFeedbackAt < reorderFeedbackMinimumIntervalMillis) return
+        lastReorderFeedbackAt = now
+        haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+    }
+}
+
+@Composable
+private fun rememberAppHapticFeedback(hapticsEnabled: Boolean): AppHapticFeedback {
+    val haptic = LocalHapticFeedback.current
+    val reduceMotion = LocalReduceMotion.current
+    return remember(haptic, reduceMotion, hapticsEnabled) {
+        AppHapticFeedback(haptic, hapticsEnabled && !reduceMotion)
+    }
+}
+
 class Translations {
     private var dict by mutableStateOf(JSONObject())
     private var strings by mutableStateOf<Map<String, String>>(emptyMap())
@@ -830,6 +861,7 @@ private fun logSettingsThemeChange(theme: String) = log("app_settings_theme_chan
 private fun logSettingsLanguageChange(language: String) = log("app_settings_language_change") { putString("language", language) }
 private fun logSettingsTaskInsertPositionChange(position: String) = log("app_settings_task_insert_position_change") { putString("position", position) }
 private fun logSettingsAutoSortChange(enabled: Boolean) = log("app_settings_auto_sort_change") { putBoolean("enabled", enabled) }
+private fun logSettingsHapticsChange(enabled: Boolean) = log("app_settings_haptics_change") { putBoolean("enabled", enabled) }
 private fun logSettingsSharedNotificationsChange(enabled: Boolean) = log("app_settings_shared_notifications_change") { putBoolean("enabled", enabled) }
 private fun logSettingsStartupViewChange(view: String) = log("app_settings_startup_view_change") { putString("view", view) }
 
@@ -1034,6 +1066,7 @@ private data class FirestoreSettingsRecord(
     val taskInsertPosition: String? = null,
     val autoSort: Boolean? = null,
     val notifySharedListUpdates: Boolean? = null,
+    val hapticsEnabled: Boolean? = null,
     val startupView: String? = null
 )
 
@@ -1093,6 +1126,7 @@ private fun settingsRecordFromMap(data: Map<*, *>): FirestoreSettingsRecord = Fi
     taskInsertPosition = data["taskInsertPosition"] as? String,
     autoSort = data["autoSort"] as? Boolean,
     notifySharedListUpdates = data["notifySharedListUpdates"] as? Boolean,
+    hapticsEnabled = data["hapticsEnabled"] as? Boolean,
     startupView = data["startupView"] as? String
 )
 
@@ -2404,6 +2438,7 @@ private suspend fun createInitialUserDataIfMissing(
         "taskInsertPosition" to "top",
         "autoSort" to true,
         "notifySharedListUpdates" to false,
+        "hapticsEnabled" to false,
         "startupView" to "taskList",
         "createdAt" to now,
         "updatedAt" to now
@@ -2475,6 +2510,7 @@ private data class SettingsState(
     val taskInsertPosition: String = "top",
     val autoSort: Boolean = true,
     val notifySharedListUpdates: Boolean = false,
+    val hapticsEnabled: Boolean = false,
     val notificationToken: String? = null,
     val startupView: String = "taskList",
     val userEmail: String = "",
@@ -2498,6 +2534,7 @@ private object StartupSettingsCache {
     private const val KEY_TASK_INSERT_POSITION = "taskInsertPosition"
     private const val KEY_AUTO_SORT = "autoSort"
     private const val KEY_NOTIFY_SHARED_LIST_UPDATES = "notifySharedListUpdates"
+    private const val KEY_HAPTICS_ENABLED = "hapticsEnabled"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -2523,6 +2560,7 @@ private object StartupSettingsCache {
             taskInsertPosition = taskInsertPosition,
             autoSort = prefs.getBoolean(KEY_AUTO_SORT, true),
             notifySharedListUpdates = prefs.getBoolean(KEY_NOTIFY_SHARED_LIST_UPDATES, false),
+            hapticsEnabled = prefs.getBoolean(KEY_HAPTICS_ENABLED, false),
             startupView = normalizeStartupView(prefs.getString(KEY_STARTUP_VIEW, null)),
             isStartupCached = true
         )
@@ -2542,6 +2580,7 @@ private object StartupSettingsCache {
             cached.taskInsertPosition == settings.taskInsertPosition &&
             cached.autoSort == settings.autoSort &&
             cached.notifySharedListUpdates == settings.notifySharedListUpdates &&
+            cached.hapticsEnabled == settings.hapticsEnabled &&
             cached.startupView == settings.startupView
         ) {
             return
@@ -2553,6 +2592,7 @@ private object StartupSettingsCache {
             .putString(KEY_TASK_INSERT_POSITION, settings.taskInsertPosition)
             .putBoolean(KEY_AUTO_SORT, settings.autoSort)
             .putBoolean(KEY_NOTIFY_SHARED_LIST_UPDATES, settings.notifySharedListUpdates)
+            .putBoolean(KEY_HAPTICS_ENABLED, settings.hapticsEnabled)
             .putString(KEY_STARTUP_VIEW, settings.startupView)
             .apply()
     }
@@ -2584,6 +2624,7 @@ private fun resolveSettingsState(
         taskInsertPosition = taskInsertPosition,
         autoSort = record.autoSort ?: true,
         notifySharedListUpdates = record.notifySharedListUpdates ?: false,
+        hapticsEnabled = record.hapticsEnabled ?: false,
         startupView = normalizeStartupView(record.startupView),
         userEmail = userEmail,
         isLoading = false,
@@ -2900,7 +2941,13 @@ fun RootScreen(
                             slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(300))
                         }
                     ) {
-                        composable(AppRoute.TaskLists.route) { TaskListsScreen(navController, currentUserId) }
+                        composable(AppRoute.TaskLists.route) {
+                            TaskListsScreen(
+                                navController,
+                                currentUserId,
+                                hapticsEnabled = settingsState.hapticsEnabled
+                            )
+                        }
                         composable(
                             route = AppRoute.Calendar.route,
                             arguments = listOf(
@@ -3134,6 +3181,7 @@ private fun SharedTaskListPreviewScreen(
                             taskList = previewUiState.taskList,
                             taskInsertPosition = settingsState.taskInsertPosition,
                             autoSort = settingsState.autoSort,
+                            hapticsEnabled = settingsState.hapticsEnabled,
                             topInset = 56.dp,
                             allowTaskEditing = previewUiState.isAdded,
                             allowTaskListDeletion = previewUiState.isAdded,
@@ -4906,12 +4954,12 @@ private fun CalendarScreen(
     externalSettingsState: SettingsState? = null
 ) {
     val t = LocalTranslations.current
-    val haptic = LocalHapticFeedback.current
     val reduceMotion = rememberReduceMotion()
     val settingsState = resolvedSettingsState(
         userId,
         externalSettingsState ?: rememberSettingsState(userId)
     )
+    val haptic = rememberAppHapticFeedback(settingsState.hapticsEnabled)
     val calendarUiState = externalTaskListsState ?: rememberOrderedTaskListsState(userId, ::parseTaskListDetail)
     val calendarTaskLists = calendarUiState.taskLists
     val hasLoadError = calendarUiState.hasError
@@ -5046,7 +5094,7 @@ private fun CalendarScreen(
         val mutationRevision = setPendingCalendarTasks(pendingValues, mapOf(taskList.id to nextHistory))
         addTaskError = null
         showAddTaskSheet = false
-        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
         logTaskAdd(hasDate = dateKey.isNotEmpty())
 
         TaskListMutationQueues.queueFor(taskList.id).enqueue(
@@ -5395,7 +5443,7 @@ private fun CalendarScreen(
                 initialDateKey = task.dateKey,
                 onDismiss = { editingTask = null },
                 onSubmit = { taskListId, text, pinned, dateKey ->
-                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                    haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
                     saveCalendarTask(task, taskListId, text, pinned, dateKey)
                     editingTask = null
                 }
@@ -5731,11 +5779,12 @@ private fun TaskListsScreen(
     onOpenSettings: (() -> Unit)? = null,
     onOpenCalendar: (() -> Unit)? = null,
     calendarActive: Boolean = false,
-    settingsActive: Boolean = false
+    settingsActive: Boolean = false,
+    hapticsEnabled: Boolean = false
 ) {
     val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
-    val haptic = LocalHapticFeedback.current
+    val haptic = rememberAppHapticFeedback(hapticsEnabled)
     val reduceMotion = rememberReduceMotion()
     val uiState = rememberOrderedTaskListsState(userId, ::parseTaskListSummary)
 
@@ -5796,7 +5845,7 @@ private fun TaskListsScreen(
                 ordered[currentIdx] = ordered[currentIdx + 1].also { ordered[currentIdx + 1] = ordered[currentIdx] }
                 dragOrderedTaskLists = ordered.toList()
                 taskListDragOffset -= (nextHeight + taskListSpacingPx)
-                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                haptic.performReorderFeedback()
                 return
             }
         }
@@ -5809,7 +5858,7 @@ private fun TaskListsScreen(
                 ordered[currentIdx] = ordered[currentIdx - 1].also { ordered[currentIdx - 1] = ordered[currentIdx] }
                 dragOrderedTaskLists = ordered.toList()
                 taskListDragOffset += (prevHeight + taskListSpacingPx)
-                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                haptic.performReorderFeedback()
             }
         }
     }
@@ -5842,6 +5891,7 @@ private fun TaskListsScreen(
         if (index < 0 || target < 0 || target > ordered.lastIndex) return false
         val item = ordered.removeAt(index)
         ordered.add(target, item)
+        haptic.performReorderFeedback()
         commitTaskListOrder(ordered.map { it.id })
         return true
     }
@@ -6076,7 +6126,7 @@ private fun TaskListsScreen(
                                             .pointerInput(taskList.id) {
                                                 detectDragGestures(
                                                     onDragStart = { _ ->
-                                                currentHaptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                                currentHaptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 draggingTaskListId = taskList.id
                                                 taskListDragStartIds = currentTaskLists.map { it.id }
                                                 dragOrderedTaskLists = currentTaskLists
@@ -6436,7 +6486,8 @@ private fun TabletRootScreen(
                 },
                 onOpenCalendar = {
                     selectedPane = TabletPane.Calendar
-                }
+                },
+                hapticsEnabled = settingsState.hapticsEnabled
             )
         }
 
@@ -6634,6 +6685,7 @@ private fun TaskListDetailPagerScreen(
                                             taskList = taskList,
                                             taskInsertPosition = settingsState.taskInsertPosition,
                                             autoSort = settingsState.autoSort,
+                                            hapticsEnabled = settingsState.hapticsEnabled,
                                             topInset = taskPageTopInset,
                                         )
                                     }
@@ -7234,6 +7286,7 @@ private fun TaskListDetailContent(
     taskList: TaskListDetail,
     taskInsertPosition: String = "top",
     autoSort: Boolean = true,
+    hapticsEnabled: Boolean = false,
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
     allowTaskEditing: Boolean = true,
     allowTaskListDeletion: Boolean = true,
@@ -7241,7 +7294,7 @@ private fun TaskListDetailContent(
 ) {
     val isOnline = rememberIsOnline()
     val t = LocalTranslations.current
-    val haptic = LocalHapticFeedback.current
+    val haptic = rememberAppHapticFeedback(hapticsEnabled)
     val reduceMotion = rememberReduceMotion()
     val scope = rememberCoroutineScope()
     val db = Firebase.firestore
@@ -7456,7 +7509,7 @@ private fun TaskListDetailContent(
                 ordered[currentIdx] = ordered[currentIdx + 1].also { ordered[currentIdx + 1] = ordered[currentIdx] }
                 dragOrderedTasks = ordered.toList()
                 taskDragOffset -= (nextHeight + taskSpacingPx)
-                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                haptic.performReorderFeedback()
                 return
             }
         }
@@ -7469,7 +7522,7 @@ private fun TaskListDetailContent(
                 ordered[currentIdx] = ordered[currentIdx - 1].also { ordered[currentIdx - 1] = ordered[currentIdx] }
                 dragOrderedTasks = ordered.toList()
                 taskDragOffset += (prevHeight + taskSpacingPx)
-                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                haptic.performReorderFeedback()
             }
         }
     }
@@ -7495,6 +7548,7 @@ private fun TaskListDetailContent(
         ) return false
         val item = ordered.removeAt(index)
         ordered.add(target, item)
+        haptic.performReorderFeedback()
         commitTaskOrder(ordered.map { it.id })
         return true
     }
@@ -7710,7 +7764,7 @@ private fun TaskListDetailContent(
         val parsed = resolveTaskInput(trimmed, t)
         if (!hasTaskContent(parsed.text, parsed.date.orEmpty(), parsed.pinned)) return
         logTaskAdd(hasDate = !parsed.date.isNullOrEmpty())
-        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
         newTaskText = ""
         val taskId = java.util.UUID.randomUUID().toString()
         val insertedTask = TaskSummary(
@@ -8071,7 +8125,7 @@ private fun TaskListDetailContent(
                         )
                     },
                     onDragStart = {
-                        haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         heldTaskRevision += 1
                         heldTaskIndexes = emptyMap()
                         draggingTaskId = task.id
@@ -8984,6 +9038,11 @@ private fun SettingsView(
         )
     }
 
+    fun updateHapticsEnabled(enabled: Boolean) {
+        logSettingsHapticsChange(enabled = enabled)
+        updateSettings(mapOf("hapticsEnabled" to enabled))
+    }
+
     var isUpdatingNotifications by remember { mutableStateOf(false) }
 
     fun enableSharedNotifications(uid: String) {
@@ -9254,6 +9313,40 @@ private fun SettingsView(
                             )
                         }
                         AppSwitch(checked = uiState.autoSort)
+                    }
+                    SettingsDivider()
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = uiState.hapticsEnabled,
+                                role = Role.Switch,
+                                onValueChange = ::updateHapticsEnabled
+                            )
+                            .padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                t.t("settings.haptics.title"),
+                                style = AppRowTextStyle,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                t.t("settings.haptics.enable"),
+                                style = TextStyle(
+                                    fontFamily = GenInterfaceJPBodyFontFamily,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        AppSwitch(checked = uiState.hapticsEnabled)
                     }
                     SettingsDivider()
                     Row(

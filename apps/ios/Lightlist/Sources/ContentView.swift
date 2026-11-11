@@ -917,6 +917,7 @@ private enum InitialUserData {
                 "taskInsertPosition": "top",
                 "autoSort": true,
                 "notifySharedListUpdates": false,
+                "hapticsEnabled": false,
                 "startupView": "taskList",
                 "createdAt": now,
                 "updatedAt": now,
@@ -982,6 +983,7 @@ func logSettingsThemeChange(theme: String) { log("app_settings_theme_change", ["
 func logSettingsLanguageChange(language: String) { log("app_settings_language_change", ["language": language]) }
 func logSettingsTaskInsertPositionChange(position: String) { log("app_settings_task_insert_position_change", ["position": position]) }
 func logSettingsAutoSortChange(enabled: Bool) { log("app_settings_auto_sort_change", ["enabled": enabled]) }
+func logSettingsHapticsChange(enabled: Bool) { log("app_settings_haptics_change", ["enabled": enabled]) }
 func logSettingsSharedNotificationsChange(enabled: Bool) { log("app_settings_shared_notifications_change", ["enabled": enabled]) }
 func logSettingsStartupViewChange(view: String) { log("app_settings_startup_view_change", ["view": view]) }
 
@@ -1183,6 +1185,7 @@ private struct FirestoreSettingsRecord: Codable {
     let taskInsertPosition: String?
     let autoSort: Bool?
     let notifySharedListUpdates: Bool?
+    let hapticsEnabled: Bool?
     let startupView: String?
 }
 
@@ -1224,6 +1227,7 @@ private func decodeSettingsRecord(from snapshot: DocumentSnapshot?) -> Firestore
             taskInsertPosition: nil,
             autoSort: nil,
             notifySharedListUpdates: nil,
+            hapticsEnabled: nil,
             startupView: nil
         )
     }
@@ -2410,28 +2414,46 @@ private let taskListColorOptions: [String?] = [nil, "#F87171", "#FBBF24", "#34D3
 @MainActor private let mediumImpactGenerator = UIImpactFeedbackGenerator(style: .medium)
 @MainActor private let selectionFeedbackGenerator = UISelectionFeedbackGenerator()
 @MainActor private let notificationFeedbackGenerator = UINotificationFeedbackGenerator()
+@MainActor private var isHapticsEnabled = false
+@MainActor private var lastReorderFeedbackTime: TimeInterval = 0
+
+private let reorderFeedbackMinimumInterval: TimeInterval = 0.05
 
 @MainActor private func triggerLightImpact() {
+    guard isHapticsEnabled, !UIAccessibility.isReduceMotionEnabled else { return }
     lightImpactGenerator.impactOccurred()
     lightImpactGenerator.prepare()
 }
 
 @MainActor private func triggerMediumImpact() {
+    guard isHapticsEnabled, !UIAccessibility.isReduceMotionEnabled else { return }
     mediumImpactGenerator.impactOccurred()
     mediumImpactGenerator.prepare()
 }
 
 @MainActor private func triggerSelectionFeedback() {
+    guard isHapticsEnabled, !UIAccessibility.isReduceMotionEnabled else { return }
+    selectionFeedbackGenerator.selectionChanged()
+    selectionFeedbackGenerator.prepare()
+}
+
+@MainActor private func triggerReorderFeedback() {
+    guard isHapticsEnabled, !UIAccessibility.isReduceMotionEnabled else { return }
+    let now = ProcessInfo.processInfo.systemUptime
+    guard now - lastReorderFeedbackTime >= reorderFeedbackMinimumInterval else { return }
+    lastReorderFeedbackTime = now
     selectionFeedbackGenerator.selectionChanged()
     selectionFeedbackGenerator.prepare()
 }
 
 @MainActor private func triggerWarningFeedback() {
+    guard isHapticsEnabled, !UIAccessibility.isReduceMotionEnabled else { return }
     notificationFeedbackGenerator.notificationOccurred(.warning)
     notificationFeedbackGenerator.prepare()
 }
 
 @MainActor private func triggerSuccessFeedback() {
+    guard isHapticsEnabled, !UIAccessibility.isReduceMotionEnabled else { return }
     notificationFeedbackGenerator.notificationOccurred(.success)
     notificationFeedbackGenerator.prepare()
 }
@@ -2890,6 +2912,7 @@ struct RootView: View {
     }
 
     private func applySettings(_ settings: SettingsViewModel.Settings?) {
+        isHapticsEnabled = settings?.hapticsEnabled ?? false
         guard currentUserId != nil else { return }
         if let settings {
             theme = settings.theme
@@ -4216,6 +4239,7 @@ private struct TaskListsView: View {
         let target = index + delta
         guard target >= 0 && target < ordered.count else { return }
         ordered.swapAt(index, target)
+        triggerSelectionFeedback()
         pendingTaskListOrder = ordered
         persistTaskListOrder(ordered.map(\.id))
     }
@@ -4855,7 +4879,7 @@ private struct TaskListDetailPage: View {
                 self.taskDragStartLocationY = (self.taskDragStartLocationY ?? 0) - scrolledBy
                 let correction = self.checkTaskSwap()
                 if correction != 0 {
-                    triggerSelectionFeedback()
+                    triggerReorderFeedback()
                     self.taskDragStartLocationY = (self.taskDragStartLocationY ?? 0) - correction
                 }
             }
@@ -4876,7 +4900,7 @@ private struct TaskListDetailPage: View {
         taskDragOffset = fingerY - startY
         let correction = checkTaskSwap()
         if correction != 0 {
-            triggerSelectionFeedback()
+            triggerReorderFeedback()
             taskDragStartLocationY = startY - correction
         }
         updateTaskAutoScroll(fingerY: fingerY)
@@ -5494,7 +5518,6 @@ private struct TaskListDetailPage: View {
             Spacer(minLength: 8)
 
             Button {
-                triggerWarningFeedback()
                 showDeleteCompletedAlert = true
             } label: {
                 HStack(spacing: 6) {
@@ -5788,7 +5811,6 @@ private struct TaskListDetailPage: View {
 
     private func togglePinned(_ task: TaskSummary, onSuccess: @escaping @MainActor @Sendable () -> Void = {}) {
         logTaskUpdate(fields: "pinned")
-        triggerLightImpact()
         let currentPinned = displayTasks.first(where: { $0.id == task.id })?.pinned ?? task.pinned
         let nextPinned = !currentPinned
         performTaskMutation(
@@ -5843,6 +5865,7 @@ private struct TaskListDetailPage: View {
         let completed = displayTasks.filter { $0.completed }
         guard !completed.isEmpty else { return }
         logTaskDeleteCompleted(count: completed.count)
+        triggerWarningFeedback()
         let completedIds = Set(completed.map(\.id))
         if reduceMotion {
             commitDeleteCompleted(completedIds)
@@ -5881,6 +5904,7 @@ private struct TaskListDetailPage: View {
             canReorderTasks(task, ordered[target], autoSort: autoSort)
         else { return }
         ordered.swapAt(index, target)
+        triggerSelectionFeedback()
         persistTaskOrder(ordered.map(\.id))
     }
 
@@ -6254,6 +6278,7 @@ private enum StartupSettingsCache {
     private static let taskInsertPositionKey = "lightlist.taskInsertPosition"
     private static let autoSortKey = "lightlist.autoSort"
     private static let notifySharedListUpdatesKey = "lightlist.notifySharedListUpdates"
+    private static let hapticsEnabledKey = "lightlist.hapticsEnabled"
 
     static func read(uid: String) -> SettingsViewModel.Settings? {
         let defaults = UserDefaults.standard
@@ -6274,6 +6299,7 @@ private enum StartupSettingsCache {
             taskInsertPosition: taskInsertPosition,
             autoSort: defaults.bool(forKey: autoSortKey),
             notifySharedListUpdates: defaults.bool(forKey: notifySharedListUpdatesKey),
+            hapticsEnabled: defaults.bool(forKey: hapticsEnabledKey),
             startupView: normalizedStartupView(defaults.string(forKey: cachedStartupViewKey))
         )
     }
@@ -6287,13 +6313,14 @@ private enum StartupSettingsCache {
         defaults.set(settings.taskInsertPosition, forKey: taskInsertPositionKey)
         defaults.set(settings.autoSort, forKey: autoSortKey)
         defaults.set(settings.notifySharedListUpdates, forKey: notifySharedListUpdatesKey)
+        defaults.set(settings.hapticsEnabled, forKey: hapticsEnabledKey)
         defaults.set(settings.startupView, forKey: cachedStartupViewKey)
     }
 
     static func clear() {
         for key in [
             uidKey, cachedThemeKey, cachedLanguageKey, taskInsertPositionKey, autoSortKey,
-            notifySharedListUpdatesKey, cachedStartupViewKey,
+            notifySharedListUpdatesKey, hapticsEnabledKey, cachedStartupViewKey,
         ] {
             UserDefaults.standard.removeObject(forKey: key)
         }
@@ -6308,6 +6335,7 @@ private final class SettingsViewModel: ObservableObject {
         var taskInsertPosition: String = "top"
         var autoSort: Bool = true
         var notifySharedListUpdates: Bool = false
+        var hapticsEnabled: Bool = false
         var startupView: String = "taskList"
     }
 
@@ -6345,6 +6373,7 @@ private final class SettingsViewModel: ObservableObject {
             taskInsertPosition: taskInsertPosition,
             autoSort: record.autoSort ?? true,
             notifySharedListUpdates: record.notifySharedListUpdates ?? false,
+            hapticsEnabled: record.hapticsEnabled ?? false,
             startupView: normalizedStartupView(record.startupView)
         )
     }
@@ -6470,6 +6499,9 @@ private final class SettingsViewModel: ObservableObject {
         }
         if let notifySharedListUpdates = partial["notifySharedListUpdates"] as? Bool {
             optimisticSettings.notifySharedListUpdates = notifySharedListUpdates
+        }
+        if let hapticsEnabled = partial["hapticsEnabled"] as? Bool {
+            optimisticSettings.hapticsEnabled = hapticsEnabled
         }
         if let startupView = partial["startupView"] as? String {
             optimisticSettings.startupView = normalizedStartupView(startupView)
@@ -6734,6 +6766,26 @@ private struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(translations.t("settings.autoSort.title"))
                             Text(translations.t("settings.autoSort.enable"))
+                                .font(AppTypography.caption())
+                                .foregroundStyle(AppPalette.mutedText)
+                        }
+                    }
+                    .tint(AppPalette.primary)
+                    Toggle(
+                        isOn: Binding(
+                            get: { settings.hapticsEnabled },
+                            set: { enabled in
+                                logSettingsHapticsChange(enabled: enabled)
+                                viewModel.updateSettings(
+                                    ["hapticsEnabled": enabled],
+                                    onFailure: { errorMessage = translations.t("auth.error.general") }
+                                )
+                            }
+                        )
+                    ) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(translations.t("settings.haptics.title"))
+                            Text(translations.t("settings.haptics.enable"))
                                 .font(AppTypography.caption())
                                 .foregroundStyle(AppPalette.mutedText)
                         }
@@ -7815,7 +7867,9 @@ private struct CalendarTaskRow: View {
                 HStack(spacing: 4) {
                     if let dateValue = task.dateValue {
                         Button {
-                            triggerSelectionFeedback()
+                            if !isHighlighted {
+                                triggerSelectionFeedback()
+                            }
                             onSelectDate()
                         } label: {
                             Text(calendarTaskDateLabel(dateValue, language: translations.language))
@@ -7889,7 +7943,9 @@ private struct CalendarTaskRow: View {
                 Group {
                     if task.dateValue != nil {
                         Button {
-                            triggerSelectionFeedback()
+                            if !isHighlighted {
+                                triggerSelectionFeedback()
+                            }
                             onSelectDate()
                         } label: {
                             taskText

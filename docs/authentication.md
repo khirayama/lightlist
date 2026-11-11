@@ -14,8 +14,8 @@
 ## 設定画面
 
 - 3 プラットフォームとも淡いページ背景の上にボーダーレスの面カードを置き、カード内の先頭に muted 色のセクション見出し、行間は hairline divider だけで区切る。枠線・影は付けず、設定行の操作領域は 44pt / 48dp 以上を維持する。
-- セクション順は「アカウント（`settings.userInfo.title`：メール表示・メールアドレス変更・API トークン）→ 表示と動作（`settings.preferences.title`：言語・テーマ・起動画面・追加位置・autoSort・共有リストの更新通知）→ 法的情報 → アカウント操作」。
-- 言語・テーマ・起動画面（`settings.startupView.*`）・追加位置は同じ行 + ピッカー / ダイアログ形式で選ぶ。autoSort は本文 `settings.autoSort.title` + muted の説明 `settings.autoSort.enable` + スイッチの行とする。
+- セクション順は「アカウント（`settings.userInfo.title`：メール表示・メールアドレス変更・API トークン）→ 表示と動作（`settings.preferences.title`：言語・テーマ・起動画面・追加位置・autoSort・触覚フィードバック・共有リストの更新通知）→ 法的情報 → アカウント操作」。
+- 言語・テーマ・起動画面（`settings.startupView.*`）・追加位置は同じ行 + ピッカー / ダイアログ形式で選ぶ。autoSort は本文 `settings.autoSort.title` + muted の説明 `settings.autoSort.enable` + スイッチの行とする。触覚フィードバックは本文 `settings.haptics.title` + muted の説明 `settings.haptics.enable` + スイッチの行とし、既定はオフにする。Web は `navigator.vibrate` を持つ環境だけこの行を表示する。
 - アカウント操作は塗り・枠線のボタンにせず、他の設定行と同じテキスト行で表す（ログアウト `settings.danger.signOut` は通常の文字色、アカウント削除 `settings.danger.deleteAccount` は error 色）。実行中は `settings.signingOut` / `settings.deletingAccount` を表示する。
 - `settings/{uid}` が存在しない場合も永久に読み込み中にせず、既定値で表示する。
 
@@ -42,7 +42,7 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
 - 同一プロセス内の同時実行は uid 単位で 1 本にまとめる。
 
 - 作成対象: `settings/{uid}` / `taskLists/{taskListId}` / `taskLists/{taskListId}/members/{uid}` / `taskListOrder/{uid}`
-- 初期設定: `theme: "system"` / `language: normalizeLanguage(language)` / `taskInsertPosition: "top"` / `autoSort: true` / `startupView: "taskList"`
+- 初期設定: `theme: "system"` / `language: normalizeLanguage(language)` / `taskInsertPosition: "top"` / `autoSort: true` / `hapticsEnabled: false` / `startupView: "taskList"`
 - 初期タスクリスト: `shared/locales/locales.json` の選択言語にある `app.initialTaskListName` / `tasks: {}` / `history: []` / `shareCode: null` / `background: null` / `memberCount: 1` / `memberKeys: [自分の key]`
 - 初期 membership: `joinedAt` に作成時刻、`joinCode: null`。表示順の `taskListOrder` とは別に保持権限の正本として扱う。
 

@@ -120,7 +120,8 @@
 - 今日の日付（月・日・曜日の短い形式。タスクの日付表示と同じ書式）を、特定のタスクリストに属さない固定表示として 2 か所に出す。タスクリスト一覧（Web の sidebar パネル / compact の一覧画面、iOS / Android の一覧・regular 幅のサイドバー）ではカレンダーのナビ行の終了側に、compact 幅のタスクリスト詳細では戻る操作の行の中央に置く。リストと一緒に切り替わる位置（タスクリスト名の周辺・ページの中）には置かない。表示のための高さは追加せず、muted text の小さい文字だけで描き、背景・枠・下線・押下表現を付けず、単独では操作できない（カレンダー行では行全体の操作に含まれる）。日付が変わったときと前景復帰時に更新する。
 - Web のドラッグ中と autoSort 等のドラッグ外配置変更は同じ sortable layout animation で処理し、独自の transform animation を重ねない。optimistic表示が同じ配置のlistener表示へ切り替わる場合は新しい配置アニメーションを生成しない。
 - OS / ブラウザの Reduce Motion 設定が有効な場合、追加・削除・並び替えの演出は無効化し、状態と配置を即時反映する。
-- iOS / Android は完了切替・ピン切替・タスク追加・完了済み削除・ドラッグ開始・並び替え中の入れ替え（task / taskList 共通）とカレンダーの日付選択で触覚 feedback を返し、両プラットフォームで種類を揃える。
+- iOS / Android は設定 `hapticsEnabled` がオンのとき、完了切替・ピン切替・タスク追加・完了済み削除・ドラッグ開始・並び替え中の入れ替え（task / taskList 共通）とカレンダーの日付選択で触覚 feedback を返し、両プラットフォームで種類を揃える。既定はオフ。完了切替は通常の完了 / 未完了で `ToggleOn` / `ToggleOff` 相当（iOS は light impact）、ピン切替も `ToggleOn` / `ToggleOff` 相当（iOS は light impact）、タスク追加は軽いクリック（iOS light impact / Android `HapticFeedbackType.ContextClick`）、完了済み削除の確定は警告（iOS `UINotificationFeedbackGenerator.warning` / Android `HapticFeedbackType.Reject`）、ドラッグ開始は持ち上げ（iOS medium impact / Android `HapticFeedbackType.LongPress`）、並び替えの入れ替えとカレンダーの日付選択は selection（iOS `UISelectionFeedbackGenerator` / Android `HapticFeedbackType.SegmentFrequentTick`）とする。
+- 触覚 feedback は操作が実際に状態を変えるときだけ 1 回返す。削除の警告は確認ダイアログを開いた時ではなく確定時に返し、ピン切替で二重に返さない。並び替えの入れ替えは連続しても buzz にならないよう約 50ms の間隔を空け、キーボード / スクリーンリーダーの並び替えでも同じ feedback を返す。Reduce Motion が有効なときは触覚 feedback を返さない。Web は `navigator.vibrate` を持つ環境で `hapticsEnabled` がオンのとき、同じ操作を短い振動（selection / light / medium / success / warning）で返す。
 - 操作時は約 80ms の ease-out で押し込み、離した後は減衰 spring で戻す。縮小率は通常ボタン `0.97`、アイコンボタン `0.94`、完了トグル `0.78` とし、完了にした瞬間は前景色 25% のリングを約 360ms で 10 相当広げて消す。
 - 送信ボタンの表示切替は opacity に scale `0.6` と回転 `-30°`（RTL は `+30°`）を併用し、スイッチの thumb も押下解除と同じ spring で動かす。これらの操作フィードバックも Reduce Motion 設定に従い無効化する。
 

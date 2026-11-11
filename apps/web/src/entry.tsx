@@ -247,6 +247,7 @@ type SettingsStore = {
   taskInsertPosition: TaskInsertPosition;
   autoSort: boolean;
   notifySharedListUpdates: boolean;
+  hapticsEnabled: boolean;
   notificationToken?: string;
   startupView?: StartupView;
   createdAt?: number;
@@ -297,6 +298,7 @@ type Settings = {
   taskInsertPosition: TaskInsertPosition;
   autoSort: boolean;
   notifySharedListUpdates: boolean;
+  hapticsEnabled: boolean;
   notificationToken?: string;
   startupView: StartupView;
 };
@@ -772,6 +774,22 @@ const log = async (eventName: string, params?: Record<string, unknown>) => {
 
 const logAppEvent = (eventName: string, params?: Record<string, unknown>) =>
   log(`app_${eventName}`, params);
+
+type HapticKind = "selection" | "light" | "medium" | "success" | "warning";
+const HAPTIC_PATTERNS: Record<HapticKind, number | number[]> = {
+  selection: 8,
+  light: 12,
+  medium: 24,
+  success: [12, 50, 20],
+  warning: [20, 60, 20],
+};
+let hapticsEnabled = false;
+const supportsHaptics = () => typeof navigator.vibrate === "function";
+const triggerHaptic = (kind: HapticKind) => {
+  if (!hapticsEnabled || !supportsHaptics()) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  navigator.vibrate(HAPTIC_PATTERNS[kind]);
+};
 const getErrorCategory = (error: unknown): string => {
   if (isRecord(error) && typeof error.code === "string") {
     return error.code;
@@ -1567,6 +1585,7 @@ const mapSettingsStore = (
         taskInsertPosition: settingsStore.taskInsertPosition,
         autoSort: settingsStore.autoSort,
         notifySharedListUpdates: settingsStore.notifySharedListUpdates,
+        hapticsEnabled: settingsStore.hapticsEnabled,
         notificationToken: settingsStore.notificationToken,
         startupView: normalizeStartupView(settingsStore.startupView),
       }
@@ -2278,6 +2297,10 @@ function AppStateProvider({
     [settingsState, setOptimisticAutoSort],
   );
 
+  useEffect(() => {
+    hapticsEnabled = settingsState.settings?.hapticsEnabled ?? false;
+  }, [settingsState.settings?.hapticsEnabled]);
+
   return (
     <SessionContext.Provider value={sessionContextValue}>
       <SettingsContext.Provider value={settingsContextValue}>
@@ -2468,6 +2491,7 @@ const ensureInitialUserData = (
       taskInsertPosition: "top",
       autoSort: true,
       notifySharedListUpdates: false,
+      hapticsEnabled: false,
       startupView: "taskList",
       createdAt: now,
       updatedAt: now,
@@ -2994,6 +3018,8 @@ function assertSettingsStore(data: unknown, uid: string): SettingsStore {
     taskInsertPosition: taskInsertPosition as TaskInsertPosition,
     autoSort: data.autoSort ?? true,
     notifySharedListUpdates: data.notifySharedListUpdates ?? false,
+    hapticsEnabled:
+      typeof data.hapticsEnabled === "boolean" ? data.hapticsEnabled : false,
     notificationToken: resolveWebNotificationToken(data),
     startupView:
       startupView === undefined ? undefined : normalizeStartupView(startupView),
@@ -4935,6 +4961,7 @@ function SettingsView({
     taskInsertPosition?: TaskInsertPosition;
     autoSort?: boolean;
     notifySharedListUpdates?: boolean;
+    hapticsEnabled?: boolean;
     startupView?: StartupView;
   }): boolean => {
     setError(null);
@@ -4976,6 +5003,12 @@ function SettingsView({
       logAppEvent("settings_auto_sort_change", { enabled: autoSort });
     } else {
       setOptimisticAutoSort(previousAutoSort);
+    }
+  };
+
+  const handleHapticsChange = (enabled: boolean) => {
+    if (updateSetting({ hapticsEnabled: enabled })) {
+      logAppEvent("settings_haptics_change", { enabled });
     }
   };
 
@@ -5396,6 +5429,49 @@ function SettingsView({
                     />
                   </span>
                 </label>
+                {supportsHaptics() ? (
+                  <label
+                    className={`ll-flex ll-cursor-pointer ll-items-center ll-justify-between ll-gap-4 ll-border-t ll-border-gray-300 ll-py-3 ll-transition ll-focus-within-outline-1 ll-focus-within-outline-2 ll-focus-within-outline-offset-2 ll-focus-within-outline-gray-300 ll-dark-border-gray-700 ll-dark-focus-within-outline-gray-700 ${
+                      settingsDisabled ? "ll-opacity-50" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="hapticsEnabled"
+                      role="switch"
+                      aria-checked={settings?.hapticsEnabled ?? false}
+                      checked={settings?.hapticsEnabled ?? false}
+                      onChange={(event) =>
+                        handleHapticsChange(event.target.checked)
+                      }
+                      disabled={settingsDisabled}
+                      className="ll-peer ll-sr-only"
+                    />
+                    <span className="ll-flex ll-flex-col ll-gap-0x5">
+                      <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
+                        {t("settings.haptics.title")}
+                      </span>
+                      <span className="ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
+                        {t("settings.haptics.enable")}
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className={`ll-settings-toggle ll-relative ll-inline-flex ll-h-7 ll-w-12 ll-items-center ll-rounded-full ll-border ${
+                        settings?.hapticsEnabled
+                          ? "ll-border-gray-900 ll-bg-gray-900 ll-dark-border-gray-50 ll-dark-bg-gray-50"
+                          : "ll-border-gray-300 ll-bg-gray-300 ll-dark-border-gray-700 ll-dark-bg-gray-900"
+                      }`}
+                    >
+                      <span
+                        data-checked={
+                          settings?.hapticsEnabled ? "true" : "false"
+                        }
+                        className="ll-settings-toggle-thumb ll-inline-block ll-h-5 ll-w-5 ll-rounded-full ll-bg-white-b ll-shadow-sm ll-dark-bg-gray-950"
+                      />
+                    </span>
+                  </label>
+                ) : null}
                 <label
                   className={`ll-flex ll-cursor-pointer ll-items-center ll-justify-between ll-gap-4 ll-border-t ll-border-gray-300 ll-py-3 ll-transition ll-dark-border-gray-700 ${
                     settingsDisabled || !isOnline || isUpdatingNotifications
@@ -7508,6 +7584,7 @@ function TaskListCard({
       pinned: parsed.pinned,
     } satisfies Task;
     if (!hasTaskContent(optimisticTask)) return;
+    triggerHaptic("light");
     setHistoryOpen(false);
     setHistoryHighlightIndex(-1);
     setNewTaskText("");
@@ -7537,6 +7614,7 @@ function TaskListCard({
     updates: Partial<Pick<Task, "date" | "pinned">>,
     field: "date" | "pinned",
   ) => {
+    if (field === "pinned") triggerHaptic("light");
     void runTaskMutation({
       buildNextTasks: (currentTasks) =>
         currentTasks.map((current) =>
@@ -7557,6 +7635,7 @@ function TaskListCard({
   const handleDeleteCompleted = async () => {
     setShowDeleteCompletedConfirm(false);
     if (completedTaskCount === 0) return;
+    triggerHaptic("warning");
     setDeleteCompletedPending(true);
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setExitingTaskIds(
@@ -7636,6 +7715,13 @@ function TaskListCard({
         pendingTasksRef.current?.find((current) => current.id === task.id) ??
         task;
       const nextCompleted = !currentTask.completed;
+      const sourceTasks = pendingTasksRef.current ?? tasks;
+      const completesAll =
+        nextCompleted &&
+        sourceTasks.every(
+          (current) => current.id === task.id || current.completed,
+        );
+      triggerHaptic(completesAll ? "success" : "light");
       if (autoSort) holdTaskPosition(task.id);
       void runTaskMutation({
         buildNextTasks: (currentTasks) =>
@@ -7958,6 +8044,7 @@ function TaskListCard({
             plugins={(defaults) => [...defaults, taskDndAccessibility]}
             onBeforeDragStart={releaseHeldTasks}
             onDragStart={(event: DragStartEvent) => {
+              triggerHaptic("medium");
               if (typeof event.operation.source?.id === "string") {
                 onSortingChange?.(true);
               }
@@ -7987,6 +8074,7 @@ function TaskListCard({
               setTaskError(null);
               try {
                 await reorderTask(draggedTaskId, targetTaskId);
+                triggerHaptic("selection");
                 logAppEvent("task_reorder");
               } catch (error) {
                 setTaskError(resolveErrorMessage(error, t, "common.error"));
@@ -8819,6 +8907,7 @@ function CalendarScreen({
 
   const completeTask = (task: DatedTask) => {
     if (task.task.completed) return;
+    triggerHaptic("light");
     const taskId = getDatedTaskId(task);
     const revision = nextOptimisticDatedTaskRevision();
     logAppEvent("task_update", { fields: "completed" });
@@ -8881,6 +8970,7 @@ function CalendarScreen({
         setTaskSheetSaving(false);
         return;
       }
+      triggerHaptic("light");
       const taskId = crypto.randomUUID();
       const dateValue = parseTaskDateValue(values.date) ?? null;
       const optimisticTask: DatedTask = {
@@ -8941,6 +9031,7 @@ function CalendarScreen({
       pinned: values.pinned,
     };
     const shouldKeepTask = hasTaskContent(nextTask);
+    triggerHaptic("light");
     const sourceTaskId = getDatedTaskId(editedTask);
     const targetTaskId =
       targetTaskList && isMove
@@ -9159,6 +9250,11 @@ function CalendarScreen({
     next: Date | undefined,
     tasksInMonth: DatedTask[],
   ) => {
+    const previousKey = selectedCalendarDate
+      ? formatDate(selectedCalendarDate)
+      : null;
+    const nextKey = next ? formatDate(next) : null;
+    if (previousKey !== nextKey) triggerHaptic("selection");
     setSelectedCalendarDate(next);
     if (!next) return;
     const dateKey = formatDate(next);
@@ -9488,6 +9584,7 @@ function TaskListSidebarPanel({
     const targetId = taskLists[source.index]?.id ?? null;
     if (draggedId && targetId) {
       await onReorderTaskList(draggedId, targetId);
+      triggerHaptic("selection");
     }
   };
 
@@ -9576,6 +9673,7 @@ function TaskListSidebarPanel({
             sensors={SORTABLE_SENSORS}
             modifiers={SORTABLE_MODIFIERS}
             plugins={(defaults) => [...defaults, taskListDndAccessibility]}
+            onDragStart={() => triggerHaptic("medium")}
             onDragEnd={handleDragEnd}
           >
             {taskLists.map((taskList, index) => {

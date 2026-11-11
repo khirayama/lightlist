@@ -213,6 +213,10 @@
         "title": "فرز المهام تلقائيًا",
         "enable": "فرز المهام تلقائيًا"
       },
+      "haptics": {
+        "title": "الاهتزاز التفاعلي",
+        "enable": "الاهتزاز عند تنفيذ الإجراءات"
+      },
       "danger": {
         "signOut": "تسجيل الخروج",
         "deleteAccount": "حذف الحساب"
@@ -720,6 +724,10 @@
         "title": "Aufgaben automatisch sortieren",
         "enable": "Aufgaben automatisch sortieren"
       },
+      "haptics": {
+        "title": "Haptisches Feedback",
+        "enable": "Bei Aktionen vibrieren"
+      },
       "danger": {
         "signOut": "Abmelden",
         "deleteAccount": "Konto löschen"
@@ -1225,6 +1233,10 @@
       "autoSort": {
         "title": "Auto sort tasks",
         "enable": "Auto sort tasks"
+      },
+      "haptics": {
+        "title": "Haptic feedback",
+        "enable": "Vibrate on actions"
       },
       "danger": {
         "signOut": "Sign Out",
@@ -1737,6 +1749,10 @@
         "title": "Ordenar tareas automáticamente",
         "enable": "Ordenar tareas automáticamente"
       },
+      "haptics": {
+        "title": "Respuesta háptica",
+        "enable": "Vibrar al realizar acciones"
+      },
       "danger": {
         "signOut": "Cerrar sesión",
         "deleteAccount": "Eliminar cuenta"
@@ -2245,6 +2261,10 @@
         "title": "Tri automatique des tâches",
         "enable": "Trier automatiquement les tâches"
       },
+      "haptics": {
+        "title": "Retour haptique",
+        "enable": "Vibrer lors des actions"
+      },
       "danger": {
         "signOut": "Se déconnecter",
         "deleteAccount": "Supprimer le compte"
@@ -2739,6 +2759,10 @@
       "autoSort": {
         "title": "टास्क स्वतः क्रमबद्ध करें",
         "enable": "टास्क स्वतः क्रमबद्ध करें"
+      },
+      "haptics": {
+        "title": "हैप्टिक फ़ीडबैक",
+        "enable": "क्रियाओं पर कंपन करें"
       },
       "danger": {
         "signOut": "साइन आउट",
@@ -3241,6 +3265,10 @@
         "title": "Urutkan tugas otomatis",
         "enable": "Urutkan tugas otomatis"
       },
+      "haptics": {
+        "title": "Umpan balik haptik",
+        "enable": "Bergetar saat melakukan tindakan"
+      },
       "danger": {
         "signOut": "Keluar",
         "deleteAccount": "Hapus akun"
@@ -3735,6 +3763,10 @@
       "autoSort": {
         "title": "自動並び替え",
         "enable": "タスクを自動で並び替える"
+      },
+      "haptics": {
+        "title": "触覚フィードバック",
+        "enable": "操作時に触覚でフィードバックする"
       },
       "danger": {
         "signOut": "ログアウト",
@@ -4237,6 +4269,10 @@
       "autoSort": {
         "title": "작업 자동 정렬",
         "enable": "작업 자동 정렬"
+      },
+      "haptics": {
+        "title": "햅틱 피드백",
+        "enable": "작업할 때 진동으로 알림"
       },
       "danger": {
         "signOut": "로그아웃",
@@ -4754,6 +4790,10 @@
         "title": "Ordenar tarefas automaticamente",
         "enable": "Ordenar tarefas automaticamente"
       },
+      "haptics": {
+        "title": "Feedback tátil",
+        "enable": "Vibrar ao realizar ações"
+      },
       "danger": {
         "signOut": "Sair",
         "deleteAccount": "Excluir conta"
@@ -5257,6 +5297,10 @@
       "autoSort": {
         "title": "自动排序任务",
         "enable": "自动排序任务"
+      },
+      "haptics": {
+        "title": "触觉反馈",
+        "enable": "操作时振动"
       },
       "danger": {
         "signOut": "退出登录",

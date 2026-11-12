@@ -2366,10 +2366,56 @@ private fun isValidEmail(email: String): Boolean {
     return EMAIL_REGEX.matches(email)
 }
 
-private fun validateEmailField(translations: Translations, email: String): String? {
+private val BLOCKED_EMAIL_DOMAINS = listOf(
+    "example.com",
+    "example.net",
+    "example.org",
+    "test",
+    "invalid",
+    "example",
+    "localhost",
+    "test.com",
+    "10minutemail.com",
+    "burnermail.io",
+    "dispostable.com",
+    "emailondeck.com",
+    "fakeinbox.com",
+    "getnada.com",
+    "grr.la",
+    "guerrillamail.biz",
+    "guerrillamail.com",
+    "guerrillamail.net",
+    "guerrillamail.org",
+    "mail.tm",
+    "mailcatch.com",
+    "maildrop.cc",
+    "mailinator.com",
+    "mohmal.com",
+    "sharklasers.com",
+    "spam4.me",
+    "temp-mail.org",
+    "tempmail.com",
+    "tempmailo.com",
+    "throwawaymail.com",
+    "trashmail.com",
+    "yopmail.com",
+)
+
+private fun isBlockedEmailDomain(email: String): Boolean {
+    val domain = email.trim().lowercase().substringAfterLast("@")
+    return BLOCKED_EMAIL_DOMAINS.any { domain == it || domain.endsWith(".$it") }
+}
+
+private fun validateEmailField(
+    translations: Translations,
+    email: String,
+    rejectBlockedDomain: Boolean = false,
+): String? {
     return when {
         email.isBlank() -> translations.t("auth.validation.email.required")
         !isValidEmail(email) -> translations.t("auth.validation.email.invalid")
+        rejectBlockedDomain && isBlockedEmailDomain(email) ->
+            translations.t("auth.validation.email.domainNotAllowed")
         else -> null
     }
 }
@@ -4845,7 +4891,7 @@ private fun SignUpView(language: String) {
             text = if (isLoading) t.t("auth.button.signingUp") else t.t("auth.button.signup"),
             onClick = {
                 val trimmedEmail = email.trim()
-                emailError = validateEmailField(t, trimmedEmail)
+                emailError = validateEmailField(t, trimmedEmail, rejectBlockedDomain = true)
                 passwordError = validatePasswordField(t, password, requireLength = true)
                 confirmPasswordError = validateConfirmPasswordField(t, password, confirmPassword)
                 if (emailError != null || passwordError != null || confirmPasswordError != null) {
@@ -9109,12 +9155,15 @@ private fun SettingsView(
 
     fun submitEmailChange() {
         if (isChangingEmail || newEmail.isBlank()) return
+        val trimmedEmail = newEmail.trim()
+        emailChangeError = validateEmailField(t, trimmedEmail, rejectBlockedDomain = true)
+        if (emailChangeError != null) return
+        newEmail = trimmedEmail
         isChangingEmail = true
-        emailChangeError = null
         scope.launch {
             try {
                 val user = Firebase.auth.currentUser ?: return@launch
-                user.verifyBeforeUpdateEmail(newEmail).await()
+                user.verifyBeforeUpdateEmail(trimmedEmail).await()
                 logEmailChangeRequested()
                 emailChangeSuccess = true
                 newEmail = ""

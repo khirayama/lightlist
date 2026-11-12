@@ -31,7 +31,8 @@
       "validation": {
         "email": {
           "required": "يرجى إدخال عنوان بريد إلكتروني",
-          "invalid": "يرجى إدخال عنوان بريد إلكتروني صالح"
+          "invalid": "يرجى إدخال عنوان بريد إلكتروني صالح",
+          "domainNotAllowed": "لا يمكن استخدام نطاق البريد الإلكتروني هذا"
         },
         "password": {
           "required": "يرجى إدخال كلمة المرور",
@@ -531,7 +532,8 @@
       "validation": {
         "email": {
           "required": "Bitte gib eine E-Mail-Adresse ein",
-          "invalid": "Bitte gib eine gültige E-Mail-Adresse ein"
+          "invalid": "Bitte gib eine gültige E-Mail-Adresse ein",
+          "domainNotAllowed": "Diese E-Mail-Domain kann nicht verwendet werden"
         },
         "password": {
           "required": "Bitte gib ein Passwort ein",
@@ -1042,7 +1044,8 @@
       "validation": {
         "email": {
           "required": "Please enter an email address",
-          "invalid": "Please enter a valid email address"
+          "invalid": "Please enter a valid email address",
+          "domainNotAllowed": "This email domain can't be used"
         },
         "password": {
           "required": "Please enter a password",
@@ -1552,7 +1555,8 @@
       "validation": {
         "email": {
           "required": "Ingresa una dirección de correo electrónico",
-          "invalid": "Ingresa una dirección de correo válida"
+          "invalid": "Ingresa una dirección de correo válida",
+          "domainNotAllowed": "No se puede usar este dominio de correo electrónico"
         },
         "password": {
           "required": "Ingresa una contraseña",
@@ -2067,7 +2071,8 @@
       "validation": {
         "email": {
           "required": "Veuillez saisir une adresse e-mail",
-          "invalid": "Veuillez saisir une adresse e-mail valide"
+          "invalid": "Veuillez saisir une adresse e-mail valide",
+          "domainNotAllowed": "Ce domaine d'e-mail ne peut pas être utilisé"
         },
         "password": {
           "required": "Veuillez saisir un mot de passe",
@@ -2579,7 +2584,8 @@
       "validation": {
         "email": {
           "required": "कृपया ईमेल पता दर्ज करें",
-          "invalid": "कृपया मान्य ईमेल पता दर्ज करें"
+          "invalid": "कृपया मान्य ईमेल पता दर्ज करें",
+          "domainNotAllowed": "यह ईमेल डोमेन उपयोग नहीं किया जा सकता"
         },
         "password": {
           "required": "कृपया पासवर्ड दर्ज करें",
@@ -3078,7 +3084,8 @@
       "validation": {
         "email": {
           "required": "Silakan masukkan alamat email",
-          "invalid": "Silakan masukkan alamat email yang valid"
+          "invalid": "Silakan masukkan alamat email yang valid",
+          "domainNotAllowed": "Domain email ini tidak dapat digunakan"
         },
         "password": {
           "required": "Silakan masukkan kata sandi",
@@ -3583,7 +3590,8 @@
       "validation": {
         "email": {
           "required": "メールアドレスを入力してください",
-          "invalid": "有効なメールアドレスを入力してください"
+          "invalid": "有効なメールアドレスを入力してください",
+          "domainNotAllowed": "このメールアドレスのドメインは使用できません"
         },
         "password": {
           "required": "パスワードを入力してください",
@@ -4082,7 +4090,8 @@
       "validation": {
         "email": {
           "required": "이메일 주소를 입력해 주세요",
-          "invalid": "유효한 이메일 주소를 입력해 주세요"
+          "invalid": "유효한 이메일 주소를 입력해 주세요",
+          "domainNotAllowed": "이 이메일 도메인은 사용할 수 없습니다"
         },
         "password": {
           "required": "비밀번호를 입력해 주세요",
@@ -4588,7 +4597,8 @@
       "validation": {
         "email": {
           "required": "Digite um endereço de e-mail",
-          "invalid": "Digite um endereço de e-mail válido"
+          "invalid": "Digite um endereço de e-mail válido",
+          "domainNotAllowed": "Este domínio de e-mail não pode ser usado"
         },
         "password": {
           "required": "Digite uma senha",
@@ -5108,7 +5118,8 @@
       "validation": {
         "email": {
           "required": "请输入电子邮箱地址",
-          "invalid": "请输入有效的电子邮箱地址"
+          "invalid": "请输入有效的电子邮箱地址",
+          "domainNotAllowed": "无法使用此电子邮箱域名"
         },
         "password": {
           "required": "请输入密码",

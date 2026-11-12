@@ -2637,6 +2637,49 @@ private func isValidEmail(_ email: String) -> Bool {
     return email.range(of: pattern, options: .regularExpression) != nil
 }
 
+private let blockedEmailDomains = [
+    "example.com",
+    "example.net",
+    "example.org",
+    "test",
+    "invalid",
+    "example",
+    "localhost",
+    "test.com",
+    "10minutemail.com",
+    "burnermail.io",
+    "dispostable.com",
+    "emailondeck.com",
+    "fakeinbox.com",
+    "getnada.com",
+    "grr.la",
+    "guerrillamail.biz",
+    "guerrillamail.com",
+    "guerrillamail.net",
+    "guerrillamail.org",
+    "mail.tm",
+    "mailcatch.com",
+    "maildrop.cc",
+    "mailinator.com",
+    "mohmal.com",
+    "sharklasers.com",
+    "spam4.me",
+    "temp-mail.org",
+    "tempmail.com",
+    "tempmailo.com",
+    "throwawaymail.com",
+    "trashmail.com",
+    "yopmail.com",
+]
+
+private func isBlockedEmailDomain(_ email: String) -> Bool {
+    let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    guard let domain = normalized.split(separator: "@").last.map(String.init) else {
+        return false
+    }
+    return blockedEmailDomains.contains { domain == $0 || domain.hasSuffix(".\($0)") }
+}
+
 @MainActor
 private func resolveAuthErrorMessage(translations: Translations, error: Error) -> String {
     let nsError = error as NSError
@@ -3609,10 +3652,15 @@ private struct SignUpView: View {
     private func signUp() {
         guard networkStatus.isOnline else { return }
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        emailError =
-            trimmedEmail.isEmpty
-            ? translations.t("auth.validation.email.required")
-            : (!isValidEmail(trimmedEmail) ? translations.t("auth.validation.email.invalid") : nil)
+        if trimmedEmail.isEmpty {
+            emailError = translations.t("auth.validation.email.required")
+        } else if !isValidEmail(trimmedEmail) {
+            emailError = translations.t("auth.validation.email.invalid")
+        } else if isBlockedEmailDomain(trimmedEmail) {
+            emailError = translations.t("auth.validation.email.domainNotAllowed")
+        } else {
+            emailError = nil
+        }
         passwordError =
             password.isEmpty
             ? translations.t("auth.validation.password.required")
@@ -6994,9 +7042,14 @@ private struct SettingsView: View {
         isChangingEmail = true
         emailChangeError = nil
         let trimmedEmail = newEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isValidEmail(trimmedEmail) else {
+        if !isValidEmail(trimmedEmail) {
             isChangingEmail = false
             emailChangeError = translations.t("auth.validation.email.invalid")
+            return
+        }
+        if isBlockedEmailDomain(trimmedEmail) {
+            isChangingEmail = false
+            emailChangeError = translations.t("auth.validation.email.domainNotAllowed")
             return
         }
         newEmail = trimmedEmail

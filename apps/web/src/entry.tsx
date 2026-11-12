@@ -1092,6 +1092,48 @@ const validateEmail = (email: string): boolean => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
 
+const BLOCKED_EMAIL_DOMAINS = [
+  "example.com",
+  "example.net",
+  "example.org",
+  "test",
+  "invalid",
+  "example",
+  "localhost",
+  "test.com",
+  "10minutemail.com",
+  "burnermail.io",
+  "dispostable.com",
+  "emailondeck.com",
+  "fakeinbox.com",
+  "getnada.com",
+  "grr.la",
+  "guerrillamail.biz",
+  "guerrillamail.com",
+  "guerrillamail.net",
+  "guerrillamail.org",
+  "mail.tm",
+  "mailcatch.com",
+  "maildrop.cc",
+  "mailinator.com",
+  "mohmal.com",
+  "sharklasers.com",
+  "spam4.me",
+  "temp-mail.org",
+  "tempmail.com",
+  "tempmailo.com",
+  "throwawaymail.com",
+  "trashmail.com",
+  "yopmail.com",
+];
+
+const isBlockedEmailDomain = (email: string): boolean => {
+  const domain = email.trim().toLowerCase().split("@").pop() ?? "";
+  return BLOCKED_EMAIL_DOMAINS.some(
+    (blocked) => domain === blocked || domain.endsWith(`.${blocked}`),
+  );
+};
+
 const resolveErrorMessage = (
   error: unknown,
   t: TFunction<"translation">,
@@ -1125,6 +1167,7 @@ const resolveErrorMessage = (
 const validateAuthForm = (
   data: AuthFormData,
   t: TFunction<"translation">,
+  rejectBlockedDomain = false,
 ): FormErrors => {
   const errors: FormErrors = {};
 
@@ -1132,6 +1175,8 @@ const validateAuthForm = (
     errors.email = t("auth.validation.email.required");
   } else if (!validateEmail(data.email)) {
     errors.email = t("auth.validation.email.invalid");
+  } else if (rejectBlockedDomain && isBlockedEmailDomain(data.email)) {
+    errors.email = t("auth.validation.email.domainNotAllowed");
   }
 
   if (!data.password) {
@@ -1160,6 +1205,8 @@ const validateEmailChangeForm = (
     errors.email = t("auth.validation.email.required");
   } else if (!validateEmail(data.newEmail)) {
     errors.email = t("auth.validation.email.invalid");
+  } else if (isBlockedEmailDomain(data.newEmail)) {
+    errors.email = t("auth.validation.email.domainNotAllowed");
   }
   return errors;
 };
@@ -10938,10 +10985,11 @@ function LoginPage() {
     action: () => Promise<void>,
     validationData: Parameters<typeof validateAuthForm>[0],
     setLoadingState: (loading: boolean) => void,
+    rejectBlockedDomain = false,
   ) => {
     e.preventDefault();
 
-    const newErrors = validateAuthForm(validationData, t);
+    const newErrors = validateAuthForm(validationData, t, rejectBlockedDomain);
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -10988,6 +11036,7 @@ function LoginPage() {
       },
       { email, password, confirmPassword, requirePasswordConfirm: true },
       setLoading,
+      true,
     );
   };
 

@@ -51,6 +51,7 @@ const getRegistrations = (value: unknown): DeviceRegistration[] => {
   if (!isRecord(value)) return [];
   return Object.entries(value).flatMap(([deviceId, entry]) => {
     if (
+      deviceId.length > 0 &&
       isRecord(entry) &&
       typeof entry.token === "string" &&
       entry.token.length > 0 &&

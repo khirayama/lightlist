@@ -27,16 +27,20 @@ service cloud.firestore {
 
       // read ではなく get にすることで、一括取得(list)を禁止
       allow get: if resource == null
-        || get(/databases/$(database)/documents/taskLists/$(resource.data.taskListId)).data.shareCode == shareCode;
+        || (resource.data.taskListId is string
+          && resource.data.taskListId.matches('^[A-Za-z0-9_-]{1,128}$')
+          && get(/databases/$(database)/documents/taskLists/$(resource.data.taskListId)).data.shareCode == shareCode);
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(['taskListId', 'createdAt'])
         && request.resource.data.taskListId is string
+        && request.resource.data.taskListId.matches('^[A-Za-z0-9_-]{1,128}$')
         && request.resource.data.createdAt is int
         && canAccessTaskList(request.resource.data.taskListId)
         && isBoundToTaskList(request.resource.data.taskListId);
       allow update: if false;
       allow delete: if request.auth != null
         && resource.data.taskListId is string
+        && resource.data.taskListId.matches('^[A-Za-z0-9_-]{1,128}$')
         && canAccessTaskList(resource.data.taskListId);
     }
 
@@ -119,8 +123,10 @@ service cloud.firestore {
       function hasValidTaskListFields() {
         let background = request.resource.data.get('background', null);
         return request.resource.data.id is string
+          && request.resource.data.id.matches('^[A-Za-z0-9_-]{1,128}$')
           && request.resource.data.name is string
           && request.resource.data.tasks is map
+          && !request.resource.data.tasks.keys().hasAny(['', '__proto__', 'constructor', 'prototype'])
           && request.resource.data.history is list
           && request.resource.data.history.size() <= 300
           && request.resource.data.memberCount is int

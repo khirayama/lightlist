@@ -21,6 +21,7 @@ export type TaskSettings = {
 };
 
 const MEMBER_KEY_PREFIX = "lightlist-member:";
+const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 export const memberKeyOf = (uid: string): string =>
   createHash("sha256").update(`${MEMBER_KEY_PREFIX}${uid}`).digest("hex");
@@ -39,6 +40,7 @@ export const isValidDateKey = (value: string): boolean => {
 
 export const isCompleteTask = (taskId: string, value: unknown): value is Task =>
   isRecord(value) &&
+  TASK_ID_PATTERN.test(taskId) &&
   value.id === taskId &&
   typeof value.text === "string" &&
   typeof value.completed === "boolean" &&

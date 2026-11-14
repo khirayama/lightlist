@@ -75,6 +75,7 @@ import {
   disableNetwork,
   doc,
   enableNetwork,
+  FieldPath,
   getDoc,
   getDocFromCache,
   getDocFromServer,
@@ -289,6 +290,8 @@ type TaskListStore = {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isSafeId = (id: string): boolean => /^[A-Za-z0-9_-]{1,128}$/.test(id);
 
 // For App
 // User, SettingsStore, TaskListOrderStore, TaskListStoreのデータを利用して、生成される
@@ -947,7 +950,7 @@ i18next
 
 const ERROR_KEY_MAP = {
   "auth/invalid-credential": "auth.error.invalidCredential",
-  "auth/user-not-found": "auth.error.userNotFound",
+  "auth/user-not-found": "auth.error.invalidCredential",
   "auth/email-already-in-use": "auth.error.emailAlreadyInUse",
   "auth/weak-password": "auth.error.weakPassword",
   "auth/invalid-email": "auth.error.invalidEmail",
@@ -988,12 +991,14 @@ const isCodedError = (error: unknown): error is { code: string } =>
     typeof (error as { code?: unknown }).code === "string",
   );
 
-const hasMessage = (error: unknown): error is { message: string } =>
-  Boolean(
-    error &&
-    typeof error === "object" &&
-    typeof (error as { message?: unknown }).message === "string",
-  );
+class LocalizedError extends Error {
+  readonly translationKey: string;
+
+  constructor(translationKey: string) {
+    super(translationKey);
+    this.translationKey = translationKey;
+  }
+}
 
 const isAbortError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") {
@@ -1139,28 +1144,12 @@ const resolveErrorMessage = (
   t: TFunction<"translation">,
   fallbackKey: Parameters<TFunction<"translation">>[0],
 ): string => {
-  if (typeof error === "string") {
-    return error;
+  if (error instanceof LocalizedError) {
+    return t(error.translationKey as never);
   }
-
   if (isCodedError(error)) {
     return getErrorMessage(error.code, t) ?? t(fallbackKey as never);
   }
-
-  if (error instanceof Error && error.message) {
-    if (isAbortError(error)) {
-      return t(fallbackKey as never);
-    }
-    return error.message;
-  }
-
-  if (hasMessage(error)) {
-    if (isAbortError(error)) {
-      return t(fallbackKey as never);
-    }
-    return error.message;
-  }
-
   return t(fallbackKey as never);
 };
 
@@ -1650,6 +1639,7 @@ function isCompleteTaskStoreTask(
   if (typeof value !== "object" || value === null) return false;
   const task = value as Record<string, unknown>;
   return (
+    isSafeId(taskId) &&
     task.id === taskId &&
     typeof task.text === "string" &&
     typeof task.completed === "boolean" &&
@@ -1665,7 +1655,10 @@ function getMalformedTaskIds(taskListData: unknown): string[] {
   const tasks = (taskListData as Record<string, unknown>).tasks;
   if (typeof tasks !== "object" || tasks === null) return [];
   return Object.entries(tasks)
-    .filter(([taskId, task]) => !isCompleteTaskStoreTask(taskId, task))
+    .filter(
+      ([taskId, task]) =>
+        taskId.length > 0 && !isCompleteTaskStoreTask(taskId, task),
+    )
     .map(([taskId]) => taskId)
     .sort();
 }
@@ -1685,14 +1678,15 @@ function scheduleMalformedTaskCleanup(
   void enqueueTaskListMutation(
     taskListId,
     async () => {
-      const updates: Record<string, unknown> = { updatedAt: Date.now() };
-      malformedTaskIds.forEach((taskId) => {
-        updates[`tasks.${taskId}`] = deleteField();
-      });
       return {
         committed: updateDoc(
           doc(getDbInstance(), "taskLists", taskListId),
-          updates,
+          "updatedAt",
+          Date.now(),
+          ...malformedTaskIds.flatMap((taskId) => [
+            new FieldPath("tasks", taskId),
+            deleteField(),
+          ]),
         ),
       };
     },
@@ -2625,9 +2619,20 @@ async function signOut(notificationDeviceRegistered: boolean) {
 async function sendPasswordResetEmail(email: string, language?: Language) {
   const auth = getAuthInstance();
   const languageToUse = await getPreferredLanguage(language);
-  await withAuthLanguage(languageToUse, () =>
-    firebaseSendPasswordResetEmail(auth, email),
-  );
+  try {
+    await withAuthLanguage(languageToUse, () =>
+      firebaseSendPasswordResetEmail(auth, email),
+    );
+  } catch (error) {
+    if (
+      isCodedError(error) &&
+      (error.code === "auth/user-not-found" ||
+        error.code === "auth/invalid-credential")
+    ) {
+      return;
+    }
+    throw error;
+  }
 }
 
 async function sendEmailChangeVerification(newEmail: string) {
@@ -3082,8 +3087,7 @@ function assertShareCodeStore(
   if (
     !isRecord(data) ||
     typeof data.taskListId !== "string" ||
-    !data.taskListId ||
-    data.taskListId.includes("/") ||
+    !isSafeId(data.taskListId) ||
     typeof data.createdAt !== "number" ||
     !Number.isFinite(data.createdAt)
   ) {
@@ -3974,6 +3978,7 @@ async function addSharedTaskListToOrder(taskListId: string, shareCode: string) {
   const uid = requireCurrentUserId();
   const normalizedCode = normalizeShareCode(shareCode);
   if (!normalizedCode) throw new Error("Invalid share code");
+  if (!isSafeId(taskListId)) throw new Error("Invalid task list ID");
   await enqueueTaskListMutations(
     [taskListId, `taskListOrder:${uid}`],
     async () => {
@@ -4057,10 +4062,16 @@ async function removeShareCode(taskListId: string) {
 
 function generateRandomShareCode() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  return Array.from(
-    crypto.getRandomValues(new Uint32Array(8)),
-    (value) => chars[value % chars.length],
-  ).join("");
+  const largestAcceptableByte = 256 - (256 % chars.length);
+  let result = "";
+  while (result.length < 8) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(16))) {
+      if (byte >= largestAcceptableByte) continue;
+      result += chars[byte % chars.length];
+      if (result.length === 8) break;
+    }
+  }
+  return result;
 }
 
 async function generateShareCode(taskListId: string): Promise<string> {
@@ -10180,7 +10191,9 @@ function AppShellPage() {
     const taskListId = new URLSearchParams(window.location.search).get(
       "taskListId",
     );
-    return taskListId ? { taskListId, mode: "replace" } : null;
+    return taskListId && isSafeId(taskListId)
+      ? { taskListId, mode: "replace" }
+      : null;
   });
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -10189,7 +10202,8 @@ function AppShellPage() {
       if (
         isRecord(data) &&
         data.type === "lightlist-open-task-list" &&
-        typeof data.taskListId === "string"
+        typeof data.taskListId === "string" &&
+        isSafeId(data.taskListId)
       ) {
         setNotificationTaskListRoute({
           taskListId: data.taskListId,
@@ -10440,7 +10454,7 @@ function AppShellPage() {
         setError(null);
         const taskListId = await fetchTaskListIdByShareCode(code);
         if (!taskListId) {
-          throw new Error(t("pages.sharecode.notFound"));
+          throw new LocalizedError("pages.sharecode.notFound");
         }
 
         if (stateTaskLists.some((taskList) => taskList.id === taskListId)) {

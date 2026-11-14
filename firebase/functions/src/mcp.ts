@@ -28,6 +28,10 @@ import {
 const API_TOKEN_PATTERN = /^ll_[A-Za-z0-9_-]{43}$/;
 const MAX_WRITE_ATTEMPTS = 3;
 const FAILED_PRECONDITION = 9;
+const MAX_REQUEST_BODY_BYTES = 1_048_576;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 240;
+const RATE_LIMIT_MAX_ENTRIES = 10_000;
 
 class ToolError extends Error {}
 
@@ -51,6 +55,30 @@ const resolveUid = async (authorization: string | undefined): Promise<string | n
   const snapshot = await getFirestore().collection("apiTokens").doc(tokenHash).get();
   const uid: unknown = snapshot.data()?.uid;
   return typeof uid === "string" && uid.length > 0 ? uid : null;
+};
+
+const rateLimitWindows = new Map<string, { startsAt: number; count: number }>();
+
+const consumeRateLimit = (uid: string): boolean => {
+  const now = Date.now();
+  const window = rateLimitWindows.get(uid);
+  if (!window || now - window.startsAt >= RATE_LIMIT_WINDOW_MS) {
+    if (rateLimitWindows.size >= RATE_LIMIT_MAX_ENTRIES) {
+      for (const [key, value] of rateLimitWindows) {
+        if (now - value.startsAt >= RATE_LIMIT_WINDOW_MS) rateLimitWindows.delete(key);
+      }
+      const oldest = rateLimitWindows.keys().next().value;
+      if (rateLimitWindows.size >= RATE_LIMIT_MAX_ENTRIES && oldest !== undefined) {
+        rateLimitWindows.delete(oldest);
+      }
+    }
+    rateLimitWindows.delete(uid);
+    rateLimitWindows.set(uid, { startsAt: now, count: 1 });
+    return true;
+  }
+  if (window.count >= RATE_LIMIT_MAX_REQUESTS) return false;
+  window.count += 1;
+  return true;
 };
 
 const toTaskOutput = (task: Task) => ({
@@ -165,7 +193,7 @@ const createServer = (uid: string): McpServer => {
         };
         const taskLists = listsSnapshot.docs.flatMap((snapshot) => {
           const data = snapshot.data();
-          if (typeof data.name !== "string") return [];
+          if (!idSchema.safeParse(snapshot.id).success || typeof data.name !== "string") return [];
           return [
             {
               id: snapshot.id,
@@ -364,9 +392,19 @@ const mcpHandler = createMcpHandler(
 export const mcp = onRequest(
   { region: "asia-northeast1", maxInstances: 1, memory: "256MiB", timeoutSeconds: 60 },
   async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.set("X-Content-Type-Options", "nosniff");
+    if ((req.rawBody?.length ?? 0) > MAX_REQUEST_BODY_BYTES) {
+      res.status(413).json({ error: "request_too_large" });
+      return;
+    }
     const uid = await resolveUid(req.get("authorization"));
     if (!uid) {
       res.status(401).set("WWW-Authenticate", "Bearer").json({ error: "invalid_token" });
+      return;
+    }
+    if (!consumeRateLimit(uid)) {
+      res.status(429).set("Retry-After", "60").json({ error: "rate_limited" });
       return;
     }
     const headers = new Headers();
@@ -376,11 +414,12 @@ export const mcp = onRequest(
       }
     }
     const hasBody = req.method !== "GET" && req.method !== "HEAD";
+    const body = hasBody && req.rawBody ? new Uint8Array(req.rawBody) : undefined;
     const response = await mcpHandler.fetch(
-      new Request(`https://${req.hostname}${req.originalUrl}`, {
+      new Request("https://lightlist.app/mcp", {
         method: req.method,
         headers,
-        body: hasBody ? new Uint8Array(req.rawBody) : undefined,
+        body,
       }),
       {
         authInfo: { token: "", clientId: uid, scopes: [], extra: { uid } },
@@ -388,7 +427,10 @@ export const mcp = onRequest(
       },
     );
     res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== "cache-control") res.setHeader(key, value);
+    });
+    res.setHeader("Cache-Control", "no-store");
     if (response.body) {
       for await (const chunk of response.body) res.write(chunk);
     }

@@ -114,9 +114,8 @@ simulator-list:
   xcrun simctl list devices available
 
 simulator target='':
-  open -a Simulator
-  xcrun simctl boot "{{target}}"
-  xcrun simctl bootstatus "{{target}}" -b
+  open -a DeviceHub || true
+  udid=$(echo "{{target}}" | grep -qE '^[0-9A-F-]{36}$' && echo "{{target}}" || xcrun simctl list devices available | grep -F "    {{target}} (" | tail -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/'); xcrun simctl boot "$udid" 2>/dev/null || true; xcrun simctl bootstatus "$udid" -b
 
 screenshot target='current':
   xcrun simctl io booted screenshot ios_{{target}}.png

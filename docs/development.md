@@ -32,6 +32,8 @@
 | `just check-functions` | 通知 Functions と課金停止 Functions の TypeScript build |
 | `just audit-web` | Web の開発用依存を含む npm 監査 |
 | `just audit-functions` | 両 Functions の npm 監査 |
+| `just audit-ios` / `just audit-android` / `just audit-mobile` | iOS の SwiftPM、Android の Maven 依存の OSV 照合 |
+| `just app-links` / `just app-links-check` | `apps/web/public/.well-known` の Universal Links / App Links ファイルの生成と設定値との一致確認 |
 
 Web の整形は `npm run format` を使う。生成された locale・license とローカル agent 設定は整形対象から除外する。
 
@@ -39,8 +41,8 @@ Web のみを確認する場合は `apps/web` の `npm run check` / `npm run bui
 
 ## 脆弱性の判定
 
-npm の監査結果は依存経路と実行環境を合わせて判断する。Web の Firestore が依存する `@grpc/grpc-js` は Node.js 専用で、ブラウザ bundle には含まれない。[証明書の認可判定](https://github.com/grpc/grpc-node/security/advisories/GHSA-m9gg-hp2v-232j)と[サーバーエラーの情報漏洩](https://github.com/grpc/grpc-node/security/advisories/GHSA-f596-whhp-79r4)は Web アプリの実行環境では対象外とする。この指摘は監査出力から隠さず、`npm audit` が非ゼロで終了する場合も advisory の内容を確認する。Firestore の指定を `overrides` で変更したり、`npm audit fix --force` で Firebase を降格させたりしない。Web プロジェクトで Node.js 向け Firestore や gRPC サーバーを使う場合は、この対象外判定を再評価する。
+`just release` は Web / Functions の npm 監査と native の OSV 照合（`just audit-mobile`）が非ゼロで終了すると止まる。実行環境では対象外と判断できる advisory（Web の Firestore が依存する Node.js 専用の `@grpc/grpc-js` など）でも監査出力から隠さず、依存の更新で解消してからリリースする。Firestore の指定を `overrides` で変更したり、`npm audit fix --force` で Firebase を降格させたりしない。
 
 3つの Node.js プロジェクトは `overrides` で `glob` / `minimatch` を修正版へ引き上げる。Functions では `@google-cloud/firestore-api` 配下の `gaxios` が `rimraf` → `glob` を実行時依存に含むため、非 force の `npm audit fix` でも `google-gax` / `gcp-metadata` が降格される。lockfile の差分で降格がないことを確認し、降格する場合は `overrides` で解消する。
 
-iOS は `Package.resolved` の revision、Android は `libs.versions.toml` の Maven 座標・固定版を OSV API で照合する。カタログに版がない BoM 管理の実ライブラリや native binary の内部依存まですべて監査した結果として扱わない。
+iOS は `Package.resolved` の固定版、Android は Gradle の `releaseRuntimeClasspath` で実際に解決された全 Maven 座標・版を OSV API で照合する（`just audit-mobile`）。BOM 管理・推移依存も含むが、native binary の内部依存までは監査した結果として扱わない。

@@ -52,6 +52,8 @@ Task は「trim 後に 1 文字以上の `text`」「空でない `date`」「`p
 
 Task の decode では `id` / `text` / `completed` / `date` / `order` / `pinned` の全fieldと型を検証する。他端末で削除された task ID へ古い端末がドット記法のfield更新を送ると、Firestore上で一部fieldだけのmapが再生成されることがある。この部分mapは task として表示せず、当該 document が cache 由来でも pending write 由来でもない server 確定 snapshot で検出した場合に `tasks.<id>` を削除する（判定は document ごとの metadata で行い、他の document の pending write では見送らない）。
 
+Task ID は `^[A-Za-z0-9_-]{1,128}$` を満たすものだけを表示対象にする。満たさない ID は不正 task として除外し、server 確定 snapshot からの削除にはドット区切りの文字列ではなく `FieldPath` を使う。MCP の `idSchema` も同じ形式を要求する。Rules は空文字と JavaScript のプロトタイプ汚染に使う `__proto__` / `constructor` / `prototype` の key を拒否し、task list document ID と共有コードが指す taskList ID も同じ形式に制限する。deep link / 通知 / 共有コードのプレビューから受け取る taskList ID も同じ形式を検証してから navigation と Firestore path に使う。
+
 Web は `settings` / `taskListOrder` / `taskLists` / `shareCodes` の購読・単発取得を共通の境界検証へ通し、トップレベルfieldと動的mapの全要素を検証してからドメインモデルへ渡す。不正な `settings` と `taskListOrder` の必須時刻 field は読み込みエラーとし、不正な `taskLists` document は当該documentだけを表示対象から外す。3 プラットフォームの `taskListOrder` の動的要素は、有効な document ID（空文字・`/` を含む ID は除外）と有限の数値 `order` を持つ map だけを採用し、不正な要素やドットを含む余分な数値 field は無視する。bool は数値として扱わない。task map 内の不正要素はリスト全体を無効にせず除外し、server確定snapshotで自動削除する。
 
 iOS / Android の `taskLists` と `settings` の読み取りは型付きのレコード（iOS は `Codable`、Android は map から手で組み立てる record）へ変換してからドメインモデルへ渡す。トップレベルの `taskLists` ドキュメントが型不正の場合は当該リストを表示対象から外し、空レコードへ劣化させない。動的なキーを持つ `taskListOrder`、部分mapの検証・削除、ドット記法の差分更新だけはFirestore APIの境界で動的データを使う。`theme` / `language` / `taskInsertPosition` / `autoSort` が不正な型・値の場合は設定画面を読み込みエラーとして扱い、`startupView` の不正値だけは `taskList` に正規化する。

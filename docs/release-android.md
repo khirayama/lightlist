@@ -9,7 +9,7 @@
 
 - Android の Gradle は build cache・configuration cache・daemon・parallel execution・file-system watching・tooling parallelism を有効にする。Kotlin は incremental compilation を有効にし、Gradle daemon の heap は 4GB を割り当てる。
 - Kotlin の増分コンパイルキャッシュが壊れた場合は、`cd apps/android && ./gradlew clean assembleDebug` を一度実行して生成物を再構築する。通常の `just build` は clean を実行せず、configuration cache と build cache の再利用を優先する。
-- `just build-release` は内部確認用 APK のため release lint（`lintVital`）を除外し、R8 縮小・resource shrinking・署名を実行する。upload key の署名環境変数がなければ debug keystore で署名する。Google Play 提出用の `just bundle` は release lint を含む完全な release build とする。Crashlytics Gradle plugin は runtime が必要とする build ID を注入するため全 variant に適用し、mapping upload は upload key で署名する build だけで有効にする。
+- `just build-release` は内部確認用 APK のため release lint（`lintVital`）を除外し、R8 縮小・resource shrinking・署名を実行する。upload key の署名環境変数がなければ `lightlistAllowDebugReleaseSigning=true` を明示して debug keystore で署名する。直接の `assembleRelease` / `bundleRelease` は署名環境変数がない場合に失敗する。Google Play 提出用の `just bundle` は release lint を含む完全な release build とする。Crashlytics Gradle plugin は runtime が必要とする build ID を注入するため全 variant に適用し、mapping upload は upload key で署名する build だけで有効にする。
 
 ## 判断事項
 
@@ -57,20 +57,7 @@
 ### 4. App Links / deep links
 
 - `https://lightlist.app/sharecodes/?code=CODE` を release build で確認する。
-- App Links の自動検証には `https://lightlist.app/.well-known/assetlinks.json` が必要。次の内容で `apps/web/public/.well-known/assetlinks.json` を作り、`sha256_cert_fingerprints` に **Play App Signing certificate** の SHA-256 fingerprint（大文字・コロン区切り）を書いて Web を配信する。upload key の fingerprint だけを書いてはいけない。direct install の署名も検証する必要がある場合だけ、その SHA-256 を配列に追加する。
-
-```json
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.lightlist.app",
-      "sha256_cert_fingerprints": ["<SHA256>"]
-    }
-  }
-]
-```
+- App Links の自動検証には `https://lightlist.app/.well-known/assetlinks.json` が必要。**Play App Signing certificate** の SHA-256 fingerprint を `LIGHTLIST_ANDROID_SHA256_CERT_FINGERPRINT` に設定して `just app-links` を実行し、`apps/web/public/.well-known/assetlinks.json` を生成して Web を配信する。upload key の fingerprint だけを設定してはいけない。direct install の署名も検証する場合は、その SHA-256 を同じ環境変数へカンマ区切りで追加する。設定値との一致は `just app-links-check` で確認する。
 
 - endpoint は redirect なしの JSON (`Content-Type: application/json`) を返す。デプロイ後、release build を端末へ入れて次を確認する。
 

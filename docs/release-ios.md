@@ -2,7 +2,7 @@
 
 ## ビルドツール
 
-- `Lightlist.xcodeproj` は Xcode 26.6 と XcodeGen 2.46.0 で `apps/ios/project.yml` から生成する。Swift 6 language mode、MainActor デフォルト分離 + Approachable Concurrency、Firebase Apple SDK 12.19.3、LicensePlist 3.28.3 を使う。Debug は incremental compilation・単一 active architecture・dwarf、Release は whole-module compilation・全 architecture・dSYM を使い分ける。CLI の Simulator 用 `just build` / `just build-release` は Apple Silicon の arm64 のみを対象にし、`just build` / `just build-release` / `just archive` は index store を無効化する。これらのコマンドは `-showBuildTimingSummary` でビルド計測も出力する。Debug では Crashlytics の dSYM upload を実行しない。依存パッケージ解決と build tool plugin の実行を含め、提出物の生成前に `just build` または `just archive` を実行する。
+- `Lightlist.xcodeproj` は Xcode 27.2 と XcodeGen 2.46.0 で `apps/ios/project.yml` から生成する。Swift 6 language mode、MainActor デフォルト分離 + Approachable Concurrency、Firebase Apple SDK 12.19.3、LicensePlist 3.28.3 を使う。Debug は incremental compilation・単一 active architecture・dwarf、Release は whole-module compilation・全 architecture・dSYM を使い分ける。CLI の Simulator 用 `just build` / `just build-release` は Apple Silicon の arm64 のみを対象にし、`just build` / `just build-release` / `just archive` は index store を無効化する。これらのコマンドは `-showBuildTimingSummary` でビルド計測も出力する。Debug では Crashlytics の dSYM upload を実行しない。依存パッケージ解決と build tool plugin の実行を含め、提出物の生成前に `just build` または `just archive` を実行する。
 - iOS のカスタム配色は `Lightlist/Resources/Assets.xcassets/AppPalette*.colorset` の Light/Dark named color を正とし、SwiftUI から `Color("AppPalette...")` で参照する。MainActor 隔離されたコードから `UIColor` の dynamic provider クロージャを生成しない。
 
 ## 判断事項
@@ -49,20 +49,7 @@
 ### 4. Universal Links / deep links
 
 - associated domains は `applinks:lightlist.app`（`Lightlist/Lightlist.entitlements`）。
-- Universal Links を有効にするには `https://lightlist.app/.well-known/apple-app-site-association` を配置する（Content-Type: `application/json`、リダイレクトなし）。Team ID が決まったら次の内容で `apps/web/public/.well-known/apple-app-site-association` を作り、Web を配信する。デプロイ後に実際の endpoint が JSON を返すことを確認する。
-
-```json
-{
-  "applinks": {
-    "details": [
-      {
-        "appIDs": ["<TEAM_ID>.com.lightlist.app"],
-        "components": [{ "/": "/sharecodes/" }]
-      }
-    ]
-  }
-}
-```
+- Universal Links を有効にするには `https://lightlist.app/.well-known/apple-app-site-association` を配置する（Content-Type: `application/json`、リダイレクトなし）。Team ID が決まったら `LIGHTLIST_IOS_TEAM_ID` を設定して `just app-links` を実行し、`apps/web/public/.well-known/apple-app-site-association` を生成して Web を配信する。設定値との一致は `just app-links-check` で確認する。
 
 - 共有リンクは `https://lightlist.app/sharecodes/?code=CODE` の 1 形式だけで、custom scheme は持たない。
 - AASA 未配置でも審査はブロックされない（https リンクは Web へフォールバックする）。

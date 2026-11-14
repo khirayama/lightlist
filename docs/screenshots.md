@@ -9,11 +9,11 @@
 
 ## 生成
 
-- `cd apps/web && npm run screenshots -- <target>` またはルートの `just screenshots <target>`。
+- ルートで `just screenshots <target>` を実行する（`scripts/generate-store-screenshots.mjs`）。
 - `target` は `all` / `ios` / `android` / `web`。
-- 生成スクリプトは `apps/web` の devDependencies の `sharp` を使うため、`apps/web` の依存解決済み環境で実行する。
+- macOS 標準の `sips` だけを使い、npm の依存解決は不要。
 - 各出力ディレクトリを一度空にしてから連番ファイル名で再生成する。
-- リサイズは中央基準の cover crop で行い、余剰部分はトリミングする。余白追加やデバイスフレーム合成は行わない。
+- リサイズは中央基準の cover crop で行い、余剰部分はトリミングする（短辺を合わせて拡大縮小してから中央で切り抜く）。余白追加やデバイスフレーム合成は行わない。
 
 ## 出力先とサイズ
 

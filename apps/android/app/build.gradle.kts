@@ -15,6 +15,25 @@ val releaseKeyPassword = providers.environmentVariable("LIGHTLIST_ANDROID_KEY_PA
 val hasReleaseSigning =
     listOf(releaseKeystorePath, releaseKeystorePassword, releaseKeyAlias, releaseKeyPassword)
         .all { !it.isNullOrBlank() }
+val allowDebugReleaseSigning =
+    providers.gradleProperty("lightlistAllowDebugReleaseSigning").orNull == "true"
+val requestedReleaseBuild =
+    gradle.startParameter.taskNames
+        .map { it.substringAfterLast(':') }
+        .any {
+            it == "build" ||
+                it == "assemble" ||
+                it == "bundle" ||
+                it == "assembleRelease" ||
+                it == "bundleRelease" ||
+                it == "packageRelease"
+        }
+
+if (!hasReleaseSigning && !allowDebugReleaseSigning && requestedReleaseBuild) {
+    throw GradleException(
+        "Release 署名が未設定です。Play 提出用は `just bundle`、内部確認用 APK は `just build-release` を実行してください。",
+    )
+}
 
 android {
     namespace = "com.lightlist.app"
@@ -41,7 +60,16 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            signingConfig = when {
+                hasReleaseSigning -> signingConfigs.getByName("release")
+                allowDebugReleaseSigning -> signingConfigs.getByName("debug")
+                else -> signingConfigs.create("releaseRequiresSigning") {
+                    storeFile = file("release-signing-not-configured.jks")
+                    storePassword = "unavailable"
+                    keyAlias = "unavailable"
+                    keyPassword = "unavailable"
+                }
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             configure<CrashlyticsExtension> {
@@ -72,6 +100,9 @@ android {
 }
 
 dependencies {
+    constraints {
+        implementation("com.google.guava:guava:33.7.2-android")
+    }
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

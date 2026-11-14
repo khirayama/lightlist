@@ -50,7 +50,7 @@
 
 ## 主要コマンド
 
-- `just lint` / `just build` / `just build-release`（内部確認用 APK。署名情報がなければ debug keystore）
+- `just lint` / `just build` / `just build-release`（内部確認用 APK。署名情報がなければ明示的な開発用 flag で debug keystore。直接の Release ビルドは署名情報がなければ失敗する）
 - `just bundle`（Play 提出用 AAB を upload key で署名し `just verify-bundle` で検証）
 - `just run`（上書きインストールでログインを保持）/ `just run-clean`（アプリデータを消して入れ直す）
 - `just emulator <AVD名>` / `just emulator-list`、`just screenshot`

@@ -11,7 +11,7 @@ build:
   ./gradlew assembleDebug
 
 build-release:
-  ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease
+  ./gradlew assembleRelease -PlightlistAllowDebugReleaseSigning=true -x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease
 
 bundle:
   #!/usr/bin/env zsh

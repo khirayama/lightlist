@@ -18,6 +18,10 @@ private let authSignInTimeoutSeconds: TimeInterval = 10
 private let shareCodeCharacters = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 private let shareCodePattern = #"^[A-Z0-9]{8}$"#
 
+nonisolated private func isSafeId(_ id: String) -> Bool {
+    id.range(of: #"^[A-Za-z0-9_-]{1,128}$"#, options: .regularExpression) != nil
+}
+
 private func normalizedShareCode(_ rawValue: String) -> String? {
     let shareCode = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     guard shareCode.range(of: shareCodePattern, options: .regularExpression) != nil else {
@@ -65,7 +69,7 @@ private func parseDeepLink(_ url: URL) -> PendingDeepLink? {
 
     if scheme == "https", host == "lightlist.app", url.port == nil || url.port == 443 {
         if let taskListId = queryItems?.first(where: { $0.name == "taskListId" })?.value,
-            !taskListId.isEmpty
+            isSafeId(taskListId)
         {
             return .taskList(taskListId)
         }
@@ -678,7 +682,7 @@ private extension View {
 }
 
 private struct BrandLogoShape: Shape {
-    func path(in rect: CGRect) -> Path {
+    nonisolated func path(in rect: CGRect) -> Path {
         let scale = min(rect.width, rect.height) / 1024
         func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
             CGPoint(x: rect.minX + x * scale, y: rect.minY + y * scale)
@@ -1128,7 +1132,8 @@ private struct FirestoreTaskRecord: Codable {
     }
 
     nonisolated func taskSummary(taskId: String) -> TaskSummary? {
-        guard id == taskId,
+        guard isSafeId(taskId),
+            id == taskId,
             let text,
             let completed,
             let date,
@@ -1685,6 +1690,7 @@ private func memberTaskListsQuery(db: Firestore, uid: String) -> Query {
 
 private func isCompleteTaskData(taskId: String, value: Any) -> Bool {
     guard let task = value as? [String: Any],
+        isSafeId(taskId),
         task["id"] as? String == taskId,
         task["text"] is String,
         boolValue(task["completed"]) != nil,
@@ -1699,7 +1705,7 @@ private func isCompleteTaskData(taskId: String, value: Any) -> Bool {
 private func malformedTaskIds(from data: [String: Any]) -> [String] {
     let tasks = data["tasks"] as? [String: Any] ?? [:]
     return tasks.compactMap { taskId, value in
-        isCompleteTaskData(taskId: taskId, value: value) ? nil : taskId
+        taskId.isEmpty || isCompleteTaskData(taskId: taskId, value: value) ? nil : taskId
     }.sorted()
 }
 
@@ -1717,8 +1723,8 @@ private func scheduleMalformedTaskCleanup(
     guard !taskIds.isEmpty else { return }
     let cleanupKey = "\(taskListId):\(taskIds.joined(separator: "|"))"
     guard malformedTaskCleanupKeys.insert(cleanupKey).inserted else { return }
-    var updates: [String: Any] = ["updatedAt": nowMillis()]
-    for taskId in taskIds { updates["tasks.\(taskId)"] = FieldValue.delete() }
+    var updates: [AnyHashable: Any] = ["updatedAt": nowMillis()]
+    for taskId in taskIds { updates[FieldPath(["tasks", taskId])] = FieldValue.delete() }
     TaskListMutationQueues.queue(for: taskListId).enqueue(
         { completion in
             Firestore.firestore().collection("taskLists").document(taskListId).updateData(updates, completion: completion)
@@ -2688,10 +2694,8 @@ private func resolveAuthErrorMessage(translations: Translations, error: Error) -
     }
     let authError = AuthErrorCode(rawValue: nsError.code)
     switch authError {
-    case .wrongPassword, .invalidCredential:
+    case .wrongPassword, .invalidCredential, .userNotFound:
         return translations.t("auth.error.invalidCredential")
-    case .userNotFound:
-        return translations.t("auth.error.userNotFound")
     case .emailAlreadyInUse:
         return translations.t("auth.error.emailAlreadyInUse")
     case .weakPassword:
@@ -2707,6 +2711,15 @@ private func resolveAuthErrorMessage(translations: Translations, error: Error) -
     default:
         return translations.t("auth.error.general")
     }
+}
+
+private func isMissingAccountAuthError(_ error: Error) -> Bool {
+    let nsError = error as NSError
+    guard nsError.domain == "FIRAuthErrorDomain" else {
+        return false
+    }
+    return AuthErrorCode(rawValue: nsError.code) == .userNotFound
+        || AuthErrorCode(rawValue: nsError.code) == .invalidCredential
 }
 
 @MainActor private final class NetworkStatus: ObservableObject {
@@ -3006,6 +3019,7 @@ struct RootView: View {
     }
 
     private func openTaskListFromExternalFlow(_ taskListId: String) {
+        guard isSafeId(taskListId) else { return }
         if horizontalSizeClass == .regular {
             selectedTaskListId = taskListId
             selectedRegularPane = .taskList
@@ -3773,7 +3787,7 @@ private struct PasswordResetRequestView: View {
             Task { @MainActor in
                 auth.languageCode = previousLanguageCode
                 isLoading = false
-                if let error {
+                if let error, !isMissingAccountAuthError(error) {
                     errorMessage = resolveAuthErrorMessage(translations: translations, error: error)
                 } else {
                     logPasswordResetEmailSent()
@@ -6022,7 +6036,7 @@ private func fetchTaskListIdByShareCode(_ shareCode: String) async throws -> Str
     guard let normalized = normalizedShareCode(shareCode) else { return nil }
     do {
         let snap = try await Firestore.firestore().collection("shareCodes").document(normalized).getDocument(source: .server)
-        guard let taskListId = snap.data()?["taskListId"] as? String, !taskListId.isEmpty, !taskListId.contains("/") else {
+        guard let taskListId = snap.data()?["taskListId"] as? String, isSafeId(taskListId) else {
             return nil
         }
         return taskListId
@@ -6032,6 +6046,9 @@ private func fetchTaskListIdByShareCode(_ shareCode: String) async throws -> Str
 }
 
 private func addSharedTaskListToOrder(taskListId: String, joinCode: String) async throws {
+    guard isSafeId(taskListId) else {
+        throw NSError(domain: "com.lightlist", code: -1)
+    }
     guard let uid = Auth.auth().currentUser?.uid else { return }
     let db = Firestore.firestore()
     let batch = db.batch()

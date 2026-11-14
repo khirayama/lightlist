@@ -1,10 +1,13 @@
+#!/usr/bin/env node
+import { execFile } from "node:child_process";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import sharp from "sharp";
+import { promisify } from "node:util";
 
-const appRoot = path.resolve(import.meta.dirname, "..");
-const repoRoot = path.resolve(appRoot, "..", "..");
+const execFileAsync = promisify(execFile);
+const repoRoot = path.resolve(import.meta.dirname, "..");
+const appRoot = path.join(repoRoot, "apps", "web");
 
 const iosEntries = [
   ["ios_01_home_detail.png", "01-home-detail.png"],
@@ -89,6 +92,38 @@ const platformDefinitions = {
   },
 };
 
+const imageSize = async (file) => {
+  const { stdout } = await execFileAsync(
+    "sips",
+    ["-g", "pixelWidth", "-g", "pixelHeight", file],
+    { encoding: "utf8" },
+  );
+  const width = Number(/pixelWidth:\s*(\d+)/.exec(stdout)?.[1]);
+  const height = Number(/pixelHeight:\s*(\d+)/.exec(stdout)?.[1]);
+  if (!width || !height) throw new Error(`画像サイズを取得できません: ${file}`);
+  return { width, height };
+};
+
+// sips に cover crop がないため、短辺を合わせて拡大縮小してから中央で切り抜く
+const writeCoverCrop = async (entry) => {
+  const size = await imageSize(entry.input);
+  const scale = Math.max(entry.width / size.width, entry.height / size.height);
+  await execFileAsync("sips", [
+    "--resampleHeightWidth",
+    String(Math.ceil(size.height * scale)),
+    String(Math.ceil(size.width * scale)),
+    entry.input,
+    "--out",
+    entry.output,
+  ]);
+  await execFileAsync("sips", [
+    "--cropToHeightWidth",
+    String(entry.height),
+    String(entry.width),
+    entry.output,
+  ]);
+};
+
 const target = process.argv[2] ?? "all";
 const platformNames =
   target === "all"
@@ -121,15 +156,7 @@ for (const platformName of platformNames) {
   }
 
   for (const entry of definition.entries) {
-    await sharp(entry.input)
-      .resize({
-        width: entry.width,
-        height: entry.height,
-        fit: "cover",
-        position: "centre",
-      })
-      .png()
-      .toFile(entry.output);
+    await writeCoverCrop(entry);
 
     console.log(
       `${platformName}: ${path.relative(repoRoot, entry.output)} ${entry.width}x${entry.height}`,

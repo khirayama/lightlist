@@ -28,8 +28,10 @@
 | `apps/android` | Kotlin + Compose + Gradle | `app/src/main/java/com/lightlist/app/ContentView.kt` |
 | `firebase/` | `firebase.json` / `firebase.billing.json` / `.firebaserc` / Rules / indexes / `functions/`（通知・共有プレビュー・MCP）/ `functions-billing/`（課金停止） | Firebase CLI は `--config` の設定ファイル位置を基準に相対パスを解決する |
 | `shared/` | `locales/locales.json`（文言の唯一の正本）、`assets/`（フォント `gen-interface-jp`・ロゴ `brand/logo.svg`。Web は `apps/web/public/brand/logo.svg` に同じものを置く）、`licenses/manual-licenses.json` | |
+| `scripts/` | 3 プラットフォーム横断の開発ツール | `audit-osv.mjs`（native 依存の OSV 照合）、`generate-app-links.mjs`（`.well-known` の生成）、`generate-store-screenshots.mjs`（配信用画像） |
 
 - 各 app は実装をほぼ 1 ファイルに集約している。必要がない限り分割しない。
+- `scripts/` は Node.js の標準モジュールだけで動くものに限る（ルートに `package.json` / `node_modules` を置かないため）。npm の依存が必要なスクリプトは `apps/web/scripts/` に置く。
 - `.gitignore` はルートに共通生成物、`apps/<app>/.gitignore` に app 固有の生成物だけを置く。
 - 識別子: iOS bundle ID / Android applicationId・namespace・Kotlin package は `com.lightlist.app`。本番ドメインは `https://lightlist.app/`（`lightlist.com` は使わない）。Firebase project は dev `lightlist-dev` / prod `lightlist-prod-b0269`。
 - 使わないもの: Firebase App Check、CI 品質ゲート、custom URL scheme（deep link は `https://lightlist.app` の Universal Links / App Links だけ）、iOS String Catalog。
@@ -53,6 +55,7 @@ Web（`apps/web/src/entry.tsx`）をアプリ仕様の正とし、iOS / Android 
 ### データ・同期（Firestore）
 
 - ドット記法の field path（`tasks.<id>.text`、`<taskListId>.order`）は update 系 API（Web `updateDoc` / iOS `updateData` / Android `update`）だけで書く。set + merge はドットを field path と解釈しない。
+- task ID をドット記法の field path に使う前に `^[A-Za-z0-9_-]{1,128}$` を検証し、不正 ID の削除は `FieldPath` で行う。
 - UI からの書き込みで transaction を使わない（オフラインで動かない）。事前 read + batch write にする。
 - UI は書き込みのサーバー応答を待たない。SDK へ投入した時点で sheet / dialog を閉じ、応答は taskListId 単位の mutation queue で追跡して、pending の解放と同期失敗の通知（ルートの `OfflineNotice`）にだけ使う。サーバー判定が必要な操作（認証・メールアドレス変更・退会・共有コードの生成 / 解除 / 解決・共有参加）だけはオンライン必須にして応答を待つ。
 - task 更新は「現在表示中の task 群（pending を含む）→ 正規化済みの next 群 → pending 表示 → queue 経由の差分保存」を操作ごとに 1 回だけ行う。完了・ピンの反転も現在の表示値から計算する。`tasks` map の列挙順は順序に使わず、必ず `order` 順の配列にしてから計算する。
@@ -80,7 +83,7 @@ Web（`apps/web/src/entry.tsx`）をアプリ仕様の正とし、iOS / Android 
 ### セキュリティ
 
 - ログ・Crashlytics・Analytics にメールアドレスなどの PII、パスワード、生のユーザー入力を含めない。パスワードは永続化しない。
-- 外部入力から Firestore の path を作る前に検証する（共有コードは trim + uppercase 後に `^[A-Z0-9]{8}$`、MCP の ID は `[A-Za-z0-9_-]`）。
+- 外部入力から Firestore の path を作る前に検証する（共有コードは trim + uppercase 後に `^[A-Z0-9]{8}$`、MCP の ID・deep link / 通知 / 共有コードのプレビューで受け取る taskList ID は `^[A-Za-z0-9_-]{1,128}$`）。
 - taskList document に生の uid やメールアドレスを置かない（共有プレビューで露出する）。
 
 ## 主要コマンド（ルートの Justfile）
@@ -90,9 +93,10 @@ Web（`apps/web/src/entry.tsx`）をアプリ仕様の正とし、iOS / Android 
 | `just dev` | dev へ Firebase を配信した後、Functions の watch・MCP emulator・Web dev server を同時に起動 |
 | `just web` / `just ios` / `just android` | 各 app の起動 |
 | `just check-web` / `just check-functions` | ローカル検証 |
-| `just audit-web` / `just audit-functions` | npm 監査（native は OSV で照会。`docs/development.md`） |
+| `just audit-web` / `just audit-functions` / `just audit-mobile` | npm 監査と native 依存の OSV 照合（`docs/development.md`） |
+| `just app-links` / `just app-links-check` | `.well-known` の Universal Links / App Links ファイルの生成と一致確認（`docs/deployment.md`） |
 | `just deploy-firebase [prod]` | Rules / indexes / Functions の配信（既定は dev）。課金停止は `just deploy-billing`（本番のみ） |
-| `just release` | 検証 → Firebase dev → prod → Web（`wrangler deploy`）→ `/mcp` の 401 確認。iOS / Android の提出は含まない |
+| `just release` | 依存監査・検証 → Firebase dev → prod → Web（`wrangler deploy`）→ `/mcp` の 401 確認。iOS / Android の提出は含まない |
 | `just mcp-local` | MCP の Functions emulator だけを dev の Firestore で起動 |
 | `just screenshots <target>` | 配信用スクリーンショットの生成（`docs/screenshots.md`） |
 

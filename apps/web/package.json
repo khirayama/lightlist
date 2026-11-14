@@ -20,8 +20,7 @@
     "check": "node scripts/prepare.ts && eslint . --max-warnings=0 && tsc --noEmit && tsc --noEmit -p tsconfig.node.json && knip",
     "format": "prettier --write .",
     "preview": "vite build && wrangler dev",
-    "deploy": "vite build && wrangler deploy",
-    "screenshots": "node scripts/generate-store-screenshots.mjs"
+    "deploy": "vite build && wrangler deploy"
   },
   "type": "module",
   "dependencies": {
@@ -54,7 +53,6 @@
     "knip": "^6.39.0",
     "license-checker-rseidelsohn": "^5.0.1",
     "prettier": "^3.9.9",
-    "sharp": "^0.35.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "wrangler": "^4.152.0"

@@ -12,6 +12,12 @@ ios:
 android:
   cd apps/android && just build && just run
 
+emulator target='Pixel_9_API_35':
+  cd apps/android && just emulator "{{target}}"
+
+simulator target='iPhone 17':
+  cd apps/ios && just simulator "{{target}}"
+
 dev:
   #!/usr/bin/env zsh
   set -eu
@@ -48,8 +54,23 @@ audit-functions:
   just _node firebase/functions-billing npm --prefix firebase/functions-billing audit || audit_status=1
   exit "$audit_status"
 
+audit-ios:
+  just _node apps/web node scripts/audit-osv.mjs ios
+
+audit-android:
+  just _node apps/web node scripts/audit-osv.mjs android
+
+audit-mobile:
+  just _node apps/web node scripts/audit-osv.mjs all
+
+app-links:
+  just _node apps/web node scripts/generate-app-links.mjs
+
+app-links-check:
+  just _node apps/web node scripts/generate-app-links.mjs --check
+
 screenshots target='all':
-  just _node apps/web npm --prefix apps/web run screenshots -- {{target}}
+  just _node apps/web node scripts/generate-store-screenshots.mjs {{target}}
 
 deploy-firebase environment='dev':
   #!/usr/bin/env zsh
@@ -74,6 +95,12 @@ release:
   [[ -z "$(git status --porcelain)" ]] || { echo "未コミットの変更があります" >&2; exit 1; }
   git fetch --quiet origin main
   [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || { echo "HEAD を origin/main と一致させてください" >&2; exit 1; }
+  just audit-web
+  just audit-functions
+  just audit-mobile
+  if [[ -f apps/web/public/.well-known/apple-app-site-association || -f apps/web/public/.well-known/assetlinks.json ]]; then
+    just app-links-check
+  fi
   just check-functions
   just _node apps/web npm --prefix apps/web run check
   just deploy-firebase dev

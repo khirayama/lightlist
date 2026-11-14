@@ -78,4 +78,3 @@
 - `npm run format`
 - `npm run preview`（build + `wrangler dev`）
 - `npm run deploy`（通常はルートの `just deploy-web` / `just release` から実行）
-- `npm run screenshots -- <target>`

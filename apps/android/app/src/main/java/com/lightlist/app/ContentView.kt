@@ -179,6 +179,7 @@ import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
@@ -997,7 +998,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun parseDeepLink(intent: Intent?): PendingDeepLink? {
-        intent?.getStringExtra("taskListId")?.takeIf { it.isNotBlank() }?.let {
+        intent?.getStringExtra("taskListId")?.takeIf(::isSafeId)?.let {
             return PendingDeepLink.TaskList(it)
         }
         val data = intent?.data ?: return null
@@ -1051,6 +1052,10 @@ private data class FirestoreTaskRecord(
     val pinned: Boolean? = null
 )
 
+private val safeIdPattern = Regex("^[A-Za-z0-9_-]{1,128}$")
+
+private fun isSafeId(id: String): Boolean = safeIdPattern.matches(id)
+
 private data class FirestoreTaskListRecord(
     val name: String? = null,
     val tasks: Map<String, FirestoreTaskRecord> = emptyMap(),
@@ -1071,6 +1076,7 @@ private data class FirestoreSettingsRecord(
 )
 
 private fun FirestoreTaskRecord.toTaskSummary(taskId: String): TaskSummary? {
+    if (!isSafeId(taskId)) return null
     val resolvedText = text ?: return null
     val resolvedCompleted = completed ?: return null
     val resolvedDate = date ?: return null
@@ -2282,7 +2288,7 @@ private fun AppCalendarDay(
 private val AUTH_ERROR_KEY_MAP = mapOf(
     "ERROR_INVALID_CREDENTIAL" to "auth.error.invalidCredential",
     "ERROR_WRONG_PASSWORD" to "auth.error.invalidCredential",
-    "ERROR_USER_NOT_FOUND" to "auth.error.userNotFound",
+    "ERROR_USER_NOT_FOUND" to "auth.error.invalidCredential",
     "ERROR_EMAIL_ALREADY_IN_USE" to "auth.error.emailAlreadyInUse",
     "ERROR_WEAK_PASSWORD" to "auth.error.weakPassword",
     "ERROR_INVALID_EMAIL" to "auth.error.invalidEmail",
@@ -2539,6 +2545,10 @@ private suspend fun sendPasswordResetEmail(email: String, language: String) {
     auth.setLanguageCode(normalizeLanguageCode(language))
     try {
         auth.sendPasswordResetEmail(email).await()
+    } catch (e: FirebaseAuthException) {
+        if (e.errorCode != "ERROR_USER_NOT_FOUND" && e.errorCode != "ERROR_INVALID_CREDENTIAL") {
+            throw e
+        }
     } finally {
         if (previousLanguageCode == null) auth.useAppLanguage() else auth.setLanguageCode(previousLanguageCode)
     }
@@ -3047,7 +3057,11 @@ fun RootScreen(
                     }
 
                     LaunchedEffect(requestedTaskListId, isLoggedIn) {
-                        val taskListId = requestedTaskListId ?: return@LaunchedEffect
+                        val taskListId = requestedTaskListId?.takeIf(::isSafeId)
+                        if (taskListId == null) {
+                            requestedTaskListId = null
+                            return@LaunchedEffect
+                        }
                         if (!isLoggedIn) {
                             return@LaunchedEffect
                         }
@@ -3465,7 +3479,8 @@ private fun parseTaskListSummary(taskListId: String, data: FirestoreTaskListReco
 private fun isCompleteTaskData(taskId: String, value: Any?): Boolean {
     val task = value as? Map<*, *> ?: return false
     val order = task["order"] as? Number ?: return false
-    return task["id"] == taskId &&
+    return isSafeId(taskId) &&
+        task["id"] == taskId &&
         task["text"] is String &&
         task["completed"] is Boolean &&
         task["date"] is String &&
@@ -3477,7 +3492,7 @@ private fun malformedTaskIds(data: Map<String, Any>): List<String> {
     val tasks = data["tasks"] as? Map<*, *> ?: return emptyList()
     return tasks.entries.mapNotNull { entry ->
         val taskId = entry.key as? String ?: return@mapNotNull null
-        taskId.takeUnless { isCompleteTaskData(taskId, entry.value) }
+        taskId.takeUnless { it.isEmpty() || isCompleteTaskData(taskId, entry.value) }
     }.sorted()
 }
 
@@ -3496,8 +3511,9 @@ private fun scheduleMalformedTaskCleanup(
     synchronized(malformedTaskCleanupKeys) {
         if (!malformedTaskCleanupKeys.add(cleanupKey)) return
     }
-    val updates = mutableMapOf<String, Any>("updatedAt" to nowMillis())
-    taskIds.forEach { updates["tasks.$it"] = FieldValue.delete() }
+    val fieldValues = taskIds.flatMap { taskId ->
+        listOf<Any>(FieldPath.of("tasks", taskId), FieldValue.delete())
+    }
     val releaseCleanupKey = {
         synchronized(malformedTaskCleanupKeys) {
             malformedTaskCleanupKeys.remove(cleanupKey)
@@ -3509,7 +3525,8 @@ private fun scheduleMalformedTaskCleanup(
         onIdle = releaseCleanupKey,
         onError = { releaseCleanupKey() }
     ) {
-        Firebase.firestore.collection("taskLists").document(taskListId).update(updates)
+        Firebase.firestore.collection("taskLists").document(taskListId)
+            .update("updatedAt", nowMillis(), *fieldValues.toTypedArray())
     }
 }
 
@@ -3718,10 +3735,11 @@ private suspend fun fetchTaskListIdByShareCode(shareCode: String): String? {
         if (e.isPermissionDenied()) return null
         throw e
     }
-    return snap.getString("taskListId")?.takeIf { it.isNotEmpty() && !it.contains("/") }
+    return snap.getString("taskListId")?.takeIf(::isSafeId)
 }
 
 private suspend fun addSharedTaskListToOrder(taskListId: String, joinCode: String) {
+    require(isSafeId(taskListId))
     val uid = Firebase.auth.currentUser?.uid ?: return
     val db = Firebase.firestore
     val taskListOrderRef = db.collection("taskListOrder").document(uid)

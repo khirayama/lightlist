@@ -45,7 +45,6 @@
       },
       "error": {
         "invalidCredential": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
-        "userNotFound": "لا يوجد حساب بهذا البريد الإلكتروني",
         "emailAlreadyInUse": "هذا البريد الإلكتروني مسجل بالفعل",
         "weakPassword": "كلمة المرور ضعيفة جدًا (يُوصى بـ 6 أحرف أو أكثر)",
         "invalidEmail": "تنسيق عنوان البريد الإلكتروني غير صالح",
@@ -546,7 +545,6 @@
       },
       "error": {
         "invalidCredential": "E-Mail oder Passwort ist falsch",
-        "userNotFound": "Kein Konto mit dieser E-Mail-Adresse gefunden",
         "emailAlreadyInUse": "Diese E-Mail-Adresse ist bereits registriert",
         "weakPassword": "Das Passwort ist zu schwach (6 oder mehr Zeichen empfohlen)",
         "invalidEmail": "Das Format der E-Mail-Adresse ist ungültig",
@@ -1058,7 +1056,6 @@
       },
       "error": {
         "invalidCredential": "Email or password is incorrect",
-        "userNotFound": "No account found with this email address",
         "emailAlreadyInUse": "This email address is already registered",
         "weakPassword": "Password is too weak (6 characters or more recommended)",
         "invalidEmail": "Email address format is invalid",
@@ -1569,7 +1566,6 @@
       },
       "error": {
         "invalidCredential": "El correo o la contraseña son incorrectos",
-        "userNotFound": "No existe una cuenta con este correo electrónico",
         "emailAlreadyInUse": "Este correo electrónico ya está registrado",
         "weakPassword": "La contraseña es demasiado débil (se recomiendan 6 caracteres o más)",
         "invalidEmail": "El formato del correo electrónico no es válido",
@@ -2085,7 +2081,6 @@
       },
       "error": {
         "invalidCredential": "L'e-mail ou le mot de passe est incorrect",
-        "userNotFound": "Aucun compte trouvé avec cette adresse e-mail",
         "emailAlreadyInUse": "Cette adresse e-mail est déjà enregistrée",
         "weakPassword": "Le mot de passe est trop faible (6 caractères ou plus recommandés)",
         "invalidEmail": "Le format de l'adresse e-mail est invalide",
@@ -2598,7 +2593,6 @@
       },
       "error": {
         "invalidCredential": "ईमेल या पासवर्ड गलत है",
-        "userNotFound": "इस ईमेल पते से कोई खाता नहीं मिला",
         "emailAlreadyInUse": "यह ईमेल पता पहले से पंजीकृत है",
         "weakPassword": "पासवर्ड बहुत कमजोर है (6 या अधिक अक्षर सुझाए जाते हैं)",
         "invalidEmail": "ईमेल पते का प्रारूप अमान्य है",
@@ -3098,7 +3092,6 @@
       },
       "error": {
         "invalidCredential": "Email atau kata sandi salah",
-        "userNotFound": "Akun dengan alamat email ini tidak ditemukan",
         "emailAlreadyInUse": "Alamat email ini sudah terdaftar",
         "weakPassword": "Kata sandi terlalu lemah (disarankan 6 karakter atau lebih)",
         "invalidEmail": "Format alamat email tidak valid",
@@ -3604,7 +3597,6 @@
       },
       "error": {
         "invalidCredential": "メールアドレスまたはパスワードが正しくありません",
-        "userNotFound": "このメールアドレスで登録されたアカウントはありません",
         "emailAlreadyInUse": "このメールアドレスは既に登録されています",
         "weakPassword": "パスワードが弱すぎます（8文字以上推奨）",
         "invalidEmail": "メールアドレスの形式が正しくありません",
@@ -4104,7 +4096,6 @@
       },
       "error": {
         "invalidCredential": "이메일 또는 비밀번호가 올바르지 않습니다",
-        "userNotFound": "해당 이메일 주소의 계정을 찾을 수 없습니다",
         "emailAlreadyInUse": "이미 등록된 이메일 주소입니다",
         "weakPassword": "비밀번호가 너무 약합니다 (6자 이상 권장)",
         "invalidEmail": "이메일 주소 형식이 올바르지 않습니다",
@@ -4611,7 +4602,6 @@
       },
       "error": {
         "invalidCredential": "E-mail ou senha incorretos",
-        "userNotFound": "Nenhuma conta encontrada com este endereço de e-mail",
         "emailAlreadyInUse": "Este endereço de e-mail já está cadastrado",
         "weakPassword": "A senha é muito fraca (recomendado 6 caracteres ou mais)",
         "invalidEmail": "O formato do e-mail é inválido",
@@ -5132,7 +5122,6 @@
       },
       "error": {
         "invalidCredential": "邮箱或密码不正确",
-        "userNotFound": "未找到使用该邮箱的账户",
         "emailAlreadyInUse": "该邮箱已被注册",
         "weakPassword": "密码强度太弱（建议至少 6 个字符）",
         "invalidEmail": "邮箱格式无效",

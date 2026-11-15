@@ -1159,12 +1159,13 @@ const validateAuthForm = (
   rejectBlockedDomain = false,
 ): FormErrors => {
   const errors: FormErrors = {};
+  const email = data.email.trim();
 
-  if (!data.email.trim()) {
+  if (!email) {
     errors.email = t("auth.validation.email.required");
-  } else if (!validateEmail(data.email)) {
+  } else if (!validateEmail(email)) {
     errors.email = t("auth.validation.email.invalid");
-  } else if (rejectBlockedDomain && isBlockedEmailDomain(data.email)) {
+  } else if (rejectBlockedDomain && isBlockedEmailDomain(email)) {
     errors.email = t("auth.validation.email.domainNotAllowed");
   }
 
@@ -1190,11 +1191,12 @@ const validateEmailChangeForm = (
   t: TFunction<"translation">,
 ): FormErrors => {
   const errors: FormErrors = {};
-  if (!data.newEmail.trim()) {
+  const newEmail = data.newEmail.trim();
+  if (!newEmail) {
     errors.email = t("auth.validation.email.required");
-  } else if (!validateEmail(data.newEmail)) {
+  } else if (!validateEmail(newEmail)) {
     errors.email = t("auth.validation.email.invalid");
-  } else if (isBlockedEmailDomain(data.newEmail)) {
+  } else if (isBlockedEmailDomain(newEmail)) {
     errors.email = t("auth.validation.email.domainNotAllowed");
   }
   return errors;
@@ -2911,6 +2913,30 @@ function parseDateFromText(
     };
   }
   return { date: null, text };
+}
+
+function resolveTaskSheetInput(
+  values: { text: string; date: string; pinned: boolean },
+  language: Language,
+  currentTask?: Pick<Task, "text" | "date" | "pinned">,
+): { text: string; textChanged: boolean; date: string; pinned: boolean } {
+  if (currentTask && values.text.trim() === currentTask.text.trim()) {
+    return {
+      text: currentTask.text,
+      textChanged: false,
+      date: values.date,
+      pinned: values.pinned,
+    };
+  }
+  const prefix = resolveTaskInput(values.text, language);
+  return {
+    text: currentTask
+      ? resolveTaskInput(values.text, language, currentTask).text
+      : prefix.text,
+    textChanged: true,
+    date: prefix.date || values.date,
+    pinned: values.pinned || prefix.pinned,
+  };
 }
 
 function resolveTaskInput(
@@ -5165,7 +5191,7 @@ function SettingsView({
     setEmailChangeError(null);
     setIsChangingEmail(true);
     try {
-      await sendEmailChangeVerification(newEmail);
+      await sendEmailChangeVerification(newEmail.trim());
       setEmailChangeSuccess(true);
       setNewEmail("");
       logAppEvent("email_change_requested");
@@ -6518,6 +6544,20 @@ const DATE_FNS_LOCALE_LOADERS: Record<
 };
 const dateFnsLocaleCache = new Map<Language, Locale>();
 
+const WEEK_STARTS_ON: Record<Language, 0 | 1 | 6> = {
+  ja: 0,
+  en: 0,
+  es: 1,
+  de: 1,
+  fr: 1,
+  ko: 0,
+  "zh-CN": 1,
+  hi: 0,
+  ar: 6,
+  "pt-BR": 0,
+  id: 1,
+};
+
 function useDateFnsLocale(language: Language): Locale | undefined {
   const [locale, setLocale] = useState<Locale | undefined>(() =>
     dateFnsLocaleCache.get(language),
@@ -6573,6 +6613,7 @@ function Calendar({
       navLayout="around"
       className={clsx("ll-w-full", className)}
       locale={resolvedLocale}
+      weekStartsOn={WEEK_STARTS_ON[language]}
       classNames={{
         months: "ll-flex ll-w-full ll-flex-col",
         month: "ll-calendar-month ll-w-full",
@@ -7030,11 +7071,16 @@ function EditTaskListDialog({
           onSubmit={(event) => {
             event.preventDefault();
             if (!name.trim() || saving || deleting) return;
-            setSaving(true);
-            void updateTaskList(taskList.id, {
+            const updates = {
               ...(name.trim() !== taskList.name ? { name: name.trim() } : {}),
               ...(background !== taskList.background ? { background } : {}),
-            })
+            };
+            if (Object.keys(updates).length === 0) {
+              setOpen(false);
+              return;
+            }
+            setSaving(true);
+            void updateTaskList(taskList.id, updates)
               .then(() => setOpen(false))
               .catch((updateError) =>
                 setError(resolveErrorMessage(updateError, t, "common.error")),
@@ -9023,27 +9069,27 @@ function CalendarScreen({
         setTaskSheetSaving(false);
         return;
       }
-      const parsed = resolveTaskInput(values.text, taskSettings.language);
-      if (!parsed.text.trim() && !values.date && !values.pinned) {
+      const input = resolveTaskSheetInput(values, taskSettings.language);
+      if (!input.text.trim() && !input.date && !input.pinned) {
         setTaskSheetSaving(false);
         return;
       }
       triggerHaptic("light");
       const taskId = crypto.randomUUID();
-      const dateValue = parseTaskDateValue(values.date) ?? null;
+      const dateValue = parseTaskDateValue(input.date) ?? null;
       const optimisticTask: DatedTask = {
         taskListId: targetTaskList.id,
         taskListName: targetTaskList.name,
         taskListBackground: targetTaskList.background,
         task: {
           id: taskId,
-          text: parsed.text,
+          text: input.text,
           completed: false,
-          date: dateValue ? values.date : "",
-          pinned: values.pinned,
+          date: dateValue ? input.date : "",
+          pinned: input.pinned,
         },
         dateValue,
-        dateKey: dateValue ? values.date : "",
+        dateKey: dateValue ? input.date : "",
         taskListIndex: taskLists.findIndex(
           (taskList) => taskList.id === targetTaskList.id,
         ),
@@ -9055,11 +9101,11 @@ function CalendarScreen({
       setOptimisticDatedTasks((current) => [...current, optimisticTask]);
       void addTask(targetTaskList.id, values.text, taskSettings, {
         taskId,
-        date: values.date,
-        pinned: values.pinned,
+        date: input.date,
+        pinned: input.pinned,
       })
         .then(() => {
-          logAppEvent("task_add", { has_date: Boolean(values.date) });
+          logAppEvent("task_add", { has_date: Boolean(input.date) });
           setTaskSheet(null);
         })
         .catch((error) => {
@@ -9076,17 +9122,22 @@ function CalendarScreen({
     const targetTaskList = taskLists.find(
       (taskList) => taskList.id === values.taskListId,
     );
-    const parsed = resolveTaskInput(
-      values.text,
+    const input = resolveTaskSheetInput(
+      values,
       taskSettings.language,
       editedTask.task,
     );
-    const nextDateValue = parseTaskDateValue(values.date) ?? null;
+    const nextDateValue = parseTaskDateValue(input.date) ?? null;
     const nextTask: Task = {
       ...editedTask.task,
-      text: parsed.text,
-      date: nextDateValue ? values.date : "",
-      pinned: values.pinned,
+      text: input.text,
+      date: nextDateValue ? input.date : "",
+      pinned: input.pinned,
+    };
+    const taskUpdates = {
+      ...(input.textChanged ? { text: values.text } : {}),
+      date: nextTask.date,
+      pinned: nextTask.pinned,
     };
     const shouldKeepTask = hasTaskContent(nextTask);
     triggerHaptic("light");
@@ -9106,7 +9157,7 @@ function CalendarScreen({
                 ...editedTask,
                 task: nextTask,
                 dateValue: nextDateValue,
-                dateKey: nextDateValue ? values.date : "",
+                dateKey: nextTask.date,
               },
       },
     };
@@ -9119,7 +9170,7 @@ function CalendarScreen({
           taskListBackground: targetTaskList.background,
           task: nextTask,
           dateValue: nextDateValue,
-          dateKey: nextDateValue ? values.date : "",
+          dateKey: nextTask.date,
           taskListIndex: taskLists.findIndex(
             (taskList) => taskList.id === targetTaskList.id,
           ),
@@ -9143,21 +9194,13 @@ function CalendarScreen({
           editedTask.taskListId,
           values.taskListId,
           editedTask.task.id,
-          {
-            text: values.text,
-            date: values.date,
-            pinned: values.pinned,
-          },
+          taskUpdates,
           taskSettings,
         )
       : updateTask(
           editedTask.taskListId,
           editedTask.task.id,
-          {
-            text: values.text,
-            date: values.date,
-            pinned: values.pinned,
-          },
+          taskUpdates,
           taskSettings,
         );
     void taskWrite
@@ -9664,8 +9707,12 @@ function TaskListSidebarPanel({
   };
 
   const handleJoinList = async () => {
+    if (joiningList || !navigator.onLine) return;
     const code = normalizeShareCodeInput(joinListInput);
-    if (!code || !navigator.onLine) return;
+    if (!code) {
+      setJoinListError(t("pages.sharecode.notFound"));
+      return;
+    }
     setJoiningList(true);
     setJoinListError(null);
     try {
@@ -9845,6 +9892,7 @@ function TaskListSidebarPanel({
           <Dialog
             open={showJoinListDialog}
             onOpenChange={(open: boolean) => {
+              if (joiningList) return;
               setShowJoinListDialog(open);
               if (!open) {
                 setJoinListInput("");
@@ -11027,7 +11075,7 @@ function LoginPage() {
     void handleAuthAction(
       e,
       async () => {
-        await signIn(email, password);
+        await signIn(email.trim(), password);
         log("login", { method: "email" });
       },
       { email, password },
@@ -11042,7 +11090,7 @@ function LoginPage() {
       async () => {
         setIsProvisioning(true);
         try {
-          await signUp(email, password, resolvedLanguage);
+          await signUp(email.trim(), password, resolvedLanguage);
           log("sign_up", { method: "email" });
         } finally {
           setIsProvisioning(false);
@@ -11067,7 +11115,10 @@ function LoginPage() {
     setErrors({});
 
     try {
-      await sendPasswordResetEmail(email, normalizeLanguage(i18n.language));
+      await sendPasswordResetEmail(
+        email.trim(),
+        normalizeLanguage(i18n.language),
+      );
       setResetSent(true);
       logAppEvent("password_reset_email_sent");
     } catch (error) {
@@ -11355,6 +11406,7 @@ function ShareCodePreviewPage() {
   const preview = useSharePreview(sharecode);
   const [addToOrderLoading, setAddToOrderLoading] = useState(false);
   const [addToOrderError, setAddToOrderError] = useState<string | null>(null);
+  const [joinedTaskListId, setJoinedTaskListId] = useState<string | null>(null);
   const [activeTaskAction, setActiveTaskAction] = useState<string | null>(null);
   const isOnline = useIsOnline();
   const sharedTaskListId =
@@ -11389,15 +11441,21 @@ function ShareCodePreviewPage() {
       setAddToOrderError(null);
       await addSharedTaskListToOrder(sharedTaskListId, sharecode);
       logAppEvent("share_code_join");
-      window.location.assign("/app/");
+      setJoinedTaskListId(sharedTaskListId);
     } catch (err) {
       setAddToOrderError(
         resolveErrorMessage(err, t, "pages.sharecode.addToOrderError"),
       );
-    } finally {
       setAddToOrderLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!joinedTaskListId || ownTaskList?.id !== joinedTaskListId) return;
+    window.location.assign(
+      `/app/?taskListId=${encodeURIComponent(joinedTaskListId)}`,
+    );
+  }, [joinedTaskListId, ownTaskList]);
 
   if (error) {
     return (

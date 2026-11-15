@@ -73,7 +73,15 @@ const LANGUAGE_PATHS: Record<Language, string> = {
 
 const pageLanguage = normalizeLanguage(document.documentElement.lang);
 const pageSuffix = window.location.pathname.endsWith("/docs/") ? "docs/" : "";
-const storedLanguage = window.localStorage.getItem("i18nextLng");
+const readStoredLanguage = (): string | null => {
+  try {
+    return window.localStorage.getItem("i18nextLng");
+  } catch {
+    return null;
+  }
+};
+
+const storedLanguage = readStoredLanguage();
 if (pageLanguage === DEFAULT_LANGUAGE && storedLanguage) {
   const preferredLanguage = normalizeLanguage(storedLanguage);
   if (preferredLanguage !== pageLanguage) {
@@ -88,7 +96,9 @@ if (languageSelect instanceof HTMLSelectElement) {
   languageSelect.value = pageLanguage;
   languageSelect.addEventListener("change", () => {
     const nextLanguage = normalizeLanguage(languageSelect.value);
-    window.localStorage.setItem("i18nextLng", nextLanguage);
+    try {
+      window.localStorage.setItem("i18nextLng", nextLanguage);
+    } catch {}
     window.location.assign(
       `${LANGUAGE_PATHS[nextLanguage]}${pageSuffix}${window.location.hash}`,
     );

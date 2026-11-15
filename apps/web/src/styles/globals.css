@@ -1491,6 +1491,11 @@
   .ll-task-row {
     transition: none !important;
   }
+
+  .ll-task-row,
+  .ll-sidebar-item {
+    scale: none !important;
+  }
 }
 
 .ll-license-card > summary::-webkit-details-marker {

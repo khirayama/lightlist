@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.DocumentSnapshot
@@ -49,16 +50,17 @@ internal fun sharedListNotificationDeviceId(context: Context): String {
     val existingId = existingSharedListNotificationDeviceId(context)
     if (existingId != null) return existingId
     val deviceId = UUID.randomUUID().toString()
-    preferences.edit().putString(SHARED_LIST_NOTIFICATION_DEVICE_ID_KEY, deviceId).apply()
+    preferences.edit { putString(SHARED_LIST_NOTIFICATION_DEVICE_ID_KEY, deviceId) }
     return deviceId
 }
 
+@Suppress("DEPRECATION")
 private suspend fun releaseStaleSharedListNotificationTokenLocked(context: Context) {
     val preferences = context.getSharedPreferences("lightlist.notifications", Context.MODE_PRIVATE)
     val ownerUid = preferences.getString(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY, null) ?: return
     if (ownerUid == Firebase.auth.currentUser?.uid) return
     FirebaseMessaging.getInstance().deleteToken().await()
-    preferences.edit().remove(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY).apply()
+    preferences.edit { remove(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY) }
 }
 
 internal suspend fun releaseStaleSharedListNotificationToken(context: Context) {
@@ -68,7 +70,7 @@ internal suspend fun releaseStaleSharedListNotificationToken(context: Context) {
 private fun markSharedListNotificationTokenOwner(context: Context, uid: String) {
     val preferences = context.getSharedPreferences("lightlist.notifications", Context.MODE_PRIVATE)
     if (preferences.getString(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY, null) != uid) {
-        preferences.edit().putString(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY, uid).apply()
+        preferences.edit { putString(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY, uid) }
     }
 }
 
@@ -106,7 +108,7 @@ internal fun ensureSharedListNotificationChannel(context: Context, name: String?
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val preferences = context.getSharedPreferences("lightlist.notifications", Context.MODE_PRIVATE)
         if (name != null && name != preferences.getString(SHARED_LIST_NOTIFICATION_CHANNEL_NAME_KEY, null)) {
-            preferences.edit().putString(SHARED_LIST_NOTIFICATION_CHANNEL_NAME_KEY, name).apply()
+            preferences.edit { putString(SHARED_LIST_NOTIFICATION_CHANNEL_NAME_KEY, name) }
         }
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
@@ -133,6 +135,7 @@ internal suspend fun refreshSharedListNotificationToken(
     saveSharedListNotificationToken(context, uid, token)
 }
 
+@Suppress("DEPRECATION")
 internal suspend fun removeSharedListNotificationToken(
     context: Context,
     uid: String,
@@ -154,9 +157,7 @@ internal suspend fun removeSharedListNotificationToken(
         runCatching { removal?.await() }
         if (runCatching { tokenRemoval.await() }.isSuccess) {
             context.getSharedPreferences("lightlist.notifications", Context.MODE_PRIVATE)
-                .edit()
-                .remove(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY)
-                .apply()
+                .edit { remove(SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY) }
         }
     }
 }

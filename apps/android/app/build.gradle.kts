@@ -101,7 +101,7 @@ android {
 
 dependencies {
     constraints {
-        implementation("com.google.guava:guava:33.7.2-android")
+        implementation("com.google.guava:guava:33.8.0-android")
     }
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

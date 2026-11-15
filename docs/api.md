@@ -8,11 +8,11 @@ AI ツールや外部のプログラムからタスクリストを読み書き�
 - Worker は `assets.run_worker_first` で `/mcp` だけを static assets より先に受ける。
 - User-Agent は制限しない（ライブラリ既定の User-Agent でも呼べる）。Cloudflare Pages の custom domain では Browser Integrity Check を外せず Python urllib の既定 User-Agent が `403` になるため、Pages ではなく zone の Custom Domain の Worker で受け、zone の Configuration Rule で `/mcp` の Browser Integrity Check を無効にしている（[deployment.md](./deployment.md)）。
 - 開発は `just mcp-local` のローカル URL（`http://127.0.0.1:5001/lightlist-dev/asia-northeast1/mcp`）を使う。アプリが表示するエンドポイントは、Web は dev server（`import.meta.env.DEV`）ならこのローカル URL、build 済みなら `https://lightlist.app/mcp`（`npm run preview` でも同じ）、iOS / Android は Debug ビルドがローカル URL、Release ビルドが `https://lightlist.app/mcp`（iOS は `#if DEBUG`、Android は `BuildConfig.DEBUG` で切り替える）。
-- Function の直接 URL は project ID から推測でき、中継を通さずにも呼べる。トークンの検証はどちらでも同じため認可には影響しない。
+- Worker は中継時に `x-lightlist-proxy-secret` ヘッダーへ共有秘密を付ける（Worker secret と Functions の Secret Manager の `MCP_PROXY_SECRET` に同じ値を置く）。Function はこのヘッダーが一致しないリクエストを Firestore を読まずに `403` で拒否するため、project ID から推測できる直接 URL（`cloudfunctions.net` / `run.app`）では使えない。Functions emulator では検査しない。ヘッダーは MCP server へ渡さない。
 - stateless。session（`Mcp-Session-Id`）を持たず、リクエストごとに MCP server を作る。2025 年版の stateless 接続と 2026-07-28 版の両方を受け付ける。
 - `maxInstances: 1`、`256MiB`、timeout 60 秒。不正利用で費用が膨らむのを instance 数で抑える代わりに、高負荷時は正規の利用者も待たされる。
 - 1 リクエストの本文は 1 MiB までとし、超過時は `413` を返す。応答は `Cache-Control: no-store` とする。
-- 認証済みのリクエストは同じ uid ごとに Function インスタンス内で 60 秒あたり 240 回に制限し、超過時は `429` と `Retry-After: 60` を返す。インスタンスの再起動でカウンタはリセットされる best-effort の防御で、永続的な課金上限ではない。接続元 IP 単位の制限は持たない（Worker 中継と `X-Forwarded-For` の扱いにより、接続元 IP では利用者を確実に区別できず、偽装や全利用者の巻き添えが起きるため）。未認証リクエストの負荷は token 形式の事前検証と `maxInstances` で抑える。
+- 認証済みのリクエストは同じ uid ごとに Function インスタンス内で 60 秒あたり 240 回に制限し、超過時は `429` と `Retry-After: 60` を返す。インスタンスの再起動でカウンタはリセットされる best-effort の防御で、永続的な課金上限ではない。未認証を含むすべてのリクエストは、Worker の Rate Limiting binding（`MCP_RATE_LIMITER`）で接続元 IP（`CF-Connecting-IP`。Cloudflare が付けるため偽装できない）ごとに 60 秒あたり 300 回（Cloudflare の拠点ごとの近似値）に制限し、超過時は Functions を起動せずに `429` と `Retry-After: 60` を返す。形式だけ正しい偽トークンの連打で Functions の起動と Firestore の読み取りが増えるのを防ぐため。上限は uid ごとの制限より緩くし、同じ IP を共有する正規の利用者を巻き込まないようにする。
 
 ## 認証
 

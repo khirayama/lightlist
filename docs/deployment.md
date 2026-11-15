@@ -63,11 +63,12 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Wo
 ## リリース
 
 - リポジトリルートで `just release` を実行する。`main` ブランチ・未コミットの変更なし・`origin/main` と一致していることを確認し、依存監査（Web / Functions の npm audit、native の OSV）→ App Links 生成物がある場合の設定値一致確認 → ローカル検証（Functions の build、Web の lint / typecheck / knip）→ `just deploy-firebase dev` → `just deploy-firebase prod` → `just deploy-web` → `just verify-release` の順に実行する。途中で失敗したら以降を実行しない。
-- `just verify-release` は `https://lightlist.app/mcp` がトークンなしで `401` を返すことを最大 60 秒確認する。Python urllib の既定 User-Agent で送り、Browser Integrity Check で弾かれないことも確かめる。
+- `just verify-release` は `https://lightlist.app/mcp` がトークンなしで `401` を返すことを最大 60 秒確認する。Worker と Functions の `MCP_PROXY_SECRET` が食い違うと `403` になるため、中継の秘密の不一致もここで検出する。Python urllib の既定 User-Agent で送り、Browser Integrity Check で弾かれないことも確かめる。
 - iOS / Android はストア審査を挟むため `just release` に含めず、[release-ios.md](./release-ios.md) / [release-android.md](./release-android.md) の手順で `just release` の後に提出する。
 
 ## Firebase デプロイ
 
+- `/mcp` の中継の共有秘密 `MCP_PROXY_SECRET` は、同じ乱数を Worker（`cd apps/web && npx wrangler secret put MCP_PROXY_SECRET`）と Functions の各 project（`firebase --config firebase/firebase.json functions:secrets:set MCP_PROXY_SECRET --project <project>`）に登録する。値はリポジトリに置かない。Functions は secret が未登録だと deploy できない。秘密を入れ替えるときは、先に Functions を新しい値で deploy すると Worker 更新までの間 `/mcp` が `403` になるため、Worker の secret 更新と Functions の deploy を続けて行い、`just verify-release` で確認する。
 - リポジトリルートで `just deploy-firebase`（既定 dev）/ `just deploy-firebase prod` を実行する。`firebase/firebase.json` に定義した Firestore Rules / indexes と `functions` codebase（通知・共有プレビュー・`mcp`・`deleteApiTokensOnUserDelete`）を一括で反映する。環境ごとの project ID は recipe 内で固定し、`.firebaserc` の既定 project に依存しない。
 - deploy 設定（`firebase.json` / `firebase.billing.json` / `.firebaserc` / `firestore.rules` / `firestore.indexes.json`）と Functions のソース（`functions/` / `functions-billing/`）は `firebase/` に置く。
 - 配信前のローカル build は Functions 用 Node.js 22 と npm 12.0.2 で実行する。Cloud Build の npm 版も両 Functions の `engines.npm` で固定し、未承認の install script があれば停止する。Functions 系の recipe は fnm があれば対象ディレクトリの `.node-version` で実行する（`just _node <dir> <command>`）。deploy recipe は PATH 上の global `firebase` CLI を前提とする。

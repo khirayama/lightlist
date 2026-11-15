@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 import {
   FieldValue,
@@ -7,6 +7,7 @@ import {
   type DocumentSnapshot,
 } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
+import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import * as z from "zod";
 import { notifyTaskListMembers } from "./notifications";
@@ -32,6 +33,16 @@ const MAX_REQUEST_BODY_BYTES = 1_048_576;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 240;
 const RATE_LIMIT_MAX_ENTRIES = 10_000;
+const PROXY_SECRET_HEADER = "x-lightlist-proxy-secret";
+
+const mcpProxySecret = defineSecret("MCP_PROXY_SECRET");
+
+const isFromProxy = (value: string | undefined): boolean => {
+  if (process.env.FUNCTIONS_EMULATOR === "true") return true;
+  const expected = Buffer.from(mcpProxySecret.value());
+  const actual = Buffer.from(value ?? "");
+  return expected.length > 0 && actual.length === expected.length && timingSafeEqual(actual, expected);
+};
 
 class ToolError extends Error {}
 
@@ -390,10 +401,20 @@ const mcpHandler = createMcpHandler(
 );
 
 export const mcp = onRequest(
-  { region: "asia-northeast1", maxInstances: 1, memory: "256MiB", timeoutSeconds: 60 },
+  {
+    region: "asia-northeast1",
+    maxInstances: 1,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    secrets: [mcpProxySecret],
+  },
   async (req, res) => {
     res.set("Cache-Control", "no-store");
     res.set("X-Content-Type-Options", "nosniff");
+    if (!isFromProxy(req.get(PROXY_SECRET_HEADER))) {
+      res.status(403).json({ error: "forbidden" });
+      return;
+    }
     if ((req.rawBody?.length ?? 0) > MAX_REQUEST_BODY_BYTES) {
       res.status(413).json({ error: "request_too_large" });
       return;
@@ -409,6 +430,7 @@ export const mcp = onRequest(
     }
     const headers = new Headers();
     for (const [key, value] of Object.entries(req.headers)) {
+      if (key === PROXY_SECRET_HEADER) continue;
       for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) {
         headers.append(key, item);
       }

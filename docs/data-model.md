@@ -82,6 +82,7 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きのレ�
 共有リスト更新通知の、タスクリストと変更者の組ごとの抑制記録。変更者を特定できない書き込みは `{taskListId}` を document ID にする。Admin SDK だけが読み書きし、Rules ではクライアントからのアクセスを許可しない。
 
 - `notifiedAt`: 最後に通知を配信した Unix epoch milliseconds。
+- `expireAt`: 抑制期間の終了時刻（Firestore Timestamp）。`firestore.indexes.json` の TTL policy で期限後に自動削除し、退会後も変更者の uid を含む document ID が残り続けないようにする（TTL の削除は期限から最大 24 時間ほど遅れる）。
 
 ### apiTokens/{tokenHash}
 

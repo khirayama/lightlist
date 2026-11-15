@@ -1,4 +1,4 @@
-import { FieldPath, FieldValue, getFirestore } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import {
   getMessaging,
   type BatchResponse,
@@ -103,7 +103,10 @@ const claimNotification = async (throttleKey: string): Promise<boolean> => {
     return false;
   }
   recentNotifications.set(throttleKey, now);
-  await throttleRef.set({ notifiedAt: now });
+  await throttleRef.set({
+    notifiedAt: now,
+    expireAt: Timestamp.fromMillis(now + NOTIFICATION_COOLDOWN_MS),
+  });
   return true;
 };
 

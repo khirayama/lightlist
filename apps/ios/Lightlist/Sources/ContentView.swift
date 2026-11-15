@@ -1114,7 +1114,7 @@ nonisolated private func numberValue(_ value: Any?) -> Double? {
     return number.doubleValue
 }
 
-private struct FirestoreTaskRecord: Codable {
+private struct FirestoreTaskRecord {
     let id: String?
     let text: String?
     let completed: Bool?
@@ -1156,7 +1156,7 @@ private struct FirestoreTaskRecord: Codable {
     }
 }
 
-private struct FirestoreTaskListRecord: Codable {
+private struct FirestoreTaskListRecord {
     let name: String?
     let tasks: [String: FirestoreTaskRecord]?
     let history: [String]?
@@ -1184,7 +1184,7 @@ private struct FirestoreTaskListRecord: Codable {
     }
 }
 
-private struct FirestoreSettingsRecord: Codable {
+private struct FirestoreSettingsRecord: Decodable {
     let theme: String?
     let language: String?
     let taskInsertPosition: String?
@@ -2106,8 +2106,8 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         }
 
         let taskList = taskLists[taskListIndex]
-        let parsed = resolveTaskInput(trimmed, translations: translations)
-        guard hasTaskContent(text: parsed.text, date: dateStr, pinned: pinned) else {
+        let input = resolveTaskSheetInput(trimmed, date: dateStr, pinned: pinned, translations: translations)
+        guard hasTaskContent(text: input.text, date: input.date, pinned: input.pinned) else {
             calendarError = translations.t("common.error")
             onFailure()
             return
@@ -2115,18 +2115,18 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
         let orderedTasks = displayedTasks(for: taskList)
         let insertedTask = TaskSummary(
             id: UUID().uuidString,
-            text: parsed.text,
+            text: input.text,
             completed: false,
-            date: dateStr,
+            date: input.date,
             order: 0,
-            pinned: pinned
+            pinned: input.pinned
         )
         let nextTasks = normalizeTasks(
             insertTask(insertedTask, into: orderedTasks, position: taskInsertPosition),
             autoSort: autoSort
         )
         let nextHistory = buildHistory(
-            newText: parsed.text,
+            newText: input.text,
             history: displayedHistory(for: taskList),
             normalizeWhenEmpty: true
         )
@@ -2140,7 +2140,7 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             },
             onSuccess: onSuccess
         )
-        logTaskAdd(hasDate: !dateStr.isEmpty)
+        logTaskAdd(hasDate: !input.date.isEmpty)
     }
 
     func saveTask(
@@ -2176,16 +2176,17 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             taskListId: task.taskListId, taskId: task.taskId, autoSort: autoSort, translations: translations, onSuccess: onSuccess,
             onFailure: onFailure
         ) { current, taskList in
-            let nextText = resolveTaskInput(trimmed, translations: translations, currentTask: current).text
+            let input = resolveTaskSheetInput(
+                trimmed, date: dateStr, pinned: pinned, translations: translations, currentTask: current)
             var additionalUpdates: [String: Any] = [:]
-            if nextText != current.text {
+            if input.text != current.text {
                 additionalUpdates["history"] = buildHistory(
-                    newText: nextText,
+                    newText: input.text,
                     history: displayedHistory(for: taskList),
                     oldText: current.text
                 )
             }
-            return (current.updating(text: nextText, date: dateStr, pinned: pinned), additionalUpdates)
+            return (current.updating(text: input.text, date: input.date, pinned: input.pinned), additionalUpdates)
         }
     }
 
@@ -2215,8 +2216,10 @@ private final class CalendarViewModel: OrderedTaskListViewModel<TaskListDetail> 
             onFailure()
             return
         }
-        let nextText = resolveTaskInput(rawText, translations: translations, currentTask: currentTask).text
-        let movedTask = currentTask.updating(text: nextText, date: dateStr, pinned: pinned)
+        let input = resolveTaskSheetInput(
+            rawText, date: dateStr, pinned: pinned, translations: translations, currentTask: currentTask)
+        let nextText = input.text
+        let movedTask = currentTask.updating(text: nextText, date: input.date, pinned: input.pinned)
         let nextSourceTasks = normalizeTasks(sourceTasks.filter { $0.id != task.taskId }, autoSort: autoSort)
         let nextTargetTasks = normalizeTasks(
             insertTask(movedTask, into: targetTasks, position: taskInsertPosition),
@@ -2592,6 +2595,23 @@ private func parseDateFromTaskInput(_ text: String, translations: Translations) 
 }
 
 @MainActor
+private func resolveTaskSheetInput(
+    _ text: String,
+    date: String,
+    pinned: Bool,
+    translations: Translations,
+    currentTask: TaskSummary? = nil
+) -> (text: String, date: String, pinned: Bool) {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let currentTask, trimmed == currentTask.text.trimmingCharacters(in: .whitespacesAndNewlines) {
+        return (currentTask.text, date, pinned)
+    }
+    let prefix = resolveTaskInput(trimmed, translations: translations)
+    let prefixDate = prefix.date ?? ""
+    let resolvedText = currentTask.map { resolveTaskInput(trimmed, translations: translations, currentTask: $0).text } ?? prefix.text
+    return (resolvedText, prefixDate.isEmpty ? date : prefixDate, pinned || prefix.pinned)
+}
+
 private func resolveTaskInput(_ text: String, translations: Translations, currentTask: TaskSummary? = nil) -> ParsedTaskInput {
     var remaining = text.trimmingCharacters(in: .whitespacesAndNewlines)
     var parsedDate: String?
@@ -5092,7 +5112,12 @@ private struct TaskListDetailPage: View {
                 let taskListOrderRef = self.db.collection("taskListOrder").document(uid)
                 let taskListRef = self.db.collection("taskLists").document(taskList.id)
                 let orderSnapshot = try await cacheFirstDocument(taskListOrderRef)
-                let taskListSnapshot = try await cacheFirstDocument(taskListRef)
+                let taskListSnapshot: DocumentSnapshot?
+                do {
+                    taskListSnapshot = try await cacheFirstDocument(taskListRef)
+                } catch  where isPermissionDenied(error) {
+                    taskListSnapshot = nil
+                }
                 guard orderSnapshot.exists,
                     let orderData = orderSnapshot.data(),
                     orderData[taskList.id] != nil
@@ -5102,21 +5127,26 @@ private struct TaskListDetailPage: View {
                     }
                     return
                 }
-                guard taskListSnapshot.exists else {
-                    await MainActor.run {
-                        removingList = false
-                    }
-                    return
-                }
 
-                let batch = try makeTaskListMembershipRemovalBatch(
-                    db: db,
-                    taskListOrderRef: taskListOrderRef,
-                    taskListId: taskList.id,
-                    taskListSnapshot: taskListSnapshot,
-                    shareCodeDocumentId: (taskListSnapshot.data()?["shareCode"] as? String)
-                        .flatMap(normalizedShareCode)
-                )
+                let batch: WriteBatch
+                if let taskListSnapshot, taskListSnapshot.exists,
+                    stringArray(taskListSnapshot.data()?["memberKeys"])?.contains(memberKey(uid: uid)) == true
+                {
+                    batch = try makeTaskListMembershipRemovalBatch(
+                        db: db,
+                        taskListOrderRef: taskListOrderRef,
+                        taskListId: taskList.id,
+                        taskListSnapshot: taskListSnapshot,
+                        shareCodeDocumentId: (taskListSnapshot.data()?["shareCode"] as? String)
+                            .flatMap(normalizedShareCode)
+                    )
+                } else {
+                    batch = db.batch()
+                    batch.updateData([taskList.id: FieldValue.delete(), "updatedAt": nowMillis()], forDocument: taskListOrderRef)
+                    if taskListSnapshot?.exists == false {
+                        batch.deleteDocument(taskListRef.collection("members").document(uid))
+                    }
+                }
                 commitReportingFailure(batch)
 
                 await MainActor.run {
@@ -5331,7 +5361,7 @@ private struct TaskListDetailPage: View {
             (draggingTaskId == task.id ? 0.8 : 1.0)
                 * (exitingTaskIds.contains(task.id) ? 0 : 1)
         )
-        .scaleEffect(draggingTaskId == task.id ? 1.03 : 1.0)
+        .scaleEffect(draggingTaskId == task.id && !reduceMotion ? 1.03 : 1.0)
         .animation(
             draggingTaskId == task.id || reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.86),
             value: displayTaskIds
@@ -5812,6 +5842,11 @@ private struct TaskListDetailPage: View {
     }
 
     private func startEdit(_ task: TaskSummary) {
+        if let currentId = editingTaskId, currentId != task.id,
+            let currentTask = displayTasks.first(where: { $0.id == currentId })
+        {
+            commitEdit(currentTask)
+        }
         editingTaskId = task.id
         editingText = task.text
         isTextFieldFocused = true
@@ -6055,9 +6090,9 @@ private func addSharedTaskListToOrder(taskListId: String, joinCode: String) asyn
     let taskListOrderRef = db.collection("taskListOrder").document(uid)
     let taskListRef = db.collection("taskLists").document(taskListId)
     let membershipRef = taskListRef.collection("members").document(uid)
-    let orderSnap = try await taskListOrderRef.getDocument()
+    let orderSnap = try await taskListOrderRef.getDocument(source: .server)
     let orderData = orderSnap.data() ?? [:]
-    let membershipSnap = try await membershipRef.getDocument()
+    let membershipSnap = try await membershipRef.getDocument(source: .server)
     if orderData[taskListId] != nil, membershipSnap.exists {
         return
     }
@@ -6645,8 +6680,20 @@ private final class SettingsViewModel: ObservableObject {
         }
     }
 
-    func sendEmailChangeVerification(newEmail: String, completion: @escaping (Error?) -> Void) {
-        Auth.auth().currentUser?.sendEmailVerification(beforeUpdatingEmail: newEmail, completion: completion)
+    func sendEmailChangeVerification(newEmail: String, completion: @escaping @MainActor (Error?) -> Void) {
+        let auth = Auth.auth()
+        guard let user = auth.currentUser else {
+            completion(NSError(domain: "com.lightlist", code: -1))
+            return
+        }
+        let previousLanguageCode = auth.languageCode
+        auth.languageCode = normalizeLanguageCode(settings?.language ?? "ja")
+        user.sendEmailVerification(beforeUpdatingEmail: newEmail) { error in
+            Task { @MainActor in
+                auth.languageCode = previousLanguageCode
+                completion(error)
+            }
+        }
     }
 }
 

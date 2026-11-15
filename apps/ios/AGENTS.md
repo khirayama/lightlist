@@ -39,6 +39,7 @@
 - `@Published` は値が変わったときだけ代入する（`OrderedTaskListViewModel` / `SettingsViewModel` は metadata だけの snapshot でも呼ばれ、同値の代入でも全画面が再評価される）。
 - 取り消し線は `StrikethroughText` の mask で伸ばし、件数は `numericText` で差し替える。
 - pin prefix の照合に `.diacriticInsensitive` を使わない（大文字小文字だけを無視する）。
+- 本文編集中に別タスクの本文をタップすると、`isTextFieldFocused` が `true` のまま編集対象だけが切り替わり `onChange(false)` が来ない。前の編集は `startEdit` で明示的に確定する（Web は textarea の blur、Android は `startTaskEditing` で確定している）。
 
 ## 状態・Firebase
 

@@ -213,6 +213,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.compose.runtime.rememberUpdatedState
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.SnapshotMetadata
@@ -2539,18 +2540,24 @@ private suspend fun signUpWithInitialData(
     ensureInitialUserData(uid, language, initialTaskListName)
 }
 
-private suspend fun sendPasswordResetEmail(email: String, language: String) {
+private suspend fun <T> withAuthLanguage(language: String, block: suspend () -> T): T {
     val auth = Firebase.auth
     val previousLanguageCode = auth.languageCode
     auth.setLanguageCode(normalizeLanguageCode(language))
     try {
-        auth.sendPasswordResetEmail(email).await()
+        return block()
+    } finally {
+        if (previousLanguageCode == null) auth.useAppLanguage() else auth.setLanguageCode(previousLanguageCode)
+    }
+}
+
+private suspend fun sendPasswordResetEmail(email: String, language: String) {
+    try {
+        withAuthLanguage(language) { Firebase.auth.sendPasswordResetEmail(email).await() }
     } catch (e: FirebaseAuthException) {
         if (e.errorCode != "ERROR_USER_NOT_FOUND" && e.errorCode != "ERROR_INVALID_CREDENTIAL") {
             throw e
         }
-    } finally {
-        if (previousLanguageCode == null) auth.useAppLanguage() else auth.setLanguageCode(previousLanguageCode)
     }
 }
 
@@ -2641,22 +2648,22 @@ private object StartupSettingsCache {
         ) {
             return
         }
-        prefs(context).edit()
-            .putString(KEY_UID, userId)
-            .putString(KEY_THEME, settings.theme)
-            .putString(KEY_LANGUAGE, settings.language)
-            .putString(KEY_TASK_INSERT_POSITION, settings.taskInsertPosition)
-            .putBoolean(KEY_AUTO_SORT, settings.autoSort)
-            .putBoolean(KEY_NOTIFY_SHARED_LIST_UPDATES, settings.notifySharedListUpdates)
-            .putBoolean(KEY_HAPTICS_ENABLED, settings.hapticsEnabled)
-            .putString(KEY_STARTUP_VIEW, settings.startupView)
-            .apply()
+        prefs(context).edit {
+            putString(KEY_UID, userId)
+            putString(KEY_THEME, settings.theme)
+            putString(KEY_LANGUAGE, settings.language)
+            putString(KEY_TASK_INSERT_POSITION, settings.taskInsertPosition)
+            putBoolean(KEY_AUTO_SORT, settings.autoSort)
+            putBoolean(KEY_NOTIFY_SHARED_LIST_UPDATES, settings.notifySharedListUpdates)
+            putBoolean(KEY_HAPTICS_ENABLED, settings.hapticsEnabled)
+            putString(KEY_STARTUP_VIEW, settings.startupView)
+        }
     }
 
     fun clear(context: Context) {
         val prefs = prefs(context)
         if (prefs.all.isEmpty()) return
-        prefs.edit().clear().apply()
+        prefs.edit { clear() }
     }
 }
 
@@ -3745,9 +3752,9 @@ private suspend fun addSharedTaskListToOrder(taskListId: String, joinCode: Strin
     val taskListOrderRef = db.collection("taskListOrder").document(uid)
     val taskListRef = db.collection("taskLists").document(taskListId)
     val membershipRef = taskListRef.collection("members").document(uid)
-    val orderSnap = taskListOrderRef.get().await()
+    val orderSnap = taskListOrderRef.get(Source.SERVER).await()
     val orderData = orderSnap.data ?: emptyMap()
-    val membershipSnap = membershipRef.get().await()
+    val membershipSnap = membershipRef.get(Source.SERVER).await()
 
     if (orderData.containsKey(taskListId) && membershipSnap.exists()) {
         return
@@ -3973,9 +3980,9 @@ private fun RollingCountText(
 private fun TaskStateNotice(
     icon: ImageVector,
     titleKey: String,
+    modifier: Modifier = Modifier,
     hintKey: String? = null,
-    color: Color = mutedTextColor(),
-    modifier: Modifier = Modifier
+    color: Color = mutedTextColor()
 ) {
     val t = LocalTranslations.current
     Column(
@@ -4023,7 +4030,7 @@ private fun AllTasksCompletedNotice(color: Color, modifier: Modifier = Modifier)
 }
 
 @Composable
-private fun TaskLoadingPlaceholder(detail: Boolean = false, modifier: Modifier = Modifier) {
+private fun TaskLoadingPlaceholder(modifier: Modifier = Modifier, detail: Boolean = false) {
     val t = LocalTranslations.current
     val placeholderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
     Column(
@@ -4313,6 +4320,28 @@ private fun parseDateFromTaskInput(text: String, t: Translations): Pair<String, 
     }
 
     return source to null
+}
+
+private data class TaskSheetInput(val text: String, val date: String, val pinned: Boolean)
+
+private fun resolveTaskSheetInput(
+    text: String,
+    date: String,
+    pinned: Boolean,
+    t: Translations,
+    currentTask: TaskSummary? = null
+): TaskSheetInput {
+    val trimmed = text.trim()
+    if (currentTask != null && trimmed == currentTask.text.trim()) {
+        return TaskSheetInput(currentTask.text, date, pinned)
+    }
+    val prefix = resolveTaskInput(trimmed, t)
+    val prefixDate = prefix.date.orEmpty()
+    return TaskSheetInput(
+        text = currentTask?.let { resolveTaskInput(trimmed, t, it).text } ?: prefix.text,
+        date = prefixDate.ifEmpty { date },
+        pinned = pinned || prefix.pinned
+    )
 }
 
 private fun resolveTaskInput(text: String, t: Translations, currentTask: TaskSummary? = null): ParsedTaskInput {
@@ -5136,30 +5165,30 @@ private fun CalendarScreen(
         if (!hasTaskContent(trimmed, dateKey, pinned) || taskListIndex < 0) return
 
         val taskList = calendarTaskLists[taskListIndex]
-        val parsed = resolveTaskInput(trimmed, t)
-        if (!hasTaskContent(parsed.text, dateKey, pinned)) return
+        val input = resolveTaskSheetInput(trimmed, dateKey, pinned, t)
+        if (!hasTaskContent(input.text, input.date, input.pinned)) return
         val taskId = java.util.UUID.randomUUID().toString()
         val orderedTasks = displayedTasks(taskList)
         val insertedTask = TaskSummary(
             id = taskId,
-            text = parsed.text,
+            text = input.text,
             completed = false,
-            date = dateKey,
+            date = input.date,
             order = 0.0,
-            pinned = pinned
+            pinned = input.pinned
         )
         val nextTasks = normalizeTasks(
             insertTask(orderedTasks, insertedTask, settingsState.taskInsertPosition),
             settingsState.autoSort
         )
-        val nextHistory = buildHistory(parsed.text, displayedHistory(taskList))
+        val nextHistory = buildHistory(input.text, displayedHistory(taskList))
         val updates = buildTaskUpdateData(orderedTasks, nextTasks) + mapOf("history" to nextHistory)
         val pendingValues = mapOf(taskList.id to nextTasks)
         val mutationRevision = setPendingCalendarTasks(pendingValues, mapOf(taskList.id to nextHistory))
         addTaskError = null
         showAddTaskSheet = false
         haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
-        logTaskAdd(hasDate = dateKey.isNotEmpty())
+        logTaskAdd(hasDate = input.date.isNotEmpty())
 
         TaskListMutationQueues.queueFor(taskList.id).enqueue(
             onIdle = { clearPendingCalendarTasks(pendingValues.keys, mutationRevision) },
@@ -5221,8 +5250,9 @@ private fun CalendarScreen(
         val trimmed = text.trim()
         val sourceTaskList = calendarTaskLists.firstOrNull { it.id == task.taskListId } ?: return
         val currentTask = displayedTasks(sourceTaskList).firstOrNull { it.id == task.taskId } ?: return
-        val nextText = resolveTaskInput(trimmed, t, currentTask).text
-        if (taskListId == task.taskListId || !hasTaskContent(nextText, dateKey, pinned)) {
+        val input = resolveTaskSheetInput(trimmed, dateKey, pinned, t, currentTask)
+        val nextText = input.text
+        if (taskListId == task.taskListId || !hasTaskContent(nextText, input.date, input.pinned)) {
             updateCalendarTask(
                 task,
                 "text,date,pinned",
@@ -5232,14 +5262,14 @@ private fun CalendarScreen(
                     null
                 }
             ) { cur ->
-                cur.copy(text = nextText, date = dateKey, pinned = pinned)
+                cur.copy(text = nextText, date = input.date, pinned = input.pinned)
             }
             return
         }
 
         val targetTaskList = calendarTaskLists.firstOrNull { it.id == taskListId } ?: return
         val orderedTargetTasks = displayedTasks(targetTaskList)
-        val movedTask = currentTask.copy(text = nextText, date = dateKey, pinned = pinned)
+        val movedTask = currentTask.copy(text = nextText, date = input.date, pinned = input.pinned)
         val nextTargetTasks = normalizeTasks(
             insertTask(orderedTargetTasks, movedTask, settingsState.taskInsertPosition),
             settingsState.autoSort
@@ -6136,7 +6166,7 @@ private fun TaskListsScreen(
                                 .fillMaxWidth()
                                 .offset { IntOffset(0, if (isDragged) taskListDragOffset.toInt() else 0) }
                                 .zIndex(if (isDragged) 1f else 0f)
-                                .alpha(if (isDragged && !reduceMotion) 0.5f else 1f)
+                                .alpha(if (isDragged) 0.5f else 1f)
                                 .graphicsLayer {
                                     scaleX = if (isDragged && !reduceMotion) 1.03f else 1f
                                     scaleY = if (isDragged && !reduceMotion) 1.03f else 1f
@@ -6384,7 +6414,7 @@ private fun TaskListsScreen(
     }
 
     fun joinTaskList() {
-        if (!isOnline) return
+        if (!isOnline || joiningList) return
         scope.launch {
             val code = normalizedShareCodeInput(joinListInput)
             if (code == null) {
@@ -6930,7 +6960,7 @@ private fun TaskListRow(
         Modifier
             .offset { IntOffset(0, taskDragOffset.toInt()) }
             .zIndex(1f)
-            .alpha(if (!reduceMotion) 0.8f else 1f)
+            .alpha(0.8f)
             .then(
                 if (reduceMotion) {
                     Modifier
@@ -7803,11 +7833,27 @@ private fun TaskListDetailContent(
                 val taskListOrderRef = db.collection("taskListOrder").document(uid)
                 val taskListRef = db.collection("taskLists").document(taskListId)
                 val taskListOrderSnapshot = cacheFirstDocument(taskListOrderRef)
-                val taskListSnapshot = cacheFirstDocument(taskListRef)
-                if (taskListOrderSnapshot.contains(taskListId) && taskListSnapshot.exists()) {
-                    commitReportingFailure(
-                        makeTaskListMembershipRemovalBatch(db, taskListOrderRef, taskListId, taskListSnapshot)
-                    )
+                val taskListSnapshot = try {
+                    cacheFirstDocument(taskListRef)
+                } catch (e: FirebaseFirestoreException) {
+                    if (!e.isPermissionDenied()) throw e
+                    null
+                }
+                if (taskListOrderSnapshot.contains(taskListId)) {
+                    val memberSnapshot = taskListSnapshot?.takeIf {
+                        it.exists() && (it.get("memberKeys") as? List<*>)?.contains(memberKey(uid)) == true
+                    }
+                    val batch = if (memberSnapshot != null) {
+                        makeTaskListMembershipRemovalBatch(db, taskListOrderRef, taskListId, memberSnapshot)
+                    } else {
+                        db.batch().apply {
+                            update(taskListOrderRef, mapOf(taskListId to FieldValue.delete(), "updatedAt" to nowMillis()))
+                            if (taskListSnapshot?.exists() == false) {
+                                delete(taskListRef.collection("members").document(uid))
+                            }
+                        }
+                    }
+                    commitReportingFailure(batch)
                     logTaskListDelete()
                 }
                 showRemoveListConfirm = false
@@ -9181,7 +9227,7 @@ private fun SettingsView(
         scope.launch {
             try {
                 val user = Firebase.auth.currentUser ?: return@launch
-                user.verifyBeforeUpdateEmail(trimmedEmail).await()
+                withAuthLanguage(uiState.language) { user.verifyBeforeUpdateEmail(trimmedEmail).await() }
                 logEmailChangeRequested()
                 emailChangeSuccess = true
                 newEmail = ""

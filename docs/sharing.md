@@ -18,7 +18,7 @@
 
 ## リストへの参加
 
-- `addSharedTaskListToOrder()`: 事前 read 後の batch write で次を行う。
+- `addSharedTaskListToOrder()`: `taskListOrder/{uid}` と自分の membership document をサーバーから読み（オフラインでは失敗させ、cache の旧状態から加算しない）、その後の batch write で次を行う。
   - 自分の `taskListOrder` に末尾追加する。
   - `taskLists/{taskListId}/members/{uid}` に共有コード加入の証明を作る。
   - `memberCount` を `+1` し、`memberKeys` に自分の key を追加する。
@@ -39,5 +39,5 @@
 
 ## 画面導線
 
-- 共有コードプレビューは未認証でも開く。未参加ユーザーには `preview` の写しを読み取り専用で表示し、task の追加・完了・編集・並び替えを含む編集 UI を表示しない。参加済みユーザー（membership あり）はリスト本体を購読して通常の編集 UI を表示する。編集と共有コード管理、タスクリスト削除の導線は membership document を持つユーザーにだけ表示する。ログイン済みかつ未参加のときだけ加入導線を表示する。
+- 共有コードプレビューは未認証でも開く。未参加ユーザーには `preview` の写しを読み取り専用で表示し、task の追加・完了・編集・並び替えを含む編集 UI を表示しない。参加済みユーザー（membership あり）はリスト本体を購読して通常の編集 UI を表示する。編集と共有コード管理、タスクリスト削除の導線は membership document を持つユーザーにだけ表示する。ログイン済みかつ未参加のときだけ加入導線を表示し、参加に成功したら 3 プラットフォームともそのリストの詳細を開く。
 - 共有 URL は `https://lightlist.app/sharecodes/?code=CODE` の 1 形式だけとし、iOS は Universal Links、Android は App Links で開く。custom scheme は持たない。

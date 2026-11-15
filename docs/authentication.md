@@ -70,9 +70,9 @@ Firebase Auth ユーザー作成後、Firestore へ初期データを batch 作�
 - Firebase Console のメールテンプレートの action URL は標準のまま変更しない（メールアドレス変更の確認なども同じ action URL を使うため）。
 - 送信メールの言語は、明示引数 -> 現在設定 -> `ja` の順で解決する。
 
-## メールアドレス変更（Web）
+## メールアドレス変更（Web / iOS / Android 共通）
 
-- `sendEmailChangeVerification(newEmail)`: `verifyBeforeUpdateEmail()` を使う。認証メールの言語は現在設定、未取得時は `ja`。
+- `sendEmailChangeVerification(newEmail)`: 前後の空白を除いたアドレスで `verifyBeforeUpdateEmail()`（iOS `sendEmailVerification(beforeUpdatingEmail:)`）を使う。認証メールの言語は 3 プラットフォームとも現在設定、未取得時は `ja`。送信中だけ Auth の言語を切り替え、完了後に元へ戻す。
 
 ## deep link
 

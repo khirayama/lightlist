@@ -4,13 +4,13 @@
 
 | 対象 | ローカル Node.js | npm |
 | --- | --- | --- |
-| Web | `apps/web/.node-version` の 24.19.0 | 12.0.2 |
-| 通知 Functions | `firebase/functions/.node-version` の 22.23.4 | 12.0.2 |
-| 課金停止 Functions | `firebase/functions-billing/.node-version` の 22.23.4 | 12.0.2 |
+| Web | `apps/web/.node-version` の 24.22.3 | 12.2.2 |
+| 通知 Functions | `firebase/functions/.node-version` の 22.23.5 | 12.2.2 |
+| 課金停止 Functions | `firebase/functions-billing/.node-version` の 22.23.5 | 12.2.2 |
 
-各ディレクトリで Node.js を切り替えてから `npm ci` を実行する。fnm を使う場合は `fnm use --install-if-missing` で `.node-version` を適用し、必要なら選択した Node.js に `npm install --global npm@12.0.2` で npm を導入する。
+各ディレクトリで Node.js を切り替えてから `npm ci` を実行する。fnm を使う場合は `fnm use --install-if-missing` で `.node-version` を適用し、必要なら選択した Node.js に `npm install --global npm@12.2.2` で npm を導入する。
 
-`devEngines` は `npm install` / `npm ci` / `npm run` の実行前に Node.js と npm を検証する。Web は Node.js `^24.19.0 || >=26.0.0`、Functions は `^22.22.2` を受け入れ、npm は 12.0.2 に固定する。Functions の配信 runtime は Node.js 22 とし、Cloud Build にも `engines.npm` で npm 12.0.2 を指定する。
+`devEngines` は `npm install` / `npm ci` / `npm run` の実行前に Node.js と npm を検証する。Web は Node.js `^24.22.3 || >=26.0.0`、Functions は `^22.23.5` を受け入れ、npm は 12.2.2 に固定する。Functions の配信 runtime は Node.js 22 とし、Cloud Build にも `engines.npm` で npm 12.2.2 を指定する。
 
 ## install script
 

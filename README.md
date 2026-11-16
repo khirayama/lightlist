@@ -14,8 +14,8 @@
 
 ## 前提
 
-- Web: Node.js 24.19.0、npm 12.0.2
-- Functions: Node.js 22、npm 12.0.2
+- Web: Node.js 24.22.3、npm 12.2.2
+- Functions: Node.js 22、npm 12.2.2
 - 対象ディレクトリの `.node-version` に合わせる（fnm があれば `just` が自動で切り替える）。手順は [docs/development.md](./docs/development.md)。
 
 ## セットアップ

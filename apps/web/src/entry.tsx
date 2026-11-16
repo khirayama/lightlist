@@ -4394,6 +4394,43 @@ function ColorPicker({
   );
 }
 
+function TaskListFields({
+  name,
+  onNameChange,
+  background,
+  onBackgroundChange,
+}: {
+  name: string;
+  onNameChange: (name: string) => void;
+  background: string | null;
+  onBackgroundChange: (color: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <label className="ll-flex ll-flex-col ll-gap-2">
+        <span className="ll-field-label">{t("app.taskListName")}</span>
+        <input
+          type="text"
+          value={name}
+          onChange={(event) => onNameChange(event.target.value)}
+          placeholder={t("app.taskListNamePlaceholder")}
+          className="ll-field"
+        />
+      </label>
+      <div className="ll-flex ll-flex-col ll-gap-1">
+        <span className="ll-field-label">{t("taskList.selectColor")}</span>
+        <ColorPicker
+          colors={COLORS}
+          selectedColor={background}
+          onSelect={onBackgroundChange}
+          ariaLabelPrefix={t("taskList.selectColor")}
+        />
+      </div>
+    </>
+  );
+}
+
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogClose = DialogPrimitive.Close;
@@ -4415,29 +4452,19 @@ function DialogOverlay({
   );
 }
 
+type DialogPanelProps = ComponentProps<typeof DialogPrimitive.Content> & {
+  title: ReactNode;
+  description?: ReactNode;
+};
+
 function DialogContent({
   children,
   title,
   description,
-  titleId,
-  descriptionId,
   className,
   ref,
   ...props
-}: ComponentProps<typeof DialogPrimitive.Content> & {
-  title: ComponentProps<typeof DialogPrimitive.Title>["children"];
-  description?: ComponentProps<typeof DialogPrimitive.Description>["children"];
-  titleId?: string;
-  descriptionId?: string;
-}) {
-  const fallbackTitleId = useId();
-  const fallbackDescriptionId = useId();
-  const generatedTitleId = titleId ?? fallbackTitleId;
-  const generatedDescriptionId =
-    description !== undefined
-      ? (descriptionId ?? fallbackDescriptionId)
-      : undefined;
-
+}: DialogPanelProps) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Close asChild>
@@ -4446,25 +4473,17 @@ function DialogContent({
       <DialogPrimitive.Content
         {...props}
         ref={ref}
-        aria-labelledby={generatedTitleId}
-        aria-describedby={generatedDescriptionId}
         className={clsx(
           "ll-anim-dialog ll-dialog-panel ll-fixed ll-left-half ll-top-half ll-z-1300 ll-translate-x-neg-half ll-translate-y-neg-half ll-bg-dialog ll-outline-none ll-p-6 ll-text-dialog-fg ll-shadow-2xl",
           className,
         )}
       >
         <div className="ll-flex ll-flex-col ll-gap-2">
-          <DialogPrimitive.Title
-            id={generatedTitleId}
-            className="ll-m-0 ll-text-lg ll-font-semibold"
-          >
+          <DialogPrimitive.Title className="ll-m-0 ll-text-lg ll-font-semibold">
             {title}
           </DialogPrimitive.Title>
           {description !== undefined ? (
-            <DialogPrimitive.Description
-              id={generatedDescriptionId}
-              className="ll-m-0 ll-text-sm ll-text-dialog-muted"
-            >
+            <DialogPrimitive.Description className="ll-m-0 ll-text-sm ll-text-dialog-muted">
               {description}
             </DialogPrimitive.Description>
           ) : null}
@@ -4479,25 +4498,10 @@ function ActionSheetContent({
   children,
   title,
   description,
-  titleId,
-  descriptionId,
   className,
   ref,
   ...props
-}: ComponentProps<typeof DialogPrimitive.Content> & {
-  title: ComponentProps<typeof DialogPrimitive.Title>["children"];
-  description?: ComponentProps<typeof DialogPrimitive.Description>["children"];
-  titleId?: string;
-  descriptionId?: string;
-}) {
-  const fallbackTitleId = useId();
-  const fallbackDescriptionId = useId();
-  const generatedTitleId = titleId ?? fallbackTitleId;
-  const generatedDescriptionId =
-    description !== undefined
-      ? (descriptionId ?? fallbackDescriptionId)
-      : undefined;
-
+}: DialogPanelProps) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Close asChild>
@@ -4506,21 +4510,16 @@ function ActionSheetContent({
       <DialogPrimitive.Content
         {...props}
         ref={ref}
-        aria-labelledby={generatedTitleId}
-        aria-describedby={generatedDescriptionId}
         className={clsx(
           "ll-anim-sheet ll-sheet-panel ll-fixed ll-inset-x-0 ll-bottom-0 ll-z-1300 ll-flex ll-max-h-sheet ll-w-full ll-translate-x-0 ll-translate-y-0 ll-flex-col ll-overflow-hidden ll-rounded-t-28px ll-bg-white-b ll-outline-none ll-px-4 ll-safe-pb-6 ll-pt-3 ll-text-gray-900 ll-shadow-2xl ll-sm-left-half ll-sm-top-half ll-sm-translate-x-neg-half ll-sm-translate-y-neg-half ll-dark-bg-gray-900b ll-dark-text-gray-50",
           className,
         )}
       >
-        <DialogPrimitive.Title id={generatedTitleId} className="ll-sr-only">
+        <DialogPrimitive.Title className="ll-sr-only">
           {title}
         </DialogPrimitive.Title>
         {description !== undefined ? (
-          <DialogPrimitive.Description
-            id={generatedDescriptionId}
-            className="ll-sr-only"
-          >
+          <DialogPrimitive.Description className="ll-sr-only">
             {description}
           </DialogPrimitive.Description>
         ) : null}
@@ -7090,27 +7089,12 @@ function EditTaskListDialog({
         >
           <div className="ll-mt-5 ll-flex ll-flex-col ll-gap-5">
             {error ? <Alert variant="error">{error}</Alert> : null}
-            <label className="ll-flex ll-flex-col ll-gap-2">
-              <span className="ll-field-label">{t("app.taskListName")}</span>
-              <input
-                type="text"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder={t("app.taskListNamePlaceholder")}
-                className="ll-field"
-              />
-            </label>
-            <div className="ll-flex ll-flex-col ll-gap-1">
-              <span className="ll-field-label">
-                {t("taskList.selectColor")}
-              </span>
-              <ColorPicker
-                colors={COLORS}
-                selectedColor={background ?? null}
-                onSelect={setBackground}
-                ariaLabelPrefix={t("taskList.selectColor")}
-              />
-            </div>
+            <TaskListFields
+              name={name}
+              onNameChange={setName}
+              background={background}
+              onBackgroundChange={setBackground}
+            />
           </div>
           <DialogFooter
             start={
@@ -9847,29 +9831,12 @@ function TaskListSidebarPanel({
                   {createListError ? (
                     <Alert variant="error">{createListError}</Alert>
                   ) : null}
-                  <label className="ll-flex ll-flex-col ll-gap-2">
-                    <span className="ll-field-label">
-                      {t("app.taskListName")}
-                    </span>
-                    <input
-                      type="text"
-                      value={createListInput}
-                      onChange={(e) => setCreateListInput(e.target.value)}
-                      placeholder={t("app.taskListNamePlaceholder")}
-                      className="ll-field"
-                    />
-                  </label>
-                  <div className="ll-flex ll-flex-col ll-gap-1">
-                    <span className="ll-field-label">
-                      {t("taskList.selectColor")}
-                    </span>
-                    <ColorPicker
-                      colors={COLORS}
-                      selectedColor={createListBackground}
-                      onSelect={setCreateListBackground}
-                      ariaLabelPrefix={t("taskList.selectColor")}
-                    />
-                  </div>
+                  <TaskListFields
+                    name={createListInput}
+                    onNameChange={setCreateListInput}
+                    background={createListBackground}
+                    onBackgroundChange={setCreateListBackground}
+                  />
                 </div>
                 <DialogFooter>
                   <DialogClose asChild>

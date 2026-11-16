@@ -3,7 +3,8 @@ import { logger } from "firebase-functions";
 import { onMessagePublished } from "firebase-functions/v2/pubsub";
 
 const billing = new CloudBillingClient();
-const billingAccountName = "billingAccounts/006AFA-A3102C-9CBA02";
+const billingAccountId = "006AFA-A3102C-9CBA02";
+const billingAccountName = `billingAccounts/${billingAccountId}`;
 const budgetName = "Lightlist dev + prod monthly JPY 100";
 const projects = ["lightlist-dev", "lightlist-prod-b0269"];
 
@@ -30,7 +31,7 @@ export const stopLightlistBilling = onMessagePublished<BudgetNotification>(
   },
   async (event) => {
     if (
-      event.data.message.attributes.billingAccountId !== "006AFA-A3102C-9CBA02" ||
+      event.data.message.attributes.billingAccountId !== billingAccountId ||
       event.data.message.attributes.budgetId !== "80977236-bfe3-482a-8e44-17e4b5374896"
     ) return;
     let notification: BudgetNotification;

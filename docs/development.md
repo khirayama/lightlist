@@ -10,7 +10,7 @@
 
 各ディレクトリで Node.js を切り替えてから `npm ci` を実行する。fnm を使う場合は `fnm use --install-if-missing` で `.node-version` を適用し、必要なら選択した Node.js に `npm install --global npm@12.2.2` で npm を導入する。
 
-`devEngines` は `npm install` / `npm ci` / `npm run` の実行前に Node.js と npm を検証する。Web は Node.js `^24.22.3 || >=26.0.0`、Functions は `^22.23.5` を受け入れ、npm は 12.2.2 に固定する。Functions の配信 runtime は Node.js 22 とし、Cloud Build にも `engines.npm` で npm 12.2.2 を指定する。
+`devEngines` は `npm install` / `npm ci` / `npm run` の実行前に Node.js と npm を検証する。Web は Node.js `^24.22.3 || >=26.0.0`、Functions は major の `22` だけを指定し（Cloud Build の Node.js 22 の patch 版は選べず、ローカルより古いことがあるため。2026-11 に 22.23.4 で `EBADDEVENGINES` になった）、npm は 12.2.2 に固定する。Functions の配信 runtime は Node.js 22 とし、Cloud Build にも `engines.npm` で npm 12.2.2 を指定する。
 
 ## install script
 

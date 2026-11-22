@@ -73,5 +73,6 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Wo
 - deploy 設定（`firebase.json` / `firebase.billing.json` / `.firebaserc` / `firestore.rules` / `firestore.indexes.json`）と Functions のソース（`functions/` / `functions-billing/`）は `firebase/` に置く。
 - 配信前のローカル build は Functions 用 Node.js 22 と npm 12.2.2 で実行する。Cloud Build の npm 版も両 Functions の `engines.npm` で固定し、未承認の install script があれば停止する。Functions 系の recipe は fnm があれば対象ディレクトリの `.node-version` で実行する（`just _node <dir> <command>`）。deploy recipe は PATH 上の global `firebase` CLI を前提とする。
 - クライアントが新しいコレクション・field を書き込む変更は、本番 Rules のデプロイ後に配布する。配布前に本番の Rules release（`firebaserules.googleapis.com/v1/projects/lightlist-prod-b0269/releases/cloud.firestore`）の ruleset がリポジトリの `firebase/firestore.rules` と一致することを確認する。Web は push では配信されないため、`just release` の順序（Firebase → Web）で配布する。
+- 本番の Firestore `(default)` database は削除保護（delete protection）を有効にする（`firebase firestore:databases:update "(default)" --delete-protection ENABLED --project lightlist-prod-b0269`）。database を削除する必要が生じたときだけ `DISABLED` に戻す。dev は無効のままとする。
 - 課金停止の Functions は `just deploy-billing` で本番だけに配信する（[billing-control.md](./billing-control.md)）。
 - 通知 Functions は Firebase Blaze プランと Node.js 22 runtime を使う。FCM / APNs / Web Push の設定は [notifications.md](./notifications.md) を参照する。

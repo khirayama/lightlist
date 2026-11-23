@@ -24,7 +24,8 @@ UI の寸法・色・アニメーション時間などの数値は各実装の�
 
 ## 開発用起動
 
-- Android Emulator は `cd apps/android && just emulator <AVD名>`、iOS Simulator は `cd apps/ios && just simulator <デバイス名またはUDID>` で起動し、ルートの `just android` / `just ios` でビルドしてインストールする。
+- Android Emulator は `cd apps/android && just emulator <AVD名>`、iOS Simulator は `cd apps/ios && just simulator <デバイス名またはUDID>` で起動し、ルートの `just android` / `just ios [デバイス名またはUDID]` でビルドしてインストールする。
+- Xcode 27 には Simulator.app がなく、simulator の画面は `DeviceHub.app`（`/Applications/Xcode.app/Contents/Applications/`）で表示・操作する。CLI は従来どおり `xcrun simctl`。simulator が複数起動しているときは `just ios` / `just run` / `just screenshot` に名前または UDID を指定する（`booted` はどの端末に解決されるか決まらないため、複数起動中は指定がないとエラーにする）。
 
 ## リリース
 

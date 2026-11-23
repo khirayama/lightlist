@@ -56,6 +56,7 @@
 ## 主要コマンド
 
 - `just format` / `just lint` / `just build` / `just build-release`
-- `just run`、`just simulator <名前または UDID>` / `just simulator-list`、`just screenshot`
+- `just run [名前または UDID]`、`just simulator <名前または UDID>` / `just simulator-list`、`just screenshot [ファイル名] [名前または UDID]`
+- Xcode 27 には Simulator.app がない。GUI は `DeviceHub.app`（`open -a DeviceHub`、AppleScript の process 名も `DeviceHub`、window 名は `<端末名> – iOS <版>`）で、`open -a Simulator` は失敗する。simulator の操作は `xcrun simctl` で行い、名前で端末を選ぶ処理は `just _udid` を通す。
 - `just archive` / `just verify-ipa` / `just upload` / `just signing-report`
 - `xcodegen generate`（`project.yml` → `.xcodeproj`）

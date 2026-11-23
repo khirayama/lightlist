@@ -106,16 +106,46 @@ _asc-auth:
   fi
   print -l -- -authenticationKeyPath "$key_path" -authenticationKeyID "$LIGHTLIST_ASC_KEY_ID" -authenticationKeyIssuerID "$LIGHTLIST_ASC_ISSUER_ID"
 
-run:
-  xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/Lightlist.app
-  xcrun simctl launch booted com.lightlist.app
+run target='booted':
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  udid="$(just _udid "{{target}}")"
+  xcrun simctl install "$udid" build/Build/Products/Debug-iphonesimulator/Lightlist.app
+  xcrun simctl launch "$udid" com.lightlist.app
 
 simulator-list:
   xcrun simctl list devices available
 
-simulator target='':
-  open -a DeviceHub || true
-  udid=$(echo "{{target}}" | grep -qE '^[0-9A-F-]{36}$' && echo "{{target}}" || xcrun simctl list devices available | grep -F "    {{target}} (" | tail -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/'); xcrun simctl boot "$udid" 2>/dev/null || true; xcrun simctl bootstatus "$udid" -b
+simulator target='iPhone 17':
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  udid="$(just _udid "{{target}}")"
+  xcrun simctl boot "$udid" 2>/dev/null || true
+  xcrun simctl bootstatus "$udid" -b
+  open -a DeviceHub
 
-screenshot target='current':
-  xcrun simctl io booted screenshot ios_{{target}}.png
+screenshot name='current' target='booted':
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  udid="$(just _udid "{{target}}")"
+  xcrun simctl io "$udid" screenshot ios_{{name}}.png
+
+_udid target:
+  #!/usr/bin/env zsh
+  set -euo pipefail
+  target="{{target}}"
+  if [[ "$target" == booted ]]; then
+    booted="$(xcrun simctl list devices booted | grep -c '(Booted)' || true)"
+    if (( booted > 1 )); then
+      echo "simulator が複数起動しているため、名前または UDID を指定してください:" >&2
+      xcrun simctl list devices booted | grep '(Booted)' >&2
+      exit 1
+    fi
+    print -r -- booted
+  elif [[ "$target" =~ '^[0-9A-F-]{36}$' ]]; then
+    print -r -- "$target"
+  else
+    udid="$(xcrun simctl list devices available | grep -F "    $target (" | tail -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/' || true)"
+    [[ -n "$udid" ]] || { echo "simulator が見つかりません: $target（just simulator-list で確認）" >&2; exit 1 }
+    print -r -- "$udid"
+  fi

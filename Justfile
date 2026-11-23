@@ -6,8 +6,8 @@ default:
 web:
   just _node apps/web npm --prefix apps/web run dev
 
-ios:
-  cd apps/ios && just build && just run
+ios target='booted':
+  cd apps/ios && just build && just run "{{target}}"
 
 android:
   cd apps/android && just build && just run

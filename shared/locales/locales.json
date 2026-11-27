@@ -251,7 +251,7 @@
       },
       "apiTokens": {
         "title": "رموز API",
-        "description": "رموز تتيح لأدوات الذكاء الاصطناعي والبرامج الأخرى قراءة قوائم المهام وتحديثها عبر MCP.",
+        "description": "رموز تتيح لأدوات الذكاء الاصطناعي والبرامج الأخرى قراءة قوائم المهام والتذكيرات وتحديثها عبر MCP.",
         "nameLabel": "الاسم",
         "namePlaceholder": "مثال: Claude Code",
         "create": "إنشاء رمز",
@@ -266,6 +266,10 @@
         "delete": "حذف",
         "deleteTitle": "حذف هذا الرمز؟",
         "deleteMessage": "ستتوقف عمليات التكامل التي تستخدم «{{name}}» عن العمل."
+      },
+      "reminderNotifications": {
+        "title": "إشعارات التذكيرات",
+        "enable": "تلقي إشعار في الأوقات المحددة في تذكيراتك"
       }
     },
     "pages": {
@@ -294,7 +298,7 @@
           },
           "mcp": {
             "title": "قوائمك، من الذكاء الاصطناعي أيضًا",
-            "description": "أضف المهام وأكملها من Muse, Claude Code أو Codex. اتصل بقوائمك اليومية عبر MCP.",
+            "description": "أضف المهام وأكملها أو اضبط التذكيرات من Muse, Claude Code أو Codex. اتصل بقوائمك اليومية عبر MCP.",
             "link": "إعداد MCP"
           }
         },
@@ -317,6 +321,10 @@
           "date": {
             "title": "إدخال التاريخ",
             "description": "اكتب «غدًا شراء الحليب» وتُحفظ المهمة بذلك التاريخ."
+          },
+          "reminders": {
+            "title": "التذكيرات",
+            "description": "تلقَّ إشعارًا في الوقت الذي تختاره، مثل «علبة الغداء كل ثلاثاء وخميس الساعة 6:30». التذكيرات منفصلة عن قوائمك وخاصة بك وحدك."
           },
           "calendar": {
             "title": "التقويم",
@@ -446,7 +454,7 @@
         },
         "mcp": {
           "title": "ربط الذكاء الاصطناعي (MCP)",
-          "body": "استخدم Muse, Claude Code وCodex وأدوات أخرى لعرض القوائم وإضافة المهام وتحديثها وإكمالها وإعادة ترتيبها.",
+          "body": "استخدم Muse, Claude Code وCodex وأدوات أخرى لعرض القوائم وإضافة المهام وتحديثها وإكمالها وإعادة ترتيبها، وعرض التذكيرات وإضافتها وتغييرها وحذفها.",
           "muse": "أضف موصلًا مخصصًا في إعدادات موصلات Muse، واضبط العنوان وترويسة Authorization كما يلي. استبدل ll_... برمز API الخاص بك."
         },
         "token": {
@@ -461,11 +469,12 @@
           "title": "اطلب من الذكاء الاصطناعي",
           "body": "بعد الإعداد، فعّل اتصال Lightlist في أداتك وجرّب هذه الطلبات.",
           "read": "اعرض قوائم مهامي في Lightlist",
-          "add": "أضف الحليب إلى قائمة التسوق بتاريخ الغد"
+          "add": "أضف الحليب إلى قائمة التسوق بتاريخ الغد",
+          "reminder": "ذكّرني بتحضير الغداء كل ثلاثاء وخميس الساعة 6:30"
         },
         "access": {
           "title": "نطاق الوصول",
-          "body": "يتيح الرمز قراءة جميع القوائم التي انضممت إليها وتعديلها دون تاريخ انتهاء. لا يدعم إنشاء القوائم أو تغيير إعدادات المشاركة. يجب أن يدعم عميل MCP مصادقة Bearer. الاتصالات التي تعتمد على OAuth فقط غير مدعومة."
+          "body": "يتيح الرمز قراءة جميع القوائم التي انضممت إليها وتذكيراتك وتعديلها دون تاريخ انتهاء. لا يدعم إنشاء القوائم أو تغيير إعدادات المشاركة. يجب أن يدعم عميل MCP مصادقة Bearer. الاتصالات التي تعتمد على OAuth فقط غير مدعومة."
         },
         "revoke": {
           "title": "قطع الاتصال",
@@ -497,6 +506,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "تم تحديث قائمة مشتركة"
+    },
+    "reminders": {
+      "title": "التذكيرات",
+      "add": "إضافة تذكير",
+      "edit": "تعديل التذكير",
+      "textPlaceholder": "بماذا تريد أن نذكّرك؟",
+      "ended": "انتهى",
+      "paused": "متوقف مؤقتًا",
+      "enabled": "إشعار",
+      "empty": "لا توجد تذكيرات",
+      "emptyHint": "يصلك إشعار فقط في الوقت الذي تختاره، ولا تُضاف التذكيرات إلى قوائم مهامك.",
+      "delete": "حذف",
+      "deleteConfirm": {
+        "title": "حذف التذكير",
+        "message": "سيتم حذف هذا التذكير. هل تريد المتابعة؟"
+      },
+      "pastDateTime": "هذا التاريخ والوقت قد مضيا",
+      "notificationsOff": "إشعارات التذكيرات متوقفة.",
+      "enableNotifications": "تشغيل الإشعارات",
+      "repeat": {
+        "title": "تكرار",
+        "none": "لا يتكرر",
+        "custom": "مخصص",
+        "weekdays": "كل أيام العمل (الاثنين–الجمعة)",
+        "daily": "يوميًا",
+        "everyNDays": "كل {{n}} أيام",
+        "weekly": "أسبوعيًا يوم {{days}}",
+        "everyNWeeks": "كل {{n}} أسابيع يوم {{days}}",
+        "monthly": "شهريًا في {{day}}",
+        "everyNMonths": "كل {{n}} أشهر في {{day}}",
+        "yearly": "سنويًا في {{date}}",
+        "everyNYears": "كل {{n}} سنوات في {{date}}",
+        "dayOfMonth": "اليوم {{day}}",
+        "nth1": "أول {{weekday}}",
+        "nth2": "ثاني {{weekday}}",
+        "nth3": "ثالث {{weekday}}",
+        "nth4": "رابع {{weekday}}",
+        "last": "آخر {{weekday}}",
+        "interval": "التكرار كل",
+        "unitDay": "أيام",
+        "unitWeek": "أسابيع",
+        "unitMonth": "أشهر",
+        "unitYear": "سنوات"
+      },
+      "time": "الوقت",
+      "date": "التاريخ",
+      "done": "تم",
+      "startDate": "يبدأ"
     }
   },
   "de": {
@@ -762,7 +819,7 @@
       },
       "apiTokens": {
         "title": "API-Tokens",
-        "description": "Tokens, mit denen KI-Tools und andere Programme deine Aufgabenlisten über MCP lesen und bearbeiten können.",
+        "description": "Tokens, mit denen KI-Tools und andere Programme deine Aufgabenlisten und Erinnerungen über MCP lesen und bearbeiten können.",
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Claude Code",
         "create": "Token erstellen",
@@ -777,6 +834,10 @@
         "delete": "Löschen",
         "deleteTitle": "Dieses Token löschen?",
         "deleteMessage": "Integrationen, die „{{name}}“ verwenden, funktionieren dann nicht mehr."
+      },
+      "reminderNotifications": {
+        "title": "Benachrichtigungen für Erinnerungen",
+        "enable": "Lass dich zu den Zeiten deiner Erinnerungen benachrichtigen"
       }
     },
     "pages": {
@@ -805,7 +866,7 @@
           },
           "mcp": {
             "title": "Deine Listen, auch mit KI",
-            "description": "Erstelle und erledige Aufgaben mit Muse, Claude Code oder Codex. MCP verbindet dich mit deinen Listen.",
+            "description": "Erstelle und erledige Aufgaben oder lege Erinnerungen an – mit Muse, Claude Code oder Codex. MCP verbindet dich mit deinen Listen.",
             "link": "MCP einrichten"
           }
         },
@@ -828,6 +889,10 @@
           "date": {
             "title": "Datum beim Tippen",
             "description": "Tippe „morgen Milch kaufen“ und die Aufgabe wird mit diesem Datum gespeichert."
+          },
+          "reminders": {
+            "title": "Erinnerungen",
+            "description": "Erhalte eine Benachrichtigung zur gewünschten Zeit, etwa „Brotdose dienstags und donnerstags um 6:30“. Erinnerungen sind nur für dich und getrennt von deinen Listen."
           },
           "calendar": {
             "title": "Kalender",
@@ -957,7 +1022,7 @@
         },
         "mcp": {
           "title": "KI verbinden (MCP)",
-          "body": "Mit Muse, Claude Code, Codex und anderen Tools kannst du Listen ansehen und Aufgaben hinzufügen, ändern, erledigen oder umsortieren.",
+          "body": "Mit Muse, Claude Code, Codex und anderen Tools kannst du Listen ansehen, Aufgaben hinzufügen, ändern, erledigen oder umsortieren und Erinnerungen ansehen, hinzufügen, ändern oder löschen.",
           "muse": "Füge in den Connector-Einstellungen von Muse einen benutzerdefinierten Connector hinzu und richte Adresse und Authorization-Header wie unten gezeigt ein. Ersetze ll_... durch dein API-Token."
         },
         "token": {
@@ -972,11 +1037,12 @@
           "title": "Die KI fragen",
           "body": "Aktiviere nach der Einrichtung die Lightlist-Verbindung in deinem KI-Tool und probiere diese Anfragen.",
           "read": "Zeige mir meine Aufgabenlisten in Lightlist",
-          "add": "Füge Milch für morgen zu meiner Einkaufsliste hinzu"
+          "add": "Füge Milch für morgen zu meiner Einkaufsliste hinzu",
+          "reminder": "Erinnere mich jeden Dienstag und Donnerstag um 6:30 an das Mittagessen"
         },
         "access": {
           "title": "Zugriff",
-          "body": "Ein Token kann alle Listen lesen und bearbeiten, denen du beigetreten bist, und läuft nicht ab. Listen können damit weder erstellt noch ihre Freigaben geändert werden. Der MCP-Client muss Bearer-Authentifizierung unterstützen. Reine OAuth-Verbindungen werden nicht unterstützt."
+          "body": "Ein Token kann alle Listen, denen du beigetreten bist, und deine Erinnerungen lesen und bearbeiten und läuft nicht ab. Listen können damit weder erstellt noch ihre Freigaben geändert werden. Der MCP-Client muss Bearer-Authentifizierung unterstützen. Reine OAuth-Verbindungen werden nicht unterstützt."
         },
         "revoke": {
           "title": "Verbindung trennen",
@@ -1008,6 +1074,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "Eine geteilte Liste wurde aktualisiert"
+    },
+    "reminders": {
+      "title": "Erinnerungen",
+      "add": "Erinnerung hinzufügen",
+      "edit": "Erinnerung bearbeiten",
+      "textPlaceholder": "Woran sollen wir dich erinnern?",
+      "ended": "Beendet",
+      "paused": "Pausiert",
+      "enabled": "Benachrichtigen",
+      "empty": "Keine Erinnerungen",
+      "emptyHint": "Erhalte zur gewählten Zeit eine Benachrichtigung. Erinnerungen werden nicht zu deinen Aufgabenlisten hinzugefügt.",
+      "delete": "Löschen",
+      "deleteConfirm": {
+        "title": "Erinnerung löschen",
+        "message": "Diese Erinnerung wird gelöscht. Möchtest du fortfahren?"
+      },
+      "pastDateTime": "Dieser Zeitpunkt liegt bereits in der Vergangenheit",
+      "notificationsOff": "Benachrichtigungen für Erinnerungen sind ausgeschaltet.",
+      "enableNotifications": "Benachrichtigungen aktivieren",
+      "repeat": {
+        "title": "Wiederholen",
+        "none": "Keine Wiederholung",
+        "custom": "Benutzerdefiniert",
+        "weekdays": "Jeden Werktag (Mo–Fr)",
+        "daily": "Täglich",
+        "everyNDays": "Alle {{n}} Tage",
+        "weekly": "Wöchentlich am {{days}}",
+        "everyNWeeks": "Alle {{n}} Wochen am {{days}}",
+        "monthly": "Monatlich am {{day}}",
+        "everyNMonths": "Alle {{n}} Monate am {{day}}",
+        "yearly": "Jährlich am {{date}}",
+        "everyNYears": "Alle {{n}} Jahre am {{date}}",
+        "dayOfMonth": "{{day}}. Tag",
+        "nth1": "ersten {{weekday}}",
+        "nth2": "zweiten {{weekday}}",
+        "nth3": "dritten {{weekday}}",
+        "nth4": "vierten {{weekday}}",
+        "last": "letzten {{weekday}}",
+        "interval": "Wiederholen alle",
+        "unitDay": "Tage",
+        "unitWeek": "Wochen",
+        "unitMonth": "Monate",
+        "unitYear": "Jahre"
+      },
+      "time": "Uhrzeit",
+      "date": "Datum",
+      "done": "Fertig",
+      "startDate": "Beginnt"
     }
   },
   "en": {
@@ -1272,7 +1386,7 @@
       },
       "apiTokens": {
         "title": "API Tokens",
-        "description": "Tokens that let AI tools and other programs read and update your task lists over MCP.",
+        "description": "Tokens that let AI tools and other programs read and update your task lists and reminders over MCP.",
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Claude Code",
         "create": "Create Token",
@@ -1287,6 +1401,10 @@
         "delete": "Delete",
         "deleteTitle": "Delete this token?",
         "deleteMessage": "Integrations using \"{{name}}\" will stop working."
+      },
+      "reminderNotifications": {
+        "title": "Reminder notifications",
+        "enable": "Get notified at the times set in your reminders"
       }
     },
     "pages": {
@@ -1315,7 +1433,7 @@
           },
           "mcp": {
             "title": "Your lists, with AI too",
-            "description": "Add and complete tasks from Muse, Claude Code or Codex. Connect to your everyday lists through MCP.",
+            "description": "Add and complete tasks or set reminders from Muse, Claude Code or Codex. Connect to your everyday lists through MCP.",
             "link": "Set up MCP"
           }
         },
@@ -1338,6 +1456,10 @@
           "date": {
             "title": "Date input",
             "description": "Type “tomorrow buy milk” or “12/24 gift” and the task is saved with that date."
+          },
+          "reminders": {
+            "title": "Reminders",
+            "description": "Get a notification at the times you choose, like “lunch box every Tuesday and Thursday at 6:30”. Reminders are just for you, separate from your lists."
           },
           "calendar": {
             "title": "Calendar",
@@ -1467,7 +1589,7 @@
         },
         "mcp": {
           "title": "Connect AI tools (MCP)",
-          "body": "Use Muse, Claude Code, Codex, and other tools to view lists and add, update, complete, or reorder tasks.",
+          "body": "Use Muse, Claude Code, Codex, and other tools to view lists, add, update, complete, or reorder tasks, and view, add, change, or delete reminders.",
           "muse": "Add a custom connector in Muse’s connector settings and configure the endpoint and Authorization header as shown below. Replace ll_... with your API token."
         },
         "token": {
@@ -1482,11 +1604,12 @@
           "title": "Ask your AI",
           "body": "After setup, enable the Lightlist connection in your AI tool and try these requests.",
           "read": "Show me my Lightlist task lists",
-          "add": "Add milk to my shopping list for tomorrow"
+          "add": "Add milk to my shopping list for tomorrow",
+          "reminder": "Remind me to pack lunch every Tuesday and Thursday at 6:30"
         },
         "access": {
           "title": "Access",
-          "body": "A token can read and write every list you have joined and does not expire. Creating lists and changing sharing settings are not supported. Your MCP client must support Bearer authentication. OAuth-only connections are not supported."
+          "body": "A token can read and write every list you have joined and your reminders, and does not expire. Creating lists and changing sharing settings are not supported. Your MCP client must support Bearer authentication. OAuth-only connections are not supported."
         },
         "revoke": {
           "title": "Disconnect",
@@ -1518,6 +1641,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "A shared list was updated"
+    },
+    "reminders": {
+      "title": "Reminders",
+      "add": "Add reminder",
+      "edit": "Edit reminder",
+      "textPlaceholder": "What should we remind you of?",
+      "ended": "Ended",
+      "paused": "Paused",
+      "enabled": "Notify",
+      "empty": "No reminders",
+      "emptyHint": "Get a notification at the time you choose. Reminders aren’t added to your task lists.",
+      "delete": "Delete",
+      "deleteConfirm": {
+        "title": "Delete reminder",
+        "message": "This reminder will be deleted. Are you sure?"
+      },
+      "pastDateTime": "This date and time has already passed",
+      "notificationsOff": "Reminder notifications are off.",
+      "enableNotifications": "Turn on notifications",
+      "repeat": {
+        "title": "Repeat",
+        "none": "Does not repeat",
+        "custom": "Custom",
+        "weekdays": "Every weekday (Mon–Fri)",
+        "daily": "Daily",
+        "everyNDays": "Every {{n}} days",
+        "weekly": "Weekly on {{days}}",
+        "everyNWeeks": "Every {{n}} weeks on {{days}}",
+        "monthly": "Monthly on {{day}}",
+        "everyNMonths": "Every {{n}} months on {{day}}",
+        "yearly": "Annually on {{date}}",
+        "everyNYears": "Every {{n}} years on {{date}}",
+        "dayOfMonth": "day {{day}}",
+        "nth1": "the first {{weekday}}",
+        "nth2": "the second {{weekday}}",
+        "nth3": "the third {{weekday}}",
+        "nth4": "the fourth {{weekday}}",
+        "last": "the last {{weekday}}",
+        "interval": "Repeat every",
+        "unitDay": "days",
+        "unitWeek": "weeks",
+        "unitMonth": "months",
+        "unitYear": "years"
+      },
+      "time": "Time",
+      "date": "Date",
+      "done": "Done",
+      "startDate": "Starts"
     }
   },
   "es": {
@@ -1787,7 +1958,7 @@
       },
       "apiTokens": {
         "title": "Tokens de API",
-        "description": "Tokens que permiten a herramientas de IA y otros programas leer y actualizar tus listas de tareas mediante MCP.",
+        "description": "Tokens que permiten a herramientas de IA y otros programas leer y actualizar tus listas de tareas y recordatorios mediante MCP.",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej., Claude Code",
         "create": "Crear token",
@@ -1802,6 +1973,10 @@
         "delete": "Eliminar",
         "deleteTitle": "¿Eliminar este token?",
         "deleteMessage": "Las integraciones que usan «{{name}}» dejarán de funcionar."
+      },
+      "reminderNotifications": {
+        "title": "Notificaciones de recordatorios",
+        "enable": "Recibe avisos a las horas configuradas en tus recordatorios"
       }
     },
     "pages": {
@@ -1830,7 +2005,7 @@
           },
           "mcp": {
             "title": "Tus listas, también desde la IA",
-            "description": "Añade y completa tareas desde Muse, Claude Code o Codex. Conecta tus listas mediante MCP.",
+            "description": "Añade y completa tareas o crea recordatorios desde Muse, Claude Code o Codex. Conecta tus listas mediante MCP.",
             "link": "Configurar MCP"
           }
         },
@@ -1853,6 +2028,10 @@
           "date": {
             "title": "Fechas al escribir",
             "description": "Escribe «mañana comprar leche» y la tarea se guarda con esa fecha."
+          },
+          "reminders": {
+            "title": "Recordatorios",
+            "description": "Recibe una notificación a la hora que elijas, como «fiambrera los martes y jueves a las 6:30». Los recordatorios son solo tuyos y van aparte de tus listas."
           },
           "calendar": {
             "title": "Calendario",
@@ -1982,7 +2161,7 @@
         },
         "mcp": {
           "title": "Conectar la IA (MCP)",
-          "body": "Usa Muse, Claude Code, Codex y otras herramientas para consultar listas y añadir, actualizar, completar o reordenar tareas.",
+          "body": "Usa Muse, Claude Code, Codex y otras herramientas para consultar listas, añadir, actualizar, completar o reordenar tareas, y consultar, añadir, cambiar o eliminar recordatorios.",
           "muse": "Añade un conector personalizado en los ajustes de conectores de Muse y configura la dirección y el encabezado Authorization como se muestra. Sustituye ll_... por tu token de API."
         },
         "token": {
@@ -1997,11 +2176,12 @@
           "title": "Pedir a la IA",
           "body": "Después de configurar, activa la conexión con Lightlist en tu herramienta y prueba estas peticiones.",
           "read": "Muéstrame mis listas de Lightlist",
-          "add": "Añade leche a mi lista de compras para mañana"
+          "add": "Añade leche a mi lista de compras para mañana",
+          "reminder": "Recuérdame preparar el almuerzo los martes y jueves a las 6:30"
         },
         "access": {
           "title": "Acceso",
-          "body": "El token permite leer y escribir en todas las listas a las que te hayas unido y no caduca. No permite crear listas ni cambiar cómo se comparten. El cliente MCP debe admitir autenticación Bearer. Las conexiones que solo usan OAuth no son compatibles."
+          "body": "El token permite leer y escribir en todas las listas a las que te hayas unido y en tus recordatorios, y no caduca. No permite crear listas ni cambiar cómo se comparten. El cliente MCP debe admitir autenticación Bearer. Las conexiones que solo usan OAuth no son compatibles."
         },
         "revoke": {
           "title": "Desconectar",
@@ -2033,6 +2213,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "Se actualizó una lista compartida"
+    },
+    "reminders": {
+      "title": "Recordatorios",
+      "add": "Añadir recordatorio",
+      "edit": "Editar recordatorio",
+      "textPlaceholder": "¿Qué quieres recordar?",
+      "ended": "Finalizado",
+      "paused": "En pausa",
+      "enabled": "Notificar",
+      "empty": "No hay recordatorios",
+      "emptyHint": "Recibe una notificación a la hora que elijas. Los recordatorios no se añaden a tus listas de tareas.",
+      "delete": "Eliminar",
+      "deleteConfirm": {
+        "title": "Eliminar recordatorio",
+        "message": "Se eliminará este recordatorio. ¿Quieres continuar?"
+      },
+      "pastDateTime": "Esta fecha y hora ya han pasado",
+      "notificationsOff": "Las notificaciones de recordatorios están desactivadas.",
+      "enableNotifications": "Activar notificaciones",
+      "repeat": {
+        "title": "Repetir",
+        "none": "No se repite",
+        "custom": "Personalizado",
+        "weekdays": "Todos los días laborables (lun–vie)",
+        "daily": "Cada día",
+        "everyNDays": "Cada {{n}} días",
+        "weekly": "Cada semana el {{days}}",
+        "everyNWeeks": "Cada {{n}} semanas el {{days}}",
+        "monthly": "Cada mes el {{day}}",
+        "everyNMonths": "Cada {{n}} meses el {{day}}",
+        "yearly": "Cada año el {{date}}",
+        "everyNYears": "Cada {{n}} años el {{date}}",
+        "dayOfMonth": "día {{day}}",
+        "nth1": "primer {{weekday}}",
+        "nth2": "segundo {{weekday}}",
+        "nth3": "tercer {{weekday}}",
+        "nth4": "cuarto {{weekday}}",
+        "last": "último {{weekday}}",
+        "interval": "Repetir cada",
+        "unitDay": "días",
+        "unitWeek": "semanas",
+        "unitMonth": "meses",
+        "unitYear": "años"
+      },
+      "time": "Hora",
+      "date": "Fecha",
+      "done": "Listo",
+      "startDate": "Empieza"
     }
   },
   "fr": {
@@ -2299,7 +2527,7 @@
       },
       "apiTokens": {
         "title": "Jetons d'API",
-        "description": "Jetons permettant aux outils d'IA et à d'autres programmes de lire et modifier vos listes de tâches via MCP.",
+        "description": "Jetons permettant aux outils d'IA et à d'autres programmes de lire et modifier vos listes de tâches et vos rappels via MCP.",
         "nameLabel": "Nom",
         "namePlaceholder": "ex. : Claude Code",
         "create": "Créer un jeton",
@@ -2314,6 +2542,10 @@
         "delete": "Supprimer",
         "deleteTitle": "Supprimer ce jeton ?",
         "deleteMessage": "Les intégrations utilisant « {{name}} » ne fonctionneront plus."
+      },
+      "reminderNotifications": {
+        "title": "Notifications de rappel",
+        "enable": "Recevez une notification aux heures définies dans vos rappels"
       }
     },
     "pages": {
@@ -2342,7 +2574,7 @@
           },
           "mcp": {
             "title": "Vos listes, aussi avec l’IA",
-            "description": "Ajoutez et terminez des tâches depuis Muse, Claude Code ou Codex. Retrouvez vos listes grâce à MCP.",
+            "description": "Ajoutez et terminez des tâches ou créez des rappels depuis Muse, Claude Code ou Codex. Retrouvez vos listes grâce à MCP.",
             "link": "Configurer MCP"
           }
         },
@@ -2365,6 +2597,10 @@
           "date": {
             "title": "Saisie des dates",
             "description": "Saisissez « demain acheter du lait » et la tâche est enregistrée avec cette date."
+          },
+          "reminders": {
+            "title": "Rappels",
+            "description": "Recevez une notification à l’heure choisie, par exemple « boîte à déjeuner le mardi et le jeudi à 6 h 30 ». Les rappels sont personnels et séparés de vos listes."
           },
           "calendar": {
             "title": "Calendrier",
@@ -2494,7 +2730,7 @@
         },
         "mcp": {
           "title": "Connecter l’IA (MCP)",
-          "body": "Avec Muse, Claude Code, Codex et d’autres outils, consultez vos listes et ajoutez, modifiez, terminez ou réorganisez vos tâches.",
+          "body": "Avec Muse, Claude Code, Codex et d’autres outils, consultez vos listes, ajoutez, modifiez, terminez ou réorganisez vos tâches, et consultez, ajoutez, modifiez ou supprimez vos rappels.",
           "muse": "Ajoutez un connecteur personnalisé dans les paramètres des connecteurs de Muse et configurez l’adresse et l’en-tête Authorization comme ci-dessous. Remplacez ll_... par votre jeton API."
         },
         "token": {
@@ -2509,11 +2745,12 @@
           "title": "Demander à l’IA",
           "body": "Après la configuration, activez la connexion Lightlist dans votre outil IA et essayez ces demandes.",
           "read": "Montre-moi mes listes Lightlist",
-          "add": "Ajoute du lait à ma liste de courses pour demain"
+          "add": "Ajoute du lait à ma liste de courses pour demain",
+          "reminder": "Rappelle-moi de préparer le déjeuner chaque mardi et jeudi à 6 h 30"
         },
         "access": {
           "title": "Accès",
-          "body": "Un jeton permet de lire et modifier toutes les listes que vous avez rejointes, sans date d’expiration. La création de listes et la modification du partage ne sont pas disponibles. Le client MCP doit accepter l’authentification Bearer. Les connexions uniquement OAuth ne sont pas prises en charge."
+          "body": "Un jeton permet de lire et modifier toutes les listes que vous avez rejointes et vos rappels, sans date d’expiration. La création de listes et la modification du partage ne sont pas disponibles. Le client MCP doit accepter l’authentification Bearer. Les connexions uniquement OAuth ne sont pas prises en charge."
         },
         "revoke": {
           "title": "Déconnecter",
@@ -2545,6 +2782,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "Une liste partagée a été mise à jour"
+    },
+    "reminders": {
+      "title": "Rappels",
+      "add": "Ajouter un rappel",
+      "edit": "Modifier le rappel",
+      "textPlaceholder": "De quoi voulez-vous qu’on vous rappelle ?",
+      "ended": "Terminé",
+      "paused": "En pause",
+      "enabled": "Notifier",
+      "empty": "Aucun rappel",
+      "emptyHint": "Recevez une notification à l’heure choisie. Les rappels ne sont pas ajoutés à vos listes de tâches.",
+      "delete": "Supprimer",
+      "deleteConfirm": {
+        "title": "Supprimer le rappel",
+        "message": "Ce rappel sera supprimé. Voulez-vous continuer ?"
+      },
+      "pastDateTime": "Cette date et cette heure sont déjà passées",
+      "notificationsOff": "Les notifications de rappel sont désactivées.",
+      "enableNotifications": "Activer les notifications",
+      "repeat": {
+        "title": "Répéter",
+        "none": "Ne se répète pas",
+        "custom": "Personnalisé",
+        "weekdays": "Tous les jours ouvrés (lun–ven)",
+        "daily": "Tous les jours",
+        "everyNDays": "Tous les {{n}} jours",
+        "weekly": "Chaque semaine le {{days}}",
+        "everyNWeeks": "Toutes les {{n}} semaines le {{days}}",
+        "monthly": "Chaque mois le {{day}}",
+        "everyNMonths": "Tous les {{n}} mois le {{day}}",
+        "yearly": "Chaque année le {{date}}",
+        "everyNYears": "Tous les {{n}} ans le {{date}}",
+        "dayOfMonth": "{{day}}",
+        "nth1": "premier {{weekday}}",
+        "nth2": "deuxième {{weekday}}",
+        "nth3": "troisième {{weekday}}",
+        "nth4": "quatrième {{weekday}}",
+        "last": "dernier {{weekday}}",
+        "interval": "Répéter tous les",
+        "unitDay": "jours",
+        "unitWeek": "semaines",
+        "unitMonth": "mois",
+        "unitYear": "ans"
+      },
+      "time": "Heure",
+      "date": "Date",
+      "done": "OK",
+      "startDate": "Début"
     }
   },
   "hi": {
@@ -2798,7 +3083,7 @@
       },
       "apiTokens": {
         "title": "API टोकन",
-        "description": "ये टोकन AI टूल और दूसरे प्रोग्राम को MCP के ज़रिए आपकी टास्क सूचियाँ पढ़ने और बदलने देते हैं।",
+        "description": "ये टोकन AI टूल और दूसरे प्रोग्राम को MCP के ज़रिए आपकी टास्क सूचियाँ और रिमाइंडर पढ़ने और बदलने देते हैं।",
         "nameLabel": "नाम",
         "namePlaceholder": "जैसे: Claude Code",
         "create": "टोकन बनाएँ",
@@ -2813,6 +3098,10 @@
         "delete": "हटाएँ",
         "deleteTitle": "यह टोकन हटाएँ?",
         "deleteMessage": "\"{{name}}\" का उपयोग करने वाले इंटीग्रेशन काम करना बंद कर देंगे।"
+      },
+      "reminderNotifications": {
+        "title": "रिमाइंडर सूचनाएं",
+        "enable": "रिमाइंडर में तय समय पर सूचना पाएं"
       }
     },
     "pages": {
@@ -2841,7 +3130,7 @@
           },
           "mcp": {
             "title": "आपकी सूचियां, AI से भी",
-            "description": "Muse, Claude Code या Codex से कार्य जोड़ें और पूरे करें। MCP से अपनी रोज़मर्रा की सूचियों से जुड़ें।",
+            "description": "Muse, Claude Code या Codex से कार्य जोड़ें और पूरे करें, या रिमाइंडर सेट करें। MCP से अपनी रोज़मर्रा की सूचियों से जुड़ें।",
             "link": "MCP सेट करें"
           }
         },
@@ -2864,6 +3153,10 @@
           "date": {
             "title": "तारीख दर्ज करना",
             "description": "“कल दूध खरीदना” लिखें और टास्क उस तारीख के साथ सेव हो जाता है।"
+          },
+          "reminders": {
+            "title": "रिमाइंडर",
+            "description": "“हर मंगलवार और गुरुवार 6:30 बजे टिफ़िन” जैसे, तय समय पर सूचना पाएँ। रिमाइंडर सूचियों से अलग और सिर्फ़ आपके लिए होते हैं।"
           },
           "calendar": {
             "title": "कैलेंडर",
@@ -2993,7 +3286,7 @@
         },
         "mcp": {
           "title": "AI कनेक्ट करें (MCP)",
-          "body": "Muse, Claude Code, Codex और अन्य टूल से सूचियां देखें तथा कार्य जोड़ें, बदलें, पूरे करें या उनका क्रम बदलें।",
+          "body": "Muse, Claude Code, Codex और अन्य टूल से सूचियां देखें, कार्य जोड़ें, बदलें, पूरे करें या उनका क्रम बदलें, और रिमाइंडर देखें, जोड़ें, बदलें या हटाएं।",
           "muse": "Muse की कनेक्टर सेटिंग में कस्टम कनेक्टर जोड़ें और नीचे दिखाए अनुसार पता तथा Authorization हेडर सेट करें। ll_... को अपने API टोकन से बदलें।"
         },
         "token": {
@@ -3008,11 +3301,12 @@
           "title": "AI से कहें",
           "body": "सेटअप के बाद अपने AI टूल में Lightlist कनेक्शन चालू करें और ये अनुरोध आज़माएं।",
           "read": "मेरी Lightlist कार्य सूचियां दिखाओ",
-          "add": "खरीदारी सूची में कल के लिए दूध जोड़ो"
+          "add": "खरीदारी सूची में कल के लिए दूध जोड़ो",
+          "reminder": "हर मंगलवार और गुरुवार 6:30 बजे टिफ़िन का रिमाइंडर लगा दो"
         },
         "access": {
           "title": "पहुंच",
-          "body": "टोकन से उन सभी सूचियों को पढ़ा और बदला जा सकता है जिनसे आप जुड़े हैं। इसकी समय सीमा नहीं है। सूची बनाना या साझाकरण सेटिंग बदलना उपलब्ध नहीं है। MCP क्लाइंट में Bearer प्रमाणीकरण का समर्थन चाहिए। केवल OAuth वाले कनेक्शन समर्थित नहीं हैं।"
+          "body": "टोकन से उन सभी सूचियों को, जिनसे आप जुड़े हैं, और आपके रिमाइंडर को पढ़ा और बदला जा सकता है। इसकी समय सीमा नहीं है। सूची बनाना या साझाकरण सेटिंग बदलना उपलब्ध नहीं है। MCP क्लाइंट में Bearer प्रमाणीकरण का समर्थन चाहिए। केवल OAuth वाले कनेक्शन समर्थित नहीं हैं।"
         },
         "revoke": {
           "title": "कनेक्शन हटाएं",
@@ -3044,6 +3338,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "साझा सूची अपडेट की गई"
+    },
+    "reminders": {
+      "title": "रिमाइंडर",
+      "add": "रिमाइंडर जोड़ें",
+      "edit": "रिमाइंडर संपादित करें",
+      "textPlaceholder": "किस बात की याद दिलानी है?",
+      "ended": "समाप्त",
+      "paused": "रुका हुआ",
+      "enabled": "सूचित करें",
+      "empty": "कोई रिमाइंडर नहीं",
+      "emptyHint": "चुने हुए समय पर केवल सूचना मिलती है। रिमाइंडर आपकी टास्क सूचियों में नहीं जोड़े जाते।",
+      "delete": "हटाएं",
+      "deleteConfirm": {
+        "title": "रिमाइंडर हटाएं",
+        "message": "यह रिमाइंडर हटा दिया जाएगा। क्या आप जारी रखना चाहते हैं?"
+      },
+      "pastDateTime": "यह तारीख और समय बीत चुका है",
+      "notificationsOff": "रिमाइंडर सूचनाएं बंद हैं।",
+      "enableNotifications": "सूचनाएं चालू करें",
+      "repeat": {
+        "title": "दोहराएं",
+        "none": "दोहराया नहीं जाता",
+        "custom": "कस्टम",
+        "weekdays": "हर कार्यदिवस (सोम–शुक्र)",
+        "daily": "हर दिन",
+        "everyNDays": "हर {{n}} दिन",
+        "weekly": "हर सप्ताह {{days}}",
+        "everyNWeeks": "हर {{n}} सप्ताह {{days}}",
+        "monthly": "हर महीने {{day}}",
+        "everyNMonths": "हर {{n}} महीने {{day}}",
+        "yearly": "हर साल {{date}}",
+        "everyNYears": "हर {{n}} साल {{date}}",
+        "dayOfMonth": "{{day}} तारीख",
+        "nth1": "पहला {{weekday}}",
+        "nth2": "दूसरा {{weekday}}",
+        "nth3": "तीसरा {{weekday}}",
+        "nth4": "चौथा {{weekday}}",
+        "last": "आखिरी {{weekday}}",
+        "interval": "अंतराल",
+        "unitDay": "दिन",
+        "unitWeek": "सप्ताह",
+        "unitMonth": "महीने",
+        "unitYear": "साल"
+      },
+      "time": "समय",
+      "date": "तारीख",
+      "done": "हो गया",
+      "startDate": "शुरुआत"
     }
   },
   "id": {
@@ -3303,7 +3645,7 @@
       },
       "apiTokens": {
         "title": "Token API",
-        "description": "Token yang memungkinkan alat AI dan program lain membaca serta memperbarui daftar tugas Anda melalui MCP.",
+        "description": "Token yang memungkinkan alat AI dan program lain membaca serta memperbarui daftar tugas dan pengingat Anda melalui MCP.",
         "nameLabel": "Nama",
         "namePlaceholder": "mis. Claude Code",
         "create": "Buat token",
@@ -3318,6 +3660,10 @@
         "delete": "Hapus",
         "deleteTitle": "Hapus token ini?",
         "deleteMessage": "Integrasi yang menggunakan \"{{name}}\" tidak akan berfungsi lagi."
+      },
+      "reminderNotifications": {
+        "title": "Pemberitahuan pengingat",
+        "enable": "Dapatkan pemberitahuan pada waktu yang diatur di pengingat"
       }
     },
     "pages": {
@@ -3346,7 +3692,7 @@
           },
           "mcp": {
             "title": "Daftar Anda, juga lewat AI",
-            "description": "Tambah dan selesaikan tugas dari Muse, Claude Code atau Codex. Hubungkan daftar harian Anda melalui MCP.",
+            "description": "Tambah dan selesaikan tugas atau atur pengingat dari Muse, Claude Code atau Codex. Hubungkan daftar harian Anda melalui MCP.",
             "link": "Atur MCP"
           }
         },
@@ -3369,6 +3715,10 @@
           "date": {
             "title": "Input tanggal",
             "description": "Ketik “besok beli susu” dan tugas disimpan dengan tanggal tersebut."
+          },
+          "reminders": {
+            "title": "Pengingat",
+            "description": "Dapatkan notifikasi pada waktu yang Anda pilih, misalnya “bekal setiap Selasa dan Kamis pukul 6:30”. Pengingat terpisah dari daftar dan hanya untuk Anda."
           },
           "calendar": {
             "title": "Kalender",
@@ -3498,7 +3848,7 @@
         },
         "mcp": {
           "title": "Hubungkan AI (MCP)",
-          "body": "Gunakan Muse, Claude Code, Codex, dan alat lainnya untuk melihat daftar serta menambah, memperbarui, menyelesaikan, atau mengurutkan tugas.",
+          "body": "Gunakan Muse, Claude Code, Codex, dan alat lainnya untuk melihat daftar, menambah, memperbarui, menyelesaikan, atau mengurutkan tugas, serta melihat, menambah, mengubah, atau menghapus pengingat.",
           "muse": "Tambahkan konektor kustom di pengaturan konektor Muse, lalu atur alamat dan header Authorization seperti di bawah. Ganti ll_... dengan token API Anda."
         },
         "token": {
@@ -3513,11 +3863,12 @@
           "title": "Minta bantuan AI",
           "body": "Setelah mengatur, aktifkan koneksi Lightlist di alat AI Anda dan coba permintaan berikut.",
           "read": "Tampilkan daftar tugas Lightlist saya",
-          "add": "Tambahkan susu ke daftar belanja untuk besok"
+          "add": "Tambahkan susu ke daftar belanja untuk besok",
+          "reminder": "Ingatkan saya menyiapkan bekal setiap Selasa dan Kamis pukul 6.30"
         },
         "access": {
           "title": "Akses",
-          "body": "Token dapat membaca dan mengedit semua daftar yang Anda ikuti dan tidak kedaluwarsa. Pembuatan daftar dan perubahan pengaturan berbagi tidak didukung. Klien MCP harus mendukung autentikasi Bearer. Koneksi yang hanya memakai OAuth tidak didukung."
+          "body": "Token dapat membaca dan mengedit semua daftar yang Anda ikuti dan pengingat Anda, serta tidak kedaluwarsa. Pembuatan daftar dan perubahan pengaturan berbagi tidak didukung. Klien MCP harus mendukung autentikasi Bearer. Koneksi yang hanya memakai OAuth tidak didukung."
         },
         "revoke": {
           "title": "Putuskan koneksi",
@@ -3549,6 +3900,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "Daftar bersama diperbarui"
+    },
+    "reminders": {
+      "title": "Pengingat",
+      "add": "Tambah pengingat",
+      "edit": "Edit pengingat",
+      "textPlaceholder": "Apa yang ingin diingatkan?",
+      "ended": "Selesai",
+      "paused": "Dijeda",
+      "enabled": "Beri tahu",
+      "empty": "Tidak ada pengingat",
+      "emptyHint": "Dapatkan pemberitahuan pada waktu yang Anda pilih. Pengingat tidak ditambahkan ke daftar tugas Anda.",
+      "delete": "Hapus",
+      "deleteConfirm": {
+        "title": "Hapus pengingat",
+        "message": "Pengingat ini akan dihapus. Lanjutkan?"
+      },
+      "pastDateTime": "Tanggal dan waktu ini sudah lewat",
+      "notificationsOff": "Pemberitahuan pengingat nonaktif.",
+      "enableNotifications": "Aktifkan pemberitahuan",
+      "repeat": {
+        "title": "Ulangi",
+        "none": "Tidak berulang",
+        "custom": "Kustom",
+        "weekdays": "Setiap hari kerja (Sen–Jum)",
+        "daily": "Setiap hari",
+        "everyNDays": "Setiap {{n}} hari",
+        "weekly": "Setiap minggu pada {{days}}",
+        "everyNWeeks": "Setiap {{n}} minggu pada {{days}}",
+        "monthly": "Setiap bulan pada {{day}}",
+        "everyNMonths": "Setiap {{n}} bulan pada {{day}}",
+        "yearly": "Setiap tahun pada {{date}}",
+        "everyNYears": "Setiap {{n}} tahun pada {{date}}",
+        "dayOfMonth": "tanggal {{day}}",
+        "nth1": "{{weekday}} pertama",
+        "nth2": "{{weekday}} kedua",
+        "nth3": "{{weekday}} ketiga",
+        "nth4": "{{weekday}} keempat",
+        "last": "{{weekday}} terakhir",
+        "interval": "Ulangi setiap",
+        "unitDay": "hari",
+        "unitWeek": "minggu",
+        "unitMonth": "bulan",
+        "unitYear": "tahun"
+      },
+      "time": "Waktu",
+      "date": "Tanggal",
+      "done": "Selesai",
+      "startDate": "Mulai"
     }
   },
   "ja": {
@@ -3802,7 +4201,7 @@
       },
       "apiTokens": {
         "title": "API トークン",
-        "description": "AI ツールや外部のプログラムから、MCP でタスクリストを読み書きするためのトークンです。",
+        "description": "AI ツールや外部のプログラムから、MCP でタスクリストとリマインダーを読み書きするためのトークンです。",
         "nameLabel": "名前",
         "namePlaceholder": "例: Claude Code",
         "create": "トークンを発行",
@@ -3817,6 +4216,10 @@
         "delete": "削除",
         "deleteTitle": "トークンを削除しますか？",
         "deleteMessage": "「{{name}}」を使っている連携は使えなくなります。"
+      },
+      "reminderNotifications": {
+        "title": "リマインダーの通知",
+        "enable": "リマインダーに設定した時刻に通知します"
       }
     },
     "pages": {
@@ -3845,7 +4248,7 @@
           },
           "mcp": {
             "title": "AIからも、いつものリストへ",
-            "description": "Muse, Claude CodeやCodexから、タスクの追加や完了も。MCPでいつものリストにつながります。",
+            "description": "Muse, Claude CodeやCodexから、タスクの追加・完了やリマインダーの設定も。MCPでいつものリストにつながります。",
             "link": "MCPの設定方法"
           }
         },
@@ -3868,6 +4271,10 @@
           "date": {
             "title": "日付の入力",
             "description": "「明日 牛乳を買う」「12/24 プレゼント」のように入力すると、日付つきのタスクになります。"
+          },
+          "reminders": {
+            "title": "リマインダー",
+            "description": "「毎週火曜と木曜の 6:30 にお弁当」のように、決まった時刻に通知が届きます。リストとは別の、自分だけのリマインダーです。"
           },
           "calendar": {
             "title": "カレンダー",
@@ -3997,7 +4404,7 @@
         },
         "mcp": {
           "title": "AIとつなぐ（MCP）",
-          "body": "Muse, Claude CodeやCodexなどから、リストの確認、タスクの追加・更新・完了・並び替えができます。",
+          "body": "Muse, Claude CodeやCodexなどから、リストの確認、タスクの追加・更新・完了・並び替え、リマインダーの確認・追加・変更・削除ができます。",
           "muse": "Museのコネクター設定でカスタムコネクターを追加し、接続先とAuthorizationヘッダーを以下のように設定します。ll_... は発行したAPIトークンに置き換えてください。"
         },
         "token": {
@@ -4012,11 +4419,12 @@
           "title": "話しかける",
           "body": "設定後、AIツールでLightlistの接続を有効にし、次のように依頼します。",
           "read": "Lightlistのタスクリストを見せて",
-          "add": "買い物リストに、明日の日付で牛乳を追加して"
+          "add": "買い物リストに、明日の日付で牛乳を追加して",
+          "reminder": "毎週火曜と木曜の6:30にお弁当をリマインドして"
         },
         "access": {
           "title": "接続できる範囲",
-          "body": "トークンで、自分が参加しているすべてのリストを読み書きできます。有効期限はありません。リストの作成や共有設定の変更には対応していません。Bearer認証に対応したMCPクライアントが必要です。OAuth専用の接続には対応していません。"
+          "body": "トークンで、自分が参加しているすべてのリストと自分のリマインダーを読み書きできます。有効期限はありません。リストの作成や共有設定の変更には対応していません。Bearer認証に対応したMCPクライアントが必要です。OAuth専用の接続には対応していません。"
         },
         "revoke": {
           "title": "接続を解除する",
@@ -4048,6 +4456,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "共有リストが更新されました"
+    },
+    "reminders": {
+      "title": "リマインダー",
+      "add": "リマインダーを追加",
+      "edit": "リマインダーを編集",
+      "textPlaceholder": "通知する内容を入力",
+      "ended": "終了",
+      "paused": "一時停止中",
+      "enabled": "通知する",
+      "empty": "リマインダーはありません",
+      "emptyHint": "指定した時刻に通知だけを届けます。タスクリストには追加されません。",
+      "delete": "削除",
+      "deleteConfirm": {
+        "title": "リマインダーを削除",
+        "message": "このリマインダーを削除します。よろしいですか？"
+      },
+      "pastDateTime": "過去の日時は通知できません",
+      "notificationsOff": "リマインダーの通知がオフになっています。",
+      "enableNotifications": "通知をオンにする",
+      "repeat": {
+        "title": "繰り返し",
+        "none": "繰り返さない",
+        "custom": "カスタム",
+        "weekdays": "平日（月〜金）",
+        "daily": "毎日",
+        "everyNDays": "{{n}}日ごと",
+        "weekly": "毎週 {{days}}",
+        "everyNWeeks": "{{n}}週ごと {{days}}",
+        "monthly": "毎月 {{day}}",
+        "everyNMonths": "{{n}}か月ごと {{day}}",
+        "yearly": "毎年 {{date}}",
+        "everyNYears": "{{n}}年ごと {{date}}",
+        "dayOfMonth": "{{day}}日",
+        "nth1": "第1{{weekday}}",
+        "nth2": "第2{{weekday}}",
+        "nth3": "第3{{weekday}}",
+        "nth4": "第4{{weekday}}",
+        "last": "最終{{weekday}}",
+        "interval": "間隔",
+        "unitDay": "日ごと",
+        "unitWeek": "週ごと",
+        "unitMonth": "か月ごと",
+        "unitYear": "年ごと"
+      },
+      "time": "時刻",
+      "date": "日付",
+      "done": "完了",
+      "startDate": "開始日"
     }
   },
   "ko": {
@@ -4308,7 +4764,7 @@
       },
       "apiTokens": {
         "title": "API 토큰",
-        "description": "AI 도구나 외부 프로그램이 MCP로 작업 목록을 읽고 수정할 수 있게 하는 토큰입니다.",
+        "description": "AI 도구나 외부 프로그램이 MCP로 작업 목록과 리마인더를 읽고 수정할 수 있게 하는 토큰입니다.",
         "nameLabel": "이름",
         "namePlaceholder": "예: Claude Code",
         "create": "토큰 발급",
@@ -4323,6 +4779,10 @@
         "delete": "삭제",
         "deleteTitle": "토큰을 삭제할까요?",
         "deleteMessage": "\"{{name}}\"을(를) 사용하는 연동은 더 이상 작동하지 않습니다."
+      },
+      "reminderNotifications": {
+        "title": "리마인더 알림",
+        "enable": "리마인더에 설정한 시간에 알림을 받습니다"
       }
     },
     "pages": {
@@ -4351,7 +4811,7 @@
           },
           "mcp": {
             "title": "AI에서도 평소 쓰던 목록으로",
-            "description": "Muse, Claude Code나 Codex에서 작업을 추가하고 완료하세요. MCP로 평소 쓰던 목록에 연결됩니다.",
+            "description": "Muse, Claude Code나 Codex에서 작업을 추가·완료하고 리마인더도 설정하세요. MCP로 평소 쓰던 목록에 연결됩니다.",
             "link": "MCP 설정 방법"
           }
         },
@@ -4374,6 +4834,10 @@
           "date": {
             "title": "날짜 입력",
             "description": "‘내일 우유 사기’나 ‘12/24 선물’처럼 입력하면 날짜가 지정된 작업으로 저장됩니다."
+          },
+          "reminders": {
+            "title": "리마인더",
+            "description": "‘매주 화요일과 목요일 6:30에 도시락’처럼 정한 시간에 알림을 받을 수 있습니다. 목록과는 별도로 나만 쓰는 리마인더입니다."
           },
           "calendar": {
             "title": "캘린더",
@@ -4503,7 +4967,7 @@
         },
         "mcp": {
           "title": "AI 연결하기(MCP)",
-          "body": "Muse, Claude Code, Codex 등의 도구에서 목록을 확인하고 작업을 추가·수정·완료하거나 순서를 바꿀 수 있습니다.",
+          "body": "Muse, Claude Code, Codex 등의 도구에서 목록을 확인하고 작업을 추가·수정·완료하거나 순서를 바꾸며, 리마인더를 확인·추가·변경·삭제할 수 있습니다.",
           "muse": "Muse의 커넥터 설정에서 사용자 지정 커넥터를 추가하고 아래와 같이 연결 주소와 Authorization 헤더를 설정하세요. ll_...을 발급받은 API 토큰으로 바꾸세요."
         },
         "token": {
@@ -4518,11 +4982,12 @@
           "title": "AI에게 요청하기",
           "body": "설정 후 AI 도구에서 Lightlist 연결을 활성화하고 다음과 같이 요청하세요.",
           "read": "Lightlist의 작업 목록을 보여 줘",
-          "add": "쇼핑 목록에 내일 날짜로 우유를 추가해 줘"
+          "add": "쇼핑 목록에 내일 날짜로 우유를 추가해 줘",
+          "reminder": "매주 화요일과 목요일 6시 30분에 도시락 리마인드해 줘"
         },
         "access": {
           "title": "접근 범위",
-          "body": "토큰으로 참여 중인 모든 목록을 읽고 수정할 수 있으며 만료 기간은 없습니다. 목록 생성과 공유 설정 변경은 지원하지 않습니다. Bearer 인증을 지원하는 MCP 클라이언트가 필요하며, OAuth 전용 연결은 지원하지 않습니다."
+          "body": "토큰으로 참여 중인 모든 목록과 내 리마인더를 읽고 수정할 수 있으며 만료 기간은 없습니다. 목록 생성과 공유 설정 변경은 지원하지 않습니다. Bearer 인증을 지원하는 MCP 클라이언트가 필요하며, OAuth 전용 연결은 지원하지 않습니다."
         },
         "revoke": {
           "title": "연결 해제하기",
@@ -4554,6 +5019,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "공유 목록이 업데이트되었습니다"
+    },
+    "reminders": {
+      "title": "리마인더",
+      "add": "리마인더 추가",
+      "edit": "리마인더 편집",
+      "textPlaceholder": "알림 받을 내용을 입력",
+      "ended": "종료됨",
+      "paused": "일시 중지됨",
+      "enabled": "알림",
+      "empty": "리마인더가 없습니다",
+      "emptyHint": "지정한 시간에 알림만 보내 드려요. 작업 목록에는 추가되지 않습니다.",
+      "delete": "삭제",
+      "deleteConfirm": {
+        "title": "리마인더 삭제",
+        "message": "이 리마인더를 삭제합니다. 계속하시겠습니까?"
+      },
+      "pastDateTime": "이미 지난 날짜와 시간입니다",
+      "notificationsOff": "리마인더 알림이 꺼져 있습니다.",
+      "enableNotifications": "알림 켜기",
+      "repeat": {
+        "title": "반복",
+        "none": "반복 안 함",
+        "custom": "맞춤",
+        "weekdays": "평일(월~금)",
+        "daily": "매일",
+        "everyNDays": "{{n}}일마다",
+        "weekly": "매주 {{days}}",
+        "everyNWeeks": "{{n}}주마다 {{days}}",
+        "monthly": "매월 {{day}}",
+        "everyNMonths": "{{n}}개월마다 {{day}}",
+        "yearly": "매년 {{date}}",
+        "everyNYears": "{{n}}년마다 {{date}}",
+        "dayOfMonth": "{{day}}일",
+        "nth1": "첫째 {{weekday}}",
+        "nth2": "둘째 {{weekday}}",
+        "nth3": "셋째 {{weekday}}",
+        "nth4": "넷째 {{weekday}}",
+        "last": "마지막 {{weekday}}",
+        "interval": "간격",
+        "unitDay": "일마다",
+        "unitWeek": "주마다",
+        "unitMonth": "개월마다",
+        "unitYear": "년마다"
+      },
+      "time": "시간",
+      "date": "날짜",
+      "done": "완료",
+      "startDate": "시작일"
     }
   },
   "pt-BR": {
@@ -4828,7 +5341,7 @@
       },
       "apiTokens": {
         "title": "Tokens de API",
-        "description": "Tokens que permitem que ferramentas de IA e outros programas leiam e atualizem suas listas de tarefas via MCP.",
+        "description": "Tokens que permitem que ferramentas de IA e outros programas leiam e atualizem suas listas de tarefas e lembretes via MCP.",
         "nameLabel": "Nome",
         "namePlaceholder": "ex.: Claude Code",
         "create": "Criar token",
@@ -4843,6 +5356,10 @@
         "delete": "Excluir",
         "deleteTitle": "Excluir este token?",
         "deleteMessage": "As integrações que usam \"{{name}}\" deixarão de funcionar."
+      },
+      "reminderNotifications": {
+        "title": "Notificações de lembretes",
+        "enable": "Receba avisos nos horários definidos nos seus lembretes"
       }
     },
     "pages": {
@@ -4871,7 +5388,7 @@
           },
           "mcp": {
             "title": "Suas listas, também pela IA",
-            "description": "Adicione e conclua tarefas pelo Muse, Claude Code ou Codex. Conecte suas listas do dia a dia pelo MCP.",
+            "description": "Adicione e conclua tarefas ou crie lembretes pelo Muse, Claude Code ou Codex. Conecte suas listas do dia a dia pelo MCP.",
             "link": "Configurar MCP"
           }
         },
@@ -4894,6 +5411,10 @@
           "date": {
             "title": "Datas ao digitar",
             "description": "Digite “amanhã comprar leite” e a tarefa é salva com essa data."
+          },
+          "reminders": {
+            "title": "Lembretes",
+            "description": "Receba uma notificação no horário que escolher, como “marmita toda terça e quinta às 6:30”. Os lembretes são só seus e ficam separados das listas."
           },
           "calendar": {
             "title": "Calendário",
@@ -5023,7 +5544,7 @@
         },
         "mcp": {
           "title": "Conectar a IA (MCP)",
-          "body": "Use Muse, Claude Code, Codex e outras ferramentas para ver listas e adicionar, atualizar, concluir ou reordenar tarefas.",
+          "body": "Use Muse, Claude Code, Codex e outras ferramentas para ver listas, adicionar, atualizar, concluir ou reordenar tarefas, e ver, adicionar, alterar ou excluir lembretes.",
           "muse": "Adicione um conector personalizado nas configurações de conectores do Muse e configure o endereço e o cabeçalho Authorization como abaixo. Substitua ll_... pelo seu token de API."
         },
         "token": {
@@ -5038,11 +5559,12 @@
           "title": "Pedir à IA",
           "body": "Após configurar, ative a conexão com o Lightlist na sua ferramenta e experimente estes pedidos.",
           "read": "Mostre minhas listas de tarefas do Lightlist",
-          "add": "Adicione leite à minha lista de compras para amanhã"
+          "add": "Adicione leite à minha lista de compras para amanhã",
+          "reminder": "Me lembre de preparar a marmita toda terça e quinta às 6:30"
         },
         "access": {
           "title": "Acesso",
-          "body": "Um token pode ler e editar todas as listas de que você participa e não expira. Não permite criar listas nem mudar as configurações de compartilhamento. O cliente MCP precisa aceitar autenticação Bearer. Conexões que usam apenas OAuth não são compatíveis."
+          "body": "Um token pode ler e editar todas as listas de que você participa e seus lembretes, e não expira. Não permite criar listas nem mudar as configurações de compartilhamento. O cliente MCP precisa aceitar autenticação Bearer. Conexões que usam apenas OAuth não são compatíveis."
         },
         "revoke": {
           "title": "Desconectar",
@@ -5074,6 +5596,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "Uma lista compartilhada foi atualizada"
+    },
+    "reminders": {
+      "title": "Lembretes",
+      "add": "Adicionar lembrete",
+      "edit": "Editar lembrete",
+      "textPlaceholder": "Do que você quer se lembrar?",
+      "ended": "Encerrado",
+      "paused": "Pausado",
+      "enabled": "Notificar",
+      "empty": "Nenhum lembrete",
+      "emptyHint": "Receba uma notificação no horário escolhido. Os lembretes não são adicionados às suas listas de tarefas.",
+      "delete": "Excluir",
+      "deleteConfirm": {
+        "title": "Excluir lembrete",
+        "message": "Este lembrete será excluído. Deseja continuar?"
+      },
+      "pastDateTime": "Esta data e horário já passaram",
+      "notificationsOff": "As notificações de lembretes estão desativadas.",
+      "enableNotifications": "Ativar notificações",
+      "repeat": {
+        "title": "Repetir",
+        "none": "Não se repete",
+        "custom": "Personalizado",
+        "weekdays": "Todos os dias úteis (seg–sex)",
+        "daily": "Todos os dias",
+        "everyNDays": "A cada {{n}} dias",
+        "weekly": "Semanal: {{days}}",
+        "everyNWeeks": "A cada {{n}} semanas: {{days}}",
+        "monthly": "Mensal: {{day}}",
+        "everyNMonths": "A cada {{n}} meses: {{day}}",
+        "yearly": "Anual: {{date}}",
+        "everyNYears": "A cada {{n}} anos: {{date}}",
+        "dayOfMonth": "dia {{day}}",
+        "nth1": "{{weekday}} da 1ª semana",
+        "nth2": "{{weekday}} da 2ª semana",
+        "nth3": "{{weekday}} da 3ª semana",
+        "nth4": "{{weekday}} da 4ª semana",
+        "last": "{{weekday}} da última semana",
+        "interval": "Repetir a cada",
+        "unitDay": "dias",
+        "unitWeek": "semanas",
+        "unitMonth": "meses",
+        "unitYear": "anos"
+      },
+      "time": "Horário",
+      "date": "Data",
+      "done": "Concluído",
+      "startDate": "Início"
     }
   },
   "zh-CN": {
@@ -5336,7 +5906,7 @@
       },
       "apiTokens": {
         "title": "API 令牌",
-        "description": "用于让 AI 工具和其他程序通过 MCP 读取和更新你的任务列表的令牌。",
+        "description": "用于让 AI 工具和其他程序通过 MCP 读取和更新你的任务列表和提醒的令牌。",
         "nameLabel": "名称",
         "namePlaceholder": "例如：Claude Code",
         "create": "创建令牌",
@@ -5351,6 +5921,10 @@
         "delete": "删除",
         "deleteTitle": "删除此令牌？",
         "deleteMessage": "使用“{{name}}”的集成将无法继续使用。"
+      },
+      "reminderNotifications": {
+        "title": "提醒通知",
+        "enable": "在提醒设置的时间通知我"
       }
     },
     "pages": {
@@ -5379,7 +5953,7 @@
           },
           "mcp": {
             "title": "通过AI，继续使用熟悉的列表",
-            "description": "从Muse, Claude Code或Codex添加、完成任务。通过MCP连接日常使用的列表。",
+            "description": "从Muse, Claude Code或Codex添加、完成任务，或设置提醒。通过MCP连接日常使用的列表。",
             "link": "MCP配置方法"
           }
         },
@@ -5402,6 +5976,10 @@
           "date": {
             "title": "日期输入",
             "description": "输入“明天 买牛奶”或“12/24 礼物”，任务会带上相应日期保存。"
+          },
+          "reminders": {
+            "title": "提醒",
+            "description": "像“每周二和周四 6:30 带便当”这样，在设定的时间收到通知。提醒与列表分开，仅供自己使用。"
           },
           "calendar": {
             "title": "日历",
@@ -5531,7 +6109,7 @@
         },
         "mcp": {
           "title": "连接AI（MCP）",
-          "body": "通过Muse, Claude Code、Codex等工具查看列表，添加、更新、完成任务或调整顺序。",
+          "body": "通过Muse, Claude Code、Codex等工具查看列表，添加、更新、完成任务或调整顺序，以及查看、添加、更改或删除提醒。",
           "muse": "在 Muse 的连接器设置中添加自定义连接器，按下方内容设置地址和 Authorization 请求头。将 ll_... 替换为创建的 API 令牌。"
         },
         "token": {
@@ -5546,11 +6124,12 @@
           "title": "向AI提出请求",
           "body": "配置后，在AI工具中启用Lightlist连接，然后试试以下请求。",
           "read": "显示我的Lightlist任务列表",
-          "add": "在购物列表中添加明天要买的牛奶"
+          "add": "在购物列表中添加明天要买的牛奶",
+          "reminder": "每周二和周四6:30提醒我准备便当"
         },
         "access": {
           "title": "访问范围",
-          "body": "令牌可读写你已加入的所有列表，且不会过期。不支持创建列表或更改共享设置。MCP客户端需要支持Bearer认证，不支持仅使用OAuth的连接。"
+          "body": "令牌可读写你已加入的所有列表和你的提醒，且不会过期。不支持创建列表或更改共享设置。MCP客户端需要支持Bearer认证，不支持仅使用OAuth的连接。"
         },
         "revoke": {
           "title": "断开连接",
@@ -5582,6 +6161,54 @@
     },
     "pushNotifications": {
       "sharedListUpdated": "共享清单已更新"
+    },
+    "reminders": {
+      "title": "提醒",
+      "add": "添加提醒",
+      "edit": "编辑提醒",
+      "textPlaceholder": "输入提醒内容",
+      "ended": "已结束",
+      "paused": "已暂停",
+      "enabled": "通知",
+      "empty": "没有提醒",
+      "emptyHint": "在你选择的时间只发送通知，不会添加到任务列表。",
+      "delete": "删除",
+      "deleteConfirm": {
+        "title": "删除提醒",
+        "message": "将删除此提醒。确定吗？"
+      },
+      "pastDateTime": "该日期和时间已经过去",
+      "notificationsOff": "提醒通知已关闭。",
+      "enableNotifications": "开启通知",
+      "repeat": {
+        "title": "重复",
+        "none": "不重复",
+        "custom": "自定义",
+        "weekdays": "工作日（周一至周五）",
+        "daily": "每天",
+        "everyNDays": "每 {{n}} 天",
+        "weekly": "每周{{days}}",
+        "everyNWeeks": "每 {{n}} 周的{{days}}",
+        "monthly": "每月{{day}}",
+        "everyNMonths": "每 {{n}} 个月的{{day}}",
+        "yearly": "每年{{date}}",
+        "everyNYears": "每 {{n}} 年的{{date}}",
+        "dayOfMonth": "{{day}}日",
+        "nth1": "第一个{{weekday}}",
+        "nth2": "第二个{{weekday}}",
+        "nth3": "第三个{{weekday}}",
+        "nth4": "第四个{{weekday}}",
+        "last": "最后一个{{weekday}}",
+        "interval": "间隔",
+        "unitDay": "天",
+        "unitWeek": "周",
+        "unitMonth": "个月",
+        "unitYear": "年"
+      },
+      "time": "时间",
+      "date": "日期",
+      "done": "完成",
+      "startDate": "开始日期"
     }
   }
 }

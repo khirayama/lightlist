@@ -30,6 +30,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 
 private const val SHARED_LIST_NOTIFICATION_CHANNEL_ID = "shared_list_updates"
+private const val REMINDER_NOTIFICATION_CHANNEL_ID = "reminders"
+private const val REMINDER_NOTIFICATION_CHANNEL_NAME_KEY = "reminderChannelName"
+internal const val OPEN_REMINDERS_EXTRA = "openReminders"
 private const val SHARED_LIST_NOTIFICATION_DEVICE_ID_KEY = "deviceId"
 private const val SHARED_LIST_NOTIFICATION_CHANNEL_NAME_KEY = "channelName"
 private const val SHARED_LIST_NOTIFICATION_TOKEN_OWNER_KEY = "tokenOwnerUid"
@@ -88,7 +91,7 @@ internal suspend fun saveSharedListNotificationToken(
     context: Context,
     uid: String,
     token: String,
-    enablePreference: Boolean = false
+    enablePreference: String? = null
 ) {
     ensureSharedListNotificationChannel(context)
     val deviceId = sharedListNotificationDeviceId(context)
@@ -100,22 +103,30 @@ internal suspend fun saveSharedListNotificationToken(
         ),
         "updatedAt" to System.currentTimeMillis()
     )
-    if (enablePreference) fields["notifySharedListUpdates"] = true
+    if (enablePreference != null) fields[enablePreference] = true
     Firebase.firestore.collection("settings").document(uid).update(fields).await()
 }
 
 internal fun ensureSharedListNotificationChannel(context: Context, name: String? = null) {
+    ensureNotificationChannel(context, SHARED_LIST_NOTIFICATION_CHANNEL_ID, SHARED_LIST_NOTIFICATION_CHANNEL_NAME_KEY, name)
+}
+
+internal fun ensureReminderNotificationChannel(context: Context, name: String? = null) {
+    ensureNotificationChannel(context, REMINDER_NOTIFICATION_CHANNEL_ID, REMINDER_NOTIFICATION_CHANNEL_NAME_KEY, name)
+}
+
+private fun ensureNotificationChannel(context: Context, channelId: String, nameKey: String, name: String?) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val preferences = context.getSharedPreferences("lightlist.notifications", Context.MODE_PRIVATE)
-        if (name != null && name != preferences.getString(SHARED_LIST_NOTIFICATION_CHANNEL_NAME_KEY, null)) {
-            preferences.edit { putString(SHARED_LIST_NOTIFICATION_CHANNEL_NAME_KEY, name) }
+        if (name != null && name != preferences.getString(nameKey, null)) {
+            preferences.edit { putString(nameKey, name) }
         }
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
             NotificationChannel(
-                SHARED_LIST_NOTIFICATION_CHANNEL_ID,
+                channelId,
                 name
-                    ?: preferences.getString(SHARED_LIST_NOTIFICATION_CHANNEL_NAME_KEY, null)
+                    ?: preferences.getString(nameKey, null)
                     ?: context.getString(R.string.app_name),
                 NotificationManager.IMPORTANCE_DEFAULT
             )
@@ -129,7 +140,8 @@ internal suspend fun refreshSharedListNotificationToken(
     token: String
 ) {
     val settings = Firebase.firestore.collection("settings").document(uid).get(Source.CACHE).await()
-    if (settings.getBoolean("notifySharedListUpdates") != true || Firebase.auth.currentUser?.uid != uid) return
+    val enabled = settings.getBoolean("notifySharedListUpdates") == true || settings.getBoolean("notifyReminders") == true
+    if (!enabled || Firebase.auth.currentUser?.uid != uid) return
     markSharedListNotificationTokenOwner(context, uid)
     if (registeredSharedListNotificationToken(context, settings) == token) return
     saveSharedListNotificationToken(context, uid, token)
@@ -183,26 +195,33 @@ class LightlistMessagingService : FirebaseMessagingService() {
         ) {
             return
         }
-        ensureSharedListNotificationChannel(this)
+        val reminderId = message.data["reminderId"]
+        val taskListId = message.data["taskListId"]
+        if (reminderId != null) ensureReminderNotificationChannel(this) else ensureSharedListNotificationChannel(this)
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            message.data["taskListId"]?.let { putExtra("taskListId", it) }
+            if (reminderId != null) {
+                putExtra(OPEN_REMINDERS_EXTRA, true)
+            } else {
+                taskListId?.let { putExtra("taskListId", it) }
+            }
         }
-        val taskListId = message.data["taskListId"]
-        val notificationId = taskListId?.hashCode() ?: 0
+        val tag = reminderId ?: taskListId
+        val notificationId = tag?.hashCode() ?: 0
         val pendingIntent = PendingIntent.getActivity(
             this,
             notificationId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val builder = NotificationCompat.Builder(this, SHARED_LIST_NOTIFICATION_CHANNEL_ID)
+        val channelId = if (reminderId != null) REMINDER_NOTIFICATION_CHANNEL_ID else SHARED_LIST_NOTIFICATION_CHANNEL_ID
+        val builder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(notification.title ?: getString(R.string.app_name))
             .setContentText(notification.body.orEmpty())
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        NotificationManagerCompat.from(this).notify(taskListId, 0, builder.build())
+        NotificationManagerCompat.from(this).notify(tag, 0, builder.build())
     }
 }

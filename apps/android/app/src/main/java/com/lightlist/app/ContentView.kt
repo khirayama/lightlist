@@ -95,6 +95,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -131,6 +133,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collapse
 import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.contentType
@@ -274,6 +277,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import com.google.firebase.firestore.FieldValue
@@ -865,6 +869,11 @@ private fun logSettingsTaskInsertPositionChange(position: String) = log("app_set
 private fun logSettingsAutoSortChange(enabled: Boolean) = log("app_settings_auto_sort_change") { putBoolean("enabled", enabled) }
 private fun logSettingsHapticsChange(enabled: Boolean) = log("app_settings_haptics_change") { putBoolean("enabled", enabled) }
 private fun logSettingsSharedNotificationsChange(enabled: Boolean) = log("app_settings_shared_notifications_change") { putBoolean("enabled", enabled) }
+private fun logSettingsReminderNotificationsChange(enabled: Boolean) = log("app_settings_reminder_notifications_change") { putBoolean("enabled", enabled) }
+private fun logReminderCreate(repeat: String) = log("app_reminder_create") { putString("repeat", repeat) }
+private fun logReminderUpdate(repeat: String) = log("app_reminder_update") { putString("repeat", repeat) }
+private fun logReminderToggle(enabled: Boolean) = log("app_reminder_toggle") { putBoolean("enabled", enabled) }
+private fun logReminderDelete() = log("app_reminder_delete")
 private fun logSettingsStartupViewChange(view: String) = log("app_settings_startup_view_change") { putString("view", view) }
 
 private fun recordNonFatalException(operation: String, error: Exception? = null) {
@@ -894,6 +903,7 @@ val LocalTranslations = compositionLocalOf { Translations() }
 sealed class AppRoute(val route: String, val title: String) {
     data object TaskLists : AppRoute("TaskLists", "TaskLists")
     data object Settings : AppRoute("Settings", "Settings")
+    data object Reminders : AppRoute("Reminders", "Reminders")
     data object Calendar : AppRoute("Calendar?initial={initial}", "Calendar") {
         const val argumentName = "initial"
 
@@ -909,6 +919,7 @@ sealed class AppRoute(val route: String, val title: String) {
 sealed class PendingDeepLink {
     data class ShareCode(val shareCode: String) : PendingDeepLink()
     data class TaskList(val taskListId: String) : PendingDeepLink()
+    data object Reminders : PendingDeepLink()
 }
 
 private var isFirestoreConfigured = false
@@ -999,6 +1010,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun parseDeepLink(intent: Intent?): PendingDeepLink? {
+        if (intent?.getBooleanExtra(OPEN_REMINDERS_EXTRA, false) == true || intent?.getStringExtra("reminderId") != null) {
+            return PendingDeepLink.Reminders
+        }
         intent?.getStringExtra("taskListId")?.takeIf(::isSafeId)?.let {
             return PendingDeepLink.TaskList(it)
         }
@@ -1072,6 +1086,7 @@ private data class FirestoreSettingsRecord(
     val taskInsertPosition: String? = null,
     val autoSort: Boolean? = null,
     val notifySharedListUpdates: Boolean? = null,
+    val notifyReminders: Boolean? = null,
     val hapticsEnabled: Boolean? = null,
     val startupView: String? = null
 )
@@ -1133,6 +1148,7 @@ private fun settingsRecordFromMap(data: Map<*, *>): FirestoreSettingsRecord = Fi
     taskInsertPosition = data["taskInsertPosition"] as? String,
     autoSort = data["autoSort"] as? Boolean,
     notifySharedListUpdates = data["notifySharedListUpdates"] as? Boolean,
+    notifyReminders = data["notifyReminders"] as? Boolean,
     hapticsEnabled = data["hapticsEnabled"] as? Boolean,
     startupView = data["startupView"] as? String
 )
@@ -1574,13 +1590,15 @@ private fun AppButton(
     style: AppButtonStyle = AppButtonStyle.Primary,
     enabled: Boolean = true,
     icon: ImageVector? = null,
-    iconSize: Dp = 18.dp
+    iconSize: Dp = 18.dp,
+    horizontalPadding: Dp? = null
 ) {
     val colors = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(12.dp)
     val sizedModifier = modifier.heightIn(min = 44.dp)
     val contentPadding = PaddingValues(
-        horizontal = if (style == AppButtonStyle.Ghost || style == AppButtonStyle.Danger) 12.dp else 16.dp
+        horizontal = horizontalPadding
+            ?: if (style == AppButtonStyle.Ghost || style == AppButtonStyle.Danger) 12.dp else 16.dp
     )
     val content: @Composable RowScope.() -> Unit = {
         if (icon != null) {
@@ -2491,6 +2509,7 @@ private suspend fun createInitialUserDataIfMissing(
         "taskInsertPosition" to "top",
         "autoSort" to true,
         "notifySharedListUpdates" to false,
+        "notifyReminders" to false,
         "hapticsEnabled" to false,
         "startupView" to "taskList",
         "createdAt" to now,
@@ -2564,7 +2583,8 @@ private suspend fun sendPasswordResetEmail(email: String, language: String) {
 private enum class TabletPane {
     TaskList,
     Settings,
-    Calendar
+    Calendar,
+    Reminders
 }
 
 private data class SettingsState(
@@ -2573,6 +2593,7 @@ private data class SettingsState(
     val taskInsertPosition: String = "top",
     val autoSort: Boolean = true,
     val notifySharedListUpdates: Boolean = false,
+    val notifyReminders: Boolean = false,
     val hapticsEnabled: Boolean = false,
     val notificationToken: String? = null,
     val startupView: String = "taskList",
@@ -2597,6 +2618,7 @@ private object StartupSettingsCache {
     private const val KEY_TASK_INSERT_POSITION = "taskInsertPosition"
     private const val KEY_AUTO_SORT = "autoSort"
     private const val KEY_NOTIFY_SHARED_LIST_UPDATES = "notifySharedListUpdates"
+    private const val KEY_NOTIFY_REMINDERS = "notifyReminders"
     private const val KEY_HAPTICS_ENABLED = "hapticsEnabled"
 
     private fun prefs(context: Context) =
@@ -2623,6 +2645,7 @@ private object StartupSettingsCache {
             taskInsertPosition = taskInsertPosition,
             autoSort = prefs.getBoolean(KEY_AUTO_SORT, true),
             notifySharedListUpdates = prefs.getBoolean(KEY_NOTIFY_SHARED_LIST_UPDATES, false),
+            notifyReminders = prefs.getBoolean(KEY_NOTIFY_REMINDERS, false),
             hapticsEnabled = prefs.getBoolean(KEY_HAPTICS_ENABLED, false),
             startupView = normalizeStartupView(prefs.getString(KEY_STARTUP_VIEW, null)),
             isStartupCached = true
@@ -2643,6 +2666,7 @@ private object StartupSettingsCache {
             cached.taskInsertPosition == settings.taskInsertPosition &&
             cached.autoSort == settings.autoSort &&
             cached.notifySharedListUpdates == settings.notifySharedListUpdates &&
+            cached.notifyReminders == settings.notifyReminders &&
             cached.hapticsEnabled == settings.hapticsEnabled &&
             cached.startupView == settings.startupView
         ) {
@@ -2655,6 +2679,7 @@ private object StartupSettingsCache {
             putString(KEY_TASK_INSERT_POSITION, settings.taskInsertPosition)
             putBoolean(KEY_AUTO_SORT, settings.autoSort)
             putBoolean(KEY_NOTIFY_SHARED_LIST_UPDATES, settings.notifySharedListUpdates)
+            putBoolean(KEY_NOTIFY_REMINDERS, settings.notifyReminders)
             putBoolean(KEY_HAPTICS_ENABLED, settings.hapticsEnabled)
             putString(KEY_STARTUP_VIEW, settings.startupView)
         }
@@ -2687,6 +2712,7 @@ private fun resolveSettingsState(
         taskInsertPosition = taskInsertPosition,
         autoSort = record.autoSort ?: true,
         notifySharedListUpdates = record.notifySharedListUpdates ?: false,
+        notifyReminders = record.notifyReminders ?: false,
         hapticsEnabled = record.hapticsEnabled ?: false,
         startupView = normalizeStartupView(record.startupView),
         userEmail = userEmail,
@@ -2855,6 +2881,7 @@ fun RootScreen(
     var authScreen by rememberSaveable { mutableStateOf(AuthScreen.SignIn) }
     var pendingSharePreviewCode by rememberSaveable { mutableStateOf<String?>(null) }
     var requestedTaskListId by rememberSaveable { mutableStateOf<String?>(null) }
+    var requestedReminders by rememberSaveable { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         val listener = FirebaseAuth.AuthStateListener { auth ->
@@ -2875,14 +2902,15 @@ fun RootScreen(
     LaunchedEffect(currentUserId) {
         runCatching { releaseStaleSharedListNotificationToken(context) }
     }
+    val notificationsEnabled = settingsState.notifySharedListUpdates || settingsState.notifyReminders
     LaunchedEffect(
         currentUserId,
         settingsState.isLoading,
-        settingsState.notifySharedListUpdates,
+        notificationsEnabled,
         settingsState.notificationToken
     ) {
         val uid = currentUserId ?: return@LaunchedEffect
-        if (settingsState.isLoading || !settingsState.notifySharedListUpdates) return@LaunchedEffect
+        if (settingsState.isLoading || !notificationsEnabled) return@LaunchedEffect
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
                 PackageManager.PERMISSION_GRANTED
@@ -2903,6 +2931,11 @@ fun RootScreen(
     LaunchedEffect(translations, settingsState.notifySharedListUpdates) {
         if (settingsState.notifySharedListUpdates) {
             ensureSharedListNotificationChannel(context, translations.t("settings.notifications.title"))
+        }
+    }
+    LaunchedEffect(translations, settingsState.notifyReminders) {
+        if (settingsState.notifyReminders) {
+            ensureReminderNotificationChannel(context, translations.t("settings.reminderNotifications.title"))
         }
     }
     val darkTheme = when (settingsState.theme) {
@@ -2931,6 +2964,9 @@ fun RootScreen(
             }
             is PendingDeepLink.TaskList -> {
                 requestedTaskListId = pendingDeepLink.taskListId
+            }
+            PendingDeepLink.Reminders -> {
+                requestedReminders = true
             }
             null -> Unit
         }
@@ -2970,7 +3006,9 @@ fun RootScreen(
                     userId = currentUserId,
                     settingsState = settingsState,
                     initialSelectedTaskListId = requestedTaskListId,
-                    onSelectedTaskListHandled = { requestedTaskListId = null }
+                    onSelectedTaskListHandled = { requestedTaskListId = null },
+                    remindersRequested = requestedReminders,
+                    onRemindersRequestHandled = { requestedReminders = false }
                 )
             } else {
                 Box(Modifier.fillMaxSize()) {
@@ -3040,6 +3078,13 @@ fun RootScreen(
                                 externalSettingsState = settingsState
                             )
                         }
+                        composable(AppRoute.Reminders.route) {
+                            RemindersScreen(
+                                navController = navController,
+                                userId = currentUserId,
+                                settingsState = settingsState
+                            )
+                        }
                     }
 
                     LaunchedEffect(currentUserId, isLoggedIn, settingsState.isStartupPending) {
@@ -3076,6 +3121,14 @@ fun RootScreen(
                             launchSingleTop = true
                         }
                         requestedTaskListId = null
+                    }
+
+                    LaunchedEffect(requestedReminders, isLoggedIn, settingsState.isStartupPending) {
+                        if (!requestedReminders || !isLoggedIn || settingsState.isStartupPending) return@LaunchedEffect
+                        navController.navigate(AppRoute.Reminders.route) {
+                            launchSingleTop = true
+                        }
+                        requestedReminders = false
                     }
                 }
             }
@@ -5872,7 +5925,9 @@ private fun TaskListsScreen(
     onTaskListSelected: ((String) -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
     onOpenCalendar: (() -> Unit)? = null,
+    onOpenReminders: (() -> Unit)? = null,
     calendarActive: Boolean = false,
+    remindersActive: Boolean = false,
     settingsActive: Boolean = false,
     hapticsEnabled: Boolean = false
 ) {
@@ -5922,6 +5977,14 @@ private fun TaskListsScreen(
             onOpenCalendar()
         } else {
             navController?.navigate(AppRoute.Calendar.createRoute())
+        }
+    }
+
+    fun openReminders() {
+        if (onOpenReminders != null) {
+            onOpenReminders()
+        } else {
+            navController?.navigate(AppRoute.Reminders.route)
         }
     }
 
@@ -6104,6 +6167,36 @@ private fun TaskListsScreen(
                 modifier = Modifier.weight(1f)
             )
             TodayDateText()
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 44.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (remindersActive) rowActive else Color.Transparent)
+                .clickable(role = Role.Button) { openReminders() }
+                .semantics { if (remindersActive) selected = true }
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Outlined.Notifications,
+                contentDescription = null,
+                tint = if (remindersActive) MaterialTheme.colorScheme.onSurface else navColor,
+                modifier = Modifier.size(AppIconMetrics.compactActionIconSize)
+            )
+            Text(
+                t.t("reminders.title"),
+                style = AppRowTextStyle.copy(
+                    fontWeight = if (remindersActive) FontWeight.SemiBold else FontWeight.Medium
+                ),
+                color = if (remindersActive) MaterialTheme.colorScheme.onSurface else navColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
         }
 
         LazyColumn(
@@ -6533,7 +6626,9 @@ private fun TabletRootScreen(
     userId: String?,
     settingsState: SettingsState,
     initialSelectedTaskListId: String?,
-    onSelectedTaskListHandled: () -> Unit
+    onSelectedTaskListHandled: () -> Unit,
+    remindersRequested: Boolean,
+    onRemindersRequestHandled: () -> Unit
 ) {
     val selectedTaskListState = rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPane by rememberSaveable { mutableStateOf(TabletPane.TaskList) }
@@ -6555,6 +6650,12 @@ private fun TabletRootScreen(
         onSelectedTaskListHandled()
     }
 
+    LaunchedEffect(remindersRequested) {
+        if (!remindersRequested) return@LaunchedEffect
+        selectedPane = TabletPane.Reminders
+        onRemindersRequestHandled()
+    }
+
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -6570,6 +6671,7 @@ private fun TabletRootScreen(
                 userId = userId,
                 selectedTaskListId = selectedTaskListState.value.takeIf { selectedPane == TabletPane.TaskList },
                 calendarActive = selectedPane == TabletPane.Calendar,
+                remindersActive = selectedPane == TabletPane.Reminders,
                 settingsActive = selectedPane == TabletPane.Settings,
                 onTaskListSelected = { taskListId ->
                     selectedTaskListState.value = taskListId
@@ -6580,6 +6682,9 @@ private fun TabletRootScreen(
                 },
                 onOpenCalendar = {
                     selectedPane = TabletPane.Calendar
+                },
+                onOpenReminders = {
+                    selectedPane = TabletPane.Reminders
                 },
                 hapticsEnabled = settingsState.hapticsEnabled
             )
@@ -6594,6 +6699,12 @@ private fun TabletRootScreen(
                 SettingsView(
                     showTopBar = false,
                     externalSettingsState = settingsState
+                )
+            } else if (selectedPane == TabletPane.Reminders) {
+                RemindersScreen(
+                    navController = null,
+                    userId = userId,
+                    settingsState = settingsState
                 )
             } else if (selectedPane == TabletPane.Calendar) {
                 CalendarScreen(
@@ -8915,6 +9026,63 @@ private fun ApiTokensDialog(userId: String, onDismiss: () -> Unit) {
 }
 
 @Composable
+private fun NotificationSettingRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Switch, enabled = enabled, onValueChange = onCheckedChange)
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = AppRowTextStyle, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                description,
+                style = TextStyle(fontFamily = GenInterfaceJPBodyFontFamily, fontSize = 12.sp, lineHeight = 16.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        AppSwitch(checked = checked, enabled = enabled)
+    }
+}
+
+private fun needsNotificationPermission(context: Context): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+        PackageManager.PERMISSION_GRANTED
+
+private suspend fun enableNotificationPreference(context: Context, uid: String, key: String): String? {
+    val token = try {
+        sharedListNotificationToken(context, uid)
+    } catch (e: Exception) {
+        return "settings.notifications.unavailable"
+    }
+    return try {
+        saveSharedListNotificationToken(context, uid, token, enablePreference = key)
+        null
+    } catch (e: Exception) {
+        SyncFailureState.report()
+        "auth.error.general"
+    }
+}
+
+private fun disabledNotificationFields(key: String, settings: SettingsState): Map<String, Any> {
+    val otherEnabled = if (key == "notifyReminders") settings.notifySharedListUpdates else settings.notifyReminders
+    return if (otherEnabled) {
+        mapOf(key to false)
+    } else {
+        mapOf(key to false, "notificationDevices" to emptyMap<String, Any>())
+    }
+}
+
+@Composable
 private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
@@ -9088,6 +9256,841 @@ private fun SettingsOptionDialog(
     }
 }
 
+@Immutable
+private data class ReminderRecurrence(
+    val freq: String = "none",
+    val interval: Int = 1,
+    val weekdays: List<Int> = emptyList(),
+    val monthlyBy: String = "day"
+) {
+    fun toFirestore(): Map<String, Any> =
+        mapOf("freq" to freq, "interval" to interval, "weekdays" to weekdays, "monthlyBy" to monthlyBy)
+}
+
+@Immutable
+private data class ReminderItem(
+    val id: String,
+    val text: String,
+    val date: String,
+    val time: String,
+    val recurrence: ReminderRecurrence,
+    val enabled: Boolean,
+    val createdAt: Double
+) {
+    val isPast: Boolean get() = isPastReminder(date, time, recurrence)
+}
+
+private data class ReminderValues(
+    val text: String,
+    val date: String,
+    val time: String,
+    val recurrence: ReminderRecurrence
+)
+
+private enum class RepeatPreset { None, Daily, Weekdays, Weekly, Monthly, MonthlyWeekday, Yearly, Custom }
+
+private const val ReminderTextMaxLength = 200
+private val reminderTimePattern = Regex("^([01][0-9]|2[0-3]):[0-5][0-9]$")
+private val reminderIntervals = (1..99).toList()
+private val customRepeatFreqs = listOf("daily", "weekly", "monthly", "yearly")
+private val repeatFreqs = setOf("none", "daily", "weekly", "monthly", "yearly")
+private val repeatUnitKeys = mapOf(
+    "daily" to "reminders.repeat.unitDay",
+    "weekly" to "reminders.repeat.unitWeek",
+    "monthly" to "reminders.repeat.unitMonth",
+    "yearly" to "reminders.repeat.unitYear"
+)
+private val repeatSummaryKeys = mapOf(
+    "daily" to ("reminders.repeat.daily" to "reminders.repeat.everyNDays"),
+    "weekly" to ("reminders.repeat.weekly" to "reminders.repeat.everyNWeeks"),
+    "monthly" to ("reminders.repeat.monthly" to "reminders.repeat.everyNMonths"),
+    "yearly" to ("reminders.repeat.yearly" to "reminders.repeat.everyNYears")
+)
+private val nthWeekdayKeys = listOf(
+    "reminders.repeat.nth1",
+    "reminders.repeat.nth2",
+    "reminders.repeat.nth3",
+    "reminders.repeat.nth4",
+    "reminders.repeat.last"
+)
+
+private fun isPastReminder(date: String, time: String, recurrence: ReminderRecurrence): Boolean {
+    if (recurrence.freq != "none") return false
+    val day = parseTaskInputDate(date) ?: return true
+    val parts = time.split(":").mapNotNull(String::toIntOrNull)
+    if (parts.size != 2) return true
+    val calendar = currentGregorianCalendar().apply {
+        this.time = day
+        set(Calendar.HOUR_OF_DAY, parts[0])
+        set(Calendar.MINUTE, parts[1])
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return calendar.timeInMillis <= System.currentTimeMillis()
+}
+
+private fun dateCalendar(dateKey: String): Calendar =
+    currentGregorianCalendar().apply { time = parseTaskInputDate(dateKey) ?: Date() }
+
+private fun isoWeekdayOf(dateKey: String): Int = (dateCalendar(dateKey).get(Calendar.DAY_OF_WEEK) + 5) % 7 + 1
+
+private fun dayOfMonthOf(dateKey: String): Int = dateCalendar(dateKey).get(Calendar.DAY_OF_MONTH)
+
+private fun reminderWeekdayOrder(languageTag: String): List<Int> {
+    val start = calendarWeekStart(languageTag).let { if (it == Calendar.SUNDAY) 7 else it - 1 }
+    return List(7) { ((start - 1 + it) % 7) + 1 }
+}
+
+private fun reminderWeekdaySymbol(weekday: Int, languageTag: String, short: Boolean): String {
+    val symbols = DateFormatSymbols.getInstance(localeForLanguage(languageTag))
+    val calendarDay = weekday % 7 + 1
+    return if (short) symbols.shortWeekdays[calendarDay] else symbols.weekdays[calendarDay]
+}
+
+private fun presetRecurrence(preset: RepeatPreset, dateKey: String): ReminderRecurrence = when (preset) {
+    RepeatPreset.None, RepeatPreset.Custom -> ReminderRecurrence()
+    RepeatPreset.Daily -> ReminderRecurrence(freq = "daily")
+    RepeatPreset.Weekdays -> ReminderRecurrence(freq = "weekly", weekdays = listOf(1, 2, 3, 4, 5))
+    RepeatPreset.Weekly -> ReminderRecurrence(freq = "weekly", weekdays = listOf(isoWeekdayOf(dateKey)))
+    RepeatPreset.Monthly -> ReminderRecurrence(freq = "monthly")
+    RepeatPreset.MonthlyWeekday -> ReminderRecurrence(freq = "monthly", monthlyBy = "weekday")
+    RepeatPreset.Yearly -> ReminderRecurrence(freq = "yearly")
+}
+
+private fun detectRepeatPreset(recurrence: ReminderRecurrence, dateKey: String): RepeatPreset =
+    RepeatPreset.entries.firstOrNull { it != RepeatPreset.Custom && presetRecurrence(it, dateKey) == recurrence }
+        ?: RepeatPreset.Custom
+
+private fun nthWeekdayLabel(t: Translations, dateKey: String): String {
+    val nth = minOf((dayOfMonthOf(dateKey) + 6) / 7, 5)
+    val weekday = reminderWeekdaySymbol(isoWeekdayOf(dateKey), t.languageTag(), short = false)
+    return t.t(nthWeekdayKeys[nth - 1], mapOf("weekday" to weekday))
+}
+
+private fun describeRecurrence(t: Translations, recurrence: ReminderRecurrence, dateKey: String): String {
+    val languageTag = t.languageTag()
+    val keys = repeatSummaryKeys[recurrence.freq] ?: return t.t("reminders.repeat.none")
+    if (recurrence == presetRecurrence(RepeatPreset.Weekdays, dateKey)) return t.t("reminders.repeat.weekdays")
+    val days = if (recurrence.weekdays.size == 1 && recurrence.interval == 1) {
+        reminderWeekdaySymbol(recurrence.weekdays[0], languageTag, short = false)
+    } else {
+        reminderWeekdayOrder(languageTag)
+            .filter { it in recurrence.weekdays }
+            .joinToString(", ") { reminderWeekdaySymbol(it, languageTag, short = true) }
+    }
+    val day = if (recurrence.monthlyBy == "day") {
+        t.t("reminders.repeat.dayOfMonth", mapOf("day" to dayOfMonthOf(dateKey).toString()))
+    } else {
+        nthWeekdayLabel(t, dateKey)
+    }
+    return t.t(
+        if (recurrence.interval == 1) keys.first else keys.second,
+        mapOf(
+            "n" to recurrence.interval.toString(),
+            "days" to days,
+            "day" to day,
+            "date" to formatDateForLocale(dateKey, languageTag, "MMMM d")
+        )
+    )
+}
+
+private fun epochDayOf(dateKey: String): Long? {
+    val date = parseTaskInputDate(dateKey) ?: return null
+    val local = currentGregorianCalendar().apply { time = date }
+    val utc = GregorianCalendar(TimeZone.getTimeZone("UTC"), Locale.ROOT).apply {
+        gregorianChange = Date(Long.MIN_VALUE)
+        clear()
+        set(local.get(Calendar.YEAR), local.get(Calendar.MONTH), local.get(Calendar.DAY_OF_MONTH))
+    }
+    return Math.floorDiv(utc.timeInMillis, 86_400_000L)
+}
+
+private fun isReminderOccurrence(anchorKey: String, recurrence: ReminderRecurrence, dayKey: String): Boolean {
+    val anchorDay = epochDayOf(anchorKey) ?: return false
+    val targetDay = epochDayOf(dayKey) ?: return false
+    if (targetDay < anchorDay) return false
+    val interval = recurrence.interval.toLong()
+    val anchor = dateCalendar(anchorKey)
+    val day = dateCalendar(dayKey)
+    return when (recurrence.freq) {
+        "none" -> targetDay == anchorDay
+        "daily" -> (targetDay - anchorDay) % interval == 0L
+        "weekly" -> {
+            val weekIndex = (targetDay - anchorDay + isoWeekdayOf(anchorKey) - 1) / 7
+            isoWeekdayOf(dayKey) in recurrence.weekdays && weekIndex % interval == 0L
+        }
+        "yearly" -> (day.get(Calendar.YEAR) - anchor.get(Calendar.YEAR)) % interval == 0L &&
+            day.get(Calendar.MONTH) == anchor.get(Calendar.MONTH) &&
+            day.get(Calendar.DAY_OF_MONTH) == anchor.get(Calendar.DAY_OF_MONTH)
+        else -> {
+            val monthDiff = (day.get(Calendar.YEAR) - anchor.get(Calendar.YEAR)) * 12 +
+                day.get(Calendar.MONTH) - anchor.get(Calendar.MONTH)
+            when {
+                monthDiff % interval != 0L -> false
+                recurrence.monthlyBy == "day" -> day.get(Calendar.DAY_OF_MONTH) == anchor.get(Calendar.DAY_OF_MONTH)
+                isoWeekdayOf(dayKey) != isoWeekdayOf(anchorKey) -> false
+                else -> {
+                    val nth = (anchor.get(Calendar.DAY_OF_MONTH) + 6) / 7
+                    val dayOfMonth = day.get(Calendar.DAY_OF_MONTH)
+                    if (nth >= 5) {
+                        dayOfMonth + 7 > day.getActualMaximum(Calendar.DAY_OF_MONTH)
+                    } else {
+                        (dayOfMonth + 6) / 7 == nth
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun reminderOccurrenceDots(
+    anchorKey: String,
+    recurrence: ReminderRecurrence,
+    month: CalendarMonth,
+    languageTag: String
+): Map<String, List<String?>> {
+    if (recurrence.freq == "none") return emptyMap()
+    return calendarMonthDateKeys(month, calendarWeekStart(languageTag))
+        .filter { isReminderOccurrence(anchorKey, recurrence, it) }
+        .associateWith { listOf(null) }
+}
+
+private fun recurrenceFromMap(value: Any?): ReminderRecurrence? {
+    val data = value as? Map<*, *> ?: return null
+    val freq = (data["freq"] as? String)?.takeIf { it in repeatFreqs } ?: return null
+    val interval = (data["interval"] as? Number)?.toInt()?.takeIf { it in 1..99 } ?: return null
+    val monthlyBy = (data["monthlyBy"] as? String)?.takeIf { it == "day" || it == "weekday" } ?: return null
+    val weekdays = (data["weekdays"] as? List<*>)
+        ?.mapNotNull { (it as? Number)?.toInt()?.takeIf { day -> day in 1..7 } }
+        ?: return null
+    if ((freq == "weekly") != weekdays.isNotEmpty()) return null
+    return ReminderRecurrence(freq, interval, weekdays, monthlyBy)
+}
+
+private fun reminderFromMap(id: String, data: Map<*, *>): ReminderItem? {
+    if (!isSafeId(id)) return null
+    val text = data["text"] as? String ?: return null
+    val date = (data["date"] as? String)?.takeIf { parseTaskInputDate(it) != null } ?: return null
+    val time = (data["time"] as? String)?.takeIf(reminderTimePattern::matches) ?: return null
+    val recurrence = recurrenceFromMap(data["repeat"]) ?: return null
+    val enabled = data["enabled"] as? Boolean ?: return null
+    val createdAt = (data["createdAt"] as? Number)?.toDouble() ?: return null
+    return ReminderItem(id, text, date, time, recurrence, enabled, createdAt)
+}
+
+private fun writeReminder(uid: String, reminder: ReminderItem?, values: ReminderValues) {
+    val collection = Firebase.firestore.collection("reminders")
+    val now = nowMillis()
+    val fields = mutableMapOf<String, Any?>(
+        "text" to values.text,
+        "date" to values.date,
+        "time" to values.time,
+        "repeat" to values.recurrence.toFirestore(),
+        "timeZone" to TimeZone.getDefault().id,
+        "updatedAt" to now
+    )
+    if (reminder != null) {
+        if (reminder.isPast) fields["enabled"] = true
+        collection.document(reminder.id).update(fields).addOnFailureListener { SyncFailureState.report() }
+        return
+    }
+    fields["ownerUid"] = uid
+    fields["enabled"] = true
+    fields["nextFireAt"] = null
+    fields["createdAt"] = now
+    collection.document().set(fields).addOnFailureListener { SyncFailureState.report() }
+}
+
+private data class RemindersUiState(
+    val reminders: List<ReminderItem> = emptyList(),
+    val isLoading: Boolean = true,
+    val hasError: Boolean = false
+)
+
+@Composable
+private fun rememberRemindersState(userId: String?): RemindersUiState {
+    var state by remember(userId) { mutableStateOf(RemindersUiState(isLoading = userId != null)) }
+    DisposableEffect(userId) {
+        val uid = userId ?: return@DisposableEffect onDispose {}
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        var listener: ListenerRegistration? = null
+        lateinit var retry: SyncListenerRetryController
+        fun install() {
+            listener?.remove()
+            listener = Firebase.firestore.collection("reminders").whereEqualTo("ownerUid", uid)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        listener?.remove()
+                        listener = null
+                        state = state.copy(isLoading = false, hasError = true)
+                        retry.fail("reminders", error)
+                        return@addSnapshotListener
+                    }
+                    val reminders = snapshot?.documents.orEmpty()
+                        .mapNotNull { reminderFromMap(it.id, it.data.orEmpty()) }
+                        .sortedWith(compareBy<ReminderItem> { it.time }.thenBy { it.createdAt })
+                    state = RemindersUiState(reminders = reminders, isLoading = false, hasError = false)
+                    retry.markHealthy(snapshot?.metadata?.isFromCache == false)
+                }
+        }
+        retry = SyncListenerRetryController(scope, onRetry = ::install, onError = ::recordSyncListenerError)
+        install()
+        onDispose {
+            retry.dispose()
+            listener?.remove()
+            scope.cancel()
+        }
+    }
+    return state
+}
+
+@Composable
+private fun RemindersScreen(
+    navController: NavController?,
+    userId: String?,
+    settingsState: SettingsState
+) {
+    val t = LocalTranslations.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val uiState = rememberRemindersState(userId)
+    val languageTag = t.languageTag()
+    var editTarget by remember { mutableStateOf<ReminderItem?>(null) }
+    var isCreating by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isEnablingNotifications by remember { mutableStateOf(false) }
+    val notificationsOff = !settingsState.isLoading && !settingsState.notifyReminders
+
+    fun enableNotifications(uid: String) {
+        scope.launch {
+            isEnablingNotifications = true
+            errorMessage = enableNotificationPreference(context, uid, "notifyReminders")?.let(t::t)
+            isEnablingNotifications = false
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val uid = userId
+        if (!granted) {
+            errorMessage = t.t("settings.notifications.permissionDenied")
+        } else if (uid != null) {
+            enableNotifications(uid)
+        }
+    }
+
+    fun requestNotifications() {
+        val uid = userId ?: return
+        if (isEnablingNotifications) return
+        if (needsNotificationPermission(context)) {
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            enableNotifications(uid)
+        }
+    }
+
+    fun describe(reminder: ReminderItem): String {
+        val schedule = if (reminder.recurrence.freq == "none") {
+            formatDateForLocale(reminder.date, languageTag, "MMM d EEE")
+        } else {
+            describeRecurrence(t, reminder.recurrence, reminder.date)
+        }
+        val state = when {
+            reminder.isPast -> t.t("reminders.ended")
+            !reminder.enabled -> t.t("reminders.paused")
+            else -> null
+        }
+        return listOfNotNull(reminder.time, schedule, state).joinToString(" · ")
+    }
+
+    DetailScreenScaffold(
+        title = t.t("reminders.title"),
+        onBack = navController?.let { { it.navigateUp() } },
+        showTopBar = navController != null,
+        topBarHeight = 56.dp,
+        backgroundColor = MaterialTheme.colorScheme.surfaceDim
+    ) {
+        val showTopBar = navController != null
+        Column(
+            Modifier
+                .widthIn(max = 640.dp)
+                .fillMaxWidth()
+                .align(Alignment.CenterHorizontally)
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    start = if (showTopBar) 16.dp else 24.dp,
+                    end = if (showTopBar) 16.dp else 24.dp,
+                    top = if (showTopBar) 8.dp else 40.dp,
+                    bottom = 40.dp
+                ),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (!showTopBar) {
+                Box(modifier = Modifier.heightIn(min = 48.dp), contentAlignment = Alignment.CenterStart) {
+                    Text(
+                        t.t("reminders.title"),
+                        style = AppPageTitleTextStyle,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                }
+            }
+            errorMessage?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = AppBodySmallTextStyle)
+            }
+            if (notificationsOff && uiState.reminders.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        t.t("reminders.notificationsOff"),
+                        style = AppBodySmallTextStyle,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AppButton(
+                        t.t("reminders.enableNotifications"),
+                        onClick = ::requestNotifications,
+                        style = AppButtonStyle.Tonal,
+                        enabled = !isEnablingNotifications
+                    )
+                }
+            }
+            AppButton(
+                t.t("reminders.add"),
+                onClick = { isCreating = true },
+                icon = Icons.Default.Add,
+                modifier = Modifier.fillMaxWidth()
+            )
+            when {
+                uiState.hasError && uiState.reminders.isEmpty() -> Text(
+                    t.t("auth.error.general"),
+                    color = MaterialTheme.colorScheme.error,
+                    style = AppBodySmallTextStyle
+                )
+                uiState.isLoading -> Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        color = mutedTextColor(),
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                uiState.reminders.isEmpty() -> TaskStateNotice(
+                    icon = Icons.Outlined.Notifications,
+                    titleKey = "reminders.empty",
+                    hintKey = "reminders.emptyHint"
+                )
+                else -> Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    uiState.reminders.forEachIndexed { index, reminder ->
+                        if (index > 0) SettingsDivider()
+                        val isOn = reminder.enabled && !reminder.isPast
+                        val switchLabel = "${reminder.text}, ${t.t("reminders.enabled")}"
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 48.dp)
+                                    .clickable(role = Role.Button) { editTarget = reminder }
+                                    .padding(vertical = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(reminder.text, style = AppRowTextStyle, color = MaterialTheme.colorScheme.onSurface)
+                                Text(describe(reminder), style = AppCaptionTextStyle, color = mutedTextColor())
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .toggleable(
+                                        value = isOn,
+                                        role = Role.Switch,
+                                        enabled = !reminder.isPast,
+                                        onValueChange = { enabled ->
+                                            Firebase.firestore.collection("reminders").document(reminder.id)
+                                                .update(mapOf("enabled" to enabled, "updatedAt" to nowMillis()))
+                                                .addOnFailureListener { SyncFailureState.report() }
+                                            logReminderToggle(enabled)
+                                        }
+                                    )
+                                    .semantics { contentDescription = switchLabel }
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                AppSwitch(checked = isOn, enabled = !reminder.isPast)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (isCreating || editTarget != null) {
+        val target = editTarget
+        ReminderEditorSheet(
+            reminder = target,
+            onDismiss = {
+                isCreating = false
+                editTarget = null
+            },
+            onSubmit = { values ->
+                val uid = userId
+                if (uid != null) {
+                    writeReminder(uid, target, values)
+                    if (target == null) logReminderCreate(values.recurrence.freq) else logReminderUpdate(values.recurrence.freq)
+                    if (notificationsOff) requestNotifications()
+                }
+                isCreating = false
+                editTarget = null
+            },
+            onDelete = {
+                if (target != null) {
+                    Firebase.firestore.collection("reminders").document(target.id).delete()
+                        .addOnFailureListener { SyncFailureState.report() }
+                    logReminderDelete()
+                }
+                editTarget = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun <T> ReminderDropdownField(
+    label: String,
+    value: T,
+    options: List<Pair<T, String>>,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val valueLabel = options.firstOrNull { it.first == value }?.second.orEmpty()
+    Box(modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                .clickable(role = Role.DropdownList) { expanded = true }
+                .semantics { contentDescription = "$label, $valueLabel" }
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                valueLabel,
+                style = AppRowTextStyle,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = mutedTextColor())
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(12.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            modifier = Modifier.heightIn(max = 280.dp)
+        ) {
+            options.forEach { (option, optionLabel) ->
+                DropdownMenuItem(
+                    text = { Text(optionLabel, style = AppRowTextStyle) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun formatReminderTime(context: Context, time: String): String {
+    val parts = time.split(":").mapNotNull(String::toIntOrNull)
+    if (parts.size != 2) return time
+    val calendar = currentGregorianCalendar().apply {
+        set(Calendar.HOUR_OF_DAY, parts[0])
+        set(Calendar.MINUTE, parts[1])
+    }
+    return DateFormat.getTimeFormat(context).format(calendar.time)
+}
+
+@Composable
+private fun ReminderFieldButton(
+    text: String,
+    icon: ImageVector?,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .clearAndSetSemantics {
+                this.contentDescription = contentDescription
+                role = Role.Button
+            }
+            .padding(horizontal = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = mutedTextColor(), modifier = Modifier.size(18.dp))
+        }
+        Text(text, style = AppRowTextStyle, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReminderTimePickerDialog(time: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    val t = LocalTranslations.current
+    val context = LocalContext.current
+    val parts = time.split(":").mapNotNull(String::toIntOrNull)
+    val state = rememberTimePickerState(
+        initialHour = parts.getOrNull(0) ?: 9,
+        initialMinute = parts.getOrNull(1) ?: 0,
+        is24Hour = DateFormat.is24HourFormat(context)
+    )
+    AppDialog(
+        onDismissRequest = onDismiss,
+        title = t.t("reminders.time"),
+        footer = {
+            AppButton(t.t("common.cancel"), onDismiss, style = AppButtonStyle.Secondary)
+            AppButton(
+                t.t("reminders.done"),
+                { onConfirm(String.format(Locale.ROOT, "%02d:%02d", state.hour, state.minute)) }
+            )
+        }
+    ) {
+        TimePicker(state = state, modifier = Modifier.align(Alignment.CenterHorizontally))
+    }
+}
+
+@Composable
+private fun ReminderEditorSheet(
+    reminder: ReminderItem?,
+    onDismiss: () -> Unit,
+    onSubmit: (ReminderValues) -> Unit,
+    onDelete: () -> Unit
+) {
+    val t = LocalTranslations.current
+    val context = LocalContext.current
+    val languageTag = t.languageTag()
+    val initialDate = reminder?.date ?: formatTaskInputDate(Date())
+    val initialPreset = reminder?.let { detectRepeatPreset(it.recurrence, initialDate) } ?: RepeatPreset.None
+    val initialCustom = if (initialPreset == RepeatPreset.Custom && reminder != null) {
+        reminder.recurrence
+    } else {
+        ReminderRecurrence(freq = "weekly", weekdays = listOf(isoWeekdayOf(initialDate)))
+    }
+    var text by remember { mutableStateOf(reminder?.text.orEmpty()) }
+    var time by remember { mutableStateOf(reminder?.time ?: "09:00") }
+    var showsTimePicker by remember { mutableStateOf(false) }
+    var date by remember { mutableStateOf(initialDate) }
+    var showsCalendar by remember { mutableStateOf(false) }
+    var month by remember { mutableStateOf(CalendarMonth.fromDateKey(initialDate) ?: CalendarMonth.current()) }
+    var preset by remember { mutableStateOf(initialPreset) }
+    var customFreq by remember { mutableStateOf(initialCustom.freq) }
+    var interval by remember { mutableIntStateOf(initialCustom.interval) }
+    var weekdays by remember { mutableStateOf(initialCustom.weekdays.toSet()) }
+    var monthlyBy by remember { mutableStateOf(initialCustom.monthlyBy) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    val title = t.t(if (reminder == null) "reminders.add" else "reminders.edit")
+    val recurrence = if (preset == RepeatPreset.Custom) {
+        ReminderRecurrence(
+            freq = customFreq,
+            interval = interval,
+            weekdays = if (customFreq == "weekly") weekdays.sorted() else emptyList(),
+            monthlyBy = monthlyBy
+        )
+    } else {
+        presetRecurrence(preset, date)
+    }
+    val values = ReminderValues(text = text.trim(), date = date, time = time, recurrence = recurrence)
+    val isPast = isPastReminder(values.date, values.time, recurrence)
+    val canSubmit = values.text.isNotEmpty() && !isPast && (recurrence.freq != "weekly" || recurrence.weekdays.isNotEmpty())
+
+    AppSheet(onDismissRequest = onDismiss, paneTitle = title) {
+        AppSheetHeader(title = title, onClose = onDismiss)
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            AppTextField(
+                value = text,
+                onValueChange = { text = it.take(ReminderTextMaxLength) },
+                placeholder = t.t("reminders.textPlaceholder"),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                val timeLabel = formatReminderTime(context, time)
+                ReminderFieldButton(
+                    text = timeLabel,
+                    icon = null,
+                    contentDescription = "${t.t("reminders.time")}, $timeLabel",
+                    onClick = { showsTimePicker = true },
+                    modifier = Modifier.widthIn(min = 104.dp)
+                )
+                ReminderDropdownField(
+                    t.t("reminders.repeat.title"),
+                    preset,
+                    RepeatPreset.entries.map {
+                        it to if (it == RepeatPreset.Custom) {
+                            t.t("reminders.repeat.custom")
+                        } else {
+                            describeRecurrence(t, presetRecurrence(it, date), date)
+                        }
+                    },
+                    { preset = it },
+                    Modifier.weight(1f)
+                )
+            }
+            if (preset == RepeatPreset.Custom) {
+                AppFieldLabel(t.t("reminders.repeat.interval"))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ReminderDropdownField(
+                        t.t("reminders.repeat.interval"),
+                        interval,
+                        reminderIntervals.map { it to it.toString() },
+                        { interval = it },
+                        Modifier.weight(1f)
+                    )
+                    ReminderDropdownField(
+                        t.t("reminders.repeat.title"),
+                        customFreq,
+                        customRepeatFreqs.map { it to t.t(repeatUnitKeys.getValue(it)) },
+                        { customFreq = it },
+                        Modifier.weight(1f)
+                    )
+                }
+                if (customFreq == "weekly") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        reminderWeekdayOrder(languageTag).forEach { weekday ->
+                            val isSelected = weekday in weekdays
+                            val longLabel = reminderWeekdaySymbol(weekday, languageTag, short = false)
+                            AppButton(
+                                reminderWeekdaySymbol(weekday, languageTag, short = true),
+                                onClick = { weekdays = if (isSelected) weekdays - weekday else weekdays + weekday },
+                                style = if (isSelected) AppButtonStyle.Primary else AppButtonStyle.Tonal,
+                                horizontalPadding = 0.dp,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .semantics {
+                                        contentDescription = longLabel
+                                        selected = isSelected
+                                    }
+                            )
+                        }
+                    }
+                }
+                if (customFreq == "monthly") {
+                    ReminderDropdownField(
+                        t.t("reminders.repeat.title"),
+                        monthlyBy,
+                        listOf(
+                            "day" to t.t("reminders.repeat.dayOfMonth", mapOf("day" to dayOfMonthOf(date).toString())),
+                            "weekday" to nthWeekdayLabel(t, date)
+                        ),
+                        { monthlyBy = it },
+                        Modifier.fillMaxWidth()
+                    )
+                }
+            }
+            val dateText = formatDateForLocale(date, languageTag, "MMM d EEE")
+            val dateLabel = t.t(if (recurrence.freq == "none") "reminders.date" else "reminders.startDate")
+            ReminderFieldButton(
+                text = if (recurrence.freq == "none") dateText else "$dateLabel $dateText",
+                icon = Icons.Default.CalendarToday,
+                contentDescription = "$dateLabel, $dateText",
+                onClick = {
+                    month = CalendarMonth.fromDateKey(date) ?: month
+                    showsCalendar = !showsCalendar
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (showsCalendar) {
+                AppSheetCalendarSurface {
+                    AppMonthCalendar(
+                        month = month,
+                        onMonthChange = { month = it },
+                        selectedDateKey = date,
+                        onSelectDate = { next ->
+                            if (next != null) {
+                                date = next
+                                showsCalendar = false
+                            }
+                        },
+                        dotColorsByDate = reminderOccurrenceDots(date, recurrence, month, languageTag)
+                    )
+                }
+            }
+            if (isPast) {
+                Text(t.t("reminders.pastDateTime"), style = AppBodySmallTextStyle, color = mutedTextColor())
+            }
+            if (reminder != null) {
+                AppButton(
+                    t.t("reminders.delete"),
+                    onClick = { showDeleteDialog = true },
+                    style = AppButtonStyle.Ghost,
+                    icon = Icons.Outlined.Delete,
+                    modifier = Modifier.bleed(start = 12.dp)
+                )
+            }
+        }
+        AppButton(
+            t.t(if (reminder == null) "common.add" else "taskList.save"),
+            onClick = { if (canSubmit) onSubmit(values) },
+            enabled = canSubmit,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    if (showsTimePicker) {
+        ReminderTimePickerDialog(
+            time = time,
+            onDismiss = { showsTimePicker = false },
+            onConfirm = {
+                time = it
+                showsTimePicker = false
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AppConfirmDialog(
+            title = t.t("reminders.deleteConfirm.title"),
+            message = t.t("reminders.deleteConfirm.message"),
+            confirmLabel = t.t("reminders.delete"),
+            cancelLabel = t.t("common.cancel"),
+            destructive = true,
+            onConfirm = {
+                showDeleteDialog = false
+                onDelete()
+            },
+            onDismiss = { showDeleteDialog = false }
+        )
+    }
+}
+
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun SettingsView(
@@ -9153,27 +10156,24 @@ private fun SettingsView(
         updateSettings(mapOf("hapticsEnabled" to enabled))
     }
 
-    var isUpdatingNotifications by remember { mutableStateOf(false) }
+    var updatingNotificationKey by remember { mutableStateOf<String?>(null) }
+    var permissionNotificationKey by remember { mutableStateOf<String?>(null) }
 
-    fun enableSharedNotifications(uid: String) {
+    fun logNotificationsChange(key: String, enabled: Boolean) {
+        if (key == "notifyReminders") {
+            logSettingsReminderNotificationsChange(enabled)
+        } else {
+            logSettingsSharedNotificationsChange(enabled)
+        }
+    }
+
+    fun enableNotifications(uid: String, key: String) {
         scope.launch {
-            isUpdatingNotifications = true
-            try {
-                val token = try {
-                    sharedListNotificationToken(context, uid)
-                } catch (e: Exception) {
-                    errorMessage = t.t("settings.notifications.unavailable")
-                    return@launch
-                }
-                saveSharedListNotificationToken(context, uid, token, enablePreference = true)
-                errorMessage = null
-                logSettingsSharedNotificationsChange(true)
-            } catch (e: Exception) {
-                SyncFailureState.report()
-                errorMessage = t.t("auth.error.general")
-            } finally {
-                isUpdatingNotifications = false
-            }
+            updatingNotificationKey = key
+            val messageKey = enableNotificationPreference(context, uid, key)
+            errorMessage = messageKey?.let(t::t)
+            if (messageKey == null) logNotificationsChange(key, true)
+            updatingNotificationKey = null
         }
     }
 
@@ -9181,33 +10181,28 @@ private fun SettingsView(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         val uid = userId
+        val key = permissionNotificationKey
+        permissionNotificationKey = null
         if (!granted) {
             errorMessage = t.t("settings.notifications.permissionDenied")
-        } else if (uid != null) {
-            enableSharedNotifications(uid)
+        } else if (uid != null && key != null) {
+            enableNotifications(uid, key)
         }
     }
 
-    fun updateSharedNotifications(enabled: Boolean) {
+    fun updateNotifications(key: String, enabled: Boolean) {
         val uid = userId ?: return
         if (!enabled) {
-            updateSettings(
-                mapOf(
-                    "notifySharedListUpdates" to false,
-                    "notificationDevices" to emptyMap<String, Any>()
-                )
-            )
-            logSettingsSharedNotificationsChange(false)
+            updateSettings(disabledNotificationFields(key, uiState))
+            logNotificationsChange(key, false)
             return
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
-        ) {
+        if (needsNotificationPermission(context)) {
+            permissionNotificationKey = key
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             return
         }
-        enableSharedNotifications(uid)
+        enableNotifications(uid, key)
     }
 
     fun closeEmailChange() {
@@ -9462,43 +10457,21 @@ private fun SettingsView(
                         AppSwitch(checked = uiState.hapticsEnabled)
                     }
                     SettingsDivider()
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .toggleable(
-                                value = uiState.notifySharedListUpdates,
-                                role = Role.Switch,
-                                enabled = !isUpdatingNotifications && isOnline,
-                                onValueChange = ::updateSharedNotifications
-                            )
-                            .padding(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(
-                            Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Text(
-                                t.t("settings.notifications.title"),
-                                style = AppRowTextStyle,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                t.t("settings.notifications.enable"),
-                                style = TextStyle(
-                                    fontFamily = GenInterfaceJPBodyFontFamily,
-                                    fontSize = 12.sp,
-                                    lineHeight = 16.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        AppSwitch(
-                            checked = uiState.notifySharedListUpdates,
-                            enabled = !isUpdatingNotifications && isOnline
-                        )
-                    }
+                    NotificationSettingRow(
+                        title = t.t("settings.notifications.title"),
+                        description = t.t("settings.notifications.enable"),
+                        checked = uiState.notifySharedListUpdates || updatingNotificationKey == "notifySharedListUpdates",
+                        enabled = updatingNotificationKey == null && isOnline,
+                        onCheckedChange = { updateNotifications("notifySharedListUpdates", it) }
+                    )
+                    SettingsDivider()
+                    NotificationSettingRow(
+                        title = t.t("settings.reminderNotifications.title"),
+                        description = t.t("settings.reminderNotifications.enable"),
+                        checked = uiState.notifyReminders || updatingNotificationKey == "notifyReminders",
+                        enabled = updatingNotificationKey == null && isOnline,
+                        onCheckedChange = { updateNotifications("notifyReminders", it) }
+                    )
                 }
                 SettingsSectionCard(title = t.t("settings.legal.title")) {
                     SettingsNavigationRow(label = t.t("settings.licenses.openSource")) {

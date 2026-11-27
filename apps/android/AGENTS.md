@@ -47,6 +47,7 @@
 - オンライン判定は `rememberIsOnline()`（manifest に `ACCESS_NETWORK_STATE`）、同期失敗は `SyncFailureState.report()`、queue 外の batch は `commitReportingFailure`。
 - 認証フォームの `AuthTextField` には Autofill 用の `contentType` を必ず設定する（サインインは既存資格情報、サインアップ / リセットは新規資格情報）。
 - 通知端末の登録はルートの認証・設定の確定を起点に更新する（`onNewToken()` だけでは token が変わらない再ログインを検知できない）。
+- アプリが背景のとき FCM の `notification` payload は OS が直接表示し、`onMessageReceived` を通らない。タップで起動する intent には `data`（`taskListId` / `reminderId`）がそのまま extras で入るため、`MainActivity.parseDeepLink` は自前の extra と FCM の data key の両方を見る。表示に使う `channelId` のチャンネルは事前に作っておく（未作成だと既定チャンネルに落ちる）。
 - `FirebaseMessaging.getToken()` / `deleteToken()` は messaging 26 系で deprecated（後継は `register()` / `unregister()`）。token を settings に保存する現行方式のまま使うため `@Suppress("DEPRECATION")` を付け、後継 API へ移すときは 3 プラットフォームの端末登録と Functions の配信を合わせて見直す。
 
 ## 主要コマンド

@@ -248,6 +248,7 @@ type SettingsStore = {
   taskInsertPosition: TaskInsertPosition;
   autoSort: boolean;
   notifySharedListUpdates: boolean;
+  notifyReminders: boolean;
   hapticsEnabled: boolean;
   notificationToken?: string;
   startupView?: StartupView;
@@ -301,6 +302,7 @@ type Settings = {
   taskInsertPosition: TaskInsertPosition;
   autoSort: boolean;
   notifySharedListUpdates: boolean;
+  notifyReminders: boolean;
   hapticsEnabled: boolean;
   notificationToken?: string;
   startupView: StartupView;
@@ -587,7 +589,11 @@ function waitForServiceWorkerActivation(
 
 async function registerWebNotificationDevice(
   uid: string,
-  options: { requestPermission: boolean; registeredToken?: string },
+  options: {
+    requestPermission: boolean;
+    registeredToken?: string;
+    enable?: "notifySharedListUpdates" | "notifyReminders";
+  },
 ): Promise<void> {
   if (
     typeof Notification === "undefined" ||
@@ -628,8 +634,8 @@ async function registerWebNotificationDevice(
       platform: "web",
       updatedAt: Date.now(),
     },
-    ...(options.requestPermission
-      ? { notifySharedListUpdates: true, updatedAt: Date.now() }
+    ...(options.enable
+      ? { [options.enable]: true, updatedAt: Date.now() }
       : {}),
   });
   trackCommit(deviceWrite);
@@ -664,6 +670,46 @@ async function unregisterWebNotificationDevice(
     new Promise((resolve) => setTimeout(resolve, 3000)),
   ]);
 }
+
+type NotificationSettingKey = "notifySharedListUpdates" | "notifyReminders";
+
+async function setNotificationSetting(
+  uid: string,
+  key: NotificationSettingKey,
+  enabled: boolean,
+  settings: Settings | null,
+): Promise<void> {
+  if (enabled) {
+    await registerWebNotificationDevice(uid, {
+      requestPermission: true,
+      enable: key,
+    });
+    return;
+  }
+  const otherEnabled =
+    key === "notifyReminders"
+      ? settings?.notifySharedListUpdates
+      : settings?.notifyReminders;
+  const write = updateDoc(doc(getDbInstance(), "settings", uid), {
+    [key]: false,
+    ...(otherEnabled ? {} : { notificationDevices: {} }),
+    updatedAt: Date.now(),
+  });
+  trackCommit(write);
+  await write;
+}
+
+const resolveNotificationError = (
+  err: unknown,
+  t: TFunction<"translation">,
+): string => {
+  const code = err instanceof Error ? err.message : "";
+  return code === "notification-permission-denied"
+    ? t("settings.notifications.permissionDenied")
+    : code === "notification-unavailable"
+      ? t("settings.notifications.unavailable")
+      : resolveErrorMessage(err, t, "auth.error.general");
+};
 
 const getAuthInstance = (): Auth => {
   if (cachedAuth) {
@@ -810,7 +856,7 @@ const logException = (operation: string, error?: unknown) => {
   return logAppEvent("exception", params);
 };
 type SyncListenerSource =
-  "settings" | "task_list_order" | "task_lists" | "share_preview";
+  "settings" | "task_list_order" | "task_lists" | "share_preview" | "reminders";
 const logSyncListenerError = (
   source: SyncListenerSource,
   errorCategory: string,
@@ -1507,7 +1553,9 @@ function AppWrapperBody({ children }: { children: ReactNode }) {
     }
   }, [settings]);
 
-  const notificationsEnabled = settings?.notifySharedListUpdates ?? false;
+  const notificationsEnabled =
+    (settings?.notifySharedListUpdates ?? false) ||
+    (settings?.notifyReminders ?? false);
   const registeredToken = settings?.notificationToken;
   useEffect(() => {
     if (!activeUid || !notificationsEnabled) return;
@@ -1623,6 +1671,7 @@ const mapSettingsStore = (
         taskInsertPosition: settingsStore.taskInsertPosition,
         autoSort: settingsStore.autoSort,
         notifySharedListUpdates: settingsStore.notifySharedListUpdates,
+        notifyReminders: settingsStore.notifyReminders,
         hapticsEnabled: settingsStore.hapticsEnabled,
         notificationToken: settingsStore.notificationToken,
         startupView: normalizeStartupView(settingsStore.startupView),
@@ -2534,6 +2583,7 @@ const ensureInitialUserData = (
       taskInsertPosition: "top",
       autoSort: true,
       notifySharedListUpdates: false,
+      notifyReminders: false,
       hapticsEnabled: false,
       startupView: "taskList",
       createdAt: now,
@@ -3096,6 +3146,8 @@ function assertSettingsStore(data: unknown, uid: string): SettingsStore {
     taskInsertPosition: taskInsertPosition as TaskInsertPosition,
     autoSort: data.autoSort ?? true,
     notifySharedListUpdates: data.notifySharedListUpdates ?? false,
+    notifyReminders:
+      typeof data.notifyReminders === "boolean" ? data.notifyReminders : false,
     hapticsEnabled:
       typeof data.hapticsEnabled === "boolean" ? data.hapticsEnabled : false,
     notificationToken: resolveWebNotificationToken(data),
@@ -4194,7 +4246,8 @@ type AppIconName =
   | "check"
   | "add"
   | "link"
-  | "chevron-right";
+  | "chevron-right"
+  | "notifications";
 
 const ICON_PATHS: Record<AppIconName, string | string[]> = {
   menu: "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
@@ -4221,6 +4274,8 @@ const ICON_PATHS: Record<AppIconName, string | string[]> = {
   add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
   link: "M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z",
   "chevron-right": "M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z",
+  notifications:
+    "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z",
 };
 
 type AlertVariant = "error" | "success";
@@ -5095,33 +5150,24 @@ function SettingsView({
     }
   };
 
-  const handleSharedNotificationsChange = async (enabled: boolean) => {
+  const handleNotificationsChange = async (
+    key: NotificationSettingKey,
+    enabled: boolean,
+  ) => {
     const uid = user?.uid;
     if (!uid || isUpdatingNotifications) return;
     setIsUpdatingNotifications(true);
     setError(null);
     try {
-      if (enabled) {
-        await registerWebNotificationDevice(uid, { requestPermission: true });
-      } else {
-        const write = updateDoc(doc(getDbInstance(), "settings", uid), {
-          notifySharedListUpdates: false,
-          notificationDevices: {},
-          updatedAt: Date.now(),
-        });
-        trackCommit(write);
-        await write;
-      }
-      logAppEvent("settings_shared_notifications_change", { enabled });
-    } catch (err) {
-      const code = err instanceof Error ? err.message : "";
-      setError(
-        code === "notification-permission-denied"
-          ? t("settings.notifications.permissionDenied")
-          : code === "notification-unavailable"
-            ? t("settings.notifications.unavailable")
-            : resolveErrorMessage(err, t, "auth.error.general"),
+      await setNotificationSetting(uid, key, enabled, settings);
+      logAppEvent(
+        key === "notifyReminders"
+          ? "settings_reminder_notifications_change"
+          : "settings_shared_notifications_change",
+        { enabled },
       );
+    } catch (err) {
+      setError(resolveNotificationError(err, t));
     } finally {
       setIsUpdatingNotifications(false);
     }
@@ -5569,7 +5615,10 @@ function SettingsView({
                     aria-checked={settings?.notifySharedListUpdates ?? false}
                     checked={settings?.notifySharedListUpdates ?? false}
                     onChange={(event) =>
-                      void handleSharedNotificationsChange(event.target.checked)
+                      void handleNotificationsChange(
+                        "notifySharedListUpdates",
+                        event.target.checked,
+                      )
                     }
                     disabled={
                       settingsDisabled || !isOnline || isUpdatingNotifications
@@ -5595,6 +5644,54 @@ function SettingsView({
                     <span
                       data-checked={
                         settings?.notifySharedListUpdates ? "true" : "false"
+                      }
+                      className="ll-settings-toggle-thumb ll-inline-block ll-h-5 ll-w-5 ll-rounded-full ll-bg-white-b ll-shadow-sm ll-dark-bg-gray-950"
+                    />
+                  </span>
+                </label>
+                <label
+                  className={`ll-flex ll-cursor-pointer ll-items-center ll-justify-between ll-gap-4 ll-border-t ll-border-gray-300 ll-py-3 ll-transition ll-dark-border-gray-700 ${
+                    settingsDisabled || !isOnline || isUpdatingNotifications
+                      ? "ll-opacity-50"
+                      : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    name="notifyReminders"
+                    role="switch"
+                    aria-checked={settings?.notifyReminders ?? false}
+                    checked={settings?.notifyReminders ?? false}
+                    onChange={(event) =>
+                      void handleNotificationsChange(
+                        "notifyReminders",
+                        event.target.checked,
+                      )
+                    }
+                    disabled={
+                      settingsDisabled || !isOnline || isUpdatingNotifications
+                    }
+                    className="ll-peer ll-sr-only"
+                  />
+                  <span className="ll-flex ll-flex-col ll-gap-0x5">
+                    <span className="ll-text-sm ll-font-medium ll-text-gray-900 ll-dark-text-gray-50">
+                      {t("settings.reminderNotifications.title")}
+                    </span>
+                    <span className="ll-text-xs ll-text-gray-600 ll-dark-text-gray-300">
+                      {t("settings.reminderNotifications.enable")}
+                    </span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={`ll-settings-toggle ll-relative ll-inline-flex ll-h-7 ll-w-12 ll-items-center ll-rounded-full ll-border ${
+                      settings?.notifyReminders
+                        ? "ll-border-gray-900 ll-bg-gray-900 ll-dark-border-gray-50 ll-dark-bg-gray-50"
+                        : "ll-border-gray-300 ll-bg-gray-300 ll-dark-border-gray-700 ll-dark-bg-gray-900"
+                    }`}
+                  >
+                    <span
+                      data-checked={
+                        settings?.notifyReminders ? "true" : "false"
                       }
                       className="ll-settings-toggle-thumb ll-inline-block ll-h-5 ll-w-5 ll-rounded-full ll-bg-white-b ll-shadow-sm ll-dark-bg-gray-950"
                     />
@@ -6011,7 +6108,8 @@ const formatMonthKey = (date: Date): string => formatDate(date).slice(0, 7);
 const getStringId = (id: UniqueIdentifier): string | null =>
   typeof id === "string" ? id : null;
 
-type AppView = "taskLists" | "detail" | "settings" | "licenses" | "calendar";
+type AppView =
+  "taskLists" | "detail" | "settings" | "licenses" | "calendar" | "reminders";
 
 type DatedTask = {
   taskListId: string;
@@ -6036,9 +6134,10 @@ const TASK_LISTS_ROUTE = "/task-lists";
 const SETTINGS_ROUTE = "/settings";
 const SETTINGS_LICENSES_ROUTE = "/settings/licenses";
 const CALENDAR_ROUTE = "/calendar";
+const REMINDERS_ROUTE = "/reminders";
 
 type KnownAppHashRoute =
-  | { view: "taskLists" | "settings" | "licenses" | "calendar" }
+  | { view: "taskLists" | "settings" | "licenses" | "calendar" | "reminders" }
   | { view: "detail"; taskListId: string };
 type AppHashRoute = KnownAppHashRoute | { view: "unknown" };
 
@@ -6049,6 +6148,7 @@ const parseAppHashRoute = (hash: string): AppHashRoute => {
   if (normalizedHash === SETTINGS_LICENSES_ROUTE) return { view: "licenses" };
   if (normalizedHash === SETTINGS_ROUTE) return { view: "settings" };
   if (normalizedHash === CALENDAR_ROUTE) return { view: "calendar" };
+  if (normalizedHash === REMINDERS_ROUTE) return { view: "reminders" };
 
   const detailPrefix = `${TASK_LISTS_ROUTE}/`;
   if (normalizedHash.startsWith(detailPrefix)) {
@@ -8316,6 +8416,9 @@ const toAppUrl = (route: KnownAppHashRoute): string => {
   if (route.view === "calendar") {
     return `${baseUrl}#${CALENDAR_ROUTE}`;
   }
+  if (route.view === "reminders") {
+    return `${baseUrl}#${REMINDERS_ROUTE}`;
+  }
   return `${baseUrl}#${TASK_LISTS_ROUTE}`;
 };
 
@@ -8420,6 +8523,8 @@ const getHistoryStackForRoute = (route: AppHashRoute): KnownAppHashRoute[] => {
       ];
     case "calendar":
       return [{ view: "taskLists" }, { view: "calendar" }];
+    case "reminders":
+      return [{ view: "taskLists" }, { view: "reminders" }];
     case "detail":
       return [{ view: "taskLists" }, route];
     case "taskLists":
@@ -9574,6 +9679,918 @@ function CalendarScreen({
   );
 }
 
+type RepeatFreq = "none" | "daily" | "weekly" | "monthly" | "yearly";
+type CustomRepeatFreq = Exclude<RepeatFreq, "none">;
+
+type ReminderRepeat = {
+  freq: RepeatFreq;
+  interval: number;
+  weekdays: number[];
+  monthlyBy: "day" | "weekday";
+};
+
+type Reminder = {
+  id: string;
+  text: string;
+  date: string;
+  time: string;
+  repeat: ReminderRepeat;
+  timeZone: string;
+  enabled: boolean;
+  createdAt: number;
+};
+
+type ReminderValues = Pick<Reminder, "text" | "date" | "time" | "repeat">;
+
+type RepeatPreset =
+  | "none"
+  | "daily"
+  | "weekdays"
+  | "weekly"
+  | "monthly"
+  | "monthlyWeekday"
+  | "yearly"
+  | "custom";
+
+const REMINDER_TEXT_MAX_LENGTH = 200;
+const REMINDER_TIME_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+const REMINDER_INTERVALS = Array.from({ length: 99 }, (_, index) => index + 1);
+const REPEAT_PRESETS: RepeatPreset[] = [
+  "none",
+  "daily",
+  "weekdays",
+  "weekly",
+  "monthly",
+  "monthlyWeekday",
+  "yearly",
+  "custom",
+];
+const CUSTOM_REPEAT_FREQS: CustomRepeatFreq[] = [
+  "daily",
+  "weekly",
+  "monthly",
+  "yearly",
+];
+const WEEKDAYS_MON_TO_FRI = [1, 2, 3, 4, 5];
+const REPEAT_UNIT_KEYS = {
+  daily: "reminders.repeat.unitDay",
+  weekly: "reminders.repeat.unitWeek",
+  monthly: "reminders.repeat.unitMonth",
+  yearly: "reminders.repeat.unitYear",
+} as const;
+const REPEAT_SUMMARY_KEYS = {
+  daily: ["reminders.repeat.daily", "reminders.repeat.everyNDays"],
+  weekly: ["reminders.repeat.weekly", "reminders.repeat.everyNWeeks"],
+  monthly: ["reminders.repeat.monthly", "reminders.repeat.everyNMonths"],
+  yearly: ["reminders.repeat.yearly", "reminders.repeat.everyNYears"],
+} as const;
+const NTH_WEEKDAY_KEYS = [
+  "reminders.repeat.nth1",
+  "reminders.repeat.nth2",
+  "reminders.repeat.nth3",
+  "reminders.repeat.nth4",
+  "reminders.repeat.last",
+] as const;
+
+function assertReminderRepeat(value: unknown): ReminderRepeat | null {
+  if (!isRecord(value)) return null;
+  const { freq, interval, weekdays, monthlyBy } = value;
+  if (
+    (freq !== "none" &&
+      freq !== "daily" &&
+      freq !== "weekly" &&
+      freq !== "monthly" &&
+      freq !== "yearly") ||
+    typeof interval !== "number" ||
+    !Number.isInteger(interval) ||
+    interval < 1 ||
+    interval > 99 ||
+    !Array.isArray(weekdays) ||
+    (monthlyBy !== "day" && monthlyBy !== "weekday")
+  ) {
+    return null;
+  }
+  const days = weekdays.filter(
+    (day): day is number =>
+      typeof day === "number" && Number.isInteger(day) && day >= 1 && day <= 7,
+  );
+  if ((freq === "weekly") !== days.length > 0) return null;
+  return { freq, interval, weekdays: days, monthlyBy };
+}
+
+function assertReminderStore(id: string, data: unknown): Reminder | null {
+  if (!isRecord(data) || !isSafeId(id)) return null;
+  const { text, date, time, timeZone, enabled, createdAt } = data;
+  const repeat = assertReminderRepeat(data.repeat);
+  if (
+    typeof text !== "string" ||
+    typeof date !== "string" ||
+    !parseTaskDateValue(date) ||
+    typeof time !== "string" ||
+    !REMINDER_TIME_PATTERN.test(time) ||
+    typeof timeZone !== "string" ||
+    typeof enabled !== "boolean" ||
+    typeof createdAt !== "number" ||
+    !repeat
+  ) {
+    return null;
+  }
+  return { id, text, date, time, repeat, timeZone, enabled, createdAt };
+}
+
+const getIsoWeekday = (date: Date): number => ((date.getDay() + 6) % 7) + 1;
+
+const isPastReminder = (values: Pick<Reminder, "date" | "time" | "repeat">) => {
+  if (values.repeat.freq !== "none") return false;
+  const day = parseTaskDateValue(values.date);
+  if (!day) return true;
+  const [hour, minute] = values.time.split(":").map(Number);
+  day.setHours(hour, minute, 0, 0);
+  return day.getTime() <= Date.now();
+};
+
+const getReminderWeekdayOrder = (language: Language): number[] => {
+  const start =
+    WEEK_STARTS_ON[language] === 0 ? 7 : WEEK_STARTS_ON[language] || 1;
+  return Array.from({ length: 7 }, (_, index) => ((start - 1 + index) % 7) + 1);
+};
+
+const getReminderWeekdayLabel = (
+  language: Language,
+  weekday: number,
+  width: "short" | "long",
+): string =>
+  new Intl.DateTimeFormat(language, { weekday: width }).format(
+    new Date(2024, 0, weekday),
+  );
+
+const getPresetRepeat = (
+  preset: Exclude<RepeatPreset, "custom">,
+  date: Date,
+): ReminderRepeat => {
+  const base: ReminderRepeat = {
+    freq: "none",
+    interval: 1,
+    weekdays: [],
+    monthlyBy: "day",
+  };
+  switch (preset) {
+    case "none":
+      return base;
+    case "daily":
+    case "yearly":
+      return { ...base, freq: preset };
+    case "weekdays":
+      return { ...base, freq: "weekly", weekdays: WEEKDAYS_MON_TO_FRI };
+    case "weekly":
+      return { ...base, freq: "weekly", weekdays: [getIsoWeekday(date)] };
+    case "monthly":
+      return { ...base, freq: "monthly" };
+    case "monthlyWeekday":
+      return { ...base, freq: "monthly", monthlyBy: "weekday" };
+  }
+};
+
+const isSameRepeat = (left: ReminderRepeat, right: ReminderRepeat) =>
+  left.freq === right.freq &&
+  left.interval === right.interval &&
+  left.monthlyBy === right.monthlyBy &&
+  left.weekdays.join(",") === right.weekdays.join(",");
+
+const detectRepeatPreset = (repeat: ReminderRepeat, date: Date): RepeatPreset =>
+  REPEAT_PRESETS.find(
+    (preset) =>
+      preset !== "custom" &&
+      isSameRepeat(getPresetRepeat(preset, date), repeat),
+  ) ?? "custom";
+
+const describeRepeat = (
+  repeat: ReminderRepeat,
+  date: Date,
+  language: Language,
+  t: TFunction<"translation">,
+): string => {
+  if (repeat.freq === "none") return t("reminders.repeat.none");
+  if (
+    repeat.interval === 1 &&
+    isSameRepeat(repeat, getPresetRepeat("weekdays", date))
+  ) {
+    return t("reminders.repeat.weekdays");
+  }
+  const weekdayName = getReminderWeekdayLabel(
+    language,
+    getIsoWeekday(date),
+    "long",
+  );
+  const [singleKey, everyKey] = REPEAT_SUMMARY_KEYS[repeat.freq];
+  return t(repeat.interval === 1 ? singleKey : everyKey, {
+    n: repeat.interval,
+    days:
+      repeat.weekdays.length === 1 && repeat.interval === 1
+        ? getReminderWeekdayLabel(language, repeat.weekdays[0], "long")
+        : getReminderWeekdayOrder(language)
+            .filter((weekday) => repeat.weekdays.includes(weekday))
+            .map((weekday) =>
+              getReminderWeekdayLabel(language, weekday, "short"),
+            )
+            .join(", "),
+    day:
+      repeat.monthlyBy === "day"
+        ? t("reminders.repeat.dayOfMonth", { day: date.getDate() })
+        : t(NTH_WEEKDAY_KEYS[Math.min(Math.ceil(date.getDate() / 7), 5) - 1], {
+            weekday: weekdayName,
+          }),
+    date: new Intl.DateTimeFormat(language, {
+      month: "long",
+      day: "numeric",
+    }).format(date),
+  });
+};
+
+const toDayNumber = (date: Date): number =>
+  Math.round(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000,
+  );
+
+const isReminderOccurrence = (
+  anchor: Date,
+  repeat: ReminderRepeat,
+  day: Date,
+): boolean => {
+  const anchorDay = toDayNumber(anchor);
+  const targetDay = toDayNumber(day);
+  if (targetDay < anchorDay) return false;
+  const { freq, interval } = repeat;
+  if (freq === "none") return targetDay === anchorDay;
+  if (freq === "daily") return (targetDay - anchorDay) % interval === 0;
+  if (freq === "weekly") {
+    const anchorWeek = anchorDay - (getIsoWeekday(anchor) - 1);
+    return (
+      repeat.weekdays.includes(getIsoWeekday(day)) &&
+      Math.floor((targetDay - anchorWeek) / 7) % interval === 0
+    );
+  }
+  if (freq === "yearly") {
+    return (
+      (day.getFullYear() - anchor.getFullYear()) % interval === 0 &&
+      day.getMonth() === anchor.getMonth() &&
+      day.getDate() === anchor.getDate()
+    );
+  }
+  const monthDiff =
+    (day.getFullYear() - anchor.getFullYear()) * 12 +
+    day.getMonth() -
+    anchor.getMonth();
+  if (monthDiff % interval !== 0) return false;
+  if (repeat.monthlyBy === "day") return day.getDate() === anchor.getDate();
+  if (getIsoWeekday(day) !== getIsoWeekday(anchor)) return false;
+  const nth = Math.ceil(anchor.getDate() / 7);
+  const daysInMonth = new Date(
+    day.getFullYear(),
+    day.getMonth() + 1,
+    0,
+  ).getDate();
+  return nth >= 5
+    ? day.getDate() + 7 > daysInMonth
+    : Math.ceil(day.getDate() / 7) === nth;
+};
+
+const getReminderOccurrenceDots = (
+  anchor: Date,
+  repeat: ReminderRepeat,
+  month: Date,
+): Record<string, (string | null)[]> => {
+  if (repeat.freq === "none") return {};
+  const dots: Record<string, (string | null)[]> = {};
+  for (let offset = -7; offset < 42; offset += 1) {
+    const day = new Date(month.getFullYear(), month.getMonth(), 1 + offset);
+    if (isReminderOccurrence(anchor, repeat, day))
+      dots[formatDate(day)] = [null];
+  }
+  return dots;
+};
+
+function writeReminder(
+  uid: string,
+  reminder: Reminder | null,
+  values: ReminderValues,
+) {
+  const db = getDbInstance();
+  const now = Date.now();
+  const fields = {
+    ...values,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    updatedAt: now,
+  };
+  if (reminder) {
+    trackCommit(
+      updateDoc(doc(db, "reminders", reminder.id), {
+        ...fields,
+        ...(isPastReminder(reminder) ? { enabled: true } : {}),
+      }),
+    );
+    return;
+  }
+  trackCommit(
+    setDoc(doc(collection(db, "reminders")), {
+      ownerUid: uid,
+      ...fields,
+      enabled: true,
+      nextFireAt: null,
+      createdAt: now,
+    }),
+  );
+}
+
+function useReminders(uid: string | null): {
+  status: DataLoadStatus;
+  reminders: Reminder[];
+} {
+  const [state, setState] = useState<{
+    status: DataLoadStatus;
+    reminders: Reminder[];
+  }>({ status: "idle", reminders: [] });
+
+  useEffect(() => {
+    if (!uid) {
+      setState({ status: "idle", reminders: [] });
+      return;
+    }
+    setState({ status: "loading", reminders: [] });
+    const listener = listenWithRetry({
+      source: "reminders",
+      isAuthLoading: () => false,
+      onFailure: () => setState((current) => ({ ...current, status: "error" })),
+      subscribe: (onError) =>
+        onSnapshot(
+          query(
+            collection(getDbInstance(), "reminders"),
+            where("ownerUid", "==", uid),
+          ),
+          (snapshot) => {
+            const reminders = snapshot.docs
+              .map((reminderDoc) =>
+                assertReminderStore(reminderDoc.id, reminderDoc.data()),
+              )
+              .filter((reminder): reminder is Reminder => reminder !== null)
+              .sort(
+                (left, right) =>
+                  left.time.localeCompare(right.time) ||
+                  left.createdAt - right.createdAt,
+              );
+            setState({ status: "ready", reminders });
+            if (!snapshot.metadata.fromCache) listener.markHealthy();
+          },
+          onError,
+        ),
+    });
+    return listener.dispose;
+  }, [uid]);
+
+  return state;
+}
+
+function ReminderSelect<Value extends string | number>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: Value;
+  options: { value: Value; label: string }[];
+  onChange: (value: Value) => void;
+}) {
+  return (
+    <label className="ll-select-wrap ll-min-w-0 ll-flex-1">
+      <span className="ll-sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => {
+          const next = options.find(
+            (option) => String(option.value) === event.target.value,
+          );
+          if (next) onChange(next.value);
+        }}
+        className="ll-field"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function ReminderSheetContent({
+  reminder,
+  language,
+  onSubmit,
+  onDelete,
+}: {
+  reminder: Reminder | null;
+  language: Language;
+  onSubmit: (values: ReminderValues) => void;
+  onDelete: () => void;
+}) {
+  const { t } = useTranslation();
+  const initialDate = parseTaskDateValue(reminder?.date) ?? new Date();
+  const initialPreset = reminder
+    ? detectRepeatPreset(reminder.repeat, initialDate)
+    : "none";
+  const initialCustom =
+    reminder && initialPreset === "custom"
+      ? reminder.repeat
+      : {
+          freq: "weekly" as const,
+          interval: 1,
+          weekdays: [getIsoWeekday(initialDate)],
+          monthlyBy: "day" as const,
+        };
+  const [text, setText] = useState(reminder?.text ?? "");
+  const [time, setTime] = useState(reminder?.time ?? "09:00");
+  const [date, setDate] = useState<Date>(initialDate);
+  const [showsCalendar, setShowsCalendar] = useState(false);
+  const [displayedMonth, setDisplayedMonth] = useState<Date>(initialDate);
+  const [preset, setPreset] = useState<RepeatPreset>(initialPreset);
+  const [customFreq, setCustomFreq] = useState<CustomRepeatFreq>(
+    initialCustom.freq === "none" ? "weekly" : initialCustom.freq,
+  );
+  const [interval, setRepeatInterval] = useState(initialCustom.interval);
+  const [weekdays, setWeekdays] = useState(initialCustom.weekdays);
+  const [monthlyBy, setMonthlyBy] = useState(initialCustom.monthlyBy);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const title = reminder ? t("reminders.edit") : t("reminders.add");
+  const repeat: ReminderRepeat =
+    preset === "custom"
+      ? {
+          freq: customFreq,
+          interval,
+          weekdays:
+            customFreq === "weekly"
+              ? [...weekdays].sort((left, right) => left - right)
+              : [],
+          monthlyBy,
+        }
+      : getPresetRepeat(preset, date);
+  const values: ReminderValues = {
+    text: text.trim(),
+    date: formatDate(date),
+    time,
+    repeat,
+  };
+  const isPast = isPastReminder(values);
+  const canSubmit =
+    values.text.length > 0 &&
+    REMINDER_TIME_PATTERN.test(time) &&
+    !isPast &&
+    (repeat.freq !== "weekly" || repeat.weekdays.length > 0);
+  const weekdayName = getReminderWeekdayLabel(
+    language,
+    getIsoWeekday(date),
+    "long",
+  );
+  const dateLabel =
+    repeat.freq === "none" ? t("reminders.date") : t("reminders.startDate");
+
+  return (
+    <ActionSheetContent title={title}>
+      <form
+        className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (canSubmit) onSubmit(values);
+        }}
+      >
+        <TaskSheetHeader title={title} />
+        <div className="ll-min-h-0 ll-overflow-y-auto">
+          <div className="ll-flex ll-flex-col ll-gap-3">
+            <label className="ll-flex ll-flex-col">
+              <span className="ll-sr-only">
+                {t("reminders.textPlaceholder")}
+              </span>
+              <input
+                autoFocus={!reminder}
+                type="text"
+                value={text}
+                maxLength={REMINDER_TEXT_MAX_LENGTH}
+                onChange={(event) => setText(event.target.value)}
+                placeholder={t("reminders.textPlaceholder")}
+                className="ll-field"
+              />
+            </label>
+            <div className="ll-flex ll-items-center ll-gap-2">
+              <label className="ll-reminder-time">
+                <span className="ll-sr-only">{t("reminders.time")}</span>
+                <input
+                  type="time"
+                  required
+                  value={time}
+                  onChange={(event) => setTime(event.target.value)}
+                  className="ll-field"
+                />
+              </label>
+              <ReminderSelect
+                label={t("reminders.repeat.title")}
+                value={preset}
+                options={REPEAT_PRESETS.map((value) => ({
+                  value,
+                  label:
+                    value === "custom"
+                      ? t("reminders.repeat.custom")
+                      : describeRepeat(
+                          getPresetRepeat(value, date),
+                          date,
+                          language,
+                          t,
+                        ),
+                }))}
+                onChange={setPreset}
+              />
+            </div>
+            {preset === "custom" ? (
+              <div className="ll-flex ll-flex-col ll-gap-3">
+                <div className="ll-flex ll-flex-col ll-gap-1">
+                  <span className="ll-field-label" aria-hidden="true">
+                    {t("reminders.repeat.interval")}
+                  </span>
+                  <div className="ll-flex ll-items-center ll-gap-2">
+                    <ReminderSelect
+                      label={t("reminders.repeat.interval")}
+                      value={interval}
+                      options={REMINDER_INTERVALS.map((value) => ({
+                        value,
+                        label: String(value),
+                      }))}
+                      onChange={setRepeatInterval}
+                    />
+                    <ReminderSelect
+                      label={t("reminders.repeat.title")}
+                      value={customFreq}
+                      options={CUSTOM_REPEAT_FREQS.map((value) => ({
+                        value,
+                        label: t(REPEAT_UNIT_KEYS[value]),
+                      }))}
+                      onChange={setCustomFreq}
+                    />
+                  </div>
+                </div>
+                {customFreq === "weekly" ? (
+                  <div className="ll-reminder-weekdays">
+                    {getReminderWeekdayOrder(language).map((weekday) => (
+                      <button
+                        key={weekday}
+                        type="button"
+                        aria-pressed={weekdays.includes(weekday)}
+                        aria-label={getReminderWeekdayLabel(
+                          language,
+                          weekday,
+                          "long",
+                        )}
+                        onClick={() =>
+                          setWeekdays((current) =>
+                            current.includes(weekday)
+                              ? current.filter((day) => day !== weekday)
+                              : [...current, weekday],
+                          )
+                        }
+                        className="ll-pressable ll-btn ll-pin-toggle ll-reminder-weekday"
+                      >
+                        {getReminderWeekdayLabel(language, weekday, "short")}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {customFreq === "monthly" ? (
+                  <ReminderSelect
+                    label={t("reminders.repeat.title")}
+                    value={monthlyBy}
+                    options={[
+                      {
+                        value: "day" as const,
+                        label: t("reminders.repeat.dayOfMonth", {
+                          day: date.getDate(),
+                        }),
+                      },
+                      {
+                        value: "weekday" as const,
+                        label: t(
+                          NTH_WEEKDAY_KEYS[
+                            Math.min(Math.ceil(date.getDate() / 7), 5) - 1
+                          ],
+                          { weekday: weekdayName },
+                        ),
+                      },
+                    ]}
+                    onChange={setMonthlyBy}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              aria-expanded={showsCalendar}
+              aria-label={`${dateLabel}, ${getTaskDateFormatter(language).format(date)}`}
+              onClick={() => {
+                setDisplayedMonth(date);
+                setShowsCalendar((current) => !current);
+              }}
+              className="ll-field ll-reminder-field-button"
+            >
+              <AppIcon
+                name="calendar-today"
+                size={18}
+                aria-hidden="true"
+                focusable="false"
+              />
+              {repeat.freq === "none"
+                ? getTaskDateFormatter(language).format(date)
+                : `${dateLabel} ${getTaskDateFormatter(language).format(date)}`}
+            </button>
+            {showsCalendar ? (
+              <div className="ll-sheet-calendar">
+                <CalendarDotColorsContext.Provider
+                  value={getReminderOccurrenceDots(
+                    date,
+                    repeat,
+                    displayedMonth,
+                  )}
+                >
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    month={displayedMonth}
+                    onMonthChange={setDisplayedMonth}
+                    components={CALENDAR_DOT_COMPONENTS}
+                    onSelect={(next) => {
+                      if (!next) return;
+                      setDate(next);
+                      setShowsCalendar(false);
+                    }}
+                  />
+                </CalendarDotColorsContext.Provider>
+              </div>
+            ) : null}
+            {isPast ? (
+              <p className="ll-m-0 ll-text-sm ll-muted-text" role="status">
+                {t("reminders.pastDateTime")}
+              </p>
+            ) : null}
+            {reminder ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className={clsx(BUTTON_GHOST_CLASS, "ll-sheet-start-action")}
+                >
+                  <AppIcon
+                    name="delete"
+                    size={18}
+                    aria-hidden="true"
+                    focusable="false"
+                  />
+                  {t("reminders.delete")}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className={clsx(BUTTON_PRIMARY_CLASS, "ll-w-full ll-shrink-0")}
+        >
+          {reminder ? t("taskList.save") : t("common.add")}
+        </button>
+      </form>
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          onDelete();
+        }}
+        title={t("reminders.deleteConfirm.title")}
+        message={t("reminders.deleteConfirm.message")}
+        confirmText={t("reminders.delete")}
+        cancelText={t("common.cancel")}
+        isDestructive={true}
+      />
+    </ActionSheetContent>
+  );
+}
+
+function RemindersView({ onBack }: { onBack?: () => void }) {
+  const { t, i18n } = useTranslation();
+  const { user } = useSessionState();
+  const { settings } = useSettingsState();
+  const uid = user?.uid ?? null;
+  const { status, reminders } = useReminders(uid);
+  const language = normalizeLanguage(i18n.language);
+  const [sheet, setSheet] = useState<{ reminder: Reminder | null } | null>(
+    null,
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
+  const notificationsEnabled = settings?.notifyReminders ?? false;
+
+  const enableNotifications = async () => {
+    if (!uid || isEnablingNotifications) return;
+    setIsEnablingNotifications(true);
+    setError(null);
+    try {
+      await setNotificationSetting(uid, "notifyReminders", true, settings);
+    } catch (err) {
+      setError(resolveNotificationError(err, t));
+    } finally {
+      setIsEnablingNotifications(false);
+    }
+  };
+
+  const describeReminder = (reminder: Reminder): string => {
+    const date = parseTaskDateValue(reminder.date) ?? new Date();
+    const schedule =
+      reminder.repeat.freq === "none"
+        ? getTaskDateFormatter(language).format(date)
+        : describeRepeat(reminder.repeat, date, language, t);
+    const state = isPastReminder(reminder)
+      ? t("reminders.ended")
+      : reminder.enabled
+        ? null
+        : t("reminders.paused");
+    return [reminder.time, schedule, state].filter(Boolean).join(" · ");
+  };
+
+  return (
+    <div className="ll-min-h-full ll-w-full ll-bg-gray-50 ll-text-gray-900 ll-dark-bg-gray-950 ll-dark-text-gray-50">
+      {onBack ? (
+        <AppHeader
+          backLabel={t("common.back")}
+          onBack={onBack}
+          title={t("reminders.title")}
+        />
+      ) : null}
+      <div
+        className={clsx(
+          "ll-page-container ll-flex ll-flex-col ll-gap-4",
+          onBack && "ll-page-container-compact",
+        )}
+      >
+        {onBack ? null : (
+          <header className="ll-page-header">
+            <h1 className="ll-page-title">{t("reminders.title")}</h1>
+          </header>
+        )}
+        {error ? <Alert variant="error">{error}</Alert> : null}
+        {settings && !notificationsEnabled && reminders.length > 0 ? (
+          <div className="ll-flex ll-flex-wrap ll-items-center ll-justify-between ll-gap-2 ll-rounded-xl ll-bg-white-b ll-px-4 ll-py-3 ll-dark-bg-gray-900b">
+            <p className="ll-m-0 ll-text-sm">
+              {t("reminders.notificationsOff")}
+            </p>
+            <button
+              type="button"
+              disabled={isEnablingNotifications}
+              onClick={() => void enableNotifications()}
+              className={BUTTON_TONAL_CLASS}
+            >
+              {t("reminders.enableNotifications")}
+            </button>
+          </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setSheet({ reminder: null })}
+          className={clsx(BUTTON_PRIMARY_CLASS, "ll-w-full")}
+        >
+          <AppIcon name="add" size={20} aria-hidden="true" focusable="false" />
+          {t("reminders.add")}
+        </button>
+        {status === "error" ? (
+          <Alert variant="error">{t("auth.error.general")}</Alert>
+        ) : status !== "ready" ? (
+          <Spinner />
+        ) : reminders.length === 0 ? (
+          <div className="ll-task-state ll-muted-text" role="status">
+            <span className="ll-task-state-icon" aria-hidden="true">
+              <AppIcon name="notifications" size={24} focusable="false" />
+            </span>
+            <p className="ll-task-state-title">{t("reminders.empty")}</p>
+            <p className="ll-task-state-hint">{t("reminders.emptyHint")}</p>
+          </div>
+        ) : (
+          <SettingsSection>
+            <ul className="ll-m-0 ll-flex ll-list-none ll-flex-col ll-divide-y ll-divide-gray-300 ll-p-0 ll-dark-divide-gray-700">
+              {reminders.map((reminder) => {
+                const isPast = isPastReminder(reminder);
+                const isOn = reminder.enabled && !isPast;
+                return (
+                  <li
+                    key={reminder.id}
+                    className="ll-flex ll-items-center ll-gap-3"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSheet({ reminder })}
+                      className="ll-settings-row ll-min-w-0 ll-flex-1"
+                    >
+                      <span className="ll-flex ll-min-w-0 ll-flex-col ll-items-start ll-gap-0x5 ll-py-3 ll-text-start">
+                        <span className="ll-task-text-wrap ll-font-medium">
+                          {reminder.text}
+                        </span>
+                        <span className="ll-text-xs ll-muted-text">
+                          {describeReminder(reminder)}
+                        </span>
+                      </span>
+                    </button>
+                    <label
+                      className={clsx(
+                        "ll-flex ll-shrink-0 ll-cursor-pointer ll-items-center",
+                        isPast && "ll-opacity-50",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        aria-label={`${reminder.text}, ${t("reminders.enabled")}`}
+                        aria-checked={isOn}
+                        checked={isOn}
+                        disabled={isPast}
+                        onChange={(event) => {
+                          trackCommit(
+                            updateDoc(
+                              doc(getDbInstance(), "reminders", reminder.id),
+                              {
+                                enabled: event.target.checked,
+                                updatedAt: Date.now(),
+                              },
+                            ),
+                          );
+                          logAppEvent("reminder_toggle", {
+                            enabled: event.target.checked,
+                          });
+                        }}
+                        className="ll-peer ll-sr-only"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className={`ll-settings-toggle ll-relative ll-inline-flex ll-h-7 ll-w-12 ll-items-center ll-rounded-full ll-border ${
+                          isOn
+                            ? "ll-border-gray-900 ll-bg-gray-900 ll-dark-border-gray-50 ll-dark-bg-gray-50"
+                            : "ll-border-gray-300 ll-bg-gray-300 ll-dark-border-gray-700 ll-dark-bg-gray-900"
+                        }`}
+                      >
+                        <span
+                          data-checked={isOn ? "true" : "false"}
+                          className="ll-settings-toggle-thumb ll-inline-block ll-h-5 ll-w-5 ll-rounded-full ll-bg-white-b ll-shadow-sm ll-dark-bg-gray-950"
+                        />
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </SettingsSection>
+        )}
+      </div>
+      <Dialog
+        open={sheet !== null}
+        onOpenChange={(open: boolean) => {
+          if (!open) setSheet(null);
+        }}
+      >
+        {sheet && uid ? (
+          <ReminderSheetContent
+            reminder={sheet.reminder}
+            language={language}
+            onSubmit={(values) => {
+              writeReminder(uid, sheet.reminder, values);
+              logAppEvent(
+                sheet.reminder ? "reminder_update" : "reminder_create",
+                { repeat: values.repeat.freq },
+              );
+              setSheet(null);
+              if (!notificationsEnabled) void enableNotifications();
+            }}
+            onDelete={() => {
+              if (sheet.reminder) {
+                trackCommit(
+                  deleteDoc(
+                    doc(getDbInstance(), "reminders", sheet.reminder.id),
+                  ),
+                );
+                logAppEvent("reminder_delete");
+              }
+              setSheet(null);
+            }}
+          />
+        ) : null}
+      </Dialog>
+    </div>
+  );
+}
+
 type CalendarEntryButtonProps = {
   onOpen: () => void;
   isActive: boolean;
@@ -9608,9 +10625,11 @@ function CalendarEntryButton({ onOpen, isActive }: CalendarEntryButtonProps) {
 type SidebarProps = {
   hasTaskLists: boolean;
   calendarActive: boolean;
+  remindersActive: boolean;
   settingsActive: boolean;
   taskLists: TaskList[];
   onOpenCalendar: () => void;
+  onOpenReminders: () => void;
   onReorderTaskList: (
     draggedId: string,
     targetId: string,
@@ -9626,9 +10645,11 @@ type SidebarProps = {
 function TaskListSidebarPanel({
   hasTaskLists,
   calendarActive,
+  remindersActive,
   settingsActive,
   taskLists,
   onOpenCalendar,
+  onOpenReminders,
   onReorderTaskList,
   selectedTaskListId,
   onSelectTaskList,
@@ -9753,6 +10774,24 @@ function TaskListSidebarPanel({
           onOpen={onOpenCalendar}
           isActive={calendarActive}
         />
+        <button
+          type="button"
+          onClick={onOpenReminders}
+          aria-current={remindersActive ? "page" : undefined}
+          className="ll-nav-row"
+        >
+          <span className="ll-sidebar-icon-slot">
+            <AppIcon
+              name="notifications"
+              size={20}
+              aria-hidden="true"
+              focusable="false"
+            />
+          </span>
+          <span className="ll-min-w-0 ll-flex-1 ll-truncate">
+            {t("reminders.title")}
+          </span>
+        </button>
       </nav>
 
       <div className="ll-flex ll-min-h-0 ll-flex-1 ll-flex-col ll-overflow-y-auto">
@@ -10118,7 +11157,9 @@ function AppShellPage() {
           ? t("settings.licenses.title")
           : currentView === "calendar"
             ? t("app.calendar")
-            : t("app.drawerTitle"),
+            : currentView === "reminders"
+              ? t("reminders.title")
+              : t("app.drawerTitle"),
   );
   const selectedTaskListIndex = Math.max(
     0,
@@ -10199,6 +11240,11 @@ function AppShellPage() {
       ),
     [isWideLayout, setViewState],
   );
+  const openReminders = useCallback(
+    (mode: "push" | "replace" = "replace") =>
+      setViewState({ view: "reminders" }, isWideLayout ? "replace" : mode),
+    [isWideLayout, setViewState],
+  );
   const [notificationTaskListRoute, setNotificationTaskListRoute] = useState<{
     taskListId: string;
     mode: "push" | "replace";
@@ -10225,11 +11271,15 @@ function AppShellPage() {
           mode: "push",
         });
       }
+      if (isRecord(data) && data.type === "lightlist-open-reminders") {
+        notificationTaskListRouteHandledRef.current = true;
+        openReminders("push");
+      }
     };
     navigator.serviceWorker.addEventListener("message", handleMessage);
     return () =>
       navigator.serviceWorker.removeEventListener("message", handleMessage);
-  }, []);
+  }, [openReminders]);
   useEffect(() => {
     if (!notificationTaskListRoute || !hasResolvedTaskLists) return;
     const { taskListId, mode } = notificationTaskListRoute;
@@ -10308,7 +11358,8 @@ function AppShellPage() {
       (currentView === "detail" ||
         currentView === "settings" ||
         currentView === "licenses" ||
-        currentView === "calendar")
+        currentView === "calendar" ||
+        currentView === "reminders")
     ) {
       window.history.back();
       return;
@@ -10436,12 +11487,14 @@ function AppShellPage() {
     <TaskListSidebarPanel
       hasTaskLists={!isTaskListsHydrating && hasTaskLists}
       calendarActive={isWideLayout && currentView === "calendar"}
+      remindersActive={isWideLayout && currentView === "reminders"}
       settingsActive={
         isWideLayout &&
         (currentView === "settings" || currentView === "licenses")
       }
       taskLists={taskLists}
       onOpenCalendar={() => openCalendar("push")}
+      onOpenReminders={() => openReminders("push")}
       onReorderTaskList={async (draggedTaskListId, targetTaskListId) => {
         setError(null);
         try {
@@ -10818,6 +11871,10 @@ function AppShellPage() {
                 </div>
               ) : currentView === "calendar" ? (
                 calendarContent
+              ) : currentView === "reminders" ? (
+                <div className="ll-h-full ll-overflow-y-auto">
+                  <RemindersView />
+                </div>
               ) : (
                 detailContent
               )}
@@ -10877,6 +11934,13 @@ function AppShellPage() {
                   </div>
                   {calendarContent}
                 </>,
+                "ll-bg-gray-50 ll-dark-bg-gray-950",
+              )}
+              {renderCompactPanel(
+                "reminders",
+                <div className="ll-h-full ll-overflow-y-auto">
+                  <RemindersView onBack={handleBackToTaskLists} />
+                </div>,
                 "ll-bg-gray-50 ll-dark-bg-gray-950",
               )}
             </div>

@@ -115,17 +115,19 @@ self.addEventListener("push", (event) => {
   }
   const notification = payload.notification ?? {};
   const taskListId = payload.data?.taskListId;
+  const reminderId = payload.data?.reminderId;
   event.waitUntil(
     self.registration.showNotification(notification.title ?? "Lightlist", {
       body: notification.body ?? "",
-      tag: notification.tag ?? taskListId,
-      data: { taskListId },
+      tag: notification.tag ?? reminderId ?? taskListId,
+      data: { taskListId, reminderId },
     }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   const taskListId = event.notification.data?.taskListId;
+  const reminderId = event.notification.data?.reminderId;
   event.notification.close();
   event.waitUntil(
     self.clients
@@ -140,12 +142,16 @@ self.addEventListener("notificationclick", (event) => {
         });
         if (!appClient) {
           return self.clients.openWindow(
-            taskListId
-              ? `/app/?taskListId=${encodeURIComponent(taskListId)}`
-              : "/app/",
+            reminderId
+              ? "/app/#/reminders"
+              : taskListId
+                ? `/app/?taskListId=${encodeURIComponent(taskListId)}`
+                : "/app/",
           );
         }
-        if (taskListId) {
+        if (reminderId) {
+          appClient.postMessage({ type: "lightlist-open-reminders" });
+        } else if (taskListId) {
           appClient.postMessage({
             type: "lightlist-open-task-list",
             taskListId,

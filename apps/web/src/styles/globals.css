@@ -1173,6 +1173,34 @@
   color: #111827;
 }
 
+.ll-reminder-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.ll-reminder-weekday {
+  min-width: 0;
+  padding-inline: 0;
+}
+
+.ll-reminder-field-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  text-align: start;
+}
+
+.ll-reminder-time {
+  flex: none;
+  width: 8rem;
+}
+
+.dark .ll-reminder-time input:not([data-colored-background] *) {
+  color-scheme: dark;
+}
+
 .ll-dialog-footer-start {
   margin-inline: -0.75rem auto;
 }

@@ -1,6 +1,6 @@
 # 外部 API（MCP）
 
-AI ツールや外部のプログラムからタスクリストを読み書きするための公開 API。MCP（Model Context Protocol）の Streamable HTTP を 1 つのエンドポイントで提供し、REST API は持たない。MCP は JSON-RPC over HTTP なので、MCP クライアント以外のスクリプトからも同じエンドポイントを呼べる。
+AI ツールや外部のプログラムからタスクリストとリマインダーを読み書きするための公開 API。MCP（Model Context Protocol）の Streamable HTTP を 1 つのエンドポイントで提供し、REST API は持たない。MCP は JSON-RPC over HTTP なので、MCP クライアント以外のスクリプトからも同じエンドポイントを呼べる。
 
 ## エンドポイント
 
@@ -107,13 +107,28 @@ curl -sS https://lightlist.app/mcp \
 | `add_task` | `text` / `date` / `pinned` で task を追加する。 |
 | `update_task` | `text` / `completed` / `date`（`null` で解除）/ `pinned` を更新する。 |
 | `move_task` | task を `get_tasks` の表示順の `index`（0 始まり）へ移す。 |
+| `list_reminders` | 本人のリマインダーをアプリと同じ順（`time` → `createdAt`）で返す。`notifyReminders` の値も `notificationsEnabled` として返す。 |
+| `add_reminder` | `text` / `date` / `time` / `repeat` / `timeZone` でリマインダーを作成する。 |
+| `update_reminder` | `text` / `date` / `time` / `repeat` / `timeZone` / `enabled`（一時停止・再開）を更新する。 |
+| `delete_reminder` | リマインダーを削除する。 |
 
-- initialize の `instructions` で、Lightlist が利用者のタスク・ToDo の置き場所であること（日本語の言い回しを含む）、`list_task_lists` から始めること、相対日付をクライアント側で解決することを伝え、サービス名を言わない依頼でもツールが選ばれるようにする。各ツールには `title` を付ける。
-- 削除・共有・タスクリストの作成や変更のツールは持たない。ただし `update_task` で本文・日付・ピンがすべて空になった task は、アプリと同じく削除する。
+- initialize の `instructions` で、Lightlist が利用者のタスク・ToDo とリマインダーの置き場所であること（日本語の言い回しを含む）、タスクは `list_task_lists` から始めること、リマインダーはタスクリストに入らず通知だけを出すもので、時刻に通知してほしい依頼に使うこと（task の日付では通知されないこと）、相対日付・時刻をクライアント側で解決することを伝え、サービス名を言わない依頼でもツールが選ばれるようにする。各ツールには `title` を付ける。
+- task の削除・共有・タスクリストの作成や変更のツールは持たない。ただし `update_task` で本文・日付・ピンがすべて空になった task は、アプリと同じく削除する。
 - 入力の自然言語解析（相対日付・pin prefix）は行わない。本文はそのまま保存し、日付は利用者の端末ローカルの暦日として `yyyy-MM-dd` で受け取る。実在しない日付は入力検証で拒否する。
 - ID は `[A-Za-z0-9_-]` の 1〜128 文字だけを受け付け、field path に `.` が入らないようにする。
 - 返す `date` は日付なしを `null` とする。部分 map など不正な task は返さず、削除もしない（削除はクライアントの server 確定 snapshot に任せる）。
 - 共有リストの本文は他のメンバーが書いた内容をそのまま返す。ツールの説明で、指示ではなくデータとして扱うよう AI に伝える。
+
+## リマインダー
+
+- 対象は `ownerUid` が API 利用者本人のリマインダーだけで、他人のものは存在しないものとして扱う。保存形式と規則はアプリと同じ（[reminders.md](./reminders.md)、[data-model.md](./data-model.md)）。Admin SDK は Rules を通らないため、Rules が要求する全 field を揃えて書く（作成は `create`、`nextFireAt: null`。更新は変わった field と `updatedAt` だけを `update` で書く）。`nextFireAt` は書かず、書き込み trigger に計算させる。
+- `repeat` は `freq` だけを必須とし、`interval` の既定は 1、`weekly` の `weekdays` の既定は `date` の曜日、`monthly` の `monthlyBy` の既定は `"day"`。`freq` に関係しない値は保存時に正規化する（`weekly` 以外の `weekdays` は空配列、`monthly` 以外の `monthlyBy` は `"day"`、`none` の `interval` は 1）。`update_reminder` の `repeat` は map ごと置き換える。
+- `timeZone` は IANA 名だけを受け付け、正規の表記（`asia/tokyo` → `Asia/Tokyo`）で保存する。UTC オフセット（`+09:00`）は拒否する。`add_reminder` で省略したときは、本人の `updatedAt` が最も新しいリマインダーの `timeZone` を使い、1 件もなければエラーにする。`update_reminder` で省略したときは変更しない（アプリと異なり端末のタイムゾーンへ更新しない）。
+- 日時が過去の繰り返さないリマインダーは作成できない。更新後に日時が過去の繰り返さないリマインダーになる変更（「終了」のリマインダーの本文だけの変更・`enabled: true` を含む）もアプリの保存ボタンと同じく拒否する。過去・終了の判定は保存する `timeZone` の現地時刻で行う。
+- `enabled` を省略した更新はアプリの編集 sheet と同じく `enabled` を変えず、「終了」だったリマインダーを未来の日時か繰り返しへ変えたときだけ `enabled: true` にする。新規作成は `enabled: true`。
+- 結果の `status` は `scheduled` / `paused` / `ended`（繰り返さないリマインダーの日時が過去）、`nextFireAt` は `scheduled` のときの次回の配信時刻（UTC の ISO 8601、それ以外は `null`）。保存済みの `nextFireAt`（配信期限の 1 時間を含む内部値）ではなく、応答時点の現在時刻から同じ規則で計算する。
+- 通知の許可要求はできないため、`notifyReminders` がオフでもリマインダーは保存し、`notificationsEnabled: false` を返して AI から利用者へ設定を案内させる。
+- 値が変わらない `update_reminder` は書き込まない。
 
 ## 書き込みの規則
 
@@ -132,7 +147,8 @@ curl -sS https://lightlist.app/mcp \
 
 - 認証: 読み取り 1 回。
 - `list_task_lists`: 保持リスト数 + 1 回の読み取り。`get_tasks`: 2 回。
-- 書き込み系: 読み取り 2 回（並列。競合時は再試行ごとに 1 回追加）と書き込み 1 回（値が変わらなければ 0 回）。共有リストでは通知の操作が加わる。
+- task の書き込み系: 読み取り 2 回（並列。競合時は再試行ごとに 1 回追加）と書き込み 1 回（値が変わらなければ 0 回）。共有リストでは通知の操作が加わる。
+- `list_reminders`: リマインダー数 + 1 回の読み取り（0 件でもクエリ 1 回分）。`add_reminder`: settings の読み取り 1 回と書き込み 1 回（`timeZone` を省略するとリマインダー数分の読み取りが加わる）。`update_reminder` / `delete_reminder`: 読み取り 1 回と書き込み 1 回（値が変わらなければ 0 回）。書き込み後は書き込み trigger が `nextFireAt` を書く。
 
 ## 開発中の確認
 
@@ -143,6 +159,7 @@ curl -sS https://lightlist.app/mcp \
 - dev の Rules に `apiTokens` が反映されていないと、アプリからの発行は拒否される。
 - 書き込みは dev の実データに入る。dev の通知 trigger は最後に配信した版のまま動く（`just dev` は起動時に配信する）。
 - Firestore emulator を起動しないため、通知 trigger と `deleteApiTokensOnUserDelete` はローカルでは読み込まれない。prod には接続しない。
+- dev の実データに触れずに確かめるときは、`firebase --config firebase/firebase.json emulators:start --only functions,firestore --project demo-lightlist`（`demo-` の project は実在の resource に接続しない）で起動し、Firestore emulator の REST API（`Authorization: Bearer owner`）で `apiTokens/{sha256(token)}` を作ってから呼ぶ。リマインダーの書き込み trigger も動く。
 - 中継の Worker は `cd apps/web && npm run preview`（`wrangler dev`）で確かめられる。中継先は常に prod の Functions。
 
 ## 配信

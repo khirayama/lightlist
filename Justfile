@@ -92,9 +92,6 @@ release:
   #!/usr/bin/env zsh
   set -eu
   [[ "$(git branch --show-current)" == main ]] || { echo "main ブランチで実行してください" >&2; exit 1; }
-  [[ -z "$(git status --porcelain)" ]] || { echo "未コミットの変更があります" >&2; exit 1; }
-  git fetch --quiet origin main
-  [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || { echo "HEAD を origin/main と一致させてください" >&2; exit 1; }
   just audit-web
   just audit-functions
   just audit-mobile

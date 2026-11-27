@@ -62,7 +62,7 @@ Web は `apps/web` をアプリケーション実装の正とし、Cloudflare Wo
 
 ## リリース
 
-- リポジトリルートで `just release` を実行する。`main` ブランチ・未コミットの変更なし・`origin/main` と一致していることを確認し、依存監査（Web / Functions の npm audit、native の OSV）→ App Links 生成物がある場合の設定値一致確認 → ローカル検証（Functions の build、Web の lint / typecheck / knip）→ `just deploy-firebase dev` → `just deploy-firebase prod` → `just deploy-web` → `just verify-release` の順に実行する。途中で失敗したら以降を実行しない。
+- リポジトリルートで `just release` を実行する。`main` ブランチであることを確認し（未コミット・未 push の変更があっても作業ツリーの内容をそのまま配信する）、依存監査（Web / Functions の npm audit、native の OSV）→ App Links 生成物がある場合の設定値一致確認 → ローカル検証（Functions の build、Web の lint / typecheck / knip）→ `just deploy-firebase dev` → `just deploy-firebase prod` → `just deploy-web` → `just verify-release` の順に実行する。途中で失敗したら以降を実行しない。
 - `just verify-release` は `https://lightlist.app/mcp` がトークンなしで `401` を返すことを最大 60 秒確認する。Worker と Functions の `MCP_PROXY_SECRET` が食い違うと `403` になるため、中継の秘密の不一致もここで検出する。Python urllib の既定 User-Agent で送り、Browser Integrity Check で弾かれないことも確かめる。
 - iOS / Android はストア審査を挟むため `just release` に含めず、[release-ios.md](./release-ios.md) / [release-android.md](./release-android.md) の手順で `just release` の後に提出する。
 

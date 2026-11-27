@@ -3,8 +3,10 @@ import { getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import * as functionsV1 from "firebase-functions/v1";
 import { setGlobalOptions } from "firebase-functions/v2";
-import { onDocumentWrittenWithAuthContext } from "firebase-functions/v2/firestore";
+import { onDocumentWritten, onDocumentWrittenWithAuthContext } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { hasVisibleTaskListChange, notifyTaskListMembers } from "./notifications";
+import { deleteRemindersOf, deliverDueReminders, scheduleReminder } from "./reminders";
 import { syncSharePreview } from "./share-preview";
 import { isRecord, memberKeyOf } from "./tasks";
 
@@ -41,6 +43,26 @@ export const notifySharedTaskListUpdates = onDocumentWrittenWithAuthContext(
   },
 );
 
+export const scheduleReminderOnWrite = onDocumentWritten(
+  { document: "reminders/{reminderId}", memory: "256MiB", timeoutSeconds: 30 },
+  async (event) => {
+    if (!event.data?.after.exists) return;
+    await scheduleReminder(event.data.after, event.data.before.data());
+  },
+);
+
+export const deliverReminders = onSchedule(
+  {
+    schedule: "* * * * *",
+    timeZone: "Etc/UTC",
+    retryCount: 0,
+    maxInstances: 1,
+    memory: "256MiB",
+    timeoutSeconds: 120,
+  },
+  deliverDueReminders,
+);
+
 export const deleteApiTokensOnUserDelete = functionsV1
   .region("asia-northeast1")
   .runWith({ maxInstances: 1, memory: "256MB", timeoutSeconds: 30 })
@@ -55,4 +77,5 @@ export const deleteApiTokensOnUserDelete = functionsV1
       }
       await batch.commit();
     }
+    await deleteRemindersOf(user.uid);
   });

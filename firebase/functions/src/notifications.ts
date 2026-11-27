@@ -47,7 +47,7 @@ const hasVisibleTaskChange = (before: unknown, after: unknown): boolean => {
 export const hasVisibleTaskListChange = (before: RecordValue, after: RecordValue): boolean =>
   before.name !== after.name || hasVisibleTaskChange(before, after);
 
-const getRegistrations = (value: unknown): DeviceRegistration[] => {
+export const getRegistrations = (value: unknown): DeviceRegistration[] => {
   if (!isRecord(value)) return [];
   return Object.entries(value).flatMap(([deviceId, entry]) => {
     if (
@@ -63,11 +63,11 @@ const getRegistrations = (value: unknown): DeviceRegistration[] => {
   });
 };
 
-const removeInvalidRegistrations = async (
+export const removeInvalidRegistrations = async (
   uid: string,
   registrations: DeviceRegistration[],
   responses: BatchResponse,
-) => {
+): Promise<string[]> => {
   const invalidDeviceIds = responses.responses.flatMap((response, index) =>
     !response.success &&
     (response.error?.code === "messaging/registration-token-not-registered" ||
@@ -76,7 +76,7 @@ const removeInvalidRegistrations = async (
       : [],
   );
   const [first, ...rest] = invalidDeviceIds;
-  if (first === undefined) return;
+  if (first === undefined) return [];
   const fieldsAndValues = rest.flatMap((deviceId) => [
     new FieldPath("notificationDevices", deviceId),
     FieldValue.delete(),
@@ -85,6 +85,7 @@ const removeInvalidRegistrations = async (
     .collection("settings")
     .doc(uid)
     .update(new FieldPath("notificationDevices", first), FieldValue.delete(), ...fieldsAndValues);
+  return invalidDeviceIds;
 };
 
 const isCoolingDown = (notifiedAt: unknown, now: number): boolean =>

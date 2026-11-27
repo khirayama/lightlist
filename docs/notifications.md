@@ -1,5 +1,7 @@
 # 共有リスト更新通知
 
+リマインダーの通知も同じ端末登録と FCM 配信を使う（[reminders.md](./reminders.md)）。
+
 共有リストの通知は Firebase Cloud Messaging（FCM）で配信する。ユーザー設定 `notifySharedListUpdates` は既定で無効。ユーザーが有効にし、OS またはブラウザーの通知許可を与えた端末だけが受信する。
 
 タスクリスト document の変更時に Cloud Functions が前後の値を比較し、タスクの追加・削除・本文・完了・日付・ピン留めの変更とリスト名の変更を通知対象とする。表示順だけの変更は通知しない。変更者自身には送らず、通知を有効にしている共有メンバーの登録済み端末へ配信する。本文は設定言語に合わせた共通文言（`settings.language` が対応言語の自身のキーでなければ `ja`）、タイトルはタスクリスト名の先頭 100 文字（コードポイント単位）とし、タスク本文は通知に含めない。通知をタップすると該当タスクリストを開く。外部 API（MCP）による書き込みは trigger では通知せず、API が利用者を変更者として同じ通知処理を呼ぶ（[api.md](./api.md)）。
@@ -12,7 +14,7 @@ Android 宛ては `priority: "high"` で送り、Doze 中の端末でも待た�
 
 - `settings/{uid}.notifySharedListUpdates`: 通知のユーザー単位設定。
 - `settings/{uid}.notificationDevices.{deviceId}`: 端末ごとの `{ token, platform, updatedAt }`。`deviceId` は端末内で生成・保存する UUID。
-- 通知を無効にすると、そのユーザーの端末登録 map を空にする。
+- 端末登録は `notifySharedListUpdates` と `notifyReminders` のどちらかがオンのときに行い、両方をオフにすると、そのユーザーの端末登録 map を空にする。
 - ログアウト時は、オンラインなら現在の端末登録の削除と端末側の FCM token 削除を最大 3 秒待ってからサインアウトする。オフライン時や待機期限内に削除が終わらなかった場合は、サーバー上の登録と端末の token が残ることがある。
 - 端末は取得した FCM token の所有ユーザー（uid）を端末内に保存する。認証状態の確定時と端末登録の前に、所有ユーザーが現在のログインユーザーと異なれば（未ログインを含む）端末の token を破棄する（iOS / Android は FCM token の削除、Web は service worker の push subscription の解除）。破棄に失敗した場合は端末登録を行わず、次回の起動・ログイン時に再試行する。前のユーザーに残った登録は次回配信時に無効 token として削除される。
 - 配信結果が無効 token を示した場合、Functions が該当端末登録を削除する。
@@ -61,13 +63,13 @@ Web Push は root scope の `sw.js` 1 本で受ける。FCM の token は FCM SD
 
 初回登録時は service worker が active になるのを待ってから FCM token を取得する。
 
-通知許可はアプリ内スイッチを有効にしたときだけ要求する。OS 設定で許可を後から取り消した場合、アプリ内設定は維持されるが通知は届かない。再許可後にアプリを起動すると端末登録を更新する。
+通知許可はアプリ内スイッチを有効にしたときと、`notifyReminders` がオフの状態でリマインダーを保存したときだけ要求する。OS 設定で許可を後から取り消した場合、アプリ内設定は維持されるが通知は届かない。再許可後にアプリを起動すると端末登録を更新する。
 
 スイッチを有効にできなかった場合、通知許可が得られないときは `settings.notifications.permissionDenied`、FCM token を取得できない環境では `settings.notifications.unavailable`、端末登録の書き込み失敗は `auth.error.general` を設定画面に表示する。
 
 ## Android開発環境の受信確認
 
-Androidの通知チャンネル名は表示言語の `settings.notifications.title` を使い、言語変更時に更新する。
+Androidの通知チャンネル名は表示言語の `settings.notifications.title`（リマインダー用チャンネル `reminders` は `settings.reminderNotifications.title`）を使い、言語変更時に更新する。
 
 Androidのdebug buildは `lightlist-dev` に接続する。Google Playサービスを利用できる実機またはエミュレーターを使い、最新のdebug APKを上書きインストールする。別のFirebase app登録へ切り替えた場合は、アプリ上でログイン状態と通知設定を確認する。
 

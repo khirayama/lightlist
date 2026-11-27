@@ -12,6 +12,7 @@ UI の寸法・色・アニメーション時間などの数値は各実装の�
 - [sharing.md](./sharing.md) — 共有コードと共有権限モデル
 - [authentication.md](./authentication.md) — 認証方式、必須環境変数、初期データ、パスワードリセット
 - [notifications.md](./notifications.md) — 共有リスト更新通知、端末登録、配信設定
+- [reminders.md](./reminders.md) — 通知だけのリマインダー、繰り返し・一時停止、毎分の配信
 - [api.md](./api.md) — 外部 API（MCP）、API トークン、公開設定ガイド、ツールと書き込み規則
 
 ## 設定・運用

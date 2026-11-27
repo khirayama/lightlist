@@ -70,6 +70,7 @@ Web（`apps/web/src/entry.tsx`）をアプリ仕様の正とし、iOS / Android 
 ### Functions
 
 - task の並び順・`order` 採番・内容判定・日付検証は Web `entry.tsx` が正本で、MCP 用に `firebase/functions/src/tasks.ts` へ同じ規則を複製している。変えるときは両方を揃える。
+- リマインダーの繰り返しの規則（`docs/reminders.md`）は、次回の配信時刻を `firebase/functions/src/reminders.ts` が、編集 sheet の通知日のドットを 3 プラットフォームが同じ規則で計算している。変えるときは 4 か所を揃える。
 - Functions は応答後の CPU が保証されないため、通知などの後処理は応答前に await する。
 - ユーザー入力の key で object を引くときは `Object.hasOwn`、field path には `FieldPath` を使う。
 - MCP の設定例（`buildMcpClientExamples` / `mcpClientExamples`）と表示 URL は 3 プラットフォームと `docs/api.md` で揃え、`cloudfunctions.net` の URL を表示しない。

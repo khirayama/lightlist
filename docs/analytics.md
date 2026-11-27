@@ -21,8 +21,9 @@
 - 認証: `sign_up` / `login` / `app_sign_out` / `app_delete_account` / `app_password_reset_email_sent` / `app_email_change_requested`
 - タスクリスト: `app_task_list_create` / `app_task_list_delete` / `app_task_list_reorder`
 - タスク: `app_task_add` / `app_task_update` / `app_task_reorder` / `app_task_sort` / `app_task_delete_completed`
+- リマインダー: `app_reminder_create` / `app_reminder_update` / `app_reminder_toggle` / `app_reminder_delete`
 - 共有: `app_share_code_generate` / `app_share_code_remove` / `app_share_code_join` / `share`
-- 設定: `app_settings_theme_change` / `app_settings_language_change` / `app_settings_task_insert_position_change` / `app_settings_auto_sort_change` / `app_settings_haptics_change` / `app_settings_shared_notifications_change` / `app_settings_startup_view_change`
+- 設定: `app_settings_theme_change` / `app_settings_language_change` / `app_settings_task_insert_position_change` / `app_settings_auto_sort_change` / `app_settings_haptics_change` / `app_settings_shared_notifications_change` / `app_settings_reminder_notifications_change` / `app_settings_startup_view_change`
 - 例外・同期: `app_exception` / `app_sync_listener_error`
 
 ## パラメータ
@@ -38,6 +39,9 @@
 - `app_settings_auto_sort_change`: `enabled: boolean`
 - `app_settings_haptics_change`: `enabled: boolean`
 - `app_settings_shared_notifications_change`: `enabled: boolean`
+- `app_settings_reminder_notifications_change`: `enabled: boolean`
+- `app_reminder_create`, `app_reminder_update`: `repeat: "none" | "daily" | "weekly" | "monthly" | "yearly"`
+- `app_reminder_toggle`: `enabled: boolean`
 - `app_settings_startup_view_change`: `view: "taskList" | "calendar" | "taskLists"`
 - `app_exception`: `operation: string`, `error_category?: string`
-- `app_sync_listener_error`: `source: "settings" | "task_list_order" | "task_lists" | "share_preview" | "membership"`, `error_category: string`
+- `app_sync_listener_error`: `source: "settings" | "task_list_order" | "task_lists" | "share_preview" | "membership" | "reminders"`, `error_category: string`

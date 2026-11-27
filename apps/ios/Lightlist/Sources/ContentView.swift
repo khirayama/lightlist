@@ -374,6 +374,7 @@ private struct AppButtonStyle: ButtonStyle {
     let variant: AppButtonVariant
     var fullWidth = false
     var cornerRadius: CGFloat = AppMetrics.controlCornerRadius
+    var horizontalPadding: CGFloat? = nil
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -382,7 +383,7 @@ private struct AppButtonStyle: ButtonStyle {
         return configuration.label
             .font(AppTypography.subheadlineSemibold())
             .lineLimit(1)
-            .padding(.horizontal, variant == .ghost || variant == .danger ? 12 : 16)
+            .padding(.horizontal, horizontalPadding ?? (variant == .ghost || variant == .danger ? 12 : 16))
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: AppMetrics.controlHeight)
             .foregroundStyle(foregroundColor)
             .background(backgroundColor(isPressed: configuration.isPressed), in: shape)
@@ -921,6 +922,7 @@ private enum InitialUserData {
                 "taskInsertPosition": "top",
                 "autoSort": true,
                 "notifySharedListUpdates": false,
+                "notifyReminders": false,
                 "hapticsEnabled": false,
                 "startupView": "taskList",
                 "createdAt": now,
@@ -989,6 +991,11 @@ func logSettingsTaskInsertPositionChange(position: String) { log("app_settings_t
 func logSettingsAutoSortChange(enabled: Bool) { log("app_settings_auto_sort_change", ["enabled": enabled]) }
 func logSettingsHapticsChange(enabled: Bool) { log("app_settings_haptics_change", ["enabled": enabled]) }
 func logSettingsSharedNotificationsChange(enabled: Bool) { log("app_settings_shared_notifications_change", ["enabled": enabled]) }
+func logSettingsReminderNotificationsChange(enabled: Bool) { log("app_settings_reminder_notifications_change", ["enabled": enabled]) }
+func logReminderCreate(repeat freq: String) { log("app_reminder_create", ["repeat": freq]) }
+func logReminderUpdate(repeat freq: String) { log("app_reminder_update", ["repeat": freq]) }
+func logReminderToggle(enabled: Bool) { log("app_reminder_toggle", ["enabled": enabled]) }
+func logReminderDelete() { log("app_reminder_delete") }
 func logSettingsStartupViewChange(view: String) { log("app_settings_startup_view_change", ["view": view]) }
 
 func logException(operation: String, errorCategory: String? = nil) {
@@ -1006,6 +1013,7 @@ enum AppRoute: Hashable {
     case taskList(taskListId: String)
     case settings
     case calendar
+    case reminders
 
     static var initialPath: [AppRoute] {
         [.taskList(taskListId: "__initial__")]
@@ -1190,6 +1198,7 @@ private struct FirestoreSettingsRecord: Decodable {
     let taskInsertPosition: String?
     let autoSort: Bool?
     let notifySharedListUpdates: Bool?
+    let notifyReminders: Bool?
     let hapticsEnabled: Bool?
     let startupView: String?
 }
@@ -1232,6 +1241,7 @@ private func decodeSettingsRecord(from snapshot: DocumentSnapshot?) -> Firestore
             taskInsertPosition: nil,
             autoSort: nil,
             notifySharedListUpdates: nil,
+            notifyReminders: nil,
             hapticsEnabled: nil,
             startupView: nil
         )
@@ -2848,6 +2858,7 @@ struct RootView: View {
         case taskList
         case settings
         case calendar
+        case reminders
     }
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -2875,7 +2886,8 @@ struct RootView: View {
     }
 
     private var notificationsEnabled: Bool {
-        !settingsStore.isLoading && (settingsStore.settings?.notifySharedListUpdates ?? false)
+        guard !settingsStore.isLoading, let settings = settingsStore.settings else { return false }
+        return settings.notifySharedListUpdates || settings.notifyReminders
     }
 
     private var colorScheme: ColorScheme? {
@@ -2935,6 +2947,10 @@ struct RootView: View {
                 SharedNotificationNavigation.pendingTaskListId = nil
                 openTaskListFromExternalFlow(taskListId)
             }
+            if SharedNotificationNavigation.pendingReminders {
+                SharedNotificationNavigation.pendingReminders = false
+                openRemindersFromExternalFlow()
+            }
         }
         .onDisappear { stopListening() }
         .task(id: "\(currentUserId ?? ""):\(notificationsEnabled):\(settingsStore.registeredNotificationToken ?? "")") {
@@ -2951,6 +2967,10 @@ struct RootView: View {
             guard let taskListId = notification.object as? String else { return }
             SharedNotificationNavigation.pendingTaskListId = nil
             openTaskListFromExternalFlow(taskListId)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .lightlistOpenReminders)) { _ in
+            SharedNotificationNavigation.pendingReminders = false
+            openRemindersFromExternalFlow()
         }
         .onChange(of: pendingDeepLink, initial: true) { _, deepLink in
             handlePendingDeepLink(deepLink)
@@ -3006,6 +3026,8 @@ struct RootView: View {
                 selectedRegularPane = .settings
             case .calendar:
                 selectedRegularPane = .calendar
+            case .reminders:
+                selectedRegularPane = .reminders
             case .taskList(let taskListId):
                 if taskListId != "__initial__" {
                     selectedTaskListId = taskListId
@@ -3022,6 +3044,8 @@ struct RootView: View {
             path = [.settings]
         case .calendar:
             path = [.calendar]
+        case .reminders:
+            path = [.reminders]
         case .taskList:
             if let selectedTaskListId, selectedTaskListId != "__initial__" {
                 if path.last == .taskList(taskListId: selectedTaskListId) {
@@ -3035,6 +3059,14 @@ struct RootView: View {
             } else {
                 path = AppRoute.initialPath
             }
+        }
+    }
+
+    private func openRemindersFromExternalFlow() {
+        if horizontalSizeClass == .regular {
+            selectedRegularPane = .reminders
+        } else {
+            path = [.reminders]
         }
     }
 
@@ -3076,6 +3108,8 @@ struct RootView: View {
                             path.append(AppRoute.taskList(taskListId: taskListId))
                         }
                     )
+                case .reminders:
+                    RemindersView(currentUserId: currentUserId)
                 }
             }
         }
@@ -3090,6 +3124,7 @@ struct RootView: View {
                 currentUserId: currentUserId,
                 selectedTaskListId: selectedRegularPane == .taskList ? selectedTaskListId : nil,
                 isCalendarActive: selectedRegularPane == .calendar,
+                isRemindersActive: selectedRegularPane == .reminders,
                 isSettingsActive: selectedRegularPane == .settings,
                 onSelectTaskList: { taskListId in
                     selectedTaskListId = taskListId
@@ -3100,6 +3135,9 @@ struct RootView: View {
                 },
                 onOpenCalendar: {
                     selectedRegularPane = .calendar
+                },
+                onOpenReminders: {
+                    selectedRegularPane = .reminders
                 }
             )
             .navigationSplitViewColumnWidth(360)
@@ -3110,6 +3148,10 @@ struct RootView: View {
                 if selectedRegularPane == .settings {
                     NavigationStack {
                         SettingsView(currentUserId: currentUserId, showsBackButton: false)
+                    }
+                } else if selectedRegularPane == .reminders {
+                    NavigationStack {
+                        RemindersView(currentUserId: currentUserId, showsBackButton: false)
                     }
                 } else if selectedRegularPane == .calendar {
                     CalendarScreenView(
@@ -3935,10 +3977,12 @@ private struct TaskListsView: View {
     let currentUserId: String?
     let selectedTaskListId: String?
     let isCalendarActive: Bool
+    let isRemindersActive: Bool
     let isSettingsActive: Bool
     let onSelectTaskList: ((String) -> Void)?
     let onOpenSettings: (() -> Void)?
     let onOpenCalendar: (() -> Void)?
+    let onOpenReminders: (() -> Void)?
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var viewModel = OrderedTaskListViewModel<TaskListSummary>(mapper: mapTaskListSummary)
@@ -3962,10 +4006,12 @@ private struct TaskListsView: View {
         currentUserId: String?,
         selectedTaskListId: String? = nil,
         isCalendarActive: Bool = false,
+        isRemindersActive: Bool = false,
         isSettingsActive: Bool = false,
         onSelectTaskList: ((String) -> Void)? = nil,
         onOpenSettings: (() -> Void)? = nil,
-        onOpenCalendar: (() -> Void)? = nil
+        onOpenCalendar: (() -> Void)? = nil,
+        onOpenReminders: (() -> Void)? = nil
     ) {
         _path = path
         _pendingShareCode = pendingShareCode
@@ -3973,10 +4019,12 @@ private struct TaskListsView: View {
         self.currentUserId = currentUserId
         self.selectedTaskListId = selectedTaskListId
         self.isCalendarActive = isCalendarActive
+        self.isRemindersActive = isRemindersActive
         self.isSettingsActive = isSettingsActive
         self.onSelectTaskList = onSelectTaskList
         self.onOpenSettings = onOpenSettings
         self.onOpenCalendar = onOpenCalendar
+        self.onOpenReminders = onOpenReminders
     }
 
     private var displayTaskLists: [TaskListSummary] {
@@ -3996,6 +4044,14 @@ private struct TaskListsView: View {
             onOpenCalendar()
         } else {
             path.append(AppRoute.calendar)
+        }
+    }
+
+    private func openReminders() {
+        if let onOpenReminders {
+            onOpenReminders()
+        } else {
+            path.append(AppRoute.reminders)
         }
     }
 
@@ -4064,6 +4120,32 @@ private struct TaskListsView: View {
             }
             .buttonStyle(.plain)
             .accessibilityAddTraits(isCalendarActive ? [.isSelected] : [])
+            .plainListRow()
+
+            Button {
+                openReminders()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "bell")
+                        .accessibilityHidden(true)
+                        .font(.system(size: 17, weight: .medium))
+                        .frame(width: 20)
+                    Text(translations.t("reminders.title"))
+                        .font(isRemindersActive ? AppTypography.subheadlineSemibold() : AppTypography.subheadlineMedium())
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                }
+                .foregroundStyle(isRemindersActive ? Color.primary : AppPalette.fieldLabel)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, minHeight: AppMetrics.controlHeight, alignment: .leading)
+                .background(
+                    isRemindersActive ? AppPalette.rowActive : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isRemindersActive ? [.isSelected] : [])
             .plainListRow(bottom: 12)
 
             Text(translations.t("app.drawerTitle"))
@@ -4150,7 +4232,7 @@ private struct TaskListsView: View {
                 return
             }
 
-            if isCalendarActive || isSettingsActive {
+            if isCalendarActive || isRemindersActive || isSettingsActive {
                 return
             }
 
@@ -6378,6 +6460,7 @@ private enum StartupSettingsCache {
     private static let taskInsertPositionKey = "lightlist.taskInsertPosition"
     private static let autoSortKey = "lightlist.autoSort"
     private static let notifySharedListUpdatesKey = "lightlist.notifySharedListUpdates"
+    private static let notifyRemindersKey = "lightlist.notifyReminders"
     private static let hapticsEnabledKey = "lightlist.hapticsEnabled"
 
     static func read(uid: String) -> SettingsViewModel.Settings? {
@@ -6399,6 +6482,7 @@ private enum StartupSettingsCache {
             taskInsertPosition: taskInsertPosition,
             autoSort: defaults.bool(forKey: autoSortKey),
             notifySharedListUpdates: defaults.bool(forKey: notifySharedListUpdatesKey),
+            notifyReminders: defaults.bool(forKey: notifyRemindersKey),
             hapticsEnabled: defaults.bool(forKey: hapticsEnabledKey),
             startupView: normalizedStartupView(defaults.string(forKey: cachedStartupViewKey))
         )
@@ -6413,6 +6497,7 @@ private enum StartupSettingsCache {
         defaults.set(settings.taskInsertPosition, forKey: taskInsertPositionKey)
         defaults.set(settings.autoSort, forKey: autoSortKey)
         defaults.set(settings.notifySharedListUpdates, forKey: notifySharedListUpdatesKey)
+        defaults.set(settings.notifyReminders, forKey: notifyRemindersKey)
         defaults.set(settings.hapticsEnabled, forKey: hapticsEnabledKey)
         defaults.set(settings.startupView, forKey: cachedStartupViewKey)
     }
@@ -6420,7 +6505,7 @@ private enum StartupSettingsCache {
     static func clear() {
         for key in [
             uidKey, cachedThemeKey, cachedLanguageKey, taskInsertPositionKey, autoSortKey,
-            notifySharedListUpdatesKey, hapticsEnabledKey, cachedStartupViewKey,
+            notifySharedListUpdatesKey, notifyRemindersKey, hapticsEnabledKey, cachedStartupViewKey,
         ] {
             UserDefaults.standard.removeObject(forKey: key)
         }
@@ -6435,6 +6520,7 @@ private final class SettingsViewModel: ObservableObject {
         var taskInsertPosition: String = "top"
         var autoSort: Bool = true
         var notifySharedListUpdates: Bool = false
+        var notifyReminders: Bool = false
         var hapticsEnabled: Bool = false
         var startupView: String = "taskList"
     }
@@ -6473,6 +6559,7 @@ private final class SettingsViewModel: ObservableObject {
             taskInsertPosition: taskInsertPosition,
             autoSort: record.autoSort ?? true,
             notifySharedListUpdates: record.notifySharedListUpdates ?? false,
+            notifyReminders: record.notifyReminders ?? false,
             hapticsEnabled: record.hapticsEnabled ?? false,
             startupView: normalizedStartupView(record.startupView)
         )
@@ -6599,6 +6686,9 @@ private final class SettingsViewModel: ObservableObject {
         }
         if let notifySharedListUpdates = partial["notifySharedListUpdates"] as? Bool {
             optimisticSettings.notifySharedListUpdates = notifySharedListUpdates
+        }
+        if let notifyReminders = partial["notifyReminders"] as? Bool {
+            optimisticSettings.notifyReminders = notifyReminders
         }
         if let hapticsEnabled = partial["hapticsEnabled"] as? Bool {
             optimisticSettings.hapticsEnabled = hapticsEnabled
@@ -6771,13 +6861,58 @@ private struct SettingsView: View {
     @State private var errorMessage: String? = nil
     @State private var isDeletingAccount = false
     @State private var isSigningOut = false
-    @State private var isUpdatingNotifications = false
+    @State private var updatingNotificationKey: String? = nil
     @State private var isCheckingPendingWrites = false
     @State private var hasUnsyncedChanges = false
     @ObservedObject private var networkStatus = NetworkStatus.shared
 
     private var actionsDisabled: Bool {
         isSigningOut || isDeletingAccount || isCheckingPendingWrites
+    }
+
+    private func notificationToggle(
+        settings: SettingsViewModel.Settings,
+        key: String,
+        titleKey: String,
+        descriptionKey: String,
+        log: @escaping (Bool) -> Void
+    ) -> some View {
+        let isOn = key == "notifyReminders" ? settings.notifyReminders : settings.notifySharedListUpdates
+        return Toggle(
+            isOn: Binding(
+                get: { isOn || updatingNotificationKey == key },
+                set: { enabled in
+                    guard let uid = currentUserId, updatingNotificationKey == nil else { return }
+                    errorMessage = nil
+                    if enabled {
+                        updatingNotificationKey = key
+                        Task { @MainActor in
+                            defer { updatingNotificationKey = nil }
+                            if let messageKey = await enableNotificationPreference(uid: uid, preference: key) {
+                                errorMessage = translations.t(messageKey)
+                            } else {
+                                log(true)
+                            }
+                        }
+                    } else {
+                        viewModel.updateSettings(
+                            disabledNotificationFields(key: key, settings: settings),
+                            onFailure: { errorMessage = translations.t("auth.error.general") }
+                        )
+                        log(false)
+                    }
+                }
+            )
+        ) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(translations.t(titleKey))
+                Text(translations.t(descriptionKey))
+                    .font(AppTypography.caption())
+                    .foregroundStyle(AppPalette.mutedText)
+            }
+        }
+        .tint(AppPalette.primary)
+        .disabled(actionsDisabled || updatingNotificationKey != nil || !networkStatus.isOnline)
     }
 
     var body: some View {
@@ -6903,48 +7038,20 @@ private struct SettingsView: View {
                         }
                     }
                     .tint(AppPalette.primary)
-                    Toggle(
-                        isOn: Binding(
-                            get: { settings.notifySharedListUpdates || isUpdatingNotifications },
-                            set: { enabled in
-                                guard let uid = currentUserId, !isUpdatingNotifications else { return }
-                                if enabled {
-                                    isUpdatingNotifications = true
-                                    errorMessage = nil
-                                    Task { @MainActor in
-                                        defer { isUpdatingNotifications = false }
-                                        do {
-                                            switch try await SharedNotificationRegistration.requestPermissionAndEnable(uid: uid) {
-                                            case .enabled:
-                                                logSettingsSharedNotificationsChange(enabled: true)
-                                            case .permissionDenied:
-                                                errorMessage = translations.t("settings.notifications.permissionDenied")
-                                            case .unavailable:
-                                                errorMessage = translations.t("settings.notifications.unavailable")
-                                            }
-                                        } catch {
-                                            errorMessage = translations.t("auth.error.general")
-                                        }
-                                    }
-                                } else {
-                                    viewModel.updateSettings(
-                                        ["notifySharedListUpdates": false, "notificationDevices": [:]],
-                                        onFailure: { errorMessage = translations.t("auth.error.general") }
-                                    )
-                                    logSettingsSharedNotificationsChange(enabled: false)
-                                }
-                            }
-                        )
-                    ) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(translations.t("settings.notifications.title"))
-                            Text(translations.t("settings.notifications.enable"))
-                                .font(AppTypography.caption())
-                                .foregroundStyle(AppPalette.mutedText)
-                        }
-                    }
-                    .tint(AppPalette.primary)
-                    .disabled(actionsDisabled || isUpdatingNotifications || !networkStatus.isOnline)
+                    notificationToggle(
+                        settings: settings,
+                        key: "notifySharedListUpdates",
+                        titleKey: "settings.notifications.title",
+                        descriptionKey: "settings.notifications.enable",
+                        log: logSettingsSharedNotificationsChange
+                    )
+                    notificationToggle(
+                        settings: settings,
+                        key: "notifyReminders",
+                        titleKey: "settings.reminderNotifications.title",
+                        descriptionKey: "settings.reminderNotifications.enable",
+                        log: logSettingsReminderNotificationsChange
+                    )
                 }
                 SettingsSection(title: translations.t("settings.legal.title")) {
                     navigationRow(label: translations.t("settings.licenses.openSource")) {
@@ -7720,14 +7827,7 @@ private struct MonthCalendarView: View {
 
     private var calendar: Calendar {
         var calendar = currentGregorianCalendar(locale: locale)
-        switch translations.language {
-        case "es", "de", "fr", "zh-CN", "id":
-            calendar.firstWeekday = 2
-        case "ar":
-            calendar.firstWeekday = 7
-        default:
-            calendar.firstWeekday = 1
-        }
+        calendar.firstWeekday = firstWeekday(for: translations.language)
         return calendar
     }
 
@@ -8305,6 +8405,770 @@ private struct CalendarAddSheetRequest: Identifiable {
     let date: Date
 }
 
+private func firstWeekday(for language: String) -> Int {
+    switch language {
+    case "es", "de", "fr", "zh-CN", "id":
+        return 2
+    case "ar":
+        return 7
+    default:
+        return 1
+    }
+}
+
+private struct ReminderRecurrence: Equatable {
+    var freq: String
+    var interval: Int
+    var weekdays: [Int]
+    var monthlyBy: String
+
+    static let none = ReminderRecurrence(freq: "none", interval: 1, weekdays: [], monthlyBy: "day")
+
+    var firestoreValue: [String: Any] {
+        ["freq": freq, "interval": interval, "weekdays": weekdays, "monthlyBy": monthlyBy]
+    }
+}
+
+private struct ReminderItem: Identifiable, Equatable {
+    let id: String
+    let text: String
+    let date: String
+    let time: String
+    let recurrence: ReminderRecurrence
+    let enabled: Bool
+    let createdAt: Double
+
+    var isPast: Bool { isPastReminder(date: date, time: time, recurrence: recurrence) }
+}
+
+private struct ReminderValues {
+    let text: String
+    let date: String
+    let time: String
+    let recurrence: ReminderRecurrence
+}
+
+private enum RepeatPreset: String, CaseIterable, Identifiable {
+    case none, daily, weekdays, weekly, monthly, monthlyWeekday, yearly, custom
+
+    var id: String { rawValue }
+}
+
+private let reminderTextMaxLength = 200
+private let reminderIntervals = Array(1...99)
+private let customRepeatFreqs = ["daily", "weekly", "monthly", "yearly"]
+private let repeatUnitKeys = [
+    "daily": "reminders.repeat.unitDay", "weekly": "reminders.repeat.unitWeek",
+    "monthly": "reminders.repeat.unitMonth", "yearly": "reminders.repeat.unitYear",
+]
+private let repeatSummaryKeys = [
+    "daily": ("reminders.repeat.daily", "reminders.repeat.everyNDays"),
+    "weekly": ("reminders.repeat.weekly", "reminders.repeat.everyNWeeks"),
+    "monthly": ("reminders.repeat.monthly", "reminders.repeat.everyNMonths"),
+    "yearly": ("reminders.repeat.yearly", "reminders.repeat.everyNYears"),
+]
+private let nthWeekdayKeys = [
+    "reminders.repeat.nth1", "reminders.repeat.nth2", "reminders.repeat.nth3", "reminders.repeat.nth4",
+    "reminders.repeat.last",
+]
+
+private func isPastReminder(date: String, time: String, recurrence: ReminderRecurrence) -> Bool {
+    guard recurrence.freq == "none" else { return false }
+    let parts = time.split(separator: ":").compactMap { Int($0) }
+    guard let day = parseTaskInputDate(date), parts.count == 2,
+        let dateTime = currentGregorianCalendar().date(bySettingHour: parts[0], minute: parts[1], second: 0, of: day)
+    else { return true }
+    return dateTime <= Date()
+}
+
+private func isoWeekday(of date: Date) -> Int {
+    (currentGregorianCalendar().component(.weekday, from: date) + 5) % 7 + 1
+}
+
+private func dayOfMonth(_ date: Date) -> Int {
+    currentGregorianCalendar().component(.day, from: date)
+}
+
+private func reminderWeekdayOrder(language: String) -> [Int] {
+    let isoStart = [1: 7, 2: 1, 7: 6][firstWeekday(for: language)] ?? 1
+    return (0..<7).map { ((isoStart - 1 + $0) % 7) + 1 }
+}
+
+private func reminderWeekdaySymbol(_ weekday: Int, language: String, short: Bool) -> String {
+    let calendar = currentGregorianCalendar(locale: Locale(identifier: localeIdentifier(for: language)))
+    let symbols = short ? calendar.shortStandaloneWeekdaySymbols : calendar.standaloneWeekdaySymbols
+    return symbols[weekday % 7]
+}
+
+@MainActor private var reminderYearlyDateFormatters: [String: DateFormatter] = [:]
+
+@MainActor private func reminderYearlyDateLabel(_ date: Date, language: String) -> String {
+    let identifier = localeIdentifier(for: language)
+    if let cached = reminderYearlyDateFormatters[identifier] {
+        return cached.string(from: date)
+    }
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: identifier)
+    formatter.calendar = currentGregorianCalendar(locale: formatter.locale)
+    formatter.timeZone = .autoupdatingCurrent
+    formatter.setLocalizedDateFormatFromTemplate("MMMMd")
+    reminderYearlyDateFormatters[identifier] = formatter
+    return formatter.string(from: date)
+}
+
+private func presetRecurrence(_ preset: RepeatPreset, date: Date) -> ReminderRecurrence {
+    var recurrence = ReminderRecurrence.none
+    switch preset {
+    case .none, .custom:
+        break
+    case .daily:
+        recurrence.freq = "daily"
+    case .weekdays:
+        recurrence.freq = "weekly"
+        recurrence.weekdays = [1, 2, 3, 4, 5]
+    case .weekly:
+        recurrence.freq = "weekly"
+        recurrence.weekdays = [isoWeekday(of: date)]
+    case .monthly:
+        recurrence.freq = "monthly"
+    case .monthlyWeekday:
+        recurrence.freq = "monthly"
+        recurrence.monthlyBy = "weekday"
+    case .yearly:
+        recurrence.freq = "yearly"
+    }
+    return recurrence
+}
+
+private func detectRepeatPreset(_ recurrence: ReminderRecurrence, date: Date) -> RepeatPreset {
+    RepeatPreset.allCases.first { $0 != .custom && presetRecurrence($0, date: date) == recurrence } ?? .custom
+}
+
+@MainActor private func nthWeekdayLabel(date: Date, translations: Translations) -> String {
+    let nth = min((dayOfMonth(date) + 6) / 7, 5)
+    let weekday = reminderWeekdaySymbol(isoWeekday(of: date), language: translations.language, short: false)
+    return translations.t(nthWeekdayKeys[nth - 1], ["weekday": weekday])
+}
+
+@MainActor private func describeRecurrence(_ recurrence: ReminderRecurrence, date: Date, translations: Translations) -> String {
+    let language = translations.language
+    guard recurrence.freq != "none", let keys = repeatSummaryKeys[recurrence.freq] else {
+        return translations.t("reminders.repeat.none")
+    }
+    if recurrence == presetRecurrence(.weekdays, date: date) {
+        return translations.t("reminders.repeat.weekdays")
+    }
+    let days =
+        recurrence.weekdays.count == 1 && recurrence.interval == 1
+        ? reminderWeekdaySymbol(recurrence.weekdays[0], language: language, short: false)
+        : reminderWeekdayOrder(language: language)
+            .filter { recurrence.weekdays.contains($0) }
+            .map { reminderWeekdaySymbol($0, language: language, short: true) }
+            .joined(separator: ", ")
+    let day =
+        recurrence.monthlyBy == "day"
+        ? translations.t("reminders.repeat.dayOfMonth", ["day": String(dayOfMonth(date))])
+        : nthWeekdayLabel(date: date, translations: translations)
+    return translations.t(
+        recurrence.interval == 1 ? keys.0 : keys.1,
+        [
+            "n": String(recurrence.interval), "days": days, "day": day,
+            "date": reminderYearlyDateLabel(date, language: language),
+        ]
+    )
+}
+
+private func decodeRecurrence(_ value: Any?) -> ReminderRecurrence? {
+    guard let map = value as? [String: Any],
+        let freq = map["freq"] as? String,
+        ["none", "daily", "weekly", "monthly", "yearly"].contains(freq),
+        let interval = (map["interval"] as? NSNumber)?.intValue,
+        (1...99).contains(interval),
+        let monthlyBy = map["monthlyBy"] as? String,
+        monthlyBy == "day" || monthlyBy == "weekday",
+        let rawWeekdays = map["weekdays"] as? [Any]
+    else { return nil }
+    let weekdays = rawWeekdays.compactMap { ($0 as? NSNumber)?.intValue }.filter { (1...7).contains($0) }
+    guard (freq == "weekly") == !weekdays.isEmpty else { return nil }
+    return ReminderRecurrence(freq: freq, interval: interval, weekdays: weekdays, monthlyBy: monthlyBy)
+}
+
+private func decodeReminder(id: String, data: [String: Any]) -> ReminderItem? {
+    guard isSafeId(id),
+        let text = data["text"] as? String,
+        let date = data["date"] as? String,
+        parseTaskInputDate(date) != nil,
+        let time = data["time"] as? String,
+        time.range(of: "^([01][0-9]|2[0-3]):[0-5][0-9]$", options: .regularExpression) != nil,
+        let recurrence = decodeRecurrence(data["repeat"]),
+        let enabled = data["enabled"] as? Bool,
+        let createdAt = (data["createdAt"] as? NSNumber)?.doubleValue
+    else { return nil }
+    return ReminderItem(
+        id: id, text: text, date: date, time: time, recurrence: recurrence, enabled: enabled, createdAt: createdAt)
+}
+
+private func isReminderOccurrence(anchor: Date, recurrence: ReminderRecurrence, day: Date) -> Bool {
+    let calendar = currentGregorianCalendar()
+    let anchorStart = calendar.startOfDay(for: anchor)
+    let dayStart = calendar.startOfDay(for: day)
+    guard let dayDiff = calendar.dateComponents([.day], from: anchorStart, to: dayStart).day, dayDiff >= 0 else {
+        return false
+    }
+    let interval = recurrence.interval
+    let anchorParts = calendar.dateComponents([.year, .month, .day], from: anchorStart)
+    let dayParts = calendar.dateComponents([.year, .month, .day], from: dayStart)
+    guard let anchorYear = anchorParts.year, let anchorMonth = anchorParts.month, let anchorDay = anchorParts.day,
+        let year = dayParts.year, let month = dayParts.month, let dayOfMonth = dayParts.day
+    else { return false }
+    switch recurrence.freq {
+    case "none":
+        return dayDiff == 0
+    case "daily":
+        return dayDiff % interval == 0
+    case "weekly":
+        let weekIndex = (dayDiff + isoWeekday(of: anchor) - 1) / 7
+        return recurrence.weekdays.contains(isoWeekday(of: day)) && weekIndex % interval == 0
+    case "yearly":
+        return (year - anchorYear) % interval == 0 && month == anchorMonth && dayOfMonth == anchorDay
+    default:
+        guard ((year - anchorYear) * 12 + month - anchorMonth) % interval == 0 else { return false }
+        if recurrence.monthlyBy == "day" {
+            return dayOfMonth == anchorDay
+        }
+        guard isoWeekday(of: day) == isoWeekday(of: anchor) else { return false }
+        let nth = (anchorDay + 6) / 7
+        let daysInMonth = calendar.range(of: .day, in: .month, for: dayStart)?.count ?? 31
+        return nth >= 5 ? dayOfMonth + 7 > daysInMonth : (dayOfMonth + 6) / 7 == nth
+    }
+}
+
+private func reminderOccurrenceDots(anchor: Date, recurrence: ReminderRecurrence, month: Date) -> [String: [String?]] {
+    guard recurrence.freq != "none" else { return [:] }
+    let calendar = currentGregorianCalendar()
+    guard let firstDay = calendar.date(from: calendar.dateComponents([.year, .month], from: month)) else { return [:] }
+    var dots: [String: [String?]] = [:]
+    for offset in -7..<42 {
+        guard let day = calendar.date(byAdding: .day, value: offset, to: firstDay),
+            isReminderOccurrence(anchor: anchor, recurrence: recurrence, day: day)
+        else { continue }
+        dots[formatTaskInputDate(day)] = [nil]
+    }
+    return dots
+}
+
+nonisolated private func reportWriteFailure(_ error: Error?) {
+    guard error != nil else { return }
+    Task { @MainActor in SyncFailureCenter.shared.report() }
+}
+
+private func writeReminder(uid: String, reminder: ReminderItem?, values: ReminderValues) {
+    let collection = Firestore.firestore().collection("reminders")
+    let now = nowMillis()
+    var fields: [String: Any] = [
+        "text": values.text,
+        "date": values.date,
+        "time": values.time,
+        "repeat": values.recurrence.firestoreValue,
+        "timeZone": TimeZone.current.identifier,
+        "updatedAt": now,
+    ]
+    if let reminder {
+        if reminder.isPast {
+            fields["enabled"] = true
+        }
+        collection.document(reminder.id).updateData(fields, completion: reportWriteFailure)
+        return
+    }
+    fields["ownerUid"] = uid
+    fields["enabled"] = true
+    fields["nextFireAt"] = NSNull()
+    fields["createdAt"] = now
+    collection.document().setData(fields, completion: reportWriteFailure)
+}
+
+@MainActor
+private final class RemindersViewModel: ObservableObject {
+    @Published private(set) var reminders: [ReminderItem] = []
+    @Published private(set) var status: LoadStatus = .idle
+    private var listener: ListenerRegistration?
+    private var currentUid: String?
+    private let retry = ListenerRetryScheduler()
+
+    deinit {
+        listener?.remove()
+    }
+
+    func bind(uid: String?) {
+        guard currentUid != uid else { return }
+        retry.cancel()
+        listener?.remove()
+        listener = nil
+        currentUid = uid
+        reminders = []
+        status = .idle
+        guard let uid else { return }
+        status = .loading
+        installListener(uid: uid)
+    }
+
+    private func installListener(uid: String) {
+        listener?.remove()
+        listener = Firestore.firestore().collection("reminders").whereField("ownerUid", isEqualTo: uid)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self, self.currentUid == uid else { return }
+                if let error {
+                    self.listener?.remove()
+                    self.listener = nil
+                    self.status = .error
+                    self.retry.fail(source: "reminders", error: error) { [weak self] in
+                        self?.installListener(uid: uid)
+                    }
+                    return
+                }
+                let nextReminders = (snapshot?.documents ?? [])
+                    .compactMap { decodeReminder(id: $0.documentID, data: $0.data()) }
+                    .sorted { ($0.time, $0.createdAt) < ($1.time, $1.createdAt) }
+                if nextReminders != self.reminders {
+                    self.reminders = nextReminders
+                }
+                if self.status != .ready {
+                    self.status = .ready
+                }
+                if snapshot.map({ !$0.metadata.isFromCache }) ?? false {
+                    self.retry.markHealthy()
+                }
+            }
+    }
+}
+
+private enum ReminderEditTarget: Identifiable {
+    case new
+    case existing(ReminderItem)
+
+    var id: String {
+        switch self {
+        case .new: return "new"
+        case .existing(let reminder): return reminder.id
+        }
+    }
+
+    var reminder: ReminderItem? {
+        if case .existing(let reminder) = self { return reminder }
+        return nil
+    }
+}
+
+private struct RemindersView: View {
+    @EnvironmentObject var translations: Translations
+    @EnvironmentObject private var settingsViewModel: SettingsViewModel
+    let currentUserId: String?
+    var showsBackButton = true
+    @StateObject private var viewModel = RemindersViewModel()
+    @State private var editTarget: ReminderEditTarget? = nil
+    @State private var errorMessage: String? = nil
+    @State private var isEnablingNotifications = false
+
+    private var notificationsOff: Bool {
+        settingsViewModel.settings.map { !$0.notifyReminders } ?? false
+    }
+
+    var body: some View {
+        SettingsPage(title: translations.t("reminders.title"), showsBackButton: showsBackButton) {
+            if let errorMessage {
+                AppAlert(message: errorMessage)
+                    .settingsPlainRow()
+            }
+            if notificationsOff && !viewModel.reminders.isEmpty {
+                notificationsOffNotice
+                    .settingsPlainRow()
+            }
+            Button {
+                editTarget = .new
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus")
+                        .accessibilityHidden(true)
+                        .font(.system(size: 15, weight: .semibold))
+                    Text(translations.t("reminders.add"))
+                }
+            }
+            .buttonStyle(AppButtonStyle(variant: .primary, fullWidth: true))
+            .settingsPlainRow()
+            reminderContent
+        }
+        .onAppear { viewModel.bind(uid: currentUserId) }
+        .onChange(of: currentUserId) { _, nextUid in
+            viewModel.bind(uid: nextUid)
+        }
+        .sheet(item: $editTarget) { target in
+            ReminderEditorSheet(
+                reminder: target.reminder,
+                onSubmit: { values in submit(target: target, values: values) },
+                onDelete: {
+                    if let reminder = target.reminder {
+                        Firestore.firestore().collection("reminders").document(reminder.id)
+                            .delete(completion: reportWriteFailure)
+                        logReminderDelete()
+                    }
+                    editTarget = nil
+                },
+                onCancel: { editTarget = nil }
+            )
+            .environmentObject(translations)
+        }
+    }
+
+    @ViewBuilder
+    private var reminderContent: some View {
+        switch viewModel.status {
+        case .error:
+            AppAlert(message: translations.t("auth.error.general"))
+                .settingsPlainRow()
+        case .ready where viewModel.reminders.isEmpty:
+            TaskStateNotice(icon: "bell", titleKey: "reminders.empty", hintKey: "reminders.emptyHint")
+                .settingsPlainRow()
+        case .ready:
+            Section {
+                ForEach(viewModel.reminders) { reminder in
+                    reminderRow(reminder)
+                }
+            }
+            .listRowBackground(AppPalette.cardSurface)
+            .listRowSeparatorTint(AppPalette.border)
+        default:
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .settingsPlainRow()
+        }
+    }
+
+    private var notificationsOffNotice: some View {
+        HStack(spacing: 12) {
+            Text(translations.t("reminders.notificationsOff"))
+                .font(AppTypography.subheadline())
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(translations.t("reminders.enableNotifications")) {
+                enableNotifications()
+            }
+            .buttonStyle(AppButtonStyle(variant: .tonal))
+            .disabled(isEnablingNotifications)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(AppPalette.cardSurface, in: RoundedRectangle(cornerRadius: AppMetrics.controlCornerRadius, style: .continuous))
+    }
+
+    private func reminderRow(_ reminder: ReminderItem) -> some View {
+        let isPast = reminder.isPast
+        return HStack(spacing: 12) {
+            Button {
+                editTarget = .existing(reminder)
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(reminder.text)
+                        .foregroundStyle(Color.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(describe(reminder))
+                        .font(AppTypography.caption())
+                        .foregroundStyle(AppPalette.mutedText)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Toggle(
+                "\(reminder.text), \(translations.t("reminders.enabled"))",
+                isOn: Binding(
+                    get: { reminder.enabled && !isPast },
+                    set: { enabled in
+                        Firestore.firestore().collection("reminders").document(reminder.id)
+                            .updateData(["enabled": enabled, "updatedAt": nowMillis()], completion: reportWriteFailure)
+                        logReminderToggle(enabled: enabled)
+                    }
+                )
+            )
+            .labelsHidden()
+            .tint(AppPalette.primary)
+            .disabled(isPast)
+        }
+    }
+
+    private func describe(_ reminder: ReminderItem) -> String {
+        let date = parseTaskInputDate(reminder.date) ?? Date()
+        let schedule =
+            reminder.recurrence.freq == "none"
+            ? calendarTaskDateLabel(date, language: translations.language)
+            : describeRecurrence(reminder.recurrence, date: date, translations: translations)
+        let state: String? =
+            reminder.isPast
+            ? translations.t("reminders.ended") : (reminder.enabled ? nil : translations.t("reminders.paused"))
+        return ([reminder.time, schedule] + [state].compactMap { $0 }).joined(separator: " · ")
+    }
+
+    private func submit(target: ReminderEditTarget, values: ReminderValues) {
+        guard let uid = currentUserId else { return }
+        writeReminder(uid: uid, reminder: target.reminder, values: values)
+        if target.reminder == nil {
+            logReminderCreate(repeat: values.recurrence.freq)
+        } else {
+            logReminderUpdate(repeat: values.recurrence.freq)
+        }
+        editTarget = nil
+        if notificationsOff {
+            enableNotifications()
+        }
+    }
+
+    private func enableNotifications() {
+        guard let uid = currentUserId, !isEnablingNotifications else { return }
+        isEnablingNotifications = true
+        errorMessage = nil
+        Task { @MainActor in
+            defer { isEnablingNotifications = false }
+            if let messageKey = await enableNotificationPreference(uid: uid, preference: "notifyReminders") {
+                errorMessage = translations.t(messageKey)
+            }
+        }
+    }
+}
+
+private struct ReminderEditorSheet: View {
+    @EnvironmentObject var translations: Translations
+    let reminder: ReminderItem?
+    let onSubmit: (ReminderValues) -> Void
+    let onDelete: () -> Void
+    let onCancel: () -> Void
+    @State private var text: String
+    @State private var time: Date
+    @State private var date: Date
+    @State private var showsCalendar = false
+    @State private var displayedMonth: Date
+    @State private var preset: RepeatPreset
+    @State private var customFreq: String
+    @State private var interval: Int
+    @State private var weekdays: Set<Int>
+    @State private var monthlyBy: String
+    @State private var showDeleteAlert = false
+
+    init(
+        reminder: ReminderItem?,
+        onSubmit: @escaping (ReminderValues) -> Void,
+        onDelete: @escaping () -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.reminder = reminder
+        self.onSubmit = onSubmit
+        self.onDelete = onDelete
+        self.onCancel = onCancel
+        let initialDate = reminder.flatMap { parseTaskInputDate($0.date) } ?? Date()
+        let initialPreset = reminder.map { detectRepeatPreset($0.recurrence, date: initialDate) } ?? .none
+        let custom =
+            initialPreset == .custom
+            ? reminder?.recurrence ?? .none
+            : ReminderRecurrence(freq: "weekly", interval: 1, weekdays: [isoWeekday(of: initialDate)], monthlyBy: "day")
+        _text = State(initialValue: reminder?.text ?? "")
+        let timeParts = (reminder?.time ?? "09:00").split(separator: ":").compactMap { Int($0) }
+        _time = State(
+            initialValue: currentGregorianCalendar().date(
+                bySettingHour: timeParts.first ?? 9, minute: timeParts.last ?? 0, second: 0, of: Date()) ?? Date()
+        )
+        _date = State(initialValue: initialDate)
+        _displayedMonth = State(initialValue: initialDate)
+        _preset = State(initialValue: initialPreset)
+        _customFreq = State(initialValue: custom.freq == "none" ? "weekly" : custom.freq)
+        _interval = State(initialValue: custom.interval)
+        _weekdays = State(initialValue: Set(custom.weekdays))
+        _monthlyBy = State(initialValue: custom.monthlyBy)
+    }
+
+    private var recurrence: ReminderRecurrence {
+        guard preset == .custom else { return presetRecurrence(preset, date: date) }
+        return ReminderRecurrence(
+            freq: customFreq,
+            interval: interval,
+            weekdays: customFreq == "weekly" ? weekdays.sorted() : [],
+            monthlyBy: monthlyBy
+        )
+    }
+
+    private var values: ReminderValues {
+        ReminderValues(
+            text: text.trimmingCharacters(in: .whitespacesAndNewlines),
+            date: formatTaskInputDate(date),
+            time: String(
+                format: "%02d:%02d", currentGregorianCalendar().component(.hour, from: time),
+                currentGregorianCalendar().component(.minute, from: time)),
+            recurrence: recurrence
+        )
+    }
+
+    private var isPast: Bool {
+        isPastReminder(date: values.date, time: values.time, recurrence: values.recurrence)
+    }
+
+    private var dateLabel: String {
+        translations.t(recurrence.freq == "none" ? "reminders.date" : "reminders.startDate")
+    }
+
+    private var canSubmit: Bool {
+        !values.text.isEmpty && !isPast && (recurrence.freq != "weekly" || !recurrence.weekdays.isEmpty)
+    }
+
+    var body: some View {
+        AppDialog(
+            title: translations.t(reminder == nil ? "reminders.add" : "reminders.edit"),
+            cancel: AppDialogAction(title: translations.t("common.cancel"), action: onCancel),
+            confirm: AppDialogAction(
+                title: translations.t(reminder == nil ? "common.add" : "taskList.save"),
+                disabled: !canSubmit
+            ) { onSubmit(values) }
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                TextField(translations.t("reminders.textPlaceholder"), text: $text)
+                    .onChange(of: text) { _, nextText in
+                        if nextText.count > reminderTextMaxLength {
+                            text = String(nextText.prefix(reminderTextMaxLength))
+                        }
+                    }
+                    .appField()
+                HStack(spacing: 8) {
+                    DatePicker(translations.t("reminders.time"), selection: $time, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                    menuPicker(label: translations.t("reminders.repeat.title"), selection: $preset, values: RepeatPreset.allCases) {
+                        preset in
+                        preset == .custom
+                            ? translations.t("reminders.repeat.custom")
+                            : describeRecurrence(presetRecurrence(preset, date: date), date: date, translations: translations)
+                    }
+                }
+                if preset == .custom {
+                    customFields
+                }
+                Button {
+                    displayedMonth = date
+                    showsCalendar.toggle()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar")
+                            .accessibilityHidden(true)
+                        Text(
+                            recurrence.freq == "none"
+                                ? calendarTaskDateLabel(date, language: translations.language)
+                                : "\(dateLabel) \(calendarTaskDateLabel(date, language: translations.language))"
+                        )
+                        .foregroundStyle(Color.primary)
+                    }
+                    .appField()
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(dateLabel), \(calendarTaskDateLabel(date, language: translations.language))")
+                if showsCalendar {
+                    MonthCalendarView(
+                        displayedMonth: $displayedMonth,
+                        selectedDate: date,
+                        dotsByDateKey: reminderOccurrenceDots(anchor: date, recurrence: recurrence, month: displayedMonth),
+                        onSelect: { next in
+                            guard let next else { return }
+                            date = next
+                            showsCalendar = false
+                        }
+                    )
+                }
+                if isPast {
+                    Text(translations.t("reminders.pastDateTime"))
+                        .font(AppTypography.subheadline())
+                        .foregroundStyle(AppPalette.mutedText)
+                }
+                if reminder != nil {
+                    Button {
+                        showDeleteAlert = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "trash")
+                                .accessibilityHidden(true)
+                            Text(translations.t("reminders.delete"))
+                        }
+                    }
+                    .buttonStyle(AppButtonStyle(variant: .ghost))
+                    .padding(.leading, -12)
+                }
+            }
+        }
+        .alert(translations.t("reminders.deleteConfirm.title"), isPresented: $showDeleteAlert) {
+            Button(translations.t("reminders.delete"), role: .destructive, action: onDelete)
+            Button(translations.t("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(translations.t("reminders.deleteConfirm.message"))
+        }
+    }
+
+    private var customFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            AppFormField(label: translations.t("reminders.repeat.interval")) {
+                HStack(spacing: 8) {
+                    menuPicker(label: translations.t("reminders.repeat.interval"), selection: $interval, values: reminderIntervals) {
+                        String($0)
+                    }
+                    menuPicker(label: translations.t("reminders.repeat.title"), selection: $customFreq, values: customRepeatFreqs) {
+                        translations.t(repeatUnitKeys[$0] ?? "")
+                    }
+                }
+            }
+            if customFreq == "weekly" {
+                weekdayButtons
+            }
+            if customFreq == "monthly" {
+                menuPicker(label: translations.t("reminders.repeat.title"), selection: $monthlyBy, values: ["day", "weekday"]) {
+                    $0 == "day"
+                        ? translations.t("reminders.repeat.dayOfMonth", ["day": String(dayOfMonth(date))])
+                        : nthWeekdayLabel(date: date, translations: translations)
+                }
+            }
+        }
+    }
+
+    private func menuPicker<Value: Hashable>(
+        label: String,
+        selection: Binding<Value>,
+        values: [Value],
+        title: @escaping (Value) -> String
+    ) -> some View {
+        Picker(label, selection: selection) {
+            ForEach(values, id: \.self) { value in
+                Text(title(value)).tag(value)
+            }
+        }
+        .pickerStyle(.menu)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appField()
+        .accessibilityLabel(label)
+    }
+
+    private var weekdayButtons: some View {
+        let language = translations.language
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7), spacing: 8) {
+            ForEach(reminderWeekdayOrder(language: language), id: \.self) { weekday in
+                let isSelected = weekdays.contains(weekday)
+                Button {
+                    if isSelected {
+                        weekdays.remove(weekday)
+                    } else {
+                        weekdays.insert(weekday)
+                    }
+                } label: {
+                    Text(reminderWeekdaySymbol(weekday, language: language, short: true))
+                }
+                .buttonStyle(
+                    AppButtonStyle(variant: isSelected ? .primary : .tonal, fullWidth: true, horizontalPadding: 0)
+                )
+                .accessibilityLabel(reminderWeekdaySymbol(weekday, language: language, short: false))
+                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+            }
+        }
+    }
+}
+
 private struct CalendarScreenView: View {
     @EnvironmentObject var translations: Translations
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -8746,7 +9610,7 @@ private enum SharedNotificationRegistration {
         case unavailable
     }
 
-    static func requestPermissionAndEnable(uid: String) async throws -> EnableResult {
+    static func requestPermissionAndEnable(uid: String, preference: String) async throws -> EnableResult {
         let center = UNUserNotificationCenter.current()
         let token: String
         do {
@@ -8761,7 +9625,7 @@ private enum SharedNotificationRegistration {
         } catch {
             return .unavailable
         }
-        try await saveDevice(uid: uid, token: token, enablePreference: true)
+        try await saveDevice(uid: uid, token: token, enablePreference: preference)
         return .enabled
     }
 
@@ -8770,7 +9634,7 @@ private enum SharedNotificationRegistration {
             guard await isAuthorized() else { return }
             let token = try await registrationToken(uid: uid)
             guard token != registeredToken else { return }
-            try await saveDevice(uid: uid, token: token, enablePreference: false)
+            try await saveDevice(uid: uid, token: token, enablePreference: nil)
         } catch {
             return
         }
@@ -8781,11 +9645,12 @@ private enum SharedNotificationRegistration {
             let settings = try? await Firestore.firestore().collection("settings").document(uid)
                 .getDocument(source: .cache),
             settings.data()?["notifySharedListUpdates"] as? Bool == true
+                || settings.data()?["notifyReminders"] as? Bool == true
         else { return }
         await refresh(uid: uid, registeredToken: registeredToken(in: settings))
     }
 
-    private static func saveDevice(uid: String, token: String, enablePreference: Bool) async throws {
+    private static func saveDevice(uid: String, token: String, enablePreference: String?) async throws {
         guard Auth.auth().currentUser?.uid == uid else { throw CancellationError() }
         try Task.checkCancellation()
         var fields: [String: Any] = [
@@ -8795,8 +9660,8 @@ private enum SharedNotificationRegistration {
                 "updatedAt": nowMillis(),
             ]
         ]
-        if enablePreference {
-            fields["notifySharedListUpdates"] = true
+        if let enablePreference {
+            fields[enablePreference] = true
             fields["updatedAt"] = nowMillis()
         }
         try await Firestore.firestore().collection("settings").document(uid).updateData(fields)
@@ -8830,6 +9695,31 @@ private enum SharedNotificationRegistration {
             }
         }
     }
+}
+
+@MainActor
+private func enableNotificationPreference(uid: String, preference: String) async -> String? {
+    do {
+        switch try await SharedNotificationRegistration.requestPermissionAndEnable(uid: uid, preference: preference) {
+        case .enabled:
+            return nil
+        case .permissionDenied:
+            return "settings.notifications.permissionDenied"
+        case .unavailable:
+            return "settings.notifications.unavailable"
+        }
+    } catch {
+        return "auth.error.general"
+    }
+}
+
+private func disabledNotificationFields(key: String, settings: SettingsViewModel.Settings) -> [String: Any] {
+    let otherEnabled = key == "notifyReminders" ? settings.notifySharedListUpdates : settings.notifyReminders
+    var fields: [String: Any] = [key: false]
+    if !otherEnabled {
+        fields["notificationDevices"] = [String: Any]()
+    }
+    return fields
 }
 
 @MainActor
@@ -8873,7 +9763,11 @@ private final class LightlistAppDelegate: NSObject, UIApplicationDelegate, UNUse
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        if let taskListId = response.notification.request.content.userInfo["taskListId"] as? String {
+        let userInfo = response.notification.request.content.userInfo
+        if userInfo["reminderId"] is String {
+            SharedNotificationNavigation.pendingReminders = true
+            NotificationCenter.default.post(name: .lightlistOpenReminders, object: nil)
+        } else if let taskListId = userInfo["taskListId"] as? String {
             SharedNotificationNavigation.pendingTaskListId = taskListId
             NotificationCenter.default.post(name: .lightlistOpenTaskList, object: taskListId)
         }
@@ -8883,11 +9777,13 @@ private final class LightlistAppDelegate: NSObject, UIApplicationDelegate, UNUse
 
 private extension Notification.Name {
     static let lightlistOpenTaskList = Notification.Name("lightlist.openTaskList")
+    static let lightlistOpenReminders = Notification.Name("lightlist.openReminders")
 }
 
 @MainActor
 private enum SharedNotificationNavigation {
     static var pendingTaskListId: String?
+    static var pendingReminders = false
 }
 
 @main

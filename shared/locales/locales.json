@@ -516,7 +516,7 @@
       "paused": "متوقف مؤقتًا",
       "enabled": "إشعار",
       "empty": "لا توجد تذكيرات",
-      "emptyHint": "يصلك إشعار فقط في الوقت الذي تختاره، ولا تُضاف التذكيرات إلى قوائم مهامك.",
+      "emptyHint": "يصلك إشعار في الوقت الذي تختاره، ويمكنك أيضًا إضافته إلى قائمة مهام في الوقت نفسه.",
       "delete": "حذف",
       "deleteConfirm": {
         "title": "حذف التذكير",
@@ -553,7 +553,9 @@
       "time": "الوقت",
       "date": "التاريخ",
       "done": "تم",
-      "startDate": "يبدأ"
+      "startDate": "يبدأ",
+      "addToTaskList": "إضافتها أيضًا إلى قائمة مهام",
+      "addToTaskListNone": "عدم الإضافة"
     }
   },
   "de": {
@@ -1084,7 +1086,7 @@
       "paused": "Pausiert",
       "enabled": "Benachrichtigen",
       "empty": "Keine Erinnerungen",
-      "emptyHint": "Erhalte zur gewählten Zeit eine Benachrichtigung. Erinnerungen werden nicht zu deinen Aufgabenlisten hinzugefügt.",
+      "emptyHint": "Erhalte zur gewählten Zeit eine Benachrichtigung. Du kannst sie gleichzeitig auch zu einer Aufgabenliste hinzufügen.",
       "delete": "Löschen",
       "deleteConfirm": {
         "title": "Erinnerung löschen",
@@ -1121,7 +1123,9 @@
       "time": "Uhrzeit",
       "date": "Datum",
       "done": "Fertig",
-      "startDate": "Beginnt"
+      "startDate": "Beginnt",
+      "addToTaskList": "Auch zu einer Aufgabenliste hinzufügen",
+      "addToTaskListNone": "Nicht hinzufügen"
     }
   },
   "en": {
@@ -1651,7 +1655,7 @@
       "paused": "Paused",
       "enabled": "Notify",
       "empty": "No reminders",
-      "emptyHint": "Get a notification at the time you choose. Reminders aren’t added to your task lists.",
+      "emptyHint": "Get a notification at the time you choose. You can also add it to a task list at the same time.",
       "delete": "Delete",
       "deleteConfirm": {
         "title": "Delete reminder",
@@ -1688,7 +1692,9 @@
       "time": "Time",
       "date": "Date",
       "done": "Done",
-      "startDate": "Starts"
+      "startDate": "Starts",
+      "addToTaskList": "Also add to a task list",
+      "addToTaskListNone": "Don’t add"
     }
   },
   "es": {
@@ -2223,7 +2229,7 @@
       "paused": "En pausa",
       "enabled": "Notificar",
       "empty": "No hay recordatorios",
-      "emptyHint": "Recibe una notificación a la hora que elijas. Los recordatorios no se añaden a tus listas de tareas.",
+      "emptyHint": "Recibe una notificación a la hora que elijas. También puedes añadirla a una lista de tareas al mismo tiempo.",
       "delete": "Eliminar",
       "deleteConfirm": {
         "title": "Eliminar recordatorio",
@@ -2260,7 +2266,9 @@
       "time": "Hora",
       "date": "Fecha",
       "done": "Listo",
-      "startDate": "Empieza"
+      "startDate": "Empieza",
+      "addToTaskList": "Añadir también a una lista",
+      "addToTaskListNone": "No añadir"
     }
   },
   "fr": {
@@ -2792,7 +2800,7 @@
       "paused": "En pause",
       "enabled": "Notifier",
       "empty": "Aucun rappel",
-      "emptyHint": "Recevez une notification à l’heure choisie. Les rappels ne sont pas ajoutés à vos listes de tâches.",
+      "emptyHint": "Recevez une notification à l’heure choisie. Vous pouvez aussi l’ajouter à une liste de tâches au même moment.",
       "delete": "Supprimer",
       "deleteConfirm": {
         "title": "Supprimer le rappel",
@@ -2829,7 +2837,9 @@
       "time": "Heure",
       "date": "Date",
       "done": "OK",
-      "startDate": "Début"
+      "startDate": "Début",
+      "addToTaskList": "Ajouter aussi à une liste",
+      "addToTaskListNone": "Ne pas ajouter"
     }
   },
   "hi": {
@@ -3348,7 +3358,7 @@
       "paused": "रुका हुआ",
       "enabled": "सूचित करें",
       "empty": "कोई रिमाइंडर नहीं",
-      "emptyHint": "चुने हुए समय पर केवल सूचना मिलती है। रिमाइंडर आपकी टास्क सूचियों में नहीं जोड़े जाते।",
+      "emptyHint": "चुने हुए समय पर सूचना मिलती है। आप उसी समय इसे किसी टास्क सूची में भी जोड़ सकते हैं।",
       "delete": "हटाएं",
       "deleteConfirm": {
         "title": "रिमाइंडर हटाएं",
@@ -3385,7 +3395,9 @@
       "time": "समय",
       "date": "तारीख",
       "done": "हो गया",
-      "startDate": "शुरुआत"
+      "startDate": "शुरुआत",
+      "addToTaskList": "टास्क सूची में भी जोड़ें",
+      "addToTaskListNone": "न जोड़ें"
     }
   },
   "id": {
@@ -3910,7 +3922,7 @@
       "paused": "Dijeda",
       "enabled": "Beri tahu",
       "empty": "Tidak ada pengingat",
-      "emptyHint": "Dapatkan pemberitahuan pada waktu yang Anda pilih. Pengingat tidak ditambahkan ke daftar tugas Anda.",
+      "emptyHint": "Dapatkan pemberitahuan pada waktu yang Anda pilih. Anda juga dapat menambahkannya ke daftar tugas pada saat yang sama.",
       "delete": "Hapus",
       "deleteConfirm": {
         "title": "Hapus pengingat",
@@ -3947,7 +3959,9 @@
       "time": "Waktu",
       "date": "Tanggal",
       "done": "Selesai",
-      "startDate": "Mulai"
+      "startDate": "Mulai",
+      "addToTaskList": "Tambahkan juga ke daftar tugas",
+      "addToTaskListNone": "Jangan tambahkan"
     }
   },
   "ja": {
@@ -4466,7 +4480,7 @@
       "paused": "一時停止中",
       "enabled": "通知する",
       "empty": "リマインダーはありません",
-      "emptyHint": "指定した時刻に通知だけを届けます。タスクリストには追加されません。",
+      "emptyHint": "指定した時刻に通知を届けます。通知と同時にタスクリストへ追加することもできます。",
       "delete": "削除",
       "deleteConfirm": {
         "title": "リマインダーを削除",
@@ -4503,7 +4517,9 @@
       "time": "時刻",
       "date": "日付",
       "done": "完了",
-      "startDate": "開始日"
+      "startDate": "開始日",
+      "addToTaskList": "タスクリストにも追加",
+      "addToTaskListNone": "追加しない"
     }
   },
   "ko": {
@@ -5029,7 +5045,7 @@
       "paused": "일시 중지됨",
       "enabled": "알림",
       "empty": "리마인더가 없습니다",
-      "emptyHint": "지정한 시간에 알림만 보내 드려요. 작업 목록에는 추가되지 않습니다.",
+      "emptyHint": "지정한 시간에 알림을 보내 드려요. 알림과 동시에 작업 목록에 추가할 수도 있습니다.",
       "delete": "삭제",
       "deleteConfirm": {
         "title": "리마인더 삭제",
@@ -5066,7 +5082,9 @@
       "time": "시간",
       "date": "날짜",
       "done": "완료",
-      "startDate": "시작일"
+      "startDate": "시작일",
+      "addToTaskList": "작업 목록에도 추가",
+      "addToTaskListNone": "추가 안 함"
     }
   },
   "pt-BR": {
@@ -5606,7 +5624,7 @@
       "paused": "Pausado",
       "enabled": "Notificar",
       "empty": "Nenhum lembrete",
-      "emptyHint": "Receba uma notificação no horário escolhido. Os lembretes não são adicionados às suas listas de tarefas.",
+      "emptyHint": "Receba uma notificação no horário escolhido. Você também pode adicioná-la a uma lista de tarefas ao mesmo tempo.",
       "delete": "Excluir",
       "deleteConfirm": {
         "title": "Excluir lembrete",
@@ -5643,7 +5661,9 @@
       "time": "Horário",
       "date": "Data",
       "done": "Concluído",
-      "startDate": "Início"
+      "startDate": "Início",
+      "addToTaskList": "Adicionar também a uma lista",
+      "addToTaskListNone": "Não adicionar"
     }
   },
   "zh-CN": {
@@ -6171,7 +6191,7 @@
       "paused": "已暂停",
       "enabled": "通知",
       "empty": "没有提醒",
-      "emptyHint": "在你选择的时间只发送通知，不会添加到任务列表。",
+      "emptyHint": "在你选择的时间发送通知，也可以同时添加到任务列表。",
       "delete": "删除",
       "deleteConfirm": {
         "title": "删除提醒",
@@ -6208,7 +6228,9 @@
       "time": "时间",
       "date": "日期",
       "done": "完成",
-      "startDate": "开始日期"
+      "startDate": "开始日期",
+      "addToTaskList": "同时添加到任务列表",
+      "addToTaskListNone": "不添加"
     }
   }
 }

@@ -1,12 +1,23 @@
 import { getFirestore, type DocumentSnapshot } from "firebase-admin/firestore";
 import { getMessaging, type MulticastMessage } from "firebase-admin/messaging";
 import * as logger from "firebase-functions/logger";
-import { getRegistrations, removeInvalidRegistrations } from "./notifications";
-import { isRecord, isValidDateKey, type RecordValue } from "./tasks";
+import { getRegistrations, notifyTaskListMembers, removeInvalidRegistrations } from "./notifications";
+import {
+  buildTaskUpdateData,
+  getOrderedTasks,
+  insertTask,
+  isRecord,
+  isValidDateKey,
+  memberKeyOf,
+  readTasks,
+  resolveTaskSettings,
+  type RecordValue,
+} from "./tasks";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const MAX_REPEAT_STEPS = 200;
+const TASK_LIST_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 export type Repeat = {
   freq: "none" | "daily" | "weekly" | "monthly" | "yearly";
@@ -216,9 +227,75 @@ export const scheduleReminder = async (snapshot: DocumentSnapshot, before: Recor
   await snapshot.ref.update({ nextFireAt });
 };
 
+const dateKeyAt = (timeZone: string, epoch: number): string | null => {
+  const formatter = formatterOf(timeZone);
+  return formatter ? new Date(wallClockOf(formatter, epoch)).toISOString().slice(0, 10) : null;
+};
+
+const errorCodeOf = (error: unknown): string =>
+  isRecord(error) && (typeof error.code === "string" || typeof error.code === "number")
+    ? String(error.code)
+    : "unknown";
+
+type ReminderTaskResult = "added" | "exists" | null;
+
+const addReminderTask = async (
+  ownerUid: string,
+  settings: unknown,
+  reminderId: string,
+  data: RecordValue,
+  fireAt: number,
+  text: string,
+): Promise<ReminderTaskResult> => {
+  const { taskListId, timeZone } = data;
+  if (typeof taskListId !== "string" || !TASK_LIST_ID_PATTERN.test(taskListId)) return null;
+  const date = typeof timeZone === "string" ? dateKeyAt(timeZone, fireAt) : null;
+  if (!date) return null;
+  const db = getFirestore();
+  const taskId = `r_${reminderId}_${fireAt}`;
+  try {
+    const taskSettings = resolveTaskSettings(settings);
+    const result = await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(db.collection("taskLists").doc(taskListId));
+      const taskList = snapshot.data();
+      if (
+        !taskList ||
+        !Array.isArray(taskList.memberKeys) ||
+        !taskList.memberKeys.includes(memberKeyOf(ownerUid))
+      ) {
+        return null;
+      }
+      if (isRecord(taskList.tasks) && Object.hasOwn(taskList.tasks, taskId)) {
+        return { taskList, added: false };
+      }
+      const orderedTasks = getOrderedTasks(readTasks(taskList));
+      const nextTasks = insertTask(
+        orderedTasks,
+        { id: taskId, text, completed: false, date, pinned: false },
+        taskSettings,
+      );
+      transaction.update(snapshot.ref, {
+        ...buildTaskUpdateData(orderedTasks, nextTasks),
+        updatedAt: Date.now(),
+      });
+      return { taskList, added: true };
+    });
+    if (!result) return null;
+    if (!result.added) return "exists";
+    await notifyTaskListMembers(taskListId, result.taskList, ownerUid).catch((error: unknown) => {
+      logger.error("reminder task notification failed", { code: errorCodeOf(error) });
+    });
+    return "added";
+  } catch (error) {
+    logger.error("reminder task failed", { code: errorCodeOf(error) });
+    return null;
+  }
+};
+
 const messageOf = (
   tokens: string[],
   reminderId: string,
+  taskListId: string | null,
   text: string,
   expiresAt: number,
   now: number,
@@ -227,7 +304,7 @@ const messageOf = (
   return {
     tokens,
     notification: { title: "Lightlist", body: text },
-    data: { reminderId },
+    data: taskListId ? { reminderId, taskListId } : { reminderId },
     android: {
       priority: "high",
       ttl: ttlSeconds * 1000,
@@ -244,7 +321,11 @@ const messageOf = (
     webpush: {
       headers: { TTL: String(ttlSeconds) },
       notification: { tag: reminderId },
-      fcmOptions: { link: "https://lightlist.app/app/#/reminders" },
+      fcmOptions: {
+        link: taskListId
+          ? `https://lightlist.app/app/?taskListId=${encodeURIComponent(taskListId)}`
+          : "https://lightlist.app/app/#/reminders",
+      },
     },
   };
 };
@@ -269,23 +350,30 @@ export const deliverDueReminders = async () => {
 
   let delivered = 0;
   let attempted = 0;
+  let tasksAdded = 0;
   const failureCodes: string[] = [];
   const batch = db.batch();
   const results = await Promise.allSettled(
     [...remindersByOwner].map(async ([ownerUid, reminderSnapshots]) => {
       const settings = (await db.collection("settings").doc(ownerUid).get()).data();
-      let registrations =
-        settings?.notifyReminders === true ? getRegistrations(settings.notificationDevices) : [];
+      const notifies = settings?.notifyReminders === true;
+      let registrations = notifies ? getRegistrations(settings.notificationDevices) : [];
       for (const reminderSnapshot of reminderSnapshots) {
         const data = reminderSnapshot.data() ?? {};
         const fireAt = typeof data.nextFireAt === "number" ? data.nextFireAt : now;
         const text = typeof data.text === "string" ? data.text : "";
-        if (fireAt >= now - HOUR_MS && text.length > 0 && registrations.length > 0) {
+        const isDue = notifies && fireAt >= now - HOUR_MS && text.length > 0;
+        const taskResult = isDue
+          ? await addReminderTask(ownerUid, settings, reminderSnapshot.id, data, fireAt, text)
+          : null;
+        if (taskResult === "added") tasksAdded += 1;
+        if (isDue && registrations.length > 0) {
           attempted += 1;
           const response = await getMessaging().sendEachForMulticast(
             messageOf(
               registrations.map(({ token }) => token),
               reminderSnapshot.id,
+              taskResult && typeof data.taskListId === "string" ? data.taskListId : null,
               text,
               fireAt + HOUR_MS,
               now,
@@ -316,8 +404,13 @@ export const deliverDueReminders = async () => {
     }
   }
   await batch.commit();
-  if (attempted > 0) {
-    logger.info("reminder notification", { reminders: attempted, delivered, failureCodes });
+  if (attempted > 0 || tasksAdded > 0) {
+    logger.info("reminder notification", {
+      reminders: attempted,
+      delivered,
+      tasksAdded,
+      failureCodes,
+    });
   }
 };
 

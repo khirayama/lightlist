@@ -111,6 +111,21 @@ const getAutoSortedTasks = (tasks: Task[]): Task[] => {
 export const getSortedTasks = (tasks: Task[], settings: TaskSettings): Task[] =>
   settings.autoSort ? getAutoSortedTasks(tasks) : renumberTasks(tasks);
 
+export const insertTask = (
+  orderedTasks: Task[],
+  task: Omit<Task, "order">,
+  settings: TaskSettings,
+): Task[] => {
+  const atTop = settings.taskInsertPosition === "top";
+  const newTask: Task = {
+    ...task,
+    order: atTop
+      ? (orderedTasks[0]?.order ?? 1) - 1
+      : (orderedTasks[orderedTasks.length - 1]?.order ?? 0) + 1,
+  };
+  return getSortedTasks(atTop ? [newTask, ...orderedTasks] : [...orderedTasks, newTask], settings);
+};
+
 const canReorderTasks = (
   first: Pick<Task, "completed" | "date" | "pinned">,
   second: Pick<Task, "completed" | "date" | "pinned">,

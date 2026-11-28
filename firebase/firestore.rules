@@ -251,6 +251,13 @@ service cloud.firestore {
         return ['ownerUid', 'text', 'date', 'time', 'repeat', 'timeZone', 'enabled', 'nextFireAt', 'createdAt', 'updatedAt'];
       }
 
+      // taskListId は追加前のアプリが書かないため省略可。参加中かどうかは配信時に Functions が確認する
+      function hasValidTaskListId(data) {
+        let taskListId = data.get('taskListId', null);
+        return taskListId == null
+          || (taskListId is string && taskListId.matches('^[A-Za-z0-9_-]{1,128}$'));
+      }
+
       function repeatKeys() {
         return ['freq', 'interval', 'weekdays', 'monthlyBy'];
       }
@@ -272,8 +279,9 @@ service cloud.firestore {
 
       function hasValidReminderFields() {
         let data = request.resource.data;
-        return data.keys().hasOnly(reminderKeys())
+        return data.keys().hasOnly(reminderKeys().concat(['taskListId']))
           && data.keys().hasAll(reminderKeys())
+          && hasValidTaskListId(data)
           && data.ownerUid == request.auth.uid
           && data.text is string
           && data.text.trim().size() > 0

@@ -9696,11 +9696,15 @@ type Reminder = {
   time: string;
   repeat: ReminderRepeat;
   timeZone: string;
+  taskListId: string | null;
   enabled: boolean;
   createdAt: number;
 };
 
-type ReminderValues = Pick<Reminder, "text" | "date" | "time" | "repeat">;
+type ReminderValues = Pick<
+  Reminder,
+  "text" | "date" | "time" | "repeat" | "taskListId"
+>;
 
 type RepeatPreset =
   | "none"
@@ -9795,7 +9799,21 @@ function assertReminderStore(id: string, data: unknown): Reminder | null {
   ) {
     return null;
   }
-  return { id, text, date, time, repeat, timeZone, enabled, createdAt };
+  const taskListId =
+    typeof data.taskListId === "string" && isSafeId(data.taskListId)
+      ? data.taskListId
+      : null;
+  return {
+    id,
+    text,
+    date,
+    time,
+    repeat,
+    timeZone,
+    taskListId,
+    enabled,
+    createdAt,
+  };
 }
 
 const getIsoWeekday = (date: Date): number => ((date.getDay() + 6) % 7) + 1;
@@ -10087,11 +10105,13 @@ function ReminderSelect<Value extends string | number>({
 function ReminderSheetContent({
   reminder,
   language,
+  taskLists,
   onSubmit,
   onDelete,
 }: {
   reminder: Reminder | null;
   language: Language;
+  taskLists: TaskList[];
   onSubmit: (values: ReminderValues) => void;
   onDelete: () => void;
 }) {
@@ -10121,6 +10141,10 @@ function ReminderSheetContent({
   const [interval, setRepeatInterval] = useState(initialCustom.interval);
   const [weekdays, setWeekdays] = useState(initialCustom.weekdays);
   const [monthlyBy, setMonthlyBy] = useState(initialCustom.monthlyBy);
+  const [taskListId, setTaskListId] = useState(
+    taskLists.find((taskList) => taskList.id === reminder?.taskListId)?.id ??
+      "",
+  );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const title = reminder ? t("reminders.edit") : t("reminders.add");
   const repeat: ReminderRepeat =
@@ -10140,6 +10164,7 @@ function ReminderSheetContent({
     date: formatDate(date),
     time,
     repeat,
+    taskListId: taskListId || null,
   };
   const isPast = isPastReminder(values);
   const canSubmit =
@@ -10333,6 +10358,23 @@ function ReminderSheetContent({
                 </CalendarDotColorsContext.Provider>
               </div>
             ) : null}
+            <div className="ll-flex ll-flex-col ll-gap-1">
+              <span className="ll-field-label" aria-hidden="true">
+                {t("reminders.addToTaskList")}
+              </span>
+              <ReminderSelect
+                label={t("reminders.addToTaskList")}
+                value={taskListId}
+                options={[
+                  { value: "", label: t("reminders.addToTaskListNone") },
+                  ...taskLists.map((taskList) => ({
+                    value: taskList.id,
+                    label: taskList.name,
+                  })),
+                ]}
+                onChange={setTaskListId}
+              />
+            </div>
             {isPast ? (
               <p className="ll-m-0 ll-text-sm ll-muted-text" role="status">
                 {t("reminders.pastDateTime")}
@@ -10386,6 +10428,7 @@ function RemindersView({ onBack }: { onBack?: () => void }) {
   const { t, i18n } = useTranslation();
   const { user } = useSessionState();
   const { settings } = useSettingsState();
+  const { taskLists } = useTaskListIndexState();
   const uid = user?.uid ?? null;
   const { status, reminders } = useReminders(uid);
   const language = normalizeLanguage(i18n.language);
@@ -10415,12 +10458,17 @@ function RemindersView({ onBack }: { onBack?: () => void }) {
       reminder.repeat.freq === "none"
         ? getTaskDateFormatter(language).format(date)
         : describeRepeat(reminder.repeat, date, language, t);
+    const taskListName = taskLists.find(
+      (taskList) => taskList.id === reminder.taskListId,
+    )?.name;
     const state = isPastReminder(reminder)
       ? t("reminders.ended")
       : reminder.enabled
         ? null
         : t("reminders.paused");
-    return [reminder.time, schedule, state].filter(Boolean).join(" · ");
+    return [reminder.time, schedule, taskListName, state]
+      .filter(Boolean)
+      .join(" · ");
   };
 
   return (
@@ -10564,6 +10612,7 @@ function RemindersView({ onBack }: { onBack?: () => void }) {
           <ReminderSheetContent
             reminder={sheet.reminder}
             language={language}
+            taskLists={taskLists}
             onSubmit={(values) => {
               writeReminder(uid, sheet.reminder, values);
               logAppEvent(

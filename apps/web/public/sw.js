@@ -142,20 +142,20 @@ self.addEventListener("notificationclick", (event) => {
         });
         if (!appClient) {
           return self.clients.openWindow(
-            reminderId
-              ? "/app/#/reminders"
-              : taskListId
-                ? `/app/?taskListId=${encodeURIComponent(taskListId)}`
+            taskListId
+              ? `/app/?taskListId=${encodeURIComponent(taskListId)}`
+              : reminderId
+                ? "/app/#/reminders"
                 : "/app/",
           );
         }
-        if (reminderId) {
-          appClient.postMessage({ type: "lightlist-open-reminders" });
-        } else if (taskListId) {
+        if (taskListId) {
           appClient.postMessage({
             type: "lightlist-open-task-list",
             taskListId,
           });
+        } else if (reminderId) {
+          appClient.postMessage({ type: "lightlist-open-reminders" });
         }
         return appClient.focus();
       }),

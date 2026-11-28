@@ -8435,6 +8435,7 @@ private struct ReminderItem: Identifiable, Equatable {
     let date: String
     let time: String
     let recurrence: ReminderRecurrence
+    let taskListId: String?
     let enabled: Bool
     let createdAt: Double
 
@@ -8446,6 +8447,7 @@ private struct ReminderValues {
     let date: String
     let time: String
     let recurrence: ReminderRecurrence
+    let taskListId: String?
 }
 
 private enum RepeatPreset: String, CaseIterable, Identifiable {
@@ -8605,7 +8607,9 @@ private func decodeReminder(id: String, data: [String: Any]) -> ReminderItem? {
         let createdAt = (data["createdAt"] as? NSNumber)?.doubleValue
     else { return nil }
     return ReminderItem(
-        id: id, text: text, date: date, time: time, recurrence: recurrence, enabled: enabled, createdAt: createdAt)
+        id: id, text: text, date: date, time: time, recurrence: recurrence,
+        taskListId: (data["taskListId"] as? String).flatMap { isSafeId($0) ? $0 : nil }, enabled: enabled,
+        createdAt: createdAt)
 }
 
 private func isReminderOccurrence(anchor: Date, recurrence: ReminderRecurrence, day: Date) -> Bool {
@@ -8671,6 +8675,7 @@ private func writeReminder(uid: String, reminder: ReminderItem?, values: Reminde
         "time": values.time,
         "repeat": values.recurrence.firestoreValue,
         "timeZone": TimeZone.current.identifier,
+        "taskListId": values.taskListId ?? NSNull(),
         "updatedAt": now,
     ]
     if let reminder {
@@ -8765,6 +8770,7 @@ private struct RemindersView: View {
     let currentUserId: String?
     var showsBackButton = true
     @StateObject private var viewModel = RemindersViewModel()
+    @StateObject private var taskListsViewModel = OrderedTaskListViewModel<TaskListSummary>(mapper: mapTaskListSummary)
     @State private var editTarget: ReminderEditTarget? = nil
     @State private var errorMessage: String? = nil
     @State private var isEnablingNotifications = false
@@ -8797,13 +8803,18 @@ private struct RemindersView: View {
             .settingsPlainRow()
             reminderContent
         }
-        .onAppear { viewModel.bind(uid: currentUserId) }
+        .onAppear {
+            viewModel.bind(uid: currentUserId)
+            taskListsViewModel.bind(uid: currentUserId)
+        }
         .onChange(of: currentUserId) { _, nextUid in
             viewModel.bind(uid: nextUid)
+            taskListsViewModel.bind(uid: nextUid)
         }
         .sheet(item: $editTarget) { target in
             ReminderEditorSheet(
                 reminder: target.reminder,
+                taskLists: taskListsViewModel.taskLists,
                 onSubmit: { values in submit(target: target, values: values) },
                 onDelete: {
                     if let reminder = target.reminder {
@@ -8900,10 +8911,11 @@ private struct RemindersView: View {
             reminder.recurrence.freq == "none"
             ? calendarTaskDateLabel(date, language: translations.language)
             : describeRecurrence(reminder.recurrence, date: date, translations: translations)
+        let taskListName = taskListsViewModel.taskLists.first { $0.id == reminder.taskListId }?.name
         let state: String? =
             reminder.isPast
             ? translations.t("reminders.ended") : (reminder.enabled ? nil : translations.t("reminders.paused"))
-        return ([reminder.time, schedule] + [state].compactMap { $0 }).joined(separator: " · ")
+        return ([reminder.time, schedule] + [taskListName, state].compactMap { $0 }).joined(separator: " · ")
     }
 
     private func submit(target: ReminderEditTarget, values: ReminderValues) {
@@ -8936,6 +8948,7 @@ private struct RemindersView: View {
 private struct ReminderEditorSheet: View {
     @EnvironmentObject var translations: Translations
     let reminder: ReminderItem?
+    let taskLists: [TaskListSummary]
     let onSubmit: (ReminderValues) -> Void
     let onDelete: () -> Void
     let onCancel: () -> Void
@@ -8949,15 +8962,18 @@ private struct ReminderEditorSheet: View {
     @State private var interval: Int
     @State private var weekdays: Set<Int>
     @State private var monthlyBy: String
+    @State private var taskListId: String
     @State private var showDeleteAlert = false
 
     init(
         reminder: ReminderItem?,
+        taskLists: [TaskListSummary],
         onSubmit: @escaping (ReminderValues) -> Void,
         onDelete: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.reminder = reminder
+        self.taskLists = taskLists
         self.onSubmit = onSubmit
         self.onDelete = onDelete
         self.onCancel = onCancel
@@ -8980,6 +8996,7 @@ private struct ReminderEditorSheet: View {
         _interval = State(initialValue: custom.interval)
         _weekdays = State(initialValue: Set(custom.weekdays))
         _monthlyBy = State(initialValue: custom.monthlyBy)
+        _taskListId = State(initialValue: taskLists.first { $0.id == reminder?.taskListId }?.id ?? "")
     }
 
     private var recurrence: ReminderRecurrence {
@@ -8999,7 +9016,8 @@ private struct ReminderEditorSheet: View {
             time: String(
                 format: "%02d:%02d", currentGregorianCalendar().component(.hour, from: time),
                 currentGregorianCalendar().component(.minute, from: time)),
-            recurrence: recurrence
+            recurrence: recurrence,
+            taskListId: taskListId.isEmpty ? nil : taskListId
         )
     }
 
@@ -9074,6 +9092,14 @@ private struct ReminderEditorSheet: View {
                             showsCalendar = false
                         }
                     )
+                }
+                AppFormField(label: translations.t("reminders.addToTaskList")) {
+                    menuPicker(
+                        label: translations.t("reminders.addToTaskList"), selection: $taskListId,
+                        values: [""] + taskLists.map(\.id)
+                    ) { id in
+                        taskLists.first { $0.id == id }?.name ?? translations.t("reminders.addToTaskListNone")
+                    }
                 }
                 if isPast {
                     Text(translations.t("reminders.pastDateTime"))
@@ -9764,12 +9790,12 @@ private final class LightlistAppDelegate: NSObject, UIApplicationDelegate, UNUse
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        if userInfo["reminderId"] is String {
-            SharedNotificationNavigation.pendingReminders = true
-            NotificationCenter.default.post(name: .lightlistOpenReminders, object: nil)
-        } else if let taskListId = userInfo["taskListId"] as? String {
+        if let taskListId = userInfo["taskListId"] as? String {
             SharedNotificationNavigation.pendingTaskListId = taskListId
             NotificationCenter.default.post(name: .lightlistOpenTaskList, object: taskListId)
+        } else if userInfo["reminderId"] is String {
+            SharedNotificationNavigation.pendingReminders = true
+            NotificationCenter.default.post(name: .lightlistOpenReminders, object: nil)
         }
         completionHandler()
     }

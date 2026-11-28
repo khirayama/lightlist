@@ -1010,11 +1010,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun parseDeepLink(intent: Intent?): PendingDeepLink? {
-        if (intent?.getBooleanExtra(OPEN_REMINDERS_EXTRA, false) == true || intent?.getStringExtra("reminderId") != null) {
-            return PendingDeepLink.Reminders
-        }
         intent?.getStringExtra("taskListId")?.takeIf(::isSafeId)?.let {
             return PendingDeepLink.TaskList(it)
+        }
+        if (intent?.getBooleanExtra(OPEN_REMINDERS_EXTRA, false) == true || intent?.getStringExtra("reminderId") != null) {
+            return PendingDeepLink.Reminders
         }
         val data = intent?.data ?: return null
         val scheme = data.scheme?.lowercase(Locale.ROOT)
@@ -6704,7 +6704,8 @@ private fun TabletRootScreen(
                 RemindersScreen(
                     navController = null,
                     userId = userId,
-                    settingsState = settingsState
+                    settingsState = settingsState,
+                    externalTaskListsState = sharedTaskListsState
                 )
             } else if (selectedPane == TabletPane.Calendar) {
                 CalendarScreen(
@@ -9274,6 +9275,7 @@ private data class ReminderItem(
     val date: String,
     val time: String,
     val recurrence: ReminderRecurrence,
+    val taskListId: String?,
     val enabled: Boolean,
     val createdAt: Double
 ) {
@@ -9284,7 +9286,8 @@ private data class ReminderValues(
     val text: String,
     val date: String,
     val time: String,
-    val recurrence: ReminderRecurrence
+    val recurrence: ReminderRecurrence,
+    val taskListId: String?
 )
 
 private enum class RepeatPreset { None, Daily, Weekdays, Weekly, Monthly, MonthlyWeekday, Yearly, Custom }
@@ -9475,7 +9478,8 @@ private fun reminderFromMap(id: String, data: Map<*, *>): ReminderItem? {
     val recurrence = recurrenceFromMap(data["repeat"]) ?: return null
     val enabled = data["enabled"] as? Boolean ?: return null
     val createdAt = (data["createdAt"] as? Number)?.toDouble() ?: return null
-    return ReminderItem(id, text, date, time, recurrence, enabled, createdAt)
+    val taskListId = (data["taskListId"] as? String)?.takeIf(::isSafeId)
+    return ReminderItem(id, text, date, time, recurrence, taskListId, enabled, createdAt)
 }
 
 private fun writeReminder(uid: String, reminder: ReminderItem?, values: ReminderValues) {
@@ -9487,6 +9491,7 @@ private fun writeReminder(uid: String, reminder: ReminderItem?, values: Reminder
         "time" to values.time,
         "repeat" to values.recurrence.toFirestore(),
         "timeZone" to TimeZone.getDefault().id,
+        "taskListId" to values.taskListId,
         "updatedAt" to now
     )
     if (reminder != null) {
@@ -9548,12 +9553,14 @@ private fun rememberRemindersState(userId: String?): RemindersUiState {
 private fun RemindersScreen(
     navController: NavController?,
     userId: String?,
-    settingsState: SettingsState
+    settingsState: SettingsState,
+    externalTaskListsState: OrderedTaskListsUiState<TaskListDetail>? = null
 ) {
     val t = LocalTranslations.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val uiState = rememberRemindersState(userId)
+    val taskLists = (externalTaskListsState ?: rememberOrderedTaskListsState(userId, ::parseTaskListDetail)).taskLists
     val languageTag = t.languageTag()
     var editTarget by remember { mutableStateOf<ReminderItem?>(null) }
     var isCreating by remember { mutableStateOf(false) }
@@ -9599,7 +9606,8 @@ private fun RemindersScreen(
             !reminder.enabled -> t.t("reminders.paused")
             else -> null
         }
-        return listOfNotNull(reminder.time, schedule, state).joinToString(" · ")
+        val taskListName = taskLists.firstOrNull { it.id == reminder.taskListId }?.name
+        return listOfNotNull(reminder.time, schedule, taskListName, state).joinToString(" · ")
     }
 
     DetailScreenScaffold(
@@ -9740,6 +9748,7 @@ private fun RemindersScreen(
         val target = editTarget
         ReminderEditorSheet(
             reminder = target,
+            taskLists = taskLists,
             onDismiss = {
                 isCreating = false
                 editTarget = null
@@ -9886,6 +9895,7 @@ private fun ReminderTimePickerDialog(time: String, onDismiss: () -> Unit, onConf
 @Composable
 private fun ReminderEditorSheet(
     reminder: ReminderItem?,
+    taskLists: List<TaskListDetail>,
     onDismiss: () -> Unit,
     onSubmit: (ReminderValues) -> Unit,
     onDelete: () -> Unit
@@ -9911,6 +9921,7 @@ private fun ReminderEditorSheet(
     var interval by remember { mutableIntStateOf(initialCustom.interval) }
     var weekdays by remember { mutableStateOf(initialCustom.weekdays.toSet()) }
     var monthlyBy by remember { mutableStateOf(initialCustom.monthlyBy) }
+    var taskListId by remember { mutableStateOf(taskLists.firstOrNull { it.id == reminder?.taskListId }?.id) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val title = t.t(if (reminder == null) "reminders.add" else "reminders.edit")
     val recurrence = if (preset == RepeatPreset.Custom) {
@@ -9923,7 +9934,13 @@ private fun ReminderEditorSheet(
     } else {
         presetRecurrence(preset, date)
     }
-    val values = ReminderValues(text = text.trim(), date = date, time = time, recurrence = recurrence)
+    val values = ReminderValues(
+        text = text.trim(),
+        date = date,
+        time = time,
+        recurrence = recurrence,
+        taskListId = taskListId
+    )
     val isPast = isPastReminder(values.date, values.time, recurrence)
     val canSubmit = values.text.isNotEmpty() && !isPast && (recurrence.freq != "weekly" || recurrence.weekdays.isNotEmpty())
 
@@ -10043,6 +10060,15 @@ private fun ReminderEditorSheet(
                     )
                 }
             }
+            AppFieldLabel(t.t("reminders.addToTaskList"))
+            ReminderDropdownField(
+                t.t("reminders.addToTaskList"),
+                taskListId,
+                listOf<Pair<String?, String>>(null to t.t("reminders.addToTaskListNone")) +
+                    taskLists.map { it.id to it.name },
+                { taskListId = it },
+                Modifier.fillMaxWidth()
+            )
             if (isPast) {
                 Text(t.t("reminders.pastDateTime"), style = AppBodySmallTextStyle, color = mutedTextColor())
             }

@@ -200,10 +200,10 @@ class LightlistMessagingService : FirebaseMessagingService() {
         if (reminderId != null) ensureReminderNotificationChannel(this) else ensureSharedListNotificationChannel(this)
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            if (reminderId != null) {
+            if (taskListId != null) {
+                putExtra("taskListId", taskListId)
+            } else if (reminderId != null) {
                 putExtra(OPEN_REMINDERS_EXTRA, true)
-            } else {
-                taskListId?.let { putExtra("taskListId", it) }
             }
         }
         val tag = reminderId ?: taskListId

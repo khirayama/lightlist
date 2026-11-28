@@ -87,7 +87,7 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きのレ�
 
 ### reminders/{reminderId}
 
-リストに入れない、通知だけの個人用リマインダー（[reminders.md](./reminders.md)）。document ID は `^[A-Za-z0-9_-]{1,64}$`（APNs の collapse id の上限 64 bytes に収めるため）。本人だけが読み書きでき、一覧は `ownerUid` の等値クエリで購読する。
+タスクリストに属さない、通知のための個人用リマインダー（[reminders.md](./reminders.md)）。document ID は `^[A-Za-z0-9_-]{1,64}$`（APNs の collapse id の上限 64 bytes に収めるため）。本人だけが読み書きでき、一覧は `ownerUid` の等値クエリで購読する。
 
 - `ownerUid`: 所有者の uid。共有しない document のため生の uid を置く
 - `text`: trim 後 1〜200 文字の通知本文
@@ -99,6 +99,7 @@ iOS / Android の `taskLists` と `settings` の読み取りは型付きのレ�
   - `weekdays`: `weekly` のとき ISO 曜日番号（1〜7）の昇順・重複なしの 1〜7 件、それ以外は空配列
   - `monthlyBy`: `"day" | "weekday"`（`monthly` 以外では `"day"`）
 - `timeZone`: 作成・編集した端末の IANA タイムゾーン名（1〜64 文字）。MCP からは指定値か、省略時は本人の最新のリマインダーの値
+- `taskListId`: `string | null`（省略可。欠損は `null` と同じ）。配信と同時にタスクを追加する先のタスクリスト ID（`^[A-Za-z0-9_-]{1,128}$`）。`null` なら追加しない。参加中かどうかは Rules ではなく配信時に Functions が確認する
 - `enabled`: `boolean`。配信の有効 / 一時停止。繰り返さないものは配信後に Functions が `false` にする
 - `nextFireAt`: `number | null`。次回の配信時刻の Unix epoch milliseconds。Functions だけが書く
 - `createdAt` / `updatedAt`: Unix epoch milliseconds
@@ -155,7 +156,7 @@ Rules はクライアントに本人の uid での作成（3 field だけ）、`
 ## Firestore ルール
 
 - `settings/{uid}` と `taskListOrder/{uid}` は本人のみ読み書き可能。
-- `reminders/{reminderId}` は `ownerUid` が自分のものだけを読み書きでき、一覧は `ownerUid` で絞ったクエリだけを許可する。作成は全 field を持ち `ownerUid` が自分・`nextFireAt == null` の場合に限り、更新は `ownerUid` / `createdAt` / `nextFireAt` の変更を禁止する（クライアントは update 系 API で変更 field だけを書く）。各 field の形式と、`repeat` の key・値と `freq` に応じた `weekdays` の有無を検証する（`repeat` は map ごと書き換える）。
+- `reminders/{reminderId}` は `ownerUid` が自分のものだけを読み書きでき、一覧は `ownerUid` で絞ったクエリだけを許可する。作成は全 field（`taskListId` は省略可）を持ち `ownerUid` が自分・`nextFireAt == null` の場合に限り、更新は `ownerUid` / `createdAt` / `nextFireAt` の変更を禁止する（クライアントは update 系 API で変更 field だけを書く）。各 field の形式と、`repeat` の key・値と `freq` に応じた `weekdays` の有無を検証する（`repeat` は map ごと書き換える）。
 - `shareCodes/{shareCode}` は `get` のみ誰でも可能で、`list` は不可。リストの現在のコードと一致しない文書の取得は拒否する。作成は認証済みかつ対象リストを保持しているユーザーに限り、キーは `taskListId` / `createdAt` だけ、さらに同一 commit で `taskLists/{taskListId}.shareCode == shareCode` になることを要求する。クライアントからの更新は不可（`preview` は Functions だけが書く）。
 - `taskLists/{taskListId}` は `memberKeys` に自分の key がある場合だけ読み書きできる（参加の commit だけは同時に作る自分の membership document で判定する）。`memberKeys` は必須 field。共有コードの有無では読み取りを許可しない（`taskListId` を知っているだけの旧コード保持者や元メンバーが、コードの再発行後も読み続けられないようにするため）。
 - `memberKeys` は作成時は自分の key 1 件だけ、参加時（`memberCount` +1・membership 作成）は自分の key の追加だけ、離脱時（`memberCount` -1・membership 削除）は自分の key の除去だけを許可し、それ以外の更新では変更を禁止する。重複した key は許可しない。
